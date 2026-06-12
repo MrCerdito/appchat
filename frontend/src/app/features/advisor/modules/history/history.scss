@@ -1,0 +1,578 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap');
+
+// ── Tokens ────────────────────────────────────────────────────────────────────
+$font    : 'DM Sans', sans-serif;
+$bg      : #f6f5f3;
+$surface : #ffffff;
+$surface2: #f0eeec;
+$border  : rgba(0,0,0,0.08);
+$border-md: rgba(0,0,0,0.13);
+
+$text    : #181614;
+$text2   : #6b6560;
+$text3   : #9e9890;
+
+$blue    : #2455d4;
+$blue-dk : #1a42b0;
+$blue-bg : #edf2ff;
+$blue-lt : #dbe7ff;
+
+$green   : #19a35c;
+$green-bg: #e6f7ee;
+$amber   : #c47e0a;
+$amber-bg: #fef5e0;
+$red     : #d63b3b;
+$red-bg  : #fef0f0;
+
+$radius  : 9px;
+$radius-lg: 13px;
+$mobile  : 640px;
+
+// ── Host ──────────────────────────────────────────────────────────────────────
+:host {
+  display: flex; flex: 1; min-width: 0;
+  height: 100%; overflow: hidden; font-family: $font;
+}
+
+// ── Page Shell ────────────────────────────────────────────────────────────────
+.history-page {
+  display: flex; flex-direction: column;
+  flex: 1; min-width: 0; height: 100%;
+  background: $surface;
+}
+
+.page-header {
+  padding: 1.1rem 1.4rem 0.9rem;
+  border-bottom: 1px solid $border;
+  flex-shrink: 0;
+  background: $surface;
+
+  h1 {
+    font-size: 1.05rem; font-weight: 600;
+    color: $text; margin: 0 0 2px;
+  }
+  p { font-size: 0.78rem; color: $text3; margin: 0; }
+
+  @media (max-width: $mobile) {
+    padding: 0.85rem 1rem 0.7rem;
+    h1 { font-size: 0.95rem; }
+  }
+}
+
+// ── Layout ────────────────────────────────────────────────────────────────────
+.history-layout {
+  display: flex; flex: 1;
+  min-height: 0; overflow: hidden;
+
+  @media (max-width: $mobile) { position: relative; }
+}
+
+// ── Mobile Tab Bar ────────────────────────────────────────────────────────────
+.mobile-tab-bar {
+  display: none;
+
+  @media (max-width: $mobile) {
+    display: flex; flex-shrink: 0;
+    border-bottom: 1px solid $border;
+    background: $surface;
+
+    button {
+      flex: 1; padding: 0.6rem 0.5rem;
+      background: transparent; border: none;
+      font-family: $font; font-size: 0.78rem;
+      font-weight: 600; color: $text3;
+      cursor: pointer; border-bottom: 2px solid transparent;
+      transition: all .15s; margin-bottom: -1px;
+
+      &.active { color: $blue; border-bottom-color: $blue; }
+      &:disabled { opacity: 0.35; cursor: default; }
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SIDEBAR
+// ══════════════════════════════════════════════════════════════════════════════
+.sessions-sidebar {
+  width: 300px; min-width: 300px; flex-shrink: 0;
+  height: 100%; background: $surface;
+  border-right: 1px solid $border;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+
+  @media (max-width: $mobile) {
+    width: 100%; min-width: 0; border-right: none;
+    &.mobile-hidden { display: none; }
+  }
+}
+
+// ── Search ────────────────────────────────────────────────────────────────────
+.search-bar {
+  padding: 10px 10px 8px;
+  border-bottom: 1px solid $border;
+  flex-shrink: 0;
+  position: relative;
+
+  svg {
+    position: absolute;
+    left: 20px; top: 50%; transform: translateY(-50%);
+    width: 13px; height: 13px; stroke: $text3;
+    pointer-events: none;
+  }
+
+  input {
+    width: 100%; padding: 7px 10px 7px 30px;
+    background: $surface2;
+    border: 1px solid transparent; border-radius: 8px;
+    font-family: $font; font-size: 12.5px;
+    color: $text; outline: none; box-sizing: border-box;
+    transition: border-color .15s, background .15s;
+
+    &::placeholder { color: $text3; }
+    &:focus { background: $surface; border-color: $blue-lt; }
+  }
+}
+
+// ── Status Tabs ───────────────────────────────────────────────────────────────
+.filter-tabs {
+  display: flex; gap: 4px;
+  padding: 8px 10px;
+  border-bottom: 1px solid $border;
+  flex-shrink: 0;
+
+  button {
+    flex: 1; padding: 5px 4px;
+    border: 1px solid $border-md; border-radius: 7px;
+    background: transparent; font-family: $font;
+    font-size: 11.5px; font-weight: 500;
+    color: $text2; cursor: pointer;
+    transition: all .12s;
+
+    &:hover:not(.active) { background: $surface2; }
+    &.active { background: $blue; border-color: $blue; color: #fff; }
+  }
+}
+
+// ── Advanced Toggle ───────────────────────────────────────────────────────────
+.advanced-toggle {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-bottom: 1px solid $border;
+  flex-shrink: 0;
+
+  button {
+    background: none; border: none;
+    font-family: $font; font-size: 11.5px;
+    font-weight: 500; color: $blue;
+    cursor: pointer; padding: 2px 0;
+    display: flex; align-items: center; gap: 5px;
+    transition: opacity .12s;
+
+    &:hover { opacity: 0.7; }
+  }
+
+  .clear-btn { color: $red; font-size: 11px; }
+}
+
+.filter-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%; background: $red;
+}
+
+// ── Advanced Filters ──────────────────────────────────────────────────────────
+.advanced-filters {
+  padding: 8px 10px 10px;
+  border-bottom: 1px solid $border;
+  flex-shrink: 0;
+  background: $bg;
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  animation: slideDown .18s ease;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.filter-group {
+  display: flex; flex-direction: column; gap: 3px;
+
+  label {
+    font-size: 9.5px; font-weight: 600;
+    color: $text3; text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  select, input {
+    width: 100%; padding: 5px 8px;
+    border: 1px solid $border-md; border-radius: 6px;
+    font-family: $font; font-size: 11.5px;
+    color: $text; background: $surface;
+    outline: none; box-sizing: border-box;
+    transition: border-color .12s;
+
+    &:focus { border-color: $blue-lt; }
+  }
+
+  select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%239e9890'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    padding-right: 24px;
+  }
+}
+
+// ── Results Count ─────────────────────────────────────────────────────────────
+.results-count {
+  padding: 5px 10px;
+  font-size: 10px; font-weight: 600;
+  color: $text3; letter-spacing: 0.04em;
+  border-bottom: 1px solid $border;
+  flex-shrink: 0;
+}
+
+// ── Sessions List ─────────────────────────────────────────────────────────────
+.sessions-list {
+  flex: 1; overflow-y: auto;
+  padding: 6px 8px;
+
+  &::-webkit-scrollbar { width: 3px; }
+  &::-webkit-scrollbar-thumb { background: $border-md; border-radius: 3px; }
+}
+
+// ── Session Card ──────────────────────────────────────────────────────────────
+.session-card {
+  display: flex; align-items: center;
+  gap: 9px; padding: 9px 8px;
+  border-radius: $radius; cursor: pointer;
+  transition: background .12s;
+  margin-bottom: 1px; position: relative;
+
+  &:hover { background: $surface2; }
+
+  &.selected {
+    background: $blue-bg;
+
+    &::before {
+      content: '';
+      position: absolute; left: 0; top: 8px; bottom: 8px;
+      width: 3px; border-radius: 0 3px 3px 0;
+      background: $blue;
+    }
+  }
+
+  &.is-closed { opacity: 0.55; }
+}
+
+.session-avatar {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: $blue; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 600; flex-shrink: 0;
+
+  &.closed { background: $surface2; color: $text3; }
+}
+
+.session-info {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; gap: 1px;
+
+  .session-name {
+    font-size: 12.5px; font-weight: 500; color: $text;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .session-detail {
+    font-size: 11px; color: $blue; font-weight: 500;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .session-preview {
+    font-size: 11px; color: $text3;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+}
+
+.session-right {
+  display: flex; flex-direction: column;
+  align-items: flex-end; gap: 3px; flex-shrink: 0;
+
+  .session-time { font-size: 10px; color: $text3; }
+}
+
+// ── Badges ────────────────────────────────────────────────────────────────────
+.badge {
+  font-size: 9.5px; font-weight: 600;
+  padding: 1px 7px; border-radius: 20px;
+
+  &.badge-waiting { background: $amber-bg; color: $amber; }
+  &.badge-active  { background: $green-bg; color: $green; }
+  &.badge-closed  { background: $surface2; color: $text3; }
+  &.badge-ai      { background: #f2eeff;   color: #6c47d4; }
+}
+
+.empty-list {
+  text-align: center; padding: 2.5rem 1rem;
+  color: $text3; font-size: 12px;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// CHAT AREA
+// ══════════════════════════════════════════════════════════════════════════════
+.chat-area {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column;
+  overflow: hidden; background: $bg; height: 100%;
+
+  @media (max-width: $mobile) {
+    &.mobile-hidden { display: none; }
+  }
+}
+
+.empty-state {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 10px; color: $text3; background: $bg;
+
+  .empty-icon {
+    width: 52px; height: 52px; border-radius: 50%;
+    background: $surface; border: 1px solid $border;
+    display: flex; align-items: center; justify-content: center;
+    svg { width: 22px; height: 22px; }
+  }
+
+  h3 { font-size: 13px; font-weight: 600; color: $text2; margin: 0; }
+  p  { font-size: 12px; margin: 0; }
+}
+
+.chat-panel {
+  flex: 1; display: flex;
+  flex-direction: column; overflow: hidden;
+}
+
+// ── Chat Header ───────────────────────────────────────────────────────────────
+.chat-header {
+  padding: 10px 14px;
+  border-bottom: 1px solid $border;
+  display: flex; align-items: center;
+  justify-content: space-between;
+  background: $surface; flex-shrink: 0; gap: 8px;
+
+  @media (max-width: $mobile) { padding: 8px 10px; }
+}
+
+.client-info {
+  display: flex; align-items: center;
+  gap: 9px; min-width: 0; flex: 1;
+}
+
+.back-btn {
+  display: none;
+
+  @media (max-width: $mobile) {
+    display: flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px; flex-shrink: 0;
+    background: $blue-bg; border: none;
+    border-radius: 8px; color: $blue; cursor: pointer;
+    transition: background .12s;
+    svg { width: 15px; height: 15px; }
+    &:active { background: $blue-lt; }
+  }
+}
+
+.avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: $blue; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 600; flex-shrink: 0;
+}
+
+.header-text {
+  display: flex; flex-direction: column; gap: 1px; min-width: 0;
+}
+
+.client-name {
+  font-size: 13px; font-weight: 600; color: $text;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.session-meta {
+  font-size: 11px; color: $text3;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.header-right {
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+}
+
+// ── Ya estoy en este chat ─────────────────────────────────────────────────────
+.in-chat-badge {
+  display: flex; align-items: center; gap: 5px;
+  padding: 5px 10px;
+  background: $green-bg;
+  border: 1px solid rgba(25, 163, 92, 0.2);
+  border-radius: 8px;
+  font-size: 11.5px; font-weight: 500; color: $green;
+  white-space: nowrap;
+
+  svg { width: 13px; height: 13px; stroke: $green; flex-shrink: 0; }
+}
+
+// ── Takeover Button ───────────────────────────────────────────────────────────
+.takeover-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 12px;
+  background: $blue; color: #fff;
+  border: none; border-radius: 8px;
+  font-family: $font; font-size: 12px;
+  font-weight: 600; cursor: pointer;
+  transition: all .12s; white-space: nowrap;
+
+  svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+  &:hover:not(:disabled) { background: $blue-dk; }
+  &:disabled { opacity: 0.55; cursor: default; }
+  &.takeover-btn--loading { background: $text2; }
+}
+
+.spin-icon { animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+.takeover-toast {
+  padding: 8px 14px;
+  font-size: 12px; font-weight: 500;
+  text-align: center; flex-shrink: 0;
+  animation: slideDown .2s ease;
+
+  &.takeover-toast--ok {
+    background: $green-bg; color: $green;
+    border-bottom: 1px solid rgba(25, 163, 92, 0.15);
+  }
+  &.takeover-toast--error {
+    background: $red-bg; color: $red;
+    border-bottom: 1px solid rgba(214, 59, 59, 0.15);
+  }
+}
+
+// ── Messages ──────────────────────────────────────────────────────────────────
+.messages {
+  flex: 1; min-height: 0;
+  overflow-y: auto;
+  padding: 14px 16px;
+  display: flex; flex-direction: column;
+  gap: 10px; background: $bg;
+
+  &::-webkit-scrollbar { width: 3px; }
+  &::-webkit-scrollbar-thumb { background: $border-md; border-radius: 3px; }
+
+  @media (max-width: $mobile) { padding: 10px 12px; }
+}
+
+.no-messages {
+  text-align: center; color: $text3;
+  font-size: 12px; margin-top: 2rem;
+  display: flex; flex-direction: column;
+  align-items: center; gap: 8px;
+}
+
+.loading-dots {
+  display: flex; gap: 4px;
+
+  span {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: $text3;
+    animation: bounce 1.4s ease-in-out infinite;
+
+    &:nth-child(2) { animation-delay: .2s; }
+    &:nth-child(3) { animation-delay: .4s; }
+  }
+}
+
+@keyframes bounce {
+  0%,60%,100% { transform: translateY(0); opacity: .4; }
+  30%          { transform: translateY(-4px); opacity: 1; }
+}
+
+.message {
+  display: flex; flex-direction: column; max-width: 70%;
+
+  .sender {
+    font-size: 10px; color: $text3;
+    margin-bottom: 2px; padding: 0 4px;
+    font-weight: 500;
+  }
+
+  .bubble {
+    padding: 8px 12px;
+    font-size: 13px; line-height: 1.55;
+    word-break: break-word;
+    border-radius: $radius-lg;
+  }
+
+  .time {
+    font-size: 10px; color: $text3;
+    margin-top: 2px; padding: 0 4px;
+  }
+
+  &.mine {
+    align-self: flex-end; align-items: flex-end;
+    .bubble {
+      background: $blue; color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+  }
+
+  &.theirs {
+    align-self: flex-start; align-items: flex-start;
+    .bubble {
+      background: $surface; color: $text;
+      border-bottom-left-radius: 4px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    }
+  }
+
+  @media (max-width: $mobile) {
+    max-width: 85%;
+    .bubble { font-size: 12.5px; }
+  }
+}
+
+// ── Sistema ───────────────────────────────────────────────────────────────────
+.system-msg {
+  display: flex; flex-direction: column;
+  align-items: center; gap: 3px; padding: 3px 0;
+
+  .system-msg-inner {
+    display: flex; align-items: center; gap: 5px;
+    padding: 4px 10px;
+    background: #fef9e7; border: 1px solid #f0de8c;
+    border-radius: 20px;
+    font-size: 11px; color: #8a6a00; font-weight: 500;
+    max-width: 85%; text-align: center;
+
+    svg { width: 11px; height: 11px; stroke: #c9960a; flex-shrink: 0; }
+  }
+
+  .system-time { font-size: 10px; color: $text3; }
+}
+
+// ── Readonly Notice ───────────────────────────────────────────────────────────
+.readonly-notice {
+  display: flex; align-items: center;
+  justify-content: center; gap: 6px;
+  padding: 8px 14px;
+  background: $surface;
+  border-top: 1px solid $border;
+  font-size: 11.5px; color: $text3;
+  flex-shrink: 0; font-weight: 500;
+
+  svg { width: 12px; height: 12px; stroke: $text3; flex-shrink: 0; }
+}
+
+// ── Animaciones ───────────────────────────────────────────────────────────────
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

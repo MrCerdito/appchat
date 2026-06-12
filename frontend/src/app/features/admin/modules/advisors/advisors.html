@@ -1,0 +1,88 @@
+<div class="advisors-page">
+  <div class="page-header">
+    <div>
+      <h1>Asesores</h1>
+      <p>Gestiona el equipo de soporte</p>
+    </div>
+    <button class="btn-primary" (click)="openCreate()">+ Nuevo asesor</button>
+  </div>
+
+  <div class="alert success" *ngIf="success">{{ success }}</div>
+  <div class="alert error"   *ngIf="error && !showForm">{{ error }}</div>
+
+  <!-- Formulario -->
+  <div class="form-card" *ngIf="showForm">
+    <h3>{{ editingId ? 'Editar asesor' : 'Nuevo asesor' }}</h3>
+    <div class="form-grid">
+      <div class="field">
+        <label>Nombre</label>
+        <input type="text" [(ngModel)]="form.name" placeholder="Nombre completo"/>
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input type="email" [(ngModel)]="form.email" placeholder="correo@empresa.com"/>
+      </div>
+      <div class="field" *ngIf="!editingId">
+        <label>Contraseña</label>
+        <input type="password" [(ngModel)]="form.password" placeholder="Mínimo 6 caracteres"/>
+      </div>
+    </div>
+    <div class="alert error" *ngIf="error">{{ error }}</div>
+    <div class="form-actions">
+      <button class="btn-secondary" (click)="showForm = false">Cancelar</button>
+      <button class="btn-primary" (click)="save()" [disabled]="loading || !form.name || !form.email">
+        {{ loading ? 'Guardando...' : (editingId ? 'Guardar cambios' : 'Crear asesor') }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Tabla -->
+  <div class="table-card">
+    <table>
+      <thead>
+        <tr>
+          <th>Asesor</th>
+          <th>Email</th>
+          <th>Estado</th>
+          <th>Chats activos</th>
+          <th>Cuenta</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let a of advisors" [class.inactive]="!a.active">
+          <td>
+            <div class="advisor-cell">
+              <div class="avatar">{{ a.name.charAt(0) }}</div>
+              <span>{{ a.name }}</span>
+            </div>
+          </td>
+          <td class="muted">{{ a.email }}</td>
+          <td>
+            <span class="badge" [class]="'badge-' + (a.status ?? 'offline')">
+              {{ getStatusLabel(a.status) }}
+            </span>
+          </td>
+          <td class="center">{{ a.activeChats ?? 0 }}</td>
+          <td>
+            <span class="badge" [class]="a.active ? 'badge-active' : 'badge-closed'">
+              {{ a.active ? 'Activo' : 'Desactivado' }}
+            </span>
+          </td>
+          <td>
+            <div class="actions">
+              <button class="btn-icon edit"   (click)="openEdit(a)">Editar</button>
+              <button class="btn-icon toggle" (click)="toggle(a)">
+                {{ a.active ? 'Desactivar' : 'Activar' }}
+              </button>
+              <button class="btn-icon delete" (click)="remove(a)">Eliminar</button>
+            </div>
+          </td>
+        </tr>
+        <tr *ngIf="advisors.length === 0">
+          <td colspan="6" class="empty">No hay asesores registrados</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

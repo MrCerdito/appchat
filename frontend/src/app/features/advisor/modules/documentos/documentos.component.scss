@@ -1,0 +1,406 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+$blue     : #2563eb;
+$blue-dark: #1d4ed8;
+$blue-bg  : #eff6ff;
+$red      : #ef4444;
+$red-light: #fef2f2;
+$green    : #16a34a;
+$green-bg : #f0fdf4;
+$border   : #e2e8f0;
+$text     : #1e293b;
+$muted    : #64748b;
+$white    : #ffffff;
+$bg       : #f8fafc;
+$font     : 'Plus Jakarta Sans', sans-serif;
+
+$mobile : 640px;
+$tablet : 900px;
+
+:host { display: block; font-family: $font; }
+
+// ── Layout ────────────────────────────────────────────────────────────────────
+.docs-page {
+  padding: 2rem; max-width: 1200px; margin: 0 auto;
+  display: flex; flex-direction: column; gap: 1.5rem;
+
+  @media (max-width: $mobile) { padding: 1rem; gap: 1rem; }
+}
+
+// ── Header ────────────────────────────────────────────────────────────────────
+.docs-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+
+  @media (max-width: $mobile) {
+    flex-wrap: wrap; gap: 0.75rem;
+    .btn-primary { width: 100%; justify-content: center; }
+  }
+}
+
+.docs-title {
+  display: flex; align-items: center; gap: 0.85rem;
+  h1 { font-size: 1.2rem; font-weight: 700; color: $text; margin: 0; }
+  p  { font-size: 0.8rem; color: $muted; margin: 0; }
+
+  @media (max-width: $mobile) {
+    h1 { font-size: 1.05rem; }
+  }
+}
+
+.docs-icon {
+  width: 44px; height: 44px; border-radius: 12px; background: $blue-bg;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  svg { width: 22px; height: 22px; stroke: $blue; }
+}
+
+.btn-primary {
+  display: flex; align-items: center; gap: 0.45rem;
+  padding: 0.62rem 1.1rem; background: $blue; color: $white;
+  border: none; border-radius: 10px; font-family: $font;
+  font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: background 0.18s;
+  svg { width: 15px; height: 15px; }
+  &:hover { background: $blue-dark; }
+}
+
+// ── Success ───────────────────────────────────────────────────────────────────
+.upload-success {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.85rem 1.1rem; background: $green-bg;
+  border: 1px solid #bbf7d0; border-radius: 12px;
+  font-size: 0.85rem; color: #15803d;
+  svg { width: 16px; height: 16px; stroke: $green; flex-shrink: 0; }
+  .close-success { margin-left: auto; background: none; border: none; cursor: pointer; color: #15803d; opacity: 0.6; &:hover { opacity: 1; } }
+
+  @media (max-width: $mobile) {
+    font-size: 0.8rem; padding: 0.7rem 0.9rem;
+  }
+}
+
+// ── Upload form ───────────────────────────────────────────────────────────────
+.upload-form {
+  background: $white; border: 1px solid $border;
+  border-radius: 16px; padding: 1.5rem; animation: fadeIn 0.2s ease;
+
+  @media (max-width: $mobile) { padding: 1rem; }
+}
+
+.form-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 1.25rem;
+  span { font-size: 0.95rem; font-weight: 700; color: $text; }
+  .form-close { background: none; border: none; cursor: pointer; color: $muted; font-size: 1.1rem; &:hover { color: $red; } }
+}
+
+.form-grid {
+  display: grid; grid-template-columns: 200px 1fr; gap: 1.5rem;
+
+  @media (max-width: $tablet) { grid-template-columns: 1fr; }
+}
+
+.file-zone {
+  border: 2px dashed $border; border-radius: 12px; padding: 1.5rem 1rem;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 0.6rem; cursor: pointer; transition: all 0.18s; text-align: center;
+  svg { width: 32px; height: 32px; stroke: #94a3b8; }
+  .file-label { font-size: 0.78rem; font-weight: 500; color: $muted; word-break: break-all; }
+  .file-sub   { font-size: 0.7rem; color: #94a3b8; }
+  &:hover, &.has-file { border-color: $blue; background: $blue-bg; svg { stroke: $blue; } .file-label { color: $blue; } }
+
+  @media (max-width: $tablet) {
+    flex-direction: row; padding: 1rem; gap: 0.75rem; text-align: left;
+    svg { width: 24px; height: 24px; flex-shrink: 0; }
+    .file-label { font-size: 0.82rem; }
+  }
+}
+
+.form-fields { display: flex; flex-direction: column; gap: 0.85rem; }
+
+.field {
+  display: flex; flex-direction: column; gap: 4px;
+  label {
+    font-size: 0.78rem; font-weight: 500; color: $text;
+    .req      { color: $red; margin-left: 2px; }
+    .optional { font-size: 0.7rem; color: $muted; font-weight: 400; }
+  }
+  input, select {
+    padding: 0.6rem 0.85rem; border: 1px solid $border; border-radius: 8px;
+    font-family: $font; font-size: 0.875rem; color: $text; outline: none;
+    transition: border-color 0.18s; background: $white; -webkit-appearance: none;
+    &::placeholder { color: #9ea9b5; }
+    &:focus { border-color: $blue; box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
+  }
+  .err-msg { font-size: 0.72rem; color: $red; display: none; }
+  &.error { input, select { border-color: $red; } .err-msg { display: block; } }
+}
+
+.field-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;
+
+  @media (max-width: $mobile) { grid-template-columns: 1fr; }
+}
+
+.roles-check { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 2px; }
+
+.role-opt {
+  display: flex; align-items: center; gap: 5px;
+  padding: 0.35rem 0.8rem; border: 1.5px solid $border; border-radius: 20px;
+  font-size: 0.78rem; font-weight: 500; color: $muted; cursor: pointer;
+  transition: all 0.15s; user-select: none;
+  svg { width: 11px; height: 11px; flex-shrink: 0; }
+  &:hover { border-color: $blue; color: $blue; }
+  &.active { background: $blue; border-color: $blue; color: $white; }
+}
+
+.upload-error {
+  padding: 0.6rem 0.85rem; background: $red-light;
+  border: 1px solid #fecaca; border-radius: 8px; font-size: 0.8rem; color: $red;
+}
+
+.form-actions {
+  display: flex; gap: 0.6rem; justify-content: flex-end; margin-top: 0.25rem;
+
+  @media (max-width: $mobile) {
+    flex-direction: column-reverse;
+    .btn-cancel, .btn-submit { width: 100%; justify-content: center; }
+  }
+}
+
+.btn-cancel {
+  padding: 0.6rem 1.1rem; background: $white; border: 1px solid $border;
+  border-radius: 8px; font-family: $font; font-size: 0.875rem; font-weight: 500;
+  color: $muted; cursor: pointer; transition: all 0.15s;
+  &:hover { border-color: #94a3b8; color: $text; }
+}
+
+.btn-submit {
+  display: flex; align-items: center; gap: 0.45rem;
+  padding: 0.6rem 1.25rem; background: $blue; color: $white;
+  border: none; border-radius: 8px; font-family: $font;
+  font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: background 0.18s;
+  &:hover:not(:disabled) { background: $blue-dark; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+  .spin { width: 14px; height: 14px; animation: spin 0.7s linear infinite; }
+}
+
+// ── Tabla → Cards en mobile ───────────────────────────────────────────────────
+.table-wrap {
+  background: $white; border: 1px solid $border;
+  border-radius: 16px; overflow: hidden;
+
+  @media (max-width: $tablet) { overflow-x: auto; }
+
+  @media (max-width: $mobile) {
+    // Hide scroll table; cards are rendered instead (see .mobile-cards below)
+    display: none;
+  }
+}
+
+.docs-table {
+  width: 100%; border-collapse: collapse;
+  thead tr { background: $bg; border-bottom: 1px solid $border; }
+  th {
+    padding: 0.75rem 1rem; font-size: 0.75rem; font-weight: 600;
+    color: $muted; text-align: left; text-transform: uppercase;
+    letter-spacing: 0.04em; white-space: nowrap;
+  }
+  tbody tr { border-bottom: 1px solid $border; transition: background 0.12s; &:last-child { border-bottom: none; } &:hover { background: #fafafa; } }
+  td { padding: 0.85rem 1rem; font-size: 0.85rem; color: $text; vertical-align: middle; }
+  td.center { text-align: center; }
+  td.muted   { color: $muted; font-size: 0.8rem; }
+}
+
+// ── Mobile card list (replaces table) ────────────────────────────────────────
+.mobile-cards {
+  display: none;
+
+  @media (max-width: $mobile) {
+    display: flex; flex-direction: column; gap: 0.75rem;
+  }
+}
+
+.mobile-card {
+  background: $white; border: 1px solid $border;
+  border-radius: 14px; padding: 1rem; display: flex; flex-direction: column; gap: 0.7rem;
+}
+
+.mobile-card-header {
+  display: flex; align-items: flex-start; gap: 0.75rem;
+  .doc-icon-sm { flex-shrink: 0; }
+  .mobile-card-title {
+    flex: 1; min-width: 0;
+    .doc-nombre { display: block; font-weight: 600; color: $text; font-size: 0.88rem; word-break: break-word; }
+    .doc-desc   { display: block; font-size: 0.72rem; color: $muted; margin-top: 2px; }
+  }
+  .mobile-card-date { font-size: 0.7rem; color: $muted; white-space: nowrap; }
+}
+
+.mobile-card-meta {
+  display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center;
+}
+
+.mobile-card-actions {
+  display: flex; gap: 0.5rem; flex-wrap: wrap; padding-top: 0.25rem; border-top: 1px solid $border;
+
+  .action-btn { flex: 1; justify-content: center; min-width: 80px; }
+}
+
+// ── Shared doc cells ──────────────────────────────────────────────────────────
+.doc-name-cell { display: flex; align-items: center; gap: 0.75rem; }
+
+.doc-icon-sm {
+  width: 34px; height: 34px; border-radius: 8px; background: #fef3c7;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  svg { width: 16px; height: 16px; stroke: #d97706; }
+}
+
+.doc-nombre { display: block; font-weight: 600; color: $text; }
+.doc-desc   { display: block; font-size: 0.72rem; color: $muted; margin-top: 1px; }
+
+// ── Tags ──────────────────────────────────────────────────────────────────────
+.tag { font-size: 0.68rem; font-weight: 600; padding: 3px 9px; border-radius: 20px; display: inline-block; }
+.tag-cat    { background: $blue-bg;  color: $blue; }
+.tag-colegio{ background: #f5f3ff;   color: #7c3aed; }
+.tag-global { background: $green-bg; color: $green; }
+.tag-chunks { background: $bg; color: $muted; border: 1px solid $border; }
+.tag-rol    { background: #fdf4ff; color: #7c3aed; margin: 1px 2px; }
+
+.roles-tags { display: flex; flex-wrap: wrap; gap: 3px; }
+
+// ── Acciones ──────────────────────────────────────────────────────────────────
+.actions-cell { display: flex; gap: 6px; align-items: center; }
+
+.action-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 0.35rem 0.7rem; border-radius: 7px;
+  border: 1px solid $border; background: $white;
+  font-family: $font; font-size: 0.75rem; font-weight: 500;
+  cursor: pointer; transition: all 0.15s; color: $muted; white-space: nowrap;
+  svg { width: 13px; height: 13px; }
+
+  &--view  { &:hover { border-color: #bfdbfe; color: $blue; background: $blue-bg; } }
+  &--edit  { &:hover { border-color: #fde68a; color: #d97706; background: #fffbeb; } }
+  &--delete{ &:hover { border-color: #fecaca; color: $red; background: $red-light; } }
+}
+
+// ── Empty / loading ───────────────────────────────────────────────────────────
+.empty-state {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 0.75rem; padding: 4rem 2rem; text-align: center; color: $muted;
+  svg { width: 48px; height: 48px; opacity: 0.25; }
+  h3  { font-size: 1rem; font-weight: 600; color: $text; margin: 0; }
+  p   { font-size: 0.85rem; margin: 0; }
+
+  @media (max-width: $mobile) { padding: 3rem 1rem; }
+}
+
+.loading-state {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 3rem; justify-content: center; color: $muted; font-size: 0.85rem;
+}
+
+.spinner {
+  width: 20px; height: 20px; border: 2px solid $border;
+  border-top-color: $blue; border-radius: 50%; animation: spin 0.7s linear infinite;
+}
+
+// ── Test panel ────────────────────────────────────────────────────────────────
+.test-panel {
+  background: $white; border: 1px solid $border;
+  border-radius: 16px; padding: 1.25rem 1.5rem;
+  display: flex; flex-direction: column; gap: 1rem;
+
+  @media (max-width: $mobile) { padding: 1rem; }
+}
+
+.test-header {
+  display: flex; align-items: center; gap: 0.6rem;
+  font-size: 0.85rem; font-weight: 600; color: $text;
+  svg { width: 16px; height: 16px; stroke: $muted; }
+}
+
+.test-input {
+  display: flex; gap: 0.6rem;
+  input {
+    flex: 1; padding: 0.6rem 1rem; border: 1px solid $border;
+    border-radius: 8px; font-family: $font; font-size: 0.875rem;
+    color: $text; outline: none; min-width: 0;
+    &:focus { border-color: $blue; }
+    &::placeholder { color: #9ea9b5; }
+  }
+  button {
+    padding: 0.6rem 1.1rem; background: $blue; color: $white;
+    border: none; border-radius: 8px; font-family: $font;
+    font-size: 0.875rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+    &:hover:not(:disabled) { background: $blue-dark; }
+    &:disabled { opacity: 0.5; cursor: not-allowed; }
+  }
+
+  @media (max-width: $mobile) {
+    flex-direction: column;
+    button { width: 100%; }
+  }
+}
+
+.test-resultado {
+  background: $bg; border-radius: 10px; padding: 1rem;
+  font-size: 0.82rem; color: $text;
+  strong { display: block; margin-bottom: 0.5rem; }
+}
+
+.test-doc {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.35rem 0; border-bottom: 1px solid $border;
+  &:last-of-type { border-bottom: none; }
+  .test-doc-nombre { font-weight: 500; flex: 1; }
+  .test-doc-cat { font-size: 0.7rem; color: $muted; background: $border; padding: 2px 6px; border-radius: 10px; }
+}
+
+.test-contexto {
+  margin-top: 0.75rem;
+  summary { cursor: pointer; font-size: 0.78rem; color: $muted; }
+  pre { font-size: 0.72rem; color: $muted; white-space: pre-wrap; max-height: 200px; overflow-y: auto; }
+}
+
+.test-empty { color: $muted; font-size: 0.82rem; }
+
+// ── Modal ─────────────────────────────────────────────────────────────────────
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(15,23,42,0.3);
+  display: flex; align-items: center; justify-content: center; z-index: 1000;
+  padding: 1rem; // prevents modal from touching edges on mobile
+}
+
+.modal {
+  background: $white; border-radius: 16px; padding: 1.75rem 1.5rem;
+  width: 340px; max-width: 100%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+  display: flex; flex-direction: column; align-items: center;
+  gap: 0.75rem; text-align: center; animation: slideUp 0.2s ease;
+
+  @media (max-width: $mobile) { width: 100%; padding: 1.25rem; }
+}
+
+.modal-icon {
+  width: 44px; height: 44px; border-radius: 50%; background: $red-light;
+  display: flex; align-items: center; justify-content: center;
+  svg { width: 20px; height: 20px; stroke: $red; }
+}
+
+.modal-text { font-size: 0.95rem; font-weight: 600; color: $text; margin: 0; }
+.modal-sub  { font-size: 0.76rem; color: $muted; }
+
+.modal-actions {
+  display: flex; gap: 0.6rem; width: 100%; margin-top: 0.25rem;
+}
+
+.btn-danger {
+  flex: 1; padding: 0.62rem; background: $red; color: $white;
+  border: none; border-radius: 8px; font-family: $font;
+  font-size: 0.875rem; font-weight: 600; cursor: pointer;
+  &:hover { background: #dc2626; }
+}
+
+// ── Animaciones ───────────────────────────────────────────────────────────────
+@keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { transform: translateY(8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes spin    { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
