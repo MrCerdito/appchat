@@ -321,11 +321,20 @@ export class SessionsService {
     });
   }
 
-  async getMetricsByAdvisor(advisorId: string) {
-    const hoy = new Date();
+  private percentile(values: number[], p: number): number {
+    if (values.length === 0) return 0;
+    const sorted = [...values].sort((a, b) => a - b);
+    const index = Math.ceil((p / 100) * sorted.length) - 1;
+    return sorted[Math.max(0, Math.min(index, sorted.length - 1))];
+  }
+
+  async getMetricsByAdvisor(advisorId: string, timezone?: string) {
+    const tz = timezone || 'America/Bogota';
+    const now = new Date();
+    const hoy = new Date(now.toLocaleString('en-US', { timeZone: tz }));
     hoy.setHours(0, 0, 0, 0);
 
-    const inicioSemana = new Date();
+    const inicioSemana = new Date(now.toLocaleString('en-US', { timeZone: tz }));
     inicioSemana.setDate(inicioSemana.getDate() - 7);
     inicioSemana.setHours(0, 0, 0, 0);
 
@@ -374,23 +383,24 @@ export class SessionsService {
       .addGroupBy('s.created_at')
       .getRawMany<{ sessionId: string; firstResponseAt: string; sessionCreatedAt: string }>();
 
-    const totalPrimeraRespuesta = firstResponses.reduce((acc, r) => {
-      return acc + (new Date(r.firstResponseAt).getTime() - new Date(r.sessionCreatedAt).getTime());
-    }, 0);
-    const countPrimeraRespuesta = firstResponses.length;
+    const resolutionMinutes = cerradas
+      .filter(s => s.closedAt)
+      .map(s => (new Date(s.closedAt!).getTime() - new Date(s.createdAt).getTime()) / 1000 / 60);
 
-    const avgPrimeraRespuestaMin = countPrimeraRespuesta > 0
-      ? totalPrimeraRespuesta / countPrimeraRespuesta / 1000 / 60
+    const firstResponseMinutes = firstResponses
+      .map(r => (new Date(r.firstResponseAt).getTime() - new Date(r.sessionCreatedAt).getTime()) / 1000 / 60);
+
+    const avgResolucionMin = resolutionMinutes.length > 0
+      ? resolutionMinutes.reduce((a, b) => a + b, 0) / resolutionMinutes.length
       : 0;
 
-    const avgResolucionMin = cerradas.length > 0
-      ? cerradas.reduce((acc, s) => {
-          if (!s.closedAt) return acc;
-          return acc + (new Date(s.closedAt).getTime() - new Date(s.createdAt).getTime());
-        }, 0) / cerradas.length / 1000 / 60
+    const avgPrimeraRespuestaMin = firstResponseMinutes.length > 0
+      ? firstResponseMinutes.reduce((a, b) => a + b, 0) / firstResponseMinutes.length
       : 0;
 
-    const tasaResolucion = total > 0 ? Math.round((totalCerradas / total) * 100) : 0;
+    // Tasa de resolución: cerradas / (cerradas + activas) — mide resolución sobre sesiones atendidas
+    const sesionesAtendidas = totalCerradas + totalActivas;
+    const tasaResolucion = sesionesAtendidas > 0 ? Math.round((totalCerradas / sesionesAtendidas) * 100) : 0;
 
     const totalRatings = ratings.length;
     const avgEstrellas = totalRatings > 0
@@ -417,7 +427,11 @@ export class SessionsService {
       totalActivas,
       tasaResolucion,
       avgResolucionMin:       Math.round(avgResolucionMin),
+      medianaResolucionMin:   Math.round(this.percentile(resolutionMinutes, 50)),
+      p95ResolucionMin:       Math.round(this.percentile(resolutionMinutes, 95)),
       avgPrimeraRespuestaMin: Math.round(avgPrimeraRespuestaMin),
+      medianaPrimeraRespuestaMin: Math.round(this.percentile(firstResponseMinutes, 50)),
+      p95PrimeraRespuestaMin:     Math.round(this.percentile(firstResponseMinutes, 95)),
       totalRatings,
       avgEstrellas:           Math.round(avgEstrellas * 10) / 10,
       topEtiquetas,
@@ -481,11 +495,12 @@ export class SessionsService {
       select: ['createdAt', 'closedAt'],
     });
 
-    const avgMinutes = closedSessions.length > 0
-      ? closedSessions.reduce((acc, s) => {
-          if (!s.closedAt) return acc;
-          return acc + (new Date(s.closedAt).getTime() - new Date(s.createdAt).getTime());
-        }, 0) / closedSessions.length / 1000 / 60
+    const minutes = closedSessions
+      .filter(s => s.closedAt)
+      .map(s => (new Date(s.closedAt!).getTime() - new Date(s.createdAt).getTime()) / 1000 / 60);
+
+    const avgMinutes = minutes.length > 0
+      ? minutes.reduce((a, b) => a + b, 0) / minutes.length
       : 0;
 
     const advisors = await this.userRepo.find({
@@ -493,7 +508,13 @@ export class SessionsService {
       select: ['id', 'name', 'status', 'activeChats', 'active'],
     });
 
-    return { total, active, waiting, ai, closed, avgMinutes: Math.round(avgMinutes), advisors };
+    return {
+      total, active, waiting, ai, closed,
+      avgMinutes:      Math.round(avgMinutes),
+      medianaMinutos:  Math.round(this.percentile(minutes, 50)),
+      p95Minutos:      Math.round(this.percentile(minutes, 95)),
+      advisors,
+    };
   }
 
   async findAllAdmin(): Promise<Session[]> {
@@ -549,9 +570,26 @@ export class SessionsService {
     const sessionMap = new Map(sessionStats.map(s => [s.advisorId, s]));
     const ratingMap = new Map(ratingStats.map(r => [r.advisorId, r]));
 
+    // Promedio global de estrellas (para bayesian)
+    let globalAvg = 0;
+    let totalGlobalRatings = 0;
+    for (const r of ratingStats) {
+      const count = Number(r.totalRatings);
+      globalAvg += Number(r.avgEstrellas) * count;
+      totalGlobalRatings += count;
+    }
+    globalAvg = totalGlobalRatings > 0 ? globalAvg / totalGlobalRatings : 3;
+    const C = 10; // constante de confianza bayesiana
+
     const ranking = advisors.map(advisor => {
       const stats = sessionMap.get(advisor.id);
       const rStats = ratingMap.get(advisor.id);
+      const rawAvg = rStats?.avgEstrellas ? Number(rStats.avgEstrellas) : 0;
+      const count = Number(rStats?.totalRatings ?? 0);
+      // Promedio bayesiano: pondera hacia el promedio global cuando hay pocas reseñas
+      const bayesianAvg = count > 0
+        ? (count * rawAvg + C * globalAvg) / (count + C)
+        : 0;
       return {
         id: advisor.id,
         name: advisor.name,
@@ -559,14 +597,15 @@ export class SessionsService {
         activeChats: advisor.activeChats,
         total: Number(stats?.total ?? 0),
         totalCerradas: Number(stats?.closedCount ?? 0),
-        totalRatings: Number(rStats?.totalRatings ?? 0),
-        avgEstrellas: rStats?.avgEstrellas ? Math.round(Number(rStats.avgEstrellas) * 10) / 10 : 0,
+        totalRatings: count,
+        avgEstrellas: Math.round(rawAvg * 10) / 10,
+        bayesianAvg:  Math.round(bayesianAvg * 10) / 10,
       };
     });
 
     return ranking.sort((a, b) =>
-      b.avgEstrellas !== a.avgEstrellas
-        ? b.avgEstrellas - a.avgEstrellas
+      b.bayesianAvg !== a.bayesianAvg
+        ? b.bayesianAvg - a.bayesianAvg
         : b.total - a.total
     );
   }

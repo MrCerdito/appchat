@@ -21,6 +21,7 @@ export interface RankingAsesor {
   totalCerradas: number;
   totalRatings: number;
   avgEstrellas: number;
+  bayesianAvg: number;
 }
 
 export interface AdvisorMetrics {
@@ -39,7 +40,11 @@ export interface AdvisorMetrics {
   totalActivas: number;
   tasaResolucion: number;
   avgResolucionMin: number;
+  medianaResolucionMin: number;
+  p95ResolucionMin: number;
   avgPrimeraRespuestaMin: number;
+  medianaPrimeraRespuestaMin: number;
+  p95PrimeraRespuestaMin: number;
   totalRatings: number;
   avgEstrellas: number;
   topEtiquetas: { etiqueta: string; count: number }[];

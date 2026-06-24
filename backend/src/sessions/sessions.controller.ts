@@ -74,8 +74,11 @@ export class SessionsController {
 
   @Get('metrics/asesor/:id')
   @UseGuards(JwtAuthGuard)
-  getMetricsByAdvisor(@Param('id') id: string) {
-    return this.sessionsService.getMetricsByAdvisor(id);
+  getMetricsByAdvisor(
+    @Param('id') id: string,
+    @Query('tz') tz?: string,
+  ) {
+    return this.sessionsService.getMetricsByAdvisor(id, tz);
   }
 
   @Get('admin/all')

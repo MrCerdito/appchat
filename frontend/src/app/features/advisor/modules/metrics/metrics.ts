@@ -1,8 +1,10 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { SessionService, AdvisorMetrics, RankingAsesor } from '../../../../core/services/session.service';
 import { AuthService } from '../../../../core/services/auth.service';
-import { interval, Subscription, switchMap, startWith } from 'rxjs';
+import { SocketService } from '../../../../core/services/socket.service';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
 
 @Component({
@@ -28,24 +30,51 @@ export class AdvisorMetricsComponent implements OnInit, OnDestroy {
   comentPages = 1;
   comentTotal = 0;
 
-  private subs = new Subscription();
-  private readonly INTERVAL_MS = 10_000;
+  private destroy$ = new Subject<void>();
+  private userId: string | null = null;
 
   constructor(
     private sessionService: SessionService,
     private authService: AuthService,
+    private socket: SocketService,
     private cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit(): void {
     const user = this.authService.getUser();
     if (!user?.id) return;
+    this.userId = user.id;
 
-    // ── Métricas del asesor — polling cada 30s ────────────
-    const metricsSub = interval(this.INTERVAL_MS).pipe(
-      startWith(0), // dispara inmediatamente al iniciar
-      switchMap(() => this.sessionService.getMetricsByAdvisor(user.id)),
-    ).subscribe({
+    this.fetchMetrics();
+    this.loadComentarios();
+
+    this.socket.on('metrics_updated')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.fetchMetrics();
+      });
+
+    this.socket.on('session_updated')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.fetchMetrics();
+      });
+
+    this.socket.on('advisor_status_changed')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.fetchMetrics();
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  private fetchMetrics(): void {
+    if (!this.userId) return;
+    this.sessionService.getMetricsByAdvisor(this.userId).subscribe({
       next: (m) => {
         this.metrics     = m;
         this.loading     = false;
@@ -59,36 +88,23 @@ export class AdvisorMetricsComponent implements OnInit, OnDestroy {
       },
     });
 
-    // ── Ranking — polling cada 30s ────────────────────────
-    const rankingSub = interval(this.INTERVAL_MS).pipe(
-      startWith(0),
-      switchMap(() => this.sessionService.getRankingAsesores()),
-    ).subscribe({
+    this.sessionService.getRankingAsesores().subscribe({
       next: (r) => {
         this.ranking = r;
         this.cdr.detectChanges();
       },
     });
-    this.loadComentarios();
-    this.subs.add(metricsSub);
-    this.subs.add(rankingSub);
   }
 
   loadComentarios(page = 1): void {
-  const user = this.authService.getUser();
-  if (!user?.id) return;
-  this.sessionService.getComentariosByAdvisor(user.id, page, 5).subscribe(res => {
-    this.comentarios = res.data;
-    this.comentPage  = res.page;
-    this.comentPages = res.pages;
-    this.comentTotal = res.total;
-    this.cdr.detectChanges();
-  });
-}
-
-
-  ngOnDestroy(): void {
-    this.subs.unsubscribe(); // limpia los intervals al salir
+    if (!this.userId) return;
+    this.sessionService.getComentariosByAdvisor(this.userId, page, 5).subscribe(res => {
+      this.comentarios = res.data;
+      this.comentPage  = res.page;
+      this.comentPages = res.pages;
+      this.comentTotal = res.total;
+      this.cdr.detectChanges();
+    });
   }
 
   getStatusLabel(status?: string): string {

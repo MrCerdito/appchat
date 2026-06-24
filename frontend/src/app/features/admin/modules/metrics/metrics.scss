@@ -326,7 +326,9 @@ $purple: #a78bfa;
   background: $blue;
 }
 
-.kpi-num.blue { color: $blue; }
+.kpi-num.blue   { color: $blue; }
+.kpi-num.teal   { color: #0d9488; }
+.kpi-num.purple { color: $purple; }
 
 .advisor-name {
   display: flex; align-items: center; gap: 0.5rem;

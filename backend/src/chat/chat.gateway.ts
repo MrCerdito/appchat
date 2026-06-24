@@ -250,7 +250,8 @@ export class ChatGateway
     if (client.data.role !== 'client') return;
     const session = await this.sessionsService.requestAdvisor(sessionId);
     if (session.status !== 'waiting') return;
-    this.server.emit('session_updated', { sessionId, status: 'waiting' });
+      this.server.emit('session_updated', { sessionId, status: 'waiting' });
+      this.server.emit('metrics_updated', { type: 'session_status', sessionId, status: 'waiting' });
     this.sessionToSocket.set(sessionId, client.id);
     const assigned = await this.autoAssignAdvisor(sessionId, session.clientName);
     if (!assigned) {
@@ -433,6 +434,7 @@ async handleJoinActiveChat(
     );
     this.server.to(sessionId).emit('new_message', msg);
     this.server.emit('session_updated', { sessionId, status: 'active' });
+    this.server.emit('metrics_updated', { type: 'session_status', sessionId, status: 'active' });
 
     for (const advisorId of [oldAdvisorId, newAdvisorId].filter(Boolean) as string[]) {
       const advisor = await this.sessionsService.findAdvisorById(advisorId);
@@ -565,6 +567,7 @@ async handleJoinActiveChat(
     );
     this.server.to(data.sessionId).emit('new_message', msg);
     this.server.emit('session_updated', { sessionId: data.sessionId, status: 'active' });
+    this.server.emit('metrics_updated', { type: 'session_status', sessionId: data.sessionId, status: 'active' });
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -613,6 +616,7 @@ async handleJoinActiveChat(
 
     this.server.to(sessionId).emit('session_closed', { sessionId });
     this.server.emit('session_updated', { sessionId, status: 'closed' });
+    this.server.emit('metrics_updated', { type: 'session_closed', sessionId });
 
     if (advisorId) {
       const a = await this.sessionsService.findAdvisorById(advisorId);
@@ -924,6 +928,7 @@ async handleJoinActiveChat(
             await this.sessionsService.close(sessionId);
             this.server.to(sessionId).emit('session_closed', { sessionId });
             this.server.emit('session_updated', { sessionId, status: 'closed' });
+            this.server.emit('metrics_updated', { type: 'session_closed', sessionId });
             await this.assignPendingSessions();
           }, 3_000);
         }
@@ -1020,6 +1025,7 @@ async handleJoinActiveChat(
     this.server.to(sessionId).emit('advisor_joined', { name: advisor.name });
     advisorSocket.emit('session_assigned', { sessionId, clientName });
     this.server.emit('session_updated', { sessionId, status: 'active' });
+    this.server.emit('metrics_updated', { type: 'session_status', sessionId, status: 'active' });
     const refreshedAdvisor = await this.sessionsService.findAdvisorById(advisor.id);
     if (refreshedAdvisor) {
       this.server.emit('advisor_status_changed', {

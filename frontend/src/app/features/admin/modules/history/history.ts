@@ -1,6 +1,9 @@
-import { Component, OnInit, ViewChild, ElementRef, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
+import { SocketService } from '../../../../core/services/socket.service';
 import { SessionService } from '../../../../core/services/session.service';
 import { Message } from '../../../../core/models/message.model';
 import { Session } from '../../../../core/models/session.model';
@@ -14,7 +17,7 @@ import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
   styleUrl: './history.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class HistoryGlobalComponent implements OnInit {
+export class HistoryGlobalComponent implements OnInit, OnDestroy {
   protected readonly trackByIndex = trackByIndex;
   protected readonly trackById = trackById;
   @ViewChild('messagesContainer') messagesContainer!: ElementRef;
@@ -26,7 +29,13 @@ export class HistoryGlobalComponent implements OnInit {
   search = '';
   loading = false;
 
-  constructor(private sessionService: SessionService, private cdr: ChangeDetectorRef) {}
+  private destroy$ = new Subject<void>();
+
+  constructor(
+    private sessionService: SessionService,
+    private socket: SocketService,
+    private cdr: ChangeDetectorRef,
+  ) {}
 
   get filteredSessions(): Session[] {
     return this.sessions.filter(s => {
@@ -43,6 +52,32 @@ export class HistoryGlobalComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadSessions();
+    this.listenSocketEvents();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  private listenSocketEvents(): void {
+    this.socket.on<{ sessionId: string }>('session_updated')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.loadSessions();
+      });
+
+    this.socket.on<any>('new_message')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((msg) => {
+        if (this.activeSession && msg.sessionId === this.activeSession.id) {
+          if (!this.messages.some(m => m.id === msg.id)) {
+            this.messages = [...this.messages, msg];
+            this.cdr.detectChanges();
+            this.scrollToBottom();
+          }
+        }
+      });
   }
 
   loadSessions(): void {
@@ -55,18 +90,14 @@ export class HistoryGlobalComponent implements OnInit {
     this.activeSession = session;
     this.messages = [];
     this.loading = true;
+    this.socket.emit('join_session', { sessionId: session.id });
 
     this.sessionService.getMessages(session.id).subscribe({
       next: (msgs) => {
         this.messages = msgs;
         this.loading = false;
         this.cdr.detectChanges();
-        setTimeout(() => {
-          if (this.messagesContainer) {
-            this.messagesContainer.nativeElement.scrollTop =
-              this.messagesContainer.nativeElement.scrollHeight;
-          }
-        }, 50);
+        this.scrollToBottom();
       },
       error: () => { this.loading = false; this.cdr.detectChanges(); },
     });
@@ -75,5 +106,14 @@ export class HistoryGlobalComponent implements OnInit {
   getStatusLabel(status: string): string {
     const map: Record<string, string> = { waiting: 'Esperando', active: 'Activo', closed: 'Cerrado' };
     return map[status] ?? status;
+  }
+
+  private scrollToBottom(): void {
+    setTimeout(() => {
+      if (this.messagesContainer) {
+        this.messagesContainer.nativeElement.scrollTop =
+          this.messagesContainer.nativeElement.scrollHeight;
+      }
+    }, 50);
   }
 }

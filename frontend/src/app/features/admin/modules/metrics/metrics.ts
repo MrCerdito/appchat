@@ -3,12 +3,12 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { AdminService, Metrics } from '../../../../core/services/admin.service';
 import { SessionService, RankingAsesor } from '../../../../core/services/session.service';
+import { SocketService } from '../../../../core/services/socket.service';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
-
-// Intervalo de polling en ms — 2 segundos para métricas en vivo
-const POLL_INTERVAL = 2_000;
 
 @Component({
   selector: 'app-metrics',
@@ -33,38 +33,45 @@ export class MetricsComponent implements OnInit, OnDestroy {
   comentTotal     = 0;
   selectedAdvisor = '';
 
-  // Timer del polling — se limpia en ngOnDestroy para no dejar fugas de memoria
-  private pollTimer: ReturnType<typeof setInterval> | null = null;
+  private destroy$ = new Subject<void>();
 
   constructor(
     private adminService  : AdminService,
     private sessionService: SessionService,
+    private socket        : SocketService,
     private cdr           : ChangeDetectorRef,
   ) {}
 
   ngOnInit(): void {
-    // Carga inicial inmediata
     this.fetchMetrics();
     this.loadComentarios();
 
-    // Polling cada 2 segundos: refresca métricas y ranking en vivo
-    // Los comentarios NO se refrescan en el polling para no interrumpir
-    // la paginación mientras el usuario la navega.
-    this.pollTimer = setInterval(() => {
-      this.fetchMetrics();
-    }, POLL_INTERVAL);
+    // Escucha eventos del socket para refrescar métricas en tiempo real
+    // sin necesidad de polling
+    this.socket.on('metrics_updated')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.fetchMetrics();
+      });
+
+    this.socket.on('session_updated')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.fetchMetrics();
+      });
+
+    this.socket.on('advisor_status_changed')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.fetchMetrics();
+      });
   }
 
   ngOnDestroy(): void {
-    // Limpia el intervalo al destruir el componente para evitar fugas
-    if (this.pollTimer !== null) {
-      clearInterval(this.pollTimer);
-      this.pollTimer = null;
-    }
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
-  // Carga métricas y ranking juntos en una sola función
-  // para que el polling sea una sola llamada
   private fetchMetrics(): void {
     this.adminService.getMetrics().subscribe({
       next: (m) => {
@@ -74,8 +81,6 @@ export class MetricsComponent implements OnInit, OnDestroy {
         this.cdr.detectChanges();
       },
       error: () => {
-        // Solo muestra error en la carga inicial; en polling silencia el error
-        // para no romper la UI si hay un fallo momentáneo de red
         if (this.loading) {
           this.error   = true;
           this.loading = false;

@@ -42,7 +42,17 @@
         <div class="kpi-divider"></div>
         <div class="kpi">
           <span class="kpi-num blue">{{ metrics.avgMinutes }}</span>
-          <span class="kpi-label">Min. prom.</span>
+          <span class="kpi-label">Promedio min</span>
+        </div>
+        <div class="kpi-divider"></div>
+        <div class="kpi">
+          <span class="kpi-num teal">{{ metrics.medianaMinutos }}</span>
+          <span class="kpi-label">Mediana min</span>
+        </div>
+        <div class="kpi-divider"></div>
+        <div class="kpi">
+          <span class="kpi-num purple">{{ metrics.p95Minutos }}</span>
+          <span class="kpi-label">P95 min</span>
         </div>
       </section>
 

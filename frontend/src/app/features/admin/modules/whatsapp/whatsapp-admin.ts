@@ -23,6 +23,13 @@ interface MessageReactionView {
   fromMe: boolean;
 }
 
+interface ToastMessage {
+  id: number;
+  title: string;
+  body: string;
+  severity: 'info' | 'warning' | 'critical';
+}
+
 @Component({
   selector: 'app-whatsapp-admin',
   standalone: true,
@@ -54,10 +61,10 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
   loading = true;
   loadingMessages = false;
   actionMessage = '';
+  actionToasts: ToastMessage[] = [];
   profilePhotoPreview?: { src: string; name: string };
   mediaPreview?: { src: string; name: string };
   messageMenu?: { x: number; y: number; message: WaMessage };
-  notificationsEnabled = localStorage.getItem('waAdminNotifications') !== 'false';
   theme: 'dark' | 'light' = (localStorage.getItem('waAdminTheme') as 'dark' | 'light') || 'light';
   readonly reactionOptions = ['\u{1F44D}', '\u2705', '\u274C'];
 
@@ -81,7 +88,11 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
   ];
 
   private readonly subs = new Subscription();
-  private readonly notifiedAlerts = new Set<string>();
+  private readonly alertThrottle = new Map<string, number>();
+  private readonly ALERT_COOLDOWN = 60_000;
+  private readonly TOAST_DURATION = 4_000;
+  private toastIdCounter = 0;
+  private refreshInFlight = false;
 
   constructor(
     private readonly waService: WhatsappChatService,
@@ -89,13 +100,12 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.ensureNotificationPermission();
     this.refresh();
     this.subs.add(timer(15_000, 15_000).subscribe(() => this.refresh(false)));
     this.subs.add(this.waService.onQueueUpdated().subscribe(() => this.refresh(false)));
     this.subs.add(this.waService.onChatAssigned().subscribe(data => {
       this.applyRealtimeChat(data.chat);
-      this.notify('WhatsApp asignado', `${data.chat.name} -> ${data.advisorName}`);
+      this.pushToast('info', 'WhatsApp asignado', `${data.chat.name} -> ${data.advisorName}`);
       this.refresh(false);
     }));
     this.subs.add(this.waService.onChatUpdated().subscribe(chat => {
@@ -109,7 +119,7 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
       }
       if (!message.fromMe && !this.isReactionMessage(message)) {
         const chat = this.dashboard?.chats.find(item => item.id === message.chatId);
-        this.notify('Nuevo mensaje WhatsApp', `${chat?.name || message.senderName || 'Cliente'}: ${this.messagePreview(message)}`);
+        this.pushToast('info', 'Nuevo mensaje WhatsApp', `${chat?.name || message.senderName || 'Cliente'}: ${this.messagePreview(message)}`);
       }
       this.refresh(false);
     }));
@@ -126,11 +136,14 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
   }
 
   refresh(showLoading = true): void {
+    if (this.refreshInFlight) return;
+    this.refreshInFlight = true;
     if (showLoading) this.loading = true;
     this.waService.loadAdminDashboard().subscribe({
       next: dashboard => {
         this.dashboard = dashboard;
         this.loading = false;
+        this.refreshInFlight = false;
         this.notifyNewAlerts(dashboard.alerts);
         if (this.selectedChat) {
           this.selectedChat = dashboard.chats.find(chat => chat.id === this.selectedChat?.id);
@@ -139,7 +152,8 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
       },
       error: () => {
         this.loading = false;
-        this.actionMessage = 'No se pudo cargar la consola de WhatsApp.';
+        this.refreshInFlight = false;
+        this.showMessage('No se pudo cargar la consola de WhatsApp.', 'critical');
         this.cdr.detectChanges();
       },
     });
@@ -482,27 +496,15 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
   }
 
   private notifyNewAlerts(alerts: WaAdminAlert[]): void {
+    const now = Date.now();
     for (const alert of alerts) {
-      const key = `${alert.type}:${alert.chatId || ''}:${alert.advisorId || ''}:${alert.title}`;
-      if (this.notifiedAlerts.has(key)) continue;
-      this.notifiedAlerts.add(key);
-      if (alert.severity === 'critical' || alert.severity === 'warning') {
-        this.notify(alert.title, alert.detail);
-      }
+      if (alert.severity !== 'critical' && alert.severity !== 'warning') continue;
+      const key = `${alert.type}:${alert.chatId || ''}:${alert.advisorId || ''}`;
+      const last = this.alertThrottle.get(key);
+      if (last && now - last < this.ALERT_COOLDOWN) continue;
+      this.alertThrottle.set(key, now);
+      this.pushToast(alert.severity, alert.title, alert.detail);
     }
-  }
-
-  private ensureNotificationPermission(): void {
-    if (!this.notificationsEnabled || typeof Notification === 'undefined') return;
-    if (Notification.permission === 'default') {
-      Notification.requestPermission().catch(() => undefined);
-    }
-  }
-
-  private notify(title: string, body: string): void {
-    if (!this.notificationsEnabled || typeof Notification === 'undefined') return;
-    if (Notification.permission !== 'granted') return;
-    new Notification(title, { body, silent: false });
   }
 
   private isEncryptedBlob(value: string): boolean {
@@ -552,12 +554,19 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
     return map[clean] ?? '';
   }
 
-  private showMessage(message: string): void {
-    this.actionMessage = message;
-    setTimeout(() => {
-      this.actionMessage = '';
-      this.cdr.detectChanges();
-    }, 2600);
+  private showMessage(message: string, severity: 'info' | 'warning' | 'critical' = 'info'): void {
+    this.pushToast(severity, message, '');
+  }
+
+  private pushToast(severity: 'info' | 'warning' | 'critical', title: string, body: string): void {
+    const id = ++this.toastIdCounter;
+    this.actionToasts = [...this.actionToasts, { id, title, body, severity }];
+    this.cdr.detectChanges();
+    setTimeout(() => this.removeToast(id), this.TOAST_DURATION);
+  }
+
+  private removeToast(id: number): void {
+    this.actionToasts = this.actionToasts.filter(t => t.id !== id);
     this.cdr.detectChanges();
   }
 }

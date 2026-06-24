@@ -68,27 +68,35 @@
             <div class="fill" [style.width.%]="metrics.tasaResolucion"
               [style.background]="getResolucionColor(metrics.tasaResolucion)"></div>
           </div>
-          <span class="card-sub">{{ metrics.totalCerradas }} cerradas de {{ metrics.total }} totales</span>
+          <span class="card-sub">{{ metrics.totalCerradas }} cerradas de {{ metrics.totalCerradas + metrics.totalActivas }} atendidas</span>
         </div>
         <div class="card">
           <div class="card-top">
             <span class="card-label">Tiempo de resolución</span>
             <span class="card-value blue">{{ metrics.avgResolucionMin }}<small>min</small></span>
           </div>
-          <div class="track">
-            <div class="fill blue" [style.width.%]="Math.min((metrics.avgResolucionMin / 60) * 100, 100)"></div>
+          <div class="card-stats-row">
+            <span>Mediana: <b>{{ metrics.medianaResolucionMin }}min</b></span>
+            <span>P95: <b>{{ metrics.p95ResolucionMin }}min</b></span>
           </div>
-          <span class="card-sub">Promedio apertura → cierre</span>
+          <div class="track">
+            <div class="fill blue" [style.width.%]="Math.min((metrics.medianaResolucionMin / 60) * 100, 100)"></div>
+          </div>
+          <span class="card-sub">Mediana apertura → cierre</span>
         </div>
         <div class="card">
           <div class="card-top">
             <span class="card-label">Primera respuesta</span>
             <span class="card-value purple">{{ metrics.avgPrimeraRespuestaMin }}<small>min</small></span>
           </div>
-          <div class="track">
-            <div class="fill purple" [style.width.%]="Math.min((metrics.avgPrimeraRespuestaMin / 15) * 100, 100)"></div>
+          <div class="card-stats-row">
+            <span>Mediana: <b>{{ metrics.medianaPrimeraRespuestaMin }}min</b></span>
+            <span>P95: <b>{{ metrics.p95PrimeraRespuestaMin }}min</b></span>
           </div>
-          <span class="card-sub">Hasta tu primer mensaje</span>
+          <div class="track">
+            <div class="fill purple" [style.width.%]="Math.min((metrics.medianaPrimeraRespuestaMin / 15) * 100, 100)"></div>
+          </div>
+          <span class="card-sub">Mediana hasta tu primer mensaje</span>
         </div>
       </section>
 

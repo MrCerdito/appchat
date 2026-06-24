@@ -10,6 +10,8 @@ export interface Metrics {
   waiting: number;
   closed: number;
   avgMinutes: number;
+  medianaMinutos: number;
+  p95Minutos: number;
   advisors: User[];
 }
 

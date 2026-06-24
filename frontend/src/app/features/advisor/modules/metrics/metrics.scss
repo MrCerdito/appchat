@@ -110,6 +110,10 @@ $purple: #a78bfa;
   &.purple { color: $purple; }
 }
 .card-sub { font-size: 0.7rem; color: $muted; }
+.card-stats-row {
+  display: flex; gap: 1rem; font-size: 0.7rem; color: $muted;
+  b { color: $text; font-weight: 600; }
+}
 .track {
   width: 100%; height: 2px; background: $border;
   border-radius: 2px; overflow: hidden;
