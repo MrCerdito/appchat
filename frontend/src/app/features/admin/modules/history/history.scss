@@ -1,0 +1,137 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+$blue: #2563eb; $blue-bg: #eff6ff; $text: #1e293b; $muted: #64748b;
+$border: #e2e8f0; $white: #ffffff; $font: 'Plus Jakarta Sans', sans-serif;
+
+:host { display: flex; flex: 1; min-width: 0; height: 100%; overflow: hidden; font-family: $font; }
+
+.history-page { display: flex; flex-direction: column; flex: 1; min-width: 0; height: 100%; padding: 0; }
+
+.page-header {
+  padding: 1.2rem 1.5rem 0.8rem; border-bottom: 1px solid $border; flex-shrink: 0;
+  h1 { font-size: 1.1rem; font-weight: 700; color: $text; margin-bottom: 2px; }
+  p  { font-size: 0.82rem; color: $muted; }
+}
+
+.history-layout { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+
+.sessions-sidebar {
+  width: 300px; min-width: 300px; flex-shrink: 0; height: 100%;
+  background: $white; border-right: 1px solid $border;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+
+.search-bar {
+  padding: 0.75rem 0.8rem; border-bottom: 1px solid $border; flex-shrink: 0;
+  input {
+    width: 100%; padding: 0.55rem 0.85rem; border: 1.5px solid $border;
+    border-radius: 8px; font-family: $font; font-size: 0.85rem;
+    outline: none; color: $text;
+    &:focus { border-color: $blue; }
+    &::placeholder { color: #aab4c0; }
+  }
+}
+
+.filter-tabs {
+  display: flex; gap: 4px; padding: 0.6rem 0.8rem;
+  border-bottom: 1px solid $border; flex-shrink: 0;
+  button {
+    flex: 1; padding: 0.35rem; border: 1.5px solid $border; border-radius: 7px;
+    background: transparent; font-family: $font; font-size: 0.74rem;
+    font-weight: 500; color: $muted; cursor: pointer; transition: all 0.15s;
+    &.active { background: $blue; border-color: $blue; color: $white; }
+  }
+}
+
+.sessions-list { flex: 1; overflow-y: auto; padding: 0.5rem 0.6rem; }
+
+.session-card {
+  display: flex; align-items: center; gap: 0.7rem;
+  padding: 0.65rem 0.75rem; border-radius: 10px;
+  cursor: pointer; transition: background 0.15s; margin-bottom: 2px;
+  &:hover    { background: $blue-bg; }
+  &.selected { background: #dbeafe; }
+  &.is-closed { opacity: 0.7; }
+}
+
+.session-avatar {
+  width: 36px; height: 36px; border-radius: 50%; background: $blue; color: $white;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 0.88rem; flex-shrink: 0;
+  &.closed { background: #cbd5e1; }
+}
+
+.session-info {
+  flex: 1; min-width: 0;
+  .session-name    { display: block; font-size: 0.86rem; font-weight: 600; color: $text; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .session-preview { font-size: 0.72rem; color: $muted; }
+}
+
+.session-right {
+  display: flex; flex-direction: column; align-items: flex-end; gap: 4px;
+  .session-time { font-size: 0.66rem; color: #94a3b8; }
+}
+
+.badge {
+  font-size: 0.66rem; font-weight: 600; padding: 2px 7px; border-radius: 20px;
+  &.badge-waiting { background: #fef9c3; color: #a16207; }
+  &.badge-active  { background: #dcfce7; color: #15803d; }
+  &.badge-closed  { background: #f1f5f9; color: $muted; }
+}
+
+.empty-list { text-align: center; padding: 2rem; color: #94a3b8; font-size: 0.83rem; }
+
+.chat-area {
+  flex: 1; min-width: 0; display: flex; flex-direction: column;
+  overflow: hidden; background: $white; height: 100%;
+}
+
+.empty-state {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 0.5rem; color: $muted;
+  h3 { font-size: 1rem; font-weight: 700; color: $text; }
+  p  { font-size: 0.85rem; }
+}
+
+.chat-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+.chat-header {
+  padding: 0.9rem 1.4rem; border-bottom: 1px solid $border;
+  display: flex; align-items: center; justify-content: space-between;
+  background: $white; flex-shrink: 0;
+  .client-info { display: flex; align-items: center; gap: 0.75rem; }
+  .avatar {
+    width: 40px; height: 40px; border-radius: 50%; background: $blue-bg; color: $blue;
+    display: flex; align-items: center; justify-content: center; font-weight: 700;
+  }
+  .client-name { display: block; font-weight: 700; font-size: 0.92rem; color: $text; }
+  .session-meta { font-size: 0.72rem; color: $muted; }
+}
+
+.messages {
+  flex: 1; min-height: 0; overflow-y: auto; padding: 1.2rem 1.4rem;
+  display: flex; flex-direction: column; gap: 0.65rem; background: #f8fafc;
+}
+
+.no-messages { text-align: center; color: #94a3b8; font-size: 0.85rem; margin-top: 2rem; }
+
+.message {
+  display: flex; flex-direction: column; max-width: 75%;
+  .sender { font-size: 0.7rem; color: #94a3b8; margin-bottom: 2px; padding: 0 4px; }
+  .bubble { padding: 0.55rem 0.9rem; font-size: 0.9rem; line-height: 1.5; word-break: break-word; }
+  .time   { font-size: 0.65rem; color: #cbd5e1; margin-top: 2px; padding: 0 4px; }
+  &.mine {
+    align-self: flex-end; align-items: flex-end;
+    .bubble { background: $blue; color: $white; border-radius: 16px 16px 4px 16px; }
+  }
+  &.theirs {
+    align-self: flex-start; align-items: flex-start;
+    .bubble { background: $white; color: $text; border-radius: 16px 16px 16px 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  }
+}
+
+.readonly-notice {
+  display: flex; align-items: center; justify-content: center;
+  padding: 0.75rem; background: #f8fafc; border-top: 1px solid $border;
+  font-size: 0.78rem; color: $muted; flex-shrink: 0;
+}

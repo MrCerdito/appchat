@@ -1,0 +1,113 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+$blue: #2563eb; $blue-bg: #eff6ff; $red: #ef4444; $red-light: #fef2f2;
+$green: #22c55e; $text: #1e293b; $muted: #64748b; $border: #e2e8f0;
+$bg: #f1f5f9; $white: #ffffff; $font: 'Plus Jakarta Sans', sans-serif;
+
+:host { display: flex; flex: 1; min-width: 0; height: 100%; overflow: auto; font-family: $font; }
+
+.advisors-page { flex: 1; padding: 2rem; max-width: 1000px; }
+
+.page-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  margin-bottom: 1.5rem;
+  h1 { font-size: 1.3rem; font-weight: 700; color: $text; margin-bottom: 2px; }
+  p  { font-size: 0.85rem; color: $muted; }
+}
+
+.alert {
+  padding: 0.65rem 1rem; border-radius: 8px; font-size: 0.85rem; margin-bottom: 1rem;
+  &.success { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+  &.error   { background: $red-light; color: $red; border: 1px solid #fecaca; }
+}
+
+.form-card {
+  background: $white; border-radius: 12px; padding: 1.5rem;
+  border: 1px solid $border; margin-bottom: 1.5rem;
+  h3 { font-size: 1rem; font-weight: 700; color: $text; margin-bottom: 1.2rem; }
+}
+
+.form-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem; margin-bottom: 1rem;
+}
+
+.field {
+  display: flex; flex-direction: column; gap: 0.4rem;
+  label { font-size: 0.82rem; font-weight: 500; color: #475569; }
+  input {
+    padding: 0.65rem 0.9rem; border: 1.5px solid $border; border-radius: 8px;
+    font-family: $font; font-size: 0.9rem; color: $text; outline: none;
+    &:focus { border-color: $blue; box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
+  }
+}
+
+.form-actions {
+  display: flex; justify-content: flex-end; gap: 8px; margin-top: 1rem;
+}
+
+.table-card {
+  background: $white; border-radius: 12px; border: 1px solid $border; overflow: hidden;
+}
+
+table {
+  width: 100%; border-collapse: collapse;
+  th {
+    padding: 0.75rem 1rem; text-align: left; font-size: 0.75rem; font-weight: 600;
+    color: $muted; text-transform: uppercase; letter-spacing: 0.05em;
+    border-bottom: 1px solid $border; background: #f8fafc;
+  }
+  td {
+    padding: 0.85rem 1rem; font-size: 0.88rem; color: $text;
+    border-bottom: 1px solid #f1f5f9;
+    &.muted   { color: $muted; font-size: 0.83rem; }
+    &.center  { text-align: center; }
+    &.empty   { text-align: center; color: #94a3b8; padding: 2rem; }
+  }
+  tr.inactive td { opacity: 0.5; }
+  tr:last-child td { border-bottom: none; }
+}
+
+.advisor-cell {
+  display: flex; align-items: center; gap: 0.6rem;
+  .avatar {
+    width: 32px; height: 32px; border-radius: 50%; background: $blue;
+    color: $white; display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 0.82rem; flex-shrink: 0;
+  }
+}
+
+.badge {
+  font-size: 0.7rem; font-weight: 600; padding: 2px 8px; border-radius: 20px;
+  &.badge-online  { background: #dcfce7; color: #15803d; }
+  &.badge-busy    { background: #fef9c3; color: #a16207; }
+  &.badge-offline { background: #f1f5f9; color: $muted; }
+  &.badge-active  { background: #dcfce7; color: #15803d; }
+  &.badge-closed  { background: #f1f5f9; color: $muted; }
+}
+
+.actions { display: flex; gap: 6px; }
+
+.btn-primary {
+  padding: 0.6rem 1.2rem; background: $blue; color: $white; border: none;
+  border-radius: 8px; font-family: $font; font-size: 0.88rem; font-weight: 600;
+  cursor: pointer; transition: background 0.2s;
+  &:hover:not(:disabled) { background: #1d4ed8; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.btn-secondary {
+  padding: 0.6rem 1.2rem; background: transparent; color: $muted;
+  border: 1.5px solid $border; border-radius: 8px;
+  font-family: $font; font-size: 0.88rem; font-weight: 500; cursor: pointer;
+  &:hover { border-color: #94a3b8; color: $text; }
+}
+
+.btn-icon {
+  padding: 0.35rem 0.7rem; border-radius: 6px; border: none;
+  font-family: $font; font-size: 0.78rem; font-weight: 500; cursor: pointer;
+  transition: all 0.15s;
+  &.edit   { background: $blue-bg; color: $blue; &:hover { background: #dbeafe; } }
+  &.toggle { background: #fef9c3; color: #a16207; &:hover { background: #fef08a; } }
+  &.delete { background: $red-light; color: $red; &:hover { background: #fecaca; } }
+}
