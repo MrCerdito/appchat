@@ -52,10 +52,20 @@ export const routes: Routes = [
         path: 'configuracion',
         loadComponent: () =>
           import('./features/advisor/modules/configuracion/configuracion').then(m => m.ConfiguracionComponent),
-      },{
+      },      {
         path: 'whatsapp',
         loadComponent: () =>
           import('./features/advisor/modules/whatsapp/whatsapp').then(m => m.WhatsappChatComponent),
+      },
+      {
+        path: 'tickets',
+        loadComponent: () =>
+          import('./features/advisor/modules/tickets/tickets-list').then(m => m.TicketsListComponent),
+      },
+      {
+        path: 'tickets/:id',
+        loadComponent: () =>
+          import('./features/advisor/modules/tickets/ticket-detail').then(m => m.TicketDetailComponent),
       },
     ],
   },
@@ -96,6 +106,16 @@ export const routes: Routes = [
         path: 'widget',
         loadComponent: () =>
           import('./features/admin/modules/widget/widget').then(m => m.WidgetComponent),
+      },
+      {
+        path: 'faq',
+        loadComponent: () =>
+          import('./features/admin/modules/faq/faq-admin.component').then(m => m.FaqAdminComponent),
+      },
+      {
+        path: 'tickets',
+        loadComponent: () =>
+          import('./features/admin/modules/tickets/tickets-admin').then(m => m.TicketsAdminComponent),
       },
     ],
   },

@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
+import * as Joi from 'joi';
 import { AuthModule } from './auth/auth.module';
 import { SessionsModule } from './sessions/sessions.module';
 import { ChatModule } from './chat/chat.module';
@@ -18,6 +21,7 @@ import { DocumentosModule } from './documentos/documentos.module';
 import { Documento } from './documentos/entities/documento.entity';
 import { ConfiguracionModule } from './configuracion/configuracion.module';
 import { Configuracion } from './configuracion/entities/configuracion.entity';
+import { AdvisorsModule } from './advisors/advisors.module';
 import { WidgetConfigModule } from './widget/widget-config.module';
 import { WidgetConfig } from './widget/entities/widget-config.entity';
 import { AiLog } from './ai/entitites/ai-log.entity';
@@ -25,6 +29,10 @@ import { AdvisorsWhatsappModule } from './advisor-whatsapp/advisors-whatsapp.mod
 import { TeamsToken } from './advisor-whatsapp/entities/teams-token.entity';
 import { WhatsappChat } from './advisor-whatsapp/entities/whatsapp-chat.entity';
 import { WhatsappMessage } from './advisor-whatsapp/entities/whatsapp-message.entity';
+import { FaqModule } from './faq/faq.module';
+import { Faq } from './faq/entities/faq.entity';
+import { TicketsModule } from './tickets/tickets.module';
+import { Ticket } from './tickets/ticket.entity';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -33,7 +41,31 @@ import { AppService } from './app.service';
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
+      validationSchema: Joi.object({
+        DB_HOST: Joi.string().required(),
+        DB_PORT: Joi.number().default(5432),
+        DB_USER: Joi.string().required(),
+        DB_PASS: Joi.string().required(),
+        DB_NAME: Joi.string().required(),
+        JWT_SECRET: Joi.string().min(16).required().label('JWT_SECRET'),
+        JWT_EXPIRES: Joi.string().default('8h'),
+        GEMINI_API_KEY: Joi.string().optional(),
+        CHAT_ENCRYPTION_KEY: Joi.string().hex().length(64).optional().label('CHAT_ENCRYPTION_KEY'),
+        RESEND_API_KEY: Joi.string().optional(),
+        PORT: Joi.number().default(3000),
+        NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
+        CORS_ORIGINS: Joi.string().optional(),
+        APP_URL: Joi.string().uri().optional(),
+      }),
+      validationOptions: {
+        abortEarly: true,
+        allowUnknown: true,
+      },
     }),
+    ThrottlerModule.forRoot([{
+      ttl: 60000,
+      limit: 100,
+    }]),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
@@ -63,8 +95,10 @@ import { AppService } from './app.service';
           TeamsToken,
           WhatsappChat,
           WhatsappMessage,
+          Faq,
+          Ticket,
         ],
-        synchronize: false,
+        synchronize: true,
         logging: false,
       }),
     }),
@@ -74,12 +108,21 @@ import { AppService } from './app.service';
     ComunicadosModule,
     TrackModule,
     AiModule,
+    AdvisorsModule,
     DocumentosModule,
     ConfiguracionModule,
     WidgetConfigModule,
     AdvisorsWhatsappModule,
+    FaqModule,
+    TicketsModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}

@@ -707,26 +707,45 @@ $bp-tablet: 1024px;
   &:hover { background: rgba($white, 0.12); }
 }
 
+// ── Lunch approaching banner ───────────────────────────────
+.lunch-approaching-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 1.25rem;
+  background: #eff6ff;
+  border-bottom: 1px solid #bfdbfe;
+  font-family: $font;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #1e40af;
+  flex-shrink: 0;
+  animation: fadeIn 0.3s ease;
+
+  svg { width: 18px; height: 18px; stroke: #3b82f6; flex-shrink: 0; }
+
+  @media (max-width: $bp-mobile) {
+    padding: 0.5rem 1rem;
+    font-size: 0.78rem;
+  }
+}
+
 // ── Lunch pending banner ───────────────────────────────────
 .lunch-pending-banner {
   display: flex;
   align-items: center;
   gap: 0.65rem;
-  padding: 0.65rem 1.25rem;
+  padding: 0.6rem 1.25rem;
   background: #fffbeb;
   border-bottom: 1px solid #fde68a;
   font-family: $font;
-  font-size: 0.82rem;
-  font-weight: 500;
-  color: #92400e;
   flex-shrink: 0;
   animation: fadeIn 0.3s ease;
 
-  svg { width: 16px; height: 16px; stroke: #d97706; flex-shrink: 0; }
+  svg { width: 20px; height: 20px; stroke: #d97706; flex-shrink: 0; }
 
   @media (max-width: $bp-mobile) {
-    padding: 0.55rem 1rem;
-    font-size: 0.78rem;
+    padding: 0.5rem 1rem;
   }
 }
 
@@ -838,10 +857,72 @@ $bp-tablet: 1024px;
   height: 100%;
   background: #f59e0b;
   border-radius: 5px;
-  animation: progressPulse 2s ease-in-out infinite alternate;
+  transition: width 0.4s ease;
 }
 
 .almuerzo-nota { font-size: 0.73rem; color: #94a3b8; }
+
+.almuerzo-schedule {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+
+  .schedule-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .schedule-range {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #334155;
+  }
+  .schedule-adjust {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #f59e0b;
+    margin-top: 2px;
+  }
+}
+
+.lunch-pending-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+
+  .pending-title {
+    font-weight: 700;
+    font-size: 0.82rem;
+    color: #92400e;
+  }
+  .pending-desc {
+    font-weight: 500;
+    font-size: 0.8rem;
+    color: #b45309;
+  }
+  .pending-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin-top: 2px;
+
+    .breakdown-item {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #b45309;
+    }
+  }
+  .pending-hours {
+    font-size: 0.73rem;
+    font-weight: 600;
+    color: #d97706;
+    margin-top: 2px;
+  }
+}
 
 // ── Animaciones ────────────────────────────────────────────
 @keyframes fadeIn      { from { opacity: 0; } to { opacity: 1; } }

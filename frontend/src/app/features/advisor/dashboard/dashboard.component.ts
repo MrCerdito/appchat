@@ -9,6 +9,7 @@ import { SocketService } from '../../../core/services/socket.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { SessionService } from '../../../core/services/session.service';
 import { SoundService } from '../../../core/services/sound.service';
+import { TicketService } from '../../../core/services/ticket.service';
 import { WhatsappChatService } from '../../../core/services/whatsapp-chat.service';
 import { ChatStateService } from '../../../core/services/chat-state.service';
 import { User } from '../../../core/models/user.model';
@@ -44,6 +45,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
   almuerzoRestante = '';
   almuerzoFinHora = '';
   almuerzoMensaje = '';
+  almuerzoInicio = '';
+  almuerzoFinOriginal = '';
+  almuerzoChatsPendientes = 0;
+  almuerzoChatsWeb = 0;
+  almuerzoChatsWhatsapp = 0;
+  almuerzoProgreso = 0;
+  almuerzoProximoMensaje = '';
 
   private lunchInterval: ReturnType<typeof setInterval> | null = null;
   private destroy$ = new Subject<void>();
@@ -54,6 +62,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private auth: AuthService,
     private sessionService: SessionService,
     private sound: SoundService,
+    private ticketService: TicketService,
     private whatsapp: WhatsappChatService,
     private chatState: ChatStateService,
     private router: Router,
@@ -63,6 +72,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.currentAdvisor = this.auth.getUser();
     this.sound.init();
+    this.sound.ping();
     this.socket.connect(this.auth.getToken() ?? undefined);
     if (this.currentAdvisor?.id) {
       this.whatsapp.joinAsAdvisor(this.currentAdvisor.id);
@@ -103,12 +113,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.cdr.detectChanges();
       });
 
-    this.socket.on<{ fin: string; restante: string }>('lunch_started')
+    this.socket.on<{ fin: string; restante: string; inicio: string; finOriginal: string }>('lunch_started')
       .pipe(takeUntil(this.destroy$))
       .subscribe(data => {
         this.enAlmuerzo = true;
         this.almuerzoFinHora = data.fin;
         this.almuerzoRestante = data.restante;
+        this.almuerzoInicio = data.inicio;
+        this.almuerzoFinOriginal = data.finOriginal;
+        this.almuerzoMensaje = '';
+        this.almuerzoProximoMensaje = '';
         this.advisorStatus = 'busy';
         this.startLunchCountdown();
         this.cdr.detectChanges();
@@ -121,15 +135,28 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.almuerzoRestante = '';
         this.almuerzoFinHora = '';
         this.almuerzoMensaje = '';
+        this.almuerzoInicio = '';
+        this.almuerzoFinOriginal = '';
+        this.almuerzoChatsPendientes = 0;
+        this.almuerzoChatsWeb = 0;
+        this.almuerzoChatsWhatsapp = 0;
+        this.almuerzoProgreso = 0;
+        this.almuerzoProximoMensaje = '';
         this.advisorStatus = 'online';
         this.stopLunchCountdown();
         this.cdr.detectChanges();
       });
 
-    this.socket.on<{ mensaje: string; chats: number }>('lunch_pending')
+    this.socket.on<{ mensaje: string; chats: number; chatsWeb: number; chatsWhatsapp: number; inicio: string; finOriginal: string }>('lunch_pending')
       .pipe(takeUntil(this.destroy$))
       .subscribe(data => {
         this.almuerzoMensaje = data.mensaje;
+        this.almuerzoChatsPendientes = data.chats;
+        this.almuerzoChatsWeb = data.chatsWeb;
+        this.almuerzoChatsWhatsapp = data.chatsWhatsapp;
+        this.almuerzoInicio = data.inicio;
+        this.almuerzoFinOriginal = data.finOriginal;
+        this.almuerzoProximoMensaje = '';
         this.advisorStatus = 'busy';
         this.cdr.detectChanges();
       });
@@ -138,6 +165,21 @@ export class DashboardComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe(() => {
         this.almuerzoMensaje = '';
+        this.almuerzoInicio = '';
+        this.almuerzoFinOriginal = '';
+        this.almuerzoChatsPendientes = 0;
+        this.almuerzoChatsWeb = 0;
+        this.almuerzoChatsWhatsapp = 0;
+        this.almuerzoProgreso = 0;
+        this.almuerzoProximoMensaje = '';
+        this.advisorStatus = 'online';
+        this.cdr.detectChanges();
+      });
+
+    this.socket.on<{ mensaje: string; minutos: number; inicio: string }>('lunch_approaching')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        this.almuerzoProximoMensaje = data.mensaje;
         this.cdr.detectChanges();
       });
   }
@@ -266,16 +308,24 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   private startLunchCountdown(): void {
     this.stopLunchCountdown();
+
+    const [ih, im] = (this.almuerzoInicio || '12:00').split(':').map(Number);
+    const [fh, fm] = (this.almuerzoFinOriginal || this.almuerzoFinHora).split(':').map(Number);
+    const duracionTotalMs = Math.max(1, ((fh * 60 + fm) - (ih * 60 + im)) * 60000);
+
     this.lunchInterval = setInterval(() => {
       if (!this.almuerzoFinHora) return;
 
       const now = new Date();
-      const [fh, fm] = this.almuerzoFinHora.split(':').map(Number);
-      const finMs = new Date(now).setHours(fh, fm, 0, 0);
+      const [fh2, fm2] = this.almuerzoFinHora.split(':').map(Number);
+      const finMs = new Date(now).setHours(fh2, fm2, 0, 0);
       const diff = Math.max(0, finMs - now.getTime());
       const mins = Math.floor(diff / 60000);
       const segs = Math.floor((diff % 60000) / 1000);
       this.almuerzoRestante = `${String(mins).padStart(2, '0')}:${String(segs).padStart(2, '0')}`;
+
+      const elapsed = duracionTotalMs - diff;
+      this.almuerzoProgreso = Math.min(100, Math.max(0, (elapsed / duracionTotalMs) * 100));
       this.cdr.detectChanges();
 
       if (diff === 0) this.stopLunchCountdown();
@@ -309,7 +359,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const shouldUseCompactShell =
       url.includes('/dashboard/whatsapp') ||
       url.includes('/dashboard/chats') ||
-      url.includes('/dashboard/configuracion');
+      url.includes('/dashboard/configuracion') ||
+      url.includes('/dashboard/tickets');
     this.compactShellMode = shouldUseCompactShell;
     if (shouldUseCompactShell) {
       this.sidebarOpen = false;
@@ -340,6 +391,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.applyStatus('offline');
     localStorage.removeItem(this.STATUS_KEY);
     this.almuerzoMensaje = '';
+    this.almuerzoInicio = '';
+    this.almuerzoFinOriginal = '';
+    this.almuerzoChatsPendientes = 0;
+    this.almuerzoChatsWeb = 0;
+    this.almuerzoChatsWhatsapp = 0;
+    this.almuerzoProgreso = 0;
+    this.almuerzoProximoMensaje = '';
     this.stopLunchCountdown();
     setTimeout(() => {
       this.socket.disconnect();

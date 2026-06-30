@@ -129,6 +129,12 @@
       .logo-text h1 { font-size: 2.2rem; }
       .card-right { padding: 2rem 1.5rem; }
     }
+
+    /* ═══ FORZAR WIDGET SOBRE TODO ═══ */
+    #sian-widget-root,
+    #sian-widget-root * {
+      z-index: 2147483647 !important;
+    }
   </style>
 </head>
 <body>
@@ -213,7 +219,7 @@
     <p><a href="#">Cloud Technologys Center</a> ©2026 Todos los derechos reservados</p>
   </footer>
 
-  <script src="http://localhost:4200/widget.js"></script>
+  <script src="/widget.js" data-preview="true"></script>
 
 </body>
 </html>

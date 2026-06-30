@@ -4,3 +4,4 @@ dist/
 *.zip
 .env
 backend/uploads/baileys-auth/
+BD.csv

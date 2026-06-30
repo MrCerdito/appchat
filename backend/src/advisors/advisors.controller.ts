@@ -1,54 +1,73 @@
-import { Controller, Get, Post, Put, Delete, Patch, Param, Body, UseGuards } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import {
+  Controller, Get, Post, Put, Patch, Delete,
+  Param, Body, Query, UseGuards, ValidationPipe,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { AdvisorsService } from './advisors.service';
+import { CreateAdvisorDto } from './dto/create-advisor.dto';
+import { UpdateAdvisorDto } from './dto/update-advisor.dto';
+import { UpdatePasswordDto } from './dto/update-password.dto';
+import { QueryAdvisorDto } from './dto/query-advisor.dto';
+import { Roles, RolesGuard } from '../auth/roles.guard';
 import { User } from '../auth/entities/user.entity';
-import * as bcrypt from 'bcrypt';
 
 @Controller('advisors')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class AdvisorsController {
-  constructor(
-    @InjectRepository(User) private readonly userRepo: Repository<User>,
-  ) {}
+  constructor(private readonly advisorsService: AdvisorsService) {}
 
   @Get()
-  findAll(): Promise<User[]> {
-    return this.userRepo.find({
-      where: { role: 'advisor' },
-      select: ['id', 'name', 'email', 'status', 'activeChats', 'active'],
-    });
+  @Roles('admin')
+  findAll(@Query() query: QueryAdvisorDto): Promise<{ data: User[]; total: number; page: number; limit: number; pages: number } | User[]> {
+    if (query.page || query.limit || query.search) {
+      return this.advisorsService.findAllPaginated(
+        query.page ?? 1,
+        query.limit ?? 20,
+        query.search,
+      );
+    }
+    return this.advisorsService.findAll();
+  }
+
+  @Get(':id')
+  @Roles('admin')
+  findOne(@Param('id') id: string): Promise<User> {
+    return this.advisorsService.findById(id);
   }
 
   @Post()
-  async create(@Body() body: { name: string; email: string; password: string }): Promise<User> {
-    const hash = await bcrypt.hash(body.password, 10);
-    const user = this.userRepo.create({
-      name: body.name,
-      email: body.email,
-      password: hash,
-      role: 'advisor',
-      active: true,
-      status: 'offline',
-    });
-    return this.userRepo.save(user);
+  @Roles('admin')
+  create(@Body(new ValidationPipe({ whitelist: true })) body: CreateAdvisorDto): Promise<User> {
+    return this.advisorsService.create(body.name, body.email, body.password);
   }
 
   @Put(':id')
-  async update(@Param('id') id: string, @Body() body: { name?: string; email?: string }): Promise<User> {
-    await this.userRepo.update(id, body);
-    return this.userRepo.findOneOrFail({ where: { id } });
+  @Roles('admin')
+  update(
+    @Param('id') id: string,
+    @Body(new ValidationPipe({ whitelist: true })) body: UpdateAdvisorDto,
+  ): Promise<User> {
+    return this.advisorsService.update(id, body);
+  }
+
+  @Patch(':id/password')
+  @Roles('admin')
+  updatePassword(
+    @Param('id') id: string,
+    @Body(new ValidationPipe({ whitelist: true })) body: UpdatePasswordDto,
+  ): Promise<{ ok: boolean }> {
+    return this.advisorsService.updatePassword(id, body.password).then(() => ({ ok: true }));
   }
 
   @Patch(':id/toggle')
-  async toggle(@Param('id') id: string): Promise<User> {
-    const user = await this.userRepo.findOneOrFail({ where: { id } });
-    await this.userRepo.update(id, { active: !user.active });
-    return this.userRepo.findOneOrFail({ where: { id } });
+  @Roles('admin')
+  toggle(@Param('id') id: string): Promise<User> {
+    return this.advisorsService.toggle(id);
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: string): Promise<void> {
-    await this.userRepo.delete(id);
+  @Roles('admin')
+  remove(@Param('id') id: string): Promise<void> {
+    return this.advisorsService.remove(id);
   }
 }

@@ -158,6 +158,13 @@
           <span>IA respondiendo automaticamente. Escribe para retomar el control.</span>
         </div>
 
+        <div class="msg-search" *ngIf="activeSession">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+            <circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path>
+          </svg>
+          <input type="text" placeholder="Buscar en mensajes..." [(ngModel)]="msgSearchQuery">
+        </div>
+
         <div class="messages" #messagesContainer>
           <ng-container *ngFor="let msg of messages; trackBy: trackById">
             <div class="sys-msg" *ngIf="msg.senderName === 'Sistema'">
@@ -181,10 +188,17 @@
                 {{ msg.senderName }}
               </span>
               <div class="bubble">
-                {{ msg.content }}
+                <span [innerHTML]="formatMessage(msg.content)"></span>
                 <span *ngIf="msg.senderType === 'advisor'" class="read-mark">
                   {{ msg.readAt ? '✓✓' : '✓' }}
                 </span>
+              </div>
+              <div class="doc-adjuntos" *ngIf="msg.documentos && msg.documentos.length > 0">
+                <span class="doc-adjuntos-label">Documentos relacionados</span>
+                <a class="doc-adjunto-item" *ngFor="let doc of msg.documentos" [href]="doc.pdfUrl" target="_blank">
+                  <span class="doc-adjunto-nombre">{{ doc.nombre }}</span>
+                  <span class="doc-adjunto-cat" *ngIf="doc.categoria">{{ doc.categoria }}</span>
+                </a>
               </div>
               <span class="msg-time">{{ msg.createdAt | date:'HH:mm' }}</span>
             </div>
@@ -234,6 +248,9 @@
         </section>
 
         <section class="panel-actions">
+          <button class="p-btn p-btn-ticket" type="button" (click)="openTicketModal()">
+            Generar ticket
+          </button>
           <button class="p-btn p-btn-transfer" type="button" *ngIf="!isCollaborator" (click)="showTransfer = !showTransfer">
             Transferir
           </button>
@@ -366,4 +383,51 @@
       <button class="modal-cancel" type="button" (click)="closeAiInsightModal()">Cerrar</button>
     </div>
   </section>
+
+  <!-- ── Toast flotante ticket ─────────────────────────── -->
+  <div class="toast-floating" *ngIf="ticketFeedback"
+    [class.toast-ok]="ticketFeedback.type === 'ok'"
+    [class.toast-error]="ticketFeedback.type === 'error'">
+    <strong>{{ ticketFeedback.type === 'ok' ? 'Ticket generado' : 'Error' }}</strong>
+    <span>{{ ticketFeedback.text }}</span>
+  </div>
+
+  <!-- ── Modal ticket flotante ────────────────────────── -->
+  <div class="floating-modal" *ngIf="showTicketModal" (click)="closeTicketModal()">
+    <div class="floating-modal-inner" (click)="$event.stopPropagation()">
+      <h3>Generar ticket</h3>
+      <div class="ticket-modal-body">
+        <label>
+          <span>Titulo</span>
+          <input type="text" [(ngModel)]="ticketDto.titulo" maxlength="255">
+        </label>
+        <label>
+          <span>Descripcion</span>
+          <textarea [(ngModel)]="ticketDto.descripcion" rows="3" placeholder="Detalles opcionales"></textarea>
+        </label>
+        <label>
+          <span>Prioridad</span>
+          <select [(ngModel)]="ticketDto.priority">
+            <option value="low">Baja</option>
+            <option value="medium">Media</option>
+            <option value="high">Alta</option>
+            <option value="critical">Critica</option>
+          </select>
+        </label>
+        <label>
+          <span>Categoria</span>
+          <select [(ngModel)]="ticketDto.category">
+            <option value="">Sin categoria</option>
+            <option *ngFor="let c of ticketCategories" [value]="c">{{ c }}</option>
+          </select>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-cancel" type="button" (click)="closeTicketModal()">Cancelar</button>
+        <button class="modal-confirm" type="button" (click)="createTicket()" [disabled]="!ticketDto.titulo.trim() || creatingTicket">
+          {{ creatingTicket ? 'Creando...' : 'Crear ticket' }}
+        </button>
+      </div>
+    </div>
+  </div>
 </div>

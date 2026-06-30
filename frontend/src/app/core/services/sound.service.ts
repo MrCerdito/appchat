@@ -143,6 +143,23 @@ export class SoundService {
     }
   }
 
+  playTicketNotification(): void {
+    this.playToneSequence([
+      { frequency: 660, at: 0, duration: 0.08, gain: 0.15, type: 'sine' },
+      { frequency: 880, at: 0.1, duration: 0.08, gain: 0.15, type: 'sine' },
+      { frequency: 1100, at: 0.2, duration: 0.12, gain: 0.12, type: 'triangle' },
+    ]);
+  }
+
+  ping(): void {
+    try {
+      const ctx = this.getCtx();
+      if (ctx.state === 'suspended') ctx.resume().catch(() => undefined);
+    } catch {
+      // ignore
+    }
+  }
+
   playWhatsappQueue(): void {
     try {
       const ctx = this.getCtx();

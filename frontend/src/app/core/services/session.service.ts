@@ -162,4 +162,8 @@ export class SessionService {
 close(sessionId: string): Observable<any> {
   return this.http.post(`${environment.apiUrl}/sessions/${sessionId}/close`, {});
 }
+
+getCodigo(sessionId: string): Observable<{ codigo: string }> {
+  return this.http.get<{ codigo: string }>(`${environment.apiUrl}/sessions/${sessionId}/codigo`);
+}
 }

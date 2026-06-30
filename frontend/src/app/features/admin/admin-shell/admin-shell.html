@@ -40,16 +40,6 @@
         <span>Asesores</span>
       </a>
 
-      <a class="nav-item" routerLink="metrics" routerLinkActive="active" (click)="closeSidebarOnMobile()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <line x1="18" y1="20" x2="18" y2="10"/>
-          <line x1="12" y1="20" x2="12" y2="4"/>
-          <line x1="6" y1="20" x2="6" y2="14"/>
-        </svg>
-        <span>Métricas</span>
-      </a>
-
       <a class="nav-item" routerLink="history" routerLinkActive="active" (click)="closeSidebarOnMobile()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
@@ -68,6 +58,20 @@
         </svg>
         <span>WhatsApp</span>
       </a>
+
+      <span class="nav-label section-spacer">Análisis</span>
+
+      <a class="nav-item" routerLink="metrics" routerLinkActive="active" (click)="closeSidebarOnMobile()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="20" x2="18" y2="10"/>
+          <line x1="12" y1="20" x2="12" y2="4"/>
+          <line x1="6" y1="20" x2="6" y2="14"/>
+        </svg>
+        <span>Métricas</span>
+      </a>
+
+      <span class="nav-label section-spacer">Configuración</span>
 
       <a class="nav-item" routerLink="configuracion" routerLinkActive="active" (click)="closeSidebarOnMobile()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -94,6 +98,27 @@
           <circle cx="17" cy="6" r="1" fill="currentColor"/>
         </svg>
         <span>Widget</span>
+      </a>
+
+      <a class="nav-item" routerLink="faq" routerLinkActive="active" (click)="closeSidebarOnMobile()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+          <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        <span>FAQ</span>
+      </a>
+
+      <a class="nav-item" routerLink="tickets" routerLinkActive="active" (click)="closeSidebarOnMobile()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+        </svg>
+        <span>Tickets</span>
       </a>
     </nav>
 

@@ -4,18 +4,23 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { SocketService } from '../../../../core/services/socket.service';
 import { SessionService } from '../../../../core/services/session.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { ChatStateService } from '../../../../core/services/chat-state.service';
+import { TicketService } from '../../../../core/services/ticket.service';
+import { SoundService } from '../../../../core/services/sound.service';
 import { Message } from '../../../../core/models/message.model';
 import { Session } from '../../../../core/models/session.model';
 import { User } from '../../../../core/models/user.model';
 import { Subject, firstValueFrom } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { AiService } from '../../../../core/services/ai.service';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
+import { priorityLabel } from '../../../../shared/utils/ticket-categories';
+import { Ticket } from '../../../../core/models/ticket.model';
 
 // ── Payload exacto que emite el backend ──────────────────────────────────────
 export interface TimerUpdatePayload {
@@ -59,6 +64,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
 
   // ── Estado UI ─────────────────────────────────────────────────────────────
   searchQuery      = '';
+  msgSearchQuery   = '';
   currentAdvisor   : User | null    = null;
   advisors         : User[]         = [];
   sessions         : Session[]      = [];
@@ -76,6 +82,13 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   showAiInsightModal = false;
   isAiInsightLoading = false;
   aiInsightText = 'Analisis pendiente.';
+
+  // Ticket modal
+  showTicketModal = false;
+  ticketDto = { titulo: '', descripcion: '', priority: 'medium' as const, category: '' };
+  ticketCategories: string[] = [];
+  creatingTicket = false;
+  ticketFeedback: { type: 'ok' | 'error'; text: string } | null = null;
 
   // ★ Timer persistente por sessionId
   private timerMap = new Map<string, TimerPanelState>();
@@ -96,14 +109,21 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     private state         : ChatStateService,
     private cdr           : ChangeDetectorRef,
     private route         : ActivatedRoute,
+    private router        : Router,
     private aiService     : AiService,
+    private ticketService : TicketService,
+    private sound         : SoundService,
+    private sanitizer     : DomSanitizer,
   ) {}
 
   // ── Getters ───────────────────────────────────────────────────────────────
 
   get messages(): Message[] {
     if (!this.activeSession) return [];
-    return this.state.getMessages(this.activeSession.id);
+    const msgs = this.state.getMessages(this.activeSession.id);
+    if (!this.msgSearchQuery.trim()) return msgs;
+    const q = this.msgSearchQuery.toLowerCase();
+    return msgs.filter(m => m.content?.toLowerCase().includes(q));
   }
 
   get activeSessions(): Session[] {
@@ -670,6 +690,97 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
 
   closeAiInsightModal(): void {
     this.showAiInsightModal = false;
+  }
+
+  formatMessage(text: string): SafeHtml {
+    if (!text) return '';
+    const html = this.escapeHtml(text)
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>')
+      .replace(/(<li>.*<\/li>\n?)+/g, '<ol>$&</ol>')
+      .replace(/\n/g, '<br>');
+    return this.sanitizer.bypassSecurityTrustHtml(html);
+  }
+
+  private escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  // ── Ticket ────────────────────────────────────────────────────────────
+  openTicketModal(): void {
+    if (!this.activeSession) return;
+    this.ticketDto = {
+      titulo: `Ticket desde sesion ${this.activeSession.codigo || this.activeSession.id}`,
+      descripcion: '',
+      priority: 'medium',
+      category: '',
+    };
+    this.loadTicketCategories();
+    this.showTicketModal = true;
+  }
+
+  closeTicketModal(): void {
+    this.showTicketModal = false;
+  }
+
+  loadTicketCategories(): void {
+    this.ticketService.getCategories().subscribe(cats => {
+      this.ticketCategories = cats;
+      this.cdr.detectChanges();
+    });
+  }
+
+  createTicket(): void {
+    if (!this.activeSession || !this.ticketDto.titulo.trim() || this.creatingTicket) return;
+    this.creatingTicket = true;
+    this.ticketFeedback = null;
+    const session = this.activeSession;
+    const body = {
+      titulo: this.ticketDto.titulo.trim(),
+      descripcion: this.ticketDto.descripcion?.trim() || undefined,
+      priority: this.ticketDto.priority,
+      category: this.ticketDto.category || undefined,
+    };
+    this.ticketService.createFromSession(session.id, body).subscribe({
+      next: (ticket: Ticket) => {
+        this.showTicketModal = false;
+        this.creatingTicket = false;
+        this.sound.playTicketNotification();
+        this.ticketFeedback = { type: 'ok', text: 'Ticket generado correctamente' };
+        setTimeout(() => {
+          this.ticketFeedback = null;
+          this.cdr.detectChanges();
+        }, 3000);
+        // Auto-mensaje
+        const label = priorityLabel(ticket.priority);
+        const advisorName = this.currentAdvisor?.name || 'Asesor';
+        this.socket.emit('send_message', {
+          sessionId: session.id,
+          content: `Se generó el ticket ${ticket.codigo} con prioridad ${label} y fue asignado a ${advisorName}.`,
+        });
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        this.creatingTicket = false;
+        const msg = err?.error?.message || err?.message || '';
+        this.ticketFeedback = {
+          type: 'error',
+          text: msg.includes('codigo') || msg.includes('duplicate')
+            ? 'El codigo del ticket ya existe. Intenta de nuevo.'
+            : 'Error al generar el ticket.',
+        };
+        setTimeout(() => {
+          this.ticketFeedback = null;
+          this.cdr.detectChanges();
+        }, 4000);
+        this.cdr.detectChanges();
+      },
+    });
   }
 
   safeInitial(value?: string | null): string {

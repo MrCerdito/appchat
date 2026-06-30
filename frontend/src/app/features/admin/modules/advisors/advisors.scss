@@ -2,12 +2,15 @@
 
 $blue: #2563eb; $blue-bg: #eff6ff; $red: #ef4444; $red-light: #fef2f2;
 $green: #22c55e; $text: #1e293b; $muted: #64748b; $border: #e2e8f0;
-$bg: #f1f5f9; $white: #ffffff; $font: 'Plus Jakarta Sans', sans-serif;
+$bg: #f1f5f9; $white: #ffffff; $purple: #7c3aed; $purple-bg: #f5f3ff;
+$font: 'Plus Jakarta Sans', sans-serif;
+$radius: 10px;
 
 :host { display: flex; flex: 1; min-width: 0; height: 100%; overflow: auto; font-family: $font; }
 
-.advisors-page { flex: 1; padding: 2rem; max-width: 1000px; }
+.advisors-page { flex: 1; padding: 2rem; max-width: 1100px; }
 
+// ── Header ───────────────────────────────────────────────
 .page-header {
   display: flex; align-items: flex-start; justify-content: space-between;
   margin-bottom: 1.5rem;
@@ -15,12 +18,41 @@ $bg: #f1f5f9; $white: #ffffff; $font: 'Plus Jakarta Sans', sans-serif;
   p  { font-size: 0.85rem; color: $muted; }
 }
 
+// ── Alerts ───────────────────────────────────────────────
 .alert {
   padding: 0.65rem 1rem; border-radius: 8px; font-size: 0.85rem; margin-bottom: 1rem;
   &.success { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
   &.error   { background: $red-light; color: $red; border: 1px solid #fecaca; }
 }
 
+// ── Toolbar (buscador) ───────────────────────────────────
+.toolbar {
+  display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;
+}
+
+.search-box {
+  position: relative; flex: 1; max-width: 320px;
+
+  .search-icon {
+    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    width: 16px; height: 16px; color: #94a3b8; pointer-events: none;
+  }
+
+  .search-input {
+    width: 100%; padding: 0.6rem 0.9rem 0.6rem 2.2rem;
+    border: 1.5px solid $border; border-radius: 8px;
+    font-family: $font; font-size: 0.88rem; color: $text; outline: none;
+    background: $white; transition: border-color 0.15s;
+    &:focus { border-color: $blue; box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
+    &::placeholder { color: #94a3b8; }
+  }
+}
+
+.result-count {
+  font-size: 0.82rem; color: $muted; white-space: nowrap;
+}
+
+// ── Form card ────────────────────────────────────────────
 .form-card {
   background: $white; border-radius: 12px; padding: 1.5rem;
   border: 1px solid $border; margin-bottom: 1.5rem;
@@ -34,64 +66,148 @@ $bg: #f1f5f9; $white: #ffffff; $font: 'Plus Jakarta Sans', sans-serif;
 
 .field {
   display: flex; flex-direction: column; gap: 0.4rem;
-  label { font-size: 0.82rem; font-weight: 500; color: #475569; }
+
+  label { font-size: 0.82rem; font-weight: 500; color: #475569; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+
+  .field-hint {
+    font-weight: 400; font-size: 0.78rem; color: $blue;
+    label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+    input { accent-color: $blue; }
+  }
+
   input {
     padding: 0.65rem 0.9rem; border: 1.5px solid $border; border-radius: 8px;
     font-family: $font; font-size: 0.9rem; color: $text; outline: none;
+    transition: border-color 0.15s;
     &:focus { border-color: $blue; box-shadow: 0 0 0 3px rgba(37,99,235,0.08); }
   }
+
+  &.has-error input { border-color: $red; &:focus { box-shadow: 0 0 0 3px rgba(239,68,68,0.08); } }
+
+  .field-error { font-size: 0.75rem; color: $red; }
 }
 
 .form-actions {
   display: flex; justify-content: flex-end; gap: 8px; margin-top: 1rem;
 }
 
+// ── Table card ───────────────────────────────────────────
 .table-card {
   background: $white; border-radius: 12px; border: 1px solid $border; overflow: hidden;
 }
 
+.table-wrapper { overflow-x: auto; }
+
 table {
-  width: 100%; border-collapse: collapse;
+  width: 100%; border-collapse: collapse; min-width: 700px;
+
   th {
-    padding: 0.75rem 1rem; text-align: left; font-size: 0.75rem; font-weight: 600;
+    padding: 0.75rem 1rem; text-align: left; font-size: 0.72rem; font-weight: 600;
     color: $muted; text-transform: uppercase; letter-spacing: 0.05em;
-    border-bottom: 1px solid $border; background: #f8fafc;
+    border-bottom: 1px solid $border; background: #f8fafc; white-space: nowrap;
+    user-select: none;
+
+    &.sortable { cursor: pointer; &:hover { color: $text; } }
   }
+
   td {
     padding: 0.85rem 1rem; font-size: 0.88rem; color: $text;
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: 1px solid #f1f5f9; vertical-align: middle;
+
     &.muted   { color: $muted; font-size: 0.83rem; }
     &.center  { text-align: center; }
     &.empty   { text-align: center; color: #94a3b8; padding: 2rem; }
+    &.date-cell { font-size: 0.8rem; white-space: nowrap; }
   }
-  tr.inactive td { opacity: 0.5; }
+
+  tr.inactive td { opacity: 0.45; }
+
   tr:last-child td { border-bottom: none; }
 }
 
+// ── Advisor cell ─────────────────────────────────────────
 .advisor-cell {
   display: flex; align-items: center; gap: 0.6rem;
+
   .avatar {
     width: 32px; height: 32px; border-radius: 50%; background: $blue;
     color: $white; display: flex; align-items: center; justify-content: center;
     font-weight: 700; font-size: 0.82rem; flex-shrink: 0;
+
+    &.offline { background: #94a3b8; }
+    &.busy { background: #eab308; }
   }
 }
 
+// ── Badges ───────────────────────────────────────────────
 .badge {
-  font-size: 0.7rem; font-weight: 600; padding: 2px 8px; border-radius: 20px;
+  font-size: 0.68rem; font-weight: 600; padding: 2px 8px; border-radius: 20px;
+  white-space: nowrap;
+
   &.badge-online  { background: #dcfce7; color: #15803d; }
   &.badge-busy    { background: #fef9c3; color: #a16207; }
   &.badge-offline { background: #f1f5f9; color: $muted; }
   &.badge-active  { background: #dcfce7; color: #15803d; }
   &.badge-closed  { background: #f1f5f9; color: $muted; }
+  &.badge-admin   { background: $purple-bg; color: $purple; }
+  &.badge-advisor { background: $blue-bg; color: $blue; }
 }
 
-.actions { display: flex; gap: 6px; }
+// ── Actions ──────────────────────────────────────────────
+.actions { display: flex; gap: 6px; flex-wrap: nowrap; }
 
+.btn-icon {
+  padding: 0.35rem 0.7rem; border-radius: 6px; border: none;
+  font-family: $font; font-size: 0.78rem; font-weight: 500; cursor: pointer;
+  transition: all 0.15s; white-space: nowrap;
+
+  &.edit   { background: $blue-bg; color: $blue; &:hover { background: #dbeafe; } }
+  &.toggle { background: #fef9c3; color: #a16207; &:hover { background: #fef08a; } }
+  &.delete { background: $red-light; color: $red; &:hover { background: #fecaca; } }
+}
+
+// ── Pagination ───────────────────────────────────────────
+.pagination {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.75rem 1rem; border-top: 1px solid $border;
+  gap: 1rem; flex-wrap: wrap;
+}
+
+.pagination-info {
+  font-size: 0.8rem; color: $muted;
+}
+
+.pagination-controls {
+  display: flex; align-items: center; gap: 6px;
+
+  select {
+    padding: 0.3rem 0.5rem; border: 1px solid $border; border-radius: 6px;
+    font-family: $font; font-size: 0.78rem; color: $text; background: $white;
+    outline: none; cursor: pointer;
+    &:focus { border-color: $blue; }
+  }
+
+  .page-btn {
+    padding: 0.3rem 0.6rem; border: 1px solid $border; border-radius: 6px;
+    background: $white; color: $text; font-family: $font; font-size: 0.82rem;
+    cursor: pointer; transition: all 0.15s; min-width: 30px;
+
+    &:hover:not(:disabled) { border-color: $blue; color: $blue; }
+    &:disabled { opacity: 0.35; cursor: not-allowed; }
+  }
+
+  .page-current {
+    font-size: 0.82rem; font-weight: 600; color: $text; min-width: 24px;
+    text-align: center;
+  }
+}
+
+// ── Buttons ──────────────────────────────────────────────
 .btn-primary {
   padding: 0.6rem 1.2rem; background: $blue; color: $white; border: none;
   border-radius: 8px; font-family: $font; font-size: 0.88rem; font-weight: 600;
-  cursor: pointer; transition: background 0.2s;
+  cursor: pointer; transition: background 0.2s; white-space: nowrap;
+
   &:hover:not(:disabled) { background: #1d4ed8; }
   &:disabled { opacity: 0.5; cursor: not-allowed; }
 }
@@ -100,14 +216,78 @@ table {
   padding: 0.6rem 1.2rem; background: transparent; color: $muted;
   border: 1.5px solid $border; border-radius: 8px;
   font-family: $font; font-size: 0.88rem; font-weight: 500; cursor: pointer;
+
   &:hover { border-color: #94a3b8; color: $text; }
 }
 
-.btn-icon {
-  padding: 0.35rem 0.7rem; border-radius: 6px; border: none;
-  font-family: $font; font-size: 0.78rem; font-weight: 500; cursor: pointer;
-  transition: all 0.15s;
-  &.edit   { background: $blue-bg; color: $blue; &:hover { background: #dbeafe; } }
-  &.toggle { background: #fef9c3; color: #a16207; &:hover { background: #fef08a; } }
-  &.delete { background: $red-light; color: $red; &:hover { background: #fecaca; } }
+.btn-danger {
+  padding: 0.6rem 1.2rem; background: $red; color: $white; border: none;
+  border-radius: 8px; font-family: $font; font-size: 0.88rem; font-weight: 600;
+  cursor: pointer; transition: background 0.2s;
+
+  &:hover { background: #dc2626; }
+}
+
+// ── Skeleton loader ──────────────────────────────────────
+.skeleton {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%; animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 4px;
+
+  &-name    { width: 120px; height: 14px; }
+  &-email   { width: 160px; height: 14px; }
+  &-badge   { width: 60px; height: 18px; border-radius: 20px; }
+  &-number  { width: 24px; height: 14px; margin: 0 auto; }
+  &-actions { width: 140px; height: 22px; }
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+// ── Modal ────────────────────────────────────────────────
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(15,23,42,0.45);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000; padding: 1rem;
+}
+
+.modal-card {
+  background: $white; border-radius: 14px; padding: 1.8rem;
+  max-width: 420px; width: 100%; box-shadow: 0 16px 48px rgba(0,0,0,0.18);
+
+  h3 { font-size: 1.1rem; font-weight: 700; color: $text; margin-bottom: 0.8rem; }
+
+  p { font-size: 0.88rem; color: #475569; line-height: 1.5; margin-bottom: 1.2rem; }
+
+  .warning { font-size: 0.82rem; color: $red; }
+}
+
+.modal-actions {
+  display: flex; justify-content: flex-end; gap: 8px;
+}
+
+// ── Responsive ───────────────────────────────────────────
+@media (max-width: 768px) {
+  .advisors-page { padding: 1rem; }
+
+  .page-header {
+    flex-direction: column; gap: 0.75rem;
+    button { align-self: flex-start; }
+  }
+
+  .toolbar { flex-direction: column; align-items: stretch; }
+  .search-box { max-width: 100%; }
+  .result-count { text-align: right; }
+
+  .form-grid { grid-template-columns: 1fr; }
+
+  .pagination {
+    flex-direction: column; align-items: stretch; gap: 0.75rem;
+    .pagination-info { text-align: center; }
+    .pagination-controls { justify-content: center; flex-wrap: wrap; }
+  }
+
+  .modal-card { margin: 1rem; }
 }

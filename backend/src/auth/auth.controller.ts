@@ -1,14 +1,15 @@
 import { Controller, Post, Body, HttpCode, HttpStatus, Request, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { IsEmail, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsString, MinLength, Matches } from 'class-validator';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { Throttle } from '@nestjs/throttler';
 
 export class LoginDto {
   @IsEmail({}, { message: 'Correo electrónico inválido' })
   email!: string;
 
   @IsString()
-  @MinLength(6, { message: 'La contraseña debe tener mínimo 6 caracteres' })
+  @MinLength(8, { message: 'La contraseña debe tener mínimo 8 caracteres' })
   password!: string;
 }
 
@@ -21,7 +22,10 @@ export class RegisterDto {
   email!: string;
 
   @IsString()
-  @MinLength(6)
+  @MinLength(8, { message: 'La contraseña debe tener mínimo 8 caracteres' })
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]).{8,}$/, {
+    message: 'La contraseña debe contener mayúscula, minúscula, número y carácter especial',
+  })
   password!: string;
 }
 
@@ -36,12 +40,14 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 5, ttl: 900000 } })
   login(@Body() body: LoginDto) {
     return this.authService.login(body.email, body.password);
   }
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   refresh(@Body() body: RefreshDto) {
     return this.authService.refresh(body.refresh_token);
   }
@@ -55,6 +61,7 @@ export class AuthController {
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
+  @Throttle({ default: { limit: 3, ttl: 3600000 } })
   register(@Body() body: RegisterDto) {
     return this.authService.register(body.name, body.email, body.password);
   }

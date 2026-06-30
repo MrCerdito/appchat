@@ -7,6 +7,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
 import { User } from '../auth/entities/user.entity';
 import { ConfiguracionModule } from '../configuracion/configuracion.module';
+import { TicketsModule } from '../tickets/tickets.module';
 import { AdvisorsWhatsappController } from './advisors-whatsapp.controller';
 import { AdvisorsWhatsappService } from './advisors-whatsapp.service';
 import { AdvisorsWhatsappGateway } from './advisors-whatsapp.gateway';
@@ -20,6 +21,7 @@ import { WhatsappMessage } from './entities/whatsapp-message.entity';
     TypeOrmModule.forFeature([WhatsappChat, WhatsappMessage, TeamsToken, User]),
     AuthModule,
     ConfiguracionModule,
+    TicketsModule,
   ],
   controllers: [AdvisorsWhatsappController],
   providers: [AdvisorsWhatsappService, AdvisorsWhatsappGateway, TeamsMeetingsService],

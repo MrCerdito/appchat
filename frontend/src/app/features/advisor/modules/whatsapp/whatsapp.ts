@@ -16,6 +16,8 @@ import { firstValueFrom, Subscription, timeout } from 'rxjs';
 import { AiService } from '../../../../core/services/ai.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { ConfiguracionFrontendService } from '../../../../core/services/configuracion.service';
+import { TicketService } from '../../../../core/services/ticket.service';
+import { SoundService } from '../../../../core/services/sound.service';
 import { WhatsappChatService } from '../../../../core/services/whatsapp-chat.service';
 import {
   AwChatAssigned,
@@ -27,6 +29,7 @@ import {
   WaMessage,
 } from '../../../../core/models/whatsapp.models';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
+import { priorityLabel } from '../../../../shared/utils/ticket-categories';
 
 export type { WaChat as Contact };
 
@@ -170,6 +173,11 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   isClosingChat = false;
   isSavingWhatsappSettings = false;
   isUpdatingOperationalStatus = false;
+  creatingTicket = false;
+  ticketFeedback: { type: 'ok' | 'error'; text: string } | null = null;
+  showTicketModal = false;
+  ticketCategories: string[] = [];
+  ticketDto = { titulo: '', priority: 'medium' as const, category: '' };
   showWhatsappSettings = false;
   showTeamsMeeting = false;
   showInfoPanel = false;
@@ -236,6 +244,8 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     private readonly waService: WhatsappChatService,
     private readonly authService: AuthService,
     private readonly configService: ConfiguracionFrontendService,
+    private readonly ticketService: TicketService,
+    private readonly sound: SoundService,
     private readonly aiService: AiService,
     private readonly cdr: ChangeDetectorRef,
   ) {}
@@ -1095,6 +1105,77 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
         this.cdr.detectChanges();
       }),
     );
+  }
+
+  openTicketModal(): void {
+    if (!this.activeContact) return;
+    const contact = this.activeContact;
+    this.ticketDto = {
+      titulo: `Ticket desde WhatsApp - ${contact.name || 'Cliente'}`,
+      priority: 'medium' as const,
+      category: '',
+    };
+    if (this.ticketCategories.length === 0) {
+      this.ticketService.getCategories().subscribe(cats => {
+        this.ticketCategories = cats;
+        this.cdr.detectChanges();
+      });
+    }
+    this.showTicketModal = true;
+    this.cdr.detectChanges();
+  }
+
+  closeTicketModal(): void {
+    this.showTicketModal = false;
+    this.cdr.detectChanges();
+  }
+
+  confirmTicket(): void {
+    if (!this.activeContact || this.creatingTicket) return;
+    this.creatingTicket = true;
+    this.ticketFeedback = null;
+    this.showTicketModal = false;
+    const contact = this.activeContact;
+    const body = {
+      titulo: this.ticketDto.titulo.trim(),
+      priority: this.ticketDto.priority,
+      category: this.ticketDto.category || undefined,
+    };
+    this.ticketService.createFromWhatsapp(contact.id, body).subscribe({
+      next: (ticket) => {
+        this.creatingTicket = false;
+        this.sound.playTicketNotification();
+        this.ticketFeedback = { type: 'ok', text: 'Ticket generado correctamente' };
+        if (this.toastTimer) clearTimeout(this.toastTimer);
+        this.toastTimer = setTimeout(() => {
+          this.ticketFeedback = null;
+          this.cdr.detectChanges();
+        }, 3000);
+        // Auto-mensaje
+        const label = priorityLabel(ticket.priority);
+        const address = contact.jid || contact.phone;
+        if (address) {
+          this.waService.sendMessage(address, `Se generó el ticket ${ticket.codigo} con prioridad ${label} y fue asignado a ${this.currentUserName}.`).subscribe();
+        }
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        this.creatingTicket = false;
+        const msg = err?.error?.message || err?.message || '';
+        this.ticketFeedback = {
+          type: 'error',
+          text: msg.includes('codigo') || msg.includes('duplicate')
+            ? 'El codigo del ticket ya existe. Intenta de nuevo.'
+            : 'Error al generar el ticket.',
+        };
+        if (this.toastTimer) clearTimeout(this.toastTimer);
+        this.toastTimer = setTimeout(() => {
+          this.ticketFeedback = null;
+          this.cdr.detectChanges();
+        }, 4000);
+        this.cdr.detectChanges();
+      },
+    });
   }
 
   updateOperationalStatus(status: WaOperationalStatus): void {

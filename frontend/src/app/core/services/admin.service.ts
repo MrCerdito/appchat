@@ -1,8 +1,16 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { User } from '../models/user.model';
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+  pages: number;
+}
 
 export interface Metrics {
   total: number;
@@ -19,8 +27,14 @@ export interface Metrics {
 export class AdminService {
   constructor(private http: HttpClient) {}
 
-  getAdvisors(): Observable<User[]> {
-    return this.http.get<User[]>(`${environment.apiUrl}/advisors`);
+  getAdvisors(page = 1, limit = 20, search?: string): Observable<PaginatedResponse<User>> {
+    let params = new HttpParams().set('page', page).set('limit', limit);
+    if (search) params = params.set('search', search);
+    return this.http.get<PaginatedResponse<User>>(`${environment.apiUrl}/advisors`, { params });
+  }
+
+  getAdvisor(id: string): Observable<User> {
+    return this.http.get<User>(`${environment.apiUrl}/advisors/${id}`);
   }
 
   createAdvisor(name: string, email: string, password: string): Observable<User> {
@@ -29,6 +43,10 @@ export class AdminService {
 
   updateAdvisor(id: string, data: { name?: string; email?: string }): Observable<User> {
     return this.http.put<User>(`${environment.apiUrl}/advisors/${id}`, data);
+  }
+
+  updatePassword(id: string, password: string): Observable<{ ok: boolean }> {
+    return this.http.patch<{ ok: boolean }>(`${environment.apiUrl}/advisors/${id}/password`, { password });
   }
 
   toggleAdvisor(id: string): Observable<User> {
@@ -48,15 +66,15 @@ export class AdminService {
   }
 
   getRanking(): Observable<any[]> {
-  return this.http.get<any[]>(`${environment.apiUrl}/sessions/metrics/ranking`);
-}
+    return this.http.get<any[]>(`${environment.apiUrl}/sessions/metrics/ranking`);
+  }
 
-getAllComentarios(page = 1, limit = 10, advisorId?: string) {
-  const params = advisorId
-    ? `?page=${page}&limit=${limit}&advisorId=${advisorId}`
-    : `?page=${page}&limit=${limit}`;
-  return this.http.get<{
-    data: any[]; total: number; page: number; pages: number;
-  }>(`${environment.apiUrl}/sessions/admin/comentarios${params}`);
-}
+  getAllComentarios(page = 1, limit = 10, advisorId?: string) {
+    const params = advisorId
+      ? `?page=${page}&limit=${limit}&advisorId=${advisorId}`
+      : `?page=${page}&limit=${limit}`;
+    return this.http.get<{
+      data: any[]; total: number; page: number; pages: number;
+    }>(`${environment.apiUrl}/sessions/admin/comentarios${params}`);
+  }
 }

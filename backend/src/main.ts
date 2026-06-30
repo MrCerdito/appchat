@@ -3,6 +3,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { join } from 'path';
+import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -10,7 +11,51 @@ async function bootstrap() {
   app.disable('x-powered-by');
 
   // =========================
-  // CORS (DEBE IR PRIMERO)
+  // HELMET (HEADERS DE SEGURIDAD)
+  // =========================
+  const NODE_ENV = process.env.NODE_ENV ?? 'development';
+  const APP_URL = process.env.APP_URL || 'http://localhost:3000';
+  const CSP_DIRECTIVES = process.env.CSP_DIRECTIVES || [
+    "default-src 'self'",
+    "img-src 'self' data: blob: https:",
+    "media-src 'self' blob:",
+    "connect-src 'self' " + APP_URL + " ws:",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ].join('; ');
+
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          'default-src': ["'self'"],
+          'img-src': ["'self'", 'data:', 'blob:', 'https:'],
+          'media-src': ["'self'", 'blob:'],
+          'connect-src': ["'self'", APP_URL, 'ws:'],
+          'frame-ancestors': ["'none'"],
+          'base-uri': ["'self'"],
+          'form-action': ["'self'"],
+        },
+      },
+      crossOriginEmbedderPolicy: false,
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+      strictTransportSecurity: NODE_ENV === 'production'
+        ? { maxAge: 31536000, includeSubDomains: true }
+        : false,
+      referrerPolicy: { policy: 'no-referrer' },
+      xFrameOptions: { action: 'deny' },
+      xContentTypeOptions: true,
+    }),
+  );
+
+  app.use((req, res, next) => {
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    next();
+  });
+
+  // =========================
+  // CORS
   // =========================
   const corsOrigins = process.env.CORS_ORIGINS
     ? process.env.CORS_ORIGINS.split(',')
@@ -21,46 +66,6 @@ async function bootstrap() {
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
-  });
-
-  // =========================
-  // HEADERS DE SEGURIDAD
-  // =========================
-  const NODE_ENV  = process.env.NODE_ENV ?? 'development';
-  const APP_URL = process.env.APP_URL || 'http://localhost:3000';
-  const CSP_VALUE = process.env.CSP_DIRECTIVES || [
-    "default-src 'self'",
-    "img-src 'self' data: blob: https:",
-    "media-src 'self' blob:",
-    "connect-src 'self' " + APP_URL + " ws:",
-    "frame-ancestors 'none'",
-    "base-uri 'self'",
-    "form-action 'self'",
-  ].join('; ');
-
-  app.use((req, res, next) => {
-    if (req.method === 'OPTIONS') {
-      return next();
-    }
-
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('X-Frame-Options', 'DENY');
-    res.setHeader('Referrer-Policy', 'no-referrer');
-    res.setHeader(
-      'Permissions-Policy',
-      'camera=(), microphone=(), geolocation=()'
-    );
-
-    if (NODE_ENV === 'production') {
-      res.setHeader(
-        'Strict-Transport-Security',
-        'max-age=31536000; includeSubDomains'
-      );
-    }
-
-    res.setHeader('Content-Security-Policy', CSP_VALUE);
-
-    next();
   });
 
   // =========================

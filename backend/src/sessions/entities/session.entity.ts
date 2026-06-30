@@ -4,6 +4,7 @@ import {
 } from 'typeorm';
 import { User } from '../../auth/entities/user.entity';
 import { Message } from '../../chat/entities/message.entity';
+import { encryptedTextTransformer } from '../../common/security/encrypted-text.transformer';
 
 @Entity('sessions')
 @Index('idx_sessions_status', ['status'])
@@ -14,13 +15,16 @@ export class Session {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'client_name', length: 100 })
+  @Column({ type: 'varchar', length: 20, unique: true, nullable: true })
+  codigo: string | null;
+
+  @Column({ name: 'client_name', type: 'text', transformer: encryptedTextTransformer })
   clientName: string;
 
-  @Column({ type: 'varchar', length: 20, nullable: true })
+  @Column({ type: 'text', nullable: true, transformer: encryptedTextTransformer })
   identificacion: string | null;
 
-  @Column({ type: 'varchar', length: 100, nullable: true })
+  @Column({ type: 'text', nullable: true, transformer: encryptedTextTransformer })
   apellido: string | null;
 
   @Column({ type: 'varchar', length: 50, nullable: true })

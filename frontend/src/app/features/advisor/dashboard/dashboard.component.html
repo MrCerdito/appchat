@@ -22,14 +22,21 @@
       <h2>¡Hora del almuerzo!</h2>
       <p>Estás en tu pausa de almuerzo.<br>No recibirás nuevos chats durante este tiempo.</p>
 
+      <div class="almuerzo-schedule" *ngIf="almuerzoInicio">
+        <span class="schedule-label">Horario de almuerzo</span>
+        <span class="schedule-range">{{ almuerzoInicio }} — {{ almuerzoFinOriginal }}</span>
+        <span class="schedule-adjust" *ngIf="almuerzoFinHora !== almuerzoFinOriginal">
+          Ajustado hasta las {{ almuerzoFinHora }}
+        </span>
+      </div>
+
       <div class="almuerzo-countdown-wrap">
         <span class="countdown-label">Regresas en</span>
         <span class="countdown-timer">{{ almuerzoRestante }}</span>
-        <span class="countdown-sub">hasta las {{ almuerzoFinHora }}</span>
       </div>
 
       <div class="almuerzo-progress">
-        <div class="almuerzo-progress-bar"></div>
+        <div class="almuerzo-progress-bar" [style.width.%]="almuerzoProgreso"></div>
       </div>
 
       <span class="almuerzo-nota">El sistema reanudará automáticamente al finalizar</span>
@@ -113,6 +120,18 @@
           <line x1="6" y1="20" x2="6" y2="14"/>
         </svg>
         <span>Métricas</span>
+      </a>
+
+      <a class="nav-item" routerLink="tickets" routerLinkActive="active"
+         data-label="Tickets" (click)="closeSidebarOnMobile()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+        </svg>
+        <span>Tickets</span>
       </a>
 
       <a class="nav-item" routerLink="documentos" routerLinkActive="active"
@@ -349,6 +368,17 @@
       </div>
     </header>
 
+    <!-- Banner almuerzo próximo -->
+    <div class="lunch-approaching-banner" *ngIf="almuerzoProximoMensaje && !enAlmuerzo && !almuerzoMensaje">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="12" x2="12" y2="6"/>
+        <line x1="12" y1="12" x2="16" y2="14"/>
+      </svg>
+      <span>{{ almuerzoProximoMensaje }}</span>
+    </div>
+
     <!-- Banner almuerzo pendiente -->
     <div class="lunch-pending-banner" *ngIf="almuerzoMensaje && !enAlmuerzo">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -357,7 +387,17 @@
         <path d="M7 2v20"/>
         <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7"/>
       </svg>
-      <span>{{ almuerzoMensaje }}</span>
+      <div class="lunch-pending-text">
+        <span class="pending-title">Almuerzo pendiente</span>
+        <span class="pending-desc">{{ almuerzoMensaje }}</span>
+        <div class="pending-breakdown" *ngIf="almuerzoChatsWeb > 0 || almuerzoChatsWhatsapp > 0">
+          <span class="breakdown-item" *ngIf="almuerzoChatsWeb > 0">● Chat asesor: {{ almuerzoChatsWeb }} sin finalizar</span>
+          <span class="breakdown-item" *ngIf="almuerzoChatsWhatsapp > 0">● WhatsApp: {{ almuerzoChatsWhatsapp }} sin finalizar</span>
+        </div>
+        <span class="pending-hours" *ngIf="almuerzoInicio">
+          Horario: {{ almuerzoInicio }} — {{ almuerzoFinOriginal }}
+        </span>
+      </div>
     </div>
 
     <div class="shell-outlet">

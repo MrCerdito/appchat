@@ -1,0 +1,356 @@
+$bg: #0f172a;
+$surface: #1e293b;
+$surface-hover: #243349;
+$border: rgba(255,255,255,0.06);
+$text: #e2e8f0;
+$text-muted: #94a3b8;
+$text-faint: #64748b;
+$accent: #6366f1;
+$font: 'Plus Jakarta Sans', system-ui, sans-serif;
+
+.tl-page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 24px;
+  background: $bg;
+  color: $text;
+  font-family: $font;
+}
+
+.tl-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+
+  h1 { font-size: 20px; font-weight: 700; margin: 0; }
+}
+
+.tl-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: $font;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &-primary {
+    background: $accent;
+    color: #fff;
+    &:hover { background: #5455e0; }
+    &:disabled { opacity: 0.45; cursor: default; }
+  }
+
+  &-ghost {
+    background: $surface;
+    color: $text-muted;
+    &:hover { background: $surface-hover; color: $text; }
+  }
+}
+
+.tl-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.tl-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 200px;
+  max-width: 320px;
+  height: 34px;
+  padding: 0 10px;
+  background: $surface;
+  border-radius: 7px;
+
+  svg { flex-shrink: 0; color: $text-faint; }
+
+  input {
+    flex: 1;
+    border: 0;
+    background: transparent;
+    color: $text;
+    font-size: 13px;
+    font-family: $font;
+    outline: none;
+    &::placeholder { color: $text-faint; }
+  }
+}
+
+.tl-pills {
+  display: flex;
+  gap: 3px;
+  background: $surface;
+  padding: 3px;
+  border-radius: 7px;
+}
+
+.tl-pill {
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: $text-muted;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: $font;
+
+  &:hover { color: $text; }
+
+  &.active {
+    background: $accent;
+    color: #fff;
+    font-weight: 600;
+  }
+}
+
+.tl-selects {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+
+  select {
+    height: 30px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 6px;
+    background: $surface;
+    color: $text-muted;
+    font-size: 12px;
+    font-family: $font;
+    outline: none;
+    cursor: pointer;
+    &:hover { color: $text; }
+  }
+}
+
+.tl-clear {
+  height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: $surface;
+  color: $text-faint;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: $font;
+  &:hover { background: $surface-hover; color: $text; }
+}
+
+.tl-loading {
+  height: 2px;
+  background: $surface;
+  overflow: hidden;
+  margin-bottom: 4px;
+  span {
+    display: block;
+    height: 100%;
+    width: 25%;
+    background: $accent;
+    border-radius: 2px;
+    animation: tlSlide 1s ease-in-out infinite;
+  }
+}
+
+@keyframes tlSlide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(500%); }
+}
+
+.tl-table-wrap {
+  flex: 1;
+  overflow: auto;
+}
+
+.tl-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+
+  th {
+    text-align: left;
+    padding: 10px 12px;
+    color: $text-faint;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    background: $bg;
+  }
+
+  td {
+    padding: 10px 12px;
+    border-bottom: 1px solid $border;
+    white-space: nowrap;
+  }
+
+  tr:hover td { background: rgba(255,255,255,0.02); }
+}
+
+.cell-code {
+  font-family: 'SF Mono', 'JetBrains Mono', monospace;
+  font-weight: 600;
+  color: #a5b4fc;
+}
+
+.cell-title {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: $text;
+}
+
+.cell-date {
+  color: $text-faint;
+  font-size: 12px;
+}
+
+.tl-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+
+  &-source {
+    background: rgba(99,102,241,0.12);
+    color: #a5b4fc;
+    &.tl-badge-whatsapp {
+      background: rgba(16,185,129,0.12);
+      color: #6ee7b7;
+    }
+  }
+
+  &-priority {
+    background: color-mix(in srgb, var(--tl-color) 15%, transparent);
+    color: var(--tl-color);
+  }
+
+  &-status {
+    background: color-mix(in srgb, var(--tl-color) 15%, transparent);
+    color: var(--tl-color);
+  }
+}
+
+.tl-link {
+  color: $accent;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 12px;
+  &:hover { text-decoration: underline; }
+}
+
+.tl-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 60px 0;
+  color: $text-faint;
+  svg { opacity: 0.4; }
+}
+
+.tl-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 14px 0 0;
+
+  button {
+    height: 32px;
+    padding: 0 12px;
+    border: 1px solid $border;
+    border-radius: 6px;
+    background: $surface;
+    color: $text-muted;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: $font;
+    transition: all 0.15s;
+    &:disabled { opacity: 0.35; cursor: default; }
+    &:hover:not(:disabled) { background: $surface-hover; color: $text; }
+  }
+
+  span { font-size: 12px; color: $text-faint; }
+}
+
+.tl-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: grid;
+  place-items: center;
+  z-index: 1000;
+}
+
+.tl-modal {
+  background: $surface;
+  border-radius: 12px;
+  padding: 24px;
+  width: 440px;
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow-y: auto;
+
+  h2 { margin: 0 0 16px; font-size: 17px; font-weight: 700; }
+}
+
+.tl-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+    color: $text-faint;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  input, textarea, select {
+    padding: 8px 10px;
+    background: $bg;
+    border: 1px solid $border;
+    border-radius: 6px;
+    color: $text;
+    font-size: 13px;
+    font-family: $font;
+    outline: none;
+    &:focus { border-color: $accent; }
+  }
+
+  textarea { resize: vertical; font-family: $font; }
+}
+
+.tl-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}

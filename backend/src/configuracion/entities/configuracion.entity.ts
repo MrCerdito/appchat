@@ -105,6 +105,13 @@ export class Configuracion {
   @Column({ type: 'jsonb', default: '[]' })
   almuerzos: HorarioAlmuerzo[];
 
+  @Column({
+    name: 'ticket_categories',
+    type: 'jsonb',
+    default: () => "'[\"Soporte tecnico\",\"Administrativo\",\"Academico\",\"Facturacion\",\"Otro\"]'::jsonb",
+  })
+  ticketCategories: string[];
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

@@ -16,9 +16,9 @@ export class Message {
   content: string;
 
   @Column({ name: 'sender_type', length: 10 })
-  senderType: string; // 'client' | 'advisor'
+  senderType: string;
 
-  @Column({ name: 'sender_name', length: 100 })
+  @Column({ name: 'sender_name', type: 'text', transformer: encryptedTextTransformer })
   senderName: string;
 
   @CreateDateColumn({ name: 'created_at' })

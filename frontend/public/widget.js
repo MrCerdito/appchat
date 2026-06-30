@@ -89,6 +89,12 @@
   var _prevCfgJson = '';
 
   /* ═══════════════════════════════════════════════════════════
+     SECCIÓN 4b — ESTADO ADICIONAL
+  ═══════════════════════════════════════════════════════════ */
+  var unreadCount = 0;
+  var badgeEl = null;
+
+  /* ═══════════════════════════════════════════════════════════
      SECCIÓN 5 — SVG PATHS
   ═══════════════════════════════════════════════════════════ */
   var PATHS = {
@@ -134,73 +140,87 @@
     return lum > 0.5 ? '#111111' : '#ffffff';
   }
 
-  function panelDims() {
-    var vw = window.innerWidth;
-    var vh = window.innerHeight;
-    var w  = Math.min(440, Math.max(360, Math.round(vw * 0.32)));
-    var h  = Math.min(680, Math.max(520, Math.round(vh * 0.80)));
-    return { w: w, h: h };
-  }
-
-  var BTN_POS = {
-    'bottom-right': { bottom: '24px', right: '24px' },
-    'bottom-left' : { bottom: '24px', left:  '24px' },
-    'top-right'   : { top:    '24px', right: '24px' },
-    'top-left'    : { top:    '24px', left:  '24px' },
-  };
-
-  function getPanelStyle(posicion, dims, size) {
-    var gap = size + 12;
-    var br  = '20px';
-    var w   = dims.w + 'px';
-    var h   = dims.h + 'px';
-    var styles = {
-      'bottom-right': { bottom: gap+'px', right: '24px', width: w, height: h, borderRadius: br, transformOrigin: 'bottom right' },
-      'bottom-left' : { bottom: gap+'px', left:  '24px', width: w, height: h, borderRadius: br, transformOrigin: 'bottom left'  },
-      'top-right'   : { top:    gap+'px', right: '24px', width: w, height: h, borderRadius: br, transformOrigin: 'top right'    },
-      'top-left'    : { top:    gap+'px', left:  '24px', width: w, height: h, borderRadius: br, transformOrigin: 'top left'     },
-    };
-    return styles[posicion] || styles['bottom-right'];
-  }
-
-  function getBubblePos(posicion, size) {
-    var off = size + 14;
-    return ({
-      'bottom-right': { bottom: off+'px', right: '24px' },
-      'bottom-left' : { bottom: off+'px', left:  '24px' },
-      'top-right'   : { top:    off+'px', right: '24px' },
-      'top-left'    : { top:    off+'px', left:  '24px' },
-    })[posicion] || { bottom: off+'px', right: '24px' };
-  }
-
-  function applyPos(el, map) {
-    ['top','bottom','left','right'].forEach(function(k){ el.style[k] = ''; });
-    Object.keys(map).forEach(function(k){
-      el.style[k] = typeof map[k] === 'number' ? map[k]+'px' : map[k];
-    });
-  }
-
   /* ═══════════════════════════════════════════════════════════
-     SECCIÓN 7 — DETECCIÓN DE BASE URL
+     SECCIÓN 7 — DETECCIÓN DE BASE URL Y DATA ATTRIBUTES
   ═══════════════════════════════════════════════════════════ */
-  function getApiBase() {
+  var _scriptTag = null;
+
+  function getScriptTag() {
+    if (_scriptTag) return _scriptTag;
     var tags = document.querySelectorAll('script[src]');
     for (var i = 0; i < tags.length; i++) {
       var s = tags[i].getAttribute('src') || '';
       if (s.indexOf('widget.js') !== -1) {
-        try {
-          var u = new URL(s, location.href);
-          return (u.hostname === 'localhost' && u.port === '4200')
-            ? 'http://localhost:3000'
-            : u.origin;
-        } catch (_) {}
+        _scriptTag = tags[i];
+        return _scriptTag;
       }
     }
-    return location.origin;
+    return null;
+  }
+
+  function getApiBase() {
+    var tag = getScriptTag();
+    if (!tag) return location.origin;
+    try {
+      var src = tag.getAttribute('src') || '';
+      var u = new URL(src, location.href);
+      return (u.hostname === 'localhost' && u.port === '4200')
+        ? 'http://localhost:3000'
+        : u.origin;
+    } catch (_) {
+      return location.origin;
+    }
   }
 
   var API_BASE = getApiBase();
   var API_URL  = API_BASE + API_PATH;
+
+  // ── Data attributes sobreescritura ─────────────────────────────────────────
+  function getDataAttr(name) {
+    var tag = getScriptTag();
+    return tag ? (tag.getAttribute('data-' + name) || '') : '';
+  }
+
+  var IS_PREVIEW     = getDataAttr('preview') === 'true';
+  var DATA_CHAT_URL  = getDataAttr('chat-url') || '';
+
+  // Si data-chat-url está presente, sobreescribe el chatUrl de la config
+  if (DATA_CHAT_URL) {
+    DEF.chatUrl = DATA_CHAT_URL;
+  }
+
+  // ── Leer config desde URL params (preview mode) ───────────────────────────
+  function getPreviewConfig() {
+    if (!IS_PREVIEW) return null;
+    try {
+      var p = new URLSearchParams(location.search);
+      var cfg = {};
+      var fields = [
+        'color', 'posicion', 'forma', 'tamano', 'icono',
+        'textoBoton', 'mostrarTexto',
+        'abrirAutomatico', 'delayAutoAbrir',
+        'mensajeBurbuja', 'mostrarBurbuja', 'chatUrl',
+        'tituloPanelChat', 'subtituloPanelChat',
+        'chatHeaderColor', 'chatBgColor',
+        'chatBubbleColor', 'chatBubbleUserColor', 'chatMarca',
+      ];
+      fields.forEach(function (f) {
+        var v = p.get(f);
+        if (v !== null) {
+          if (f === 'mostrarTexto' || f === 'abrirAutomatico' || f === 'mostrarBurbuja') {
+            cfg[f] = v === 'true';
+          } else if (f === 'delayAutoAbrir') {
+            cfg[f] = parseInt(v, 10) || DEF[f];
+          } else {
+            cfg[f] = v;
+          }
+        }
+      });
+      return Object.keys(cfg).length > 0 ? cfg : null;
+    } catch (_) {
+      return null;
+    }
+  }
 
   /* ═══════════════════════════════════════════════════════════
      SECCIÓN 8 — NORMALIZACIÓN (TODOS LOS CAMPOS)
@@ -257,57 +277,16 @@
     bubble.addEventListener('click', openPanel);
     root.appendChild(bubble);
 
-    // ── Panel ──
+    // ── Panel (solo iframe, sin header ni powered-by) ──
     var panel = document.createElement('div');
     panel.id  = 'sian-panel';
 
-    // Header del panel
-    var header = document.createElement('div');
-    header.id  = 'sian-panel-header';
-
-    var avatarWrap = document.createElement('div');
-    avatarWrap.id  = 'sian-panel-avatar';
-    avatarWrap.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8"'
-      + ' stroke-linecap="round" stroke-linejoin="round" width="20" height="20">'
-      + '<path d="M12 2C6.5 2 2 6 2 11c0 2.4 1 4.6 2.6 6.2L3 22l5-1.5A10 10 0 0 0 12 22c5.5 0 10-4 10-9s-4.5-9-10-9z"/>'
-      + '</svg>';
-
-    var headerInfo = document.createElement('div');
-    headerInfo.id  = 'sian-panel-header-info';
-
-    var headerTitle = document.createElement('h3');
-    headerTitle.id  = 'sian-panel-title';
-
-    var headerSub = document.createElement('p');
-    headerSub.id  = 'sian-panel-sub';
-
-    var onlineDot = document.createElement('span');
-    onlineDot.id  = 'sian-online-dot';
-
-    var subText = document.createElement('span');
-    subText.id   = 'sian-panel-sub-text';
-
-    headerSub.appendChild(onlineDot);
-    headerSub.appendChild(subText);
-    headerInfo.appendChild(headerTitle);
-    headerInfo.appendChild(headerSub);
-    header.appendChild(avatarWrap);
-    header.appendChild(headerInfo);
-    panel.appendChild(header);
-
-    // Iframe
     var iframe = document.createElement('iframe');
     iframe.id  = 'sian-iframe';
     iframe.setAttribute('allow', 'microphone; camera');
     iframe.setAttribute('scrolling', 'no');
     iframe.setAttribute('title', 'Sian365 Chat');
     panel.appendChild(iframe);
-
-    // Powered by
-    var powered = document.createElement('div');
-    powered.id  = 'sian-powered';
-    powered.innerHTML = 'Powered by <a href="#" style="color:inherit;text-decoration:underline">Sian365</a>';
-    panel.appendChild(powered);
 
     root.appendChild(panel);
 
@@ -317,6 +296,13 @@
     btn.setAttribute('aria-label', 'Abrir chat');
     btn.addEventListener('click', togglePanel);
     root.appendChild(btn);
+
+    // ── Badge de no-leídos ──
+    var badge = document.createElement('span');
+    badge.id  = 'sian-badge';
+    badge.style.display = 'none';
+    btn.appendChild(badge);
+    badgeEl = badge;
 
     document.body.appendChild(root);
   }
@@ -392,6 +378,11 @@
 
   function paint(c) {
     cfg = c;
+
+    // data-chat-url sobreescribe cualquier config de la API
+    if (DATA_CHAT_URL) {
+      cfg.chatUrl = DATA_CHAT_URL;
+    }
     var size    = btnSize();
     var hasText = cfg.mostrarTexto && cfg.textoBoton;
     var dims    = panelDims();
@@ -434,24 +425,6 @@
       } else {
         bubble.style.display = 'none';
       }
-    }
-
-    // ── Header del panel — color, marca, título, subtítulo ──
-    var panelHeader = document.getElementById('sian-panel-header');
-    if (panelHeader) {
-      panelHeader.style.background = cfg.chatHeaderColor;
-    }
-
-    var panelTitle = document.getElementById('sian-panel-title');
-    if (panelTitle) {
-      panelTitle.textContent = cfg.chatMarca || cfg.tituloPanelChat || DEF.tituloPanelChat;
-      panelTitle.style.color = '#ffffff';
-    }
-
-    var panelSubText = document.getElementById('sian-panel-sub-text');
-    if (panelSubText) {
-      panelSubText.textContent = cfg.subtituloPanelChat || DEF.subtituloPanelChat;
-      panelSubText.style.color = 'rgba(255,255,255,0.78)';
     }
 
     // ── Panel (posición y tamaño) ──
@@ -516,6 +489,138 @@
     } catch (_) {}
   }
 
+  // ── Badge update ─────────────────────────────────────────────────────────
+  function updateBadge(count) {
+    unreadCount = count;
+    if (!badgeEl) return;
+    if (count > 0 && !isOpen) {
+      badgeEl.textContent = count > 99 ? '99+' : count;
+      badgeEl.style.display = 'flex';
+      var btn = document.getElementById('sian-btn');
+      if (btn) btn.style.animation = 'sian-bounce 0.4s ease';
+    } else {
+      badgeEl.style.display = 'none';
+      var btn2 = document.getElementById('sian-btn');
+      if (btn2) btn2.style.animation = '';
+    }
+  }
+
+  // ── Restaurar título al hacer foco ────────────────────────────────────────
+  window.addEventListener('focus', function () {
+    document.title = (cfg.chatMarca || cfg.tituloPanelChat || 'Chat');
+  });
+
+  // ── Escuchar mensajes del iframe ──────────────────────────────────────────
+  window.addEventListener('message', function (event) {
+    if (event.data && event.data.type === 'unread_count') {
+      updateBadge(event.data.count);
+    }
+    if (event.data && event.data.type === 'sian-close-panel') {
+      closePanel();
+    }
+  });
+
+  // ── Estilos base del widget ────────────────────────────────────────────
+  var widgetStyle = document.createElement('style');
+  widgetStyle.textContent = `
+#sian-widget-root {
+  display: block;
+}
+#sian-widget-root *,
+#sian-widget-root *::before,
+#sian-widget-root *::after {
+  box-sizing: border-box;
+}
+#sian-panel {
+  position: fixed;
+  display: none;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+  z-index: 2147483647;
+  background: #fff;
+  flex-direction: column;
+}
+#sian-panel.sian-open {
+  display: flex;
+  animation: sianFadeIn 0.25s ease forwards;
+}
+@keyframes sianFadeIn {
+  from { opacity: 0; transform: scale(0.92) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+#sian-btn {
+  position: fixed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  z-index: 2147483647;
+  transition: opacity 0.2s, transform 0.15s;
+  font-family: inherit;
+}
+#sian-btn:hover {
+  opacity: 0.9;
+  transform: scale(1.05);
+}
+#sian-btn:active {
+  transform: scale(0.95);
+}
+#sian-bubble {
+  position: fixed;
+  background: #fff;
+  border-radius: 16px;
+  padding: 12px 18px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  font-size: 14px;
+  line-height: 1.4;
+  color: #333;
+  cursor: pointer;
+  z-index: 2147483646;
+  max-width: 260px;
+  font-family: inherit;
+  animation: sianFloat 3s ease-in-out infinite;
+}
+#sian-bubble::after {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  transform: rotate(45deg);
+}
+#sian-bubble::after {
+  bottom: -5px;
+  right: 20px;
+}
+@keyframes sianFloat {
+  0%,100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+#sian-iframe {
+  flex: 1;
+  width: 100%;
+  border: none;
+  display: block;
+}
+#sian-badge {
+  position: absolute; top: -4px; right: -4px;
+  min-width: 18px; height: 18px;
+  border-radius: 10px; background: #ef4444;
+  color: #fff; font-size: 10px; font-weight: 700;
+  align-items: center; justify-content: center;
+  padding: 0 4px; box-shadow: 0 2px 6px rgba(239,68,68,0.4);
+  z-index: 2147483647; pointer-events: none;
+}
+@keyframes sian-bounce {
+  0%,100% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+}
+`;
+  document.head.appendChild(widgetStyle);
+
   /* ═══════════════════════════════════════════════════════════
      SECCIÓN 11 — OPEN / CLOSE / TOGGLE
   ═══════════════════════════════════════════════════════════ */
@@ -525,6 +630,8 @@
     var bubble = document.getElementById('sian-bubble');
     if (panel)  panel.classList.add('sian-open');
     if (bubble) bubble.style.display = 'none';
+    updateBadge(0);
+    document.title = (cfg.chatMarca || cfg.tituloPanelChat || 'Chat');
     paint(cfg);
   }
 
@@ -580,8 +687,24 @@
 
   function init() {
     buildDOM();
-    fetchCfg();
-    setInterval(fetchCfg, POLL_MS);
+
+    if (IS_PREVIEW) {
+      var previewCfg = getPreviewConfig();
+      if (previewCfg) {
+        // URL params presentes — modo demo instantáneo con defaults + overrides
+        console.log('%c[Sian365] 👁️  Preview mode — usando config de URL', 'color:#818cf8;font-weight:700');
+        console.log('Preview config:', previewCfg);
+        paint(Object.assign({}, DEF, previewCfg));
+      } else {
+        // Sin URL params — intentar API real, fallback a defaults si no hay backend
+        console.log('%c[Sian365] 👁️  Preview mode — consultando API...', 'color:#818cf8;font-weight:700');
+        fetchCfg();
+      }
+    } else {
+      // Normal mode: fetch from API + polling
+      fetchCfg();
+      setInterval(fetchCfg, POLL_MS);
+    }
   }
 
   if (document.readyState === 'loading') {

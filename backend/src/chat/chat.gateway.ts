@@ -60,10 +60,14 @@ export class ChatGateway
 
   /** Asesores con almuerzo pendiente (tienen chats activos) */
   private advisorsPendingLunch = new Map<string, {
+    inicioOriginal: string;
     finOriginal: string;
     duracionMs : number;
     inicioReal : Date;
   }>();
+
+  /** Asesores que ya recibieron notificación de almuerzo próximo */
+  private advisorsLunchNotified = new Set<string>();
 
   constructor(
     private readonly chatService          : ChatService,
@@ -82,7 +86,7 @@ export class ChatGateway
   afterInit() {
     this.pollingInterval = setInterval(() => this.assignPendingSessions(), 3_000);
     this.checkLunchBreaks();
-    this.lunchInterval = setInterval(() => this.checkLunchBreaks(), 30_000);
+    this.lunchInterval = setInterval(() => this.checkLunchBreaks(), 5_000);
   }
 
   // ── Conexión ──────────────────────────────────────────────────────────────
@@ -171,10 +175,16 @@ export class ChatGateway
   ) {
     if (client.data.role !== 'advisor') return;
 
-    if (status === 'online' && (this.estaEnAlmuerzo(client.data.user.id) || this.tieneAlmuerzoPendiente(client.data.user.id))) {
-      const finHora = this.advisorsOnLunch.get(client.data.user.id);
-      client.emit('lunch_started', { fin: finHora ?? '', restante: '' });
-      return;
+    if (status === 'online') {
+      if (this.estaEnAlmuerzo(client.data.user.id)) {
+        const finHora = this.advisorsOnLunch.get(client.data.user.id);
+        client.emit('lunch_started', { fin: finHora ?? '', restante: '', inicio: '', finOriginal: '' });
+        return;
+      }
+      if (this.tieneAlmuerzoPendiente(client.data.user.id)) {
+        client.emit('lunch_pending', { mensaje: '', chats: 0, inicio: '', finOriginal: '' });
+        return;
+      }
     }
 
     const advisor = await this.sessionsService.setAdvisorStatus(client.data.user.id, status);
@@ -1121,8 +1131,29 @@ async handleJoinActiveChat(
         const enAlmuerzoActivo = this.advisorsOnLunch.has(advisorId);
         const pendiente        = this.advisorsPendingLunch.has(advisorId);
 
+        // ALMUERZO PRÓXIMO: faltan 5 min o menos
+        if (!enAlmuerzoActivo && !pendiente && almuerzoHoy) {
+          const [hInicio, mInicio] = almuerzoHoy.inicio.split(':').map(Number);
+          const inicioMs = new Date(ahora).setHours(hInicio, mInicio, 0, 0);
+          const diffToStart = inicioMs - ahora.getTime();
+          const cincoMinMs = 5 * 60 * 1000;
+
+          if (diffToStart > 0 && diffToStart <= cincoMinMs && !this.advisorsLunchNotified.has(advisorId)) {
+            this.advisorsLunchNotified.add(advisorId);
+            const minsRest = Math.ceil(diffToStart / 60000);
+            socket.emit('lunch_approaching', {
+              mensaje: `Tu hora de almuerzo (${almuerzoHoy.inicio}) se acerca. Faltan ${minsRest} minuto(s).`,
+              minutos: minsRest,
+              inicio : almuerzoHoy.inicio,
+            });
+          } else if (diffToStart > cincoMinMs || diffToStart <= 0) {
+            this.advisorsLunchNotified.delete(advisorId);
+          }
+        }
+
         // ENTRÓ al horario de almuerzo
         if (enHorario && !enAlmuerzoActivo && !pendiente) {
+          this.advisorsLunchNotified.delete(advisorId);
           await this.sessionsService.setAdvisorStatus(advisorId, 'busy').catch(() => null);
           this.server.emit('advisor_status_changed', {
             advisorId, name: socket.data.user?.name, status: 'busy',
@@ -1134,18 +1165,25 @@ async handleJoinActiveChat(
 
           const chatsActivos = await this.countChatsActivosAlmuerzo(advisorId);
 
-          if (chatsActivos > 0) {
+          if (chatsActivos.total > 0) {
+            this.advisorsLunchNotified.delete(advisorId);
             this.advisorsPendingLunch.set(advisorId, {
+              inicioOriginal: almuerzoHoy!.inicio,
               finOriginal: almuerzoHoy!.fin,
               duracionMs,
               inicioReal : ahora,
             });
             socket.emit('lunch_pending', {
-              mensaje: `Tu almuerzo empezó. Termina tus chats activos para iniciar la pausa.`,
-              chats  : chatsActivos,
+              mensaje: `Tienes ${chatsActivos.total} chat(s) activo(s). Termínalos para iniciar tu pausa de almuerzo.`,
+              chats  : chatsActivos.total,
+              chatsWeb : chatsActivos.web,
+              chatsWhatsapp : chatsActivos.whatsapp,
+              inicio : almuerzoHoy!.inicio,
+              finOriginal : almuerzoHoy!.fin,
             });
           } else {
-            await this.iniciarAlmuerzoAhora(advisorId, socket, almuerzoHoy!.fin, duracionMs, ahora);
+            this.advisorsLunchNotified.delete(advisorId);
+            await this.iniciarAlmuerzoAhora(advisorId, socket, almuerzoHoy!.inicio, almuerzoHoy!.fin, duracionMs, ahora);
           }
         }
 
@@ -1161,6 +1199,21 @@ async handleJoinActiveChat(
         }
 
         // Salió del horario antes de aprobar pendiente
+        else if (pendiente && !enHorario) {
+          const pendData = this.advisorsPendingLunch.get(advisorId);
+          if (pendData && hhmm >= pendData.finOriginal) {
+            this.advisorsPendingLunch.delete(advisorId);
+            await this.sessionsService.setAdvisorStatus(advisorId, 'online').catch(() => null);
+            this.server.emit('advisor_status_changed', {
+              advisorId, name: socket.data.user?.name, status: 'online',
+            });
+            socket.emit('lunch_pending_cancelled');
+            console.log(`[Almuerzo] ❌ ${socket.data.user?.name} horario de almuerzo expiró (tenía chats activos)`);
+            return;
+          }
+          await this.activarLunchPendiente(advisorId);
+        }
+        // Pendiente pero dentro de horario (sigue esperando)
         else if (pendiente) {
           await this.activarLunchPendiente(advisorId);
         }
@@ -1171,11 +1224,12 @@ async handleJoinActiveChat(
   }
 
   private async iniciarAlmuerzoAhora(
-    advisorId  : string,
-    socket     : Socket,
-    finOriginal: string,
-    duracionMs : number,
-    inicioReal : Date,
+    advisorId     : string,
+    socket        : Socket,
+    inicioOriginal: string,
+    finOriginal   : string,
+    duracionMs    : number,
+    inicioReal    : Date,
   ): Promise<void> {
     const finAjMs   = inicioReal.getTime() + duracionMs;
     const finAjDate = new Date(finAjMs);
@@ -1190,7 +1244,12 @@ async handleJoinActiveChat(
     const restSegs = Math.floor((diffMs % 60000) / 1000);
     const restante = `${String(restMins).padStart(2,'0')}:${String(restSegs).padStart(2,'0')}`;
 
-    socket.emit('lunch_started', { fin: finAjHora, restante });
+    socket.emit('lunch_started', {
+      fin: finAjHora,
+      restante,
+      inicio: inicioOriginal,
+      finOriginal,
+    });
 
     const ajuste = finAjHora !== finOriginal ? ` (ajustado de ${finOriginal} a ${finAjHora})` : '';
     console.log(`[Almuerzo] 🍽️  ${socket.data.user?.name} almuerzo hasta ${finAjHora}${ajuste}`);
@@ -1207,16 +1266,17 @@ async handleJoinActiveChat(
     await this.assignPendingSessions();
   }
 
-  private async countChatsActivosAlmuerzo(advisorId: string): Promise<number> {
-    const normales = await this.sessionsService
-      .findActiveSessionsByAdvisor(advisorId)
-      .then(chats => chats.length)
-      .catch(() => 0);
-    const whatsapp = await this.advisorsWhatsappService
-      .countActiveChatsByAdvisor(advisorId)
-      .catch(() => 0);
-
-    return normales + whatsapp;
+  private async countChatsActivosAlmuerzo(advisorId: string): Promise<{ web: number; whatsapp: number; total: number }> {
+    const [web, whatsapp] = await Promise.all([
+      this.sessionsService
+        .findActiveSessionsByAdvisor(advisorId)
+        .then(chats => chats.length)
+        .catch(() => 0),
+      this.advisorsWhatsappService
+        .countActiveChatsByAdvisor(advisorId)
+        .catch(() => 0),
+    ]);
+    return { web, whatsapp, total: web + whatsapp };
   }
 
   private async activarLunchPendiente(advisorId: string): Promise<void> {
@@ -1225,7 +1285,7 @@ async handleJoinActiveChat(
 
     const chatsActivos = await this.countChatsActivosAlmuerzo(advisorId);
 
-    if (chatsActivos > 0) return;
+    if (chatsActivos.total > 0) return;
 
     const socket = this.connectedAdvisors.get(advisorId);
     if (!socket) {
@@ -1236,7 +1296,8 @@ async handleJoinActiveChat(
     const ahora = new Date();
     await this.iniciarAlmuerzoAhora(
       advisorId, socket,
-      pendiente.finOriginal, pendiente.duracionMs, ahora,
+      pendiente.inicioOriginal, pendiente.finOriginal,
+      pendiente.duracionMs, ahora,
     );
   }
 

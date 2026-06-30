@@ -1864,3 +1864,251 @@ button {
     max-width: min(780px, 68%);
   }
 }
+
+// ── Message search ──────────────────────────────────────
+.msg-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: $surface2;
+  border-bottom: 1px solid $border;
+
+  svg { flex-shrink: 0; color: $text3; }
+  input {
+    flex: 1;
+    height: 28px;
+    background: none;
+    border: 0;
+    font: inherit;
+    font-size: 13px;
+    color: $text;
+    outline: none;
+    &::placeholder { color: $text3; }
+  }
+}
+
+// ── Documentos en mensajes ──────────────────────────────
+.doc-adjuntos {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid $border;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.doc-adjuntos-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: $text3;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.doc-adjunto-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  background: color-mix(in srgb, $blue 8%, transparent);
+  border-radius: 5px;
+  text-decoration: none;
+  font-size: 12px;
+
+  .doc-adjunto-nombre { color: $blue; font-weight: 500; }
+  .doc-adjunto-cat {
+    color: $text3;
+    font-size: 10px;
+    background: $surface2;
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
+  &:hover { background: color-mix(in srgb, $blue 14%, transparent); }
+}
+
+// ── Ticket button ───────────────────────────────────────
+.p-btn-ticket {
+  background: $purple-bg;
+  color: $purple;
+  border-color: color-mix(in srgb, $purple 25%, transparent);
+
+  &:hover {
+    background: $purple;
+    color: #fff;
+  }
+}
+
+// ── Ticket modal ────────────────────────────────────────
+.ticket-modal {
+  width: 420px;
+}
+
+.ticket-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 13px;
+    color: $text2;
+  }
+
+  input, textarea, select {
+    padding: 8px 10px;
+    border: 1px solid $border-md;
+    border-radius: 6px;
+    font: inherit;
+    font-size: 14px;
+    color: $text;
+    background: $surface;
+    outline: none;
+
+    &:focus { border-color: $blue; }
+  }
+
+  textarea { resize: vertical; }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// FLOATING MODAL (ticket modal – sin backdrop opaco)
+// ══════════════════════════════════════════════════════════════════════════════
+.floating-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1001;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+
+  & &-inner {
+    pointer-events: all;
+    background: $surface;
+    border: 1px solid $border-md;
+    border-radius: $radius-lg;
+    padding: 1.5rem 1.6rem;
+    width: 420px;
+    max-width: 90vw;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
+    animation: floatIn 0.18s ease;
+
+    h3 {
+      margin: 0 0 6px;
+      font-size: 17px;
+      font-weight: 700;
+      color: $text;
+    }
+
+    .ticket-modal-body {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+
+      label {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: $text2;
+      }
+
+      input, textarea, select {
+        padding: 8px 10px;
+        border: 1px solid $border-md;
+        border-radius: 6px;
+        font: inherit;
+        font-size: 14px;
+        color: $text;
+        background: $surface;
+        outline: none;
+        &:focus { border-color: $blue; }
+      }
+
+      textarea { resize: vertical; }
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 10px;
+      width: 100%;
+
+      .modal-cancel, .modal-confirm {
+        height: 34px;
+        padding: 0 14px;
+        border: 0;
+        border-radius: 7px;
+        font-size: 13px;
+        font-weight: 600;
+        font-family: inherit;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+
+      .modal-cancel {
+        background: $surface2;
+        color: $text2;
+        &:hover { background: color.adjust($surface2, $lightness: -3%); color: $text; }
+      }
+
+      .modal-confirm {
+        background: $blue;
+        color: #fff;
+        &:hover { background: $blue-dark; }
+        &:disabled { opacity: 0.45; cursor: default; }
+      }
+    }
+  }
+}
+
+@keyframes floatIn {
+  from { opacity: 0; transform: scale(0.95) translateY(-8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ── Toast flotante ticket ───────────────────────────────────── */
+.toast-floating {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 9999;
+  min-width: 320px;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 18px;
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  animation: slideInRight 0.3s ease;
+  font-size: 13px;
+  line-height: 1.4;
+  strong {
+    font-size: 14px;
+    font-weight: 700;
+  }
+  &.toast-ok {
+    background: #065f46;
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    color: #d1fae5;
+  }
+  &.toast-error {
+    background: #7f1d1d;
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    color: #fecaca;
+  }
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}

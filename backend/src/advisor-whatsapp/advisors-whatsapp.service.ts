@@ -26,6 +26,11 @@ import {
   ConfiguracionService,
   HorarioEstado,
 } from '../configuracion/configuracion.service';
+import {
+  cleanText,
+  sanitizeOutboundText,
+  sanitizeFileName,
+} from '../common/security/sanitize.helper';
 import { WhatsappChat } from './entities/whatsapp-chat.entity';
 import type {
   WhatsappAssignmentMode,
@@ -729,6 +734,12 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     return [];
   }
 
+  async getChatById(id: string): Promise<WhatsappChat> {
+    const chat = await this.chatRepo.findOne({ where: { id } });
+    if (!chat) throw new NotFoundException('Chat de WhatsApp no encontrado');
+    return chat;
+  }
+
   async listChats(_advisorId: string, _role: string): Promise<WaChatDto[]> {
     const qb = this.chatRepo
       .createQueryBuilder('chat')
@@ -907,7 +918,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     text: string,
   ): Promise<WaChatDto> {
     this.assertWhatsappUserRole(role);
-    const cleanText = this.sanitizeOutboundText(text, this.maxTextLength);
+    const cleanText = sanitizeOutboundText(text, this.maxTextLength);
     if (!cleanText) throw new BadRequestException('Mensaje requerido');
 
     const message = await this.messageRepo.findOne({
@@ -979,7 +990,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     text: string,
   ): Promise<{ chat: WaChatDto; message: WaMessageDto }> {
     this.assertWhatsappUserRole(role);
-    const cleanText = this.sanitizeOutboundText(text, this.maxTextLength);
+    const cleanText = sanitizeOutboundText(text, this.maxTextLength);
     if (!cleanText) throw new BadRequestException('Mensaje requerido');
 
     const chat = await this.findChatByAddressOrFail(to);
@@ -1038,8 +1049,8 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     }
     const mimeType = this.normalizeMimeType(file.mimetype);
     const mediaType = this.mediaTypeFromMime(mimeType);
-    const cleanCaption = this.sanitizeOutboundText(caption, this.maxCaptionLength);
-    const safeFileName = this.sanitizeFileName(file.originalname, mimeType);
+    const cleanCaption = sanitizeOutboundText(caption, this.maxCaptionLength);
+    const safeFileName = sanitizeFileName(file.originalname, mimeType);
     const advisor = await this.userRepo.findOne({ where: { id: advisorId } });
     const result = await this.sendMediaMessage(
       this.getChatJid(chat),
@@ -1139,7 +1150,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     const chat = advisorId && role
       ? await this.assertCanManageMetadata(chatId, advisorId, role)
       : await this.findChatOrFail(chatId);
-    const cleanNote = this.cleanText(note);
+    const cleanNote = cleanText(note);
     if (!cleanNote) return this.toChatDto(chat, true);
     chat.notes = [cleanNote, ...(chat.notes ?? [])];
     await this.chatRepo.save(chat);
@@ -1169,7 +1180,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     const chat = advisorId && role
       ? await this.assertCanManageMetadata(chatId, advisorId, role)
       : await this.findChatOrFail(chatId);
-    chat.tags = Array.isArray(tags) ? tags.map(tag => this.cleanText(tag)).filter(Boolean) : [];
+    chat.tags = Array.isArray(tags) ? tags.map(tag => cleanText(tag)).filter(Boolean) : [];
     await this.chatRepo.save(chat);
     return this.toChatDto(chat, true);
   }
@@ -1184,7 +1195,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       ? await this.assertCanManageMetadata(chatId, advisorId, role)
       : await this.findChatOrFail(chatId);
 
-    const nextPhone = this.cleanText(input.phone);
+    const nextPhone = cleanText(input.phone);
     if (nextPhone && !chat.isGroup) {
       const normalizedPhone = this.normalizePhone(nextPhone);
       if (normalizedPhone !== chat.phone) {
@@ -1196,13 +1207,13 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       }
     }
 
-    const name = this.cleanText(input.name);
-    const contactRole = this.cleanText(input.role);
-    const institution = this.cleanText(input.institution);
+    const name = cleanText(input.name);
+    const contactRole = cleanText(input.role);
+    const institution = cleanText(input.institution);
     const institutionUrl = this.normalizeUrl(input.institutionUrl);
-    const city = this.cleanText(input.city);
-    const email = this.cleanText(input.email ?? '');
-    const plan = this.cleanText(input.plan);
+    const city = cleanText(input.city);
+    const email = cleanText(input.email ?? '');
+    const plan = cleanText(input.plan);
 
     if (name) chat.name = name;
     if (contactRole) chat.role = contactRole;
@@ -1212,7 +1223,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     chat.email = email || null;
     if (plan) chat.plan = plan;
     if (Array.isArray(input.modules)) {
-      const modules = input.modules.map(module => this.cleanText(module)).filter(Boolean);
+      const modules = input.modules.map(module => cleanText(module)).filter(Boolean);
       chat.modules = modules.length ? modules : ['Atencion'];
     }
 
@@ -1282,7 +1293,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
   async sendTextMessage(to: string, text: string) {
     const sock = await this.getReadySocket();
     const jid = this.normalizeTargetJid(to);
-    const cleanText = this.sanitizeOutboundText(text, this.maxTextLength);
+    const cleanText = sanitizeOutboundText(text, this.maxTextLength);
     if (!cleanText) throw new BadRequestException('Mensaje requerido');
     const sent = await sock.sendMessage(jid, { text: cleanText });
     this.logger.log(`Mensaje enviado por Baileys a ${jid}: "${this.compactLogText(cleanText)}"`);
@@ -1391,8 +1402,8 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     const sock = await this.getReadySocket();
     const jid = this.normalizeTargetJid(to);
     const payload: any = {};
-    const cleanCaption = this.sanitizeOutboundText(caption, this.maxCaptionLength);
-    const cleanFileName = this.sanitizeFileName(fileName, mimeType);
+    const cleanCaption = sanitizeOutboundText(caption, this.maxCaptionLength);
+    const cleanFileName = sanitizeFileName(fileName, mimeType);
 
     if (mediaType === 'image') {
       payload.image = buffer;
@@ -1548,7 +1559,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       });
 
       const config = await this.configuracionService.getGlobal().catch(() => null);
-      const text = this.sanitizeOutboundText(
+      const text = sanitizeOutboundText(
         config?.whatsappCallUnavailableMsg || this.defaultCallUnavailableMessage,
         this.maxTextLength,
       ) || this.defaultCallUnavailableMessage;
@@ -1927,7 +1938,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
   }
 
   private normalizeTargetJid(value: string): string {
-    const raw = this.cleanText(value);
+    const raw = cleanText(value);
     if (!raw) throw new BadRequestException('Destino de WhatsApp requerido');
     if (raw.includes('@')) return this.normalizeJid(raw);
     return this.phoneToJid(raw);
@@ -1974,15 +1985,15 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
 
   private rememberContact(contact: any): void {
     const jid = this.normalizeJid(contact?.id ?? contact?.jid ?? '');
-    const name = this.cleanText(contact?.notify) ||
-      this.cleanText(contact?.name) ||
-      this.cleanText(contact?.verifiedName);
+    const name = cleanText(contact?.notify) ||
+      cleanText(contact?.name) ||
+      cleanText(contact?.verifiedName);
     if (jid && name) this.contactNameCache.set(jid, name);
   }
 
   private getContactName(jid: string, pushName?: string | null): string {
     const normalized = this.normalizeJid(jid);
-    const name = this.cleanText(pushName) || this.contactNameCache.get(normalized);
+    const name = cleanText(pushName) || this.contactNameCache.get(normalized);
     return name || this.jidToPhone(normalized);
   }
 
@@ -2560,30 +2571,12 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     return labels[status] ?? 'Nuevo';
   }
 
-  private cleanText(value: unknown): string {
-    if (typeof value !== 'string') return '';
-    return value
-      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-  }
-
-  private sanitizeOutboundText(value: unknown, maxLength: number): string {
-    if (typeof value !== 'string') return '';
-    return value
-      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, ' ')
-      .replace(/\r\n/g, '\n')
-      .replace(/\n{4,}/g, '\n\n\n')
-      .trim()
-      .slice(0, maxLength);
-  }
-
   private safeDisplayText(value: unknown, maxLength = this.maxCaptionLength): string {
-    return this.cleanText(value).slice(0, maxLength);
+    return cleanText(value, maxLength);
   }
 
   private compactLogText(value: string): string {
-    const clean = this.cleanText(value);
+    const clean = cleanText(value, 4096);
     return clean.length > 120 ? `${clean.slice(0, 120)}...` : clean;
   }
 
@@ -2593,27 +2586,11 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       throw new BadRequestException('Tipo de archivo no permitido para WhatsApp');
     }
 
-    const ext = extname(this.sanitizeFileName(file.originalname, mimeType)).toLowerCase();
+    const ext = extname(sanitizeFileName(file.originalname, mimeType)).toLowerCase();
     const expected = this.extFromMime(mimeType);
     if (expected && ext && ext !== expected && !this.isCompatibleExtension(mimeType, ext)) {
       throw new BadRequestException('La extension del archivo no coincide con su contenido');
     }
-  }
-
-  private sanitizeFileName(value: unknown, mimeType = ''): string {
-    const fallback = `archivo${this.extFromMime(mimeType) || ''}`;
-    const raw = typeof value === 'string' ? value : fallback;
-    const base = raw
-      .split(/[\\/]/)
-      .pop()
-      ?.replace(/[\u0000-\u001F\u007F<>:"|?*]/g, '-')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, 120);
-    const safe = base || fallback;
-    const ext = extname(safe) || this.extFromMime(mimeType);
-    const stem = safe.slice(0, safe.length - extname(safe).length) || 'archivo';
-    return `${stem}${ext}`.slice(0, 160);
   }
 
   private normalizeMimeType(mimeType = ''): string {
@@ -2662,7 +2639,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
   private normalizeQuickReplies(value: unknown): string[] {
     const source = Array.isArray(value) ? value : this.defaultQuickReplies;
     const replies = source
-      .map(reply => this.cleanText(reply))
+      .map(reply => cleanText(reply))
       .filter(Boolean)
       .slice(0, 20);
     return replies.length ? replies : this.defaultQuickReplies;
@@ -2710,7 +2687,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
 
   private messageBody(message: IncomingWhatsappMessage): string {
     if (message.type === 'reaction') return this.cleanReactionEmoji(message.text) || this.removedReactionBody;
-    const clean = this.sanitizeOutboundText(message.text, this.maxCaptionLength);
+    const clean = sanitizeOutboundText(message.text, this.maxCaptionLength);
     if (clean) return clean;
     return message.type === 'text' ? this.safeDisplayText(message.text) : '';
   }
@@ -2740,7 +2717,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
 
     try {
       const buffer = await downloadMediaMessage(raw.rawMessage, 'buffer', {});
-      const fileName = this.sanitizeFileName(
+      const fileName = sanitizeFileName(
         raw.fileName || `${raw.type}-${raw.mediaId || raw.messageId}${this.extFromMime(raw.mimeType)}`,
         raw.mimeType,
       );
@@ -2774,7 +2751,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     const mimeType = this.normalizeMimeType(file.mimetype);
     return this.saveMediaBuffer(
       file.buffer,
-      this.sanitizeFileName(file.originalname, mimeType),
+      sanitizeFileName(file.originalname, mimeType),
       mimeType,
     );
   }

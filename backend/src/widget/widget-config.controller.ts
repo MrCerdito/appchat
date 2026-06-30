@@ -5,6 +5,7 @@ import {
 import { WidgetConfigService } from './widget-config.service';
 import { WidgetConfig } from './entities/widget-config.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { SaveWidgetConfigDto } from './dto/save-widget-config.dto';
 
 @Controller('widget-config')
 export class WidgetConfigController {
@@ -23,8 +24,8 @@ export class WidgetConfigController {
   @Post()
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  save(@Body() body: Partial<WidgetConfig>): Promise<WidgetConfig> {
-    return this.svc.save(body);
+  save(@Body() body: SaveWidgetConfigDto): Promise<WidgetConfig> {
+    return this.svc.save(body as Partial<WidgetConfig>);
   }
 
   // ── DELETE /widget-config — reset a defaults ──────────────────────────────

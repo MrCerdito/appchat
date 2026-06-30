@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import * as crypto from 'crypto';
 import { Session } from './entities/session.entity';
 import { User } from 'src/auth/entities/user.entity';
 import { Message } from '../chat/entities/message.entity';
@@ -18,6 +19,12 @@ export class SessionsService {
     @InjectRepository(Rating)   private readonly ratingRepo: Repository<Rating>,
   ) {}
 
+  private generarCodigo(): string {
+    const year = new Date().getFullYear();
+    const rand = crypto.randomBytes(3).toString('base64url').toUpperCase().slice(0, 4);
+    return `RC-${year}-${rand}`;
+  }
+
   // ── Crear sesión ──────────────────────────────────────────────────────────
   // El estado inicial es 'ai': el cliente habla con el asistente virtual.
   // NO se pone en 'waiting' hasta que el cliente o la IA soliciten un asesor.
@@ -31,6 +38,12 @@ export class SessionsService {
     colegioLink?:   string | null;
     tipoSolicitud:  string;
   }): Promise<Session> {
+    let codigo = this.generarCodigo();
+    let exists = await this.sessionRepo.findOneBy({ codigo });
+    while (exists) {
+      codigo = this.generarCodigo();
+      exists = await this.sessionRepo.findOneBy({ codigo });
+    }
     const session = this.sessionRepo.create({
       clientName:     data.clientName,
       identificacion: data.identificacion,
@@ -39,9 +52,21 @@ export class SessionsService {
       colegio:        data.colegio,
       colegioLink:    data.colegioLink,
       tipoSolicitud:  data.tipoSolicitud,
-      status:         'ai',   // ← empieza en 'ai', nunca en 'waiting'
+      codigo,
+      status:         'ai',
     });
     return this.sessionRepo.save(session);
+  }
+
+  async findCodigo(sessionId: string): Promise<{ codigo: string }> {
+    const session = await this.findOne(sessionId);
+    if (!session.codigo) {
+      const year = new Date().getFullYear();
+      const rand = crypto.randomBytes(3).toString('base64url').toUpperCase().slice(0, 4);
+      session.codigo = `RC-${year}-${rand}`;
+      await this.sessionRepo.save(session);
+    }
+    return { codigo: session.codigo };
   }
 
   // ── Solicitar asesor ──────────────────────────────────────────────────────

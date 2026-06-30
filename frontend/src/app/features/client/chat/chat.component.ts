@@ -15,6 +15,7 @@ import { AiService, AiMessage, AiResponse } from '../../../core/services/ai.serv
 import { environment } from '../../../../environments/environment.prod';
 import { HttpClient } from '@angular/common/http';
 import { trackByIndex, trackById } from '../../../shared/utils/track-by';
+import { FaqComponent } from '../faq/faq.component';
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -38,7 +39,7 @@ interface TimerUpdatePayload {
 @Component({
   selector   : 'app-chat',
   standalone : true,
-  imports    : [CommonModule, FormsModule],
+  imports    : [CommonModule, FormsModule, FaqComponent],
   templateUrl: './chat.component.html',
   styleUrl   : './chat.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -53,12 +54,13 @@ export class ChatComponent implements OnInit, OnDestroy {
   // ESTADO GENERAL
   // ══════════════════════════════════════════════════════════════════════════
 
-  step: 'name' | 'waiting' | 'chat' | 'rating' = 'name';
+  step: 'faq' | 'name' | 'waiting' | 'chat' | 'rating' = 'faq';
   aiMode    = true;
   aiHistory : AiMessage[] = [];
   aiTyping  = false;
   mostrarConfirmCierre    = false;
   mostrarAsesoresOcupados = false;
+  Math = Math;
   
   marcaChat = 'Soporte en línea';
 
@@ -121,6 +123,8 @@ get rolLabel(): string {
   newMessage  = '';
   messages    : Message[] = [];
   session     : Session | null = null;
+  codigoSesion = '';
+  codigoCopiado = false;
   advisorName = '';
   otherTyping = false;
   typingName  = '';
@@ -148,7 +152,10 @@ get rolLabel(): string {
 
   queuePosition : number       = -1;
   queueTotal    : number | null = null;
+  waitingElapsed = 0;
+  estimatedWaitSecs = 0;
   private waitingTimer : any;
+  private waitingTickTimer : any;
   clientTimer: {
     tipo: TimerUpdatePayload['tipo'];
     restante: number;
@@ -219,7 +226,9 @@ get rolLabel(): string {
   // ══════════════════════════════════════════════════════════════════════════
 
   ngOnInit(): void {
-    this.aplicarTemaWidget(); // ← añadir aquí
+    this.aplicarTemaWidget();
+    this.escucharPostMessage();
+    this.solicitarPermisoNotificacion();
     this.isOnline = navigator.onLine;
     window.addEventListener('online',  this.onlineHandler);
     window.addEventListener('offline', this.offlineHandler);
@@ -448,6 +457,10 @@ get rolLabel(): string {
   // INICIO DEL CHAT
   // ══════════════════════════════════════════════════════════════════════════
 
+  irAFormulario(): void {
+    this.step = 'name';
+  }
+
   startChat(): void {
     this.submitted = true;
     const valid = this.identificacion.trim() && this.clientName.trim() &&
@@ -466,6 +479,11 @@ get rolLabel(): string {
   this.session = session;
   this.aiMode  = true;
   this.step    = 'chat';
+
+  this.sessionService.getCodigo(session.id).subscribe(res => {
+    this.codigoSesion = res.codigo;
+    this.cdr.detectChanges();
+  });
 
   localStorage.setItem(SESSION_KEY, JSON.stringify({ ...session, aiMode: true }));
   localStorage.setItem(CLIENT_NAME_KEY, this.clientName);
@@ -486,6 +504,70 @@ get rolLabel(): string {
   this.iniciarTimerInactividadIa();
   this.cdr.detectChanges();
 });
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // CÓDIGO DE CASO
+  // ══════════════════════════════════════════════════════════════════════════
+
+  copiarCodigo(): void {
+    if (!this.codigoSesion) return;
+    navigator.clipboard.writeText(this.codigoSesion).then(() => {
+      this.codigoCopiado = true;
+      setTimeout(() => this.codigoCopiado = false, 2000);
+    });
+  }
+
+  enviarCodigoWhatsApp(): void {
+    const msg = encodeURIComponent(`Hola, mi código de caso es: ${this.codigoSesion}`);
+    window.open(`https://wa.me/?text=${msg}`, '_blank');
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // NOTIFICACIONES
+  // ══════════════════════════════════════════════════════════════════════════
+
+  private notificarMensaje(texto: string): void {
+    const conteo = this.messages.filter(m => m.senderType === 'advisor' && !m.readAt).length;
+
+    try {
+      window.parent.postMessage({ type: 'unread_count', count: conteo }, '*');
+    } catch (_) {}
+
+    if (document.hidden || !document.hasFocus()) {
+      document.title = `(${conteo}) Nuevo mensaje - ${this.marcaChat}`;
+      setTimeout(() => document.title = this.marcaChat, 5000);
+    }
+
+    if ('Notification' in window && Notification.permission === 'granted') {
+      const preview = texto.length > 80 ? texto.slice(0, 80) + '…' : texto;
+      new Notification('Nuevo mensaje', {
+        body: preview,
+        icon: '/favicon.ico',
+        tag: 'chat-message',
+      });
+    }
+  }
+
+  private solicitarPermisoNotificacion(): void {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }
+
+  private escucharPostMessage(): void {
+    window.addEventListener('message', (event) => {
+      if (event.data?.type === 'sian-theme') {
+        const root = document.documentElement;
+        const d = event.data;
+        if (d.chatHeaderColor) { root.style.setProperty('--chat-header', d.chatHeaderColor); root.style.setProperty('--chat-header-text', getContrastColor(d.chatHeaderColor)); }
+        if (d.chatBgColor) { root.style.setProperty('--chat-bg', d.chatBgColor); root.style.setProperty('--chat-bg-text', getContrastColor(d.chatBgColor)); }
+        if (d.chatBubbleColor) { root.style.setProperty('--chat-bubble', d.chatBubbleColor); root.style.setProperty('--chat-bubble-text', getContrastColor(d.chatBubbleColor)); }
+        if (d.chatBubbleUserColor) { root.style.setProperty('--chat-bubble-user', d.chatBubbleUserColor); root.style.setProperty('--chat-bubble-user-text', getContrastColor(d.chatBubbleUserColor)); }
+        if (d.chatMarca) this.marcaChat = d.chatMarca;
+        this.cdr.detectChanges();
+      }
+    });
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -534,6 +616,7 @@ get rolLabel(): string {
             this.encuestasPendientes.add(msgIndex);
             localStorage.setItem(AI_MESSAGES_KEY, JSON.stringify(this.messages));
           }
+          this.notificarMensaje(msg.content);
         }
         this.cdr.detectChanges();
         this.scrollToBottom();
@@ -677,6 +760,8 @@ get rolLabel(): string {
       readAt    : null,
       documentos: (options?.documentos ?? []),
     } as any);
+
+    this.cdr.detectChanges();
 
     if (role === 'model' && showSurvey) {
       this.encuestasPendientes.add(newIndex);
@@ -868,6 +953,15 @@ private escapeHtml(value: string): string {
 
   private startWaitingTimer(): void {
     this.clearWaitingTimer();
+    this.waitingElapsed = 0;
+    this.estimatedWaitSecs = 0;
+
+    this.waitingTickTimer = setInterval(() => {
+      this.waitingElapsed++;
+      this.estimatedWaitSecs = Math.max(0, (this.queuePosition * 120) - this.waitingElapsed);
+      this.cdr.detectChanges();
+    }, 1000);
+
     this.waitingTimer = setTimeout(() => {
       if (this.step === 'waiting') { this.mostrarAsesoresOcupados = true; this.cdr.detectChanges(); }
     }, 60_000);
@@ -875,6 +969,9 @@ private escapeHtml(value: string): string {
 
   private clearWaitingTimer(): void {
     if (this.waitingTimer) { clearTimeout(this.waitingTimer); this.waitingTimer = null; }
+    if (this.waitingTickTimer) { clearInterval(this.waitingTickTimer); this.waitingTickTimer = null; }
+    this.waitingElapsed = 0;
+    this.estimatedWaitSecs = 0;
   }
 
   exitWaiting(): void {
@@ -884,6 +981,29 @@ private escapeHtml(value: string): string {
     this.socketDestroy$.next();
     this.socket.disconnect();
     this.clearSession();
+  }
+
+  formatTiempo(seg: number): string {
+    if (seg < 60) return `${seg}s`;
+    const min = Math.floor(seg / 60);
+    const s = seg % 60;
+    return `${min}m ${s}s`;
+  }
+
+  formatTiempoRelativo(iso: string): string {
+    if (!iso) return '';
+    const diff = Date.now() - new Date(iso).getTime();
+    const seg = Math.floor(diff / 1000);
+    if (seg < 60) return 'ahora';
+    const min = Math.floor(seg / 60);
+    if (min < 60) return `hace ${min} min`;
+    const horas = Math.floor(min / 60);
+    if (horas < 24) return `hace ${horas}h`;
+    return new Date(iso).toLocaleDateString('es', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  }
+
+  copiarTexto(texto: string): void {
+    navigator.clipboard.writeText(texto);
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -908,22 +1028,22 @@ private escapeHtml(value: string): string {
   if (!this.session) return;
 
   if (this.aiMode) {
-    // ★ Cerrar en backend antes de limpiar
     if (this.session?.id) {
       this.sessionService.close(this.session.id).subscribe({
-        error: () => {} // ignorar errores
+        error: () => {}
       });
     }
     this.clearSession();
-    return;
+  } else {
+    this.sessionIdParaRating = this.session.id;
+    this.socket.emit('client_close_session', this.session.id);
+    this.socketDestroy$.next();
+    this.socket.disconnect();
+    this.step = 'rating';
+    this.cdr.detectChanges();
   }
 
-  this.sessionIdParaRating = this.session.id;
-  this.socket.emit('client_close_session', this.session.id);
-  this.socketDestroy$.next();
-  this.socket.disconnect();
-  this.step = 'rating';
-  this.cdr.detectChanges();
+  try { window.parent.postMessage({ type: 'sian-close-panel' }, '*'); } catch (_) {}
 }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -963,8 +1083,8 @@ private escapeHtml(value: string): string {
     localStorage.removeItem(AI_HISTORY_KEY);
     localStorage.removeItem(AI_MESSAGES_KEY);
 
-    this.session = null; this.messages = []; this.aiHistory = []; this.advisorName = '';
-    this.step = 'name'; this.clientName = ''; this.submitted = false;
+    this.session = null; this.messages = []; this.aiHistory = []; this.advisorName = ''; this.codigoSesion = ''; this.codigoCopiado = false;
+    this.step = 'faq'; this.clientName = ''; this.submitted = false;
     this.identificacion = ''; this.apellido = ''; this.rol = '';
     this.colegio = ''; this.colegioLink = ''; this.colegioQuery = '';
     this.colegioSeleccionado = null; this.tipoSolicitud = '';

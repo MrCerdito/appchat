@@ -1,5 +1,9 @@
-import { Controller, Get, Post, Patch, Param, Body, UseGuards, HttpCode, HttpStatus, Request, Query } from '@nestjs/common'
+import { Controller, Get, Post, Patch, Param, Body, UseGuards, HttpCode, HttpStatus, Request, Query, Logger } from '@nestjs/common'
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { SessionsService } from './sessions.service';
+import { TicketsService } from '../tickets/tickets.service';
+import { Message } from '../chat/entities/message.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { IsString, IsNotEmpty, Length, IsOptional } from 'class-validator';
 
@@ -28,7 +32,14 @@ export class CreateSessionDto {
 
 @Controller('sessions')
 export class SessionsController {
-  constructor(private readonly sessionsService: SessionsService) {}
+  private readonly logger = new Logger(SessionsController.name);
+
+  constructor(
+    private readonly sessionsService: SessionsService,
+    private readonly ticketsService: TicketsService,
+    @InjectRepository(Message)
+    private readonly messageRepo: Repository<Message>,
+  ) {}
 
   // ── Público ───────────────────────────────────────────────
   @Post()
@@ -161,6 +172,11 @@ export class SessionsController {
     return this.sessionsService.findOne(id);
   }
 
+  @Get(':id/codigo')
+  findCodigo(@Param('id') id: string) {
+    return this.sessionsService.findCodigo(id);
+  }
+
   @Get(':id/messages')
   @UseGuards(JwtAuthGuard)
   getMessages(@Param('id') id: string) {
@@ -190,5 +206,48 @@ export class SessionsController {
   @Get(':id/rating')
   getRating(@Param('id') id: string) {
     return this.sessionsService.getRating(id);
+  }
+
+  @Post(':id/ticket')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.CREATED)
+  async createTicketFromSession(
+    @Param('id') id: string,
+    @Body() body: { titulo?: string; descripcion?: string; priority?: string; category?: string },
+    @Request() req: any,
+  ) {
+    const session = await this.sessionsService.findOne(id);
+
+    const messages = await this.messageRepo.find({
+      where: { session: { id } },
+      order: { createdAt: 'DESC' },
+      take: 100,
+    });
+    messages.reverse();
+
+    const conversation = messages.map(m => ({
+      role: m.senderType === 'client' ? 'client' : 'advisor',
+      name: m.senderName,
+      content: m.content,
+      timestamp: m.createdAt,
+    }));
+
+    const dto = {
+      titulo: body.titulo ?? `Ticket desde sesion ${session.codigo || id}`,
+      descripcion: body.descripcion ?? undefined,
+      priority: body.priority ?? 'medium',
+      category: body.category ?? undefined,
+      sourceType: 'web' as const,
+      sourceId: id,
+      clientName: `${session.clientName || ''} ${session.apellido || ''}`.trim() || 'Cliente',
+      clientInfo: {
+        identificacion: session.identificacion,
+        rol: session.rol,
+        colegio: session.colegio,
+        tipoSolicitud: session.tipoSolicitud,
+      },
+      conversation,
+    };
+    return this.ticketsService.create(dto, req.user.id);
   }
 }

@@ -6,6 +6,7 @@ import {
   HorarioAlmuerzo,
   HorarioSlot,
 } from './entities/configuracion.entity';
+import { cleanText } from '../common/security/sanitize.helper';
 
 export interface HorarioEstado {
   enJornada: boolean;
@@ -105,6 +106,7 @@ export class ConfiguracionService implements OnModuleInit {
       whatsappQueueMsg: 'Te encuentras en cola. En breves momentos un asesor se comunicara contigo.',
       whatsappOutOfHoursMsg: 'Hola. En este momento estamos fuera de servicio. Por favor vuelve {{proximaApertura}}.',
       whatsappCallUnavailableMsg: 'Actualmente no estamos disponibles para llamadas. Por favor escribenos por este chat y un asesor te atendera.',
+      ticketCategories: ['Soporte tecnico', 'Administrativo', 'Academico', 'Facturacion', 'Otro'],
     };
     const nueva = this.repo.create({ ...defaults, advisorId: null });
     const saved = await this.repo.save(nueva);
@@ -124,7 +126,7 @@ export class ConfiguracionService implements OnModuleInit {
 
     if (Array.isArray(data.whatsappQuickReplies)) {
       data.whatsappQuickReplies = data.whatsappQuickReplies
-        .map(reply => this.cleanText(reply, 500))
+        .map(reply => cleanText(reply, 500))
         .filter(Boolean)
         .slice(0, 20);
     }
@@ -165,19 +167,16 @@ export class ConfiguracionService implements OnModuleInit {
     for (const key of textKeys) {
       const value = data[key];
       if (typeof value === 'string') {
-        (data as any)[key] = this.cleanText(value, 4096);
+        (data as any)[key] = cleanText(value, 4096);
       }
     }
-  }
 
-  private cleanText(value: unknown, maxLength: number): string {
-    if (typeof value !== 'string') return '';
-    return value
-      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, ' ')
-      .replace(/\r\n/g, '\n')
-      .replace(/\n{4,}/g, '\n\n\n')
-      .trim()
-      .slice(0, maxLength);
+    if (Array.isArray(data.ticketCategories)) {
+      data.ticketCategories = data.ticketCategories
+        .map(c => cleanText(c, 100))
+        .filter(Boolean)
+        .slice(0, 20);
+    }
   }
 
   async resetearOverride(advisorId: string): Promise<{ ok: boolean }> {

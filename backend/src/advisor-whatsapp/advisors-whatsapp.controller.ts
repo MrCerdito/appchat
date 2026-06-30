@@ -1,19 +1,23 @@
 import {
   Controller, Get, Post, Patch, Delete, Body, Query, Param,
-  Res, HttpCode, Headers, Logger, UseGuards, Req,
+  Res, HttpCode, HttpStatus, Headers, Logger, UseGuards, Req,
   UploadedFile, UseInterceptors,
 } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { Request } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { TicketsService } from '../tickets/tickets.service';
 import {
   AdvisorsWhatsappService,
   UpdateWhatsappContactInput,
 } from './advisors-whatsapp.service';
 import { AdvisorsWhatsappGateway } from './advisors-whatsapp.gateway';
 import { TeamsMeetingsService } from './teams-meetings.service';
+import { WhatsappMessage } from './entities/whatsapp-message.entity';
 
 @Controller('advisors-whatsapp')
 export class AdvisorsWhatsappController {
@@ -24,6 +28,9 @@ export class AdvisorsWhatsappController {
     private readonly whatsappGateway: AdvisorsWhatsappGateway,
     private readonly teamsService: TeamsMeetingsService,
     private readonly config: ConfigService,
+    private readonly ticketsService: TicketsService,
+    @InjectRepository(WhatsappMessage)
+    private readonly waMessageRepo: Repository<WhatsappMessage>,
   ) {}
 
   @Get('webhook')
@@ -503,6 +510,51 @@ verifyWebhook(
       this.logger.error('Error enviando archivo:', metaError ?? err.message);
       return { ok: false, error: metaError ?? err.message };
     }
+  }
+
+  @Post(':id/ticket')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.CREATED)
+  async createTicketFromWhatsapp(
+    @Param('id') id: string,
+    @Body() body: { titulo?: string; descripcion?: string; priority?: string; category?: string },
+    @Req() req: Request & { user: any },
+  ) {
+    const chat = await this.whatsappService.getChatById(id);
+
+    const messages = await this.waMessageRepo.find({
+      where: { chat: { id } },
+      order: { createdAt: 'DESC' },
+      take: 200,
+    });
+    messages.reverse();
+
+    const conversation = messages.map(m => ({
+      role: m.fromMe ? 'advisor' : 'client',
+      name: m.senderName || (m.fromMe ? 'Asesor' : chat.name),
+      content: m.body,
+      type: m.type || 'text',
+      mediaUrl: m.mediaUrl || null,
+      timestamp: m.createdAt,
+    }));
+
+    const dto = {
+      titulo: body.titulo ?? `Ticket desde WhatsApp - ${chat.name}`,
+      descripcion: body.descripcion ?? undefined,
+      priority: body.priority ?? 'medium',
+      category: body.category ?? undefined,
+      sourceType: 'whatsapp' as const,
+      sourceId: id,
+      clientName: chat.name || 'Cliente WhatsApp',
+      clientInfo: {
+        phone: chat.phone,
+        institution: chat.institution,
+        role: chat.role,
+        city: chat.city,
+      },
+      conversation,
+    };
+    return this.ticketsService.create(dto, req.user.id);
   }
 
   private teamsWhatsappText(subject: string, startDateTime: string, joinUrl: string): string {

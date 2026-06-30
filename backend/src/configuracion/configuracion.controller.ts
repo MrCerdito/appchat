@@ -27,7 +27,7 @@ export class ConfiguracionController {
 
   @Get()
   getEfectiva(@Request() req: any) {
-    return this.svc.getEfectiva(req.user.sub);
+    return this.svc.getEfectiva(req.user.id);
   }
 
   @Get('global')
@@ -41,7 +41,7 @@ export class ConfiguracionController {
     @Body() body: Partial<Configuracion>,
     @Request() req: any,
   ) {
-    return this.svc.guardar(body, req.user.sub);
+    return this.svc.guardar(body, req.user.id);
   }
 
   @Post('global')
@@ -53,6 +53,11 @@ export class ConfiguracionController {
   @Delete()
   @HttpCode(HttpStatus.OK)
   resetear(@Request() req: any) {
-    return this.svc.resetearOverride(req.user.sub);
+    return this.svc.resetearOverride(req.user.id);
+  }
+
+  @Get('ticket-categories')
+  getTicketCategories() {
+    return this.svc.getGlobal().then(c => c.ticketCategories ?? []);
   }
 }

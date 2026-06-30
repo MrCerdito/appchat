@@ -58,6 +58,13 @@
   </div>
 
   <!-- ══════════════════════════════════════════════════════════════
+       PASO 0 — PREGUNTAS FRECUENTES
+  ══════════════════════════════════════════════════════════════════ -->
+  <div *ngIf="step === 'faq'" class="screen-faq">
+    <app-faq (iniciarChat)="irAFormulario()"></app-faq>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════
        PASO 1 — FORMULARIO DE REGISTRO
   ══════════════════════════════════════════════════════════════════ -->
   <div *ngIf="step === 'name'" class="screen-form">
@@ -171,7 +178,7 @@
 
 
   <!-- ══════════════════════════════════════════════════════════════
-       PASO 2 — ESPERANDO ASESOR
+       PASO 2 — ESPERANDO ASESOR (MEJORADO)
   ══════════════════════════════════════════════════════════════════ -->
   <div *ngIf="step === 'waiting'" class="screen-center">
     <div class="card waiting-card">
@@ -193,12 +200,9 @@
         <h3>Conectando con un asesor</h3>
         <p>En breve uno de nuestros especialistas atenderá tu solicitud</p>
 
-        <div class="queue-badge" *ngIf="queuePosition > 0">
-          <div class="queue-number">{{ queuePosition }}</div>
-          <div class="queue-label">
-            <span>{{ queuePosition === 1 ? 'persona antes que tú' : 'personas antes que tú' }}</span>
-            <span class="queue-sub" *ngIf="queueTotal != null && queueTotal > 0">{{ queueTotal }} en cola total</span>
-          </div>
+        <div class="queue-position" *ngIf="queuePosition > 0">
+          <span class="queue-num">{{ queuePosition }}</span>
+          <span class="queue-desc">persona{{ queuePosition === 1 ? '' : 's' }} antes que tú</span>
         </div>
 
         <div class="queue-next" *ngIf="queuePosition === 0 && queueTotal !== null">
@@ -208,9 +212,29 @@
           ¡Eres el siguiente!
         </div>
 
+        <div class="waiting-timer-bar" *ngIf="waitingElapsed > 0">
+          <div class="wt-row">
+            <span class="wt-label">Llevas esperando</span>
+            <span class="wt-value">{{ formatTiempo(waitingElapsed) }}</span>
+          </div>
+          <div class="wt-row" *ngIf="estimatedWaitSecs > 0">
+            <span class="wt-label">Tiempo estimado</span>
+            <span class="wt-value estimate">{{ formatTiempo(estimatedWaitSecs) }}</span>
+          </div>
+          <div class="wt-track">
+            <div class="wt-fill" [style.width.%]="estimatedWaitSecs > 0 ? Math.min(100, (waitingElapsed / (waitingElapsed + estimatedWaitSecs)) * 100) : 5"></div>
+          </div>
+        </div>
+
         <div class="waiting-dots">
           <span></span><span></span><span></span>
         </div>
+      </div>
+
+      <div class="waiting-footer-actions">
+        <button class="btn-exit-waiting" (click)="exitWaiting()">
+          Salir de la fila
+        </button>
       </div>
 
       <div class="busy-notice" *ngIf="mostrarAsesoresOcupados">
@@ -223,8 +247,7 @@
         </div>
         <div class="busy-text">
           <strong>Los asesores están ocupados</strong>
-          <span>No hay asesores disponibles en este momento. Puedes cerrar y volver a intentarlo más tarde.</span>
-          <button class="btn-exit-waiting" (click)="exitWaiting()">Cerrar y salir</button>
+          <span>No hay asesores disponibles en este momento. Puedes cerrar y volver a intentarlo más tarde, o consultar nuestras preguntas frecuentes.</span>
         </div>
       </div>
 
@@ -268,6 +291,24 @@
       </div>
     </div>
 
+    <!-- ══ BANNER CÓDIGO DE CASO ══ -->
+    <div class="codigo-banner" *ngIf="codigoSesion">
+      <div class="codigo-banner-inner">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+          <path d="M2 17l10 5 10-5"/>
+          <path d="M2 12l10 5 10-5"/>
+        </svg>
+        <span class="codigo-label">Caso: <strong>{{ codigoSesion }}</strong></span>
+        <button class="codigo-btn" (click)="copiarCodigo()" [class.copiado]="codigoCopiado">
+          {{ codigoCopiado ? 'Copiado' : 'Copiar' }}
+        </button>
+        <button class="codigo-btn wa" (click)="enviarCodigoWhatsApp()">
+          WhatsApp
+        </button>
+      </div>
+    </div>
+
     <!-- ══ MENSAJES ══ -->
     <div class="messages" #messagesContainer>
       <ng-container *ngFor="let msg of messages; trackBy: trackById; let i = index">
@@ -276,7 +317,8 @@
         <div class="message"
              [class.mine]="msg.senderType === 'client'"
              [class.theirs]="msg.senderType === 'advisor' && !aiMode"
-             [class.ai-msg]="msg.senderType === 'advisor' && aiMode">
+             [class.ai-msg]="msg.senderType === 'advisor' && aiMode"
+             [class.streaming]="isStreaming && msg.content === streamingText">
 
           <!-- Contenido del bubble según el remitente -->
           <div class="bubble">
@@ -290,7 +332,15 @@
               <span class="read-status">{{ msg.readAt ? '✓✓' : '✓' }}</span>
             </span>
           </div>
-          <span class="time">{{ msg.createdAt | date: 'HH:mm' }}</span>
+          <div class="message-footer">
+            <span class="time">{{ formatTiempoRelativo(msg.createdAt) }}</span>
+            <button class="copy-msg-btn" *ngIf="msg.senderType === 'advisor' && msg.content && !isStreaming"
+              (click)="copiarTexto(msg.content)" title="Copiar respuesta">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+            </button>
+          </div>
         </div>
 
         <!-- Documentos adjuntos (RAG) — PRIMERO -->
@@ -353,7 +403,7 @@
        stroke-linecap="round" stroke-linejoin="round">
     <polyline points="20 6 9 17 4 12"/>
   </svg>
-  {{ encuestasRespondidas.get(i) ? 'Gracias 👍' : 'Gracias por tu respuesta.' }}
+  {{ encuestasRespondidas.get(i) ? 'Gracias por tu respuesta' : 'Gracias por tu respuesta.' }}
 </div>
 
         <!-- Feedback respondido -->
@@ -361,7 +411,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="20 6 9 17 4 12"/>
           </svg>
-          {{ encuestasRespondidas.get(i) ? 'Perfecto 👍 ¿Necesitas algo más?' : 'Entendido, lo tendremos en cuenta.' }}
+          {{ encuestasRespondidas.get(i) ? 'Perfecto, ¿necesitas algo más?' : 'Entendido, lo tendremos en cuenta.' }}
         </div>
 
       </ng-container>
@@ -434,7 +484,7 @@
       </button>
     </div>
 
-    <!-- ══════════════════════════════════════════════════════════════
+  <!-- ══════════════════════════════════════════════════════════════
          OVERLAY INACTIVIDAD IA
          Va DENTRO de .chat-box pero FUERA de .messages
          para cubrir todo el chat con position:absolute.

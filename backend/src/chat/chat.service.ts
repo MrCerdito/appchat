@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Message } from './entities/message.entity';
 import { Session } from '../sessions/entities/session.entity';
+import { sanitizeMessage, sanitizeSenderName } from '../common/security/sanitize.helper';
 
 @Injectable()
 export class ChatService {
@@ -17,9 +18,9 @@ export class ChatService {
     senderType: 'client' | 'advisor',
     senderName: string,
   ): Promise<Message> {
-    const safeContent = this.sanitizeMessage(content);
+    const safeContent = sanitizeMessage(content);
     if (!safeContent) throw new BadRequestException('Mensaje vacio');
-    const safeSenderName = this.sanitizeSenderName(senderName);
+    const safeSenderName = sanitizeSenderName(senderName);
     const message = this.messageRepo.create({
       content: safeContent,
       senderType,
@@ -48,20 +49,4 @@ export class ChatService {
     .andWhere('read_at IS NULL')
     .execute();
 }
-
-  private sanitizeMessage(value: string): string {
-    return String(value ?? '')
-      .replace(/\p{C}/gu, '')
-      .replace(/\s+\n/g, '\n')
-      .trim()
-      .slice(0, 1000);
-  }
-
-  private sanitizeSenderName(value: string): string {
-    return String(value ?? 'Usuario')
-      .replace(/[<>`"'\\]/g, '')
-      .replace(/\p{C}/gu, '')
-      .trim()
-      .slice(0, 80) || 'Usuario';
-  }
 }

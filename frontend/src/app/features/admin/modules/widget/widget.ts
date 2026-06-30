@@ -164,7 +164,20 @@ export class WidgetComponent implements OnInit, OnDestroy {
     const file = window.location.hostname !== 'localhost'
       ? '/widget-preview-prod.html'
       : '/widget-preview.html';
-    window.open(window.location.origin + file, '_blank');
+
+    // Pasar config actual como query params para preview en tiempo real
+    const params = new URLSearchParams();
+    const keys = Object.keys(DEFAULT_CONFIG) as (keyof WidgetConfig)[];
+    for (const k of keys) {
+      const v = this.config[k];
+      if (v !== DEFAULT_CONFIG[k]) {
+        params.set(k, String(v));
+      }
+    }
+    const qs = params.toString();
+    const url = window.location.origin + file + (qs ? '?' + qs : '');
+
+    window.open(url, '_blank');
   }
 
   copiarScript(): void {

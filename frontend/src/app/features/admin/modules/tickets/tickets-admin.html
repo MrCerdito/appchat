@@ -1,0 +1,174 @@
+<div class="tickets-layout">
+  <aside class="ts-sidebar">
+    <div class="ts-sidebar-header">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+      </svg>
+      <span>Tickets</span>
+    </div>
+
+    <nav class="ts-sidebar-nav">
+      <ng-container *ngFor="let section of sidebarSections; let i = index; trackBy: trackByIndex">
+        <span class="ts-nav-label">{{ section.label }}</span>
+        <button
+          *ngFor="let item of section.items; trackBy: trackById"
+          class="ts-nav-btn"
+          [class.active]="activeView === 'list' && sidebarFilterType === item.type && sidebarFilter === item.id"
+          (click)="selectFilter(item.id, item.type)"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+            <ng-container [ngSwitch]="item.icon">
+              <template [ngSwitchCase]="'inbox'"><path d="M22 12h-6l-2 3H10l-2-3H2"/><path d="M2 12v5a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5"/></template>
+              <template [ngSwitchCase]="'circle'"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3" fill="currentColor"/></template>
+              <template [ngSwitchCase]="'play'"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16" fill="currentColor"/></template>
+              <template [ngSwitchCase]="'check'"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></template>
+              <template [ngSwitchCase]="'x'"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></template>
+              <template [ngSwitchCase]="'arrow-down'"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></template>
+              <template [ngSwitchCase]="'minus'"><path d="M5 12h14"/></template>
+              <template [ngSwitchCase]="'arrow-up'"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></template>
+              <template [ngSwitchCase]="'chevrons-up'"><path d="m7 7 5-5 5 5"/><path d="m7 13 5-5 5 5"/></template>
+              <template [ngSwitchCase]="'globe'"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></template>
+              <template [ngSwitchCase]="'message-circle'"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></template>
+            </ng-container>
+          </svg>
+          <span>{{ item.label }}</span>
+          <span class="ts-count" *ngIf="getItemCount(item) > 0">{{ getItemCount(item) }}</span>
+        </button>
+      </ng-container>
+
+      <span class="ts-nav-label ts-nav-label-spacer">Categorías</span>
+      <button
+        class="ts-nav-btn"
+        *ngFor="let cat of categories; trackBy: trackByIndex"
+        [class.active]="activeView === 'list' && sidebarFilterType === 'category' && sidebarFilter === cat"
+        (click)="filterByCategory(cat)"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+          <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/>
+        </svg>
+        <span>{{ cat }}</span>
+        <span class="ts-count" *ngIf="categoryCounts[cat]">{{ categoryCounts[cat] }}</span>
+      </button>
+
+      <span class="ts-nav-label ts-nav-label-spacer">Configuración</span>
+      <button
+        class="ts-nav-btn"
+        [class.active]="activeView === 'categories'"
+        (click)="selectFilter('categories', 'action')"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+          <path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+        </svg>
+        <span>Editar categorías</span>
+      </button>
+    </nav>
+  </aside>
+
+  <main class="ts-content">
+    <div class="ts-content-header">
+      <div class="ts-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        <input type="text" placeholder="Buscar por código, título o cliente..." [ngModel]="search" (ngModelChange)="onSearchChange($event)">
+      </div>
+      <button class="ts-clear-btn" *ngIf="search || sidebarFilter !== 'all'" (click)="clearFilters()">Limpiar filtros</button>
+    </div>
+
+    <div class="ts-view" *ngIf="activeView === 'list'">
+      <div class="ts-loading" *ngIf="loading"><span></span></div>
+
+      <div class="ts-table-wrap" *ngIf="!loading">
+        <table *ngIf="tickets.length > 0" class="ts-table">
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Título</th>
+              <th>Cliente</th>
+              <th>Fuente</th>
+              <th>Prioridad</th>
+              <th>Estado</th>
+              <th>Categoría</th>
+              <th>Asignado</th>
+              <th>Fecha</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let t of tickets; trackBy: trackById">
+              <td class="cell-code">{{ t.codigo }}</td>
+              <td class="cell-title">{{ t.titulo }}</td>
+              <td>{{ t.clientName }}</td>
+              <td>
+                <span class="ts-badge ts-badge-source" [class.ts-badge-whatsapp]="t.sourceType === 'whatsapp'">
+                  {{ t.sourceType === 'web' ? 'Web' : 'WhatsApp' }}
+                </span>
+              </td>
+              <td>
+                <span class="ts-badge ts-badge-priority" [style.--ts-color]="priorityColor(t.priority)">
+                  {{ priorityLabel(t.priority) }}
+                </span>
+              </td>
+              <td>
+                <span class="ts-badge ts-badge-status" [style.--ts-color]="statusColor(t.status)">
+                  {{ statusLabel(t.status) }}
+                </span>
+              </td>
+              <td>{{ t.category || '—' }}</td>
+              <td>{{ t.assignedToName || '—' }}</td>
+              <td class="cell-date">{{ t.createdAt | date:'dd/MM/yy' }}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="ts-empty" *ngIf="tickets.length === 0">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="40" height="40">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+          </svg>
+          <span>No se encontraron tickets</span>
+        </div>
+
+        <div class="ts-pagination" *ngIf="pages > 1">
+          <button [disabled]="page <= 1" (click)="goToPage(page - 1)">Anterior</button>
+          <span>{{ page }} / {{ pages }}</span>
+          <button [disabled]="page >= pages" (click)="goToPage(page + 1)">Siguiente</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="ts-view ts-view-categories" *ngIf="activeView === 'categories'">
+      <h2>Gestión de categorías</h2>
+      <p class="ts-view-desc">Administra las categorías disponibles para clasificar tickets.</p>
+
+      <div class="ts-cat-add">
+        <input type="text" [(ngModel)]="newCategory" placeholder="Nueva categoría" (keyup.enter)="addCategory()">
+        <button class="ts-btn-primary" (click)="addCategory()" [disabled]="!newCategory.trim()">Agregar</button>
+      </div>
+
+      <div class="ts-cat-list">
+        <div class="ts-cat-item" *ngFor="let cat of categories; let i = index; trackBy: trackByIndex">
+          <input *ngIf="editingCategoryIndex === i" type="text" [(ngModel)]="editingCategoryValue" (keyup.enter)="saveEditCategory()" (blur)="saveEditCategory()" autofocus>
+          <span *ngIf="editingCategoryIndex !== i" class="ts-cat-name">{{ cat }}</span>
+          <div class="ts-cat-actions" *ngIf="editingCategoryIndex !== i">
+            <button (click)="startEditCategory(i)" title="Editar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/>
+              </svg>
+            </button>
+            <button class="ts-cat-del" (click)="removeCategory(i)" title="Eliminar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <p class="ts-cat-hint" *ngIf="categories.length === 0">No hay categorías. Agrega al menos una.</p>
+    </div>
+  </main>
+</div>
