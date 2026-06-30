@@ -1,20 +1,4 @@
-@use 'sass:color';
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=DM+Mono:wght@400;500&display=swap');
-
 // ── Tokens ────────────────────────────────────────────────────────────────────
-$font      : 'DM Sans', sans-serif;
-$mono      : 'DM Mono', monospace;
-
-$bg        : #f6f5f3;
-$surface   : #ffffff;
-$surface2  : #f0eeec;
-$border    : rgba(0, 0, 0, 0.08);
-$border-md : rgba(0, 0, 0, 0.13);
-
-$text      : #181614;
-$text2     : #6b6560;
-$text3     : #9e9890;
-
 $blue      : #2455d4;
 $blue-dark : #1a42b0;
 $blue-bg   : #edf2ff;
@@ -36,11 +20,6 @@ $purple    : #6c47d4;
 $purple-bg : #f2eeff;
 $purple-lt : rgba(108, 71, 212, 0.18);
 
-$sidebar-w : 252px;
-$panel-w   : 218px;
-$radius    : 9px;
-$radius-lg : 13px;
-
 // ── Reset & host ──────────────────────────────────────────────────────────────
 :host {
   display: flex;
@@ -48,7 +27,7 @@ $radius-lg : 13px;
   min-width: 0;
   height: 100%;
   overflow: hidden;
-  font-family: $font;
+  font-family: var(--font);
 }
 
 button,
@@ -66,7 +45,7 @@ button {
   min-width: 0;
   height: 100%;
   overflow: hidden;
-  background: $bg;
+  background: var(--bg);
 }
 
 // ── Avatar colors (ciclo por session index) ───────────────────────────────────
@@ -79,12 +58,12 @@ button {
 // SIDEBAR
 // ══════════════════════════════════════════════════════════════════════════════
 .sidebar {
-  width: $sidebar-w;
-  min-width: $sidebar-w;
+  width: 252px;
+  min-width: 252px;
   flex-shrink: 0;
   height: 100%;
-  background: $surface;
-  border-right: 1px solid $border;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -92,7 +71,7 @@ button {
 
 .sidebar-head {
   padding: 14px 14px 10px;
-  border-bottom: 1px solid $border;
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
@@ -114,7 +93,7 @@ button {
 .sidebar-title {
   display: block;
   margin: 0;
-  color: $text;
+  color: var(--text);
   font-size: 14px;
   font-weight: 800;
   letter-spacing: 0;
@@ -123,7 +102,7 @@ button {
 .sidebar-subtitle {
   display: block;
   margin-top: 2px;
-  color: $text3;
+  color: var(--text)3;
   font-size: 10.5px;
   font-weight: 700;
   letter-spacing: .06em;
@@ -139,9 +118,9 @@ button {
   div {
     min-width: 0;
     padding: 7px 6px;
-    border: 1px solid $border;
+    border: 1px solid var(--border);
     border-radius: 8px;
-    background: $surface2;
+    background: var(--surface-hover);
     text-align: center;
   }
 
@@ -151,15 +130,15 @@ button {
   }
 
   strong {
-    color: $text;
-    font-family: $mono;
+    color: var(--text);
+    font-family: var(--font-mono);
     font-size: 14px;
     line-height: 1;
   }
 
   span {
     margin-top: 3px;
-    color: $text3;
+    color: var(--text)3;
     font-size: 9px;
     font-weight: 700;
     text-transform: uppercase;
@@ -176,25 +155,25 @@ button {
     transform: translateY(-50%);
     width: 13px;
     height: 13px;
-    stroke: $text3;
+    stroke: var(--text)3;
     pointer-events: none;
   }
 
   input {
     width: 83%;
-    background: $surface2;
+    background: var(--surface-hover);
     border: 1px solid transparent;
     border-radius: 8px;
     padding: 7px 10px 7px 30px;
-    font-family: $font;
+    font-family: var(--font);
     font-size: 12.5px;
-    color: $text;
+    color: var(--text);
     outline: none;
     transition: border-color 0.15s, background 0.15s;
 
-    &::placeholder { color: $text3; }
+    &::placeholder { color: var(--text)3; }
     &:focus {
-      background: $surface;
+      background: var(--surface);
       border-color: $blue-lt;
     }
   }
@@ -207,7 +186,7 @@ button {
   padding: 6px 8px;
 
   &::-webkit-scrollbar { width: 3px; }
-  &::-webkit-scrollbar-thumb { background: $border-md; border-radius: 3px; }
+  &::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
 }
 
 .session-card {
@@ -216,7 +195,7 @@ button {
   gap: 9px;
   width: 100%;
   padding: 9px 8px;
-  border-radius: $radius;
+  border-radius: var(--radius-md);
   border: 0;
   background: transparent;
   color: inherit;
@@ -226,7 +205,7 @@ button {
   margin-bottom: 1px;
   text-align: left;
 
-  &:hover    { background: $surface2; }
+  &:hover    { background: var(--surface-hover); }
   &.selected { background: $blue-bg; }
 }
 
@@ -251,7 +230,7 @@ button {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  border: 1.5px solid $surface;
+  border: 1.5px solid var(--surface);
 
   &.dot-active { background: $green; }
   &.dot-wait   { background: $amber; }
@@ -268,7 +247,7 @@ button {
 .s-name {
   font-size: 12.5px;
   font-weight: 500;
-  color: $text;
+  color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -276,7 +255,7 @@ button {
 
 .s-sub {
   font-size: 11px;
-  color: $text3;
+  color: var(--text)3;
 
   &.muted {
     font-size: 10px;
@@ -290,14 +269,14 @@ button {
   margin-top: 1px;
   font-size: 9.5px;
   font-weight: 600;
-  color: $text3;
+  color: var(--text)3;
 
   &::before {
     content: '';
     width: 5px;
     height: 5px;
     border-radius: 50%;
-    background: $text3;
+    background: var(--text)3;
   }
 
   &.presence-active {
@@ -311,8 +290,8 @@ button {
   }
 
   &.presence-offline {
-    color: $text3;
-    &::before { background: $text3; }
+    color: var(--text)3;
+    &::before { background: var(--text)3; }
   }
 }
 
@@ -326,7 +305,7 @@ button {
 
 .s-time {
   font-size: 10px;
-  color: $text3;
+  color: var(--text)3;
 }
 
 // Badges
@@ -364,7 +343,7 @@ button {
   align-items: center;
   gap: 6px;
   padding: 2.5rem 1rem;
-  color: $text3;
+  color: var(--text)3;
   font-size: 12px;
 
   svg {
@@ -395,15 +374,15 @@ button {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  color: $text3;
-  background: $bg;
+  color: var(--text)3;
+  background: var(--bg);
 
   .empty-icon {
     width: 56px;
     height: 56px;
     border-radius: 50%;
-    background: $surface;
-    border: 1px solid $border;
+    background: var(--surface);
+    border: 1px solid var(--border);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -411,7 +390,7 @@ button {
     svg { width: 24px; height: 24px; }
   }
 
-  h3 { font-size: 13.5px; font-weight: 600; color: $text2; }
+  h3 { font-size: 13.5px; font-weight: 600; color: var(--text)2; }
   p  { font-size: 12px; }
 }
 
@@ -433,18 +412,18 @@ button {
   flex-direction: column;
   overflow: hidden;
   height: 100%;
-  background: $surface;
+  background: var(--surface);
 }
 
 // Cabecera del chat
 .chat-header {
   padding: 10px 14px;
-  border-bottom: 1px solid $border;
+  border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-shrink: 0;
-  background: $surface;
+  background: var(--surface);
 }
 
 .header-left {
@@ -476,7 +455,7 @@ button {
 .head-name {
   font-size: 13.5px;
   font-weight: 600;
-  color: $text;
+  color: var(--text);
 }
 
 .head-status {
@@ -514,18 +493,18 @@ button {
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  border: 1px solid $border-md;
+  border: 1px solid var(--border-strong);
   background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: $text2;
+  color: var(--text)2;
   transition: all 0.12s;
 
   svg { width: 14px; height: 14px; }
 
-  &:hover { background: $surface2; }
+  &:hover { background: var(--surface-hover); }
 
   &.btn-back { display: none; }
 
@@ -581,15 +560,15 @@ button {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  background: $bg;
+  background: var(--bg);
 
   &::-webkit-scrollbar { width: 3px; }
-  &::-webkit-scrollbar-thumb { background: $border-md; border-radius: 3px; }
+  &::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
 }
 
 .no-messages {
   text-align: center;
-  color: $text3;
+  color: var(--text)3;
   font-size: 12px;
   margin-top: 2rem;
 }
@@ -604,12 +583,12 @@ button {
     font-size: 13px;
     line-height: 1.55;
     word-break: break-word;
-    border-radius: $radius-lg;
+    border-radius: var(--radius-lg);
   }
 
   .msg-time {
     font-size: 10px;
-    color: $text3;
+    color: var(--text)3;
     margin-top: 3px;
     padding: 0 3px;
   }
@@ -630,8 +609,8 @@ button {
     align-items: flex-start;
 
     .bubble {
-      background: $surface;
-      color: $text;
+      background: var(--surface);
+      color: var(--text);
       border-bottom-left-radius: 4px;
       box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
     }
@@ -674,7 +653,7 @@ button {
 
 .sys-time {
   font-size: 10px;
-  color: $text3;
+  color: var(--text)3;
 }
 
 // Typing
@@ -690,7 +669,7 @@ button {
 .typing-dots {
   display: flex;
   gap: 3px;
-  background: $surface;
+  background: var(--surface);
   border-radius: 12px;
   padding: 6px 10px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
@@ -699,7 +678,7 @@ button {
     width: 5px;
     height: 5px;
     border-radius: 50%;
-    background: $text3;
+    background: var(--text)3;
     animation: bounce 1.4s ease-in-out infinite;
 
     &:nth-child(2) { animation-delay: 0.2s; }
@@ -709,7 +688,7 @@ button {
 
 .typing-lbl {
   font-size: 11px;
-  color: $text3;
+  color: var(--text)3;
   font-style: italic;
 }
 
@@ -721,8 +700,8 @@ button {
 // Input
 .input-wrap {
   padding: 10px 12px;
-  border-top: 1px solid $border;
-  background: $surface;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
   display: flex;
   gap: 8px;
   align-items: center;
@@ -730,20 +709,20 @@ button {
 
   input {
     flex: 1;
-    background: $surface2;
+    background: var(--surface-hover);
     border: 1px solid transparent;
     border-radius: 22px;
     padding: 8px 14px;
-    font-family: $font;
+    font-family: var(--font);
     font-size: 13px;
-    color: $text;
+    color: var(--text);
     outline: none;
     transition: border-color 0.15s, background 0.15s;
 
-    &::placeholder { color: $text3; }
+    &::placeholder { color: var(--text)3; }
 
     &:focus {
-      background: $surface;
+      background: var(--surface);
       border-color: $blue-lt;
     }
   }
@@ -781,8 +760,8 @@ button {
   min-width: 0;
   flex-shrink: 0;
   height: 100%;
-  background: $surface;
-  border-left: 1px solid $border;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -795,7 +774,7 @@ button {
   }
 
   &::-webkit-scrollbar { width: 2px; }
-  &::-webkit-scrollbar-thumb { background: $border-md; }
+  &::-webkit-scrollbar-thumb { background: var(--border-strong); }
 }
 
 .info-backdrop {
@@ -815,10 +794,10 @@ button {
   width: 30px;
   height: 30px;
   margin: 8px 8px -4px 0;
-  border: 1px solid $border;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: $surface;
-  color: $text2;
+  background: var(--surface);
+  color: var(--text)2;
   cursor: pointer;
 
   svg {
@@ -830,7 +809,7 @@ button {
 // Perfil
 .panel-profile {
   padding: 14px 12px 12px;
-  border-bottom: 1px solid $border;
+  border-bottom: 1px solid var(--border);
   text-align: center;
   flex-shrink: 0;
 }
@@ -852,12 +831,12 @@ button {
 .panel-name {
   font-size: 13px;
   font-weight: 600;
-  color: $text;
+  color: var(--text);
 }
 
 .panel-req-label {
   font-size: 10.5px;
-  color: $text3;
+  color: var(--text)3;
   margin-top: 3px;
 }
 
@@ -878,14 +857,14 @@ button {
   flex-direction: column;
   gap: 5px;
   padding: 10px 10px;
-  border-bottom: 1px solid $border;
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
 .p-btn {
   width: 100%;
   padding: 7px 10px;
-  font-family: $font;
+  font-family: var(--font);
   font-size: 11.5px;
   font-weight: 500;
   border-radius: 8px;
@@ -895,7 +874,7 @@ button {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  border: 1px solid $border-md;
+  border: 1px solid var(--border-strong);
 
   svg { width: 12px; height: 12px; flex-shrink: 0; }
 
@@ -903,8 +882,8 @@ button {
 
   &.p-btn-transfer {
     background: transparent;
-    color: $text2;
-    &:hover { background: $surface2; color: $text; }
+    color: var(--text)2;
+    &:hover { background: var(--surface-hover); color: var(--text); }
   }
 
   &.p-btn-ai {
@@ -924,7 +903,7 @@ button {
 
   &.p-btn-close {
     background: transparent;
-    border-color: $border-md;
+    border-color: var(--border-strong);
     color: $red;
     &:hover {
       background: $red-bg;
@@ -944,11 +923,11 @@ button {
 // AI card (side-panel)
 .ai-card {
   cursor: pointer;
-  border-bottom: 1px solid $border;
+  border-bottom: 1px solid var(--border);
   padding: 12px 14px;
   transition: background 0.12s;
 
-  &:hover { background: $surface2; }
+  &:hover { background: var(--surface-hover); }
   &.loading { cursor: wait; }
 
   .section-title {
@@ -960,7 +939,7 @@ button {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: $text3;
+    color: var(--text)3;
 
     i { font-size: 14px; color: $purple; }
   }
@@ -969,7 +948,7 @@ button {
     margin: 0;
     font-size: 12px;
     line-height: 1.5;
-    color: $text2;
+    color: var(--text)2;
   }
 }
 
@@ -1014,9 +993,9 @@ button {
 .timer-card {
   margin: 8px 10px 0;
   padding: 9px 10px;
-  border-radius: $radius;
-  border: 1px solid $border;
-  background: $surface2;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface-hover);
   display: flex;
   flex-direction: column;
   gap: 7px;
@@ -1067,7 +1046,7 @@ button {
   flex: 1;
   font-size: 11px;
   font-weight: 600;
-  color: $text2;
+  color: var(--text)2;
   line-height: 1.3;
 
   .timer-advisor & { color: #7a5000; }
@@ -1076,7 +1055,7 @@ button {
 }
 
 .timer-count {
-  font-family: $mono;
+  font-family: var(--font-mono);
   font-size: 13px;
   font-weight: 500;
   color: $amber;
@@ -1125,14 +1104,14 @@ button {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: $text3;
+  color: var(--text)3;
 }
 
 .timer-msg-txt {
   font-size: 11px;
   font-style: italic;
   line-height: 1.4;
-  color: $text2;
+  color: var(--text)2;
   word-break: break-word;
 }
 
@@ -1142,7 +1121,7 @@ button {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  border-top: 1px solid $border;
+  border-top: 1px solid var(--border);
   flex-shrink: 0;
 }
 
@@ -1157,13 +1136,13 @@ button {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: $text3;
+  color: var(--text)3;
 }
 
 .info-val {
   font-size: 12px;
   font-weight: 500;
-  color: $text;
+  color: var(--text);
   line-height: 1.4;
   word-break: break-word;
 }
@@ -1180,13 +1159,13 @@ button {
 
 // ── Panel transferir ──────────────────────────────────────────────────────────
 .transfer-panel {
-  border-top: 1px solid $border;
+  border-top: 1px solid var(--border);
   padding: 8px 10px;
   display: flex;
   flex-direction: column;
   gap: 3px;
   flex-shrink: 0;
-  background: $bg;
+  background: var(--bg);
 }
 
 .transfer-title {
@@ -1194,7 +1173,7 @@ button {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.07em;
-  color: $text3;
+  color: var(--text)3;
   margin-bottom: 4px;
 }
 
@@ -1212,7 +1191,7 @@ button {
   transition: background 0.12s;
   text-align: left;
 
-  &:hover { background: $surface; }
+  &:hover { background: var(--surface); }
 
   &.adv-disabled {
     opacity: 0.4;
@@ -1225,8 +1204,8 @@ button {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: $surface2;
-  color: $text2;
+  background: var(--surface-hover);
+  color: var(--text)2;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1236,8 +1215,8 @@ button {
 }
 
 .adv-txt { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
-.adv-name { font-size: 11.5px; font-weight: 500; color: $text; }
-.adv-meta { font-size: 10px; color: $text3; }
+.adv-name { font-size: 11.5px; font-weight: 500; color: var(--text); }
+.adv-meta { font-size: 10px; color: var(--text)3; }
 
 .adv-badge {
   font-size: 9.5px;
@@ -1247,13 +1226,13 @@ button {
 
   &.badge-online  { background: $green-bg; color: $green; }
   &.badge-busy    { background: $amber-bg; color: $amber; }
-  &.badge-offline { background: $surface2; color: $text3; }
+  &.badge-offline { background: var(--surface-hover); color: var(--text)3; }
 }
 
 .empty-adv {
   text-align: center;
   padding: 1rem;
-  color: $text3;
+  color: var(--text)3;
   font-size: 12px;
 }
 
@@ -1272,9 +1251,9 @@ button {
 }
 
 .modal {
-  background: $surface;
-  border: 1px solid $border-md;
-  border-radius: $radius-lg;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
   padding: 1.5rem 1.6rem;
   display: flex;
   flex-direction: column;
@@ -1302,12 +1281,12 @@ button {
 .modal-text {
   font-size: 14px;
   font-weight: 600;
-  color: $text;
+  color: var(--text);
 }
 
 .modal-sub {
   font-size: 12px;
-  color: $text3;
+  color: var(--text)3;
   margin-bottom: 6px;
 }
 
@@ -1321,23 +1300,23 @@ button {
 .modal-cancel {
   flex: 1;
   padding: 8px 0;
-  font-family: $font;
+  font-family: var(--font);
   font-size: 13px;
   font-weight: 500;
   border-radius: 8px;
-  border: 1px solid $border-md;
+  border: 1px solid var(--border-strong);
   background: transparent;
-  color: $text2;
+  color: var(--text)2;
   cursor: pointer;
   transition: all 0.12s;
 
-  &:hover { background: $surface2; color: $text; }
+  &:hover { background: var(--surface-hover); color: var(--text); }
 }
 
 .modal-confirm {
   flex: 1;
   padding: 8px 0;
-  font-family: $font;
+  font-family: var(--font);
   font-size: 13px;
   font-weight: 600;
   border-radius: 8px;
@@ -1347,7 +1326,7 @@ button {
   cursor: pointer;
   transition: background 0.12s;
 
-  &:hover { background: color.adjust($red, $lightness: -6%); }
+  &:hover { background: #c22f2f; }
 }
 
 // ── AI Summary modal ───────────────────────────────────────────────────────────
@@ -1363,11 +1342,11 @@ button {
   align-items: center;
   gap: 8px;
   padding: 14px 16px;
-  border-bottom: 1px solid $border;
-  background: $surface2;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-hover);
 
   i { font-size: 16px; color: $purple; }
-  strong { flex: 1; font-size: 13px; font-weight: 600; color: $text; }
+  strong { flex: 1; font-size: 13px; font-weight: 600; color: var(--text); }
   .icon-btn { margin-left: auto; }
 }
 
@@ -1381,7 +1360,7 @@ button {
   margin: 0;
   font-size: 13px;
   line-height: 1.65;
-  color: $text;
+  color: var(--text);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -1489,9 +1468,9 @@ button {
   }
 
   &.presence-offline {
-    color: $text3;
-    background: $surface2;
-    &::before { background: $text3; }
+    color: var(--text)3;
+    background: var(--surface-hover);
+    &::before { background: var(--text)3; }
   }
 }
 
@@ -1871,10 +1850,10 @@ button {
   align-items: center;
   gap: 6px;
   padding: 6px 14px;
-  background: $surface2;
-  border-bottom: 1px solid $border;
+  background: var(--surface-hover);
+  border-bottom: 1px solid var(--border);
 
-  svg { flex-shrink: 0; color: $text3; }
+  svg { flex-shrink: 0; color: var(--text)3; }
   input {
     flex: 1;
     height: 28px;
@@ -1882,9 +1861,9 @@ button {
     border: 0;
     font: inherit;
     font-size: 13px;
-    color: $text;
+    color: var(--text);
     outline: none;
-    &::placeholder { color: $text3; }
+    &::placeholder { color: var(--text)3; }
   }
 }
 
@@ -1892,7 +1871,7 @@ button {
 .doc-adjuntos {
   margin-top: 6px;
   padding-top: 6px;
-  border-top: 1px solid $border;
+  border-top: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -1901,7 +1880,7 @@ button {
 .doc-adjuntos-label {
   font-size: 11px;
   font-weight: 600;
-  color: $text3;
+  color: var(--text)3;
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
@@ -1918,9 +1897,9 @@ button {
 
   .doc-adjunto-nombre { color: $blue; font-weight: 500; }
   .doc-adjunto-cat {
-    color: $text3;
+    color: var(--text)3;
     font-size: 10px;
-    background: $surface2;
+    background: var(--surface-hover);
     padding: 1px 5px;
     border-radius: 3px;
   }
@@ -1955,17 +1934,17 @@ button {
     flex-direction: column;
     gap: 4px;
     font-size: 13px;
-    color: $text2;
+    color: var(--text)2;
   }
 
   input, textarea, select {
     padding: 8px 10px;
-    border: 1px solid $border-md;
+    border: 1px solid var(--border-strong);
     border-radius: 6px;
     font: inherit;
     font-size: 14px;
-    color: $text;
-    background: $surface;
+    color: var(--text);
+    background: var(--surface);
     outline: none;
 
     &:focus { border-color: $blue; }
@@ -1987,9 +1966,9 @@ button {
 
   & &-inner {
     pointer-events: all;
-    background: $surface;
-    border: 1px solid $border-md;
-    border-radius: $radius-lg;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg);
     padding: 1.5rem 1.6rem;
     width: 420px;
     max-width: 90vw;
@@ -2000,7 +1979,7 @@ button {
       margin: 0 0 6px;
       font-size: 17px;
       font-weight: 700;
-      color: $text;
+      color: var(--text);
     }
 
     .ticket-modal-body {
@@ -2017,17 +1996,17 @@ button {
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.04em;
-        color: $text2;
+        color: var(--text)2;
       }
 
       input, textarea, select {
         padding: 8px 10px;
-        border: 1px solid $border-md;
+        border: 1px solid var(--border-strong);
         border-radius: 6px;
         font: inherit;
         font-size: 14px;
-        color: $text;
-        background: $surface;
+        color: var(--text);
+        background: var(--surface);
         outline: none;
         &:focus { border-color: $blue; }
       }
@@ -2055,9 +2034,9 @@ button {
       }
 
       .modal-cancel {
-        background: $surface2;
-        color: $text2;
-        &:hover { background: color.adjust($surface2, $lightness: -3%); color: $text; }
+        background: var(--surface-hover);
+        color: var(--text)2;
+        &:hover { background: var(--surface-hover); color: var(--text); }
       }
 
       .modal-confirm {
@@ -2112,3 +2091,6 @@ button {
   from { transform: translateX(100%); opacity: 0; }
   to   { transform: translateX(0);    opacity: 1; }
 }
+
+
+

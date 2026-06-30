@@ -21,6 +21,7 @@ export class TicketService {
       if (query.category) params = params.set('category', query.category);
       if (query.sourceType) params = params.set('sourceType', query.sourceType);
       if (query.assignedTo) params = params.set('assignedTo', query.assignedTo);
+      if (query.createdById) params = params.set('createdById', query.createdById);
       if (query.page) params = params.set('page', query.page);
       if (query.limit) params = params.set('limit', query.limit);
     }
@@ -45,6 +46,10 @@ export class TicketService {
 
   getCategories(): Observable<string[]> {
     return this.http.get<string[]>(`${environment.apiUrl}/configuracion/ticket-categories`);
+  }
+
+  saveCategories(categories: string[]): Observable<any> {
+    return this.http.post(`${environment.apiUrl}/configuracion/global`, { ticketCategories: categories });
   }
 
   createFromSession(sessionId: string, body: { titulo?: string; descripcion?: string; priority?: string; category?: string }): Observable<Ticket> {

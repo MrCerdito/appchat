@@ -18,6 +18,7 @@ import { AuthService } from '../../../../core/services/auth.service';
 import { ConfiguracionFrontendService } from '../../../../core/services/configuracion.service';
 import { TicketService } from '../../../../core/services/ticket.service';
 import { SoundService } from '../../../../core/services/sound.service';
+import { ThemeService } from '../../../../core/services/theme.service';
 import { WhatsappChatService } from '../../../../core/services/whatsapp-chat.service';
 import {
   AwChatAssigned,
@@ -247,6 +248,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     private readonly ticketService: TicketService,
     private readonly sound: SoundService,
     private readonly aiService: AiService,
+    private readonly themeService: ThemeService,
     private readonly cdr: ChangeDetectorRef,
   ) {}
 
@@ -255,7 +257,14 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     this.currentUserId = user?.id || '';
     this.currentUserName = user?.name || '';
     this.currentUserRole = user?.role || '';
-    this.theme = this.loadAdvisorTheme();
+    this.theme = this.themeService.currentTheme;
+
+    this.subs.add(
+      this.themeService.currentTheme$.subscribe(t => {
+        this.theme = t;
+        this.cdr.detectChanges();
+      }),
+    );
 
     if (this.currentUserId) {
       this.waService.joinAsAdvisor(this.currentUserId);
@@ -1372,8 +1381,7 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
   }
 
   toggleTheme(): void {
-    this.theme = this.theme === 'dark' ? 'light' : 'dark';
-    localStorage.setItem(this.themeStorageKey(), this.theme);
+    this.themeService.setMode(this.theme === 'dark' ? 'light' : 'dark');
   }
 
   handleKey(event: KeyboardEvent): void {
@@ -2097,15 +2105,6 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     if (this.activeContact) {
       this.activeContact = { ...this.activeContact, quickReplies: replies };
     }
-  }
-
-  private loadAdvisorTheme(): WaTheme {
-    const saved = localStorage.getItem(this.themeStorageKey());
-    return saved === 'light' ? 'light' : 'dark';
-  }
-
-  private themeStorageKey(): string {
-    return `waTheme:${this.currentUserId || 'local'}`;
   }
 
   private scrollToBottom(): void {

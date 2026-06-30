@@ -2819,18 +2819,102 @@ $bg:#0b0f14;$p:#111821;$p2:#16202b;$p3:#1c2835;$ln:#243342;$t:#edf4f7;$m:#93a4af
 }
 
 // FLOATING TICKET MODAL (WhatsApp)
-.wa-ticket-modal{position:fixed;inset:0;z-index:1001;display:grid;place-items:center;pointer-events:none}
-.wa-ticket-modal-inner{pointer-events:all;background:#1e293b;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:24px 28px;width:400px;max-width:90vw;box-shadow:0 16px 48px #0008;animation:waModalIn .18s ease;display:flex;flex-direction:column;gap:14px}
-.wa-ticket-modal-inner h3{margin:0;font-size:17px;font-weight:700;color:#e2e8f0}
-.wa-ticket-modal-inner label{display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#94a3b8}
-.wa-ticket-modal-inner input,.wa-ticket-modal-inner select{padding:8px 10px;border:1px solid rgba(255,255,255,.08);border-radius:6px;background:#0f172a;color:#e2e8f0;font-size:13px;font-family:inherit;outline:none}
-.wa-ticket-modal-inner input:focus,.wa-ticket-modal-inner select:focus{border-color:#6366f1}
-.wa-ticket-modal-inner .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:4px}
-.wa-ticket-modal-inner .ticket-cancel,.wa-ticket-modal-inner .ticket-confirm{height:34px;padding:0 14px;border:0;border-radius:7px;font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;transition:all .15s}
-.wa-ticket-modal-inner .ticket-cancel{background:#334155;color:#94a3b8}
-.wa-ticket-modal-inner .ticket-cancel:hover{background:#3b4a5e;color:#e2e8f0}
-.wa-ticket-modal-inner .ticket-confirm{background:#6366f1;color:#fff}
-.wa-ticket-modal-inner .ticket-confirm:hover{background:#5455e0}
-.wa-ticket-modal-inner .ticket-confirm:disabled{opacity:.45;cursor:default}
-@keyframes waModalIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
+.wa-ticket-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1001;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.wa-ticket-modal-inner {
+  pointer-events: all;
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--border, rgba(0,0,0,0.08));
+  border-radius: 12px;
+  padding: 24px 28px;
+  width: 400px;
+  max-width: 90vw;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.35);
+  animation: waModalIn .18s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.wa-ticket-modal-inner h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text, #181614);
+}
+
+.wa-ticket-modal-inner label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted, #6b6560);
+}
+
+.wa-ticket-modal-inner input,
+.wa-ticket-modal-inner select {
+  padding: 8px 10px;
+  border: 1px solid var(--border, rgba(0,0,0,0.08));
+  border-radius: 6px;
+  background: var(--bg, #f8fafc);
+  color: var(--text, #181614);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+
+  &:focus { border-color: #6366f1; }
+}
+
+.wa-ticket-modal-inner .modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.wa-ticket-modal-inner .ticket-cancel,
+.wa-ticket-modal-inner .ticket-confirm {
+  height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.wa-ticket-modal-inner .ticket-cancel {
+  background: var(--surface-hover, #f0eeec);
+  color: var(--text-muted, #6b6560);
+
+  &:hover {
+    background: var(--surface-hover, #e5e3e0);
+    color: var(--text, #181614);
+  }
+}
+
+.wa-ticket-modal-inner .ticket-confirm {
+  background: #6366f1;
+  color: #fff;
+
+  &:hover { background: #5455e0; }
+  &:disabled { opacity: 0.45; cursor: default; }
+}
+
+@keyframes waModalIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
 .toast-floating{position:fixed;top:24px;right:24px;z-index:9999;min-width:320px;max-width:420px;display:flex;flex-direction:column;gap:4px;padding:14px 18px;border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.35);animation:slideInRight .3s ease;font-size:13px;line-height:1.4}.toast-floating strong{font-size:14px;font-weight:700}.toast-floating.toast-ok{background:#065f46;border:1px solid rgba(16,185,129,.4);color:#d1fae5}.toast-floating.toast-error{background:#7f1d1d;border:1px solid rgba(239,68,68,.4);color:#fecaca}@keyframes slideInRight{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}

@@ -1,59 +1,29 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap');
-
-// ── Tokens ────────────────────────────────────────────────────────────────────
-$font    : 'DM Sans', sans-serif;
-$bg      : #f6f5f3;
-$surface : #ffffff;
-$surface2: #f0eeec;
-$border  : rgba(0,0,0,0.08);
-$border-md: rgba(0,0,0,0.13);
-
-$text    : #181614;
-$text2   : #6b6560;
-$text3   : #9e9890;
-
-$blue    : #2455d4;
-$blue-dk : #1a42b0;
-$blue-bg : #edf2ff;
-$blue-lt : #dbe7ff;
-
-$green   : #19a35c;
-$green-bg: #e6f7ee;
-$amber   : #c47e0a;
-$amber-bg: #fef5e0;
-$red     : #d63b3b;
-$red-bg  : #fef0f0;
-
-$radius  : 9px;
-$radius-lg: 13px;
-$mobile  : 640px;
-
 // ── Host ──────────────────────────────────────────────────────────────────────
 :host {
   display: flex; flex: 1; min-width: 0;
-  height: 100%; overflow: hidden; font-family: $font;
+  height: 100%; overflow: hidden; font-family: var(--font);
 }
 
 // ── Page Shell ────────────────────────────────────────────────────────────────
 .history-page {
   display: flex; flex-direction: column;
   flex: 1; min-width: 0; height: 100%;
-  background: $surface;
+  background: var(--surface);
 }
 
 .page-header {
   padding: 1.1rem 1.4rem 0.9rem;
-  border-bottom: 1px solid $border;
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
-  background: $surface;
+  background: var(--surface);
 
   h1 {
     font-size: 1.05rem; font-weight: 600;
-    color: $text; margin: 0 0 2px;
+    color: var(--text); margin: 0 0 2px;
   }
-  p { font-size: 0.78rem; color: $text3; margin: 0; }
+  p { font-size: 0.78rem; color: var(--text-faint); margin: 0; }
 
-  @media (max-width: $mobile) {
+  @media (max-width: 640px) {
     padding: 0.85rem 1rem 0.7rem;
     h1 { font-size: 0.95rem; }
   }
@@ -64,27 +34,27 @@ $mobile  : 640px;
   display: flex; flex: 1;
   min-height: 0; overflow: hidden;
 
-  @media (max-width: $mobile) { position: relative; }
+  @media (max-width: 640px) { position: relative; }
 }
 
 // ── Mobile Tab Bar ────────────────────────────────────────────────────────────
 .mobile-tab-bar {
   display: none;
 
-  @media (max-width: $mobile) {
+  @media (max-width: 640px) {
     display: flex; flex-shrink: 0;
-    border-bottom: 1px solid $border;
-    background: $surface;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
 
     button {
       flex: 1; padding: 0.6rem 0.5rem;
       background: transparent; border: none;
-      font-family: $font; font-size: 0.78rem;
-      font-weight: 600; color: $text3;
+      font-family: var(--font); font-size: 0.78rem;
+      font-weight: 600; color: var(--text-faint);
       cursor: pointer; border-bottom: 2px solid transparent;
       transition: all .15s; margin-bottom: -1px;
 
-      &.active { color: $blue; border-bottom-color: $blue; }
+      &.active { color: #2455d4; border-bottom-color: #2455d4; }
       &:disabled { opacity: 0.35; cursor: default; }
     }
   }
@@ -95,12 +65,12 @@ $mobile  : 640px;
 // ══════════════════════════════════════════════════════════════════════════════
 .sessions-sidebar {
   width: 300px; min-width: 300px; flex-shrink: 0;
-  height: 100%; background: $surface;
-  border-right: 1px solid $border;
+  height: 100%; background: var(--surface);
+  border-right: 1px solid var(--border);
   display: flex; flex-direction: column;
   overflow: hidden;
 
-  @media (max-width: $mobile) {
+  @media (max-width: 640px) {
     width: 100%; min-width: 0; border-right: none;
     &.mobile-hidden { display: none; }
   }
@@ -109,27 +79,27 @@ $mobile  : 640px;
 // ── Search ────────────────────────────────────────────────────────────────────
 .search-bar {
   padding: 10px 10px 8px;
-  border-bottom: 1px solid $border;
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
   position: relative;
 
   svg {
     position: absolute;
     left: 20px; top: 50%; transform: translateY(-50%);
-    width: 13px; height: 13px; stroke: $text3;
+    width: 13px; height: 13px; stroke: var(--text-faint);
     pointer-events: none;
   }
 
   input {
     width: 100%; padding: 7px 10px 7px 30px;
-    background: $surface2;
+    background: var(--surface-hover);
     border: 1px solid transparent; border-radius: 8px;
-    font-family: $font; font-size: 12.5px;
-    color: $text; outline: none; box-sizing: border-box;
+    font-family: var(--font); font-size: 12.5px;
+    color: var(--text); outline: none; box-sizing: border-box;
     transition: border-color .15s, background .15s;
 
-    &::placeholder { color: $text3; }
-    &:focus { background: $surface; border-color: $blue-lt; }
+    &::placeholder { color: var(--text-faint); }
+    &:focus { background: var(--surface); border-color: #dbe7ff; }
   }
 }
 
@@ -137,19 +107,19 @@ $mobile  : 640px;
 .filter-tabs {
   display: flex; gap: 4px;
   padding: 8px 10px;
-  border-bottom: 1px solid $border;
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 
   button {
     flex: 1; padding: 5px 4px;
-    border: 1px solid $border-md; border-radius: 7px;
-    background: transparent; font-family: $font;
+    border: 1px solid var(--border-strong); border-radius: 7px;
+    background: transparent; font-family: var(--font);
     font-size: 11.5px; font-weight: 500;
-    color: $text2; cursor: pointer;
+    color: var(--text-muted); cursor: pointer;
     transition: all .12s;
 
-    &:hover:not(.active) { background: $surface2; }
-    &.active { background: $blue; border-color: $blue; color: #fff; }
+    &:hover:not(.active) { background: var(--surface-hover); }
+    &.active { background: #2455d4; border-color: #2455d4; color: var(--text-inverse); }
   }
 }
 
@@ -158,13 +128,13 @@ $mobile  : 640px;
   display: flex; align-items: center;
   justify-content: space-between;
   padding: 6px 10px;
-  border-bottom: 1px solid $border;
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 
   button {
     background: none; border: none;
-    font-family: $font; font-size: 11.5px;
-    font-weight: 500; color: $blue;
+    font-family: var(--font); font-size: 11.5px;
+    font-weight: 500; color: #2455d4;
     cursor: pointer; padding: 2px 0;
     display: flex; align-items: center; gap: 5px;
     transition: opacity .12s;
@@ -172,20 +142,20 @@ $mobile  : 640px;
     &:hover { opacity: 0.7; }
   }
 
-  .clear-btn { color: $red; font-size: 11px; }
+  .clear-btn { color: #d63b3b; font-size: 11px; }
 }
 
 .filter-dot {
   width: 6px; height: 6px;
-  border-radius: 50%; background: $red;
+  border-radius: 50%; background: #d63b3b;
 }
 
 // ── Advanced Filters ──────────────────────────────────────────────────────────
 .advanced-filters {
   padding: 8px 10px 10px;
-  border-bottom: 1px solid $border;
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
-  background: $bg;
+  background: var(--bg);
   display: grid; grid-template-columns: 1fr 1fr;
   gap: 7px;
   animation: slideDown .18s ease;
@@ -201,19 +171,19 @@ $mobile  : 640px;
 
   label {
     font-size: 9.5px; font-weight: 600;
-    color: $text3; text-transform: uppercase;
+    color: var(--text-faint); text-transform: uppercase;
     letter-spacing: 0.06em;
   }
 
   select, input {
     width: 100%; padding: 5px 8px;
-    border: 1px solid $border-md; border-radius: 6px;
-    font-family: $font; font-size: 11.5px;
-    color: $text; background: $surface;
+    border: 1px solid var(--border-strong); border-radius: 6px;
+    font-family: var(--font); font-size: 11.5px;
+    color: var(--text); background: var(--surface);
     outline: none; box-sizing: border-box;
     transition: border-color .12s;
 
-    &:focus { border-color: $blue-lt; }
+    &:focus { border-color: #dbe7ff; }
   }
 
   select {
@@ -229,8 +199,8 @@ $mobile  : 640px;
 .results-count {
   padding: 5px 10px;
   font-size: 10px; font-weight: 600;
-  color: $text3; letter-spacing: 0.04em;
-  border-bottom: 1px solid $border;
+  color: var(--text-faint); letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
@@ -240,27 +210,27 @@ $mobile  : 640px;
   padding: 6px 8px;
 
   &::-webkit-scrollbar { width: 3px; }
-  &::-webkit-scrollbar-thumb { background: $border-md; border-radius: 3px; }
+  &::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
 }
 
 // ── Session Card ──────────────────────────────────────────────────────────────
 .session-card {
   display: flex; align-items: center;
   gap: 9px; padding: 9px 8px;
-  border-radius: $radius; cursor: pointer;
+  border-radius: var(--radius-md); cursor: pointer;
   transition: background .12s;
   margin-bottom: 1px; position: relative;
 
-  &:hover { background: $surface2; }
+  &:hover { background: var(--surface-hover); }
 
   &.selected {
-    background: $blue-bg;
+    background: #edf2ff;
 
     &::before {
       content: '';
       position: absolute; left: 0; top: 8px; bottom: 8px;
       width: 3px; border-radius: 0 3px 3px 0;
-      background: $blue;
+      background: #2455d4;
     }
   }
 
@@ -269,11 +239,11 @@ $mobile  : 640px;
 
 .session-avatar {
   width: 34px; height: 34px; border-radius: 50%;
-  background: $blue; color: #fff;
+  background: #2455d4; color: var(--text-inverse);
   display: flex; align-items: center; justify-content: center;
   font-size: 13px; font-weight: 600; flex-shrink: 0;
 
-  &.closed { background: $surface2; color: $text3; }
+  &.closed { background: var(--surface-hover); color: var(--text-faint); }
 }
 
 .session-info {
@@ -281,15 +251,15 @@ $mobile  : 640px;
   display: flex; flex-direction: column; gap: 1px;
 
   .session-name {
-    font-size: 12.5px; font-weight: 500; color: $text;
+    font-size: 12.5px; font-weight: 500; color: var(--text);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .session-detail {
-    font-size: 11px; color: $blue; font-weight: 500;
+    font-size: 11px; color: #2455d4; font-weight: 500;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .session-preview {
-    font-size: 11px; color: $text3;
+    font-size: 11px; color: var(--text-faint);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
 }
@@ -298,7 +268,7 @@ $mobile  : 640px;
   display: flex; flex-direction: column;
   align-items: flex-end; gap: 3px; flex-shrink: 0;
 
-  .session-time { font-size: 10px; color: $text3; }
+  .session-time { font-size: 10px; color: var(--text-faint); }
 }
 
 // ── Badges ────────────────────────────────────────────────────────────────────
@@ -306,15 +276,15 @@ $mobile  : 640px;
   font-size: 9.5px; font-weight: 600;
   padding: 1px 7px; border-radius: 20px;
 
-  &.badge-waiting { background: $amber-bg; color: $amber; }
-  &.badge-active  { background: $green-bg; color: $green; }
-  &.badge-closed  { background: $surface2; color: $text3; }
+  &.badge-waiting { background: #fef5e0; color: #c47e0a; }
+  &.badge-active  { background: #e6f7ee; color: #19a35c; }
+  &.badge-closed  { background: var(--surface-hover); color: var(--text-faint); }
   &.badge-ai      { background: #f2eeff;   color: #6c47d4; }
 }
 
 .empty-list {
   text-align: center; padding: 2.5rem 1rem;
-  color: $text3; font-size: 12px;
+  color: var(--text-faint); font-size: 12px;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -323,9 +293,9 @@ $mobile  : 640px;
 .chat-area {
   flex: 1; min-width: 0;
   display: flex; flex-direction: column;
-  overflow: hidden; background: $bg; height: 100%;
+  overflow: hidden; background: var(--bg); height: 100%;
 
-  @media (max-width: $mobile) {
+  @media (max-width: 640px) {
     &.mobile-hidden { display: none; }
   }
 }
@@ -333,16 +303,16 @@ $mobile  : 640px;
 .empty-state {
   flex: 1; display: flex; flex-direction: column;
   align-items: center; justify-content: center;
-  gap: 10px; color: $text3; background: $bg;
+  gap: 10px; color: var(--text-faint); background: var(--bg);
 
   .empty-icon {
     width: 52px; height: 52px; border-radius: 50%;
-    background: $surface; border: 1px solid $border;
+    background: var(--surface); border: 1px solid var(--border);
     display: flex; align-items: center; justify-content: center;
     svg { width: 22px; height: 22px; }
   }
 
-  h3 { font-size: 13px; font-weight: 600; color: $text2; margin: 0; }
+  h3 { font-size: 13px; font-weight: 600; color: var(--text-muted); margin: 0; }
   p  { font-size: 12px; margin: 0; }
 }
 
@@ -354,12 +324,12 @@ $mobile  : 640px;
 // ── Chat Header ───────────────────────────────────────────────────────────────
 .chat-header {
   padding: 10px 14px;
-  border-bottom: 1px solid $border;
+  border-bottom: 1px solid var(--border);
   display: flex; align-items: center;
   justify-content: space-between;
-  background: $surface; flex-shrink: 0; gap: 8px;
+  background: var(--surface); flex-shrink: 0; gap: 8px;
 
-  @media (max-width: $mobile) { padding: 8px 10px; }
+  @media (max-width: 640px) { padding: 8px 10px; }
 }
 
 .client-info {
@@ -370,20 +340,20 @@ $mobile  : 640px;
 .back-btn {
   display: none;
 
-  @media (max-width: $mobile) {
+  @media (max-width: 640px) {
     display: flex; align-items: center; justify-content: center;
     width: 30px; height: 30px; flex-shrink: 0;
-    background: $blue-bg; border: none;
-    border-radius: 8px; color: $blue; cursor: pointer;
+    background: #edf2ff; border: none;
+    border-radius: 8px; color: #2455d4; cursor: pointer;
     transition: background .12s;
     svg { width: 15px; height: 15px; }
-    &:active { background: $blue-lt; }
+    &:active { background: #dbe7ff; }
   }
 }
 
 .avatar {
   width: 36px; height: 36px; border-radius: 50%;
-  background: $blue; color: #fff;
+  background: #2455d4; color: var(--text-inverse);
   display: flex; align-items: center; justify-content: center;
   font-size: 14px; font-weight: 600; flex-shrink: 0;
 }
@@ -393,12 +363,12 @@ $mobile  : 640px;
 }
 
 .client-name {
-  font-size: 13px; font-weight: 600; color: $text;
+  font-size: 13px; font-weight: 600; color: var(--text);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
 .session-meta {
-  font-size: 11px; color: $text3;
+  font-size: 11px; color: var(--text-faint);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
@@ -410,30 +380,30 @@ $mobile  : 640px;
 .in-chat-badge {
   display: flex; align-items: center; gap: 5px;
   padding: 5px 10px;
-  background: $green-bg;
+  background: #e6f7ee;
   border: 1px solid rgba(25, 163, 92, 0.2);
   border-radius: 8px;
-  font-size: 11.5px; font-weight: 500; color: $green;
+  font-size: 11.5px; font-weight: 500; color: #19a35c;
   white-space: nowrap;
 
-  svg { width: 13px; height: 13px; stroke: $green; flex-shrink: 0; }
+  svg { width: 13px; height: 13px; stroke: #19a35c; flex-shrink: 0; }
 }
 
 // ── Takeover Button ───────────────────────────────────────────────────────────
 .takeover-btn {
   display: flex; align-items: center; gap: 6px;
   padding: 6px 12px;
-  background: $blue; color: #fff;
+  background: #2455d4; color: var(--text-inverse);
   border: none; border-radius: 8px;
-  font-family: $font; font-size: 12px;
+  font-family: var(--font); font-size: 12px;
   font-weight: 600; cursor: pointer;
   transition: all .12s; white-space: nowrap;
 
   svg { width: 14px; height: 14px; flex-shrink: 0; }
 
-  &:hover:not(:disabled) { background: $blue-dk; }
+  &:hover:not(:disabled) { background: #1a42b0; }
   &:disabled { opacity: 0.55; cursor: default; }
-  &.takeover-btn--loading { background: $text2; }
+  &.takeover-btn--loading { background: var(--text-muted); }
 }
 
 .spin-icon { animation: spin 0.8s linear infinite; }
@@ -447,11 +417,11 @@ $mobile  : 640px;
   animation: slideDown .2s ease;
 
   &.takeover-toast--ok {
-    background: $green-bg; color: $green;
+    background: #e6f7ee; color: #19a35c;
     border-bottom: 1px solid rgba(25, 163, 92, 0.15);
   }
   &.takeover-toast--error {
-    background: $red-bg; color: $red;
+    background: #fef0f0; color: #d63b3b;
     border-bottom: 1px solid rgba(214, 59, 59, 0.15);
   }
 }
@@ -462,16 +432,16 @@ $mobile  : 640px;
   overflow-y: auto;
   padding: 14px 16px;
   display: flex; flex-direction: column;
-  gap: 10px; background: $bg;
+  gap: 10px; background: var(--bg);
 
   &::-webkit-scrollbar { width: 3px; }
-  &::-webkit-scrollbar-thumb { background: $border-md; border-radius: 3px; }
+  &::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
 
-  @media (max-width: $mobile) { padding: 10px 12px; }
+  @media (max-width: 640px) { padding: 10px 12px; }
 }
 
 .no-messages {
-  text-align: center; color: $text3;
+  text-align: center; color: var(--text-faint);
   font-size: 12px; margin-top: 2rem;
   display: flex; flex-direction: column;
   align-items: center; gap: 8px;
@@ -482,7 +452,7 @@ $mobile  : 640px;
 
   span {
     width: 5px; height: 5px; border-radius: 50%;
-    background: $text3;
+    background: var(--text-faint);
     animation: bounce 1.4s ease-in-out infinite;
 
     &:nth-child(2) { animation-delay: .2s; }
@@ -499,7 +469,7 @@ $mobile  : 640px;
   display: flex; flex-direction: column; max-width: 70%;
 
   .sender {
-    font-size: 10px; color: $text3;
+    font-size: 10px; color: var(--text-faint);
     margin-bottom: 2px; padding: 0 4px;
     font-weight: 500;
   }
@@ -508,18 +478,18 @@ $mobile  : 640px;
     padding: 8px 12px;
     font-size: 13px; line-height: 1.55;
     word-break: break-word;
-    border-radius: $radius-lg;
+    border-radius: var(--radius-lg);
   }
 
   .time {
-    font-size: 10px; color: $text3;
+    font-size: 10px; color: var(--text-faint);
     margin-top: 2px; padding: 0 4px;
   }
 
   &.mine {
     align-self: flex-end; align-items: flex-end;
     .bubble {
-      background: $blue; color: #fff;
+      background: #2455d4; color: var(--text-inverse);
       border-bottom-right-radius: 4px;
     }
   }
@@ -527,13 +497,13 @@ $mobile  : 640px;
   &.theirs {
     align-self: flex-start; align-items: flex-start;
     .bubble {
-      background: $surface; color: $text;
+      background: var(--surface); color: var(--text);
       border-bottom-left-radius: 4px;
       box-shadow: 0 1px 4px rgba(0,0,0,.06);
     }
   }
 
-  @media (max-width: $mobile) {
+  @media (max-width: 640px) {
     max-width: 85%;
     .bubble { font-size: 12.5px; }
   }
@@ -555,7 +525,7 @@ $mobile  : 640px;
     svg { width: 11px; height: 11px; stroke: #c9960a; flex-shrink: 0; }
   }
 
-  .system-time { font-size: 10px; color: $text3; }
+  .system-time { font-size: 10px; color: var(--text-faint); }
 }
 
 // ── Readonly Notice ───────────────────────────────────────────────────────────
@@ -563,12 +533,12 @@ $mobile  : 640px;
   display: flex; align-items: center;
   justify-content: center; gap: 6px;
   padding: 8px 14px;
-  background: $surface;
-  border-top: 1px solid $border;
-  font-size: 11.5px; color: $text3;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  font-size: 11.5px; color: var(--text-faint);
   flex-shrink: 0; font-weight: 500;
 
-  svg { width: 12px; height: 12px; stroke: $text3; flex-shrink: 0; }
+  svg { width: 12px; height: 12px; stroke: var(--text-faint); flex-shrink: 0; }
 }
 
 // ── Animaciones ───────────────────────────────────────────────────────────────

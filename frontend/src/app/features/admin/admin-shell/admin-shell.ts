@@ -5,6 +5,7 @@ import { filter, Subscription } from 'rxjs';
 
 import { AuthService } from '../../../core/services/auth.service';
 import { SocketService } from '../../../core/services/socket.service';
+import { ThemeService } from '../../../core/services/theme.service';
 import { User } from '../../../core/models/user.model';
 import { trackByIndex, trackById } from '../../../shared/utils/track-by';
 
@@ -22,12 +23,14 @@ export class AdminShellComponent implements OnInit, OnDestroy {
   menuOpen = false;
   sidebarOpen = false;
   sidebarCollapsed = false;
+  appearanceOpen = false;
 
   private routerSub?: Subscription;
 
   constructor(
     private auth: AuthService,
     private socket: SocketService,
+    protected themeService: ThemeService,
     private router: Router,
   ) {}
 

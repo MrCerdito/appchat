@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, Host
 import { FormsModule } from '@angular/forms';
 import { Subscription, timer } from 'rxjs';
 
+import { ThemeService } from '../../../../core/services/theme.service';
 import { WhatsappChatService } from '../../../../core/services/whatsapp-chat.service';
 import {
   WaAdminAlert,
@@ -65,7 +66,7 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
   profilePhotoPreview?: { src: string; name: string };
   mediaPreview?: { src: string; name: string };
   messageMenu?: { x: number; y: number; message: WaMessage };
-  theme: 'dark' | 'light' = (localStorage.getItem('waAdminTheme') as 'dark' | 'light') || 'light';
+  theme: 'dark' | 'light' = 'light';
   readonly reactionOptions = ['\u{1F44D}', '\u2705', '\u274C'];
 
   readonly tabs: { id: AdminWaTab; label: string; icon: string }[] = [
@@ -96,10 +97,18 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
 
   constructor(
     private readonly waService: WhatsappChatService,
+    private readonly themeService: ThemeService,
     private readonly cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit(): void {
+    this.theme = this.themeService.currentTheme;
+    this.subs.add(
+      this.themeService.currentTheme$.subscribe(t => {
+        this.theme = t;
+        this.cdr.detectChanges();
+      }),
+    );
     this.refresh();
     this.subs.add(timer(15_000, 15_000).subscribe(() => this.refresh(false)));
     this.subs.add(this.waService.onQueueUpdated().subscribe(() => this.refresh(false)));
@@ -172,8 +181,7 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
   }
 
   toggleTheme(): void {
-    this.theme = this.theme === 'dark' ? 'light' : 'dark';
-    localStorage.setItem('waAdminTheme', this.theme);
+    this.themeService.setMode(this.theme === 'dark' ? 'light' : 'dark');
   }
 
   private loadSelectedMessages(chatId: string, showLoading = true): void {

@@ -1,45 +1,40 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
-
-$blue: #2563eb; $blue-bg: #eff6ff; $text: #1e293b; $muted: #64748b;
-$border: #e2e8f0; $white: #ffffff; $font: 'Plus Jakarta Sans', sans-serif;
-
-:host { display: flex; flex: 1; min-width: 0; height: 100%; overflow: hidden; font-family: $font; }
+:host { display: flex; flex: 1; min-width: 0; height: 100%; overflow: hidden; font-family: var(--font); }
 
 .history-page { display: flex; flex-direction: column; flex: 1; min-width: 0; height: 100%; padding: 0; }
 
 .page-header {
-  padding: 1.2rem 1.5rem 0.8rem; border-bottom: 1px solid $border; flex-shrink: 0;
-  h1 { font-size: 1.1rem; font-weight: 700; color: $text; margin-bottom: 2px; }
-  p  { font-size: 0.82rem; color: $muted; }
+  padding: 1.2rem 1.5rem 0.8rem; border-bottom: 1px solid var(--border); flex-shrink: 0;
+  h1 { font-size: 1.1rem; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+  p  { font-size: 0.82rem; color: var(--text-muted); }
 }
 
 .history-layout { display: flex; flex: 1; min-height: 0; overflow: hidden; }
 
 .sessions-sidebar {
   width: 300px; min-width: 300px; flex-shrink: 0; height: 100%;
-  background: $white; border-right: 1px solid $border;
+  background: var(--surface); border-right: 1px solid var(--border);
   display: flex; flex-direction: column; overflow: hidden;
 }
 
 .search-bar {
-  padding: 0.75rem 0.8rem; border-bottom: 1px solid $border; flex-shrink: 0;
+  padding: 0.75rem 0.8rem; border-bottom: 1px solid var(--border); flex-shrink: 0;
   input {
-    width: 100%; padding: 0.55rem 0.85rem; border: 1.5px solid $border;
-    border-radius: 8px; font-family: $font; font-size: 0.85rem;
-    outline: none; color: $text;
-    &:focus { border-color: $blue; }
+    width: 100%; padding: 0.55rem 0.85rem; border: 1.5px solid var(--border);
+    border-radius: 8px; font-family: var(--font); font-size: 0.85rem;
+    outline: none; color: var(--text);
+    &:focus { border-color: #2563eb; }
     &::placeholder { color: #aab4c0; }
   }
 }
 
 .filter-tabs {
   display: flex; gap: 4px; padding: 0.6rem 0.8rem;
-  border-bottom: 1px solid $border; flex-shrink: 0;
+  border-bottom: 1px solid var(--border); flex-shrink: 0;
   button {
-    flex: 1; padding: 0.35rem; border: 1.5px solid $border; border-radius: 7px;
-    background: transparent; font-family: $font; font-size: 0.74rem;
-    font-weight: 500; color: $muted; cursor: pointer; transition: all 0.15s;
-    &.active { background: $blue; border-color: $blue; color: $white; }
+    flex: 1; padding: 0.35rem; border: 1.5px solid var(--border); border-radius: 7px;
+    background: transparent; font-family: var(--font); font-size: 0.74rem;
+    font-weight: 500; color: var(--text-muted); cursor: pointer; transition: all 0.15s;
+    &.active { background: #2563eb; border-color: #2563eb; color: var(--text-inverse); }
   }
 }
 
@@ -49,13 +44,13 @@ $border: #e2e8f0; $white: #ffffff; $font: 'Plus Jakarta Sans', sans-serif;
   display: flex; align-items: center; gap: 0.7rem;
   padding: 0.65rem 0.75rem; border-radius: 10px;
   cursor: pointer; transition: background 0.15s; margin-bottom: 2px;
-  &:hover    { background: $blue-bg; }
+  &:hover    { background: #eff6ff; }
   &.selected { background: #dbeafe; }
   &.is-closed { opacity: 0.7; }
 }
 
 .session-avatar {
-  width: 36px; height: 36px; border-radius: 50%; background: $blue; color: $white;
+  width: 36px; height: 36px; border-radius: 50%; background: #2563eb; color: var(--text-inverse);
   display: flex; align-items: center; justify-content: center;
   font-weight: 700; font-size: 0.88rem; flex-shrink: 0;
   &.closed { background: #cbd5e1; }
@@ -63,8 +58,8 @@ $border: #e2e8f0; $white: #ffffff; $font: 'Plus Jakarta Sans', sans-serif;
 
 .session-info {
   flex: 1; min-width: 0;
-  .session-name    { display: block; font-size: 0.86rem; font-weight: 600; color: $text; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .session-preview { font-size: 0.72rem; color: $muted; }
+  .session-name    { display: block; font-size: 0.86rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .session-preview { font-size: 0.72rem; color: var(--text-muted); }
 }
 
 .session-right {
@@ -76,36 +71,36 @@ $border: #e2e8f0; $white: #ffffff; $font: 'Plus Jakarta Sans', sans-serif;
   font-size: 0.66rem; font-weight: 600; padding: 2px 7px; border-radius: 20px;
   &.badge-waiting { background: #fef9c3; color: #a16207; }
   &.badge-active  { background: #dcfce7; color: #15803d; }
-  &.badge-closed  { background: #f1f5f9; color: $muted; }
+  &.badge-closed  { background: #f1f5f9; color: var(--text-muted); }
 }
 
 .empty-list { text-align: center; padding: 2rem; color: #94a3b8; font-size: 0.83rem; }
 
 .chat-area {
   flex: 1; min-width: 0; display: flex; flex-direction: column;
-  overflow: hidden; background: $white; height: 100%;
+  overflow: hidden; background: var(--surface); height: 100%;
 }
 
 .empty-state {
   flex: 1; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 0.5rem; color: $muted;
-  h3 { font-size: 1rem; font-weight: 700; color: $text; }
+  align-items: center; justify-content: center; gap: 0.5rem; color: var(--text-muted);
+  h3 { font-size: 1rem; font-weight: 700; color: var(--text); }
   p  { font-size: 0.85rem; }
 }
 
 .chat-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 
 .chat-header {
-  padding: 0.9rem 1.4rem; border-bottom: 1px solid $border;
+  padding: 0.9rem 1.4rem; border-bottom: 1px solid var(--border);
   display: flex; align-items: center; justify-content: space-between;
-  background: $white; flex-shrink: 0;
+  background: var(--surface); flex-shrink: 0;
   .client-info { display: flex; align-items: center; gap: 0.75rem; }
   .avatar {
-    width: 40px; height: 40px; border-radius: 50%; background: $blue-bg; color: $blue;
+    width: 40px; height: 40px; border-radius: 50%; background: #eff6ff; color: #2563eb;
     display: flex; align-items: center; justify-content: center; font-weight: 700;
   }
-  .client-name { display: block; font-weight: 700; font-size: 0.92rem; color: $text; }
-  .session-meta { font-size: 0.72rem; color: $muted; }
+  .client-name { display: block; font-weight: 700; font-size: 0.92rem; color: var(--text); }
+  .session-meta { font-size: 0.72rem; color: var(--text-muted); }
 }
 
 .messages {
@@ -122,16 +117,16 @@ $border: #e2e8f0; $white: #ffffff; $font: 'Plus Jakarta Sans', sans-serif;
   .time   { font-size: 0.65rem; color: #cbd5e1; margin-top: 2px; padding: 0 4px; }
   &.mine {
     align-self: flex-end; align-items: flex-end;
-    .bubble { background: $blue; color: $white; border-radius: 16px 16px 4px 16px; }
+    .bubble { background: #2563eb; color: var(--text-inverse); border-radius: 16px 16px 4px 16px; }
   }
   &.theirs {
     align-self: flex-start; align-items: flex-start;
-    .bubble { background: $white; color: $text; border-radius: 16px 16px 16px 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    .bubble { background: var(--surface); color: var(--text); border-radius: 16px 16px 16px 4px; box-shadow: 0 1px 4px var(--border); }
   }
 }
 
 .readonly-notice {
   display: flex; align-items: center; justify-content: center;
-  padding: 0.75rem; background: #f8fafc; border-top: 1px solid $border;
-  font-size: 0.78rem; color: $muted; flex-shrink: 0;
+  padding: 0.75rem; background: #f8fafc; border-top: 1px solid var(--border);
+  font-size: 0.78rem; color: var(--text-muted); flex-shrink: 0;
 }

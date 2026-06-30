@@ -12,6 +12,7 @@ import { SoundService } from '../../../core/services/sound.service';
 import { TicketService } from '../../../core/services/ticket.service';
 import { WhatsappChatService } from '../../../core/services/whatsapp-chat.service';
 import { ChatStateService } from '../../../core/services/chat-state.service';
+import { ThemeService } from '../../../core/services/theme.service';
 import { User } from '../../../core/models/user.model';
 import { Session } from '../../../core/models/session.model';
 import { Message } from '../../../core/models/message.model';
@@ -67,6 +68,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private chatState: ChatStateService,
     private router: Router,
     private cdr: ChangeDetectorRef,
+    protected themeService: ThemeService,
   ) {}
 
   ngOnInit(): void {

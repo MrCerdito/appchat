@@ -800,39 +800,6 @@
         </button>
       </section>
 
-  <!-- ── Modal flotante ticket WhatsApp ──────────────────── -->
-  <div class="wa-ticket-modal" *ngIf="showTicketModal">
-    <div class="wa-ticket-modal-inner" (click)="$event.stopPropagation()">
-      <h3>Generar ticket</h3>
-      <label>
-        <span>Titulo</span>
-        <input type="text" [(ngModel)]="ticketDto.titulo" maxlength="255">
-      </label>
-      <label>
-        <span>Prioridad</span>
-        <select [(ngModel)]="ticketDto.priority">
-          <option value="low">Baja</option>
-          <option value="medium">Media</option>
-          <option value="high">Alta</option>
-          <option value="critical">Critica</option>
-        </select>
-      </label>
-      <label>
-        <span>Categoria</span>
-        <select [(ngModel)]="ticketDto.category">
-          <option value="">Sin categoria</option>
-          <option *ngFor="let c of ticketCategories" [value]="c">{{ c }}</option>
-        </select>
-      </label>
-      <div class="modal-actions">
-        <button class="ticket-cancel" type="button" (click)="closeTicketModal()">Cancelar</button>
-        <button class="ticket-confirm" type="button" (click)="confirmTicket()" [disabled]="!ticketDto.titulo.trim() || creatingTicket">
-          {{ creatingTicket ? 'Generando...' : 'Generar' }}
-        </button>
-      </div>
-    </div>
-  </div>
-
       <section class="panel-section">
         <div class="section-title">
           <i class="ti ti-address-book"></i>
@@ -968,6 +935,39 @@
       <i class="ti ti-trash"></i>
       Eliminar
     </button>
+  </div>
+
+  <!-- ── Modal flotante ticket WhatsApp ──────────────────── -->
+  <div class="wa-ticket-modal" *ngIf="showTicketModal">
+    <div class="wa-ticket-modal-inner" (click)="$event.stopPropagation()">
+      <h3>Generar ticket</h3>
+      <label>
+        <span>Titulo</span>
+        <input type="text" [(ngModel)]="ticketDto.titulo" maxlength="255">
+      </label>
+      <label>
+        <span>Prioridad</span>
+        <select [(ngModel)]="ticketDto.priority">
+          <option value="low">Baja</option>
+          <option value="medium">Media</option>
+          <option value="high">Alta</option>
+          <option value="critical">Critica</option>
+        </select>
+      </label>
+      <label>
+        <span>Categoria</span>
+        <select [(ngModel)]="ticketDto.category">
+          <option value="">Sin categoria</option>
+          <option *ngFor="let c of ticketCategories" [value]="c">{{ c }}</option>
+        </select>
+      </label>
+      <div class="modal-actions">
+        <button class="ticket-cancel" type="button" (click)="closeTicketModal()">Cancelar</button>
+        <button class="ticket-confirm" type="button" (click)="confirmTicket()" [disabled]="!ticketDto.titulo.trim() || creatingTicket">
+          {{ creatingTicket ? 'Generando...' : 'Generar' }}
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- ── Toast flotante ticket ─────────────────────────── -->

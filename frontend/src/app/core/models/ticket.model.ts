@@ -56,6 +56,7 @@ export interface TicketQuery {
   category?: string;
   sourceType?: string;
   assignedTo?: string;
+  createdById?: string;
   page?: number;
   limit?: number;
 }

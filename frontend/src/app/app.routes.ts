@@ -60,12 +60,7 @@ export const routes: Routes = [
       {
         path: 'tickets',
         loadComponent: () =>
-          import('./features/advisor/modules/tickets/tickets-list').then(m => m.TicketsListComponent),
-      },
-      {
-        path: 'tickets/:id',
-        loadComponent: () =>
-          import('./features/advisor/modules/tickets/ticket-detail').then(m => m.TicketDetailComponent),
+          import('./shared/tickets/tickets.component').then(m => m.TicketsComponent),
       },
     ],
   },
@@ -115,7 +110,7 @@ export const routes: Routes = [
       {
         path: 'tickets',
         loadComponent: () =>
-          import('./features/admin/modules/tickets/tickets-admin').then(m => m.TicketsAdminComponent),
+          import('./shared/tickets/tickets.component').then(m => m.TicketsComponent),
       },
     ],
   },

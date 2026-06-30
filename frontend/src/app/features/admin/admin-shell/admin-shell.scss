@@ -1,22 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
-
-// ── Variables ──────────────────────────────────────────────
-$font:    'Plus Jakarta Sans', sans-serif;
-$purple:  #7c3aed;
-$dark:    #0f172a;
-$surface: #1e293b;
-$white:   #ffffff;
-
-$text-primary:  $white;
-$text-muted:    rgba($white, 0.5);
-$text-hint:     rgba($white, 0.3);
-$border-subtle: rgba($white, 0.07);
-$border-light:  rgba($white, 0.1);
-$hover-bg:      rgba($white, 0.07);
-$active-bg:     rgba($white, 0.05);
-
-$breakpoint-mobile: 768px;
-
 // ── Reset ──────────────────────────────────────────────────
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -28,7 +9,7 @@ $breakpoint-mobile: 768px;
   height: 100vh;
   width: 100%;
   overflow: hidden;
-  font-family: $font;
+  font-family: var(--font);
 }
 
 // ── Overlay ────────────────────────────────────────────────
@@ -47,7 +28,7 @@ $breakpoint-mobile: 768px;
     pointer-events: all;
   }
 
-  @media (max-width: $breakpoint-mobile) {
+  @media (max-width: 768px) {
     display: block;
   }
 }
@@ -57,14 +38,14 @@ $breakpoint-mobile: 768px;
   width: 220px;
   min-width: 220px;
   height: 100%;
-  background: $dark;
+  background: var(--sidebar-bg);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   flex-shrink: 0;
   transition: transform 0.25s ease;
 
-  @media (max-width: $breakpoint-mobile) {
+  @media (max-width: 768px) {
     position: fixed;
     top: 0;
     left: 0;
@@ -84,26 +65,26 @@ $breakpoint-mobile: 768px;
   align-items: center;
   gap: 0.6rem;
   padding: 1.3rem 1.2rem 1rem;
-  border-bottom: 1px solid $border-subtle;
+  border-bottom: 1px solid var(--sidebar-border);
 
   .logo-icon {
     width: 32px;
     height: 32px;
     border-radius: 8px;
-    background: $purple;
+    background: var(--sidebar-accent);
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
 
-    svg { width: 17px; height: 17px; color: $white; }
+    svg { width: 17px; height: 17px; color: var(--sidebar-text); }
   }
 
   .logo-text {
     flex: 1;
     font-size: 0.92rem;
     font-weight: 700;
-    color: $text-primary;
+    color: var(--sidebar-text);
   }
 }
 
@@ -116,17 +97,17 @@ $breakpoint-mobile: 768px;
   height: 30px;
   border: none;
   border-radius: 7px;
-  background: $hover-bg;
-  color: $text-muted;
+  background: var(--sidebar-hover);
+  color: var(--sidebar-text-muted);
   cursor: pointer;
   flex-shrink: 0;
   transition: background 0.15s;
 
   svg { width: 16px; height: 16px; }
 
-  &:hover { background: rgba($white, 0.12); color: $white; }
+  &:hover { background: var(--sidebar-hover); color: var(--sidebar-text); }
 
-  @media (max-width: $breakpoint-mobile) {
+  @media (max-width: 768px) {
     display: flex;
   }
 }
@@ -141,7 +122,7 @@ $breakpoint-mobile: 768px;
   .nav-label {
     font-size: 0.65rem;
     font-weight: 700;
-    color: $text-hint;
+    color: var(--sidebar-text-faint);
     text-transform: uppercase;
     letter-spacing: 0.1em;
     padding: 0 0.5rem 0.6rem;
@@ -149,7 +130,7 @@ $breakpoint-mobile: 768px;
     &.section-spacer {
       margin-top: 0.75rem;
       padding-top: 0.75rem;
-      border-top: 1px solid $border-subtle;
+      border-top: 1px solid var(--sidebar-border);
     }
   }
 }
@@ -163,8 +144,8 @@ $breakpoint-mobile: 768px;
   border: none;
   border-radius: 9px;
   background: transparent;
-  color: $text-muted;
-  font-family: $font;
+  color: var(--sidebar-text-muted);
+  font-family: var(--font);
   font-size: 0.87rem;
   font-weight: 500;
   cursor: pointer;
@@ -173,8 +154,8 @@ $breakpoint-mobile: 768px;
 
   svg { width: 17px; height: 17px; flex-shrink: 0; }
 
-  &:hover  { background: $hover-bg; color: $text-primary; }
-  &.active { background: $purple;   color: $text-primary; font-weight: 600; }
+  &:hover  { background: var(--sidebar-hover); color: var(--sidebar-text); }
+  &.active { background: var(--sidebar-accent);   color: var(--sidebar-text); font-weight: 600; }
 }
 
 // ── Spacer ─────────────────────────────────────────────────
@@ -182,7 +163,7 @@ $breakpoint-mobile: 768px;
 
 // ── Profile ────────────────────────────────────────────────
 .shell-profile {
-  border-top: 1px solid $border-subtle;
+  border-top: 1px solid var(--sidebar-border);
   position: relative;
 }
 
@@ -195,15 +176,15 @@ $breakpoint-mobile: 768px;
   transition: background 0.15s;
 
   &:hover,
-  &.open { background: $active-bg; }
+  &.open { background: var(--sidebar-active); }
 }
 
 .profile-avatar {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: $purple;
-  color: $white;
+  background: var(--sidebar-accent);
+  color: var(--sidebar-text);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -220,7 +201,7 @@ $breakpoint-mobile: 768px;
     display: block;
     font-size: 0.82rem;
     font-weight: 600;
-    color: $text-primary;
+    color: var(--sidebar-text);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -228,14 +209,14 @@ $breakpoint-mobile: 768px;
 
   .profile-role {
     font-size: 0.72rem;
-    color: rgba($white, 0.4);
+    color: var(--sidebar-text-muted);
   }
 }
 
 .chevron {
   width: 14px;
   height: 14px;
-  color: rgba($white, 0.35);
+  color: var(--sidebar-text-faint);
   transition: transform 0.2s;
 
   &.rotated { transform: rotate(180deg); }
@@ -247,12 +228,29 @@ $breakpoint-mobile: 768px;
   bottom: calc(100% + 4px);
   left: 0.7rem;
   right: 0.7rem;
-  background: $surface;
-  border: 1px solid $border-light;
+  background: var(--sidebar-surface);
+  border: 1px solid var(--sidebar-border);
   border-radius: 12px;
   padding: 0.4rem;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
   z-index: 100;
+}
+
+.dropdown-label {
+  display: block;
+  padding: 0.3rem 0.7rem 0.2rem;
+  color: var(--sidebar-text-faint);
+  font-family: var(--font);
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.dropdown-divider {
+  height: 1px;
+  margin: 0.3rem 0.4rem;
+  background: var(--sidebar-border);
 }
 
 .status-option {
@@ -264,17 +262,20 @@ $breakpoint-mobile: 768px;
   border: none;
   border-radius: 8px;
   background: transparent;
-  color: rgba($white, 0.65);
-  font-family: $font;
+  color: var(--sidebar-text-muted);
+  font-family: var(--font);
   font-size: 0.83rem;
   cursor: pointer;
   transition: all 0.15s;
 
   svg { width: 14px; height: 14px; }
 
+  &:hover { background: var(--sidebar-hover); color: var(--sidebar-text); }
+  &.active { background: var(--sidebar-accent-soft); color: var(--sidebar-text); }
+
   &.logout {
-    color: #fca5a5;
-    &:hover { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+    color: var(--danger);
+    &:hover { background: var(--danger-soft); color: var(--danger); }
   }
 }
 
@@ -295,8 +296,8 @@ $breakpoint-mobile: 768px;
   gap: 0.75rem;
   padding: 0 1rem;
   height: 56px;
-  background: $dark;
-  border-bottom: 1px solid $border-subtle;
+  background: var(--sidebar-bg);
+  border-bottom: 1px solid var(--sidebar-border);
   flex-shrink: 0;
 
   .topbar-logo {
@@ -306,18 +307,18 @@ $breakpoint-mobile: 768px;
     gap: 0.5rem;
     font-size: 0.9rem;
     font-weight: 700;
-    color: $white;
+    color: var(--sidebar-text);
 
     .logo-icon {
       width: 28px;
       height: 28px;
       border-radius: 7px;
-      background: $purple;
+      background: var(--sidebar-accent);
       display: flex;
       align-items: center;
       justify-content: center;
 
-      svg { width: 15px; height: 15px; color: $white; }
+      svg { width: 15px; height: 15px; color: var(--sidebar-text); }
     }
   }
 
@@ -327,7 +328,7 @@ $breakpoint-mobile: 768px;
     font-size: 0.8rem;
   }
 
-  @media (max-width: $breakpoint-mobile) {
+  @media (max-width: 768px) {
     display: flex;
   }
 }
@@ -341,15 +342,15 @@ $breakpoint-mobile: 768px;
   height: 36px;
   border: none;
   border-radius: 8px;
-  background: $hover-bg;
-  color: $white;
+  background: var(--sidebar-hover);
+  color: var(--sidebar-text);
   cursor: pointer;
   flex-shrink: 0;
   transition: background 0.15s;
 
   svg { width: 18px; height: 18px; }
 
-  &:hover { background: rgba($white, 0.12); }
+  &:hover { background: var(--sidebar-hover); }
 }
 
 // ── Outlet ─────────────────────────────────────────────────
@@ -368,7 +369,7 @@ $breakpoint-mobile: 768px;
   .shell-outlet {
     position: relative;
     overflow: hidden;
-    background: #f6f5f3;
+    background: var(--bg);
   }
 
   .whatsapp-shell-toggle {
@@ -380,10 +381,10 @@ $breakpoint-mobile: 768px;
     place-items: center;
     width: 38px;
     height: 38px;
-    border: 1px solid rgba(0,0,0,.08);
+    border: 1px solid var(--border);
     border-radius: 8px;
-    background: #ffffff;
-    color: #6b6560;
+    background: var(--surface);
+    color: var(--text-muted);
     cursor: pointer;
 
     svg {

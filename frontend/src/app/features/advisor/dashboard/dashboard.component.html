@@ -65,7 +65,9 @@
     </div>
 
     <nav class="shell-nav">
-      <span class="nav-label">Módulos</span>
+
+      <!-- Atención -->
+      <span class="nav-label">Atención</span>
 
       <a class="nav-item" routerLink="chats" routerLinkActive="active"
          data-label="Chats" (click)="closeSidebarOnMobile()">
@@ -77,19 +79,30 @@
         <span class="nav-badge" *ngIf="chatUnreadCount > 0">{{ chatUnreadCount }}</span>
       </a>
 
+      <a class="nav-item" routerLink="whatsapp" routerLinkActive="active"
+         data-label="Whatsapp" (click)="closeSidebarOnMobile()">
+        <svg viewBox="0 0 32 32" fill="currentColor" width="24" height="24">
+          <path d="M19.11 17.205c-.29-.145-1.71-.845-1.97-.94-.265-.095-.46-.145-.655.145-.195.29-.755.94-.925 1.13-.17.195-.34.21-.63.07-.29-.145-1.225-.45-2.335-1.43-.86-.765-1.44-1.71-1.61-2-.17-.29-.02-.45.125-.595.13-.13.29-.34.435-.51.145-.17.195-.29.29-.485.095-.195.05-.365-.025-.51-.075-.145-.655-1.57-.895-2.15-.235-.565-.475-.49-.655-.5h-.56c-.195 0-.51.07-.78.365-.265.29-1.02 1-1.02 2.43s1.045 2.81 1.19 3.005c.145.195 2.035 3.11 4.93 4.36.69.295 1.23.47 1.65.6.695.22 1.325.19 1.825.115.56-.085 1.71-.7 1.95-1.38.24-.68.24-1.26.17-1.38-.07-.12-.265-.195-.555-.34z"/>
+          <path d="M16.02 3C9.39 3 4 8.39 4 15.02c0 2.63.86 5.07 2.32 7.05L5 29l7.12-1.87c1.92 1.05 4.1 1.64 6.42 1.64 6.63 0 12.02-5.39 12.02-12.02C30.56 8.39 25.65 3 19.02 3h-3z"/>
+        </svg>
+        <span>Whatsapp</span>
+        <span class="nav-badge" *ngIf="whatsappUnreadCount > 0">{{ whatsappUnreadCount }}</span>
+      </a>
 
-       <a class="nav-item" routerLink="whatsapp" routerLinkActive="active"
-   data-label="Whatsapp" (click)="closeSidebarOnMobile()">
+      <!-- Gestión -->
+      <span class="nav-label section-spacer">Gestión</span>
 
-  <!-- WhatsApp Icon -->
-  <svg viewBox="0 0 32 32" fill="currentColor" width="24" height="24">
-    <path d="M19.11 17.205c-.29-.145-1.71-.845-1.97-.94-.265-.095-.46-.145-.655.145-.195.29-.755.94-.925 1.13-.17.195-.34.21-.63.07-.29-.145-1.225-.45-2.335-1.43-.86-.765-1.44-1.71-1.61-2-.17-.29-.02-.45.125-.595.13-.13.29-.34.435-.51.145-.17.195-.29.29-.485.095-.195.05-.365-.025-.51-.075-.145-.655-1.57-.895-2.15-.235-.565-.475-.49-.655-.5h-.56c-.195 0-.51.07-.78.365-.265.29-1.02 1-1.02 2.43s1.045 2.81 1.19 3.005c.145.195 2.035 3.11 4.93 4.36.69.295 1.23.47 1.65.6.695.22 1.325.19 1.825.115.56-.085 1.71-.7 1.95-1.38.24-.68.24-1.26.17-1.38-.07-.12-.265-.195-.555-.34z"/>
-    <path d="M16.02 3C9.39 3 4 8.39 4 15.02c0 2.63.86 5.07 2.32 7.05L5 29l7.12-1.87c1.92 1.05 4.1 1.64 6.42 1.64 6.63 0 12.02-5.39 12.02-12.02C30.56 8.39 25.65 3 19.02 3h-3z"/>
-  </svg>
-
-  <span>Whatsapp</span>
-  <span class="nav-badge" *ngIf="whatsappUnreadCount > 0">{{ whatsappUnreadCount }}</span>
-</a>
+      <a class="nav-item" routerLink="tickets" routerLinkActive="active"
+         data-label="Tickets" (click)="closeSidebarOnMobile()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+        </svg>
+        <span>Tickets</span>
+      </a>
 
       <a class="nav-item" routerLink="history" routerLinkActive="active"
          data-label="Historial" (click)="closeSidebarOnMobile()">
@@ -111,6 +124,19 @@
         <span>Comunicados</span>
       </a>
 
+      <a class="nav-item" routerLink="documentos" routerLinkActive="active"
+         data-label="Documentos" (click)="closeSidebarOnMobile()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+        </svg>
+        <span>Documentos</span>
+      </a>
+
+      <!-- Análisis -->
+      <span class="nav-label section-spacer">Análisis</span>
+
       <a class="nav-item" routerLink="metrics" routerLinkActive="active"
          data-label="Métricas" (click)="closeSidebarOnMobile()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -122,31 +148,27 @@
         <span>Métricas</span>
       </a>
 
-      <a class="nav-item" routerLink="tickets" routerLinkActive="active"
-         data-label="Tickets" (click)="closeSidebarOnMobile()">
+      <!-- Configuración -->
+      <span class="nav-label section-spacer">Configuración</span>
+
+      <a class="nav-item" routerLink="configuracion" routerLinkActive="active"
+         data-label="Configuración" (click)="closeSidebarOnMobile()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-          <polyline points="14 2 14 8 20 8"/>
-          <line x1="16" y1="13" x2="8" y2="13"/>
-          <line x1="16" y1="17" x2="8" y2="17"/>
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06
+                   a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09
+                   A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83
+                   l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09
+                   A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83
+                   l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09
+                   a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83
+                   l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09
+                   a1.65 1.65 0 0 0-1.51 1z"/>
         </svg>
-        <span>Tickets</span>
+        <span>Configuración</span>
       </a>
 
-      <a class="nav-item" routerLink="documentos" routerLinkActive="active"
-         data-label="Documentos" (click)="closeSidebarOnMobile()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-          <polyline points="14 2 14 8 20 8"/>
-        </svg>
-        <span>Documentos</span>
-      </a>
-
-
-     
-      
     </nav>
 
 
@@ -214,33 +236,9 @@
         <div class="drawer-divider"></div>
 
         <div class="drawer-section">
-          <span class="drawer-label">Ajustes</span>
-          <a class="drawer-nav-item" routerLink="configuracion"
-             (click)="profileOpen = false; closeSidebarOnMobile()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="3"/>
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06
-                       a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09
-                       A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83
-                       l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09
-                       A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83
-                       l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09
-                       a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83
-                       l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09
-                       a1.65 1.65 0 0 0-1.51 1z"/>
-            </svg>
-            <span>Configuración</span>
-          </a>
-        </div>
-
-        <div class="drawer-divider"></div>
-
-        <div class="drawer-section">
           <div class="appearance-row" (click)="appearanceOpen = !appearanceOpen">
             <span class="drawer-label" style="margin-bottom:0">
               Apariencia
-              <span class="coming-soon">Próximamente</span>
             </span>
             <svg class="appearance-chevron" [class.open]="appearanceOpen"
                  viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -250,7 +248,9 @@
           </div>
 
           <div class="appearance-dropdown" [class.open]="appearanceOpen">
-            <button class="appearance-opt active" disabled>
+            <button class="appearance-opt"
+                    [class.active]="(themeService.currentMode$ | async) === 'light'"
+                    (click)="themeService.setMode('light')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                 stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="5"/>
@@ -264,21 +264,29 @@
                 <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
               </svg>
               <span>Claro</span>
-              <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              <svg *ngIf="(themeService.currentMode$ | async) === 'light'" class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                 stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="20 6 9 17 4 12"/>
               </svg>
             </button>
 
-            <button class="appearance-opt" disabled>
+            <button class="appearance-opt"
+                    [class.active]="(themeService.currentMode$ | async) === 'dark'"
+                    (click)="themeService.setMode('dark')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                 stroke-linecap="round" stroke-linejoin="round">
                 <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
               </svg>
               <span>Oscuro</span>
+              <svg *ngIf="(themeService.currentMode$ | async) === 'dark'" class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
             </button>
 
-            <button class="appearance-opt" disabled>
+            <button class="appearance-opt"
+                    [class.active]="(themeService.currentMode$ | async) === 'system'"
+                    (click)="themeService.setMode('system')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                 stroke-linecap="round" stroke-linejoin="round">
                 <rect x="2" y="3" width="20" height="14" rx="2"/>
@@ -286,6 +294,10 @@
                 <line x1="12" y1="17" x2="12" y2="21"/>
               </svg>
               <span>Sistema</span>
+              <svg *ngIf="(themeService.currentMode$ | async) === 'system'" class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
             </button>
           </div>
         </div>
