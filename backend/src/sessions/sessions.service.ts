@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as crypto from 'crypto';
@@ -18,6 +18,8 @@ export class SessionsService {
     @InjectRepository(Colegio)  private readonly colegioRepo: Repository<Colegio>,
     @InjectRepository(Rating)   private readonly ratingRepo: Repository<Rating>,
   ) {}
+
+  private readonly logger = new Logger(SessionsService.name);
 
   private generarCodigo(): string {
     const year = new Date().getFullYear();
@@ -310,9 +312,9 @@ export class SessionsService {
 
     if ((result.affected ?? 0) > 0 && session.advisor?.id) {
       await this.syncAdvisorActiveChats(session.advisor.id);
-      console.log(`[Close] ${sessionId} cerrada. Asesor ${session.advisor.id} activeChats sincronizado.`);
+      this.logger.log(`[Close] ${sessionId} cerrada. Asesor ${session.advisor.id} activeChats sincronizado.`);
     } else if ((result.affected ?? 0) === 0) {
-      console.log(`[Close] ${sessionId} ya estaba cerrada. Sin decremento.`);
+      this.logger.log(`[Close] ${sessionId} ya estaba cerrada. Sin decremento.`);
     }
 
     return session;

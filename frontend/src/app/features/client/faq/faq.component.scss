@@ -1,3 +1,8 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
 .faq-screen {
   display: flex; flex-direction: column; height: 100%;
   background: #f8f6f4; font-family: var(--font);

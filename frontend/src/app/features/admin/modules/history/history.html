@@ -1,24 +1,33 @@
 <div class="history-page">
   <div class="page-header">
     <div>
-      <h1></h1>
-      <p></p>
+      <h1>Historial de sesiones</h1>
+      <p>Todas las conversaciones del sistema</p>
     </div>
   </div>
 
   <div class="history-layout">
     <aside class="sessions-sidebar">
       <div class="search-bar">
-        <input type="text" [(ngModel)]="search" placeholder="Buscar cliente o asesor..."/>
+        <input type="text" [(ngModel)]="search" placeholder="Buscar cliente o asesor..." />
       </div>
       <div class="filter-tabs">
         <button [class.active]="filter === 'all'"    (click)="filter = 'all'">Todos</button>
         <button [class.active]="filter === 'active'" (click)="filter = 'active'">Activos</button>
         <button [class.active]="filter === 'closed'" (click)="filter = 'closed'">Cerrados</button>
       </div>
-      <div class="sessions-list">
+      <div class="loading-skeleton" *ngIf="loading">
+        <div class="skel-row" *ngFor="let _ of [].constructor(5); trackBy: trackByIndex"></div>
+      </div>
+      <cdk-virtual-scroll-viewport
+        *ngIf="!loading"
+        itemSize="68"
+        minBufferPx="200"
+        maxBufferPx="400"
+        class="sessions-list"
+      >
         <div
-          *ngFor="let session of filteredSessions; trackBy: trackById"
+          *cdkVirtualFor="let session of filteredSessions; trackBy: trackSession"
           class="session-card"
           [class.selected]="activeSession?.id === session.id"
           [class.is-closed]="session.status === 'closed'"
@@ -26,9 +35,13 @@
         >
           <div class="session-avatar" [class.closed]="session.status === 'closed'">
             {{ session.clientName.charAt(0) }}
+            <span class="unread-dot" *ngIf="unreadFor(session.id) > 0"></span>
           </div>
           <div class="session-info">
-            <span class="session-name">{{ session.clientName }}</span>
+            <span class="session-name">
+              {{ session.clientName }}
+              <span class="unread-badge" *ngIf="unreadFor(session.id) > 0">{{ unreadFor(session.id) }}</span>
+            </span>
             <span class="session-preview">
               {{ session.advisor?.name ? 'Asesor: ' + session.advisor!.name : 'Sin asesor' }}
             </span>
@@ -40,16 +53,19 @@
             </span>
           </div>
         </div>
-        <div *ngIf="filteredSessions.length === 0" class="empty-list">
+        <div class="loading-more" *ngIf="loadingMore">
+          <i class="ti ti-loader-2"></i> Cargando mas sesiones...
+        </div>
+        <div class="empty-list" *ngIf="filteredSessions.length === 0">
           <span>Sin resultados</span>
         </div>
-      </div>
+      </cdk-virtual-scroll-viewport>
     </aside>
 
     <div class="chat-area">
       <div *ngIf="!activeSession" class="empty-state">
-        <h3>Selecciona una sesión</h3>
-        <p>Visualiza el historial completo de cualquier conversación.</p>
+        <h3>Selecciona una sesion</h3>
+        <p>Visualiza el historial completo de cualquier conversacion.</p>
       </div>
 
       <div *ngIf="activeSession" class="chat-panel">

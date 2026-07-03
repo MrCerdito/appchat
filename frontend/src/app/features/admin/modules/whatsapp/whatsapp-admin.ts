@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, HostBinding, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Subscription, timer } from 'rxjs';
+import { Subscription } from 'rxjs';
 
 import { ThemeService } from '../../../../core/services/theme.service';
 import { WhatsappChatService } from '../../../../core/services/whatsapp-chat.service';
@@ -48,8 +48,23 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
   }
 
   @ViewChild('adminFileInput') adminFileInput?: ElementRef<HTMLInputElement>;
+  @ViewChild('messageFeed', { static: false }) messageFeedEl?: ElementRef<HTMLElement>;
 
-  dashboard?: WaAdminDashboard;
+  allChats: WaChat[] = [];
+  allAdvisors: WaAdvisorStats[] = [];
+  allAlerts: WaAdminAlert[] = [];
+  summary: WaAdminDashboard['summary'] = {
+    totalChats: 0,
+    activeChats: 0,
+    queuedChats: 0,
+    waitingCustomerChats: 0,
+    waitingTechnicalChats: 0,
+    closedChats: 0,
+    fixedClients: 0,
+    manualChats: 0,
+    slaBreached: 0,
+    frozenChats: 0,
+  };
   selectedChat?: WaChat;
   activeTab: AdminWaTab = 'overview';
   query = '';
@@ -93,7 +108,6 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
   private readonly ALERT_COOLDOWN = 60_000;
   private readonly TOAST_DURATION = 4_000;
   private toastIdCounter = 0;
-  private refreshInFlight = false;
 
   constructor(
     private readonly waService: WhatsappChatService,
@@ -109,30 +123,53 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
         this.cdr.detectChanges();
       }),
     );
-    this.refresh();
-    this.subs.add(timer(15_000, 15_000).subscribe(() => this.refresh(false)));
-    this.subs.add(this.waService.onQueueUpdated().subscribe(() => this.refresh(false)));
+
+    this.loadDashboard();
+
+    this.subs.add(
+      this.waService.getChatsStream().subscribe(chats => {
+        if (this.allChats === chats) return;
+        this.allChats = chats;
+        this.computeSummary();
+        if (this.selectedChat) {
+          const updated = chats.find(c => c.id === this.selectedChat!.id);
+          if (updated) {
+            this.selectedChat = updated;
+            this.selectedAdvisorId = updated.assignedTo || updated.fixedAdvisorId || '';
+            this.selectedMessages = updated.messages ?? this.selectedMessages;
+          }
+        }
+        this.cdr.detectChanges();
+      }),
+    );
+
     this.subs.add(this.waService.onChatAssigned().subscribe(data => {
       this.applyRealtimeChat(data.chat);
       this.pushToast('info', 'WhatsApp asignado', `${data.chat.name} -> ${data.advisorName}`);
-      this.refresh(false);
     }));
+
     this.subs.add(this.waService.onChatUpdated().subscribe(chat => {
       this.applyRealtimeChat(chat);
-      if (chat.id === this.selectedChat?.id) this.loadSelectedMessages(chat.id, false);
-      this.refresh(false);
+      if (chat.id === this.selectedChat?.id) {
+        this.selectedMessages = chat.messages ?? this.selectedMessages;
+        this.cdr.detectChanges();
+      }
     }));
+
     this.subs.add(this.waService.onNewMessage().subscribe(message => {
-      if (message.chatId === this.selectedChat?.id && !this.selectedMessages.some(item => item.id === message.id)) {
-        this.selectedMessages = [...this.selectedMessages, message];
+      if (message.chatId === this.selectedChat?.id) {
+        const nearBottom = this.isNearBottom;
+        if (!this.selectedMessages.some(item => item.id === message.id)) {
+          this.selectedMessages = [...this.selectedMessages, message];
+        }
+        this.cdr.detectChanges();
+        if (nearBottom) this.scrollToBottom(true);
       }
       if (!message.fromMe && !this.isReactionMessage(message)) {
-        const chat = this.dashboard?.chats.find(item => item.id === message.chatId);
+        const chat = this.allChats.find(item => item.id === message.chatId);
         this.pushToast('info', 'Nuevo mensaje WhatsApp', `${chat?.name || message.senderName || 'Cliente'}: ${this.messagePreview(message)}`);
       }
-      this.refresh(false);
     }));
-    this.subs.add(this.waService.onMessageStatus().subscribe(() => this.refresh(false)));
   }
 
   ngOnDestroy(): void {
@@ -144,28 +181,31 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
     this.messageMenu = undefined;
   }
 
-  refresh(showLoading = true): void {
-    if (this.refreshInFlight) return;
-    this.refreshInFlight = true;
-    if (showLoading) this.loading = true;
+  loadDashboard(): void {
+    this.loading = true;
     this.waService.loadAdminDashboard().subscribe({
       next: dashboard => {
-        this.dashboard = dashboard;
-        this.loading = false;
-        this.refreshInFlight = false;
+        this.allChats = dashboard.chats;
+        this.allAdvisors = dashboard.advisors;
+        this.allAlerts = dashboard.alerts;
         this.notifyNewAlerts(dashboard.alerts);
+        this.loading = false;
         if (this.selectedChat) {
           this.selectedChat = dashboard.chats.find(chat => chat.id === this.selectedChat?.id);
         }
+        this.computeSummary(dashboard.summary.slaBreached, dashboard.summary.frozenChats);
         this.cdr.detectChanges();
       },
       error: () => {
         this.loading = false;
-        this.refreshInFlight = false;
         this.showMessage('No se pudo cargar la consola de WhatsApp.', 'critical');
         this.cdr.detectChanges();
       },
     });
+  }
+
+  refresh(showLoading = true): void {
+    this.loadDashboard();
   }
 
   selectChat(chat: WaChat): void {
@@ -196,6 +236,7 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
           this.selectedMessages = messages;
           this.loadingMessages = false;
           this.cdr.detectChanges();
+          this.scrollToBottom(false);
         }
       },
       error: () => {
@@ -313,7 +354,6 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
       next: chat => {
         this.selectedChat = chat;
         this.showMessage('Chat asignado correctamente.');
-        this.refresh(false);
       },
       error: () => this.showMessage('No se pudo asignar el chat.'),
     });
@@ -329,11 +369,9 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
           next: chat => {
             this.selectedChat = chat;
             this.showMessage('Asesor fijo asignado correctamente.');
-            this.refresh(false);
           },
           error: () => {
             this.showMessage('El asesor quedo fijo, pero no se pudo asignar el chat.');
-            this.refresh(false);
           },
         });
       },
@@ -347,7 +385,6 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
       next: updated => {
         if (this.selectedChat?.id === updated.id) this.selectedChat = updated;
         this.showMessage('Asesor fijo retirado.');
-        this.refresh(false);
       },
       error: () => this.showMessage('No se pudo retirar el asesor fijo.'),
     });
@@ -359,16 +396,14 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
       next: chat => {
         this.selectedChat = chat;
         this.showMessage('Estado actualizado.');
-        this.refresh(false);
       },
       error: () => this.showMessage('No se pudo actualizar el estado.'),
     });
   }
 
   get filteredChats(): WaChat[] {
-    const chats = this.dashboard?.chats ?? [];
     const q = this.query.trim().toLowerCase();
-    return chats.filter(chat => {
+    return this.allChats.filter(chat => {
       const matchesQuery = !q || [
         chat.name,
         chat.phone,
@@ -382,7 +417,7 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
   }
 
   get fixedChats(): WaChat[] {
-    return (this.dashboard?.chats ?? []).filter(chat => !!chat.fixedAdvisorId);
+    return this.allChats.filter(chat => !!chat.fixedAdvisorId);
   }
 
   visibleConversationMessages(messages = this.selectedMessages): WaMessage[] {
@@ -427,7 +462,7 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
   }
 
   advisorById(id?: string): WaAdvisorStats | undefined {
-    return this.dashboard?.advisors.find(advisor => advisor.id === id);
+    return this.allAdvisors.find(advisor => advisor.id === id);
   }
 
   assignmentLabel(chat: WaChat): string {
@@ -489,13 +524,46 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
     return (message.body || '').trim().slice(0, 90) || 'Mensaje';
   }
 
+  private get isNearBottom(): boolean {
+    const el = this.messageFeedEl?.nativeElement;
+    if (!el) return true;
+    const threshold = 120;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
+  }
+
+  private scrollToBottom(smooth = true): void {
+    const el = this.messageFeedEl?.nativeElement;
+    if (!el) return;
+    requestAnimationFrame(() => {
+      el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
+    });
+  }
+
+  private computeSummary(slaBreached = this.summary.slaBreached, frozenChats = this.summary.frozenChats): void {
+    this.summary = {
+      totalChats: this.allChats.length,
+      activeChats: this.allChats.filter(c => c.assignmentStatus === 'active' && !c.isGroup).length,
+      queuedChats: this.allChats.filter(c => c.assignmentStatus === 'waiting' && c.operationalStatus !== 'waiting_customer').length,
+      waitingCustomerChats: this.allChats.filter(c => c.operationalStatus === 'waiting_customer').length,
+      waitingTechnicalChats: this.allChats.filter(c => c.operationalStatus === 'waiting_technical').length,
+      closedChats: this.allChats.filter(c => c.assignmentStatus === 'closed').length,
+      fixedClients: this.allChats.filter(c => !!c.fixedAdvisorId).length,
+      manualChats: this.allChats.filter(c => c.assignmentMode === 'manual' || c.assignmentMode === 'admin').length,
+      slaBreached,
+      frozenChats,
+    };
+  }
+
   private applyRealtimeChat(chat: WaChat): void {
-    if (!this.dashboard) return;
-    const chats = [...this.dashboard.chats];
-    const index = chats.findIndex(item => item.id === chat.id);
-    if (index >= 0) chats[index] = { ...chats[index], ...chat };
-    else chats.unshift(chat);
-    this.dashboard = { ...this.dashboard, chats };
+    const index = this.allChats.findIndex(item => item.id === chat.id);
+    if (index >= 0) {
+      const updated = [...this.allChats];
+      updated[index] = { ...updated[index], ...chat };
+      this.allChats = updated;
+    } else {
+      this.allChats = [chat, ...this.allChats];
+    }
+    this.computeSummary();
     if (this.selectedChat?.id === chat.id) {
       this.selectedChat = { ...this.selectedChat, ...chat };
       this.selectedAdvisorId = this.selectedChat.assignedTo || this.selectedChat.fixedAdvisorId || '';

@@ -101,6 +101,13 @@ export class AiController {
   async listModels() {
     const apiKey = this.aiService.getApiKey();
     const res    = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-    return res.json();
+    const data   = await res.json();
+    const models = (data.models ?? []).map((m: any) => ({
+      name: m.name,
+      displayName: m.displayName,
+      description: m.description,
+      supportedGenerationMethods: m.supportedGenerationMethods,
+    }));
+    return { models };
   }
 }

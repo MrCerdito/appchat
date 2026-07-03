@@ -92,6 +92,12 @@ export class SessionService {
     return this.http.get<Session[]>(`${environment.apiUrl}/sessions/admin/all`);
   }
 
+  findAllAdminPaginated(page: number, limit: number): Observable<{ data: Session[]; total: number; page: number; pages: number }> {
+    return this.http.get<{ data: Session[]; total: number; page: number; pages: number }>(
+      `${environment.apiUrl}/sessions/admin/all/paginated?page=${page}&limit=${limit}`,
+    );
+  }
+
   // Agregar este método al SessionService
   takeOver(sessionId: string): Observable<Session> {
     return this.http.patch<Session>(

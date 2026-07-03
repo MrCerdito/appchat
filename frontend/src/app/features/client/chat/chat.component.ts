@@ -371,7 +371,7 @@ get rolLabel(): string {
       if (this.session?.id) {
         this.sessionService.close(this.session.id).subscribe({
           next : () => undefined,
-          error: (e) => console.warn('[Timer] Backend: error al cerrar', e),
+          error: () => undefined,
         });
       }
 
@@ -459,6 +459,10 @@ get rolLabel(): string {
 
   irAFormulario(): void {
     this.step = 'name';
+  }
+
+  irAFaq(): void {
+    this.step = 'faq';
   }
 
   startChat(): void {
@@ -1103,11 +1107,8 @@ private escapeHtml(value: string): string {
   // ══════════════════════════════════════════════════════════════════════════
 
   private aplicarTemaWidget(): void {
-  const base = window.location.hostname === 'localhost'
-    ? 'http://localhost:3000'
-    : window.location.origin;
-
-  this.http.get<Record<string, string>>(`${base}/widget-config`).subscribe({
+    const base = environment.apiUrl || window.location.origin;
+    this.http.get<Record<string, string>>(`${base}/widget-config`).subscribe({
     next: (cfg) => {
       const root = document.documentElement;
 

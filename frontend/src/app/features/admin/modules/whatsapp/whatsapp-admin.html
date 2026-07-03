@@ -57,13 +57,13 @@
     </div>
   </div>
 
-  <div class="summary-grid" *ngIf="dashboard as d">
-    <article><span>Activos</span><strong>{{ d.summary.activeChats }}</strong></article>
-    <article><span>En cola</span><strong>{{ d.summary.queuedChats }}</strong></article>
-    <article><span>Esperando cliente</span><strong>{{ d.summary.waitingCustomerChats }}</strong></article>
-    <article><span>SLA vencido</span><strong>{{ d.summary.slaBreached }}</strong></article>
-    <article><span>Fijos</span><strong>{{ d.summary.fixedClients }}</strong></article>
-    <article><span>Manual/admin</span><strong>{{ d.summary.manualChats }}</strong></article>
+  <div class="summary-grid">
+    <article><span>Activos</span><strong>{{ summary.activeChats }}</strong></article>
+    <article><span>En cola</span><strong>{{ summary.queuedChats }}</strong></article>
+    <article><span>Esperando cliente</span><strong>{{ summary.waitingCustomerChats }}</strong></article>
+    <article><span>SLA vencido</span><strong>{{ summary.slaBreached }}</strong></article>
+    <article><span>Fijos</span><strong>{{ summary.fixedClients }}</strong></article>
+    <article><span>Manual/admin</span><strong>{{ summary.manualChats }}</strong></article>
   </div>
 
   <nav class="tabs">
@@ -83,24 +83,24 @@
     Cargando operacion
   </div>
 
-  <ng-container *ngIf="!loading && dashboard as d">
+  <ng-container *ngIf="!loading">
     <section class="overview" *ngIf="activeTab === 'overview'">
       <div class="ops-board">
         <article class="ops-card alert-card">
           <h2>Alertas criticas</h2>
-          <div class="alert-row" *ngFor="let alert of d.alerts.slice(0, 6); trackBy: trackByIndex" [class]="alert.severity">
+          <div class="alert-row" *ngFor="let alert of allAlerts.slice(0, 6); trackBy: trackByIndex" [class]="alert.severity">
             <i class="ti" [ngClass]="alertIcon(alert)"></i>
             <div>
               <strong>{{ alert.title }}</strong>
               <span>{{ alert.detail }}</span>
             </div>
           </div>
-          <p class="empty" *ngIf="d.alerts.length === 0">Sin alertas activas</p>
+          <p class="empty" *ngIf="allAlerts.length === 0">Sin alertas activas</p>
         </article>
 
         <article class="ops-card load-card">
           <h2>Carga por asesor</h2>
-          <div class="advisor-load" *ngFor="let advisor of d.advisors; trackBy: trackById">
+          <div class="advisor-load" *ngFor="let advisor of allAdvisors; trackBy: trackById">
             <div>
               <strong>{{ advisor.name }}</strong>
               <span>{{ advisorStatusLabel(advisor.status) }} - idle {{ advisor.idleMinutes }} min</span>
@@ -150,7 +150,7 @@
             </header>
 
            
-            <div class="message-feed" [class.light-feed]="theme === 'light'">
+            <div #messageFeed class="message-feed" [class.light-feed]="theme === 'light'">
               <div class="loading-inline" *ngIf="loadingMessages">
                 <i class="ti ti-loader-2"></i>
                 Cargando conversacion
@@ -278,7 +278,7 @@
               <span>Asesor</span>
               <select [(ngModel)]="selectedAdvisorId">
                 <option value="">Seleccionar asesor</option>
-                <option *ngFor="let advisor of d.advisors; trackBy: trackById" [value]="advisor.id">
+                <option *ngFor="let advisor of allAdvisors; trackBy: trackById" [value]="advisor.id">
                   {{ advisor.name }} - {{ advisor.activeChats }}/3
                 </option>
               </select>
@@ -321,7 +321,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let advisor of d.advisors; trackBy: trackById">
+          <tr *ngFor="let advisor of allAdvisors; trackBy: trackById">
             <td><strong>{{ advisor.name }}</strong><span>{{ advisor.email }}</span></td>
             <td><em class="status-pill">{{ advisorStatusLabel(advisor.status) }}</em></td>
             <td>{{ advisor.activeChats }}</td>
@@ -351,14 +351,14 @@
     </section>
 
     <section class="alerts-list" *ngIf="activeTab === 'alerts'">
-      <article *ngFor="let alert of d.alerts; trackBy: trackByIndex" [class]="alert.severity">
+      <article *ngFor="let alert of allAlerts; trackBy: trackByIndex" [class]="alert.severity">
         <i class="ti" [ngClass]="alertIcon(alert)"></i>
         <div>
           <strong>{{ alert.title }}</strong>
           <span>{{ alert.detail }}</span>
         </div>
       </article>
-      <p class="empty" *ngIf="d.alerts.length === 0">Sin alertas activas</p>
+      <p class="empty" *ngIf="allAlerts.length === 0">Sin alertas activas</p>
     </section>
   </ng-container>
 </section>

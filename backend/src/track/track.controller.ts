@@ -45,6 +45,8 @@ export class TrackController {
       id, decodeURIComponent(email), decodeURIComponent(url), ua, ip
     ).catch(() => decodeURIComponent(url));
 
-    res.redirect(destino);
+    const safeUrl = destino?.startsWith('http://') || destino?.startsWith('https://')
+      ? destino : '/';
+    res.redirect(safeUrl);
   }
 }

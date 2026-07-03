@@ -45,38 +45,12 @@
      SECCIÓN 3 — LOGGER
   ═══════════════════════════════════════════════════════════ */
   var Log = {
-    ok: function (data) {
-      console.groupCollapsed('%c[Sian365] ✅ Config cargada desde BD', 'color:#22c55e;font-weight:700');
-      console.log('Fuente          :', 'BASE DE DATOS (/widget-config)');
-      console.log('Timestamp       :', new Date().toISOString());
-      console.log('chatUrl         :', data.chatUrl);
-      console.log('color           :', data.color);
-      console.log('chatHeaderColor :', data.chatHeaderColor);
-      console.log('chatBgColor     :', data.chatBgColor);
-      console.log('chatMarca       :', data.chatMarca);
-      console.log('tituloPanelChat :', data.tituloPanelChat);
-      console.log('Payload completo:', data);
-      console.groupEnd();
-    },
-    fallback: function (reason) {
-      console.groupCollapsed('%c[Sian365] ⚠️  Usando DEFAULTS (sin BD)', 'color:#f59e0b;font-weight:700');
-      console.warn('Motivo:', reason || 'Error desconocido');
-      console.warn('Defaults:', DEF);
-      console.groupEnd();
-    },
-    httpError: function (status, url) {
-      console.error('%c[Sian365] ❌ Error HTTP', 'color:#ef4444;font-weight:700',
-        '\nURL:', url, '\nStatus:', status);
-    },
-    parseError: function (err) {
-      console.error('%c[Sian365] ❌ Error JSON', 'color:#ef4444;font-weight:700', err.message);
-    },
-    poll: function (changed) {
-      if (changed) console.log('%c[Sian365] 🔄 Config actualizada por polling', 'color:#60a5fa;font-weight:700');
-    },
-    autoOpen: function (delay) {
-      console.log('%c[Sian365] ⏱️  Auto-open en ' + delay + 's', 'color:#a78bfa');
-    },
+    ok: function () {},
+    fallback: function () {},
+    httpError: function () {},
+    parseError: function () {},
+    poll: function () {},
+    autoOpen: function () {},
   };
 
   /* ═══════════════════════════════════════════════════════════
@@ -308,16 +282,24 @@
   }
 
 
-  // ─── Dimensiones del panel en desktop ─────────────────────────────────────
+  // ─── Dimensiones del panel ─────────────────────────────────────────────
   function panelDims() {
     var vw = window.innerWidth;
     var vh = window.innerHeight;
-    // Ancho: entre 360 y 440px, máximo 95vw
-    var w  = Math.min(440, Math.max(360, Math.round(vw * 0.32)));
-    // Alto: entre 520 y 680px, máximo 85vh
-    // El chat necesita altura suficiente para mostrar el formulario completo
-    var h  = Math.min(680, Math.max(520, Math.round(vh * 0.80)));
-    return { w: w, h: h };
+    if (vw <= 520) {
+      // Móvil: ocupa toda la pantalla menos un pequeño margen
+      return {
+        w: Math.round(vw - 8),
+        h: Math.round(vh - 8),
+        mobile: true,
+      };
+    }
+    // Desktop: panel flotante con espacio suficiente para mostrar contenido
+    return {
+      w: Math.min(440, Math.max(360, Math.round(vw * 0.32))),
+      h: Math.min(680, Math.max(520, Math.round(vh * 0.80))),
+      mobile: false,
+    };
   }
 
   // ─── Posiciones CSS ───────────────────────────────────────────────────────
@@ -329,7 +311,17 @@
   };
 
   function getPanelStyle(posicion, dims, size) {
-    // Offset vertical: tamaño del botón + 12px de gap
+    if (dims.mobile) {
+      var gap = 4;
+      var styles = {
+        'bottom-right': { bottom: gap + 'px', left: '4px', width: dims.w + 'px', height: dims.h + 'px', borderRadius: '20px', transformOrigin: 'bottom center' },
+        'bottom-left' : { bottom: gap + 'px', left: '4px', width: dims.w + 'px', height: dims.h + 'px', borderRadius: '20px', transformOrigin: 'bottom center' },
+        'top-right'   : { top:    gap + 'px', left: '4px', width: dims.w + 'px', height: dims.h + 'px', borderRadius: '20px', transformOrigin: 'top center'    },
+        'top-left'    : { top:    gap + 'px', left: '4px', width: dims.w + 'px', height: dims.h + 'px', borderRadius: '20px', transformOrigin: 'top center'    },
+      };
+      return styles[posicion] || styles['bottom-right'];
+    }
+    // Desktop
     var gap = size + 12;
     var br  = '20px';
     var w   = dims.w + 'px';
@@ -429,7 +421,7 @@
 
     // ── Panel (posición y tamaño) ──
     var panel = document.getElementById('sian-panel');
-    if (panel && !isMobile()) {
+    if (panel) {
       var ps = getPanelStyle(cfg.posicion, dims, size);
       ['top','bottom','left','right','width','height','borderRadius','transformOrigin'].forEach(function(k){
         panel.style[k] = '';
@@ -672,9 +664,6 @@
           Log.parseError(err);
         } else if (!inited) {
           Log.fallback(err ? err.message : 'Network error');
-        } else {
-          console.warn('%c[Sian365] ⚠️  Polling falló', 'color:#f59e0b',
-            '| Error:', err ? err.message : 'desconocido');
         }
         if (!inited) paint(Object.assign({}, DEF));
       });
@@ -691,13 +680,8 @@
     if (IS_PREVIEW) {
       var previewCfg = getPreviewConfig();
       if (previewCfg) {
-        // URL params presentes — modo demo instantáneo con defaults + overrides
-        console.log('%c[Sian365] 👁️  Preview mode — usando config de URL', 'color:#818cf8;font-weight:700');
-        console.log('Preview config:', previewCfg);
         paint(Object.assign({}, DEF, previewCfg));
       } else {
-        // Sin URL params — intentar API real, fallback a defaults si no hay backend
-        console.log('%c[Sian365] 👁️  Preview mode — consultando API...', 'color:#818cf8;font-weight:700');
         fetchCfg();
       }
     } else {

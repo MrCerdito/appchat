@@ -11,6 +11,7 @@ import { SessionsService } from '../sessions/sessions.service';
 import { AiService } from '../ai/ai.service';
 import { ConfiguracionService } from '../configuracion/configuracion.service';
 import { AdvisorsWhatsappService } from '../advisor-whatsapp/advisors-whatsapp.service';
+import { Logger } from '@nestjs/common';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tipos internos
@@ -69,6 +70,8 @@ export class ChatGateway
   /** Asesores que ya recibieron notificación de almuerzo próximo */
   private advisorsLunchNotified = new Set<string>();
 
+  private readonly logger = new Logger(ChatGateway.name);
+
   constructor(
     private readonly chatService          : ChatService,
     private readonly sessionsService      : SessionsService,
@@ -99,7 +102,7 @@ export class ChatGateway
         client.data.user = { id: payload.sub, email: payload.email, name: payload.name };
         client.data.role = 'advisor';
         this.connectedAdvisors.set(payload.sub, client);
-        console.log(`[WS] Asesor conectado: ${payload.name}`);
+        this.logger.log(`[WS] Asesor conectado: ${payload.name}`);
         setTimeout(() => {
           this.checkLunchBreaks();
           this.assignPendingSessions();
@@ -286,9 +289,9 @@ async handleJoinActiveChat(
   @MessageBody() sessionId: string,
   @ConnectedSocket() client: Socket,
 ) {
-  console.log('[JoinActive] sessionId recibido:', sessionId);
-  console.log('[JoinActive] role:', client.data.role);
-  console.log('[JoinActive] client.id:', client.id);
+  this.logger.log('[JoinActive] sessionId recibido:', sessionId);
+  this.logger.log('[JoinActive] role:', client.data.role);
+  this.logger.log('[JoinActive] client.id:', client.id);
 
   if (client.data.role !== 'advisor') return;
 
@@ -301,7 +304,7 @@ async handleJoinActiveChat(
   }
 
   const session = await this.sessionsService.findOne(sessionId).catch(() => null);
-  console.log('[JoinActive] session status:', session?.status);
+  this.logger.log('[JoinActive] session status:', session?.status);
 
   if (!session || (session.status !== 'active' && session.status !== 'waiting')) {
     client.emit('join_chat_error', { reason: 'La sesión no está disponible.' });
@@ -325,9 +328,9 @@ async handleJoinActiveChat(
   this.server.to(sessionId).emit('new_message', msg);
 
   // ✅ Confirmar al asesor
-  console.log('[JoinActive] emitiendo joined_chat_ok...');
+  this.logger.log('[JoinActive] emitiendo joined_chat_ok...');
   client.emit('joined_chat_ok', { sessionId, clientName: session.clientName });
-  console.log('[JoinActive] joined_chat_ok emitido');
+  this.logger.log('[JoinActive] joined_chat_ok emitido');
 
   this.server.to(sessionId).emit('advisor_joined_collab', {
     sessionId,
@@ -335,7 +338,7 @@ async handleJoinActiveChat(
     advisorName,
   });
 
-  console.log(`[Collab] ${advisorName} se unió al chat ${sessionId} como apoyo`);
+  this.logger.log(`[Collab] ${advisorName} se unió al chat ${sessionId} como apoyo`);
 }
 
   /**
@@ -382,7 +385,7 @@ async handleJoinActiveChat(
       advisorName,
     });
 
-    console.log(`[Collab] ${advisorName} salió del chat ${sessionId}`);
+    this.logger.log(`[Collab] ${advisorName} salió del chat ${sessionId}`);
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -515,7 +518,7 @@ async handleJoinActiveChat(
 
     if (senderType === 'client' && this.aiActiveSessions.has(data.sessionId)) {
       this.respondWithAi(data.sessionId, data.content).catch(err =>
-        console.error('[AutoIA]', err.message),
+        this.logger.error('[AutoIA]', err.message),
       );
     }
     if (senderType === 'advisor' && this.aiActiveSessions.has(data.sessionId)) {
@@ -768,7 +771,7 @@ async handleJoinActiveChat(
       this.server.to(sessionId).emit('new_message', { ...saved, showFeedback: result.showFeedback });
     } catch (err) {
       this.server.to(sessionId).emit('typing_stop', { sessionId });
-      console.error('[AutoIA]', (err as Error).message);
+      this.logger.error('[AutoIA]', (err as Error).message);
     }
   }
 
@@ -783,7 +786,7 @@ async handleJoinActiveChat(
     );
     const lastSender = realMsgs.at(-1)?.senderType ?? 'advisor';
 
-    console.log(`[Timer] Inicio sesión ${sessionId} — último real: ${lastSender}`);
+    this.logger.log(`[Timer] Inicio sesión ${sessionId} — último real: ${lastSender}`);
 
     if (lastSender === 'client') {
       await this.arrancarTimerAsesor(sessionId);
@@ -801,7 +804,7 @@ async handleJoinActiveChat(
 
     const entry = this.timers.get(sessionId);
     if (!entry) {
-      console.warn(`[Timer] cambiarTurno: no hay entry para sesión ${sessionId}`);
+      this.logger.warn(`[Timer] cambiarTurno: no hay entry para sesión ${sessionId}`);
       return;
     }
 
@@ -860,7 +863,7 @@ async handleJoinActiveChat(
           sessionId, config.asesorInactividadMsg, 'advisor', 'Sistema',
         );
         this.server.to(sessionId).emit('new_message', msg);
-        console.log(`[Timer] Asesor inactivo → mensaje enviado en ${sessionId}`);
+        this.logger.log(`[Timer] Asesor inactivo → mensaje enviado en ${sessionId}`);
 
         await this.arrancarTimerCliente(sessionId);
       }, Math.max(0, remainingMs));
@@ -920,10 +923,10 @@ async handleJoinActiveChat(
             sessionId, config.clienteInactividadMsg, 'advisor', 'Sistema',
           );
           this.server.to(sessionId).emit('new_message', msg);
-          console.log(`[Timer] Cliente inactivo → aviso ${entry.iterCliente}/${config.clienteInactividadIters} en ${sessionId}`);
+          this.logger.log(`[Timer] Cliente inactivo → aviso ${entry.iterCliente}/${config.clienteInactividadIters} en ${sessionId}`);
           await this.arrancarTimerCliente(sessionId);
         } else {
-          console.log(`[Timer] Cerrando sesión ${sessionId} por inactividad del cliente`);
+          this.logger.log(`[Timer] Cerrando sesión ${sessionId} por inactividad del cliente`);
           const msgCierre = await this.chatService.saveMessage(
             sessionId, config.clienteCierreMsg, 'advisor', 'Sistema',
           );
@@ -1013,7 +1016,7 @@ async handleJoinActiveChat(
 
     const disponiblesIds = connectedIds.filter(id => !this.estaEnAlmuerzo(id));
     if (!disponiblesIds.length) {
-      console.log('[Assign] Todos los asesores conectados están en almuerzo.');
+      this.logger.log('[Assign] Todos los asesores conectados están en almuerzo.');
       return false;
     }
 
@@ -1021,7 +1024,7 @@ async handleJoinActiveChat(
     if (!advisor) return false;
 
     if (this.estaEnAlmuerzo(advisor.id)) {
-      console.log(`[Assign] Asesor ${advisor.name} está en almuerzo, salteando.`);
+      this.logger.log(`[Assign] Asesor ${advisor.name} está en almuerzo, salteando.`);
       return false;
     }
 
@@ -1065,7 +1068,7 @@ async handleJoinActiveChat(
     await this.enviarBienvenidaAsesor(sessionId, advisor.name, advisor.id);
     await this.iniciarTimers(sessionId, advisor.id);
 
-    console.log(`[Assign] ✓ ${sessionId} → ${advisor.name}`);
+    this.logger.log(`[Assign] ✓ ${sessionId} → ${advisor.name}`);
     return true;
   }
 
@@ -1096,7 +1099,7 @@ async handleJoinActiveChat(
     const texto = config.mensajeBienvenida.replace(/\{\{asesor\}\}/gi, advisorName);
     const msg   = await this.chatService.saveMessage(sessionId, texto, 'advisor', advisorName);
     this.server.to(sessionId).emit('new_message', msg);
-    console.log(`[Bienvenida] "${texto}" → sesión ${sessionId}`);
+    this.logger.log(`[Bienvenida] "${texto}" → sesión ${sessionId}`);
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -1208,7 +1211,7 @@ async handleJoinActiveChat(
               advisorId, name: socket.data.user?.name, status: 'online',
             });
             socket.emit('lunch_pending_cancelled');
-            console.log(`[Almuerzo] ❌ ${socket.data.user?.name} horario de almuerzo expiró (tenía chats activos)`);
+            this.logger.log(`[Almuerzo] ❌ ${socket.data.user?.name} horario de almuerzo expiró (tenía chats activos)`);
             return;
           }
           await this.activarLunchPendiente(advisorId);
@@ -1218,7 +1221,7 @@ async handleJoinActiveChat(
           await this.activarLunchPendiente(advisorId);
         }
       } catch (err) {
-        console.error(`[Almuerzo] Error verificando ${advisorId}:`, (err as Error).message);
+        this.logger.error(`[Almuerzo] Error verificando ${advisorId}:`, (err as Error).message);
       }
     }));
   }
@@ -1252,7 +1255,7 @@ async handleJoinActiveChat(
     });
 
     const ajuste = finAjHora !== finOriginal ? ` (ajustado de ${finOriginal} a ${finAjHora})` : '';
-    console.log(`[Almuerzo] 🍽️  ${socket.data.user?.name} almuerzo hasta ${finAjHora}${ajuste}`);
+    this.logger.log(`[Almuerzo] 🍽️  ${socket.data.user?.name} almuerzo hasta ${finAjHora}${ajuste}`);
   }
 
   private async terminarAlmuerzo(advisorId: string, socket: Socket): Promise<void> {
@@ -1262,7 +1265,7 @@ async handleJoinActiveChat(
       advisorId, name: socket.data.user?.name, status: 'online',
     });
     socket.emit('lunch_ended');
-    console.log(`[Almuerzo] ✅ ${socket.data.user?.name} volvió del almuerzo`);
+    this.logger.log(`[Almuerzo] ✅ ${socket.data.user?.name} volvió del almuerzo`);
     await this.assignPendingSessions();
   }
 

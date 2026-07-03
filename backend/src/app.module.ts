@@ -33,6 +33,7 @@ import { FaqModule } from './faq/faq.module';
 import { Faq } from './faq/entities/faq.entity';
 import { TicketsModule } from './tickets/tickets.module';
 import { Ticket } from './tickets/ticket.entity';
+import { SeedModule } from './seed/seed.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -115,6 +116,7 @@ import { AppService } from './app.service';
     AdvisorsWhatsappModule,
     FaqModule,
     TicketsModule,
+    SeedModule,
   ],
   controllers: [AppController],
   providers: [

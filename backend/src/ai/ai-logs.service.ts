@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AiLog } from './entitites/ai-log.entity';
@@ -30,6 +30,7 @@ export interface LogData {
 
 @Injectable()
 export class AiLogsService {
+  private readonly logger = new Logger(AiLogsService.name);
 
   constructor(
     @InjectRepository(AiLog)
@@ -38,33 +39,23 @@ export class AiLogsService {
 
   async guardar(data: LogData): Promise<void> {
     try {
-      console.log('\n─────────────────────────────────────────');
-      console.log('📋 AI LOG');
-      console.log('─────────────────────────────────────────');
-      console.log('👤 Cliente     :', data.clientName    ?? '-');
-      console.log('🏫 Colegio     :', data.colegio       ?? '-');
-      console.log('🎭 Rol         :', data.rol            ?? '-');
-      console.log('📌 Solicitud   :', data.tipoSolicitud  ?? '-');
-      console.log('❓ Pregunta    :', data.pregunta);
-      console.log('💬 Respuesta   :', data.respuesta
-        ? data.respuesta.slice(0, 120) + (data.respuesta.length > 120 ? '...' : '')
-        : '-');
-      console.log('📄 Chunks RAG  :',
-        data.chunksUsados?.length
-          ? data.chunksUsados.map(c =>
-              `\n   • ${c.nombre} [chunk ${c.chunkIndex}]` +
-              (c.distancia != null ? ` (dist: ${c.distancia})` : '') +
-              `\n     "${c.fragmento?.slice(0, 100)}..."`
-            ).join('')
-          : ' ninguno'
-      );
-      console.log('🔍 Contexto RAG:', data.tuvoContexto     ? 'SÍ' : 'NO');
-      console.log('⏱️  Tiempo      :', data.tiempoRespuestaMs ? `${data.tiempoRespuestaMs}ms` : '-');
-      console.log('🔢 Tokens est. :', data.tokensEstimados   ?? '-');
-      console.log('🔀 Transfer    :', data.transfer          ? 'SÍ' : 'NO');
-      console.log('🚫 Restringido :', data.esRestringido     ? 'SÍ' : 'NO');
-      console.log('❌ Error       :', data.huboError ? `SÍ — ${data.errorMsg}` : 'NO');
-      console.log('─────────────────────────────────────────\n');
+      this.logger.debug(`\n─────────────────────────────────────────
+📋 AI LOG
+─────────────────────────────────────────
+👤 Cliente     : ${data.clientName    ?? '-'}
+🏫 Colegio     : ${data.colegio       ?? '-'}
+🎭 Rol         : ${data.rol            ?? '-'}
+📌 Solicitud   : ${data.tipoSolicitud  ?? '-'}
+❓ Pregunta    : ${data.pregunta}
+💬 Respuesta   : ${data.respuesta ? data.respuesta.slice(0, 120) + (data.respuesta.length > 120 ? '...' : '') : '-'}
+📄 Chunks RAG  : ${data.chunksUsados?.length ? data.chunksUsados.map(c => `\\n   • ${c.nombre} [chunk ${c.chunkIndex}]${c.distancia != null ? ` (dist: ${c.distancia})` : ''}\\n     "${c.fragmento?.slice(0, 100)}..."`).join('') : ' ninguno'}
+🔍 Contexto RAG: ${data.tuvoContexto     ? 'SÍ' : 'NO'}
+⏱️  Tiempo      : ${data.tiempoRespuestaMs ? `${data.tiempoRespuestaMs}ms` : '-'}
+🔢 Tokens est. : ${data.tokensEstimados   ?? '-'}
+🔀 Transfer    : ${data.transfer          ? 'SÍ' : 'NO'}
+🚫 Restringido : ${data.esRestringido     ? 'SÍ' : 'NO'}
+❌ Error       : ${data.huboError ? `SÍ — ${data.errorMsg}` : 'NO'}
+─────────────────────────────────────────`);
 
       // Descomentar cuando crees la tabla en PostgreSQL
       // const log = this.repo.create({
@@ -74,7 +65,7 @@ export class AiLogsService {
       // await this.repo.save(log);
 
     } catch (e) {
-      console.error('[AiLogs] Error:', e);
+      this.logger.error('[AiLogs] Error:', e);
     }
   }
 
@@ -82,7 +73,7 @@ export class AiLogsService {
     try {
       await this.repo.update({ sessionId, pregunta }, { feedback: util });
     } catch (e) {
-      console.error('[AiLogs] Error al actualizar feedback:', e);
+      this.logger.error('[AiLogs] Error al actualizar feedback:', e);
     }
   }
 

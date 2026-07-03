@@ -118,7 +118,7 @@ export class AiService {
     const chunks        = (ragResult as any).chunks ?? [];
     const tieneContexto = contexto.trim().length > 0;
 
-    console.log(`[RAG] tuvoContexto=${tieneContexto} | chunks=${chunks.length} | colegio=${colegio} | rol=${rolNormalizado}`);
+    this.logger.debug(`[RAG] tuvoContexto=${tieneContexto} | chunks=${chunks.length} | colegio=${colegio} | rol=${rolNormalizado}`);
 
     const systemPrompt = this.buildSystemPrompt(
       clientName, colegio, tipoSolicitud, config, contexto, tieneContexto
@@ -334,7 +334,7 @@ ${messages}`;
     const chunks        = (ragResult as any).chunks ?? [];
     const tieneContexto = contexto.trim().length > 0;
 
-    console.log(`[RAG] tuvoContexto=${tieneContexto} | chunks=${chunks.length} | colegio=${colegio} | rol=${rolNormalizado}`);
+    this.logger.debug(`[RAG] tuvoContexto=${tieneContexto} | chunks=${chunks.length} | colegio=${colegio} | rol=${rolNormalizado}`);
 
     // NOTA: NO emitir metadata aquí — todavía no sabemos si la IA
     // va a responder algo concreto. Se emite al final del stream.

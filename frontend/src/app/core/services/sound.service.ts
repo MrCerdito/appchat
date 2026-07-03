@@ -40,8 +40,8 @@ export class SoundService {
 
       oscillator.start(ctx.currentTime);
       oscillator.stop(ctx.currentTime + 0.3);
-    } catch (e) {
-      console.warn('No se pudo reproducir sonido:', e);
+    } catch {
+      // ignore
     }
   }
 
@@ -63,8 +63,8 @@ export class SoundService {
 
       oscillator.start(ctx.currentTime);
       oscillator.stop(ctx.currentTime + 0.4);
-    } catch (e) {
-      console.warn('No se pudo reproducir sonido:', e);
+    } catch {
+      // ignore
     }
   }
 
@@ -113,8 +113,8 @@ export class SoundService {
 
       oscillator.start(start);
       oscillator.stop(start + 0.44);
-    } catch (e) {
-      console.warn('No se pudo reproducir sonido de asignacion:', e);
+    } catch {
+      // ignore
     }
   }
 
@@ -138,8 +138,8 @@ export class SoundService {
 
       oscillator.start(start);
       oscillator.stop(start + 0.26);
-    } catch (e) {
-      console.warn('No se pudo reproducir sonido de mensaje asignado:', e);
+    } catch {
+      // ignore
     }
   }
 
@@ -183,8 +183,8 @@ export class SoundService {
 
       oscillator.start(start);
       oscillator.stop(start + 0.5);
-    } catch (e) {
-      console.warn('No se pudo reproducir sonido de cola:', e);
+    } catch {
+      // ignore
     }
   }
 
@@ -216,8 +216,8 @@ export class SoundService {
         notification.close();
       };
       setTimeout(() => notification.close(), 5500);
-    } catch (e) {
-      console.warn('No se pudo mostrar notificacion:', e);
+    } catch {
+      // ignore
     }
   }
 
@@ -303,8 +303,8 @@ export class SoundService {
         oscillator.start(start + note.at);
         oscillator.stop(start + note.at + note.duration + 0.02);
       });
-    } catch (e) {
-      console.warn('No se pudo reproducir secuencia de sonido:', e);
+    } catch {
+      // ignore
     }
   }
 }

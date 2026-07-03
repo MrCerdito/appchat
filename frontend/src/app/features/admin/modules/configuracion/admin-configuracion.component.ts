@@ -1,11 +1,15 @@
-import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import {
   ConfiguracionData,
   ConfiguracionFrontendService,
   HorarioSlot,
 } from '../../../../core/services/configuracion.service';
+import { WhatsappChatService } from '../../../../core/services/whatsapp-chat.service';
+import { WaConnectionStatus } from '../../../../core/models/whatsapp.models';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
 
 type ConfigTab = 'jornada' | 'whatsapp' | 'mensajes' | 'inactividad';

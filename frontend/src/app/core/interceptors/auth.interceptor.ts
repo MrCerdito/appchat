@@ -42,7 +42,6 @@ function handle401(
   router: Router
 ): Observable<HttpEvent<unknown>> {
   if (!authService.getRefreshToken()) {
-    console.warn('[Auth Interceptor] Sin refresh token, cerrando sesión. URL:', req.url);
     authService.logout();
     router.navigate(['/login']);
     return throwError(() => new Error('Sin sesión'));
@@ -68,7 +67,6 @@ function handle401(
       return next(req.clone({ setHeaders: { Authorization: `Bearer ${res.access_token}` } }));
     }),
     catchError(firstErr => {
-      console.warn('[Auth Interceptor] Refresh falló, reintentando una vez más. URL:', req.url);
       return timer(1000).pipe(
         switchMap(() => authService.refreshToken().pipe(
           switchMap(res => {
@@ -78,7 +76,6 @@ function handle401(
           }),
           catchError(secondErr => {
             isRefreshing = false;
-            console.warn('[Auth Interceptor] Refresh falló definitivamente. Cerrando sesión. URL:', req.url);
             authService.logout();
             router.navigate(['/login']);
             return throwError(() => secondErr);

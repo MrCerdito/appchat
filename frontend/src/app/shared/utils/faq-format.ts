@@ -1,3 +1,12 @@
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export function formatFaqText(text: string): string {
   let html = '';
   const lines = text.split('\n');
@@ -16,10 +25,8 @@ export function formatFaqText(text: string): string {
     const raw = lines[i];
     const line = raw.trimEnd();
 
-    // empty line — flush list, add paragraph break
     if (line === '') {
       flushList();
-      // if next line is not empty and not a list item, wrap in <p>
       const next = lines[i + 1];
       if (next && next.trimStart().indexOf('* ') !== 0 && next.trim() !== '') {
         html += '</p>\n<p>';
@@ -27,21 +34,18 @@ export function formatFaqText(text: string): string {
       continue;
     }
 
-    // list item
     if (line.trimStart().indexOf('* ') === 0) {
       flushList();
       inList = true;
       const itemText = line.trimStart().slice(2).trim();
-      listItems.push(inlineFormat(itemText));
+      listItems.push(inlineFormat(escapeHtml(itemText)));
       continue;
     }
 
-    // if we were in a list, flush it before continuing
     if (inList) {
       flushList();
     }
 
-    // regular paragraph line
     const isFirst = i === 0;
     const prev = lines[i - 1];
     const prevEmpty = prev === undefined || prev.trim() === '';
@@ -49,13 +53,13 @@ export function formatFaqText(text: string): string {
     const nextEmpty = !nextLine || nextLine.trim() === '';
 
     if (prevEmpty && nextEmpty) {
-      html += '<p>' + inlineFormat(line) + '</p>\n';
+      html += '<p>' + inlineFormat(escapeHtml(line)) + '</p>\n';
     } else if (prevEmpty) {
-      html += '<p>' + inlineFormat(line);
+      html += '<p>' + inlineFormat(escapeHtml(line));
     } else if (nextEmpty) {
-      html += '<br>' + inlineFormat(line) + '</p>\n';
+      html += '<br>' + inlineFormat(escapeHtml(line)) + '</p>\n';
     } else {
-      html += '<br>' + inlineFormat(line);
+      html += '<br>' + inlineFormat(escapeHtml(line));
     }
   }
 

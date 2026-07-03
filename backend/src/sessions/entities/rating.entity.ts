@@ -3,6 +3,7 @@ import {
   CreateDateColumn, OneToOne, JoinColumn,
 } from 'typeorm';
 import { Session } from './session.entity';
+import { Min, Max } from 'class-validator';
 
 @Entity('ratings')
 export class Rating {
@@ -14,7 +15,9 @@ export class Rating {
   session: Session;
 
   @Column({ type: 'int' })
-  estrellas: number; // 1-5
+  @Min(1)
+  @Max(5)
+  estrellas: number;
 
   @Column({ type: 'text', nullable: true })
   comentario: string | null;

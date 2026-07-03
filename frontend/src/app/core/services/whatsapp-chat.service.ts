@@ -151,8 +151,7 @@ export class WhatsappChatService implements OnDestroy {
   loadConnection(): Observable<WaConnectionStatus> {
     return this.http.get<WaConnectionStatus>(`${this.apiUrl}/connection`, { headers: this.headers() }).pipe(
       tap(status => this.connection$.next(status)),
-      catchError(err => {
-        console.error('[AdvisorsWA] Error consultando conexion:', err);
+      catchError(() => {
         const status: WaConnectionStatus = {
           status: 'disconnected',
           lastError: 'No se pudo consultar la conexion de WhatsApp.',
@@ -175,8 +174,7 @@ export class WhatsappChatService implements OnDestroy {
   loadChats(): Observable<WaChat[]> {
     return this.http.get<WaChat[]>(`${this.apiUrl}/chats`, { headers: this.headers() }).pipe(
       tap(chats => this.chats$.next(chats)),
-      catchError(err => {
-        console.error('[AdvisorsWA] Error cargando chats:', err);
+      catchError(() => {
         return of([]);
       }),
     );
@@ -205,8 +203,7 @@ export class WhatsappChatService implements OnDestroy {
       tap(res => {
         if (res.chat) this.upsertChat(res.chat);
       }),
-      catchError(err => {
-        console.error('[AdvisorsWA] Error enviando mensaje:', err);
+      catchError(() => {
         return of({ ok: false });
       }),
     );
@@ -230,8 +227,7 @@ export class WhatsappChatService implements OnDestroy {
       tap(res => {
         if (res.chat) this.upsertChat(res.chat);
       }),
-      catchError(err => {
-        console.error('[AdvisorsWA] Error enviando archivo:', err);
+      catchError(() => {
         return of({ ok: false });
       }),
     );
@@ -251,8 +247,7 @@ export class WhatsappChatService implements OnDestroy {
       tap(res => {
         if (res.chat) this.upsertChat(res.chat);
       }),
-      catchError(err => {
-        console.error('[AdvisorsWA] Error enviando plantilla:', err);
+      catchError(() => {
         return of({ ok: false });
       }),
     );

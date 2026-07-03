@@ -1,4 +1,5 @@
 services:
+  # ── PostgreSQL con pgvector ──────────────────────────────────────────
   postgres:
     image: pgvector/pgvector:pg16
     container_name: chat-postgres
@@ -20,6 +21,7 @@ services:
     networks:
       - chat-net
 
+  # ── Backend (NestJS) ─────────────────────────────────────────────────
   backend:
     build:
       context: ./backend
@@ -32,8 +34,10 @@ services:
       DB_HOST: postgres
       DB_PORT: 5432
       NODE_ENV: production
-    expose:
-      - "3000"
+      CORS_ORIGINS: http://localhost:8095,http://localhost:4200
+      APP_URL: http://localhost:8095
+    ports:
+      - "127.0.0.1:3000:3000"
     volumes:
       - uploads_data:/app/uploads
     depends_on:
@@ -44,10 +48,11 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 20s
+      start_period: 30s
     networks:
       - chat-net
 
+  # ── Frontend (Angular + Nginx) ───────────────────────────────────────
   frontend:
     build:
       context: ./frontend
@@ -61,6 +66,27 @@ services:
         condition: service_healthy
     networks:
       - chat-net
+
+  # ── (Opcional) Ngrok para webhooks de WhatsApp ───────────────────────
+  # Descomenta este bloque si necesitas probar WhatsApp en desarrollo.
+  # Antes: configura el token en ./ngrok.yml o variable de entorno.
+  #
+  # ngrok:
+  #   image: ngrok/ngrok:latest
+  #   container_name: chat-ngrok
+  #   restart: unless-stopped
+  #   command: http backend:3000 --domain=mi-chat.ngrok.io
+  #   # ── O sin dominio fijo (gratuito):
+  #   # command: http backend:3000
+  #   environment:
+  #     NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}
+  #   ports:
+  #     - "4040:4040"
+  #   depends_on:
+  #     backend:
+  #       condition: service_healthy
+  #   networks:
+  #     - chat-net
 
 networks:
   chat-net:

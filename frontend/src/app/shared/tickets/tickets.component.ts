@@ -302,7 +302,7 @@ export class TicketsComponent implements OnInit, OnDestroy {
     const ticket = event.previousContainer.data[event.previousIndex];
     this.ticketService.update(ticket.id, { status: targetStatus as any }).subscribe({
       next: () => { this.load(); this.cdr.detectChanges(); },
-      error: (err) => console.error('Error updating ticket status:', err),
+      error: () => undefined,
     });
   }
 
@@ -348,7 +348,7 @@ export class TicketsComponent implements OnInit, OnDestroy {
         this.load();
         this.cdr.detectChanges();
       },
-      error: (err) => console.error('Error saving ticket:', err),
+      error: () => undefined,
     });
   }
 
