@@ -73,7 +73,7 @@ export class DocumentosController {
     const pdfBuffer = readFileSync(file.path);
 
     // URL pública absoluta — debe apuntar al backend, no al frontend
-    const backendUrl = process.env.APP_URL ?? 'http://localhost:3000';
+    const backendUrl = process.env.APP_URL ?? 'http://localhost:3001';
     const pdfUrl     = `${backendUrl}/uploads/documentos/${file.filename}`;
 
     // Parsear roles — vienen como string separado por comas

@@ -57,7 +57,7 @@ docker compose ps
 
 echo ""
 echo "--- Health Check Backend ---"
-if curl -sf http://localhost:3000/health > /dev/null 2>&1; then
+if curl -sf http://localhost:3001/health > /dev/null 2>&1; then
     echo "  ✅ Backend responde OK"
 else
     echo "  ❌ Backend NO responde — revisa logs: docker compose logs backend"

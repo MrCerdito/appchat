@@ -9,6 +9,7 @@ import { takeUntil } from 'rxjs/operators';
 import { SocketService } from '../../../core/services/socket.service';
 import { SessionService, Colegio } from '../../../core/services/session.service';
 import { SoundService } from '../../../core/services/sound.service';
+import { NotificationService } from '../../../core/services/notification.service';
 import { Message } from '../../../core/models/message.model';
 import { Session } from '../../../core/models/session.model';
 import { AiService, AiMessage, AiResponse } from '../../../core/services/ai.service';
@@ -16,6 +17,7 @@ import { environment } from '../../../../environments/environment.prod';
 import { HttpClient } from '@angular/common/http';
 import { trackByIndex, trackById } from '../../../shared/utils/track-by';
 import { FaqComponent } from '../faq/faq.component';
+import { ToastContainerComponent } from '../../../shared/components/toast-container.component';
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -39,7 +41,7 @@ interface TimerUpdatePayload {
 @Component({
   selector   : 'app-chat',
   standalone : true,
-  imports    : [CommonModule, FormsModule, FaqComponent],
+  imports    : [CommonModule, FormsModule, FaqComponent, ToastContainerComponent],
   templateUrl: './chat.component.html',
   styleUrl   : './chat.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -219,6 +221,7 @@ get rolLabel(): string {
     private sound         : SoundService,
     private aiService     : AiService,
     private http          : HttpClient,   // ← agregar esta línea
+    private notification  : NotificationService,
   ) {}
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -286,7 +289,10 @@ get rolLabel(): string {
           this.connectSocket();
           this.cdr.detectChanges();
         },
-        error: () => this.clearSession(),
+        error: () => {
+          this.notification.error('Error', 'No se pudo recuperar tu sesión anterior');
+          this.clearSession();
+        },
       });
     }
   }
@@ -306,7 +312,9 @@ get rolLabel(): string {
           this.cdr.detectChanges();
         }
       },
-      error: () => {},
+      error: () => {
+        this.notification.error('Error', 'No se pudo verificar el horario de atención');
+      },
     });
   }
 
@@ -1034,7 +1042,7 @@ private escapeHtml(value: string): string {
   if (this.aiMode) {
     if (this.session?.id) {
       this.sessionService.close(this.session.id).subscribe({
-        error: () => {}
+        error: () => this.notification.error('Error', 'No se pudo cerrar la sesión'),
       });
     }
     this.clearSession();
@@ -1131,7 +1139,9 @@ private escapeHtml(value: string): string {
       if (cfg['chatMarca']) this.marcaChat = cfg['chatMarca'];
       this.cdr.detectChanges();
     },
-    error: () => {},
+    error: () => {
+      this.notification.error('Error', 'No se pudo aplicar el tema visual');
+    },
   });
 }
 

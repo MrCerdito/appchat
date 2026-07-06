@@ -14,7 +14,7 @@ async function bootstrap() {
   // HELMET (HEADERS DE SEGURIDAD)
   // =========================
   const NODE_ENV = process.env.NODE_ENV ?? 'development';
-  const APP_URL = process.env.APP_URL || 'http://localhost:3000';
+  const APP_URL = process.env.APP_URL || 'http://localhost:3001';
   const CSP_DIRECTIVES = process.env.CSP_DIRECTIVES || [
     "default-src 'self'",
     "img-src 'self' data: blob: https:",
@@ -30,6 +30,8 @@ async function bootstrap() {
       contentSecurityPolicy: {
         directives: {
           'default-src': ["'self'"],
+          'script-src': ["'self'", "'unsafe-inline'"],
+          'style-src': ["'self'", "'unsafe-inline'"],
           'img-src': ["'self'", 'data:', 'blob:', 'https:'],
           'media-src': ["'self'", 'blob:'],
           'connect-src': ["'self'", APP_URL, 'ws:'],
@@ -93,7 +95,7 @@ async function bootstrap() {
   // =========================
   // START SERVER
   // =========================
-  const port = process.env.PORT ?? 3000;
+  const port = process.env.PORT ?? 3001;
   await app.listen(port, '0.0.0.0');
 
   console.log(`Backend corriendo en puerto ${port}`);

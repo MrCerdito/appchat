@@ -73,7 +73,7 @@ export class ComunicadosService {
     if (c.status === 'sent') throw new Error('Ya fue enviado');
     if (!c.destinatarios.length) throw new Error('Sin destinatarios');
 
-    const baseUrl = this.config.get('APP_URL') ?? 'http://localhost:3000';
+    const baseUrl = this.config.get('APP_URL') ?? 'http://localhost:3001';
     const from = this.config.get('MAIL_FROM');
 
     // ── Modo desarrollo: redirige todos los emails a tu cuenta ──

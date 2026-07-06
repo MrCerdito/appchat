@@ -57,7 +57,7 @@ Write-Host "╔═════════════════════�
 Write-Host "║         ReportaCasos — Dockerizado                 ║" -ForegroundColor Cyan
 Write-Host "╠══════════════════════════════════════════════════════╣" -ForegroundColor Cyan
 Write-Host "║  🌐 Frontend:  http://localhost:8095               ║" -ForegroundColor Cyan
-Write-Host "║  ⚙️  Backend:  http://localhost:3000               ║" -ForegroundColor Cyan
+Write-Host "║  ⚙️  Backend:  http://localhost:3001               ║" -ForegroundColor Cyan
 Write-Host "║  🗄️  Postgres: localhost:5433                      ║" -ForegroundColor Cyan
 Write-Host "╠══════════════════════════════════════════════════════╣" -ForegroundColor Cyan
 Write-Host "║  📧 Admin:    admin@innovacloud.co                 ║" -ForegroundColor Cyan

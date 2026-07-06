@@ -28,5 +28,5 @@ COPY --from=builder /app/dist ./dist
 # Se montan como volúmenes en docker-compose
 RUN mkdir -p /app/uploads/documentos /app/uploads/baileys-auth /app/uploads/whatsapp
 
-EXPOSE 3000
+EXPOSE 3001
 CMD ["node", "dist/src/main"]

@@ -2768,7 +2768,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
     await writeFile(join(uploadsDir, filename), buffer);
 
-    const backendUrl = this.config.get<string>('APP_URL') ?? 'http://localhost:3000';
+    const backendUrl = this.config.get<string>('APP_URL') ?? 'http://localhost:3001';
     return `${backendUrl}/uploads/whatsapp/${filename}`;
   }
 

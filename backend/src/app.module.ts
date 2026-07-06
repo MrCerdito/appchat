@@ -53,7 +53,7 @@ import { AppService } from './app.service';
         GEMINI_API_KEY: Joi.string().optional(),
         CHAT_ENCRYPTION_KEY: Joi.string().hex().length(64).optional().label('CHAT_ENCRYPTION_KEY'),
         RESEND_API_KEY: Joi.string().optional(),
-        PORT: Joi.number().default(3000),
+        PORT: Joi.number().default(3001),
         NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
         CORS_ORIGINS: Joi.string().optional(),
         APP_URL: Joi.string().uri().optional(),

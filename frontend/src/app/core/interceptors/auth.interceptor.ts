@@ -2,6 +2,7 @@ import { HttpInterceptorFn, HttpErrorResponse, HttpEvent, HttpRequest, HttpHandl
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../services/auth.service';
+import { NotificationService } from '../services/notification.service';
 import { throwError, BehaviorSubject, Observable, timer } from 'rxjs';
 import { catchError, filter, take, switchMap } from 'rxjs/operators';
 
@@ -76,8 +77,12 @@ function handle401(
           }),
           catchError(secondErr => {
             isRefreshing = false;
-            authService.logout();
-            router.navigate(['/login']);
+            const notification = inject(NotificationService);
+            notification.error('Sesión expirada', 'Tu sesión ha expirado. Inicia sesión nuevamente.');
+            setTimeout(() => {
+              authService.logout();
+              router.navigate(['/login']);
+            }, 2000);
             return throwError(() => secondErr);
           })
         ))

@@ -420,7 +420,7 @@ export class TeamsMeetingsService {
   private redirectUri(): string {
     const configured = this.config.get<string>('MICROSOFT_REDIRECT_URI');
     if (configured) return configured;
-    const appUrl = this.config.get<string>('APP_URL') ?? 'http://localhost:3000';
+    const appUrl = this.config.get<string>('APP_URL') ?? 'http://localhost:3001';
     return `${appUrl}/advisors-whatsapp/teams/oauth/callback`;
   }
 

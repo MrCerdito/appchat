@@ -3,12 +3,14 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
+import { NotificationService } from '../../../core/services/notification.service';
+import { ToastContainerComponent } from '../../../shared/components/toast-container.component';
 import { trackByIndex, trackById } from '../../../shared/utils/track-by';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ToastContainerComponent],
   templateUrl: './login.component.html',
   styleUrl: './login.component.scss',
 })
@@ -24,6 +26,7 @@ export class LoginComponent {
     private auth: AuthService,
     private router: Router,
     private cdr: ChangeDetectorRef,
+    private notification: NotificationService,
   ) {}
 
   login(): void {
@@ -87,6 +90,7 @@ export class LoginComponent {
         }
 
         this.cdr.detectChanges(); // ← forzar render
+        this.notification.error('Error al iniciar sesión', this.error);
       }
     });
   }

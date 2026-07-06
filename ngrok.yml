@@ -2,7 +2,7 @@ version: "3"
 tunnels:
   backend:
     proto: http
-    addr: 3000
+    addr: 3001
     # To use a custom domain: uncomment and set your domain
     # domain: api-mi-chat.ngrok.io
 
