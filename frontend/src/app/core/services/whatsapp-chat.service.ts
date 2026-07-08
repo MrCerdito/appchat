@@ -66,7 +66,7 @@ export class WhatsappChatService implements OnDestroy {
 
   private connectSocket(): void {
     this.socket = io(`${this.wsUrl}/advisors-whatsapp`, {
-      transports: ['websocket'],
+      transports: ['websocket', 'polling'],
       auth: { token: this.getToken() },
       reconnection: true,
       reconnectionDelay: 1_000,
