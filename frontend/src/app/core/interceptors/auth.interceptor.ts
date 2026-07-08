@@ -28,12 +28,6 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     ];
     const isPublic = PUBLIC_URLS.some(url => req.url.includes(url));
 
-    if (error.status === 429) {
-      const notification = inject(NotificationService);
-      notification.error('Demasiadas solicitudes', 'Espera unos minutos e intenta de nuevo.');
-      return throwError(() => error);
-    }
-
     if (error.status === 401 && !isPublic) {
       return handle401(req, next, authService, router);
     }
