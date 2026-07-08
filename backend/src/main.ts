@@ -1,9 +1,11 @@
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { join } from 'path';
 import helmet from 'helmet';
+
+const logger = new Logger('Bootstrap');
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -98,7 +100,18 @@ async function bootstrap() {
   const port = process.env.PORT ?? 3001;
   await app.listen(port, '0.0.0.0');
 
-  console.log(`Backend corriendo en puerto ${port}`);
+  logger.log(`Backend corriendo en puerto ${port} (${NODE_ENV})`);
+
+  // ── Graceful Shutdown ──────────────────────────────────────────────
+  const signals = ['SIGTERM', 'SIGINT'];
+  signals.forEach((signal) => {
+    process.on(signal, async () => {
+      logger.log(`Señal ${signal} recibida — cerrando servidor...`);
+      await app.close();
+      logger.log('Servidor cerrado correctamente');
+      process.exit(0);
+    });
+  });
 }
 
 bootstrap();

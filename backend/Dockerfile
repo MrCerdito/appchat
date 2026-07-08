@@ -12,21 +12,20 @@ RUN npm run build
 FROM node:20-alpine
 WORKDIR /app
 
-# Instalar curl para el healthcheck
 RUN apk add --no-cache curl
 
 COPY package*.json ./
 
-# Instalar dependencias de producción
-# pdf-parse@1.1.1 es la versión que exporta directamente una función
-RUN npm ci --omit=dev && \
-    npm install pdf-parse@1.1.1
+RUN npm ci --omit=dev
 
 COPY --from=builder /app/dist ./dist
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-# ★ Crear directorios para archivos subidos
-# Se montan como volúmenes en docker-compose
 RUN mkdir -p /app/uploads/documentos /app/uploads/baileys-auth /app/uploads/whatsapp
 
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD curl -f http://localhost:3001/health || exit 1
+
 EXPOSE 3001
-CMD ["node", "dist/src/main"]
+ENTRYPOINT ["/entrypoint.sh"]
