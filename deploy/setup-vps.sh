@@ -127,7 +127,7 @@ setup_nginx_host() {
 
   # Copiar y eliminar bloque HTTPS (certificados aún no existen)
   cp deploy/nginx-host.conf /etc/nginx/sites-available/chat
-  sed -i '/listen 443 ssl/,/^}/d' /etc/nginx/sites-available/chat
+  sed -i '/^# ── HTTPS/,/^}$/d' /etc/nginx/sites-available/chat
 
   if [ -f /etc/nginx/sites-enabled/default ]; then
     rm /etc/nginx/sites-enabled/default
