@@ -60,6 +60,21 @@ export class GuardarConfigGlobalDto {
   @IsOptional() @IsArray() @IsString({ each: true })
   @MaxLength(100, { each: true })
   ticketCategories?: string[];
+
+  @IsOptional() @Type(() => Boolean) @IsBoolean()
+  sonidoActivado?: boolean;
+
+  @IsOptional() @IsString() @MaxLength(30)
+  sonidoWhatsapp?: string;
+
+  @IsOptional() @IsString() @MaxLength(30)
+  sonidoAsesor?: string;
+
+  @IsOptional() @IsString() @MaxLength(30)
+  sonidoCliente?: string;
+
+  @IsOptional() @IsString() @MaxLength(30)
+  sonidoAsignacion?: string;
 }
 
 class HorarioSlotObject {

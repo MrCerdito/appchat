@@ -9,6 +9,7 @@ import {
   HorarioSlot,
 } from '../../../../core/services/configuracion.service';
 import { NotificationService } from '../../../../core/services/notification.service';
+import { SoundService } from '../../../../core/services/sound.service';
 import { WhatsappChatService } from '../../../../core/services/whatsapp-chat.service';
 import { WaConnectionStatus } from '../../../../core/models/whatsapp.models';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
@@ -44,6 +45,54 @@ export class AdminConfiguracionComponent implements OnInit {
   readonly placeholderWhatsappLlamada =
     'Actualmente no estamos disponibles para llamadas. Por favor escribenos por este chat y un asesor te atendera.';
 
+  readonly sonidoWhatsappOptions = [
+    { value: 'whatsapp1', label: 'WhatsApp 1' },
+    { value: 'whatsapp2', label: 'WhatsApp 2' },
+    { value: 'whatsapp3', label: 'WhatsApp 3' },
+    { value: 'whatsapp4', label: 'WhatsApp 4' },
+    { value: 'whatsapp5', label: 'WhatsApp 5' },
+    { value: 'whatsapp6', label: 'WhatsApp 6' },
+    { value: 'fuerte', label: 'Fuerte' },
+    { value: 'alerta', label: 'Alerta' },
+    { value: 'timbre', label: 'Timbre' },
+    { value: 'campana', label: 'Campana' },
+  ];
+
+  readonly sonidoAsesorOptions = [
+    { value: 'asesor1', label: 'Asesor 1' },
+    { value: 'asesor2', label: 'Asesor 2' },
+    { value: 'asesor3', label: 'Asesor 3' },
+    { value: 'asesor4', label: 'Asesor 4' },
+    { value: 'asesor5', label: 'Asesor 5' },
+    { value: 'fuerte', label: 'Fuerte' },
+    { value: 'alerta', label: 'Alerta' },
+    { value: 'timbre', label: 'Timbre' },
+    { value: 'campana', label: 'Campana' },
+  ];
+
+  readonly sonidoClienteOptions = [
+    { value: 'cliente1', label: 'Cliente 1' },
+    { value: 'cliente2', label: 'Cliente 2' },
+    { value: 'cliente3', label: 'Cliente 3' },
+    { value: 'cliente4', label: 'Cliente 4' },
+    { value: 'cliente5', label: 'Cliente 5' },
+    { value: 'fuerte', label: 'Fuerte' },
+    { value: 'alerta', label: 'Alerta' },
+    { value: 'timbre', label: 'Timbre' },
+    { value: 'campana', label: 'Campana' },
+  ];
+
+  readonly sonidoAsignacionOptions = [
+    { value: 'asignacion1', label: 'Asignación 1' },
+    { value: 'asignacion2', label: 'Asignación 2' },
+    { value: 'asignacion3', label: 'Asignación 3' },
+    { value: 'asignacion4', label: 'Asignación 4' },
+    { value: 'fuerte', label: 'Fuerte' },
+    { value: 'alerta', label: 'Alerta' },
+    { value: 'timbre', label: 'Timbre' },
+    { value: 'campana', label: 'Campana' },
+  ];
+
   readonly dias = [
     { value: 0, label: 'Domingo', short: 'Dom' },
     { value: 1, label: 'Lunes', short: 'Lun' },
@@ -57,14 +106,17 @@ export class AdminConfiguracionComponent implements OnInit {
   constructor(
     private readonly svc: ConfiguracionFrontendService,
     private readonly notification: NotificationService,
+    private readonly sound: SoundService,
     private readonly cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit(): void {
+    this.sound.loadSoundConfig();
     this.svc.getGlobal().subscribe({
       next: (config) => {
         this.config = this.normalize(config);
         this.loading = false;
+        this.applySoundConfig();
         if (this.config.horarios.length) {
           this.diaSeleccionado = this.config.horarios[0].dia;
         }
@@ -83,11 +135,13 @@ export class AdminConfiguracionComponent implements OnInit {
     this.saving = true;
     this.error = '';
 
+    this.applySoundConfig();
     this.svc.guardarGlobal(this.config).subscribe({
       next: (config) => {
         this.config = this.normalize(config);
         this.saving = false;
         this.saved = true;
+        this.applySoundConfig();
         this.notification.success('Configuración guardada', 'Los cambios se aplicaron correctamente.');
         setTimeout(() => {
           this.saved = false;
@@ -200,6 +254,21 @@ export class AdminConfiguracionComponent implements OnInit {
     return 'Error al guardar. Intenta de nuevo.';
   }
 
+  private applySoundConfig(): void {
+    if (!this.config) return;
+    this.sound.setSoundConfig(
+      this.config.sonidoActivado,
+      this.config.sonidoWhatsapp || 'whatsapp1',
+      this.config.sonidoAsesor || 'asesor1',
+      this.config.sonidoCliente || 'cliente1',
+      this.config.sonidoAsignacion || 'asignacion1',
+    );
+  }
+
+  testSound(category: string, type: string): void {
+    this.sound.playTestSound(category, type);
+  }
+
   private normalize(config: ConfiguracionData): ConfiguracionData {
     return {
       ...config,
@@ -212,6 +281,11 @@ export class AdminConfiguracionComponent implements OnInit {
         config.whatsappOutOfHoursMsg || this.placeholderWhatsappFuera,
       whatsappCallUnavailableMsg:
         config.whatsappCallUnavailableMsg || this.placeholderWhatsappLlamada,
+      sonidoActivado: config.sonidoActivado ?? true,
+      sonidoWhatsapp: config.sonidoWhatsapp ?? 'whatsapp1',
+      sonidoAsesor: config.sonidoAsesor ?? 'asesor1',
+      sonidoCliente: config.sonidoCliente ?? 'cliente1',
+      sonidoAsignacion: config.sonidoAsignacion ?? 'asignacion1',
     };
   }
 }

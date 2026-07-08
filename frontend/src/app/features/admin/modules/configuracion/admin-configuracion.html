@@ -243,6 +243,82 @@
           <div class="preview-bubble">{{ config.mensajeBienvenida || '(vacío)' }}</div>
         </div>
       </div>
+
+      <!-- ── Sonido ─────────────────────────────────────── -->
+      <div class="panel-section">
+        <div class="section-info">
+          <h3>Sonido de notificaciones</h3>
+          <p>Controla los sonidos que se reproducen al recibir nuevos mensajes y notificaciones en la plataforma</p>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-row-info">
+            <span class="toggle-label">Activar sonidos</span>
+            <span class="toggle-sub">Reproduce un sonido al recibir nuevos mensajes, asignaciones o notificaciones</span>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" [(ngModel)]="config.sonidoActivado"/>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="sound-grid" *ngIf="config.sonidoActivado">
+          <div class="sound-category">
+            <label>Sonido WhatsApp</label>
+            <div class="sound-select-row">
+              <select [(ngModel)]="config.sonidoWhatsapp">
+                <option *ngFor="let opt of sonidoWhatsappOptions; trackBy: trackByIndex" [value]="opt.value">{{ opt.label }}</option>
+              </select>
+              <button class="btn-test" (click)="testSound('whatsapp', config.sonidoWhatsapp)" title="Probar sonido">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="sound-category">
+            <label>Sonido Asesor</label>
+            <div class="sound-select-row">
+              <select [(ngModel)]="config.sonidoAsesor">
+                <option *ngFor="let opt of sonidoAsesorOptions; trackBy: trackByIndex" [value]="opt.value">{{ opt.label }}</option>
+              </select>
+              <button class="btn-test" (click)="testSound('asesor', config.sonidoAsesor)" title="Probar sonido">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="sound-category">
+            <label>Sonido Cliente</label>
+            <div class="sound-select-row">
+              <select [(ngModel)]="config.sonidoCliente">
+                <option *ngFor="let opt of sonidoClienteOptions; trackBy: trackByIndex" [value]="opt.value">{{ opt.label }}</option>
+              </select>
+              <button class="btn-test" (click)="testSound('cliente', config.sonidoCliente)" title="Probar sonido">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="sound-category">
+            <label>Sonido Asignación</label>
+            <div class="sound-select-row">
+              <select [(ngModel)]="config.sonidoAsignacion">
+                <option *ngFor="let opt of sonidoAsignacionOptions; trackBy: trackByIndex" [value]="opt.value">{{ opt.label }}</option>
+              </select>
+              <button class="btn-test" (click)="testSound('asignacion', config.sonidoAsignacion)" title="Probar sonido">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- ══════════════════════════════════════════════════════════
@@ -391,12 +467,12 @@
             <textarea [(ngModel)]="config.clienteInactividadMsg" rows="2"
               placeholder="¿Sigues en línea? Tu sesión se cerrará pronto..."></textarea>
           </div>
-          <div class="field">
-            <label>Mensaje de cierre</label>
-            <textarea [(ngModel)]="config.clienteCierreMsg" rows="2"
-              placeholder="La sesión ha sido cerrada por inactividad."></textarea>
-          </div>
+        <div class="field">
+          <label>Mensaje de cierre</label>
+          <textarea [(ngModel)]="config.clienteCierreMsg" rows="2"
+            placeholder="La sesión ha sido cerrada por inactividad."></textarea>
         </div>
+      </div>
 
         <!-- Flujo visual -->
         <div class="flow-preview">

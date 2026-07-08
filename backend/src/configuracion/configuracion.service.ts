@@ -48,6 +48,26 @@ export class ConfiguracionService implements OnModuleInit {
       ADD COLUMN IF NOT EXISTS whatsapp_call_unavailable_msg text NOT NULL
       DEFAULT 'Actualmente no estamos disponibles para llamadas. Por favor escribenos por este chat y un asesor te atendera.'
     `);
+    await this.repo.query(`
+      ALTER TABLE IF EXISTS public.configuracion
+      ADD COLUMN IF NOT EXISTS sonido_activado boolean NOT NULL DEFAULT true
+    `);
+    await this.repo.query(`
+      ALTER TABLE IF EXISTS public.configuracion
+      ADD COLUMN IF NOT EXISTS sonido_whatsapp varchar(30) NOT NULL DEFAULT 'whatsapp1'
+    `);
+    await this.repo.query(`
+      ALTER TABLE IF EXISTS public.configuracion
+      ADD COLUMN IF NOT EXISTS sonido_asesor varchar(30) NOT NULL DEFAULT 'asesor1'
+    `);
+    await this.repo.query(`
+      ALTER TABLE IF EXISTS public.configuracion
+      ADD COLUMN IF NOT EXISTS sonido_cliente varchar(30) NOT NULL DEFAULT 'cliente1'
+    `);
+    await this.repo.query(`
+      ALTER TABLE IF EXISTS public.configuracion
+      ADD COLUMN IF NOT EXISTS sonido_asignacion varchar(30) NOT NULL DEFAULT 'asignacion1'
+    `);
 
     const count = await this.repo.count({ where: { advisorId: null as any } });
     if (count === 0) {
@@ -107,6 +127,11 @@ export class ConfiguracionService implements OnModuleInit {
       whatsappOutOfHoursMsg: 'Hola. En este momento estamos fuera de servicio. Por favor vuelve {{proximaApertura}}.',
       whatsappCallUnavailableMsg: 'Actualmente no estamos disponibles para llamadas. Por favor escribenos por este chat y un asesor te atendera.',
       ticketCategories: ['Soporte tecnico', 'Administrativo', 'Academico', 'Facturacion', 'Otro'],
+      sonidoActivado: true,
+      sonidoWhatsapp: 'whatsapp1',
+      sonidoAsesor: 'asesor1',
+      sonidoCliente: 'cliente1',
+      sonidoAsignacion: 'asignacion1',
     };
     const nueva = this.repo.create({ ...defaults, advisorId: null });
     const saved = await this.repo.save(nueva);

@@ -28,6 +28,7 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
   protected readonly trackById = trackById;
 
   advisors: User[] = [];
+  statusCounts = { online: 0, busy: 0, offline: 0 };
   total = 0;
   page = 1;
   limit = 20;
@@ -73,13 +74,14 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
       this.loadAdvisors();
     });
 
-    this.socket.on<{ advisorId: string; name: string; status: string }>('advisor_status_changed')
+      this.socket.on<{ advisorId: string; name: string; status: string }>('advisor_status_changed')
       .pipe(takeUntil(this.destroy$))
       .subscribe((data) => {
         const index = this.advisors.findIndex(a => a.id === data.advisorId);
         if (index !== -1) {
           this.advisors[index] = { ...this.advisors[index], status: data.status };
           this.advisors = [...this.advisors];
+          this.computeStatusCounts();
           this.cdr.detectChanges();
         }
       });
@@ -95,12 +97,23 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
     this.searchSubject.next(value);
   }
 
+  private computeStatusCounts(): void {
+    this.statusCounts = { online: 0, busy: 0, offline: 0 };
+    for (const a of this.advisors) {
+      const s = a.status ?? 'offline';
+      if (s === 'online') this.statusCounts.online++;
+      else if (s === 'busy') this.statusCounts.busy++;
+      else this.statusCounts.offline++;
+    }
+  }
+
   loadAdvisors(): void {
     this.loading = true;
     this.error = '';
     this.adminService.getAdvisors(this.page, this.limit, this.search || undefined).subscribe({
       next: (res: PaginatedResponse<User>) => {
         this.advisors = res.data;
+        this.computeStatusCounts();
         this.total = res.total;
         this.page = res.page;
         this.pages = res.pages;

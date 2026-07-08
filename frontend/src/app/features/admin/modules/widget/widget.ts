@@ -174,11 +174,11 @@ export class WidgetComponent implements OnInit, OnDestroy {
   }
 
   abrirPreview(): void {
+    const base = window.location.pathname.replace(/\/admin\/widget.*$/, '');
     const file = window.location.hostname !== 'localhost'
-      ? '/widget-preview-prod.html'
-      : '/widget-preview.html';
+      ? base + '/widget-preview-prod.html'
+      : base + '/widget-preview.html';
 
-    // Pasar config actual como query params para preview en tiempo real
     const params = new URLSearchParams();
     const keys = Object.keys(DEFAULT_CONFIG) as (keyof WidgetConfig)[];
     for (const k of keys) {

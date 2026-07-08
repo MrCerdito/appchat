@@ -24,13 +24,6 @@ interface MessageReactionView {
   fromMe: boolean;
 }
 
-interface ToastMessage {
-  id: number;
-  title: string;
-  body: string;
-  severity: 'info' | 'warning' | 'critical';
-}
-
 @Component({
   selector: 'app-whatsapp-admin',
   standalone: true,
@@ -77,7 +70,6 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
   loading = true;
   loadingMessages = false;
   actionMessage = '';
-  actionToasts: ToastMessage[] = [];
   profilePhotoPreview?: { src: string; name: string };
   mediaPreview?: { src: string; name: string };
   messageMenu?: { x: number; y: number; message: WaMessage };
@@ -106,8 +98,6 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
   private readonly subs = new Subscription();
   private readonly alertThrottle = new Map<string, number>();
   private readonly ALERT_COOLDOWN = 60_000;
-  private readonly TOAST_DURATION = 4_000;
-  private toastIdCounter = 0;
 
   constructor(
     private readonly waService: WhatsappChatService,
@@ -145,7 +135,6 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
 
     this.subs.add(this.waService.onChatAssigned().subscribe(data => {
       this.applyRealtimeChat(data.chat);
-      this.pushToast('info', 'WhatsApp asignado', `${data.chat.name} -> ${data.advisorName}`);
     }));
 
     this.subs.add(this.waService.onChatUpdated().subscribe(chat => {
@@ -166,8 +155,6 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
         if (nearBottom) this.scrollToBottom(true);
       }
       if (!message.fromMe && !this.isReactionMessage(message)) {
-        const chat = this.allChats.find(item => item.id === message.chatId);
-        this.pushToast('info', 'Nuevo mensaje WhatsApp', `${chat?.name || message.senderName || 'Cliente'}: ${this.messagePreview(message)}`);
       }
     }));
   }
@@ -571,16 +558,7 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
     this.cdr.detectChanges();
   }
 
-  private notifyNewAlerts(alerts: WaAdminAlert[]): void {
-    const now = Date.now();
-    for (const alert of alerts) {
-      if (alert.severity !== 'critical' && alert.severity !== 'warning') continue;
-      const key = `${alert.type}:${alert.chatId || ''}:${alert.advisorId || ''}`;
-      const last = this.alertThrottle.get(key);
-      if (last && now - last < this.ALERT_COOLDOWN) continue;
-      this.alertThrottle.set(key, now);
-      this.pushToast(alert.severity, alert.title, alert.detail);
-    }
+  private notifyNewAlerts(_alerts: WaAdminAlert[]): void {
   }
 
   private isEncryptedBlob(value: string): boolean {
@@ -630,19 +608,9 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
     return map[clean] ?? '';
   }
 
-  private showMessage(message: string, severity: 'info' | 'warning' | 'critical' = 'info'): void {
-    this.pushToast(severity, message, '');
-  }
-
-  private pushToast(severity: 'info' | 'warning' | 'critical', title: string, body: string): void {
-    const id = ++this.toastIdCounter;
-    this.actionToasts = [...this.actionToasts, { id, title, body, severity }];
+  private showMessage(message: string, _severity?: string): void {
+    this.actionMessage = message;
     this.cdr.detectChanges();
-    setTimeout(() => this.removeToast(id), this.TOAST_DURATION);
-  }
-
-  private removeToast(id: number): void {
-    this.actionToasts = this.actionToasts.filter(t => t.id !== id);
-    this.cdr.detectChanges();
+    setTimeout(() => { this.actionMessage = ''; this.cdr.detectChanges(); }, 3000);
   }
 }

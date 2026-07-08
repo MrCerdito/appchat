@@ -553,9 +553,9 @@ get rolLabel(): string {
 
     if ('Notification' in window && Notification.permission === 'granted') {
       const preview = texto.length > 80 ? texto.slice(0, 80) + '…' : texto;
-      new Notification('Nuevo mensaje', {
+      new Notification('\u{1F4AC} Nuevo mensaje', {
         body: preview,
-        icon: '/favicon.ico',
+        icon: '/icon.jpg',
         tag: 'chat-message',
       });
     }

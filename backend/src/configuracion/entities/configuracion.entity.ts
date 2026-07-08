@@ -112,6 +112,22 @@ export class Configuracion {
   })
   ticketCategories: string[];
 
+  // ── Sonido ──────────────────────────────────────────────────────────────────
+  @Column({ name: 'sonido_activado', type: 'boolean', default: true })
+  sonidoActivado: boolean;
+
+  @Column({ name: 'sonido_whatsapp', length: 30, default: 'whatsapp1' })
+  sonidoWhatsapp: string;
+
+  @Column({ name: 'sonido_asesor', length: 30, default: 'asesor1' })
+  sonidoAsesor: string;
+
+  @Column({ name: 'sonido_cliente', length: 30, default: 'cliente1' })
+  sonidoCliente: string;
+
+  @Column({ name: 'sonido_asignacion', length: 30, default: 'asignacion1' })
+  sonidoAsignacion: string;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

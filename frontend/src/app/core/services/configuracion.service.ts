@@ -34,6 +34,11 @@ export interface ConfiguracionData {
   whatsappOutOfHoursMsg: string;
   whatsappCallUnavailableMsg: string;
   whatsappQuickReplies: string[];
+  sonidoActivado: boolean;
+  sonidoWhatsapp: string;
+  sonidoAsesor: string;
+  sonidoCliente: string;
+  sonidoAsignacion: string;
 }
 
 @Injectable({ providedIn: 'root' })

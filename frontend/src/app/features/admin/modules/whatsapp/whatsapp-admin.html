@@ -50,12 +50,7 @@
     </div>
   </header>
 
-  <div class="toast-stack">
-    <div *ngFor="let toast of actionToasts; trackBy: trackByIndex" class="toast" [class]="toast.severity">
-      <strong>{{ toast.title }}</strong>
-      <span *ngIf="toast.body">{{ toast.body }}</span>
-    </div>
-  </div>
+  <div class="action-feedback" *ngIf="actionMessage">{{ actionMessage }}</div>
 
   <div class="summary-grid">
     <article><span>Activos</span><strong>{{ summary.activeChats }}</strong></article>

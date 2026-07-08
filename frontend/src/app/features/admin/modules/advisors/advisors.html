@@ -7,6 +7,24 @@
     <button class="btn-primary" (click)="openCreate()">+ Nuevo asesor</button>
   </div>
 
+  <div class="status-summary">
+    <div class="stat" [class.online]="statusCounts.online > 0">
+      <span class="stat-dot"></span>
+      <strong>{{ statusCounts.online }}</strong>
+      <span>Disponibles</span>
+    </div>
+    <div class="stat" [class.busy]="statusCounts.busy > 0">
+      <span class="stat-dot"></span>
+      <strong>{{ statusCounts.busy }}</strong>
+      <span>Ocupados</span>
+    </div>
+    <div class="stat offline">
+      <span class="stat-dot"></span>
+      <strong>{{ statusCounts.offline }}</strong>
+      <span>Inactivos</span>
+    </div>
+  </div>
+
   <div class="alert success" *ngIf="success">{{ success }}</div>
   <div class="alert error" *ngIf="error && !showForm">{{ error }}</div>
 
