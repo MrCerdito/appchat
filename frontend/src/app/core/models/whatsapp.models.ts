@@ -139,7 +139,7 @@ export interface AwMessageStatus {
 }
 
 export interface WaConnectionStatus {
-  status: 'disconnected' | 'connecting' | 'qr' | 'connected';
+  status: 'disconnected' | 'connecting' | 'qr' | 'connected' | 'error';
   qr?: string;
   qrDataUrl?: string;
   connectedJid?: string;

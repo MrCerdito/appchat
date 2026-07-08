@@ -2188,7 +2188,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
         id: In(uniqueConnected),
         role: 'advisor',
         active: true,
-        status: In(['online', 'busy', 'Disponible', 'En chat']) as any,
+        status: In(['online', 'busy', 'offline', 'Disponible', 'En chat']) as any,
       },
     });
 

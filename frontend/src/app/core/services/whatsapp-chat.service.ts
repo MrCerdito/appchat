@@ -67,10 +67,24 @@ export class WhatsappChatService implements OnDestroy {
   private connectSocket(): void {
     this.socket = io(`${this.wsUrl}/advisors-whatsapp`, {
       transports: ['websocket', 'polling'],
+      path: '/socket.io',
       auth: { token: this.getToken() },
       reconnection: true,
       reconnectionDelay: 1_000,
-      reconnectionAttempts: 10,
+      reconnectionDelayMax: 10_000,
+      reconnectionAttempts: 20,
+    });
+
+    this.socket.on('connect', () => {
+      this.connection$.next({ status: 'connected', updatedAt: new Date().toISOString() });
+    });
+
+    this.socket.on('disconnect', (reason) => {
+      this.connection$.next({ status: 'disconnected', updatedAt: new Date().toISOString() });
+    });
+
+    this.socket.on('connect_error', (err) => {
+      this.connection$.next({ status: 'error', updatedAt: new Date().toISOString() });
     });
 
     this.socket.on('aw_new_message', (data: AwNewMessage) => {
