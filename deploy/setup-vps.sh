@@ -1,6 +1,6 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════════════════════
-# setup-vps.sh — Configuración inicial del VPS para InnovaCloud Chat
+# setup-vps.sh — Configuración inicial del VPS para InnoovaCloud Chat
 # ═══════════════════════════════════════════════════════════════════════════
 # USO:
 #   1. Subir proyecto: scp -r . root@<IP>:/opt/chat
@@ -11,14 +11,15 @@
 #     ./deploy/setup-vps.sh --upgrade
 #
 #   DESPUÉS de ejecutar, cuando el DNS ya apunte a la IP:
-#   certbot --nginx -d innovacloud.com -d www.innovacloud.com --non-interactive \
-#       --agree-tos -m admin@innovacloud.com
+#   certbot certonly --webroot -w /var/www/html \
+#       -d innoovacloud.com -d www.innoovacloud.com --non-interactive \
+#       --agree-tos -m admin@innoovacloud.com
 # ═══════════════════════════════════════════════════════════════════════════
 
 set -euo pipefail
 
-DOMINIO="${DOMINIO:-innovacloud.com}"
-EMAIL="${EMAIL:-admin@innovacloud.com}"
+DOMINIO="${DOMINIO:-innoovacloud.com}"
+EMAIL="${EMAIL:-admin@innoovacloud.com}"
 MODE="${1:-setup}"
 
 RED='\033[0;31m'
@@ -125,6 +126,9 @@ setup_nginx_host() {
     exit 1
   fi
 
+  # Crear directorio para ACME challenges de Certbot
+  mkdir -p /var/www/html
+
   # Copiar y eliminar bloque HTTPS (certificados aún no existen)
   cp deploy/nginx-host.conf /etc/nginx/sites-available/chat
   sed -i '/^# ── HTTPS/,/^}$/d' /etc/nginx/sites-available/chat
@@ -139,21 +143,37 @@ setup_nginx_host() {
 
   nginx -t
   systemctl reload nginx
-  ok "Nginx del host configurado (HTTP, SSL pendiente)"
+  ok "Nginx del host configurado (HTTP con soporte ACME)"
 }
 
 setup_ssl() {
-  info "Verificando SSL..."
-  if curl -sf "https://$DOMINIO" > /dev/null 2>&1; then
-    certbot --nginx -d "$DOMINIO" -d "www.$DOMINIO" --non-interactive \
-      --agree-tos -m "$EMAIL"
-    systemctl enable --now certbot.timer 2>/dev/null || true
+  info "Obteniendo certificado SSL con webroot..."
+  if certbot certonly --webroot -w /var/www/html \
+    -d "$DOMINIO" -d "www.$DOMINIO" --non-interactive \
+    --agree-tos -m "$EMAIL" 2>/dev/null; then
+
+    ok "SSL obtenido exitosamente para $DOMINIO"
+
+    # Copiar config completo con HTTPS
+    cp deploy/nginx-host.conf /etc/nginx/sites-available/chat
     nginx -t && systemctl reload nginx
-    ok "SSL instalado para $DOMINIO"
+    systemctl enable --now certbot.timer 2>/dev/null || true
+    ok "SSL activado en Nginx"
   else
-    warn "DNS aún no apunta a esta IP. Cuando apunte ejecute:"
-    warn "  certbot --nginx -d $DOMINIO -d www.$DOMINIO"
-    warn "Luego recargue: nginx -t && systemctl reload nginx"
+    warn "========================================================"
+    warn "  No se pudo obtener SSL automáticamente."
+    warn "  Causas posibles:"
+    warn "    1. El DNS de $DOMINIO aún no apunta a este servidor"
+    warn "    2. Puerto 80 no está accesible desde internet"
+    warn ""
+    warn "  Cuando el DNS apunte, ejecute manualmente:"
+    warn "  certbot certonly --webroot -w /var/www/html \\"
+    warn "    -d $DOMINIO -d www.$DOMINIO --non-interactive \\"
+    warn "    --agree-tos -m $EMAIL"
+    warn ""
+    warn "  Luego: cp deploy/nginx-host.conf /etc/nginx/sites-available/chat"
+    warn "  Luego: nginx -t && systemctl reload nginx"
+    warn "========================================================"
   fi
 }
 
