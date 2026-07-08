@@ -125,7 +125,9 @@ setup_nginx_host() {
     exit 1
   fi
 
+  # Copiar y eliminar bloque HTTPS (certificados aún no existen)
   cp deploy/nginx-host.conf /etc/nginx/sites-available/chat
+  sed -i '/listen 443 ssl/,/^}/d' /etc/nginx/sites-available/chat
 
   if [ -f /etc/nginx/sites-enabled/default ]; then
     rm /etc/nginx/sites-enabled/default
@@ -137,18 +139,27 @@ setup_nginx_host() {
 
   nginx -t
   systemctl reload nginx
-  ok "Nginx del host configurado"
+  ok "Nginx del host configurado (HTTP, SSL pendiente)"
 }
 
 setup_ssl() {
   info "Verificando SSL..."
+  # Restaurar config completo con HTTPS antes de certbot
+  cp deploy/nginx-host.conf /etc/nginx/sites-available/chat
+
   if curl -sf "https://$DOMINIO" > /dev/null 2>&1; then
     certbot --nginx -d "$DOMINIO" -d "www.$DOMINIO" --non-interactive \
       --agree-tos -m "$EMAIL"
     systemctl enable --now certbot.timer 2>/dev/null || true
+    nginx -t && systemctl reload nginx
     ok "SSL instalado para $DOMINIO"
   else
-    warn "DNS aún no apunta a esta IP. Ejecute manualmente después:"
+    warn "DNS aún no apunta a esta IP. Revirtiendo a solo HTTP..."
+    sed -i '/listen 443 ssl/,/^}/d' /etc/nginx/sites-available/chat
+    nginx -t && systemctl reload nginx
+    warn ""
+    warn "  ⚠️  El sitio está en modo solo HTTP."
+    warn "  Cuando el DNS apunte, ejecute:"
     warn "  certbot --nginx -d $DOMINIO -d www.$DOMINIO"
   fi
 }
