@@ -1,6 +1,7 @@
+import { Type } from 'class-transformer';
 import {
   IsString, IsOptional, IsBoolean, IsNumber, IsHexColor,
-  IsUrl, IsIn, Min, Max, MinLength, MaxLength,
+  IsIn, Min, Max, MinLength, MaxLength,
 } from 'class-validator';
 
 const POSICIONES = ['bottom-right', 'bottom-left', 'top-right', 'top-left'] as const;
@@ -28,23 +29,23 @@ export class SaveWidgetConfigDto {
   @IsOptional() @IsString() @MaxLength(60)
   textoBoton?: string;
 
-  @IsOptional() @IsBoolean()
+  @IsOptional() @Type(() => Boolean) @IsBoolean()
   mostrarTexto?: boolean;
 
   // ── Comportamiento ──
-  @IsOptional() @IsBoolean()
+  @IsOptional() @Type(() => Boolean) @IsBoolean()
   abrirAutomatico?: boolean;
 
-  @IsOptional() @IsNumber() @Min(2) @Max(30)
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(2) @Max(30)
   delayAutoAbrir?: number;
 
   @IsOptional() @IsString() @MaxLength(150)
   mensajeBurbuja?: string;
 
-  @IsOptional() @IsBoolean()
+  @IsOptional() @Type(() => Boolean) @IsBoolean()
   mostrarBurbuja?: boolean;
 
-  @IsOptional() @IsUrl({ require_tld: false })
+  @IsOptional() @IsString() @MaxLength(255)
   chatUrl?: string;
 
   // ── Textos del panel ──

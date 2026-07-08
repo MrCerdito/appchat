@@ -2,32 +2,46 @@
 # ═══════════════════════════════════════════════════════════════════════════
 # setup-vps.sh — Configuración inicial del VPS para InnovaCloud Chat
 # ═══════════════════════════════════════════════════════════════════════════
-# Uso:
-#   1. Sube todo el proyecto al VPS (scp -r . root@<IP>:/opt/chat)
+# USO:
+#   1. Subir proyecto: scp -r . root@<IP>:/opt/chat
 #   2. ssh root@<IP>
 #   3. cd /opt/chat && chmod +x deploy/setup-vps.sh && ./deploy/setup-vps.sh
+#
+#   DESPUÉS de ejecutar, cuando el DNS ya apunte a la IP:
+#   certbot --nginx -d innovacloud.com -d www.innovacloud.com --non-interactive \
+#       --agree-tos -m admin@innovacloud.com
 # ═══════════════════════════════════════════════════════════════════════════
 
 set -euo pipefail
 
+DOMINIO="innovacloud.com"
+EMAIL="admin@innovacloud.com"
+
 echo "========================================"
 echo "  InnovaCloud Chat — Setup VPS"
+echo "  Dominio: $DOMINIO"
 echo "========================================"
 
 # ── 1. Instalar Docker y Nginx ────────────────────────────────────────
-echo "[1/5] Instalando Docker, Nginx y utilidades..."
+echo "[1/6] Instalando paquetes..."
 apt update
-apt install -y docker.io docker-compose-v2 nginx curl ca-certificates
+
+if command -v docker &>/dev/null; then
+    echo "  ✓ Docker ya instalado, solo nginx + certbot..."
+    apt install -y nginx certbot python3-certbot-nginx curl ca-certificates
+else
+    apt install -y docker.io docker-compose-v2 nginx certbot python3-certbot-nginx curl ca-certificates
+fi
 
 systemctl enable --now docker
 systemctl enable --now nginx
 
 # ── 2. Crear directorios necesarios ───────────────────────────────────
-echo "[2/5] Creando directorios para volúmenes..."
+echo "[2/6] Creando directorios para volúmenes..."
 mkdir -p backend/uploads/documentos backend/uploads/baileys-auth backend/uploads/whatsapp
 
 # ── 3. Configurar Nginx del host ──────────────────────────────────────
-echo "[3/5] Configurando Nginx del host..."
+echo "[3/6] Configurando Nginx del host..."
 cp deploy/nginx-host.conf /etc/nginx/sites-available/chat
 
 # Deshabilitar site por defecto si existe
@@ -43,12 +57,24 @@ fi
 nginx -t
 systemctl reload nginx
 
-# ── 4. Construir y levantar contenedores ──────────────────────────────
-echo "[4/5] Construyendo y levantando contenedores (tarda 2-5 min)..."
+# ── 4. SSL con Certbot (solo si el DNS ya apunta a esta IP) ───────────
+echo "[4/6] Obteniendo certificado SSL (si el DNS ya apunta)..."
+if curl -sf "https://$DOMINIO" > /dev/null 2>&1; then
+    certbot --nginx -d "$DOMINIO" -d "www.$DOMINIO" --non-interactive \
+        --agree-tos -m "$EMAIL"
+    systemctl enable --now certbot.timer
+    echo "  ✅ SSL instalado"
+else
+    echo "  ⚠️  DNS aún no apunta. Ejecuta manualmente después:"
+    echo "     certbot --nginx -d $DOMINIO -d www.$DOMINIO"
+fi
+
+# ── 5. Construir y levantar contenedores ──────────────────────────────
+echo "[5/6] Construyendo y levantando contenedores (tarda 2-5 min)..."
 docker compose up -d --build
 
-# ── 5. Verificar que todo esté funcionando ────────────────────────────
-echo "[5/5] Verificando servicios..."
+# ── 6. Verificar que todo esté funcionando ────────────────────────────
+echo "[6/6] Verificando servicios..."
 sleep 10
 
 echo ""
@@ -73,7 +99,8 @@ fi
 
 echo ""
 echo "========================================"
-echo "  Listo! Accede en: http://137.184.221.158"
+echo "  ✅ Listo!"
+echo "  Accede en: https://$DOMINIO/agora/"
 echo ""
 echo "  Comandos útiles:"
 echo "    docker compose logs -f backend   # Ver logs del backend"

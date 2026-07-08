@@ -141,15 +141,24 @@ export class WidgetComponent implements OnInit, OnDestroy {
     });
   }
 
+  errorMsg = '';
+
   guardar(): void {
     this.saving = true;
-    this.http.post<WidgetConfig>(this.apiUrl, this.config).subscribe({
+    this.errorMsg = '';
+    const payload = { ...this.config };
+    if (payload.chatUrl === '/') payload.chatUrl = DEFAULT_CONFIG.chatUrl;
+    this.http.post<WidgetConfig>(this.apiUrl, payload).subscribe({
       next: () => {
         this.saving = false; this.saved = true;
         this.savedTimer = setTimeout(() => { this.saved = false; this.cdr.detectChanges(); }, 3000);
         this.cdr.detectChanges();
       },
-      error: () => { this.saving = false; this.cdr.detectChanges(); },
+      error: (err) => {
+        this.saving = false;
+        this.errorMsg = err.error?.message?.[0] || err.error?.message || 'Error al guardar. Revisa los campos.';
+        this.cdr.detectChanges();
+      },
     });
   }
 

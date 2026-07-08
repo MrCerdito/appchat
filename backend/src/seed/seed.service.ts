@@ -129,7 +129,7 @@ export class SeedService implements OnApplicationBootstrap {
       mostrarBurbuja: true,
       tituloPanelChat: 'Soporte en línea',
       subtituloPanelChat: 'Estamos aquí para ayudarte',
-      chatUrl: '/',
+      chatUrl: 'https://ia.innovacloud.co',
       chatHeaderColor: '#1a1a1a',
       chatBgColor: '#f0ede9',
       chatBubbleColor: '#ffffff',

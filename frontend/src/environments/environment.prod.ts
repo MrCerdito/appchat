@@ -1,6 +1,6 @@
 export const environment = {
   production: true,
-  apiUrl: '',
+  apiUrl: '/agora',
   wsUrl : '',
   apiKey: 'token2025',
 };
