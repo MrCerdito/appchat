@@ -43,8 +43,8 @@ export class LoginComponent {
       return;
     }
 
-    if (this.password.length < 6) {
-      this.error = 'La contraseña debe tener mínimo 6 caracteres';
+    if (this.password.length < 8) {
+      this.error = 'La contraseña debe tener mínimo 8 caracteres';
       return;
     }
 
@@ -70,11 +70,11 @@ export class LoginComponent {
           );
 
           if (tieneEmail && tienePassword) {
-            this.error = 'Ingresa un correo válido y una contraseña de al menos 6 caracteres';
+            this.error = 'Ingresa un correo válido y una contraseña de al menos 8 caracteres';
           } else if (tieneEmail) {
             this.error = 'El correo electrónico no es válido';
           } else if (tienePassword) {
-            this.error = 'La contraseña debe tener al menos 6 caracteres';
+            this.error = 'La contraseña debe tener al menos 8 caracteres';
           } else {
             this.error = msgs.join('. ');
           }

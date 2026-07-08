@@ -2,6 +2,7 @@ import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DocumentosService, DocumentoItem } from '../../../../core/services/documentos.service';
+import { NotificationService } from '../../../../core/services/notification.service';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
 
 @Component({
@@ -61,6 +62,7 @@ export class DocumentosComponent implements OnInit {
 
   constructor(
     private docService: DocumentosService,
+    private notification: NotificationService,
     private cdr       : ChangeDetectorRef,
   ) {}
 
@@ -70,7 +72,7 @@ export class DocumentosComponent implements OnInit {
     this.loading = true;
     this.docService.listar().subscribe({
       next : (docs) => { this.documentos = docs; this.loading = false; this.cdr.detectChanges(); },
-      error: ()     => { this.loading = false; this.cdr.detectChanges(); },
+      error: ()     => { this.loading = false; this.notification.error('Error', 'No se pudieron cargar los documentos.'); this.cdr.detectChanges(); },
     });
   }
 
@@ -108,11 +110,13 @@ export class DocumentosComponent implements OnInit {
         this.showForm     = false;
         this.resetForm();
         this.cargarDocumentos();
+        this.notification.success('Documento subido', `${res.nombre} se subió correctamente.`);
         this.cdr.detectChanges();
       },
       error: (err: any) => {
         this.uploading   = false;
         this.uploadError = err.error?.message ?? 'Error al subir el documento';
+        this.notification.error('Error al subir', this.uploadError);
         this.cdr.detectChanges();
       },
     });
@@ -159,11 +163,13 @@ export class DocumentosComponent implements OnInit {
         this.editMode  = false;
         this.resetForm();
         this.cargarDocumentos();
+        this.notification.success('Cambios guardados', 'El documento se actualizó correctamente.');
         this.cdr.detectChanges();
       },
       error: (err: any) => {
         this.uploading   = false;
         this.uploadError = err.error?.message ?? 'Error al guardar cambios';
+        this.notification.error('Error al guardar', this.uploadError);
         this.cdr.detectChanges();
       },
     });
@@ -177,7 +183,7 @@ export class DocumentosComponent implements OnInit {
     const nombre = this.docAEliminar.nombre;
     this.docAEliminar = null;
     this.docService.eliminar(nombre).subscribe({
-      next: () => { this.documentos = this.documentos.filter(d => d.nombre !== nombre); this.cdr.detectChanges(); },
+      next: () => { this.documentos = this.documentos.filter(d => d.nombre !== nombre); this.notification.success('Documento eliminado', ''); this.cdr.detectChanges(); },
     });
   }
 

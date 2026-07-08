@@ -23,6 +23,53 @@ export class SoundService {
     return this.ctx;
   }
 
+  playErrorSound(): void {
+    try {
+      const ctx = this.getCtx();
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const start = ctx.currentTime;
+
+      oscillator.type = 'sawtooth';
+      oscillator.frequency.setValueAtTime(400, start);
+      oscillator.frequency.exponentialRampToValueAtTime(200, start + 0.25);
+
+      gain.gain.setValueAtTime(0.001, start);
+      gain.gain.exponentialRampToValueAtTime(0.15, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.05, start + 0.12);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.3);
+
+      oscillator.start(start);
+      oscillator.stop(start + 0.3);
+    } catch {
+      // ignore
+    }
+  }
+
+  playSuccessSound(): void {
+    try {
+      const ctx = this.getCtx();
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const start = ctx.currentTime;
+
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(523, start);
+      oscillator.frequency.setValueAtTime(659, start + 0.1);
+      oscillator.frequency.setValueAtTime(784, start + 0.2);
+
+      gain.gain.setValueAtTime(0.001, start);
+      gain.gain.exponentialRampToValueAtTime(0.2, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.08, start + 0.15);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.35);
+
+      oscillator.start(start);
+      oscillator.stop(start + 0.35);
+    } catch {
+      // ignore
+    }
+  }
+
   playMessage(): void {
     try {
       const ctx = this.getCtx();

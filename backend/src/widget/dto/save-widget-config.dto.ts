@@ -1,7 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   IsString, IsOptional, IsBoolean, IsNumber, IsHexColor,
-  IsIn, Min, Max, MinLength, MaxLength,
+  IsIn, IsUrl, Min, Max, MinLength, MaxLength,
 } from 'class-validator';
 
 const POSICIONES = ['bottom-right', 'bottom-left', 'top-right', 'top-left'] as const;
@@ -45,7 +45,7 @@ export class SaveWidgetConfigDto {
   @IsOptional() @Type(() => Boolean) @IsBoolean()
   mostrarBurbuja?: boolean;
 
-  @IsOptional() @IsString() @MaxLength(255)
+  @IsOptional() @IsString() @IsUrl() @MaxLength(255)
   chatUrl?: string;
 
   // ── Textos del panel ──

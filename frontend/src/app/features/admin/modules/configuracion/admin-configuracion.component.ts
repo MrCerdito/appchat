@@ -8,6 +8,7 @@ import {
   ConfiguracionFrontendService,
   HorarioSlot,
 } from '../../../../core/services/configuracion.service';
+import { NotificationService } from '../../../../core/services/notification.service';
 import { WhatsappChatService } from '../../../../core/services/whatsapp-chat.service';
 import { WaConnectionStatus } from '../../../../core/models/whatsapp.models';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
@@ -55,6 +56,7 @@ export class AdminConfiguracionComponent implements OnInit {
 
   constructor(
     private readonly svc: ConfiguracionFrontendService,
+    private readonly notification: NotificationService,
     private readonly cdr: ChangeDetectorRef,
   ) {}
 
@@ -86,15 +88,17 @@ export class AdminConfiguracionComponent implements OnInit {
         this.config = this.normalize(config);
         this.saving = false;
         this.saved = true;
+        this.notification.success('Configuración guardada', 'Los cambios se aplicaron correctamente.');
         setTimeout(() => {
           this.saved = false;
           this.cdr.detectChanges();
         }, 3000);
         this.cdr.detectChanges();
       },
-      error: () => {
+      error: (err) => {
         this.saving = false;
-        this.error = 'Error al guardar. Intenta de nuevo.';
+        this.error = this.extractError(err);
+        this.notification.error('Error al guardar', this.error);
         this.cdr.detectChanges();
       },
     });
@@ -183,6 +187,17 @@ export class AdminConfiguracionComponent implements OnInit {
     return (this.config?.whatsappOutOfHoursMsg || this.placeholderWhatsappFuera)
       .replace(/\{\{\s*proximaApertura\s*\}\}/gi, 'manana a las 08:00')
       .replace(/\{\{\s*horaApertura\s*\}\}/gi, '08:00');
+  }
+
+  private extractError(err: any): string {
+    const body = err.error;
+    if (Array.isArray(body?.message)) {
+      return body.message.join('. ');
+    }
+    if (typeof body?.message === 'string') {
+      return body.message;
+    }
+    return 'Error al guardar. Intenta de nuevo.';
   }
 
   private normalize(config: ConfiguracionData): ConfiguracionData {

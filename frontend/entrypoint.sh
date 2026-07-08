@@ -11,4 +11,6 @@ window.__ENV__ = {
 };
 EOF
 
+sed -i 's|</head>|<script src="env-config.js"></script></head>|' /usr/share/nginx/html/index.html
+
 exec nginx -g 'daemon off;'

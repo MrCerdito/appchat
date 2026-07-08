@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../../../environments/environment';
+import { NotificationService } from '../../../../core/services/notification.service';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
 
 export interface WidgetConfig {
@@ -123,6 +124,7 @@ export class WidgetComponent implements OnInit, OnDestroy {
 
   constructor(
     private http: HttpClient,
+    private notification: NotificationService,
     private cdr : ChangeDetectorRef,
   ) {}
 
@@ -151,12 +153,14 @@ export class WidgetComponent implements OnInit, OnDestroy {
     this.http.post<WidgetConfig>(this.apiUrl, payload).subscribe({
       next: () => {
         this.saving = false; this.saved = true;
+        this.notification.success('Widget guardado', 'La configuración del widget se actualizó correctamente.');
         this.savedTimer = setTimeout(() => { this.saved = false; this.cdr.detectChanges(); }, 3000);
         this.cdr.detectChanges();
       },
       error: (err) => {
         this.saving = false;
         this.errorMsg = err.error?.message?.[0] || err.error?.message || 'Error al guardar. Revisa los campos.';
+        this.notification.error('Error al guardar', this.errorMsg);
         this.cdr.detectChanges();
       },
     });

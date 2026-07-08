@@ -8,6 +8,7 @@ import { debounceTime, distinctUntilChanged, takeUntil } from 'rxjs/operators';
 import { TicketService } from '../../core/services/ticket.service';
 import { AuthService } from '../../core/services/auth.service';
 import { SessionService } from '../../core/services/session.service';
+import { NotificationService } from '../../core/services/notification.service';
 import { Ticket, TicketQuery, TicketUpdateDto } from '../../core/models/ticket.model';
 import { User } from '../../core/models/user.model';
 import {
@@ -114,6 +115,7 @@ export class TicketsComponent implements OnInit, OnDestroy {
     private ticketService: TicketService,
     private auth: AuthService,
     private sessionService: SessionService,
+    private notification: NotificationService,
     private cdr: ChangeDetectorRef,
   ) {}
 
@@ -191,7 +193,7 @@ export class TicketsComponent implements OnInit, OnDestroy {
         this.updateKanbanColumns();
         this.cdr.detectChanges();
       },
-      error: () => { this.loading = false; this.cdr.detectChanges(); },
+      error: () => { this.loading = false; this.notification.error('Error', 'No se pudieron cargar los tickets.'); this.cdr.detectChanges(); },
     });
   }
 
@@ -269,7 +271,9 @@ export class TicketsComponent implements OnInit, OnDestroy {
         this.showCreateModal = false;
         this.load();
       },
-      error: () => {},
+      error: (err) => {
+        this.notification.error('Error al crear ticket', err.error?.message || 'Intenta de nuevo.');
+      },
     });
   }
 
@@ -282,7 +286,7 @@ export class TicketsComponent implements OnInit, OnDestroy {
         this.loading = false;
         this.cdr.detectChanges();
       },
-      error: () => { this.loading = false; this.cdr.detectChanges(); },
+      error: () => { this.loading = false; this.notification.error('Error', 'No se pudo cargar el detalle del ticket.'); this.cdr.detectChanges(); },
     });
   }
 
@@ -302,7 +306,9 @@ export class TicketsComponent implements OnInit, OnDestroy {
     const ticket = event.previousContainer.data[event.previousIndex];
     this.ticketService.update(ticket.id, { status: targetStatus as any }).subscribe({
       next: () => { this.load(); this.cdr.detectChanges(); },
-      error: () => undefined,
+      error: () => {
+        this.notification.error('Error', 'No se pudo actualizar el estado del ticket.');
+      },
     });
   }
 
@@ -348,7 +354,9 @@ export class TicketsComponent implements OnInit, OnDestroy {
         this.load();
         this.cdr.detectChanges();
       },
-      error: () => undefined,
+      error: (err) => {
+        this.notification.error('Error al guardar', err.error?.message || 'No se pudieron guardar los cambios.');
+      },
     });
   }
 

@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { tap } from 'rxjs/operators';
+import { tap, firstValueFrom } from 'rxjs';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { User } from '../models/user.model';
@@ -68,8 +68,34 @@ export class AuthService {
     return raw ? (JSON.parse(raw) as User) : null;
   }
 
+  isTokenExpired(): boolean {
+    const token = this.getToken();
+    if (!token) return true;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.exp ? payload.exp * 1000 < Date.now() : false;
+    } catch {
+      return true;
+    }
+  }
+
   isLoggedIn(): boolean {
-    return !!this.getToken();
+    const token = this.getToken();
+    if (!token) return false;
+    if (this.isTokenExpired()) return !!this.getRefreshToken();
+    return true;
+  }
+
+  async tryRefresh(): Promise<boolean> {
+    if (!this.getRefreshToken()) return false;
+    if (this.getToken() && !this.isTokenExpired()) return true;
+    try {
+      await firstValueFrom(this.refreshToken());
+      return true;
+    } catch {
+      this.logout();
+      return false;
+    }
   }
 
   getMetrics(): Observable<Metrics> {

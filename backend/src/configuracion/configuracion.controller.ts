@@ -12,7 +12,8 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Public } from '../auth/public.decorator';
 import { ConfiguracionService } from './configuracion.service';
-import { Configuracion } from './entities/configuracion.entity';
+import { GuardarConfigGlobalDto } from './dto/guardar-config-global.dto';
+import { GuardarConfigAdvisorDto } from './dto/guardar-config-advisor.dto';
 
 @Controller('configuracion')
 @UseGuards(JwtAuthGuard)
@@ -38,7 +39,7 @@ export class ConfiguracionController {
   @Post()
   @HttpCode(HttpStatus.OK)
   guardar(
-    @Body() body: Partial<Configuracion>,
+    @Body() body: GuardarConfigAdvisorDto,
     @Request() req: any,
   ) {
     return this.svc.guardar(body, req.user.id);
@@ -46,7 +47,7 @@ export class ConfiguracionController {
 
   @Post('global')
   @HttpCode(HttpStatus.OK)
-  guardarGlobal(@Body() body: Partial<Configuracion>) {
+  guardarGlobal(@Body() body: GuardarConfigGlobalDto) {
     return this.svc.guardar(body, undefined);
   }
 

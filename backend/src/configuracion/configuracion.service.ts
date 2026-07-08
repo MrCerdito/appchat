@@ -146,7 +146,9 @@ export class ConfiguracionService implements OnModuleInit {
     }
 
     this.invalidateCache(advisorId);
-    this.invalidateCache(undefined);
+    if (!advisorId) {
+      this.invalidateCache(undefined);
+    }
 
     return saved;
   }

@@ -6,6 +6,7 @@ import {
   ConfiguracionFrontendService,
   HorarioAlmuerzo,
 } from '../../../../core/services/configuracion.service';
+import { NotificationService } from '../../../../core/services/notification.service';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
 
 @Component({
@@ -42,6 +43,7 @@ export class ConfiguracionComponent implements OnInit {
 
   constructor(
     private readonly svc: ConfiguracionFrontendService,
+    private readonly notification: NotificationService,
     private readonly cdr: ChangeDetectorRef,
   ) {}
 
@@ -62,25 +64,49 @@ export class ConfiguracionComponent implements OnInit {
     });
   }
 
+    private advisorFields: (keyof ConfiguracionData)[] = [
+    'mensajeBienvenida', 'asesorInactividadSeg', 'asesorInactividadMsg',
+    'clienteInactividadSeg', 'clienteInactividadMsg', 'clienteInactividadIters',
+    'clienteCierreMsg', 'almuerzos',
+  ];
+
+  private extractError(err: any): string {
+    const body = err.error;
+    if (Array.isArray(body?.message)) {
+      return body.message.join('. ');
+    }
+    if (typeof body?.message === 'string') {
+      return body.message;
+    }
+    return 'Error al guardar. Intenta de nuevo.';
+  }
+
   guardar(): void {
     if (!this.config) return;
     this.saving = true;
     this.error = '';
 
-    this.svc.guardar(this.config).subscribe({
+    const payload = {} as Partial<ConfiguracionData>;
+    for (const field of this.advisorFields) {
+      (payload as any)[field] = this.config[field];
+    }
+
+    this.svc.guardar(payload).subscribe({
       next: (config) => {
         this.config = { ...config, almuerzos: config.almuerzos ?? [] };
         this.saving = false;
         this.saved = true;
+        this.notification.success('Configuración guardada', 'Tus cambios se aplicaron correctamente.');
         setTimeout(() => {
           this.saved = false;
           this.cdr.detectChanges();
         }, 3000);
         this.cdr.detectChanges();
       },
-      error: () => {
+      error: (err) => {
         this.saving = false;
-        this.error = 'Error al guardar. Intenta de nuevo.';
+        this.error = this.extractError(err);
+        this.notification.error('Error al guardar', this.error);
         this.cdr.detectChanges();
       },
     });

@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { AdminService, PaginatedResponse } from '../../../../core/services/admin.service';
 import { SocketService } from '../../../../core/services/socket.service';
 import { AuthService } from '../../../../core/services/auth.service';
+import { NotificationService } from '../../../../core/services/notification.service';
 import { User } from '../../../../core/models/user.model';
 import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
@@ -56,6 +57,7 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
     private adminService: AdminService,
     private socket: SocketService,
     private auth: AuthService,
+    private notification: NotificationService,
     private cdr: ChangeDetectorRef,
   ) {}
 
@@ -297,12 +299,14 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
 
   private showSuccess(msg: string): void {
     this.success = msg;
+    this.notification.success('Éxito', msg);
     setTimeout(() => { this.success = ''; this.cdr.detectChanges(); }, 3000);
     this.cdr.detectChanges();
   }
 
   private showError(msg: string): void {
     this.error = msg;
+    this.notification.error('Error', msg);
     this.cdr.detectChanges();
   }
 }

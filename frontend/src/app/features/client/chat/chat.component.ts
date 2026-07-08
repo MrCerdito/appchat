@@ -13,7 +13,7 @@ import { NotificationService } from '../../../core/services/notification.service
 import { Message } from '../../../core/models/message.model';
 import { Session } from '../../../core/models/session.model';
 import { AiService, AiMessage, AiResponse } from '../../../core/services/ai.service';
-import { environment } from '../../../../environments/environment.prod';
+import { environment } from '../../../../environments/environment';
 import { HttpClient } from '@angular/common/http';
 import { trackByIndex, trackById } from '../../../shared/utils/track-by';
 import { FaqComponent } from '../faq/faq.component';
@@ -818,7 +818,6 @@ get rolLabel(): string {
   this.addAiMessage('user', userMsg);
 
   if (wantsTransfer) {
-    this.addAiMessage('model', 'Entendido, te conecto con un asesor ahora mismo.');
     setTimeout(() => this.transferToAdvisor(), 1000);
     return;
   }
@@ -854,7 +853,6 @@ get rolLabel(): string {
           if (data.text.includes('TRANSFER_TO_ADVISOR')) {
             this.isStreaming = false;
             this.messages.splice(botMsgIndex, 1);
-            this.addAiMessage('model', 'Entendido, te conecto con un asesor ahora mismo.');
             setTimeout(() => this.transferToAdvisor(), 1000);
             return;
           }
@@ -1115,8 +1113,7 @@ private escapeHtml(value: string): string {
   // ══════════════════════════════════════════════════════════════════════════
 
   private aplicarTemaWidget(): void {
-    const base = environment.apiUrl || window.location.origin;
-    this.http.get<Record<string, string>>(`${base}/widget-config`).subscribe({
+    this.http.get<Record<string, string>>('/widget-config').subscribe({
     next: (cfg) => {
       const root = document.documentElement;
 
@@ -1139,11 +1136,9 @@ private escapeHtml(value: string): string {
       if (cfg['chatMarca']) this.marcaChat = cfg['chatMarca'];
       this.cdr.detectChanges();
     },
-    error: () => {
-      this.notification.error('Error', 'No se pudo aplicar el tema visual');
-    },
+    error: () => {},
   });
-}
+  }
 
 
 

@@ -11,6 +11,7 @@ import { AuthService } from '../../../../core/services/auth.service';
 import { ChatStateService } from '../../../../core/services/chat-state.service';
 import { TicketService } from '../../../../core/services/ticket.service';
 import { SoundService } from '../../../../core/services/sound.service';
+import { NotificationService } from '../../../../core/services/notification.service';
 import { Message } from '../../../../core/models/message.model';
 import { Session } from '../../../../core/models/session.model';
 import { User } from '../../../../core/models/user.model';
@@ -103,17 +104,18 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   private destroy$       = new Subject<void>();
 
   constructor(
-    private socket        : SocketService,
+    private socket      : SocketService,
     private sessionService: SessionService,
-    private auth          : AuthService,
-    private state         : ChatStateService,
-    private cdr           : ChangeDetectorRef,
-    private route         : ActivatedRoute,
-    private router        : Router,
-    private aiService     : AiService,
-    private ticketService : TicketService,
-    private sound         : SoundService,
-    private sanitizer     : DomSanitizer,
+    private auth        : AuthService,
+    private state       : ChatStateService,
+    private ticketService: TicketService,
+    private sanitizer   : DomSanitizer,
+    private sound       : SoundService,
+    private notification: NotificationService,
+    private aiService   : AiService,
+    private route       : ActivatedRoute,
+    private router      : Router,
+    private cdr         : ChangeDetectorRef,
   ) {}
 
   // ── Getters ───────────────────────────────────────────────────────────────
@@ -768,12 +770,11 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
       error: (err) => {
         this.creatingTicket = false;
         const msg = err?.error?.message || err?.message || '';
-        this.ticketFeedback = {
-          type: 'error',
-          text: msg.includes('codigo') || msg.includes('duplicate')
-            ? 'El codigo del ticket ya existe. Intenta de nuevo.'
-            : 'Error al generar el ticket.',
-        };
+        const text = msg.includes('codigo') || msg.includes('duplicate')
+          ? 'El codigo del ticket ya existe. Intenta de nuevo.'
+          : 'Error al generar el ticket.';
+        this.ticketFeedback = { type: 'error', text };
+        this.notification.error('Error al crear ticket', text);
         setTimeout(() => {
           this.ticketFeedback = null;
           this.cdr.detectChanges();

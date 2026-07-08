@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ComunicadosService, Colegio } from '../../../../core/services/comunicados.service';
 import { Comunicado, Destinatario } from '../../../../core/models/comunicado.model';
+import { NotificationService } from '../../../../core/services/notification.service';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
 
 type View = 'inbox' | 'sent' | 'drafts' | 'compose';
@@ -49,6 +50,7 @@ export class ComunicadosComponent implements OnInit {
 
   constructor(
     private service: ComunicadosService,
+    private notification: NotificationService,
     private cdr: ChangeDetectorRef,
   ) {}
 
@@ -64,7 +66,11 @@ export class ComunicadosComponent implements OnInit {
     this.loading = true;
     this.service.getAll().subscribe({
       next: (c) => { this.comunicados = c; this.loading = false; this.cdr.detectChanges(); },
-      error: () => { this.loading = false; this.cdr.detectChanges(); },
+      error: () => {
+      this.loading = false;
+      this.notification.error('Error', 'No se pudieron cargar los comunicados.');
+      this.cdr.detectChanges();
+    },
     });
   }
 
@@ -80,6 +86,7 @@ export class ComunicadosComponent implements OnInit {
       },
       error: () => {
         this.statsLoading = false;
+        this.notification.error('Error', 'No se pudieron cargar las estadísticas.');
         this.cdr.detectChanges();
       },
     });
@@ -204,9 +211,10 @@ export class ComunicadosComponent implements OnInit {
         this.loadAll();
         this.showSuccessMsg('Borrador guardado');
       },
-      error: () => {
+      error: (err) => {
         this.saving = false;
-        this.error = 'Error al guardar';
+        this.error = err.error?.message || 'Error al guardar';
+        this.notification.error('Error al guardar', this.error);
         this.cdr.detectChanges();
       },
     });
@@ -240,13 +248,15 @@ export class ComunicadosComponent implements OnInit {
             this.editingId = null;
             this.loadAll();
             this.error = 'Ningún correo pudo ser entregado';
+            this.notification.error('Error al enviar', 'Ningún correo pudo ser entregado.');
             this.cdr.detectChanges();
           },
         });
       },
-      error: () => {
+      error: (err) => {
         this.sending = false;
-        this.error = 'Error al guardar el comunicado';
+        this.error = err.error?.message || 'Error al guardar el comunicado';
+        this.notification.error('Error al guardar', this.error);
         this.cdr.detectChanges();
       },
     });
@@ -267,6 +277,7 @@ export class ComunicadosComponent implements OnInit {
 
   private showSuccessMsg(msg: string): void {
     this.success = msg;
+    this.notification.success('Éxito', msg);
     this.cdr.detectChanges();
     setTimeout(() => { this.success = ''; this.cdr.detectChanges(); }, 3500);
   }
