@@ -1,0 +1,7 @@
+﻿node_modules/
+dist/
+*.tar.gz
+*.zip
+.env
+backend/uploads/baileys-auth/
+BD.csv

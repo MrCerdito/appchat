@@ -1,0 +1,156 @@
+MANUAL DE USO – SCRIPT DE AUTOMATIZACIÓN ACADÉMICA
+
+========================================================
+DESCRIPCIÓN GENERAL
+========================================================
+Este script permite automatizar procesos en la plataforma
+académica como:
+
+1. Extraer asignaciones de docentes
+2. Asignar docentes desde Excel
+3. Quitar todas las asignaciones
+4. Generar plantilla de plan de estudio
+5. Crear plan de estudio desde Excel
+6. Extraer plan de estudio configurado
+
+El sistema funciona mediante automatización web (Playwright)
+y manejo de archivos Excel.
+
+--------------------------------------------------------
+REQUISITOS
+--------------------------------------------------------
+- Tener el sistema ejecutable (.exe) o entorno Python configurado
+- Archivo config.json correctamente configurado
+- Conexión a internet
+- Acceso válido a la plataforma académica
+
+--------------------------------------------------------
+CONFIGURACIÓN
+--------------------------------------------------------
+El archivo config.json contiene:
+
+LOGIN_URL: URL de inicio de sesión
+URL: URL del módulo de asignación
+USER: Usuario de acceso
+PASSWORD: Contraseña
+HEADLESS: True (sin abrir navegador) / False (visible)
+WAIT_SECONDS: Tiempo de espera
+REINTENTOS: Número de intentos
+
+--------------------------------------------------------
+FUNCIONES PRINCIPALES
+--------------------------------------------------------
+
+1. EXTRAER ASIGNACIONES
+--------------------------------------------------------
+Genera un archivo Excel con:
+- Docente
+- Nivel
+- Curso
+- Asignatura
+
+Uso:
+- Ejecutar opción "Extraer"
+- Seleccionar ruta de guardado
+
+Resultado:
+Archivo Excel con todas las asignaciones actuales
+
+--------------------------------------------------------
+
+2. ASIGNAR DOCENTES (DESDE EXCEL)
+--------------------------------------------------------
+Lee un archivo Excel y asigna docentes automáticamente.
+
+Estructura del Excel:
+Docente | Nivel | Curso | Asignatura
+
+Reglas:
+- Si ya tiene el docente correcto → no hace cambios
+- Si no tiene docente → lo asigna
+- Si tiene otro docente → lo reemplaza
+
+Uso:
+- Ejecutar opción "Asignar"
+- Seleccionar archivo Excel
+
+--------------------------------------------------------
+
+3. QUITAR TODAS LAS ASIGNACIONES
+--------------------------------------------------------
+Elimina TODOS los docentes asignados en todos los niveles.
+
+Uso:
+- Ejecutar opción "Quitar asignaciones"
+
+Nota:
+El proceso se realiza en varias pasadas para asegurar limpieza total.
+
+--------------------------------------------------------
+
+4. EXTRAER PLANTILLA PLAN DE ESTUDIO
+--------------------------------------------------------
+Genera un Excel base para construir el plan de estudio.
+
+Incluye:
+- Asignaturas
+- Áreas
+- Grados
+- Columnas para IH (intensidad horaria) y %
+
+Uso:
+- Ejecutar opción "Extraer plantilla"
+
+--------------------------------------------------------
+
+5. CREAR PLAN DE ESTUDIO
+--------------------------------------------------------
+Carga el plan de estudio desde Excel al sistema.
+
+Requisitos del Excel:
+- Basado en la plantilla generada
+- IH y % diligenciados
+
+Uso:
+- Ejecutar opción "Crear plan de estudio"
+- Seleccionar archivo Excel
+
+--------------------------------------------------------
+
+6. EXTRAER PLAN DE ESTUDIO CONFIGURADO
+--------------------------------------------------------
+Descarga el plan actual del sistema en formato Excel.
+
+Uso:
+- Ejecutar opción correspondiente
+- Seleccionar ruta de guardado
+
+--------------------------------------------------------
+RECOMENDACIONES
+--------------------------------------------------------
+- No tener archivos Excel abiertos durante la ejecución
+- Verificar nombres de docentes y asignaturas
+- Usar siempre la plantilla generada por el sistema
+- Ejecutar en conexión estable
+- Revisar logs para validar resultados
+
+--------------------------------------------------------
+MENSAJES DEL SISTEMA
+--------------------------------------------------------
+[OK] → proceso correcto
+[NUEVO] → asignación creada
+[CAMBIO] → docente reemplazado
+[ERROR] → problema en ejecución
+
+--------------------------------------------------------
+SOPORTE
+--------------------------------------------------------
+Si ocurre algún error:
+- Revisar conexión
+- Validar credenciales
+- Verificar estructura del Excel
+- Revisar logs generados
+
+========================================================
+FIN DEL DOCUMENTO
+========================================================

@@ -1,0 +1,101 @@
+services:
+  # ── PostgreSQL con pgvector ──────────────────────────────────────────
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: chat-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: app
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d app"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - chat-net
+
+  # ── Backend (NestJS) ─────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: chat-backend
+    restart: always
+    env_file:
+      - ./backend/.env
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      NODE_ENV: production
+      CORS_ORIGINS: https://innovacloud.com
+      APP_URL: https://innovacloud.com
+    ports:
+      - "127.0.0.1:3001:3001"
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - chat-net
+
+  # ── Frontend (Angular + Nginx) ───────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        BASE_HREF: /agora/
+    container_name: chat-frontend
+    restart: always
+    ports:
+      - "${FRONTEND_PORT:-8095}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - chat-net
+
+  # ── (Opcional) Ngrok para webhooks de WhatsApp ───────────────────────
+  # Descomenta este bloque si necesitas probar WhatsApp en desarrollo.
+  # Antes: configura el token en ./ngrok.yml o variable de entorno.
+  #
+  # ngrok:
+  #   image: ngrok/ngrok:latest
+  #   container_name: chat-ngrok
+  #   restart: unless-stopped
+  #   command: http backend:3001 --domain=mi-chat.ngrok.io
+  #   # ── O sin dominio fijo (gratuito):
+  #   # command: http backend:3000
+  #   environment:
+  #     NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}
+  #   ports:
+  #     - "4040:4040"
+  #   depends_on:
+  #     backend:
+  #       condition: service_healthy
+  #   networks:
+  #     - chat-net
+
+networks:
+  chat-net:
+    driver: bridge
+
+volumes:
+  pgdata:
+    driver: local
+  uploads_data:
+    driver: local

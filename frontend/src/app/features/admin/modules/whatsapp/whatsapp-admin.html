@@ -1,0 +1,364 @@
+<section class="wa-admin">
+  <div class="photo-backdrop" *ngIf="profilePhotoPreview" (click)="closeProfilePhoto()">
+    <figure class="photo-viewer" (click)="$event.stopPropagation()">
+      <img [src]="profilePhotoPreview.src" [alt]="profilePhotoPreview.name" />
+      <figcaption>{{ profilePhotoPreview.name }}</figcaption>
+      <button type="button" class="icon-btn" (click)="closeProfilePhoto()" title="Cerrar">
+        <i class="ti ti-x"></i>
+      </button>
+    </figure>
+  </div>
+
+  <div class="media-backdrop" *ngIf="mediaPreview" (click)="closeMediaPreview()">
+    <figure class="media-viewer" (click)="$event.stopPropagation()">
+      <img [src]="mediaPreview.src" [alt]="mediaPreview.name" />
+      <figcaption>{{ mediaPreview.name }}</figcaption>
+      <button type="button" class="icon-btn" (click)="closeMediaPreview()" title="Cerrar">
+        <i class="ti ti-x"></i>
+      </button>
+    </figure>
+  </div>
+
+  <div
+    class="message-menu"
+    *ngIf="messageMenu"
+    [style.left.px]="messageMenu.x"
+    [style.top.px]="messageMenu.y"
+    (click)="$event.stopPropagation()"
+  >
+    <span>Reaccionar</span>
+    <button type="button" *ngFor="let emoji of reactionOptions; trackBy: trackByIndex" (click)="reactToMessage(messageMenu.message, emoji)">
+      {{ emoji }}
+    </button>
+    <button type="button" class="clear-reaction" (click)="reactToMessage(messageMenu.message, '')" title="Quitar reaccion">
+      <i class="ti ti-x"></i>
+    </button>
+  </div>
+
+  <header class="page-head">
+    <div>
+      <span class="eyebrow">WhatsApp en tiempo real</span>
+      <h1>Centro de operacion</h1>
+    </div>
+    <div class="head-actions">
+      <button type="button" class="icon-btn" (click)="toggleTheme()" [title]="theme === 'dark' ? 'Modo claro' : 'Modo oscuro'">
+        <i class="ti" [ngClass]="theme === 'dark' ? 'ti-sun' : 'ti-moon'"></i>
+      </button>
+      <button type="button" class="icon-btn" (click)="refresh()" title="Actualizar">
+        <i class="ti ti-refresh"></i>
+      </button>
+    </div>
+  </header>
+
+  <div class="toast-stack">
+    <div *ngFor="let toast of actionToasts; trackBy: trackByIndex" class="toast" [class]="toast.severity">
+      <strong>{{ toast.title }}</strong>
+      <span *ngIf="toast.body">{{ toast.body }}</span>
+    </div>
+  </div>
+
+  <div class="summary-grid">
+    <article><span>Activos</span><strong>{{ summary.activeChats }}</strong></article>
+    <article><span>En cola</span><strong>{{ summary.queuedChats }}</strong></article>
+    <article><span>Esperando cliente</span><strong>{{ summary.waitingCustomerChats }}</strong></article>
+    <article><span>SLA vencido</span><strong>{{ summary.slaBreached }}</strong></article>
+    <article><span>Fijos</span><strong>{{ summary.fixedClients }}</strong></article>
+    <article><span>Manual/admin</span><strong>{{ summary.manualChats }}</strong></article>
+  </div>
+
+  <nav class="tabs">
+    <button
+      type="button"
+      *ngFor="let tab of tabs; trackBy: trackByIndex"
+      [class.active]="activeTab === tab.id"
+      (click)="activeTab = tab.id"
+    >
+      <i class="ti" [ngClass]="tab.icon"></i>
+      {{ tab.label }}
+    </button>
+  </nav>
+
+  <div class="loading" *ngIf="loading">
+    <i class="ti ti-loader-2"></i>
+    Cargando operacion
+  </div>
+
+  <ng-container *ngIf="!loading">
+    <section class="overview" *ngIf="activeTab === 'overview'">
+      <div class="ops-board">
+        <article class="ops-card alert-card">
+          <h2>Alertas criticas</h2>
+          <div class="alert-row" *ngFor="let alert of allAlerts.slice(0, 6); trackBy: trackByIndex" [class]="alert.severity">
+            <i class="ti" [ngClass]="alertIcon(alert)"></i>
+            <div>
+              <strong>{{ alert.title }}</strong>
+              <span>{{ alert.detail }}</span>
+            </div>
+          </div>
+          <p class="empty" *ngIf="allAlerts.length === 0">Sin alertas activas</p>
+        </article>
+
+        <article class="ops-card load-card">
+          <h2>Carga por asesor</h2>
+          <div class="advisor-load" *ngFor="let advisor of allAdvisors; trackBy: trackById">
+            <div>
+              <strong>{{ advisor.name }}</strong>
+              <span>{{ advisorStatusLabel(advisor.status) }} - idle {{ advisor.idleMinutes }} min</span>
+            </div>
+            <meter min="0" max="3" [value]="advisor.activeChats"></meter>
+            <b>{{ advisor.activeChats }}/3</b>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="workbench" *ngIf="activeTab === 'chats'">
+      <aside class="chat-list-panel">
+        <div class="filters">
+          <input type="search" [(ngModel)]="query" placeholder="Buscar cliente, telefono o asesor" />
+          <select [(ngModel)]="statusFilter">
+            <option *ngFor="let status of statusOptions; trackBy: trackByIndex" [ngValue]="status.id">{{ status.label }}</option>
+          </select>
+        </div>
+
+        <button
+          type="button"
+          class="chat-row"
+          *ngFor="let chat of filteredChats; trackBy: trackChat"
+          [class.active]="selectedChat?.id === chat.id"
+          (click)="selectChat(chat)"
+        >
+          <img [src]="chat.avatar" [alt]="chat.name" (click)="openProfilePhoto(chat, $event)" />
+          <div>
+            <strong>{{ chat.name }}</strong>
+            <span>{{ chat.preview || chat.phone }}</span>
+            <em>{{ chat.operationalStatusLabel || chat.stage }} - {{ assignmentLabel(chat) }}</em>
+          </div>
+          <b *ngIf="chat.unread">{{ chat.unread }}</b>
+        </button>
+      </aside>
+
+      <aside class="detail-panel" *ngIf="selectedChat as chat">
+        <div class="detail-layout">
+          <section class="conversation-panel">
+            <header>
+              <img [src]="chat.avatar" [alt]="chat.name" (click)="openProfilePhoto(chat, $event)" />
+              <div>
+                <h2>{{ chat.name }}</h2>
+                <span>{{ chat.phone }} - {{ chat.operationalStatusLabel }}</span>
+              </div>
+            </header>
+
+           
+            <div #messageFeed class="message-feed" [class.light-feed]="theme === 'light'">
+              <div class="loading-inline" *ngIf="loadingMessages">
+                <i class="ti ti-loader-2"></i>
+                Cargando conversacion
+              </div>
+              <article
+                class="message-row"
+                *ngFor="let message of visibleConversationMessages(selectedMessages); trackBy: trackById"
+                [class.out]="message.fromMe"
+                [class.in]="!message.fromMe"
+              >
+                <div class="bubble" (contextmenu)="openMessageMenu($event, message)">
+                  <strong>{{ messageAuthor(message) }}</strong>
+                  <div class="media-message" *ngIf="message.type && message.type !== 'text'">
+                    <div class="media-placeholder" *ngIf="!message.mediaUrl">
+                      <i class="ti ti-paperclip"></i>
+                      <span>{{ mediaLabel(message) }}</span>
+                    </div>
+                    <ng-container *ngIf="message.mediaUrl" [ngSwitch]="message.type">
+                      <img
+                        *ngSwitchCase="'image'"
+                        class="media-image"
+                        [src]="mediaUrlFor(message)"
+                        [alt]="mediaLabel(message)"
+                        (click)="openMediaPreview(message, $event)"
+                      />
+                      <video *ngSwitchCase="'video'" class="media-video" [src]="mediaUrlFor(message)" controls playsinline></video>
+                      <div *ngSwitchCase="'audio'" class="voice-note" [class.out]="message.fromMe">
+                        <i class="ti ti-player-play-filled"></i>
+                        <div>
+                          <span>{{ mediaLabel(message) }}</span>
+                          <audio class="media-audio" [src]="mediaUrlFor(message)" controls preload="metadata"></audio>
+                        </div>
+                      </div>
+                      <a
+                        *ngSwitchDefault
+                        class="media-document"
+                        [href]="mediaUrlFor(message)"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <i class="ti ti-file-text"></i>
+                        <span>{{ mediaLabel(message) }}</span>
+                      </a>
+                    </ng-container>
+                  </div>
+                  <p *ngIf="showMessageText(message)">{{ message.body }}</p>
+                  <span>{{ messageTime(message) }}</span>
+                  <div class="message-reactions" *ngIf="messageReactions(message, selectedMessages).length">
+                    <span
+                      *ngFor="let reaction of messageReactions(message, selectedMessages); trackBy: trackByIndex"
+                      [class.removed]="reaction.removed"
+                      [class.mine]="reaction.fromMe"
+                      [title]="reaction.removed ? reaction.by + ' quito su reaccion' : reaction.by + ' reacciono con ' + reaction.emoji"
+                    >
+                      <ng-container *ngIf="!reaction.removed; else removedReaction">
+                        <b>{{ reaction.emoji }}</b>
+                        <em>{{ reaction.by }}</em>
+                      </ng-container>
+                      <ng-template #removedReaction>
+                        <i class="ti ti-mood-empty"></i>
+                        <em>{{ reaction.by }} quito reaccion</em>
+                      </ng-template>
+                    </span>
+                  </div>
+                </div>
+              </article>
+              <p class="empty" *ngIf="!loadingMessages && visibleConversationMessages(selectedMessages).length === 0">
+                Sin mensajes en esta conversacion
+              </p>
+            </div>
+
+            <footer class="admin-composer">
+              <div class="file-chip" *ngIf="selectedFile">
+                <i class="ti ti-paperclip"></i>
+                <span>{{ selectedFile.name }}</span>
+                <button type="button" (click)="clearSelectedFile()" title="Quitar archivo">
+                  <i class="ti ti-x"></i>
+                </button>
+              </div>
+              <div class="composer-row">
+                <button type="button" class="icon-btn" (click)="pickFile()" title="Adjuntar archivo">
+                  <i class="ti ti-paperclip"></i>
+                </button>
+                <textarea
+                  rows="2"
+                  [(ngModel)]="replyText"
+                  placeholder="Escribir como administrador"
+                  (keydown.enter)="$event.preventDefault(); sendAdminReply()"
+                ></textarea>
+                <button
+                  type="button"
+                  class="send-btn"
+                  (click)="sendAdminReply()"
+                  [disabled]="sendingReply || (!replyText.trim() && !selectedFile)"
+                  title="Enviar"
+                >
+                  <i class="ti" [ngClass]="sendingReply ? 'ti-loader-2' : 'ti-send-2'"></i>
+                </button>
+                <input
+                  #adminFileInput
+                  type="file"
+                  hidden
+                  accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
+                  (change)="onFileSelected($event)"
+                />
+              </div>
+            </footer>
+          </section>
+
+          <section class="assignment-panel">
+            <div class="state-card" [ngClass]="chat.operationalStatus">
+              <span>Estado operativo</span>
+              <strong>{{ chat.operationalStatusLabel || chat.stage }}</strong>
+              <em>{{ chat.assignmentStatus === 'active' ? 'Chat activo' : chat.assignmentStatus === 'waiting' ? 'En cola o espera' : 'Cerrado' }}</em>
+            </div>
+
+            <div class="detail-grid">
+              <div><span>Asignado a</span><strong>{{ chat.assignedToName || 'Sin asignar' }}</strong></div>
+              <div><span>Asesor fijo</span><strong>{{ chat.fixedAdvisorName || 'Sin fijo' }}</strong></div>
+              <div><span>Origen</span><strong>{{ chat.assignmentMode || 'auto' }}</strong></div>
+              <div><span>Ultimo cliente</span><strong>{{ chat.time || '-' }}</strong></div>
+            </div>
+
+            <label>
+              <span>Asesor</span>
+              <select [(ngModel)]="selectedAdvisorId">
+                <option value="">Seleccionar asesor</option>
+                <option *ngFor="let advisor of allAdvisors; trackBy: trackById" [value]="advisor.id">
+                  {{ advisor.name }} - {{ advisor.activeChats }}/3
+                </option>
+              </select>
+            </label>
+
+            <div class="assignment-actions-card">
+              <span>Acciones de asignacion</span>
+              <div class="actions">
+                <button type="button" class="primary" (click)="assignSelected()" [disabled]="!selectedAdvisorId">
+                  <i class="ti ti-user-check"></i>
+                  Asignar
+                </button>
+                <button type="button" (click)="setFixedSelected()" [disabled]="!selectedAdvisorId">
+                  <i class="ti ti-user-star"></i>
+                  Fijo
+                </button>
+                <button type="button" (click)="clearFixedSelected(chat)" [disabled]="!chat.fixedAdvisorId">
+                  <i class="ti ti-user-x"></i>
+                  Quitar fijo
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+      </aside>
+    </section>
+
+    <section class="table-wrap" *ngIf="activeTab === 'advisors'">
+      <table>
+        <thead>
+          <tr>
+            <th>Asesor</th>
+            <th>Estado</th>
+            <th>Activos</th>
+            <th>Cerrados</th>
+            <th>Respuesta prom.</th>
+            <th>Idle</th>
+            <th>Fijos</th>
+            <th>SLA</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let advisor of allAdvisors; trackBy: trackById">
+            <td><strong>{{ advisor.name }}</strong><span>{{ advisor.email }}</span></td>
+            <td><em class="status-pill">{{ advisorStatusLabel(advisor.status) }}</em></td>
+            <td>{{ advisor.activeChats }}</td>
+            <td>{{ advisor.closedChats }}</td>
+            <td>{{ advisor.avgResponseMinutes }} min</td>
+            <td>{{ advisor.idleMinutes }} min</td>
+            <td>{{ advisor.fixedClients }}</td>
+            <td>{{ advisor.slaPercent }}%</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="fixed-grid" *ngIf="activeTab === 'fixed'">
+      <article *ngFor="let chat of fixedChats; trackBy: trackById">
+        <img [src]="chat.avatar" [alt]="chat.name" (click)="openProfilePhoto(chat, $event)" />
+        <div>
+          <strong>{{ chat.name }}</strong>
+          <span>{{ chat.phone }}</span>
+          <em>{{ chat.fixedAdvisorName }}</em>
+        </div>
+        <button type="button" class="icon-btn" (click)="clearFixedSelected(chat)" title="Quitar fijo">
+          <i class="ti ti-user-x"></i>
+        </button>
+      </article>
+      <p class="empty" *ngIf="fixedChats.length === 0">No hay clientes con asesor fijo</p>
+    </section>
+
+    <section class="alerts-list" *ngIf="activeTab === 'alerts'">
+      <article *ngFor="let alert of allAlerts; trackBy: trackByIndex" [class]="alert.severity">
+        <i class="ti" [ngClass]="alertIcon(alert)"></i>
+        <div>
+          <strong>{{ alert.title }}</strong>
+          <span>{{ alert.detail }}</span>
+        </div>
+      </article>
+      <p class="empty" *ngIf="allAlerts.length === 0">Sin alertas activas</p>
+    </section>
+  </ng-container>
+</section>

@@ -1,0 +1,617 @@
+<!-- ══════════════════════════════════════════════════════════════
+     FUERA DE JORNADA LABORAL
+══════════════════════════════════════════════════════════════════ -->
+<div *ngIf="fueraDeHorario" class="screen-center fuera-horario-screen">
+  <div class="card fuera-horario-card">
+    <div class="fh-icon-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <polyline points="12 6 12 12 16 14"/>
+      </svg>
+    </div>
+
+    <h2>Fuera de horario</h2>
+    <p class="fh-sub">En este momento no estamos disponibles.</p>
+
+    <div class="fh-horarios" *ngIf="horarioHoySlots.length > 0">
+      <span class="fh-horarios-lbl">Horario de atención</span>
+      <div class="fh-row"
+           *ngFor="let s of horarioHoySlots; trackBy: trackByIndex"
+           [class.fh-row--hoy]="s.dia === diaHoy">
+        <span class="fh-dia">
+          {{ nombresDias[s.dia] }}
+          <span class="fh-badge-hoy" *ngIf="s.dia === diaHoy">hoy</span>
+        </span>
+        <span class="fh-hora">{{ s.inicio }} – {{ s.fin }}</span>
+      </div>
+    </div>
+
+    <p class="fh-msg-extra" *ngIf="mensajeFueraHorario">
+      {{ mensajeFueraHorario }}
+    </p>
+  </div>
+</div>
+
+
+<div class="chat-wrapper" *ngIf="!fueraDeHorario">
+
+  <app-toast-container />
+
+  <!-- ══════════════════════════════════════════════════════════════
+       BANNER MODO SIN CONEXIÓN
+  ══════════════════════════════════════════════════════════════════ -->
+  <div class="offline-banner" *ngIf="!isOnline">
+    <div class="offline-inner">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="1" y1="1" x2="23" y2="23"/>
+        <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/>
+        <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/>
+        <path d="M10.71 5.05A16 16 0 0 1 22.56 9"/>
+        <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/>
+        <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+        <line x1="12" y1="20" x2="12.01" y2="20"/>
+      </svg>
+      <span>Sin conexión — reconectando automáticamente...</span>
+      <div class="offline-dots">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       PASO 0 — PREGUNTAS FRECUENTES
+  ══════════════════════════════════════════════════════════════════ -->
+  <div *ngIf="step === 'faq'" class="screen-faq">
+    <app-faq (iniciarChat)="irAFormulario()"></app-faq>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       PASO 1 — FORMULARIO DE REGISTRO
+  ══════════════════════════════════════════════════════════════════ -->
+  <div *ngIf="step === 'name'" class="screen-form">
+    <div class="card form-card">
+      <div class="card-header">
+        <button class="btn-back" (click)="irAFaq()" type="button" aria-label="Volver a preguntas frecuentes">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+          </svg>
+        </button>
+        <div class="brand-mark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+        </div>
+        <div class="hd-text">
+          <h2>Iniciar conversación</h2>
+          <p>Completa tus datos para continuar</p>
+        </div>
+      </div>
+
+      <div class="card-body">
+        <div class="field" [class.error]="submitted && !identificacion.trim()">
+          <label>Identificación <span class="req">*</span></label>
+          <input type="text" [(ngModel)]="identificacion" placeholder="Ej: 1234567890" maxlength="20"/>
+          <span class="err-msg">Campo requerido</span>
+        </div>
+
+        <div class="field-row">
+          <div class="field" [class.error]="submitted && !clientName.trim()">
+            <label>Nombre <span class="req">*</span></label>
+            <input type="text" [(ngModel)]="clientName" placeholder="Ej: Juan" maxlength="50"/>
+            <span class="err-msg">Campo requerido</span>
+          </div>
+          <div class="field" [class.error]="submitted && !apellido.trim()">
+            <label>Apellido <span class="req">*</span></label>
+            <input type="text" [(ngModel)]="apellido" placeholder="Ej: Pérez" maxlength="50"/>
+            <span class="err-msg">Campo requerido</span>
+          </div>
+        </div>
+
+        <div class="field" [class.error]="submitted && !rol">
+          <label>Rol <span class="req">*</span></label>
+          <div class="select-wrap">
+            <select [(ngModel)]="rol">
+              <option value="">Selecciona tu rol</option>
+              <option value="estudiante">Estudiante</option>
+              <option value="docente">Docente</option>
+              <option value="padre">Padre / Madre</option>
+              <option value="admin">Administrativo</option>
+            </select>
+            <span class="arrow">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </span>
+          </div>
+          <span class="err-msg">Campo requerido</span>
+        </div>
+
+        <div class="field colegio-field" [class.error]="submitted && !colegio.trim()">
+          <label>Colegio <span class="req">*</span></label>
+          <div class="search-wrap">
+            <span class="s-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+            </span>
+            <input type="text" [(ngModel)]="colegioQuery" (ngModelChange)="onColegioInput()"
+              (blur)="showDropdown = false" placeholder="Busca tu colegio..."
+              [class.selected]="colegioSeleccionado" autocomplete="off"/>
+            <span class="clear-colegio" *ngIf="colegioSeleccionado" (click)="clearColegio()">✕</span>
+          </div>
+          <div class="colegio-dropdown" *ngIf="showDropdown">
+            <div class="colegio-option" *ngFor="let c of colegiosFiltrados; trackBy: trackById" (mousedown)="selectColegio(c)">
+              {{ c.nombre }}
+            </div>
+          </div>
+          <span class="err-msg">Campo requerido</span>
+        </div>
+
+        <div class="field" [class.error]="submitted && !tipoSolicitud">
+          <label>Tipo de solicitud <span class="req">*</span></label>
+          <div class="select-wrap">
+            <select [(ngModel)]="tipoSolicitud">
+              <option value="">Selecciona el motivo</option>
+              <option value="info">Información general</option>
+              <option value="soporte">Soporte técnico</option>
+              <option value="matricula">Matrícula</option>
+              <option value="pagos">Pagos</option>
+              <option value="otro">Otro</option>
+            </select>
+            <span class="arrow">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </span>
+          </div>
+          <span class="err-msg">Campo requerido</span>
+        </div>
+
+        <button class="btn-submit" (click)="startChat()">
+          Iniciar chat
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="card-footer">
+        <span class="footer-dot online"></span>
+        <span>Atención en línea · Respuesta en minutos</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════════
+       PASO 2 — ESPERANDO ASESOR (MEJORADO)
+  ══════════════════════════════════════════════════════════════════ -->
+  <div *ngIf="step === 'waiting'" class="screen-center">
+    <div class="card waiting-card">
+
+      <div class="waiting-body">
+        <div class="waiting-visual">
+          <div class="ring ring-1"></div>
+          <div class="ring ring-2"></div>
+          <div class="ring ring-3"></div>
+          <div class="waiting-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+          </div>
+        </div>
+        <h3>Conectando con un asesor</h3>
+        <p>En breve uno de nuestros especialistas atenderá tu solicitud</p>
+
+        <div class="queue-position" *ngIf="queuePosition > 0">
+          <span class="queue-num">{{ queuePosition }}</span>
+          <span class="queue-desc">persona{{ queuePosition === 1 ? '' : 's' }} antes que tú</span>
+        </div>
+
+        <div class="queue-next" *ngIf="queuePosition === 0 && queueTotal !== null">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          ¡Eres el siguiente!
+        </div>
+
+        <div class="waiting-timer-bar" *ngIf="waitingElapsed > 0">
+          <div class="wt-row">
+            <span class="wt-label">Llevas esperando</span>
+            <span class="wt-value">{{ formatTiempo(waitingElapsed) }}</span>
+          </div>
+          <div class="wt-row" *ngIf="estimatedWaitSecs > 0">
+            <span class="wt-label">Tiempo estimado</span>
+            <span class="wt-value estimate">{{ formatTiempo(estimatedWaitSecs) }}</span>
+          </div>
+          <div class="wt-track">
+            <div class="wt-fill" [style.width.%]="estimatedWaitSecs > 0 ? Math.min(100, (waitingElapsed / (waitingElapsed + estimatedWaitSecs)) * 100) : 5"></div>
+          </div>
+        </div>
+
+        <div class="waiting-dots">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+
+      <div class="waiting-footer-actions">
+        <button class="btn-exit-waiting" (click)="exitWaiting()">
+          Salir de la fila
+        </button>
+      </div>
+
+      <div class="busy-notice" *ngIf="mostrarAsesoresOcupados">
+        <div class="busy-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+        </div>
+        <div class="busy-text">
+          <strong>Los asesores están ocupados</strong>
+          <span>No hay asesores disponibles en este momento. Puedes cerrar y volver a intentarlo más tarde, o consultar nuestras preguntas frecuentes.</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════════
+       PASO 3 — CHAT ACTIVO
+  ══════════════════════════════════════════════════════════════════ -->
+  <div *ngIf="step === 'chat'"
+       class="chat-box"
+       [class.is-ai-mode]="aiMode"
+       [class.is-advisor-mode]="!aiMode">
+
+    <div class="chat-header">
+      <div class="advisor-info">
+        <div class="avatar" [class.ai-avatar]="aiMode">
+          <ng-container *ngIf="aiMode">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H1a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73A2 2 0 0 1 10 4a2 2 0 0 1 2-2z"/>
+            </svg>
+          </ng-container>
+          <ng-container *ngIf="!aiMode">{{ advisorName.charAt(0) }}</ng-container>
+        </div>
+        <div class="advisor-meta">
+          <span class="advisor-name">{{ aiMode ? (marcaChat || 'Asistente Virtual') : advisorName }}</span>
+          <span class="status-line">
+            <span class="status-dot"></span>
+            {{ aiMode ? 'IA activa' : 'En línea' }}
+          </span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="close-btn" (click)="mostrarConfirmCierre = true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+          Cerrar
+        </button>
+      </div>
+    </div>
+
+    <!-- ══ BANNER CÓDIGO DE CASO ══ -->
+    <div class="codigo-banner" *ngIf="codigoSesion">
+      <div class="codigo-banner-inner">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+          <path d="M2 17l10 5 10-5"/>
+          <path d="M2 12l10 5 10-5"/>
+        </svg>
+        <span class="codigo-label">Caso: <strong>{{ codigoSesion }}</strong></span>
+        <button class="codigo-btn" (click)="copiarCodigo()" [class.copiado]="codigoCopiado">
+          {{ codigoCopiado ? 'Copiado' : 'Copiar' }}
+        </button>
+        <button class="codigo-btn wa" (click)="enviarCodigoWhatsApp()">
+          WhatsApp
+        </button>
+      </div>
+    </div>
+
+    <!-- ══ MENSAJES ══ -->
+    <div class="messages" #messagesContainer>
+      <ng-container *ngFor="let msg of messages; trackBy: trackById; let i = index">
+
+        <!-- Burbuja de mensaje -->
+        <div class="message"
+             [class.mine]="msg.senderType === 'client'"
+             [class.theirs]="msg.senderType === 'advisor' && !aiMode"
+             [class.ai-msg]="msg.senderType === 'advisor' && aiMode"
+             [class.streaming]="isStreaming && msg.content === streamingText">
+
+          <!-- Contenido del bubble según el remitente -->
+          <div class="bubble">
+            <!-- Mensajes del asesor/IA: renderizar Markdown -->
+            <span *ngIf="msg.senderType === 'advisor'"
+                  [innerHTML]="formatMessage(msg.content)">
+            </span>
+            <!-- Mensajes del cliente: texto plano -->
+            <span *ngIf="msg.senderType === 'client'">
+              {{ msg.content }}
+              <span class="read-status">{{ msg.readAt ? '✓✓' : '✓' }}</span>
+            </span>
+          </div>
+          <div class="message-footer">
+            <span class="time">{{ formatTiempoRelativo(msg.createdAt) }}</span>
+            <button class="copy-msg-btn" *ngIf="msg.senderType === 'advisor' && msg.content && !isStreaming"
+              (click)="copiarTexto(msg.content)" title="Copiar respuesta">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Documentos adjuntos (RAG) — PRIMERO -->
+        <div class="doc-adjuntos"
+             *ngIf="aiMode && msg.senderType === 'advisor' && msg.documentos && msg.documentos.length > 0">
+          <div class="doc-adjuntos-label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+            </svg>
+            Documentos relacionados
+          </div>
+          <a class="doc-adjunto-item" *ngFor="let doc of msg.documentos; trackBy: trackById"
+             [href]="doc.pdfUrl" target="_blank" rel="noopener noreferrer">
+            <div class="doc-adjunto-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+              </svg>
+            </div>
+            <div class="doc-adjunto-info">
+              <span class="doc-adjunto-nombre">{{ doc.nombre }}</span>
+              <span class="doc-adjunto-cat" *ngIf="doc.categoria">{{ doc.categoria }}</span>
+            </div>
+            <svg class="doc-adjunto-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+          </a>
+        </div>
+
+        <!-- Encuesta intermedia — DESPUÉS -->
+        <!-- Encuesta intermedia -->
+<div class="inline-survey" *ngIf="mostrarEncuestaEn(i)">
+  <div class="survey-question">¿Te sirvió la respuesta?</div>
+  <div class="survey-actions">
+    <button class="survey-btn positive" (click)="responderEncuesta(i, true)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/>
+        <path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
+      </svg>
+      Sí
+    </button>
+    <button class="survey-btn negative" (click)="responderEncuesta(i, false)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3H10z"/>
+        <path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/>
+      </svg>
+      No
+    </button>
+  </div>
+</div>
+
+<!-- Feedback respondido -->
+<div class="survey-feedback" *ngIf="encuestasRespondidas.has(i)">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+       stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="20 6 9 17 4 12"/>
+  </svg>
+  {{ encuestasRespondidas.get(i) ? 'Gracias por tu respuesta' : 'Gracias por tu respuesta.' }}
+</div>
+
+        <!-- Feedback respondido -->
+        <div class="survey-feedback" *ngIf="encuestasRespondidas.has(i)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          {{ encuestasRespondidas.get(i) ? 'Perfecto, ¿necesitas algo más?' : 'Entendido, lo tendremos en cuenta.' }}
+        </div>
+
+      </ng-container>
+    </div>
+
+    <!-- Typing indicator -->
+    <div class="typing-indicator" *ngIf="aiTyping || otherTyping">
+      <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+      <span class="typing-name">
+        {{ aiTyping ? 'Asistente escribiendo' : typingName + ' está escribiendo' }}
+      </span>
+    </div>
+
+    <!-- Botón detener streaming -->
+    <div class="detener-wrap" *ngIf="isStreaming">
+  <button class="btn-detener" (click)="detenerStream()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+    </svg>
+    Detener respuesta
+  </button>
+</div>
+
+    <div
+      class="client-timer-strip"
+      *ngIf="clientTimer && !aiMode"
+      [class.closing]="clientTimer.tipo === 'closing'"
+      [class.warning]="clientTimer.pct >= 65 && clientTimer.tipo !== 'closing'"
+    >
+      <div class="client-timer-copy">
+        <strong>{{ clientTimer.tipo === 'client_waiting' ? 'Esperando tu respuesta' : clientTimer.tipo === 'advisor_waiting' ? 'Esperando respuesta del asesor' : 'Cerrando chat' }}</strong>
+      </div>
+      <span class="client-timer-count">{{ clientTimer.restante }}s</span>
+      <div class="client-timer-track">
+        <div class="client-timer-fill" [style.width.%]="clientTimer.pct"></div>
+      </div>
+    </div>
+
+    <div
+      class="client-timer-strip ia-wait"
+      *ngIf="inactividadIaAviso && aiMode"
+      [class.warning]="inactividadIaSegRest <= 10"
+    >
+      <div class="client-timer-copy">
+        <strong>Esperando tu respuesta</strong>
+      </div>
+      <span class="client-timer-count">{{ inactividadIaSegRest }}s</span>
+      <div class="client-timer-track">
+        <div
+          class="client-timer-fill"
+          [class.urgente]="inactividadIaSegRest <= 5"
+          [style.width.%]="(inactividadIaSegRest / 30) * 100"
+        ></div>
+      </div>
+    </div>
+
+    <!-- Input -->
+    <div class="input-area">
+      <input type="text" [(ngModel)]="newMessage"
+        placeholder="Escribe un mensaje..."
+        (keyup.enter)="send()"
+        (input)="onTyping()"
+        maxlength="1000"/>
+      <button class="send-btn" (click)="send()" [disabled]="!newMessage.trim()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13"/>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+      </button>
+    </div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+         OVERLAY INACTIVIDAD IA
+         Va DENTRO de .chat-box pero FUERA de .messages
+         para cubrir todo el chat con position:absolute.
+    ══════════════════════════════════════════════════════════════════ -->
+    <div class="inactividad-overlay compact-hidden" *ngIf="false">
+      <div class="inactividad-box">
+
+        <div class="inactividad-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+        </div>
+
+        <p>¿Sigues ahí?</p>
+        <span class="inactividad-sub">La sesión se cerrará pronto por inactividad.</span>
+
+        <div class="inactividad-barra-wrap">
+          <div class="inactividad-barra-fill"
+               [class.urgente]="inactividadIaSegRest <= 5"
+               [style.width.%]="(inactividadIaSegRest / 30) * 100">
+          </div>
+        </div>
+
+        <span class="inactividad-seg">
+          {{ inactividadIaSegRest > 0 ? inactividadIaSegRest + 's restantes' : 'Cerrando...' }}
+        </span>
+
+        <button class="inactividad-btn" (click)="continuarChatIa()">
+          Seguir chateando
+        </button>
+
+      </div>
+    </div>
+
+    <!-- Confirm cierre -->
+    <div class="confirm-overlay" *ngIf="mostrarConfirmCierre">
+      <div class="confirm-box">
+        <div class="confirm-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+        </div>
+        <p>¿Cerrar conversación?</p>
+        <span class="confirm-sub">
+          {{ aiMode ? 'Se finalizará y cerrará la sesión actual.' : 'Se cerrará la sesión y podrás calificar la atención recibida.' }}
+        </span>
+        <div class="confirm-actions">
+          <button class="confirm-no" (click)="mostrarConfirmCierre = false">Cancelar</button>
+          <button class="confirm-yes" (click)="closeChat(); mostrarConfirmCierre = false">Cerrar</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════════
+       PASO 4 — CALIFICACIÓN FINAL
+  ══════════════════════════════════════════════════════════════════ -->
+  <div *ngIf="step === 'rating'" class="screen-center">
+    <div class="card rating-card">
+
+      <ng-container *ngIf="!ratingEnviado">
+        <div class="rating-header">
+          <div class="rating-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+            </svg>
+          </div>
+          <h2>¿Cómo fue tu atención?</h2>
+          <p>Tu opinión nos ayuda a mejorar</p>
+        </div>
+
+        <div class="rating-body">
+          <div class="stars-wrap">
+            <button *ngFor="let i of [1,2,3,4,5]; trackBy: trackByIndex" class="star-btn"
+              [class.active]="i <= (ratingHover || ratingEstrellas)"
+              (mouseenter)="ratingHover = i"
+              (mouseleave)="ratingHover = 0"
+              (click)="ratingEstrellas = i">★</button>
+          </div>
+          <span class="star-label">
+            {{ ['','Muy malo','Malo','Regular','Bueno','Excelente'][ratingHover || ratingEstrellas] || 'Selecciona una puntuación' }}
+          </span>
+
+          <div class="tags-wrap">
+            <button *ngFor="let e of etiquetasDisponibles; trackBy: trackByIndex" class="tag-btn"
+              [class.selected]="ratingEtiquetas.includes(e)"
+              (click)="toggleEtiqueta(e)">{{ e }}</button>
+          </div>
+
+          <textarea [(ngModel)]="ratingComentario"
+            placeholder="Cuéntanos más sobre tu experiencia (opcional)..."
+            rows="3" maxlength="300"></textarea>
+
+          <div class="rating-actions">
+            <button class="btn-skip" (click)="omitirRating()">Omitir</button>
+            <button class="btn-send" [disabled]="!ratingEstrellas" (click)="enviarRating()">
+              Enviar calificación
+            </button>
+          </div>
+        </div>
+      </ng-container>
+
+      <div *ngIf="ratingEnviado" class="rating-thanks">
+        <div class="thanks-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </div>
+        <h3>¡Gracias por tu calificación!</h3>
+        <p>Tu opinión es muy valiosa para nosotros.</p>
+        <span class="redirect-hint">Volviendo al inicio...</span>
+      </div>
+
+    </div>
+  </div>
+
+</div>

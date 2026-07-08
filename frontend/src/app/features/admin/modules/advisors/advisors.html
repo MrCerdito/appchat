@@ -1,0 +1,189 @@
+<div class="advisors-page">
+  <div class="page-header">
+    <div>
+      <h1>Asesores</h1>
+      <p>Gestiona el equipo de soporte</p>
+    </div>
+    <button class="btn-primary" (click)="openCreate()">+ Nuevo asesor</button>
+  </div>
+
+  <div class="alert success" *ngIf="success">{{ success }}</div>
+  <div class="alert error" *ngIf="error && !showForm">{{ error }}</div>
+
+  <!-- ── Formulario ─────────────────────────────────────── -->
+  <div class="form-card" *ngIf="showForm">
+    <h3>{{ editingId ? 'Editar asesor' : 'Nuevo asesor' }}</h3>
+    <div class="form-grid">
+      <div class="field" [class.has-error]="formErrors['name']">
+        <label>Nombre</label>
+        <input type="text" [(ngModel)]="form.name" placeholder="Nombre completo" maxlength="100"/>
+        <span class="field-error" *ngIf="formErrors['name']">{{ formErrors['name'] }}</span>
+      </div>
+      <div class="field" [class.has-error]="formErrors['email']">
+        <label>Email</label>
+        <input type="email" [(ngModel)]="form.email" placeholder="correo@empresa.com" maxlength="150"/>
+        <span class="field-error" *ngIf="formErrors['email']">{{ formErrors['email'] }}</span>
+      </div>
+      <div class="field" [class.has-error]="formErrors['password']">
+        <label>
+          {{ editingId ? 'Nueva contraseña (opcional)' : 'Contraseña' }}
+          <span class="field-hint" *ngIf="editingId">
+            <label><input type="checkbox" [(ngModel)]="showPasswordField"/> Cambiar contraseña</label>
+          </span>
+        </label>
+        <input *ngIf="!editingId || showPasswordField" type="password" [(ngModel)]="form.password" placeholder="Mínimo 8 caracteres"/>
+        <span class="field-error" *ngIf="formErrors['password']">{{ formErrors['password'] }}</span>
+      </div>
+    </div>
+    <div class="alert error" *ngIf="error">{{ error }}</div>
+    <div class="form-actions">
+      <button class="btn-secondary" (click)="showForm = false">Cancelar</button>
+      <button class="btn-primary" (click)="save()" [disabled]="loading">
+        {{ loading ? 'Guardando...' : (editingId ? 'Guardar cambios' : 'Crear asesor') }}
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Buscador ───────────────────────────────────────── -->
+  <div class="toolbar">
+    <div class="search-box">
+      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input
+        type="text"
+        [ngModel]="search"
+        (ngModelChange)="onSearch($event)"
+        placeholder="Buscar por nombre..."
+        class="search-input"
+      />
+    </div>
+    <span class="result-count" *ngIf="!loading">{{ total }} asesor{{ total !== 1 ? 'es' : '' }}</span>
+  </div>
+
+  <!-- ── Loading skeleton ───────────────────────────────── -->
+  <div class="table-card" *ngIf="loading && advisors.length === 0">
+    <table>
+      <thead>
+        <tr>
+          <th (click)="setSort('name')">Asesor {{ sortIcon('name') }}</th>
+          <th (click)="setSort('email')">Email {{ sortIcon('email') }}</th>
+          <th (click)="setSort('status')">Estado {{ sortIcon('status') }}</th>
+          <th (click)="setSort('activeChats')">Chats {{ sortIcon('activeChats') }}</th>
+          <th (click)="setSort('role')">Rol {{ sortIcon('role') }}</th>
+          <th (click)="setSort('active')">Cuenta {{ sortIcon('active') }}</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let _ of [].constructor(5); trackBy: trackByIndex">
+          <td><div class="skeleton skeleton-name"></div></td>
+          <td><div class="skeleton skeleton-email"></div></td>
+          <td><div class="skeleton skeleton-badge"></div></td>
+          <td><div class="skeleton skeleton-number"></div></td>
+          <td><div class="skeleton skeleton-badge"></div></td>
+          <td><div class="skeleton skeleton-badge"></div></td>
+          <td><div class="skeleton skeleton-actions"></div></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── Tabla ──────────────────────────────────────────── -->
+  <div class="table-card" *ngIf="!loading || advisors.length > 0">
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th (click)="setSort('name')" class="sortable">Asesor {{ sortIcon('name') }}</th>
+            <th (click)="setSort('email')" class="sortable">Email {{ sortIcon('email') }}</th>
+            <th (click)="setSort('status')" class="sortable">Estado {{ sortIcon('status') }}</th>
+            <th (click)="setSort('activeChats')" class="sortable">Chats {{ sortIcon('activeChats') }}</th>
+            <th (click)="setSort('role')" class="sortable">Rol {{ sortIcon('role') }}</th>
+            <th (click)="setSort('active')" class="sortable">Cuenta {{ sortIcon('active') }}</th>
+            <th>Creado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let a of advisors; trackBy: trackById" [class.inactive]="!a.active">
+            <td>
+              <div class="advisor-cell">
+                <div class="avatar" [class.offline]="a.status === 'offline'" [class.busy]="a.status === 'busy'">{{ a.name.charAt(0) }}</div>
+                <span>{{ a.name }}</span>
+              </div>
+            </td>
+            <td class="muted">{{ a.email }}</td>
+            <td>
+              <span class="badge" [class]="'badge-' + (a.status ?? 'offline')">
+                {{ getStatusLabel(a.status) }}
+              </span>
+            </td>
+            <td class="center">{{ a.activeChats ?? 0 }}</td>
+            <td>
+              <span class="badge" [class]="a.role === 'admin' ? 'badge-admin' : 'badge-advisor'">
+                {{ getRoleLabel(a.role) }}
+              </span>
+            </td>
+            <td>
+              <span class="badge" [class]="a.active ? 'badge-active' : 'badge-closed'">
+                {{ a.active ? 'Activo' : 'Inactivo' }}
+              </span>
+            </td>
+            <td class="muted date-cell">{{ formatDate(a.createdAt) }}</td>
+            <td>
+              <div class="actions">
+                <button class="btn-icon edit" (click)="openEdit(a)" title="Editar">Editar</button>
+                <button class="btn-icon toggle" (click)="toggle(a)" title="Cambiar estado">
+                  {{ a.active ? 'Desactivar' : 'Activar' }}
+                </button>
+                <button class="btn-icon delete" (click)="confirmRemove(a)" title="Eliminar">Eliminar</button>
+              </div>
+            </td>
+          </tr>
+          <tr *ngIf="advisors.length === 0 && !loading">
+            <td colspan="8" class="empty">No se encontraron asesores</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── Paginación ───────────────────────────────────── -->
+    <div class="pagination" *ngIf="pages > 1">
+      <div class="pagination-info">
+        Página {{ page }} de {{ pages }} ({{ total }} asesores)
+      </div>
+      <div class="pagination-controls">
+        <select [ngModel]="limit" (ngModelChange)="limit = $event; page = 1; loadAdvisors()">
+          <option [value]="10">10 por página</option>
+          <option [value]="20">20 por página</option>
+          <option [value]="50">50 por página</option>
+        </select>
+        <button class="page-btn" [disabled]="page <= 1" (click)="goToPage(1)" title="Primera">«</button>
+        <button class="page-btn" [disabled]="page <= 1" (click)="goToPage(page - 1)" title="Anterior">‹</button>
+        <span class="page-current">{{ page }}</span>
+        <button class="page-btn" [disabled]="page >= pages" (click)="goToPage(page + 1)" title="Siguiente">›</button>
+        <button class="page-btn" [disabled]="page >= pages" (click)="goToPage(pages)" title="Última">»</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Modal de confirmación ──────────────────────────── -->
+  <div class="modal-overlay" *ngIf="confirmAction" (click)="cancelConfirm()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      <h3>¿Eliminar asesor?</h3>
+      <p>
+        Esta acción eliminará permanentemente a
+        <strong>{{ confirmAction.advisor.name }}</strong>
+        ({{ confirmAction.advisor.email }}).
+        <br/>
+        <span class="warning">Las sesiones asignadas a este asesor quedarán sin responsable.</span>
+      </p>
+      <div class="modal-actions">
+        <button class="btn-secondary" (click)="cancelConfirm()">Cancelar</button>
+        <button class="btn-danger" (click)="executeConfirm()">Eliminar</button>
+      </div>
+    </div>
+  </div>
+</div>

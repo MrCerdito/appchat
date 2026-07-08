@@ -1,0 +1,433 @@
+<div class="chat-module">
+  <aside class="sidebar">
+    <div class="sidebar-head">
+      <div class="sidebar-brand">
+        <img class="sidebar-logo" src="/icon.jpg" alt="Innova Cloud">
+        <div>
+          <span class="sidebar-title">Innova Cloud</span>
+          <span class="sidebar-subtitle">Chat en linea</span>
+        </div>
+      </div>
+     
+      <div class="ops-row">
+        <div>
+          <strong>{{ activeSessions.length }}</strong>
+          <span>Activos</span>
+        </div>
+        <div>
+          <strong>{{ waitingCount }}</strong>
+          <span>Espera</span>
+        </div>
+        <div *ngIf="assignedCount > 0">
+          <strong>{{ assignedCount }}</strong>
+          <span>Asignados</span>
+        </div>
+      </div>
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"></circle>
+          <path d="m21 21-4.35-4.35"></path>
+        </svg>
+        <input type="text" placeholder="Buscar cliente, colegio o solicitud" [(ngModel)]="searchQuery">
+      </div>
+    </div>
+
+    <div class="sessions-list">
+      <button
+        type="button"
+        *ngFor="let session of activeSessions; trackBy: trackById"
+        class="session-card"
+        [class.selected]="activeSession?.id === session.id"
+        (click)="joinSession(session)"
+      >
+        <div class="ava" [ngClass]="avatarColor(session.id)">
+          {{ safeInitial(session.clientName) }}
+        </div>
+        <div
+          class="status-dot"
+          [class.dot-active]="session.status === 'active'"
+          [class.dot-wait]="session.status === 'waiting'"
+        ></div>
+        <div class="session-txt">
+          <span class="s-name">{{ sessionFullName(session) }}</span>
+          <span class="s-sub">{{ session.colegio || 'Sin colegio' }}</span>
+          <span class="s-sub muted">{{ session.tipoSolicitud || 'Solicitud general' }}</span>
+        </div>
+        <div class="session-meta">
+          <span class="s-time">{{ session.createdAt | date:'HH:mm' }}</span>
+          <span class="badge-unread" *ngIf="unreadCount(session.id) > 0">
+            {{ unreadCount(session.id) }}
+          </span>
+          <span class="badge-wait" *ngIf="unreadCount(session.id) === 0 && session.status === 'waiting'">
+            Espera
+          </span>
+          <span class="badge-activo" *ngIf="unreadCount(session.id) === 0 && session.status === 'active'">
+            Activo
+          </span>
+        </div>
+      </button>
+
+      <div *ngIf="activeSessions.length === 0" class="empty-list">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        </svg>
+        <span>Sin chats activos</span>
+      </div>
+    </div>
+  </aside>
+
+  <main class="chat-area">
+    <div *ngIf="!activeSession" class="empty-state">
+      <div class="empty-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        </svg>
+      </div>
+      <h3>Selecciona un chat</h3>
+      <p>Elige una conversacion asignada o toma un chat activo desde el historial.</p>
+    </div>
+
+    <section *ngIf="activeSession" class="chat-panel">
+      <div class="chat-body">
+        <header class="chat-header">
+          <div class="header-left">
+            <button class="icon-btn btn-back" type="button" (click)="closeActiveSessionView()" title="Volver">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="15 18 9 12 15 6"></polyline>
+              </svg>
+            </button>
+            <div class="head-ava">{{ safeInitial(activeSession.clientName) }}</div>
+            <div class="head-info">
+              <span class="head-name">{{ sessionFullName(activeSession) }}</span>
+              <span
+                class="head-status"
+                [class.status-active]="activeSession.status === 'active'"
+                [class.status-wait]="activeSession.status === 'waiting'"
+              >
+                {{ statusLabel(activeSession) }} · {{ activeAdvisorName }}
+              </span>
+              <span class="client-presence-pill" [ngClass]="clientPresenceClass(activeSession)">
+                {{ clientPresenceLabel(activeSession) }}
+              </span>
+            </div>
+          </div>
+
+          <div class="header-actions">
+            <button
+              class="icon-btn"
+              type="button"
+              title="Mostrar informacion"
+              (click)="showInfoPanel = !showInfoPanel"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+              </svg>
+            </button>
+            <button
+              *ngIf="isCollaborator"
+              class="icon-btn icon-leave"
+              type="button"
+              title="Salir del chat"
+              (click)="leaveCollabChat()"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+              </svg>
+            </button>
+            <button
+              *ngIf="!isCollaborator"
+              class="icon-btn icon-danger"
+              type="button"
+              title="Cerrar chat"
+              (click)="showCloseConfirm = true"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+        </header>
+
+        <div class="ai-banner" *ngIf="aiModeActive">
+          <span class="ai-dot"></span>
+          <span>IA respondiendo automaticamente. Escribe para retomar el control.</span>
+        </div>
+
+        <div class="msg-search" *ngIf="activeSession">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+            <circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path>
+          </svg>
+          <input type="text" placeholder="Buscar en mensajes..." [(ngModel)]="msgSearchQuery">
+        </div>
+
+        <div class="messages" #messagesContainer>
+          <ng-container *ngFor="let msg of messages; trackBy: trackById">
+            <div class="sys-msg" *ngIf="msg.senderName === 'Sistema'">
+              <div class="sys-inner">
+                <span>{{ msg.content }}</span>
+              </div>
+              <span class="sys-time">{{ msg.createdAt | date:'HH:mm' }} · Automatico</span>
+            </div>
+
+            <div
+              class="msg"
+              *ngIf="msg.senderName !== 'Sistema'"
+              [class.mine]="msg.senderType === 'advisor' && msg.senderName === currentAdvisor?.name"
+              [class.theirs]="msg.senderType === 'client'"
+              [class.collab]="msg.senderType === 'advisor' && msg.senderName !== currentAdvisor?.name"
+            >
+              <span
+                class="msg-sender"
+                *ngIf="msg.senderType === 'advisor' && msg.senderName !== currentAdvisor?.name"
+              >
+                {{ msg.senderName }}
+              </span>
+              <div class="bubble">
+                <span [innerHTML]="formatMessage(msg.content)"></span>
+                <span *ngIf="msg.senderType === 'advisor'" class="read-mark">
+                  {{ msg.readAt ? '✓✓' : '✓' }}
+                </span>
+              </div>
+              <div class="doc-adjuntos" *ngIf="msg.documentos && msg.documentos.length > 0">
+                <span class="doc-adjuntos-label">Documentos relacionados</span>
+                <a class="doc-adjunto-item" *ngFor="let doc of msg.documentos" [href]="doc.pdfUrl" target="_blank">
+                  <span class="doc-adjunto-nombre">{{ doc.nombre }}</span>
+                  <span class="doc-adjunto-cat" *ngIf="doc.categoria">{{ doc.categoria }}</span>
+                </a>
+              </div>
+              <span class="msg-time">{{ msg.createdAt | date:'HH:mm' }}</span>
+            </div>
+          </ng-container>
+          <div *ngIf="messages.length === 0" class="no-messages">Sin mensajes aun</div>
+        </div>
+
+        <div class="typing-row" *ngIf="isTypingActive">
+          <div class="typing-dots">
+            <span></span><span></span><span></span>
+          </div>
+          <span class="typing-lbl">{{ typingNameActive }} esta escribiendo</span>
+        </div>
+
+        <footer class="input-wrap">
+          <input
+            type="text"
+            [(ngModel)]="newMessage"
+            [placeholder]="aiModeActive ? 'Escribe para retomar el control...' : 'Escribe un mensaje...'"
+            (keyup.enter)="send()"
+            (input)="onTyping()"
+            [disabled]="!canSendMessage"
+            maxlength="1000"
+          >
+          <button class="send-btn" type="button" (click)="send()" [disabled]="!newMessage.trim() || !canSendMessage">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </button>
+        </footer>
+      </div>
+
+      <div class="info-backdrop" *ngIf="showInfoPanel" (click)="showInfoPanel = false"></div>
+      <aside class="side-panel" [class.open]="showInfoPanel">
+        <button class="panel-close" type="button" (click)="showInfoPanel = false" title="Ocultar informacion">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+        <section class="panel-profile">
+          <div class="panel-ava">{{ safeInitial(activeSession.clientName) }}</div>
+          <div class="panel-name">{{ sessionFullName(activeSession) }}</div>
+          <div class="panel-req-label">{{ activeSession.identificacion || 'Sin identificacion' }}</div>
+          <span class="req-tag">{{ activeSession.tipoSolicitud || 'Solicitud general' }}</span>
+        </section>
+
+        <section class="panel-actions">
+          <button class="p-btn p-btn-ticket" type="button" (click)="openTicketModal()">
+            Generar ticket
+          </button>
+          <button class="p-btn p-btn-transfer" type="button" *ngIf="!isCollaborator" (click)="showTransfer = !showTransfer">
+            Transferir
+          </button>
+          <button class="p-btn p-btn-ai" type="button" *ngIf="!aiModeActive" (click)="remitToAi()" [disabled]="remitLoading">
+            {{ remitLoading ? 'Activando IA...' : 'Remitir a IA' }}
+          </button>
+          <button class="p-btn p-btn-retake" type="button" *ngIf="aiModeActive" (click)="retakeControl()">
+            Retomar control
+          </button>
+          <button class="p-btn p-btn-close" type="button" *ngIf="!isCollaborator" (click)="showCloseConfirm = true">
+            Cerrar atencion
+          </button>
+          <button class="p-btn p-btn-transfer" type="button" *ngIf="isCollaborator" (click)="leaveCollabChat()">
+            Salir del apoyo
+          </button>
+        </section>
+
+        <div class="toast" *ngIf="remitFeedback" [class.toast-ok]="remitFeedback.type === 'ok'" [class.toast-error]="remitFeedback.type === 'error'">
+          {{ remitFeedback.text }}
+        </div>
+
+        <section class="timer-card" *ngIf="timerState as timer"
+          [class.timer-advisor]="timer.tipo === 'advisor_waiting'"
+          [class.timer-client]="timer.tipo === 'client_waiting'"
+          [class.timer-closing]="timer.tipo === 'closing'"
+          [class.timer-alert]="timer.estado === 'alerta'">
+          <div class="timer-head">
+            <span class="timer-dot" [ngClass]="'dot-' + timer.estado"></span>
+            <span class="timer-lbl">{{ timer.tipo === 'advisor_waiting' ? 'Respuesta del asesor' : timer.tipo === 'client_waiting' ? 'Respuesta del cliente' : 'Cerrando chat' }}</span>
+            <span class="timer-count" [class.count-alerta]="timer.estado === 'alerta'">{{ timer.restante }}s</span>
+          </div>
+          <div class="timer-bar-track">
+            <div class="timer-bar" [ngClass]="'bar-' + timer.estado" [style.width.%]="timer.pct"></div>
+          </div>
+          <div class="timer-msg-preview" *ngIf="timer.mensaje">
+            <span class="timer-msg-lbl">Mensaje automatico</span>
+            <span class="timer-msg-txt">{{ timer.mensaje }}</span>
+          </div>
+        </section>
+
+        <section class="info-section">
+          <div class="info-row">
+            <span class="info-lbl">Rol</span>
+            <span class="info-val">{{ activeSession.rol || 'Sin rol' }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-lbl">Colegio</span>
+            <a *ngIf="openClientLink(activeSession); else plainSchool" class="info-link" [href]="openClientLink(activeSession)" target="_blank" rel="noopener noreferrer">
+              {{ activeSession.colegio || 'Sin colegio' }}
+            </a>
+            <ng-template #plainSchool>
+              <span class="info-val">{{ activeSession.colegio || 'Sin colegio' }}</span>
+            </ng-template>
+          </div>
+          <div class="info-row">
+            <span class="info-lbl">Estado</span>
+            <span class="info-val">{{ statusLabel(activeSession) }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-lbl">Creado</span>
+            <span class="info-val">{{ activeSession.createdAt | date:'medium' }}</span>
+          </div>
+        </section>
+
+        <section class="panel-section ai-card" (click)="aiInsight()" [class.loading]="isAiInsightLoading">
+          <div class="section-title">
+            <i class="ti" [ngClass]="isAiInsightLoading ? 'ti-loader-2' : 'ti-sparkles'"></i>
+            Analisis IA
+          </div>
+          <p *ngIf="!isAiInsightLoading">{{ aiInsightText }}</p>
+          <div class="ai-loading-bar" *ngIf="isAiInsightLoading"><span></span></div>
+        </section>
+
+        <section class="transfer-panel" *ngIf="showTransfer">
+          <span class="transfer-title">Transferir a asesor</span>
+          <button
+            type="button"
+            class="adv-row"
+            *ngFor="let advisor of advisors; trackBy: trackById"
+            [class.adv-disabled]="advisor.status === 'offline'"
+            (click)="transferTo(advisor.id)"
+          >
+            <span class="adv-ava">{{ safeInitial(advisor.name) }}</span>
+            <span class="adv-txt">
+              <span class="adv-name">{{ advisor.name }}</span>
+              <span class="adv-meta">{{ advisor.activeChats || 0 }} chats activos</span>
+            </span>
+            <span class="adv-badge" [ngClass]="'badge-' + advisor.status">{{ advisor.status }}</span>
+          </button>
+          <div class="empty-adv" *ngIf="advisors.length === 0">No hay asesores disponibles</div>
+        </section>
+      </aside>
+    </section>
+  </main>
+
+  <div class="modal-backdrop" *ngIf="showCloseConfirm">
+    <section class="modal">
+      <div class="modal-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M12 9v4"></path>
+          <path d="M12 17h.01"></path>
+          <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"></path>
+        </svg>
+      </div>
+      <div class="modal-text">Cerrar esta atencion</div>
+      <div class="modal-sub">El chat saldra de la cola activa y se liberara tu cupo.</div>
+      <div class="modal-actions">
+        <button class="modal-cancel" type="button" (click)="showCloseConfirm = false">Cancelar</button>
+        <button class="modal-confirm" type="button" (click)="closeSession()">Cerrar</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="modal-backdrop" *ngIf="showAiInsightModal" (click)="closeAiInsightModal()"></div>
+  <section class="modal ai-summary-modal" *ngIf="showAiInsightModal" (click)="$event.stopPropagation()">
+    <div class="ai-summary-header">
+      <i class="ti ti-sparkles"></i>
+      <strong>Analisis IA</strong>
+      <button type="button" class="icon-btn" (click)="closeAiInsightModal()" title="Cerrar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+    <div class="ai-summary-body">
+      <p>{{ aiInsightText }}</p>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-cancel" type="button" (click)="closeAiInsightModal()">Cerrar</button>
+    </div>
+  </section>
+
+  <!-- ── Toast flotante ticket ─────────────────────────── -->
+  <div class="toast-floating" *ngIf="ticketFeedback"
+    [class.toast-ok]="ticketFeedback.type === 'ok'"
+    [class.toast-error]="ticketFeedback.type === 'error'">
+    <strong>{{ ticketFeedback.type === 'ok' ? 'Ticket generado' : 'Error' }}</strong>
+    <span>{{ ticketFeedback.text }}</span>
+  </div>
+
+  <!-- ── Modal ticket flotante ────────────────────────── -->
+  <div class="floating-modal" *ngIf="showTicketModal" (click)="closeTicketModal()">
+    <div class="floating-modal-inner" (click)="$event.stopPropagation()">
+      <h3>Generar ticket</h3>
+      <div class="ticket-modal-body">
+        <label>
+          <span>Titulo</span>
+          <input type="text" [(ngModel)]="ticketDto.titulo" maxlength="255">
+        </label>
+        <label>
+          <span>Descripcion</span>
+          <textarea [(ngModel)]="ticketDto.descripcion" rows="3" placeholder="Detalles opcionales"></textarea>
+        </label>
+        <label>
+          <span>Prioridad</span>
+          <select [(ngModel)]="ticketDto.priority">
+            <option value="low">Baja</option>
+            <option value="medium">Media</option>
+            <option value="high">Alta</option>
+            <option value="critical">Critica</option>
+          </select>
+        </label>
+        <label>
+          <span>Categoria</span>
+          <select [(ngModel)]="ticketDto.category">
+            <option value="">Sin categoria</option>
+            <option *ngFor="let c of ticketCategories" [value]="c">{{ c }}</option>
+          </select>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-cancel" type="button" (click)="closeTicketModal()">Cancelar</button>
+        <button class="modal-confirm" type="button" (click)="createTicket()" [disabled]="!ticketDto.titulo.trim() || creatingTicket">
+          {{ creatingTicket ? 'Creando...' : 'Crear ticket' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

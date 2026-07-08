@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "link-preview-js": "^4.0.3"
+  },
+  "scripts": {
+    "ngrok": "ngrok start --all --config ngrok.yml",
+    "ngrok:backend": "ngrok start backend --config ngrok.yml",
+    "ngrok:frontend": "ngrok start frontend --config ngrok.yml"
+  }
+}
