@@ -1,4 +1,3 @@
-ARG BASE_HREF=/
 ARG API_URL=/agora
 ARG WS_URL=
 ARG API_KEY=token2025
@@ -8,7 +7,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
-RUN npm run build --configuration=production --base-href=$BASE_HREF
+RUN npm run build --configuration=production
 
 FROM nginx:alpine
 RUN apk add --no-cache envsubst

@@ -58,7 +58,8 @@
                   "maximumError": "80kB"
                 }
               ],
-              "outputHashing": "all"
+              "outputHashing": "all",
+              "baseHref": "/agora/"
             },
             "development": {
               "optimization": false,
