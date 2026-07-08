@@ -54,7 +54,7 @@ async function bootstrap() {
   );
 
   app.use((req, res, next) => {
-    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    res.setHeader('Permissions-Policy', 'camera=(self), microphone=(self), geolocation=()');
     next();
   });
 
