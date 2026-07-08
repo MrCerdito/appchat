@@ -7,7 +7,7 @@
       <img [src]="profilePhotoPreview.src" [alt]="profilePhotoPreview.name" />
       <figcaption>{{ profilePhotoPreview.name }}</figcaption>
       <button type="button" class="icon-action" (click)="closeProfilePhoto()" title="Cerrar">
-        <i class="ti ti-x"></i>
+        <wa-icon name="x"></wa-icon>
       </button>
     </figure>
   </div>
@@ -16,7 +16,7 @@
       <img [src]="mediaPreview.src" [alt]="mediaPreview.name" />
       <figcaption>{{ mediaPreview.name }}</figcaption>
       <button type="button" class="icon-action" (click)="closeMediaPreview()" title="Cerrar">
-        <i class="ti ti-x"></i>
+        <wa-icon name="x"></wa-icon>
       </button>
     </figure>
   </div>
@@ -27,7 +27,7 @@
         <span>Mensajes y accesos rapidos</span>
       </div>
       <button type="button" class="icon-action" (click)="closeWhatsappSettings()" title="Cerrar">
-        <i class="ti ti-x"></i>
+        <wa-icon name="x"></wa-icon>
       </button>
     </header>
 
@@ -79,7 +79,7 @@
         (click)="saveWhatsappSettings()"
         [disabled]="isSavingWhatsappSettings"
       >
-        <i class="ti" [ngClass]="isSavingWhatsappSettings ? 'ti-loader-2' : 'ti-device-floppy'"></i>
+        <wa-icon [name]="isSavingWhatsappSettings ? 'loader-2' : 'device-floppy'"></wa-icon>
         Guardar
       </button>
     </div>
@@ -93,15 +93,15 @@
         <span>{{ isTeamsConnected ? (teamsAccountName || 'Cuenta conectada') : 'Conecta Microsoft una vez' }}</span>
       </div>
       <button type="button" class="icon-action" (click)="closeTeamsMeeting()" title="Cerrar">
-        <i class="ti ti-x"></i>
+        <wa-icon name="x"></wa-icon>
       </button>
     </header>
 
     <div class="teams-connect" *ngIf="!isTeamsConnected">
-      <i class="ti ti-brand-teams"></i>
+      <wa-icon name="brand-teams"></wa-icon>
       <p>Inicia sesion con la cuenta que creara las videollamadas.</p>
       <button type="button" class="primary-btn" (click)="connectTeams()" [disabled]="isLoadingTeams">
-        <i class="ti" [ngClass]="isLoadingTeams ? 'ti-loader-2' : 'ti-login-2'"></i>
+        <wa-icon [name]="isLoadingTeams ? 'loader-2' : 'login-2'"></wa-icon>
         Conectar Teams
       </button>
     </div>
@@ -130,22 +130,22 @@
       </select>
     </label>
 
-    <div class="calendar-target">
+      <div class="calendar-target">
       <span>Agendar en calendario</span>
       <div class="radio-group">
         <label class="radio-item">
           <input type="radio" name="calendarTarget" [value]="'personal'" [(ngModel)]="teamsMeetingDraft.calendarTarget" />
-          <i class="ti ti-calendar"></i>
+          <wa-icon name="calendar"></wa-icon>
           Personal
         </label>
         <label class="radio-item">
           <input type="radio" name="calendarTarget" [value]="'shared'" [(ngModel)]="teamsMeetingDraft.calendarTarget" />
-          <i class="ti ti-users"></i>
+          <wa-icon name="users"></wa-icon>
           Compartido
         </label>
         <label class="radio-item">
           <input type="radio" name="calendarTarget" [value]="'none'" [(ngModel)]="teamsMeetingDraft.calendarTarget" />
-          <i class="ti ti-x"></i>
+          <wa-icon name="x"></wa-icon>
           No agendar
         </label>
       </div>
@@ -161,7 +161,7 @@
         (click)="createTeamsMeeting()"
         [disabled]="!isTeamsConnected || isCreatingTeamsMeeting || !canReply"
       >
-        <i class="ti" [ngClass]="isCreatingTeamsMeeting ? 'ti-loader-2' : 'ti-video-plus'"></i>
+        <wa-icon [name]="isCreatingTeamsMeeting ? 'loader-2' : 'video-plus'"></wa-icon>
         Crear y enviar link
       </button>
     </div>
@@ -175,7 +175,7 @@
         <span>Resumen de la conversacion</span>
       </div>
       <button type="button" class="icon-action" (click)="closeAiInsightModal()" title="Cerrar">
-        <i class="ti ti-x"></i>
+        <wa-icon name="x"></wa-icon>
       </button>
     </header>
     <div class="ai-insight-body">
@@ -199,7 +199,7 @@
         [disabled]="isRestartingConnection"
         title="Reintentar conexion"
       >
-        <i class="ti" [ngClass]="isRestartingConnection ? 'ti-loader-2' : 'ti-refresh'"></i>
+        <wa-icon [name]="isRestartingConnection ? 'loader-2' : 'refresh'"></wa-icon>
       </button>
     </header>
     <div class="qr-wrap" *ngIf="connectionStatus.qrDataUrl; else waitingQr">
@@ -207,7 +207,7 @@
     </div>
     <ng-template #waitingQr>
       <div class="qr-waiting">
-        <i class="ti ti-loader-2"></i>
+        <wa-icon name="loader-2"></wa-icon>
         <span>Generando QR</span>
       </div>
     </ng-template>
@@ -236,7 +236,7 @@
           (click)="toggleTheme()"
           [title]="theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
         >
-          <i class="ti" [ngClass]="theme === 'dark' ? 'ti-sun' : 'ti-moon'"></i>
+          <wa-icon [name]="theme === 'dark' ? 'sun' : 'moon'"></wa-icon>
         </button>
 
         <button
@@ -245,7 +245,7 @@
           (click)="openWhatsappSettings()"
           title="Configuracion de WhatsApp"
         >
-          <i class="ti ti-settings"></i>
+          <wa-icon name="settings"></wa-icon>
         </button>
 
         <button
@@ -255,18 +255,18 @@
           (click)="toggleFloatingNotifications()"
           [title]="floatingNotificationsEnabled ? 'Notificaciones activas' : 'Activar notificaciones'"
         >
-          <i class="ti" [ngClass]="floatingNotificationsEnabled ? 'ti-bell-ringing' : 'ti-bell-off'"></i>
+          <wa-icon [name]="floatingNotificationsEnabled ? 'bell-ringing' : 'bell-off'"></wa-icon>
         </button>
       </div>
     </div>
 
     <div class="connection-strip" [ngClass]="connectionStatus.status">
-      <i class="ti" [ngClass]="connectionStatus.status === 'connected' ? 'ti-plug-connected' : 'ti-plug-connected-x'"></i>
+      <wa-icon [name]="connectionStatus.status === 'connected' ? 'plug-connected' : 'plug-connected-x'"></wa-icon>
       <span>{{ connectionStatus.status === 'connected' ? (connectionStatus.connectedName || 'WhatsApp conectado') : 'WhatsApp sin conectar' }}</span>
     </div>
 
     <div class="search-bar">
-      <i class="ti ti-search"></i>
+      <wa-icon name="search"></wa-icon>
       <input
         type="text"
         placeholder="Buscar contacto, colegio, telefono o correo"
@@ -316,7 +316,7 @@
             <span class="chat-time">{{ c.time }}</span>
           </div>
           <div class="chat-inst">
-            <i class="ti" [ngClass]="c.isGroup ? 'ti-users-group' : 'ti-building-school'"></i>
+            <wa-icon [name]="c.isGroup ? 'users-group' : 'building'"></wa-icon>
             <span>{{ c.isGroup ? 'Grupo' : (c.institution || 'Sin colegio') }}</span>
           </div>
           <div class="chat-preview">{{ displayPreview(c) }}</div>
@@ -342,7 +342,7 @@
   <main class="main" *ngIf="activeContact as contact; else noContact">
     <header class="chat-header">
       <button class="mobile-back-btn" type="button" (click)="closeActiveContactView()" title="Volver a chats">
-        <i class="ti ti-chevron-left"></i>
+        <wa-icon name="chevron-left"></wa-icon>
       </button>
       <div class="avatar-wrap">
         <img class="chat-avatar" [src]="avatarSrc(contact)" [alt]="contact.name" (click)="openProfilePhoto(contact, $event)" (error)="useFallbackAvatar($event, contact)" />
@@ -372,7 +372,7 @@
           (click)="takeActiveChat()"
           [disabled]="isTakingChat"
         >
-          <i class="ti" [ngClass]="isTakingChat ? 'ti-loader-2' : 'ti-user-plus'"></i>
+          <wa-icon [name]="isTakingChat ? 'loader-2' : 'user-plus'"></wa-icon>
           {{ isTakingChat ? 'Tomando...' : 'Tomar chat' }}
         </button>
         <button
@@ -383,7 +383,7 @@
           [disabled]="isClosingChat"
           title="Cerrar atencion y liberar la asignacion"
         >
-          <i class="ti" [ngClass]="isClosingChat ? 'ti-loader-2' : 'ti-circle-check'"></i>
+          <wa-icon [name]="isClosingChat ? 'loader-2' : 'circle-check'"></wa-icon>
           <span>{{ isClosingChat ? 'Cerrando' : 'Cerrar' }}</span>
         </button>
         <button
@@ -392,7 +392,7 @@
           (click)="showInfoPanel = !showInfoPanel"
           title="Mostrar informacion"
         >
-          <i class="ti ti-info-circle"></i>
+          <wa-icon name="info-circle"></wa-icon>
         </button>
       </div>
     </header>
@@ -414,7 +414,7 @@
           (contextmenu)="openMessageMenu($event, msg)"
         >
           <div class="ai-badge" *ngIf="msg.isAuto">
-            <i class="ti ti-sparkles"></i>
+            <wa-icon name="sparkles"></wa-icon>
             Sistema
           </div>
           <div class="group-sender" *ngIf="contact.isGroup && !msg.fromMe && msg.senderName">
@@ -422,7 +422,7 @@
           </div>
           <div class="media-message" *ngIf="msg.type && msg.type !== 'text'">
             <div class="media-placeholder" *ngIf="!msg.mediaUrl">
-              <i class="ti ti-paperclip"></i>
+              <wa-icon name="paperclip"></wa-icon>
               <span>{{ mediaFallbackLabel(msg.type, msg.fileName) }}</span>
             </div>
             <ng-container *ngIf="msg.mediaUrl" [ngSwitch]="msg.type">
@@ -435,7 +435,7 @@
               />
               <video *ngSwitchCase="'video'" class="media-video" [src]="mediaUrlFor(msg)" controls playsinline></video>
               <div *ngSwitchCase="'audio'" class="voice-note" [class.out]="msg.fromMe">
-                <i class="ti ti-microphone"></i>
+                <wa-icon name="microphone"></wa-icon>
                 <audio class="media-audio" [src]="mediaUrlFor(msg)" controls preload="metadata"></audio>
               </div>
               <a
@@ -445,7 +445,7 @@
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                <i class="ti ti-file-text"></i>
+                <wa-icon name="file-text"></wa-icon>
                 <span>{{ msg.fileName || 'Abrir archivo' }}</span>
                 <em *ngIf="msg.fileSize">{{ formatFileSize(msg.fileSize) }}</em>
               </a>
@@ -464,8 +464,8 @@
           <div class="msg-meta">
             <span>{{ messageTime(msg) }}</span>
             <em *ngIf="msg.editedAt">editado</em>
-            <i class="ti ti-checks" *ngIf="msg.fromMe && msg.status !== 'failed'"></i>
-            <i class="ti ti-alert-circle" *ngIf="msg.status === 'failed'"></i>
+            <wa-icon name="checks" *ngIf="msg.fromMe && msg.status !== 'failed'"></wa-icon>
+            <wa-icon name="alert-circle" *ngIf="msg.status === 'failed'"></wa-icon>
           </div>
           <div class="message-reactions" *ngIf="messageReactions(msg, contact.messages).length">
   <!-- Contador clickeable -->
@@ -505,7 +505,7 @@
       >
         <span class="reaction-avatar" [class.mine]="reaction.fromMe">
           <ng-container *ngIf="reaction.fromMe; else advisorInitial">
-            <i class="ti ti-cloud"></i>
+            <wa-icon name="cloud"></wa-icon>
           </ng-container>
           <ng-template #advisorInitial>{{ reaction.by.charAt(0) || 'A' }}</ng-template>
         </span>
@@ -530,19 +530,19 @@
 
 
     <!--<div class="state-banner group" *ngIf="contact.isGroup">
-      <i class="ti ti-users-group"></i>
+      <wa-icon name="users-group"></wa-icon>
       Grupo compartido. No se asigna asesor ni se envian mensajes automaticos.
     </div>-->
     <div class="state-banner closed" *ngIf="isAttentionClosed">
-      <i class="ti ti-archive"></i>
+      <wa-icon name="archive"></wa-icon>
       Atencion cerrada. El historial se conserva y se reabrira cuando el cliente escriba de nuevo.
     </div>
     <div class="state-banner locked" *ngIf="isAssignedToSomeoneElse">
-      <i class="ti ti-user-shield"></i>
+      <wa-icon name="user-shield"></wa-icon>
       Este chat esta asignado a otro asesor.
     </div>
     <div class="state-banner error" *ngIf="sendError">
-      <i class="ti ti-alert-circle"></i>
+      <wa-icon name="alert-circle"></wa-icon>
       {{ sendError }}
     </div>
 
@@ -563,10 +563,10 @@
           <img *ngSwitchCase="'image'" [src]="selectedFilePreviewUrl" [alt]="selectedFile.name" />
           <video *ngSwitchCase="'video'" [src]="selectedFilePreviewUrl" muted></video>
           <div *ngSwitchCase="'audio'" class="attachment-voice">
-            <i class="ti ti-microphone"></i>
+            <wa-icon name="microphone"></wa-icon>
             <audio [src]="selectedFilePreviewUrl" controls preload="metadata"></audio>
           </div>
-          <i *ngSwitchDefault class="ti ti-file-text"></i>
+          <wa-icon *ngSwitchDefault name="file-text"></wa-icon>
         </div>
         <div class="attachment-info">
           <strong>{{ selectedFile.name }}</strong>
@@ -575,7 +575,7 @@
           </span>
         </div>
         <button type="button" class="attachment-remove" (click)="clearSelectedFile()" title="Quitar archivo">
-          <i class="ti ti-x"></i>
+          <wa-icon name="x"></wa-icon>
         </button>
       </div>
 
@@ -586,10 +586,10 @@
 
       <div class="ai-suggestion-popup" *ngIf="showAiSuggestion && aiSuggestion">
         <div class="ai-suggestion-header">
-          <i class="ti ti-sparkles"></i>
+          <wa-icon name="sparkles"></wa-icon>
           <span>Mejora con IA</span>
           <button type="button" class="ai-suggestion-close" (click)="dismissAiSuggestion()">
-            <i class="ti ti-x"></i>
+            <wa-icon name="x"></wa-icon>
           </button>
         </div>
         <div class="ai-suggestion-body">
@@ -597,11 +597,11 @@
         </div>
         <div class="ai-suggestion-actions">
           <button type="button" class="copy-btn" (click)="copyAiSuggestion()">
-            <i class="ti ti-copy"></i>
+            <wa-icon name="copy"></wa-icon>
             Copiar texto
           </button>
           <button type="button" class="try-again-btn" (click)="triggerAI()">
-            <i class="ti ti-refresh"></i>
+            <wa-icon name="refresh"></wa-icon>
             Otra opci&oacute;n
           </button>
         </div>
@@ -610,7 +610,7 @@
       <div class="composer-row">
         <div class="slash-menu" *ngIf="showSlashMenu && slashFiltered.length > 0">
           <div class="slash-header">
-            <i class="ti ti-bolt"></i>
+            <wa-icon name="bolt"></wa-icon>
             Respuestas rapidas
           </div>
           <button
@@ -627,6 +627,27 @@
         </div>
 
         <input
+          #imageInput
+          type="file"
+          class="file-input"
+          accept="image/*"
+          (change)="onFileSelected($event)"
+        />
+        <input
+          #videoInput
+          type="file"
+          class="file-input"
+          accept="video/mp4,video/3gpp"
+          (change)="onFileSelected($event)"
+        />
+        <input
+          #docInput
+          type="file"
+          class="file-input"
+          accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
+          (change)="onFileSelected($event)"
+        />
+        <input
           #fileInput
           type="file"
           class="file-input"
@@ -634,26 +655,45 @@
           (change)="onFileSelected($event)"
         />
 
-        <button
-          class="attach-btn"
-          type="button"
-          (click)="openAttachmentPicker()"
-          [disabled]="!canReply || isSending || isRecordingAudio"
-          title="Adjuntar archivo"
-        >
-          <i class="ti ti-paperclip"></i>
-        </button>
-
-        <button
-          class="record-btn"
-          type="button"
-          (click)="toggleAudioRecording()"
-          [class.recording]="isRecordingAudio"
-          [disabled]="!canReply || isSending"
-          [title]="isRecordingAudio ? 'Detener grabacion' : 'Grabar audio'"
-        >
-          <i class="ti" [ngClass]="isRecordingAudio ? 'ti-player-stop-filled' : 'ti-microphone'"></i>
-        </button>
+        <div class="attach-group">
+          <button
+            class="attach-btn"
+            type="button"
+            (click)="pickImage()"
+            [disabled]="!canReply || isSending || isRecordingAudio"
+            title="Enviar imagen"
+          >
+            <wa-icon name="photo"></wa-icon>
+          </button>
+          <button
+            class="attach-btn"
+            type="button"
+            (click)="pickVideo()"
+            [disabled]="!canReply || isSending || isRecordingAudio"
+            title="Enviar video"
+          >
+            <wa-icon name="video"></wa-icon>
+          </button>
+          <button
+            class="attach-btn"
+            type="button"
+            (click)="pickDocument()"
+            [disabled]="!canReply || isSending || isRecordingAudio"
+            title="Enviar documento"
+          >
+            <wa-icon name="file-text"></wa-icon>
+          </button>
+          <button
+            class="record-btn"
+            type="button"
+            (click)="toggleAudioRecording()"
+            [class.recording]="isRecordingAudio"
+            [disabled]="!canReply || isSending"
+            [title]="isRecordingAudio ? 'Detener grabacion' : 'Grabar audio'"
+          >
+            <wa-icon [name]="isRecordingAudio ? 'player-stop-filled' : 'microphone'"></wa-icon>
+          </button>
+        </div>
 
         <div class="input-box">
           <textarea
@@ -676,7 +716,7 @@
           [class.loading]="isAiGenerating"
           [title]="hasImprovedOnce ? 'Volver a mejorar con IA' : 'Mejorar texto con IA'"
         >
-          <i class="ti" [ngClass]="isAiGenerating ? 'ti-loader-2' : 'ti-sparkles'"></i>
+          <wa-icon [name]="isAiGenerating ? 'loader-2' : 'sparkles'"></wa-icon>
         </button>
 
         <button
@@ -686,7 +726,7 @@
           [disabled]="!canReply || isSending || !hasComposerContent"
           title="Enviar"
         >
-          <i class="ti" [ngClass]="isSending ? 'ti-loader-2' : 'ti-send-2'"></i>
+          <wa-icon [name]="isSending ? 'loader-2' : 'send-2'"></wa-icon>
         </button>
       </div>
     </footer>
@@ -694,7 +734,7 @@
 
   <ng-template #noContact>
     <main class="main empty-main">
-      <i class="ti ti-message-circle"></i>
+      <wa-icon name="message-circle"></wa-icon>
       <strong *ngIf="isLoadingChats">Cargando conversaciones</strong>
       <strong *ngIf="!isLoadingChats">No hay conversaciones disponibles</strong>
     </main>
@@ -714,13 +754,13 @@
         (click)="isEditingContact ? cancelEditContact() : startEditContact()"
         [title]="isEditingContact ? 'Cancelar edicion' : 'Editar contacto'"
       >
-        <i class="ti" [ngClass]="isEditingContact ? 'ti-x' : 'ti-pencil'"></i>
+        <wa-icon [name]="isEditingContact ? 'x' : 'pencil'"></wa-icon>
       </button>
     </section>
 
     <section class="panel-section contact-editor" *ngIf="isEditingContact; else contactView">
       <div class="section-title">
-        <i class="ti ti-id"></i>
+        <wa-icon name="id"></wa-icon>
         Informacion editable
       </div>
 
@@ -764,7 +804,7 @@
       <div class="edit-actions">
         <button type="button" class="secondary-btn" (click)="cancelEditContact()">Cancelar</button>
         <button type="button" class="primary-btn" (click)="saveContact()" [disabled]="isSavingContact">
-          <i class="ti" [ngClass]="isSavingContact ? 'ti-loader-2' : 'ti-device-floppy'"></i>
+          <wa-icon [name]="isSavingContact ? 'loader-2' : 'device-floppy'"></wa-icon>
           Guardar
         </button>
       </div>
@@ -774,7 +814,7 @@
     <ng-template #contactView>
       <section class="panel-section operation-card">
         <div class="section-title">
-          <i class="ti ti-activity"></i>
+          <wa-icon name="activity"></wa-icon>
           Estado operativo
           <em>{{ contact.operationalStatusLabel || contact.stage }}</em>
         </div>
@@ -798,14 +838,14 @@
         </div>
         <p class="save-message" *ngIf="contactSaveMessage">{{ contactSaveMessage }}</p>
         <button class="ticket-btn" type="button" (click)="openTicketModal()" *ngIf="!isAssignedToSomeoneElse">
-          <i class="ti ti-file-text"></i>
+          <wa-icon name="file-text"></wa-icon>
           {{ creatingTicket ? 'Generando...' : 'Generar ticket' }}
         </button>
       </section>
 
       <section class="panel-section">
         <div class="section-title">
-          <i class="ti ti-address-book"></i>
+          <wa-icon name="address-book"></wa-icon>
           Contacto
         </div>
         <div class="info-grid">
@@ -840,11 +880,11 @@
         </div>
 
         <a class="info-row" [href]="getPhoneHref(contact)">
-          <i class="ti ti-phone"></i>
+          <wa-icon name="phone"></wa-icon>
           <span>{{ contact.phone || 'Sin telefono' }}</span>
         </a>
         <a class="info-row" [href]="getEmailHref(contact)" *ngIf="getEmailHref(contact)">
-          <i class="ti ti-mail"></i>
+          <wa-icon name="mail"></wa-icon>
           <span>{{ contact.email }}</span>
         </a>
       </section>
@@ -853,7 +893,7 @@
 
     <section class="panel-section teams-card">
       <div class="section-title">
-        <i class="ti ti-brand-teams"></i>
+        <wa-icon name="brand-teams"></wa-icon>
         Microsoft Teams
       </div>
       <button
@@ -863,14 +903,14 @@
         [disabled]="!canReply"
         title="Crear videollamada de Teams y enviar el link"
       >
-        <i class="ti ti-video-plus"></i>
+        <wa-icon name="video-plus"></wa-icon>
         Crear reunion
       </button>
     </section>
 
     <section class="panel-section ai-card" (click)="aiInsight()" [class.loading]="isAiInsightLoading">
       <div class="section-title">
-        <i class="ti" [ngClass]="isAiInsightLoading ? 'ti-loader-2' : 'ti-sparkles'"></i>
+        <wa-icon [name]="isAiInsightLoading ? 'loader-2' : 'sparkles'"></wa-icon>
         Analisis IA
       </div>
       <p *ngIf="!isAiInsightLoading">{{ aiInsightText }}</p>
@@ -879,7 +919,7 @@
 
     <section class="panel-section notes-card">
       <div class="section-title">
-        <i class="ti ti-notes"></i>
+        <wa-icon name="notes"></wa-icon>
         Observaciones
         <em>{{ contact.notes.length }}</em>
       </div>
@@ -893,7 +933,7 @@
           (keydown.enter)="$event.preventDefault(); addNote()"
         ></textarea>
         <button type="button" class="note-save-btn" (click)="addNote()" [disabled]="!newNote.trim()">
-          <i class="ti ti-plus"></i>
+          <wa-icon name="plus"></wa-icon>
           Guardar
         </button>
       </div>
@@ -902,7 +942,7 @@
         <article class="note-item" *ngFor="let note of contact.notes; trackBy: trackByIndex; let i = index">
           <p>{{ note }}</p>
           <button type="button" class="note-del" (click)="removeNote(i)" title="Eliminar">
-            <i class="ti ti-trash"></i>
+            <wa-icon name="trash"></wa-icon>
           </button>
         </article>
       </div>
@@ -931,11 +971,11 @@
       </button>
     </div>
     <button type="button" *ngIf="canEditMessage(messageMenu.message)" (click)="startEditMessage(messageMenu.message)">
-      <i class="ti ti-pencil"></i>
+      <wa-icon name="pencil"></wa-icon>
       Editar
     </button>
     <button type="button" class="danger" (click)="deleteMessage(messageMenu.message)">
-      <i class="ti ti-trash"></i>
+      <wa-icon name="trash"></wa-icon>
       Eliminar
     </button>
   </div>

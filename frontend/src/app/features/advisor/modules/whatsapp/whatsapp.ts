@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { WaIconComponent } from '../../../../shared/components/wa-icon/wa-icon.component';
 import { firstValueFrom, Subscription, timeout } from 'rxjs';
 
 import { AiService } from '../../../../core/services/ai.service';
@@ -89,7 +90,7 @@ interface MessageReactionGroup {
 @Component({
   selector: 'app-whatsapp-chat',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, WaIconComponent],
   templateUrl: './whatsapp.html',
   styleUrl: './whatsapp.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -105,6 +106,9 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   @ViewChild('messagesContainer') messagesContainer!: ElementRef;
   @ViewChild('messageInput') messageInput!: ElementRef<HTMLTextAreaElement>;
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
+  @ViewChild('imageInput') imageInput!: ElementRef<HTMLInputElement>;
+  @ViewChild('videoInput') videoInput!: ElementRef<HTMLInputElement>;
+  @ViewChild('docInput') docInput!: ElementRef<HTMLInputElement>;
 
   queueCopy = 'Te encuentras en cola. En breves momentos un asesor se comunicara contigo.';
   readonly defaultAssignmentMsg =
@@ -139,7 +143,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   contactDraft: ContactDraft = this.emptyDraft();
   settingsDraft: WhatsappSettingsDraft = this.defaultSettingsDraft();
 
-  activeFilter: WaFilter = 'all';
+  activeFilter: WaFilter = 'mine';
   searchQuery = '';
   messageText = '';
   selectedFile?: File;
@@ -875,6 +879,21 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
   openAttachmentPicker(): void {
     if (!this.canReply || this.isSending) return;
     this.fileInput?.nativeElement?.click();
+  }
+
+  pickImage(): void {
+    if (!this.canReply || this.isSending) return;
+    this.imageInput?.nativeElement?.click();
+  }
+
+  pickVideo(): void {
+    if (!this.canReply || this.isSending) return;
+    this.videoInput?.nativeElement?.click();
+  }
+
+  pickDocument(): void {
+    if (!this.canReply || this.isSending) return;
+    this.docInput?.nativeElement?.click();
   }
 
   onFileSelected(event: Event): void {

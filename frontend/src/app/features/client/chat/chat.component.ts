@@ -1113,7 +1113,7 @@ private escapeHtml(value: string): string {
   // ══════════════════════════════════════════════════════════════════════════
 
   private aplicarTemaWidget(): void {
-    this.http.get<Record<string, string>>('/widget-config').subscribe({
+    this.http.get<Record<string, string>>(`${environment.apiUrl}/widget-config`).subscribe({
     next: (cfg) => {
       const root = document.documentElement;
 

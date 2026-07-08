@@ -135,12 +135,25 @@
   function getApiBase() {
     var tag = getScriptTag();
     if (!tag) return location.origin;
+
+    // data-api-base explícito sobreescribe todo
+    var explicitBase = tag.getAttribute('data-api-base');
+    if (explicitBase) return explicitBase.replace(/\/+$/, '');
+
     try {
       var src = tag.getAttribute('src') || '';
       var u = new URL(src, location.href);
-      return (u.hostname === 'localhost' && u.port === '4200')
-        ? 'http://localhost:3000'
-        : u.origin;
+      // Dev local
+      if (u.hostname === 'localhost' && u.port === '4200') {
+        return 'http://localhost:3000';
+      }
+      // Incluir el path del directorio del script (para /agora/widget.js)
+      var dir = src.substring(0, src.lastIndexOf('/'));
+      if (dir && dir !== '') {
+        var baseUrl = u.origin + (dir.startsWith('/') ? dir : '/' + dir);
+        return baseUrl.replace(/\/+$/, '');
+      }
+      return u.origin;
     } catch (_) {
       return location.origin;
     }
