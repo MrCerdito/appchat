@@ -40,8 +40,8 @@ import { trackByIndex } from '../../../../shared/utils/track-by';
       </div>
     </div>
 
-    <div class="modal-overlay" *ngIf="modalAbierto" (click)="cerrarModal()">
-      <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-overlay" *ngIf="modalAbierto" (mousedown)="onOverlayMousedown($event)" (click)="onOverlayClick($event)">
+      <div class="modal-content" (mousedown)="onContentMousedown($event)" (click)="$event.stopPropagation()">
         <h3>{{ editando ? 'Editar FAQ' : 'Nueva FAQ' }}</h3>
 
         <div class="modal-field">
@@ -77,8 +77,8 @@ import { trackByIndex } from '../../../../shared/utils/track-by';
 
         <div class="modal-actions">
           <button class="btn-cancel" (click)="cerrarModal()">Cancelar</button>
-          <button class="btn-save" (click)="guardar()" [disabled]="!form.pregunta || !form.respuesta">
-            {{ editando ? 'Actualizar' : 'Crear' }}
+          <button class="btn-save" (click)="guardar()" [disabled]="!form.pregunta || !form.respuesta || guardando">
+            {{ guardando ? 'Guardando...' : (editando ? 'Actualizar' : 'Crear') }}
           </button>
         </div>
       </div>
@@ -130,6 +130,9 @@ export class FaqAdminComponent implements OnInit {
   cargando = true;
   modalAbierto = false;
   editando: Faq | null = null;
+  guardando = false;
+
+  private clickStartedInside = false;
 
   form = {
     pregunta: '',
@@ -186,9 +189,30 @@ export class FaqAdminComponent implements OnInit {
   cerrarModal(): void {
     this.modalAbierto = false;
     this.editando = null;
+    this.guardando = false;
+  }
+
+  onOverlayMousedown(event: MouseEvent): void {
+    if (event.target === event.currentTarget) {
+      this.clickStartedInside = false;
+    }
+  }
+
+  onContentMousedown(event: MouseEvent): void {
+    this.clickStartedInside = true;
+  }
+
+  onOverlayClick(event: MouseEvent): void {
+    if (event.target === event.currentTarget && !this.clickStartedInside) {
+      this.cerrarModal();
+    }
+    this.clickStartedInside = false;
   }
 
   guardar(): void {
+    if (this.guardando) return;
+    this.guardando = true;
+
     const dto: CreateFaqDto = {
       pregunta: this.form.pregunta,
       respuesta: this.form.respuesta,
@@ -199,14 +223,26 @@ export class FaqAdminComponent implements OnInit {
     };
 
     if (this.editando) {
-      this.faqService.update(this.editando.id, dto).subscribe(() => {
-        this.cerrarModal();
-        this.cargar();
+      this.faqService.update(this.editando.id, dto).subscribe({
+        next: () => {
+          this.cerrarModal();
+          this.cargar();
+        },
+        error: () => {
+          this.guardando = false;
+          this.cdr.detectChanges();
+        }
       });
     } else {
-      this.faqService.create(dto).subscribe(() => {
-        this.cerrarModal();
-        this.cargar();
+      this.faqService.create(dto).subscribe({
+        next: () => {
+          this.cerrarModal();
+          this.cargar();
+        },
+        error: () => {
+          this.guardando = false;
+          this.cdr.detectChanges();
+        }
       });
     }
   }
