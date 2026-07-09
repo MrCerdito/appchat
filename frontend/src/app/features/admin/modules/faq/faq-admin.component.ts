@@ -216,7 +216,7 @@ export class FaqAdminComponent implements OnInit {
     const dto: CreateFaqDto = {
       pregunta: this.form.pregunta,
       respuesta: this.form.respuesta,
-      categoria: this.form.categoria || undefined,
+      categoria: this.form.categoria?.trim() || undefined,
       orden: this.form.orden,
       keywords: this.form.keywordsStr ? this.form.keywordsStr.split(',').map(s => s.trim()).filter(Boolean) : undefined,
       activo: this.form.activo,

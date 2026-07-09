@@ -44,15 +44,19 @@ export class FaqService {
       where.colegioId = colegioId;
     }
 
-    const result = await this.faqRepo
-      .createQueryBuilder('faq')
-      .select('DISTINCT faq.categoria')
-      .where(where)
-      .andWhere('faq.categoria IS NOT NULL')
-      .orderBy('faq.categoria', 'ASC')
-      .getRawMany();
+    const faqs = await this.faqRepo.find({
+      where,
+      select: ['categoria'],
+    });
 
-    return result.map((r: any) => r.faq_categoria);
+    const categoriasUnicas = new Set<string>();
+    for (const faq of faqs) {
+      if (faq.categoria && faq.categoria.trim()) {
+        categoriasUnicas.add(faq.categoria.trim());
+      }
+    }
+
+    return Array.from(categoriasUnicas).sort((a, b) => a.localeCompare(b));
   }
 
   async findOne(id: number): Promise<Faq> {

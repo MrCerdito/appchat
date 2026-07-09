@@ -38,7 +38,9 @@ export class FaqComponent implements OnInit {
       this.cdr.detectChanges();
     });
     this.faqService.getCategorias().subscribe(cats => {
-      this.categorias = cats;
+      this.categorias = (cats || [])
+        .map(c => c?.trim())
+        .filter((c): c is string => !!c);
       this.cdr.detectChanges();
     });
   }
