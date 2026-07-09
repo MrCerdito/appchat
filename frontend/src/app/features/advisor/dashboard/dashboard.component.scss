@@ -516,46 +516,49 @@
   position: relative;
   cursor: pointer;
   user-select: none;
+  padding: 0 6px;
+  display: flex;
+  align-items: center;
 
-  .topbar-adv-pills {
+  .topbar-adv-dots {
     display: flex;
     align-items: center;
-    gap: 3px;
+    gap: 5px;
+    padding: 4px 6px;
+    border-radius: 20px;
+    transition: background 0.15s;
+    overflow-x: auto;
+    scrollbar-width: none;
+    max-width: 120px;
+
+    &::-webkit-scrollbar { display: none; }
+
+    &:hover { background: var(--sidebar-hover); }
   }
 
-  .tb-pill {
-    width: 24px; height: 24px; border-radius: 50%;
-    background: var(--sidebar-hover);
-    color: var(--text-faint);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 9px; font-weight: 600; flex-shrink: 0;
-    overflow: hidden;
-    border: 2px solid transparent;
-    transition: border-color 0.25s ease;
-
-    &.status-online  { border-color: #22c55e; }
-    &.status-busy    { border-color: #f59e0b; }
-    &.status-offline { border-color: #64748b; }
-
-    .tb-pill-img {
-      width: 100%; height: 100%; object-fit: cover; border-radius: 50%;
-    }
-
-    + .tb-pill { margin-left: -5px; }
+  &.has-none .topbar-adv-dots {
+    opacity: 0.35;
   }
 
-  .tb-pill-extra {
-    font-size: 9px; font-weight: 700;
-    color: var(--text-faint);
-    margin-left: 2px;
-    white-space: nowrap;
+  .tb-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+    &.online  { background: #22c55e; box-shadow: 0 0 0 1.5px rgba(34,197,94,0.25); }
+    &.busy    { background: #f59e0b; box-shadow: 0 0 0 1.5px rgba(245,158,11,0.25); }
+    &.offline { background: #94a3b8; }
+
+    &:hover { transform: scale(1.5); }
   }
 
   .topbar-adv-list {
     position: absolute;
-    top: calc(100% + 8px);
+    top: calc(100% + 6px);
     right: 0;
-    min-width: 200px;
+    min-width: 210px;
     max-height: 0;
     overflow: hidden;
     transition: max-height 0.25s ease, opacity 0.2s ease;
@@ -566,7 +569,7 @@
     box-shadow: 0 8px 32px rgba(0,0,0,0.15);
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 1px;
     padding: 0.35rem;
     z-index: 500;
     pointer-events: none;
@@ -582,33 +585,39 @@
   .tb-list-item {
     display: flex;
     align-items: center;
-    gap: 7px;
-    padding: 5px 8px;
+    gap: 8px;
+    padding: 6px 8px;
     border-radius: 8px;
     transition: background 0.15s;
 
     &:hover { background: var(--hover); }
+
+    &.is-me {
+      background: var(--sidebar-accent-soft);
+
+      + .tb-list-item { border-top: 1px solid var(--border); }
+    }
   }
 
   .tb-list-dot {
-    width: 7px; height: 7px; border-radius: 50%;
+    width: 8px; height: 8px; border-radius: 50%;
     flex-shrink: 0;
 
-    &.online  { background: #22c55e; box-shadow: 0 0 4px rgba(34,197,94,0.5); }
-    &.busy    { background: #f59e0b; box-shadow: 0 0 4px rgba(245,158,11,0.5); }
+    &.online  { background: #22c55e; box-shadow: 0 0 5px rgba(34,197,94,0.4); }
+    &.busy    { background: #f59e0b; box-shadow: 0 0 5px rgba(245,158,11,0.4); }
     &.offline { background: #94a3b8; }
   }
 
   .tb-list-img {
-    width: 24px; height: 24px; border-radius: 50%;
+    width: 26px; height: 26px; border-radius: 50%;
     object-fit: cover; flex-shrink: 0;
   }
 
   .tb-list-char {
-    width: 24px; height: 24px; border-radius: 50%;
+    width: 26px; height: 26px; border-radius: 50%;
     background: var(--hover);
     display: flex; align-items: center; justify-content: center;
-    font-size: 10px; font-weight: 600; flex-shrink: 0;
+    font-size: 11px; font-weight: 600; flex-shrink: 0;
   }
 
   .tb-list-name {
@@ -616,6 +625,16 @@
     color: var(--text);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     flex: 1;
+  }
+
+  .tb-list-badge {
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: var(--sidebar-text);
+    background: var(--sidebar-accent);
+    padding: 1px 6px;
+    border-radius: 20px;
+    margin-right: 4px;
   }
 
   .tb-list-status {

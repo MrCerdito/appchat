@@ -414,24 +414,20 @@
       <div class="topbar-adv"
            [class.expanded]="allAdvisorsOpen"
            (click)="toggleAllAdvisors()"
-           *ngIf="otherAdvisors.length > 0">
-        <div class="topbar-adv-pills">
-          <div class="tb-pill"
-               *ngFor="let adv of otherAdvisors.slice(0, 3); trackBy: trackByIndex"
-               [class.status-online]="adv.status === 'online'"
-               [class.status-busy]="adv.status === 'busy'"
-               [class.status-offline]="adv.status === 'offline'">
-            <img *ngIf="adv.profilePhotoUrl; else tbPillFallback"
-                 [src]="adv.profilePhotoUrl" [alt]="adv.name"
-                 class="tb-pill-img" />
-            <ng-template #tbPillFallback>{{ adv.name.charAt(0) }}</ng-template>
-          </div>
-          <span class="tb-pill-extra" *ngIf="otherAdvisors.length > 3">
-            +{{ otherAdvisors.length - 3 }}
+           [class.has-none]="allAdvisors.length === 0">
+        <div class="topbar-adv-dots">
+          <span class="tb-dot"
+                *ngFor="let adv of allAdvisors"
+                [class.online]="adv.status === 'online'"
+                [class.busy]="adv.status === 'busy'"
+                [class.offline]="adv.status === 'offline'"
+                [title]="adv.name + ' — ' + (adv.status === 'online' ? 'Disponible' : adv.status === 'busy' ? 'Ocupado' : 'Inactivo')">
           </span>
         </div>
         <div class="topbar-adv-list">
-          <div class="tb-list-item" *ngFor="let adv of otherAdvisors; trackBy: trackByIndex">
+          <div class="tb-list-item"
+               *ngFor="let adv of allAdvisors"
+               [class.is-me]="adv.advisorId === currentAdvisor?.id">
             <span class="tb-list-dot" [ngClass]="adv.status"></span>
             <img *ngIf="adv.profilePhotoUrl; else tbListFallback"
                  [src]="adv.profilePhotoUrl" [alt]="adv.name"
@@ -440,6 +436,7 @@
               <span class="tb-list-char">{{ adv.name.charAt(0) }}</span>
             </ng-template>
             <span class="tb-list-name">{{ adv.name }}</span>
+            <span class="tb-list-badge" *ngIf="adv.advisorId === currentAdvisor?.id">Tú</span>
             <span class="tb-list-status">{{ adv.status === 'online' ? 'Disponible' : adv.status === 'busy' ? 'Ocupado' : 'Inactivo' }}</span>
           </div>
         </div>
