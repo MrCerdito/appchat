@@ -72,7 +72,10 @@ function inlineFormat(text: string): string {
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
     .replace(
-      /(https?:\/\/[^\s<]+)/g,
-      '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+      /((https?:\/\/|www\.)[^\s<]+)/g,
+      (match) => {
+        const url = match.startsWith('www.') ? `https://${match}` : match;
+        return `<a href="${url}" target="_blank" rel="noopener noreferrer">${match}</a>`;
+      }
     );
 }

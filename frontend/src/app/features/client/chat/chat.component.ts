@@ -926,6 +926,14 @@ detenerStream(): void {
     .replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>')
     // Wrappear listas consecutivas en <ol>
     .replace(/(<li>.*<\/li>\n?)+/g, '<ol>$&</ol>')
+    // Hipervínculos: convertir URLs en enlaces clickables
+    .replace(
+      /((https?:\/\/|www\.)[^\s<]+)/g,
+      (match) => {
+        const url = match.startsWith('www.') ? `https://${match}` : match;
+        return `<a href="${url}" target="_blank" rel="noopener noreferrer">${match}</a>`;
+      }
+    )
     // Saltos de línea
     .replace(/\n/g, '<br>');
 }

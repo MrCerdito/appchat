@@ -613,6 +613,13 @@ button {
     line-height: 1.55;
     word-break: break-word;
     border-radius: var(--radius-lg);
+
+    a {
+      color: #1a8fe3;
+      text-decoration: underline;
+      word-break: break-all;
+      &:hover { opacity: 0.85; }
+    }
   }
 
   .msg-time {
@@ -634,6 +641,10 @@ button {
       background: $blue;
       color: #fff;
       border-bottom-right-radius: 4px;
+
+      a {
+        color: #93c5fd;
+      }
     }
   }
 

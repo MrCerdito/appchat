@@ -696,6 +696,13 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
       .replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>')
       .replace(/(<li>.*<\/li>\n?)+/g, '<ol>$&</ol>')
+      .replace(
+        /((https?:\/\/|www\.)[^\s<]+)/g,
+        (match) => {
+          const url = match.startsWith('www.') ? `https://${match}` : match;
+          return `<a href="${url}" target="_blank" rel="noopener noreferrer">${match}</a>`;
+        }
+      )
       .replace(/\n/g, '<br>');
     return this.sanitizer.bypassSecurityTrustHtml(html);
   }

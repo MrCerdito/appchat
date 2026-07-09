@@ -498,6 +498,12 @@
         color: var(--chat-bubble-user-text);
         border-radius: 16px 16px 4px 16px;
         padding: 0.6rem 0.95rem; font-size: 0.875rem; line-height: 1.55;
+
+        a {
+          color: inherit;
+          text-decoration: underline;
+          &:hover { opacity: 0.85; }
+        }
       }
     }
 
@@ -518,6 +524,13 @@
         border-radius: 16px 16px 16px 4px;
         padding: 0.6rem 0.95rem; font-size: 0.875rem; line-height: 1.55;
         box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+
+        a {
+          color: #1a8fe3;
+          text-decoration: underline;
+          word-break: break-all;
+          &:hover { opacity: 0.85; }
+        }
       }
     }
   }
