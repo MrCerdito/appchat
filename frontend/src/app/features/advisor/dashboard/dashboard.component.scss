@@ -520,38 +520,36 @@
   display: flex;
   align-items: center;
 
-  .topbar-adv-dots {
+  .topbar-adv-pills {
     display: flex;
     align-items: center;
-    gap: 5px;
-    padding: 4px 6px;
+    gap: 3px;
+    padding: 3px 5px;
     border-radius: 20px;
     transition: background 0.15s;
-    overflow-x: auto;
-    scrollbar-width: none;
-    max-width: 120px;
-
-    &::-webkit-scrollbar { display: none; }
 
     &:hover { background: var(--sidebar-hover); }
   }
 
-  &.has-none .topbar-adv-dots {
-    opacity: 0.35;
-  }
+  .tb-pill {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--sidebar-hover);
+    color: var(--text-faint);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 600; flex-shrink: 0;
+    overflow: hidden;
+    border: 2px solid transparent;
+    transition: border-color 0.25s ease;
 
-  .tb-dot {
-    width: 9px;
-    height: 9px;
-    border-radius: 50%;
-    flex-shrink: 0;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    &.status-online  { border-color: #22c55e; }
+    &.status-busy    { border-color: #f59e0b; }
+    &.status-offline { border-color: #64748b; }
 
-    &.online  { background: #22c55e; box-shadow: 0 0 0 1.5px rgba(34,197,94,0.25); }
-    &.busy    { background: #f59e0b; box-shadow: 0 0 0 1.5px rgba(245,158,11,0.25); }
-    &.offline { background: #94a3b8; }
+    .tb-pill-img {
+      width: 100%; height: 100%; object-fit: cover; border-radius: 50%;
+    }
 
-    &:hover { transform: scale(1.5); }
+    + .tb-pill { margin-left: -4px; }
   }
 
   .topbar-adv-list {
@@ -561,8 +559,9 @@
     min-width: 210px;
     max-height: 0;
     overflow: hidden;
-    transition: max-height 0.25s ease, opacity 0.2s ease;
+    transition: max-height 0.25s ease, opacity 0.2s ease, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
     opacity: 0;
+    transform: translateX(20px);
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 12px;
@@ -578,6 +577,7 @@
   &.expanded .topbar-adv-list {
     max-height: 350px;
     opacity: 1;
+    transform: translateX(0);
     pointer-events: all;
     overflow-y: auto;
   }

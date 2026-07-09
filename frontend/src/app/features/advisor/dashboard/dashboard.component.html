@@ -413,16 +413,19 @@
       <!-- ── Asesores conectados (topbar) ──────────────────────────────── -->
       <div class="topbar-adv"
            [class.expanded]="allAdvisorsOpen"
-           (click)="toggleAllAdvisors()"
-           [class.has-none]="allAdvisors.length === 0">
-        <div class="topbar-adv-dots">
-          <span class="tb-dot"
-                *ngFor="let adv of allAdvisors"
-                [class.online]="adv.status === 'online'"
-                [class.busy]="adv.status === 'busy'"
-                [class.offline]="adv.status === 'offline'"
-                [title]="adv.name + ' — ' + (adv.status === 'online' ? 'Disponible' : adv.status === 'busy' ? 'Ocupado' : 'Inactivo')">
-          </span>
+           (click)="toggleAllAdvisors()">
+        <div class="topbar-adv-pills">
+          <div class="tb-pill"
+               *ngFor="let adv of allAdvisors.slice(0, 2)"
+               [class.status-online]="adv.status === 'online'"
+               [class.status-busy]="adv.status === 'busy'"
+               [class.status-offline]="adv.status === 'offline'"
+               [title]="adv.name + ' — ' + (adv.status === 'online' ? 'Disponible' : adv.status === 'busy' ? 'Ocupado' : 'Inactivo')">
+            <img *ngIf="adv.profilePhotoUrl; else tbPillFallback"
+                 [src]="adv.profilePhotoUrl" [alt]="adv.name"
+                 class="tb-pill-img" />
+            <ng-template #tbPillFallback>{{ adv.name.charAt(0) }}</ng-template>
+          </div>
         </div>
         <div class="topbar-adv-list">
           <div class="tb-list-item"
