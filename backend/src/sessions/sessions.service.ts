@@ -344,7 +344,7 @@ export class SessionsService {
   async findAllAdvisors(): Promise<User[]> {
     return this.userRepo.find({
       where: { role: 'advisor' },
-      select: ['id', 'name', 'email', 'status', 'activeChats'],
+      select: ['id', 'name', 'email', 'status', 'activeChats', 'profilePhotoUrl'],
     });
   }
 

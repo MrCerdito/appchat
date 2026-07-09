@@ -208,21 +208,16 @@ export class ChatGateway
     if (status === 'online') await this.assignPendingSessions();
   }
 
-  @SubscribeMessage('get_online_advisors')
-  async handleGetOnlineAdvisors(@ConnectedSocket() client: Socket) {
-    const ids = [...this.connectedAdvisors.keys()];
-    const advisors = await Promise.all(
-      ids.map(id => this.sessionsService.findAdvisorById(id).catch(() => null)),
-    );
-    const list = advisors
-      .filter((a): a is NonNullable<typeof a> => a !== null)
-      .map(a => ({
-        advisorId: a.id,
-        name: a.name,
-        status: a.status,
-        profilePhotoUrl: a.profilePhotoUrl ?? null,
-      }));
-    client.emit('online_advisors_list', list);
+  @SubscribeMessage('get_all_advisors')
+  async handleGetAllAdvisors(@ConnectedSocket() client: Socket) {
+    const advisors = await this.sessionsService.findAllAdvisors();
+    const list = advisors.map(a => ({
+      advisorId: a.id,
+      name: a.name,
+      status: (this.connectedAdvisors.has(a.id) ? this.connectedAdvisors.get(a.id): a.status) as 'online' | 'busy' | 'offline',
+      profilePhotoUrl: a.profilePhotoUrl ?? null,
+    }));
+    client.emit('all_advisors_list', list);
   }
 
   // ══════════════════════════════════════════════════════════════════════════

@@ -50,8 +50,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
   whatsappUnreadCount = 0;
   totalUnreadCount = 0;
 
-  connectedAdvisors: ConnectedAdvisor[] = [];
-  connectedAdvisorsOpen = false;
+  allAdvisors: ConnectedAdvisor[] = [];
+  allAdvisorsOpen = false;
+
+  get otherAdvisors(): ConnectedAdvisor[] {
+    return this.allAdvisors.filter(a => a.advisorId !== this.currentAdvisor?.id);
+  }
 
   enAlmuerzo = false;
   almuerzoRestante = '';
@@ -100,7 +104,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.registerSocketListeners();
     this.registerGlobalNotificationListeners();
     this.syncUnreadIndicators();
-    this.socket.emit('get_online_advisors');
+    this.socket.emit('get_all_advisors');
     this.syncShellMode(this.router.url);
   }
 
@@ -111,22 +115,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
         if (data.advisorId === this.currentAdvisor?.id) {
           this.advisorStatus = data.status as 'online' | 'busy' | 'offline';
         }
-        const wasDisconnected = data.status === 'offline' || data.status === 'busy';
-        const wasConnected = data.status === 'online';
-        this.connectedAdvisors = this.connectedAdvisors.filter(a => a.advisorId !== data.advisorId);
-        if (wasConnected) {
-          this.connectedAdvisors.push(data);
-          if (data.advisorId !== this.currentAdvisor?.id) this.sound.playNotification();
-        } else if (!wasDisconnected) {
-          this.connectedAdvisors.push(data);
+        const idx = this.allAdvisors.findIndex(a => a.advisorId === data.advisorId);
+        if (idx >= 0) {
+          this.allAdvisors[idx] = { ...this.allAdvisors[idx], status: data.status, profilePhotoUrl: data.profilePhotoUrl ?? this.allAdvisors[idx].profilePhotoUrl };
+        } else {
+          this.allAdvisors.push(data);
         }
+        if (data.status === 'online' && data.advisorId !== this.currentAdvisor?.id) this.sound.playNotification();
         this.cdr.detectChanges();
       });
 
-    this.socket.on<ConnectedAdvisor[]>('online_advisors_list')
+    this.socket.on<ConnectedAdvisor[]>('all_advisors_list')
       .pipe(takeUntil(this.destroy$))
       .subscribe(list => {
-        this.connectedAdvisors = list.filter(a => a.status === 'online');
+        this.allAdvisors = list;
         this.cdr.detectChanges();
       });
 
@@ -516,8 +518,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
   }
 
-  toggleConnectedAdvisors(): void {
-    this.connectedAdvisorsOpen = !this.connectedAdvisorsOpen;
+  toggleAllAdvisors(): void {
+    this.allAdvisorsOpen = !this.allAdvisorsOpen;
   }
 
   ngOnDestroy(): void {
