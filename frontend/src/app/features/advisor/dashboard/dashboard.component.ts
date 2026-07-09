@@ -129,7 +129,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
         } else {
           this.allAdvisors.push(data);
         }
-        if (data.status === 'online' && data.advisorId !== this.currentAdvisor?.id) this.sound.playNotification();
         this.cdr.detectChanges();
       });
 

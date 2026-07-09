@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Param, Body, UseGuards, HttpCode, HttpStatus, Request, Query, Logger } from '@nestjs/common'
+import { Controller, Get, Post, Patch, Param, Body, UseGuards, HttpCode, HttpStatus, Request, Query, Logger, Inject, forwardRef } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SessionsService } from './sessions.service';
@@ -6,6 +6,7 @@ import { TicketsService } from '../tickets/tickets.service';
 import { Message } from '../chat/entities/message.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { IsString, IsNotEmpty, Length, IsOptional } from 'class-validator';
+import { ChatGateway } from '../chat/chat.gateway';
 
 export class CreateSessionDto {
   @IsString() @IsNotEmpty() @Length(1, 100)
@@ -39,6 +40,8 @@ export class SessionsController {
     private readonly ticketsService: TicketsService,
     @InjectRepository(Message)
     private readonly messageRepo: Repository<Message>,
+    @Inject(forwardRef(() => ChatGateway))
+    private readonly chatGateway: ChatGateway,
   ) {}
 
   // ── Público ───────────────────────────────────────────────
@@ -67,8 +70,12 @@ export class SessionsController {
 
   @Get('advisors')
   @UseGuards(JwtAuthGuard)
-  findAdvisors() {
-    return this.sessionsService.findAllAdvisors();
+  async findAdvisors() {
+    const advisors = await this.sessionsService.findAllAdvisors();
+    return advisors.map(a => ({
+      ...a,
+      status: (this.chatGateway.advisorStatuses.has(a.id) ? this.chatGateway.advisorStatuses.get(a.id) : a.status) as 'online' | 'busy' | 'offline',
+    }));
   }
 
   @Get('waiting')

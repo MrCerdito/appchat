@@ -46,6 +46,7 @@ export class ChatGateway
 
   // ── Maps internos ─────────────────────────────────────────────────────────
   private connectedAdvisors = new Map<string, Socket>();
+  public  advisorStatuses   = new Map<string, string>(); // live status keyed by advisorId
   private waitingQueue      : string[] = [];
   private sessionToSocket   = new Map<string, string>();
   private clientPresence    = new Map<string, { online: boolean; active: boolean; socketId: string | null; lastSeen: number }>();
@@ -129,6 +130,7 @@ export class ChatGateway
       this.advisorsOnLunch.delete(advisorId);
       this.advisorsPendingLunch.delete(advisorId);
       this.sessionsService.setAdvisorStatus(advisorId, 'offline');
+      this.advisorStatuses.set(advisorId, 'offline');
       this.server.emit('advisor_status_changed', {
         advisorId,
         name  : client.data.user.name,
@@ -170,6 +172,7 @@ export class ChatGateway
     if (client.data.role !== 'advisor') return;
     const advisor = await this.sessionsService.findAdvisorById(client.data.user.id);
     const status  = advisor?.status ?? 'online';
+    this.advisorStatuses.set(client.data.user.id, status);
     this.server.emit('advisor_status_changed', {
       advisorId: client.data.user.id,
       name     : advisor?.name ?? client.data.user.name,
@@ -199,6 +202,7 @@ export class ChatGateway
     }
 
     const advisor = await this.sessionsService.setAdvisorStatus(client.data.user.id, status);
+    this.advisorStatuses.set(client.data.user.id, status);
     this.server.emit('advisor_status_changed', {
       advisorId: client.data.user.id,
       name     : advisor?.name ?? client.data.user.name,
@@ -214,7 +218,7 @@ export class ChatGateway
     const list = advisors.map(a => ({
       advisorId: a.id,
       name: a.name,
-      status: (this.connectedAdvisors.has(a.id) ? this.connectedAdvisors.get(a.id): a.status) as 'online' | 'busy' | 'offline',
+      status: (this.advisorStatuses.has(a.id) ? this.advisorStatuses.get(a.id) : a.status) as 'online' | 'busy' | 'offline',
       profilePhotoUrl: a.profilePhotoUrl ?? null,
     }));
     client.emit('all_advisors_list', list);
@@ -473,6 +477,7 @@ async handleJoinActiveChat(
     for (const advisorId of [oldAdvisorId, newAdvisorId].filter(Boolean) as string[]) {
       const advisor = await this.sessionsService.findAdvisorById(advisorId);
       if (advisor) {
+        this.advisorStatuses.set(advisor.id, advisor.status);
         this.server.emit('advisor_status_changed', {
           advisorId: advisor.id,
           name: advisor.name,
@@ -627,9 +632,12 @@ async handleJoinActiveChat(
 
     if (advisorId) {
       const a = await this.sessionsService.findAdvisorById(advisorId);
-      if (a) this.server.emit('advisor_status_changed', {
-        advisorId: a.id, name: a.name, status: a.status, activeChats: a.activeChats, profilePhotoUrl: a.profilePhotoUrl ?? null,
-      });
+      if (a) {
+        this.advisorStatuses.set(a.id, a.status);
+        this.server.emit('advisor_status_changed', {
+          advisorId: a.id, name: a.name, status: a.status, activeChats: a.activeChats, profilePhotoUrl: a.profilePhotoUrl ?? null,
+        });
+      }
       await this.activarLunchPendiente(advisorId);
     }
     this.removeFromQueue(sessionId);
@@ -656,9 +664,12 @@ async handleJoinActiveChat(
 
     if (advisorId) {
       const a = await this.sessionsService.findAdvisorById(advisorId);
-      if (a) this.server.emit('advisor_status_changed', {
-        advisorId: a.id, name: a.name, status: a.status, activeChats: a.activeChats, profilePhotoUrl: a.profilePhotoUrl ?? null,
-      });
+      if (a) {
+        this.advisorStatuses.set(a.id, a.status);
+        this.server.emit('advisor_status_changed', {
+          advisorId: a.id, name: a.name, status: a.status, activeChats: a.activeChats, profilePhotoUrl: a.profilePhotoUrl ?? null,
+        });
+      }
       await this.activarLunchPendiente(advisorId);
     }
     this.removeFromQueue(sessionId);
@@ -1064,6 +1075,7 @@ async handleJoinActiveChat(
     this.server.emit('metrics_updated', { type: 'session_status', sessionId, status: 'active' });
     const refreshedAdvisor = await this.sessionsService.findAdvisorById(advisor.id);
     if (refreshedAdvisor) {
+      this.advisorStatuses.set(refreshedAdvisor.id, refreshedAdvisor.status);
       this.server.emit('advisor_status_changed', {
         advisorId: refreshedAdvisor.id,
         name: refreshedAdvisor.name,
@@ -1182,6 +1194,7 @@ async handleJoinActiveChat(
         if (enHorario && !enAlmuerzoActivo && !pendiente) {
           this.advisorsLunchNotified.delete(advisorId);
           await this.sessionsService.setAdvisorStatus(advisorId, 'busy').catch(() => null);
+          this.advisorStatuses.set(advisorId, 'busy');
           this.server.emit('advisor_status_changed', {
             advisorId, name: socket.data.user?.name, status: 'busy',
             profilePhotoUrl: socket.data.user?.profilePhotoUrl ?? null,
@@ -1232,6 +1245,7 @@ async handleJoinActiveChat(
           if (pendData && hhmm >= pendData.finOriginal) {
             this.advisorsPendingLunch.delete(advisorId);
             await this.sessionsService.setAdvisorStatus(advisorId, 'online').catch(() => null);
+            this.advisorStatuses.set(advisorId, 'online');
             this.server.emit('advisor_status_changed', {
               advisorId, name: socket.data.user?.name, status: 'online',
               profilePhotoUrl: socket.data.user?.profilePhotoUrl ?? null,
@@ -1287,6 +1301,7 @@ async handleJoinActiveChat(
   private async terminarAlmuerzo(advisorId: string, socket: Socket): Promise<void> {
     this.advisorsOnLunch.delete(advisorId);
     await this.sessionsService.setAdvisorStatus(advisorId, 'online').catch(() => null);
+    this.advisorStatuses.set(advisorId, 'online');
     this.server.emit('advisor_status_changed', {
       advisorId, name: socket.data.user?.name, status: 'online',
       profilePhotoUrl: socket.data.user?.profilePhotoUrl ?? null,

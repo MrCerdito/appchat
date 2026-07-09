@@ -19,6 +19,6 @@ import { AdvisorsWhatsappModule } from '../advisor-whatsapp/advisors-whatsapp.mo
     AdvisorsWhatsappModule,
   ],
   providers: [ChatService, ChatGateway],
-  exports: [ChatService],
+  exports: [ChatService, ChatGateway],
 })
 export class ChatModule {}
