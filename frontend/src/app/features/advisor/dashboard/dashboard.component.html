@@ -416,7 +416,7 @@
            (click)="toggleAllAdvisors()">
         <div class="topbar-adv-pills">
           <div class="tb-pill"
-               *ngFor="let adv of otherAdvisors.slice(0, 2)"
+               *ngFor="let adv of otherAdvisors.slice(0, 3)"
                [class.status-online]="adv.status === 'online'"
                [class.status-busy]="adv.status === 'busy'"
                [class.status-offline]="adv.status === 'offline'"

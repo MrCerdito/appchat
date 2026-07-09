@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy, ElementRef, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { NavigationEnd, Router, RouterModule } from '@angular/router';
@@ -85,6 +85,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private cdr: ChangeDetectorRef,
     protected themeService: ThemeService,
     private admin: AdminService,
+    private elementRef: ElementRef,
   ) {}
 
   ngOnInit(): void {
@@ -523,6 +524,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.cdr.detectChanges();
       },
     });
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    if (!this.allAdvisorsOpen) return;
+    const clickedInside = this.elementRef.nativeElement.querySelector('.topbar-adv')?.contains(event.target as Node);
+    if (!clickedInside) {
+      this.allAdvisorsOpen = false;
+      this.cdr.detectChanges();
+    }
   }
 
   toggleAllAdvisors(): void {
