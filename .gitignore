@@ -4,4 +4,5 @@ dist/
 *.zip
 .env
 backend/uploads/baileys-auth/
+backend/uploads/whatsapp/
 BD.csv
