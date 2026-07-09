@@ -415,23 +415,17 @@
            [class.expanded]="allAdvisorsOpen"
            (click)="toggleAllAdvisors()">
         <div class="topbar-adv-pills">
-          <ng-container *ngIf="advisorsLoaded; else skeletonPills">
-            <div class="tb-pill"
-                 *ngFor="let adv of allAdvisors.slice(0, 2)"
-                 [class.status-online]="adv.status === 'online'"
-                 [class.status-busy]="adv.status === 'busy'"
-                 [class.status-offline]="adv.status === 'offline'"
-                 [title]="adv.name + ' — ' + (adv.status === 'online' ? 'Disponible' : adv.status === 'busy' ? 'Ocupado' : 'Inactivo')">
-              <img *ngIf="adv.profilePhotoUrl; else tbPillFallback"
-                   [src]="adv.profilePhotoUrl" [alt]="adv.name"
-                   class="tb-pill-img" />
-              <ng-template #tbPillFallback>{{ adv.name.charAt(0) }}</ng-template>
-            </div>
-          </ng-container>
-          <ng-template #skeletonPills>
-            <div class="tb-pill tb-pill--skel"></div>
-            <div class="tb-pill tb-pill--skel"></div>
-          </ng-template>
+          <div class="tb-pill"
+               *ngFor="let adv of allAdvisors.slice(0, 2)"
+               [class.status-online]="adv.status === 'online'"
+               [class.status-busy]="adv.status === 'busy'"
+               [class.status-offline]="adv.status === 'offline'"
+               [title]="adv.name + ' — ' + (adv.status === 'online' ? 'Disponible' : adv.status === 'busy' ? 'Ocupado' : 'Inactivo')">
+            <img *ngIf="adv.profilePhotoUrl; else tbPillFallback"
+                 [src]="adv.profilePhotoUrl" [alt]="adv.name"
+                 class="tb-pill-img" />
+            <ng-template #tbPillFallback>{{ adv.name.charAt(0) }}</ng-template>
+          </div>
         </div>
         <div class="topbar-adv-list">
           <div class="tb-list-item"

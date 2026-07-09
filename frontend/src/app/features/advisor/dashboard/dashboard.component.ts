@@ -52,7 +52,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   allAdvisors: ConnectedAdvisor[] = [];
   allAdvisorsOpen = false;
-  advisorsLoaded = false;
 
   get otherAdvisors(): ConnectedAdvisor[] {
     return this.allAdvisors.filter(a => a.advisorId !== this.currentAdvisor?.id);
@@ -105,9 +104,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.registerSocketListeners();
     this.registerGlobalNotificationListeners();
     this.syncUnreadIndicators();
-    this.socket.connected$
-      .pipe(takeUntil(this.destroy$), filter(c => c))
-      .subscribe(() => this.socket.emit('get_all_advisors'));
+    this.sessionService.findAdvisors().subscribe(users => {
+      this.allAdvisors = users.map(u => ({
+        advisorId: u.id,
+        name: u.name,
+        status: (u.status || 'offline') as 'online' | 'busy' | 'offline',
+        profilePhotoUrl: u.profilePhotoUrl ?? null,
+      }));
+      this.cdr.detectChanges();
+    });
     this.syncShellMode(this.router.url);
   }
 
@@ -132,7 +137,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe(list => {
         this.allAdvisors = list;
-        this.advisorsLoaded = true;
         this.cdr.detectChanges();
       });
 
