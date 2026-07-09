@@ -22,7 +22,7 @@ export class AdvisorsService {
   async findAll(): Promise<User[]> {
     return this.userRepo.find({
       where: { role: 'advisor' },
-      select: ['id', 'name', 'email', 'status', 'activeChats', 'active', 'createdAt'],
+      select: ['id', 'name', 'email', 'status', 'activeChats', 'active', 'createdAt', 'profilePhotoUrl'],
       order: { createdAt: 'DESC' },
     });
   }
@@ -40,7 +40,7 @@ export class AdvisorsService {
 
     const [data, total] = await this.userRepo.findAndCount({
       where,
-      select: ['id', 'name', 'email', 'status', 'activeChats', 'active', 'createdAt', 'role'],
+      select: ['id', 'name', 'email', 'status', 'activeChats', 'active', 'createdAt', 'role', 'profilePhotoUrl'],
       order: { createdAt: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,
@@ -58,7 +58,7 @@ export class AdvisorsService {
   async findById(id: string): Promise<User> {
     const user = await this.userRepo.findOne({
       where: { id },
-      select: ['id', 'name', 'email', 'status', 'activeChats', 'active', 'createdAt', 'role'],
+      select: ['id', 'name', 'email', 'status', 'activeChats', 'active', 'createdAt', 'role', 'profilePhotoUrl'],
     });
     if (!user) throw new NotFoundException('Asesor no encontrado');
     return user;
@@ -106,5 +106,12 @@ export class AdvisorsService {
     const user = await this.userRepo.findOne({ where: { id } });
     if (!user) throw new NotFoundException('Asesor no encontrado');
     await this.userRepo.remove(user);
+  }
+
+  async updatePhoto(id: string, profilePhotoUrl: string | null): Promise<User> {
+    const user = await this.userRepo.findOne({ where: { id } });
+    if (!user) throw new NotFoundException('Asesor no encontrado');
+    user.profilePhotoUrl = profilePhotoUrl;
+    return this.userRepo.save(user);
   }
 }

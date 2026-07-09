@@ -7,4 +7,5 @@ export interface User {
   activeChats?: number;
   active?: boolean;
   createdAt?: string;
+  profilePhotoUrl?: string;
 }

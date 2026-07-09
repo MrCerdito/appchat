@@ -35,6 +35,9 @@ export class User {
   @Column({ name: 'active_chats', default: 0 })
   activeChats: number;
 
+  @Column({ name: 'profile_photo_url', type: 'varchar', length: 500, nullable: true })
+  profilePhotoUrl: string | null;
+
   @OneToMany(() => Session, (session) => session.advisor)
   sessions: Session[];
 

@@ -426,6 +426,28 @@
   }
 }
 
+// ── Message Search ────────────────────────────────────────────────────────────
+.msg-search {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 14px;
+  background: var(--surface-hover);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+
+  svg { flex-shrink: 0; color: var(--text-faint); }
+  input {
+    flex: 1;
+    height: 28px;
+    background: none;
+    border: 0;
+    font: inherit;
+    font-size: 13px;
+    color: var(--text);
+    outline: none;
+    &::placeholder { color: var(--text-faint); }
+  }
+}
+
 // ── Messages ──────────────────────────────────────────────────────────────────
 .messages {
   flex: 1; min-height: 0;

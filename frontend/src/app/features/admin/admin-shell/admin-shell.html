@@ -126,7 +126,13 @@
 
     <div class="shell-profile">
       <div class="profile-row" (click)="menuOpen = !menuOpen" [class.open]="menuOpen">
-        <div class="profile-avatar">{{ currentAdmin?.name?.charAt(0) }}</div>
+        <div class="profile-avatar">
+          <img *ngIf="currentAdmin?.profilePhotoUrl; else adminSidebarAvatarFallback"
+               [src]="currentAdmin!.profilePhotoUrl"
+               [alt]="currentAdmin?.name"
+               class="profile-avatar-img" />
+          <ng-template #adminSidebarAvatarFallback>{{ currentAdmin?.name?.charAt(0) }}</ng-template>
+        </div>
         <div class="profile-info">
           <span class="profile-name">{{ currentAdmin?.name }}</span>
           <span class="profile-role">Administrador</span>
@@ -214,7 +220,13 @@
         </div>
         <span>Admin</span>
       </div>
-      <div class="profile-avatar topbar-avatar">{{ currentAdmin?.name?.charAt(0) }}</div>
+      <div class="profile-avatar topbar-avatar">
+        <img *ngIf="currentAdmin?.profilePhotoUrl; else adminTopbarAvatarFallback"
+             [src]="currentAdmin!.profilePhotoUrl"
+             [alt]="currentAdmin?.name"
+             class="profile-avatar-img" />
+        <ng-template #adminTopbarAvatarFallback>{{ currentAdmin?.name?.charAt(0) }}</ng-template>
+      </div>
     </header>
 
     <div class="shell-outlet">

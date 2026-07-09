@@ -99,7 +99,13 @@ export class ChatGateway
       try {
         const secret  = this.configService.get<string>('JWT_SECRET');
         const payload = this.jwtService.verify(token, { secret });
-        client.data.user = { id: payload.sub, email: payload.email, name: payload.name };
+        const fullUser = await this.sessionsService.findAdvisorById(payload.sub).catch(() => null);
+        client.data.user = {
+          id: payload.sub,
+          email: payload.email,
+          name: payload.name,
+          profilePhotoUrl: fullUser?.profilePhotoUrl ?? null,
+        };
         client.data.role = 'advisor';
         this.connectedAdvisors.set(payload.sub, client);
         this.logger.log(`[WS] Asesor conectado: ${payload.name}`);
@@ -127,6 +133,7 @@ export class ChatGateway
         advisorId,
         name  : client.data.user.name,
         status: 'offline',
+        profilePhotoUrl: client.data.user?.profilePhotoUrl ?? null,
       });
     }
 
@@ -167,6 +174,7 @@ export class ChatGateway
       advisorId: client.data.user.id,
       name     : advisor?.name ?? client.data.user.name,
       status,
+      profilePhotoUrl: advisor?.profilePhotoUrl ?? client.data.user?.profilePhotoUrl ?? null,
     });
     await this.assignPendingSessions();
   }
@@ -195,8 +203,26 @@ export class ChatGateway
       advisorId: client.data.user.id,
       name     : advisor?.name ?? client.data.user.name,
       status,
+      profilePhotoUrl: advisor?.profilePhotoUrl ?? client.data.user?.profilePhotoUrl ?? null,
     });
     if (status === 'online') await this.assignPendingSessions();
+  }
+
+  @SubscribeMessage('get_online_advisors')
+  async handleGetOnlineAdvisors(@ConnectedSocket() client: Socket) {
+    const ids = [...this.connectedAdvisors.keys()];
+    const advisors = await Promise.all(
+      ids.map(id => this.sessionsService.findAdvisorById(id).catch(() => null)),
+    );
+    const list = advisors
+      .filter((a): a is NonNullable<typeof a> => a !== null)
+      .map(a => ({
+        advisorId: a.id,
+        name: a.name,
+        status: a.status,
+        profilePhotoUrl: a.profilePhotoUrl ?? null,
+      }));
+    client.emit('online_advisors_list', list);
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -457,6 +483,7 @@ async handleJoinActiveChat(
           name: advisor.name,
           status: advisor.status,
           activeChats: advisor.activeChats,
+          profilePhotoUrl: advisor.profilePhotoUrl ?? null,
         });
       }
     }
@@ -569,6 +596,7 @@ async handleJoinActiveChat(
     }
     this.server.to(data.sessionId).emit('advisor_joined', {
       name: session.advisor?.name ?? 'Nuevo asesor',
+      profilePhotoUrl: session.advisor?.profilePhotoUrl ?? null,
     });
     client.leave(data.sessionId);
 
@@ -605,7 +633,7 @@ async handleJoinActiveChat(
     if (advisorId) {
       const a = await this.sessionsService.findAdvisorById(advisorId);
       if (a) this.server.emit('advisor_status_changed', {
-        advisorId: a.id, name: a.name, status: a.status, activeChats: a.activeChats,
+        advisorId: a.id, name: a.name, status: a.status, activeChats: a.activeChats, profilePhotoUrl: a.profilePhotoUrl ?? null,
       });
       await this.activarLunchPendiente(advisorId);
     }
@@ -634,7 +662,7 @@ async handleJoinActiveChat(
     if (advisorId) {
       const a = await this.sessionsService.findAdvisorById(advisorId);
       if (a) this.server.emit('advisor_status_changed', {
-        advisorId: a.id, name: a.name, status: a.status, activeChats: a.activeChats,
+        advisorId: a.id, name: a.name, status: a.status, activeChats: a.activeChats, profilePhotoUrl: a.profilePhotoUrl ?? null,
       });
       await this.activarLunchPendiente(advisorId);
     }
@@ -1035,7 +1063,7 @@ async handleJoinActiveChat(
     if (assigned.status !== 'active') return false;
 
     advisorSocket.join(sessionId);
-    this.server.to(sessionId).emit('advisor_joined', { name: advisor.name });
+    this.server.to(sessionId).emit('advisor_joined', { name: advisor.name, profilePhotoUrl: advisor.profilePhotoUrl ?? null });
     advisorSocket.emit('session_assigned', { sessionId, clientName });
     this.server.emit('session_updated', { sessionId, status: 'active' });
     this.server.emit('metrics_updated', { type: 'session_status', sessionId, status: 'active' });
@@ -1046,6 +1074,7 @@ async handleJoinActiveChat(
         name: refreshedAdvisor.name,
         status: refreshedAdvisor.status,
         activeChats: refreshedAdvisor.activeChats,
+        profilePhotoUrl: refreshedAdvisor.profilePhotoUrl ?? null,
       });
     }
 
@@ -1160,6 +1189,7 @@ async handleJoinActiveChat(
           await this.sessionsService.setAdvisorStatus(advisorId, 'busy').catch(() => null);
           this.server.emit('advisor_status_changed', {
             advisorId, name: socket.data.user?.name, status: 'busy',
+            profilePhotoUrl: socket.data.user?.profilePhotoUrl ?? null,
           });
 
           const [ih, im] = almuerzoHoy!.inicio.split(':').map(Number);
@@ -1209,6 +1239,7 @@ async handleJoinActiveChat(
             await this.sessionsService.setAdvisorStatus(advisorId, 'online').catch(() => null);
             this.server.emit('advisor_status_changed', {
               advisorId, name: socket.data.user?.name, status: 'online',
+              profilePhotoUrl: socket.data.user?.profilePhotoUrl ?? null,
             });
             socket.emit('lunch_pending_cancelled');
             this.logger.log(`[Almuerzo] ❌ ${socket.data.user?.name} horario de almuerzo expiró (tenía chats activos)`);
@@ -1263,6 +1294,7 @@ async handleJoinActiveChat(
     await this.sessionsService.setAdvisorStatus(advisorId, 'online').catch(() => null);
     this.server.emit('advisor_status_changed', {
       advisorId, name: socket.data.user?.name, status: 'online',
+      profilePhotoUrl: socket.data.user?.profilePhotoUrl ?? null,
     });
     socket.emit('lunch_ended');
     this.logger.log(`[Almuerzo] ✅ ${socket.data.user?.name} volvió del almuerzo`);

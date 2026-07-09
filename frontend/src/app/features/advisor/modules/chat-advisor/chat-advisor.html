@@ -158,13 +158,6 @@
           <span>IA respondiendo automaticamente. Escribe para retomar el control.</span>
         </div>
 
-        <div class="msg-search" *ngIf="activeSession">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
-            <circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path>
-          </svg>
-          <input type="text" placeholder="Buscar en mensajes..." [(ngModel)]="msgSearchQuery">
-        </div>
-
         <div class="messages" #messagesContainer>
           <ng-container *ngFor="let msg of messages; trackBy: trackById">
             <div class="sys-msg" *ngIf="msg.senderName === 'Sistema'">
@@ -181,17 +174,20 @@
               [class.theirs]="msg.senderType === 'client'"
               [class.collab]="msg.senderType === 'advisor' && msg.senderName !== currentAdvisor?.name"
             >
-              <span
-                class="msg-sender"
-                *ngIf="msg.senderType === 'advisor' && msg.senderName !== currentAdvisor?.name"
-              >
-                {{ msg.senderName }}
-              </span>
-              <div class="bubble">
+              <div class="msg-row">
+
+                <span
+                  class="msg-sender"
+                  *ngIf="msg.senderType === 'advisor' && msg.senderName !== currentAdvisor?.name"
+                >
+                  {{ msg.senderName }}
+                </span>
+                <div class="bubble">
                 <span [innerHTML]="formatMessage(msg.content)"></span>
                 <span *ngIf="msg.senderType === 'advisor'" class="read-mark">
                   {{ msg.readAt ? '✓✓' : '✓' }}
                 </span>
+              </div>
               </div>
               <div class="doc-adjuntos" *ngIf="msg.documentos && msg.documentos.length > 0">
                 <span class="doc-adjuntos-label">Documentos relacionados</span>
@@ -333,7 +329,13 @@
             [class.adv-disabled]="advisor.status === 'offline'"
             (click)="transferTo(advisor.id)"
           >
-            <span class="adv-ava">{{ safeInitial(advisor.name) }}</span>
+            <span class="adv-ava">
+              <img *ngIf="advisor.profilePhotoUrl; else advListAvatarFallback"
+                   [src]="advisor.profilePhotoUrl"
+                   [alt]="advisor.name"
+                   class="adv-ava-img" />
+              <ng-template #advListAvatarFallback>{{ safeInitial(advisor.name) }}</ng-template>
+            </span>
             <span class="adv-txt">
               <span class="adv-name">{{ advisor.name }}</span>
               <span class="adv-meta">{{ advisor.activeChats || 0 }} chats activos</span>

@@ -128,6 +128,7 @@ get rolLabel(): string {
   codigoSesion = '';
   codigoCopiado = false;
   advisorName = '';
+  advisorPhotoUrl = '';
   otherTyping = false;
   typingName  = '';
   private typingTimer : any;
@@ -642,10 +643,11 @@ get rolLabel(): string {
         this.cdr.detectChanges();
       });
 
-    this.socket.on<{ name: string }>('advisor_joined')
+    this.socket.on<{ name: string; profilePhotoUrl?: string }>('advisor_joined')
       .pipe(takeUntil(this.socketDestroy$))
       .subscribe((data) => {
         this.advisorName = data.name;
+        this.advisorPhotoUrl = data.profilePhotoUrl ?? '';
         this.sound.playNotification();
         this.clearWaitingTimer();
         this.mostrarAsesoresOcupados = false;

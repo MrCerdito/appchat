@@ -10,6 +10,7 @@ import { AuthService } from '../../../core/services/auth.service';
 import { SessionService } from '../../../core/services/session.service';
 import { SoundService } from '../../../core/services/sound.service';
 import { TicketService } from '../../../core/services/ticket.service';
+import { AdminService } from '../../../core/services/admin.service';
 import { WhatsappChatService } from '../../../core/services/whatsapp-chat.service';
 import { ChatStateService } from '../../../core/services/chat-state.service';
 import { ThemeService } from '../../../core/services/theme.service';
@@ -18,6 +19,13 @@ import { Session } from '../../../core/models/session.model';
 import { Message } from '../../../core/models/message.model';
 import { AwNewMessage, WaChat } from '../../../core/models/whatsapp.models';
 import { trackByIndex, trackById } from '../../../shared/utils/track-by';
+
+interface ConnectedAdvisor {
+  advisorId: string;
+  name: string;
+  status: string;
+  profilePhotoUrl: string | null;
+}
 
 @Component({
   selector: 'app-dashboard',
@@ -41,6 +49,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
   chatUnreadCount = 0;
   whatsappUnreadCount = 0;
   totalUnreadCount = 0;
+
+  connectedAdvisors: ConnectedAdvisor[] = [];
+  connectedAdvisorsOpen = false;
 
   enAlmuerzo = false;
   almuerzoRestante = '';
@@ -69,6 +80,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private router: Router,
     private cdr: ChangeDetectorRef,
     protected themeService: ThemeService,
+    private admin: AdminService,
   ) {}
 
   ngOnInit(): void {
@@ -88,16 +100,33 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.registerSocketListeners();
     this.registerGlobalNotificationListeners();
     this.syncUnreadIndicators();
+    this.socket.emit('get_online_advisors');
     this.syncShellMode(this.router.url);
   }
 
   private registerSocketListeners(): void {
-    this.socket.on<{ advisorId: string; status: string }>('advisor_status_changed')
+    this.socket.on<ConnectedAdvisor>('advisor_status_changed')
       .pipe(takeUntil(this.destroy$))
       .subscribe(data => {
         if (data.advisorId === this.currentAdvisor?.id) {
           this.advisorStatus = data.status as 'online' | 'busy' | 'offline';
         }
+        const wasDisconnected = data.status === 'offline' || data.status === 'busy';
+        const wasConnected = data.status === 'online';
+        this.connectedAdvisors = this.connectedAdvisors.filter(a => a.advisorId !== data.advisorId);
+        if (wasConnected) {
+          this.connectedAdvisors.push(data);
+          if (data.advisorId !== this.currentAdvisor?.id) this.sound.playNotification();
+        } else if (!wasDisconnected) {
+          this.connectedAdvisors.push(data);
+        }
+        this.cdr.detectChanges();
+      });
+
+    this.socket.on<ConnectedAdvisor[]>('online_advisors_list')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(list => {
+        this.connectedAdvisors = list.filter(a => a.status === 'online');
         this.cdr.detectChanges();
       });
 
@@ -438,6 +467,58 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.sound.setUnreadBadge(this.totalUnreadCount);
     }
   };
+
+  onProfilePhotoSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file || !this.currentAdvisor) return;
+
+    if (!file.type.startsWith('image/')) {
+      this.almuerzoMensaje = 'Solo se permiten imágenes';
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      this.almuerzoMensaje = 'La imagen no debe superar 5 MB';
+      return;
+    }
+
+    this.admin.uploadPhoto(this.currentAdvisor.id, file).subscribe({
+      next: res => {
+        if (this.currentAdvisor) {
+          this.currentAdvisor = { ...this.currentAdvisor, profilePhotoUrl: res.profilePhotoUrl };
+          this.auth.updateUser(this.currentAdvisor);
+        }
+        input.value = '';
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.almuerzoMensaje = 'No se pudo subir la foto';
+        input.value = '';
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  removeProfilePhoto(): void {
+    if (!this.currentAdvisor) return;
+    this.admin.deletePhoto(this.currentAdvisor.id).subscribe({
+      next: () => {
+        if (this.currentAdvisor) {
+          this.currentAdvisor = { ...this.currentAdvisor, profilePhotoUrl: undefined };
+          this.auth.updateUser(this.currentAdvisor);
+        }
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.almuerzoMensaje = 'No se pudo eliminar la foto';
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  toggleConnectedAdvisors(): void {
+    this.connectedAdvisorsOpen = !this.connectedAdvisorsOpen;
+  }
 
   ngOnDestroy(): void {
     this.destroy$.next();

@@ -181,6 +181,39 @@
     <div class="profile-drawer" [class.open]="profileOpen">
       <div class="profile-drawer-inner">
 
+        <div class="drawer-section drawer-photo-section">
+          <div class="profile-photo-wrap" (click)="photoInput.click()">
+            <img *ngIf="currentAdvisor?.profilePhotoUrl; else photoFallback"
+                 [src]="currentAdvisor!.profilePhotoUrl"
+                 [alt]="currentAdvisor?.name"
+                 class="drawer-profile-img" />
+            <ng-template #photoFallback>
+              <span class="drawer-profile-initial">{{ currentAdvisor?.name?.charAt(0) }}</span>
+            </ng-template>
+            <div class="profile-photo-overlay">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+            </div>
+          </div>
+          <input #photoInput type="file" accept="image/*" class="photo-input-hidden"
+                 (change)="onProfilePhotoSelected($event)" />
+          <button *ngIf="currentAdvisor?.profilePhotoUrl" type="button"
+                  class="photo-remove-btn" (click)="removeProfilePhoto()" title="Eliminar foto">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+          </button>
+          <div class="drawer-photo-name">{{ currentAdvisor?.name }}</div>
+          <div class="drawer-photo-email">{{ currentAdvisor?.email }}</div>
+        </div>
+
+        <div class="drawer-divider"></div>
+
         <div class="drawer-section">
           <span class="drawer-label">Estado</span>
           <div class="status-options">
@@ -319,6 +352,36 @@
       </div>
     </div>
 
+    <!-- ── Asesores conectados ──────────────────────────────────────────── -->
+    <div class="connected-adv"
+         [class.expanded]="connectedAdvisorsOpen"
+         (click)="toggleConnectedAdvisors()"
+         *ngIf="connectedAdvisors.length > 0">
+      <div class="connected-adv-pills">
+        <div class="adv-pill" *ngFor="let adv of connectedAdvisors.slice(0, 3); trackBy: trackByIndex">
+          <img *ngIf="adv.profilePhotoUrl; else pillFallback"
+               [src]="adv.profilePhotoUrl" [alt]="adv.name"
+               class="adv-pill-img" />
+          <ng-template #pillFallback>{{ adv.name.charAt(0) }}</ng-template>
+        </div>
+        <span class="adv-pill-extra" *ngIf="connectedAdvisors.length > 3">
+          +{{ connectedAdvisors.length - 3 }}
+        </span>
+      </div>
+      <div class="connected-adv-list">
+        <div class="adv-list-item" *ngFor="let adv of connectedAdvisors; trackBy: trackByIndex">
+          <span class="adv-list-dot"></span>
+          <img *ngIf="adv.profilePhotoUrl; else listFallback"
+               [src]="adv.profilePhotoUrl" [alt]="adv.name"
+               class="adv-list-img" />
+          <ng-template #listFallback>
+            <span class="adv-list-char">{{ adv.name.charAt(0) }}</span>
+          </ng-template>
+          <span class="adv-list-name">{{ adv.name }}</span>
+        </div>
+      </div>
+    </div>
+
     <!-- ── Trigger de perfil ──────────────────────────────────────────── -->
     <div class="shell-profile-trigger"
          (click)="profileOpen = !profileOpen"
@@ -326,7 +389,11 @@
 
       <div class="profile-avatar"
            [ngClass]="'status-border-' + (enAlmuerzo ? 'lunch' : advisorStatus)">
-        {{ currentAdvisor?.name?.charAt(0) }}
+        <img *ngIf="currentAdvisor?.profilePhotoUrl; else avatarFallback"
+             [src]="currentAdvisor!.profilePhotoUrl"
+             [alt]="currentAdvisor?.name"
+             class="profile-avatar-img" />
+        <ng-template #avatarFallback>{{ currentAdvisor?.name?.charAt(0) }}</ng-template>
       </div>
 
       <div class="profile-trigger-info">
@@ -376,7 +443,11 @@
       <div class="profile-avatar topbar-avatar"
            [ngClass]="'status-border-' + (enAlmuerzo ? 'lunch' : advisorStatus)"
            (click)="profileOpen = !profileOpen">
-        {{ currentAdvisor?.name?.charAt(0) }}
+        <img *ngIf="currentAdvisor?.profilePhotoUrl; else topbarAvatarFallback"
+             [src]="currentAdvisor!.profilePhotoUrl"
+             [alt]="currentAdvisor?.name"
+             class="profile-avatar-img" />
+        <ng-template #topbarAvatarFallback>{{ currentAdvisor?.name?.charAt(0) }}</ng-template>
       </div>
     </header>
 

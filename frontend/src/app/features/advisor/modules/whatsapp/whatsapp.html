@@ -11,9 +11,31 @@
       </button>
     </figure>
   </div>
-  <div class="media-backdrop" *ngIf="mediaPreview" (click)="closeMediaPreview()">
-    <figure class="media-viewer" (click)="$event.stopPropagation()">
-      <img [src]="mediaPreview.src" [alt]="mediaPreview.name" />
+  <div
+    class="media-backdrop"
+    *ngIf="mediaPreview"
+    (click)="closeMediaPreview()"
+    (wheel)="onMediaWheel($event)"
+    (touchstart)="onMediaTouchStart($event)"
+    (touchmove)="onMediaTouchMove($event)"
+    (touchend)="onMediaTouchEnd()"
+  >
+    <figure
+      class="media-viewer"
+      [class.dragging]="isMediaDragging"
+      (click)="$event.stopPropagation()"
+      (mousedown)="onMediaMouseDown($event)"
+      (mousemove)="onMediaMouseMove($event)"
+      (mouseup)="onMediaMouseUp()"
+      (mouseleave)="onMediaMouseUp()"
+      (dblclick)="onMediaDblClick($event)"
+    >
+      <img
+        [src]="mediaPreview.src"
+        [alt]="mediaPreview.name"
+        [style.transform]="'scale(' + mediaZoom + ') translate(' + mediaPanX + 'px, ' + mediaPanY + 'px)'"
+      />
+      <div class="media-zoom-info">{{ (mediaZoom * 100).toFixed(0) }}%</div>
       <figcaption>{{ mediaPreview.name }}</figcaption>
       <button type="button" class="icon-action" (click)="closeMediaPreview()" title="Cerrar">
         <wa-icon name="x"></wa-icon>

@@ -128,7 +128,13 @@
           <tr *ngFor="let a of advisors; trackBy: trackById" [class.inactive]="!a.active">
             <td>
               <div class="advisor-cell">
-                <div class="avatar" [class.offline]="a.status === 'offline'" [class.busy]="a.status === 'busy'">{{ a.name.charAt(0) }}</div>
+                <div class="avatar" [class.offline]="a.status === 'offline'" [class.busy]="a.status === 'busy'">
+                  <img *ngIf="a.profilePhotoUrl; else advisorListAvatarFallback"
+                       [src]="a.profilePhotoUrl"
+                       [alt]="a.name"
+                       class="avatar-img" />
+                  <ng-template #advisorListAvatarFallback>{{ a.name.charAt(0) }}</ng-template>
+                </div>
                 <span>{{ a.name }}</span>
               </div>
             </td>

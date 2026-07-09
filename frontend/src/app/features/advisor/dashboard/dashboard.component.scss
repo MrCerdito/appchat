@@ -511,6 +511,92 @@
   svg { width: 13px; height: 13px; stroke: #fbbf24; flex-shrink: 0; }
 }
 
+// ── Connected advisors ─────────────────────────────────────
+.connected-adv {
+  position: sticky;
+  bottom: 72px;
+  background: var(--sidebar-bg);
+  z-index: 9;
+  border-top: 1px solid var(--sidebar-border);
+  cursor: pointer;
+  user-select: none;
+
+  .connected-adv-pills {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0.55rem 0.85rem;
+  }
+
+  .adv-pill {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: var(--sidebar-hover);
+    color: var(--text-faint);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 600; flex-shrink: 0;
+    overflow: hidden;
+
+    .adv-pill-img {
+      width: 100%; height: 100%; object-fit: cover; border-radius: 50%;
+    }
+
+    + .adv-pill { margin-left: -6px; }
+  }
+
+  .adv-pill-extra {
+    font-size: 10px; font-weight: 700;
+    color: var(--text-faint);
+    margin-left: 4px;
+    white-space: nowrap;
+  }
+
+  .connected-adv-list {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.25s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 0 0.85rem;
+  }
+
+  &.expanded .connected-adv-list {
+    max-height: 300px;
+    padding-bottom: 0.55rem;
+  }
+
+  .adv-list-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 0;
+  }
+
+  .adv-list-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #19a35c;
+    flex-shrink: 0;
+  }
+
+  .adv-list-img {
+    width: 22px; height: 22px; border-radius: 50%;
+    object-fit: cover; flex-shrink: 0;
+  }
+
+  .adv-list-char {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--sidebar-hover);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 600; flex-shrink: 0;
+  }
+
+  .adv-list-name {
+    font-size: 0.72rem;
+    color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+}
+
 // ── Profile trigger ────────────────────────────────────────
 .shell-profile-trigger {
   position: sticky;
@@ -550,11 +636,106 @@
   flex-shrink: 0;
   border: 3px solid transparent;
   transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  overflow: hidden;
 
   &.status-border-online  { border-color: #22c55e; box-shadow: 0 0 0 1px rgba(34,197,94,0.27); }
   &.status-border-busy    { border-color: #f59e0b; box-shadow: 0 0 0 1px rgba(245,158,11,0.27); }
   &.status-border-offline { border-color: #64748b; box-shadow: 0 0 0 1px rgba(100,116,139,0.27); }
   &.status-border-lunch   { border-color: #f59e0b; box-shadow: 0 0 0 1px rgba(245,158,11,0.27); animation: lunchPulse 1s ease-in-out infinite; }
+}
+
+.profile-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.drawer-photo-section {
+  text-align: center;
+  padding: 1rem 0.85rem 0.65rem;
+}
+
+.profile-photo-wrap {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 0.6rem;
+  border-radius: 50%;
+  cursor: pointer;
+  overflow: hidden;
+  border: 3px solid var(--sidebar-accent);
+  background: var(--sidebar-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.drawer-profile-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.drawer-profile-initial {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--sidebar-text);
+}
+
+.profile-photo-overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0,0,0,0.45);
+  color: #fff;
+  opacity: 0;
+  transition: opacity 0.2s;
+
+  svg { width: 24px; height: 24px; }
+
+  .profile-photo-wrap:hover & { opacity: 1; }
+}
+
+.photo-input-hidden {
+  display: none;
+}
+
+.photo-remove-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--sidebar-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--sidebar-text-muted);
+  cursor: pointer;
+  font-size: 0.7rem;
+
+  svg { width: 14px; height: 14px; }
+
+  &:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.25);
+  }
+}
+
+.drawer-photo-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--sidebar-text);
+}
+
+.drawer-photo-email {
+  font-size: 0.72rem;
+  color: var(--sidebar-text-muted);
+  margin-top: 2px;
 }
 
 .profile-trigger-info {

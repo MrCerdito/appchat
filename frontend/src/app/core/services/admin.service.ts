@@ -57,6 +57,16 @@ export class AdminService {
     return this.http.delete<void>(`${environment.apiUrl}/advisors/${id}`);
   }
 
+  uploadPhoto(id: string, file: File): Observable<{ profilePhotoUrl: string }> {
+    const formData = new FormData();
+    formData.append('photo', file);
+    return this.http.patch<{ profilePhotoUrl: string }>(`${environment.apiUrl}/advisors/${id}/photo`, formData);
+  }
+
+  deletePhoto(id: string): Observable<{ ok: boolean }> {
+    return this.http.delete<{ ok: boolean }>(`${environment.apiUrl}/advisors/${id}/photo`);
+  }
+
   getMetrics(): Observable<Metrics> {
     return this.http.get<Metrics>(`${environment.apiUrl}/sessions/metrics`);
   }

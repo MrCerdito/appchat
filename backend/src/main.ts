@@ -86,9 +86,40 @@ async function bootstrap() {
   // =========================
   // STATIC FILES (UPLOADS)
   // =========================
+  const mimeMap: Record<string, string> = {
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.webp': 'image/webp',
+    '.gif': 'image/gif',
+    '.mp4': 'video/mp4',
+    '.3gp': 'video/3gpp',
+    '.aac': 'audio/aac',
+    '.m4a': 'audio/mp4',
+    '.mp3': 'audio/mpeg',
+    '.ogg': 'audio/ogg',
+    '.opus': 'audio/ogg',
+    '.amr': 'audio/amr',
+    '.webm': 'audio/webm',
+    '.wav': 'audio/wav',
+    '.pdf': 'application/pdf',
+    '.txt': 'text/plain',
+    '.csv': 'text/csv',
+    '.doc': 'application/msword',
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.xls': 'application/vnd.ms-excel',
+    '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    '.ppt': 'application/vnd.ms-powerpoint',
+    '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    '.mp2t': 'video/mp2t',
+  };
+
   app.useStaticAssets(join(process.cwd(), 'uploads'), {
     prefix: '/uploads',
-    setHeaders: (res) => {
+    setHeaders: (res, path) => {
+      const ext = path.substring(path.lastIndexOf('.')).toLowerCase();
+      const mime = mimeMap[ext];
+      if (mime) res.setHeader('Content-Type', mime);
       res.setHeader('X-Content-Type-Options', 'nosniff');
       res.setHeader('Cache-Control', 'private, max-age=86400');
     },

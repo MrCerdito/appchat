@@ -42,10 +42,12 @@ export class AuthService {
     user.refreshToken = await bcrypt.hash(refresh_token, 8);
     await this.userRepo.save(user);
 
+    const userData: any = { id: user.id, name: user.name, email: user.email, role: user.role };
+    if (user.profilePhotoUrl) userData.profilePhotoUrl = user.profilePhotoUrl;
     return {
       access_token,
       refresh_token,
-      user: { id: user.id, name: user.name, email: user.email, role: user.role },
+      user: userData,
     };
   }
 

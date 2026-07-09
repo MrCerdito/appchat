@@ -98,6 +98,10 @@ export class AuthService {
     }
   }
 
+  updateUser(user: User): void {
+    localStorage.setItem(this.userKey, JSON.stringify(user));
+  }
+
   getMetrics(): Observable<Metrics> {
     return this.http.get<Metrics>(`${environment.apiUrl}/sessions/metrics`);
   }

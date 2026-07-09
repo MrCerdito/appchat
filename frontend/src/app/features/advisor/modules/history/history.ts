@@ -28,6 +28,7 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
   sessions     : Session[] = [];
   activeSession: Session | null = null;
   messages     : Message[] = [];
+  msgSearchQuery = '';
   filter       : 'all' | 'active' | 'closed' = 'all';
   search = '';
   loading = false;
@@ -92,6 +93,12 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
     const s = this.activeSession;
     if (s.status !== 'active' && s.status !== 'waiting') return false;
     return s.advisor?.id !== this.currentUserId;
+  }
+
+  get filteredMessages(): Message[] {
+    if (!this.msgSearchQuery.trim()) return this.messages;
+    const q = this.msgSearchQuery.toLowerCase();
+    return this.messages.filter(m => m.content?.toLowerCase().includes(q));
   }
 
   /** Indica si el usuario actual ya es asesor/colaborador del chat activo */

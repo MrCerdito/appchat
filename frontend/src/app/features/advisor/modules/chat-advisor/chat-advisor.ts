@@ -65,7 +65,6 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
 
   // ── Estado UI ─────────────────────────────────────────────────────────────
   searchQuery      = '';
-  msgSearchQuery   = '';
   currentAdvisor   : User | null    = null;
   advisors         : User[]         = [];
   sessions         : Session[]      = [];
@@ -122,10 +121,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
 
   get messages(): Message[] {
     if (!this.activeSession) return [];
-    const msgs = this.state.getMessages(this.activeSession.id);
-    if (!this.msgSearchQuery.trim()) return msgs;
-    const q = this.msgSearchQuery.toLowerCase();
-    return msgs.filter(m => m.content?.toLowerCase().includes(q));
+    return this.state.getMessages(this.activeSession.id);
   }
 
   get activeSessions(): Session[] {
