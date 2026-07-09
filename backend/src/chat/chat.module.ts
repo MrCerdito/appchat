@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { ChatService } from './chat.service';
@@ -14,7 +14,7 @@ import { AdvisorsWhatsappModule } from '../advisor-whatsapp/advisors-whatsapp.mo
     TypeOrmModule.forFeature([Message]),
     JwtModule,
     AiModule,       // ← línea nueva
-    SessionsModule, // ← línea nueva
+    forwardRef(() => SessionsModule), // ← línea nueva
     ConfiguracionModule, 
     AdvisorsWhatsappModule,
   ],
