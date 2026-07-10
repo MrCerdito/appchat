@@ -1,7 +1,12 @@
 import {
-  WebSocketGateway, WebSocketServer, SubscribeMessage,
-  MessageBody, ConnectedSocket,
-  OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit,
+  WebSocketGateway,
+  WebSocketServer,
+  SubscribeMessage,
+  MessageBody,
+  ConnectedSocket,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
+  OnGatewayInit,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
@@ -19,15 +24,15 @@ import { Logger } from '@nestjs/common';
 type TipoTimer = 'advisor' | 'client' | 'none';
 
 interface TimerEntry {
-  tipo        : TipoTimer;
-  timeout     : NodeJS.Timeout | null;
-  tick        : NodeJS.Timeout | null;
-  elapsed     : number;
-  iterCliente : number;
-  advisorId   : string;
-  settingUp   : boolean;
-  startTime   : number;
-  totalSecs   : number;
+  tipo: TipoTimer;
+  timeout: NodeJS.Timeout | null;
+  tick: NodeJS.Timeout | null;
+  elapsed: number;
+  iterCliente: number;
+  advisorId: string;
+  settingUp: boolean;
+  startTime: number;
+  totalSecs: number;
 }
 
 @WebSocketGateway({
@@ -46,27 +51,41 @@ export class ChatGateway
 
   // ── Maps internos ─────────────────────────────────────────────────────────
   private connectedAdvisors = new Map<string, Socket>();
-  public  advisorStatuses   = new Map<string, string>(); // live status keyed by advisorId
-  private waitingQueue      : string[] = [];
-  private sessionToSocket   = new Map<string, string>();
-  private clientPresence    = new Map<string, { online: boolean; active: boolean; socketId: string | null; lastSeen: number }>();
-  private pollingInterval!  : NodeJS.Timeout;
-  private lunchInterval!    : NodeJS.Timeout;
-  private aiActiveSessions  = new Set<string>();
-  private timers            = new Map<string, TimerEntry>();
-  private messageRateLimit  = new Map<string, { count: number; resetAt: number }>();
+  public advisorStatuses = new Map<string, string>(); // live status keyed by advisorId
+  private waitingQueue: string[] = [];
+  private sessionToSocket = new Map<string, string>();
+  private clientPresence = new Map<
+    string,
+    {
+      online: boolean;
+      active: boolean;
+      socketId: string | null;
+      lastSeen: number;
+    }
+  >();
+  private pollingInterval!: NodeJS.Timeout;
+  private lunchInterval!: NodeJS.Timeout;
+  private aiActiveSessions = new Set<string>();
+  private timers = new Map<string, TimerEntry>();
+  private messageRateLimit = new Map<
+    string,
+    { count: number; resetAt: number }
+  >();
   private readonly MAX_MSG_PER_SEC = 10;
 
   /** Asesores en almuerzo activo — advisorId → finHora "HH:MM" */
   private advisorsOnLunch = new Map<string, string>();
 
   /** Asesores con almuerzo pendiente (tienen chats activos) */
-  private advisorsPendingLunch = new Map<string, {
-    inicioOriginal: string;
-    finOriginal: string;
-    duracionMs : number;
-    inicioReal : Date;
-  }>();
+  private advisorsPendingLunch = new Map<
+    string,
+    {
+      inicioOriginal: string;
+      finOriginal: string;
+      duracionMs: number;
+      inicioReal: Date;
+    }
+  >();
 
   /** Asesores que ya recibieron notificación de almuerzo próximo */
   private advisorsLunchNotified = new Set<string>();
@@ -74,12 +93,12 @@ export class ChatGateway
   private readonly logger = new Logger(ChatGateway.name);
 
   constructor(
-    private readonly chatService          : ChatService,
-    private readonly sessionsService      : SessionsService,
-    private readonly jwtService           : JwtService,
-    private readonly aiService            : AiService,
-    private readonly configService        : ConfigService,
-    private readonly configuracionService : ConfiguracionService,
+    private readonly chatService: ChatService,
+    private readonly sessionsService: SessionsService,
+    private readonly jwtService: JwtService,
+    private readonly aiService: AiService,
+    private readonly configService: ConfigService,
+    private readonly configuracionService: ConfiguracionService,
     private readonly advisorsWhatsappService: AdvisorsWhatsappService,
   ) {}
 
@@ -88,7 +107,10 @@ export class ChatGateway
   // ══════════════════════════════════════════════════════════════════════════
 
   afterInit() {
-    this.pollingInterval = setInterval(() => this.assignPendingSessions(), 3_000);
+    this.pollingInterval = setInterval(
+      () => this.assignPendingSessions(),
+      3_000,
+    );
     this.checkLunchBreaks();
     this.lunchInterval = setInterval(() => this.checkLunchBreaks(), 5_000);
   }
@@ -98,9 +120,11 @@ export class ChatGateway
     const token = client.handshake.auth?.token;
     if (token) {
       try {
-        const secret  = this.configService.get<string>('JWT_SECRET');
+        const secret = this.configService.get<string>('JWT_SECRET');
         const payload = this.jwtService.verify(token, { secret });
-        const fullUser = await this.sessionsService.findAdvisorById(payload.sub).catch(() => null);
+        const fullUser = await this.sessionsService
+          .findAdvisorById(payload.sub)
+          .catch(() => null);
         client.data.user = {
           id: payload.sub,
           email: payload.email,
@@ -133,7 +157,7 @@ export class ChatGateway
       this.advisorStatuses.set(advisorId, 'offline');
       this.server.emit('advisor_status_changed', {
         advisorId,
-        name  : client.data.user.name,
+        name: client.data.user.name,
         status: 'offline',
         profilePhotoUrl: client.data.user?.profilePhotoUrl ?? null,
       });
@@ -145,21 +169,23 @@ export class ChatGateway
       this.broadcastQueuePositions();
       this.sessionToSocket.delete(sessionId);
       this.clientPresence.set(sessionId, {
-        online : false,
-        active : false,
+        online: false,
+        active: false,
         socketId: null,
         lastSeen: Date.now(),
       });
       this.server.to(sessionId).emit('client_presence', {
         sessionId,
-        online : false,
-        active : false,
+        online: false,
+        active: false,
         lastSeen: new Date().toISOString(),
       });
     }
     if (sessionId) {
       this.messageRateLimit.delete(sessionId);
-      this.server.to(sessionId).emit('user_disconnected', { role: client.data.role });
+      this.server
+        .to(sessionId)
+        .emit('user_disconnected', { role: client.data.role });
     }
   }
 
@@ -170,14 +196,17 @@ export class ChatGateway
   @SubscribeMessage('advisor_ready')
   async handleAdvisorReady(@ConnectedSocket() client: Socket) {
     if (client.data.role !== 'advisor') return;
-    const advisor = await this.sessionsService.findAdvisorById(client.data.user.id);
-    const status  = advisor?.status ?? 'online';
+    const advisor = await this.sessionsService.findAdvisorById(
+      client.data.user.id,
+    );
+    const status = advisor?.status ?? 'online';
     this.advisorStatuses.set(client.data.user.id, status);
     this.server.emit('advisor_status_changed', {
       advisorId: client.data.user.id,
-      name     : advisor?.name ?? client.data.user.name,
+      name: advisor?.name ?? client.data.user.name,
       status,
-      profilePhotoUrl: advisor?.profilePhotoUrl ?? client.data.user?.profilePhotoUrl ?? null,
+      profilePhotoUrl:
+        advisor?.profilePhotoUrl ?? client.data.user?.profilePhotoUrl ?? null,
     });
     await this.assignPendingSessions();
   }
@@ -192,22 +221,36 @@ export class ChatGateway
     if (status === 'online') {
       if (this.estaEnAlmuerzo(client.data.user.id)) {
         const finHora = this.advisorsOnLunch.get(client.data.user.id);
-        client.emit('lunch_started', { fin: finHora ?? '', restante: '', inicio: '', finOriginal: '' });
+        client.emit('lunch_started', {
+          fin: finHora ?? '',
+          restante: '',
+          inicio: '',
+          finOriginal: '',
+        });
         return;
       }
       if (this.tieneAlmuerzoPendiente(client.data.user.id)) {
-        client.emit('lunch_pending', { mensaje: '', chats: 0, inicio: '', finOriginal: '' });
+        client.emit('lunch_pending', {
+          mensaje: '',
+          chats: 0,
+          inicio: '',
+          finOriginal: '',
+        });
         return;
       }
     }
 
-    const advisor = await this.sessionsService.setAdvisorStatus(client.data.user.id, status);
+    const advisor = await this.sessionsService.setAdvisorStatus(
+      client.data.user.id,
+      status,
+    );
     this.advisorStatuses.set(client.data.user.id, status);
     this.server.emit('advisor_status_changed', {
       advisorId: client.data.user.id,
-      name     : advisor?.name ?? client.data.user.name,
+      name: advisor?.name ?? client.data.user.name,
       status,
-      profilePhotoUrl: advisor?.profilePhotoUrl ?? client.data.user?.profilePhotoUrl ?? null,
+      profilePhotoUrl:
+        advisor?.profilePhotoUrl ?? client.data.user?.profilePhotoUrl ?? null,
     });
     if (status === 'online') await this.assignPendingSessions();
   }
@@ -215,10 +258,12 @@ export class ChatGateway
   @SubscribeMessage('get_all_advisors')
   async handleGetAllAdvisors(@ConnectedSocket() client: Socket) {
     const advisors = await this.sessionsService.findAllAdvisors();
-    const list = advisors.map(a => ({
+    const list = advisors.map((a) => ({
       advisorId: a.id,
       name: a.name,
-      status: (this.advisorStatuses.has(a.id) ? this.advisorStatuses.get(a.id) : a.status) as 'online' | 'busy' | 'offline',
+      status: (this.advisorStatuses.has(a.id)
+        ? this.advisorStatuses.get(a.id)
+        : a.status) as 'online' | 'busy' | 'offline',
       profilePhotoUrl: a.profilePhotoUrl ?? null,
     }));
     client.emit('all_advisors_list', list);
@@ -248,30 +293,35 @@ export class ChatGateway
       const presence = this.clientPresence.get(data.sessionId);
       client.emit('client_presence', {
         sessionId: data.sessionId,
-        online : presence?.online ?? false,
-        active : presence?.active ?? false,
-        lastSeen: presence?.lastSeen ? new Date(presence.lastSeen).toISOString() : undefined,
+        online: presence?.online ?? false,
+        active: presence?.active ?? false,
+        lastSeen: presence?.lastSeen
+          ? new Date(presence.lastSeen).toISOString()
+          : undefined,
       });
     }
 
     if (client.data.role === 'client') {
       this.clientPresence.set(data.sessionId, {
-        online : true,
-        active : client.data.isActive === true,
+        online: true,
+        active: client.data.isActive === true,
         socketId: client.id,
         lastSeen: Date.now(),
       });
       this.server.to(data.sessionId).emit('client_presence', {
         sessionId: data.sessionId,
-        online : true,
-        active : client.data.isActive === true,
+        online: true,
+        active: client.data.isActive === true,
         lastSeen: new Date().toISOString(),
       });
 
       const session = await this.sessionsService.findOne(data.sessionId);
       if (session.status === 'waiting') {
         this.sessionToSocket.set(data.sessionId, client.id);
-        const assigned = await this.autoAssignAdvisor(data.sessionId, session.clientName);
+        const assigned = await this.autoAssignAdvisor(
+          data.sessionId,
+          session.clientName,
+        );
         if (!assigned) {
           this.addToQueue(data.sessionId);
           this.emitQueuePosition(data.sessionId);
@@ -288,10 +338,17 @@ export class ChatGateway
     if (client.data.role !== 'client') return;
     const session = await this.sessionsService.requestAdvisor(sessionId);
     if (session.status !== 'waiting') return;
-      this.server.emit('session_updated', { sessionId, status: 'waiting' });
-      this.server.emit('metrics_updated', { type: 'session_status', sessionId, status: 'waiting' });
+    this.server.emit('session_updated', { sessionId, status: 'waiting' });
+    this.server.emit('metrics_updated', {
+      type: 'session_status',
+      sessionId,
+      status: 'waiting',
+    });
     this.sessionToSocket.set(sessionId, client.id);
-    const assigned = await this.autoAssignAdvisor(sessionId, session.clientName);
+    const assigned = await this.autoAssignAdvisor(
+      sessionId,
+      session.clientName,
+    );
     if (!assigned) {
       this.addToQueue(sessionId);
       this.emitQueuePosition(sessionId);
@@ -308,63 +365,74 @@ export class ChatGateway
    * Ambos asesores pueden ver y enviar mensajes.
    */
 
-  
- @SubscribeMessage('join_active_chat')
-async handleJoinActiveChat(
-  @MessageBody() sessionId: string,
-  @ConnectedSocket() client: Socket,
-) {
-  this.logger.log('[JoinActive] sessionId recibido:', sessionId);
-  this.logger.log('[JoinActive] role:', client.data.role);
-  this.logger.log('[JoinActive] client.id:', client.id);
+  @SubscribeMessage('join_active_chat')
+  async handleJoinActiveChat(
+    @MessageBody() sessionId: string,
+    @ConnectedSocket() client: Socket,
+  ) {
+    this.logger.log('[JoinActive] sessionId recibido:', sessionId);
+    this.logger.log('[JoinActive] role:', client.data.role);
+    this.logger.log('[JoinActive] client.id:', client.id);
 
-  if (client.data.role !== 'advisor') return;
+    if (client.data.role !== 'advisor') return;
 
-  const advisorId   = client.data.user.id;
-  const advisorName = client.data.user.name;
+    const advisorId = client.data.user.id;
+    const advisorName = client.data.user.name;
 
-  if (this.estaEnAlmuerzo(advisorId)) {
-    client.emit('join_chat_error', { reason: 'Estás en pausa de almuerzo.' });
-    return;
+    if (this.estaEnAlmuerzo(advisorId)) {
+      client.emit('join_chat_error', { reason: 'Estás en pausa de almuerzo.' });
+      return;
+    }
+
+    const session = await this.sessionsService
+      .findOne(sessionId)
+      .catch(() => null);
+    this.logger.log('[JoinActive] session status:', session?.status);
+
+    if (
+      !session ||
+      (session.status !== 'active' && session.status !== 'waiting')
+    ) {
+      client.emit('join_chat_error', {
+        reason: 'La sesión no está disponible.',
+      });
+      return;
+    }
+
+    // Unir a la room
+    client.join(sessionId);
+
+    // Historial al asesor
+    const history = await this.chatService.getHistory(sessionId, 50);
+    client.emit('message_history', history);
+
+    // Mensaje de sistema
+    const msg = await this.chatService.saveMessage(
+      sessionId,
+      `${advisorName} se unió al chat como apoyo`,
+      'advisor',
+      'Sistema',
+    );
+    this.server.to(sessionId).emit('new_message', msg);
+
+    // ✅ Confirmar al asesor
+    this.logger.log('[JoinActive] emitiendo joined_chat_ok...');
+    client.emit('joined_chat_ok', {
+      sessionId,
+      clientName: session.clientName,
+    });
+    this.logger.log('[JoinActive] joined_chat_ok emitido');
+
+    this.server.to(sessionId).emit('advisor_joined_collab', {
+      sessionId,
+      advisorId,
+      advisorName,
+    });
+
+    this.logger.log(
+      `[Collab] ${advisorName} se unió al chat ${sessionId} como apoyo`,
+    );
   }
-
-  const session = await this.sessionsService.findOne(sessionId).catch(() => null);
-  this.logger.log('[JoinActive] session status:', session?.status);
-
-  if (!session || (session.status !== 'active' && session.status !== 'waiting')) {
-    client.emit('join_chat_error', { reason: 'La sesión no está disponible.' });
-    return;
-  }
-
-  // Unir a la room
-  client.join(sessionId);
-
-  // Historial al asesor
-  const history = await this.chatService.getHistory(sessionId, 50);
-  client.emit('message_history', history);
-
-  // Mensaje de sistema
-  const msg = await this.chatService.saveMessage(
-    sessionId,
-    `${advisorName} se unió al chat como apoyo`,
-    'advisor',
-    'Sistema',
-  );
-  this.server.to(sessionId).emit('new_message', msg);
-
-  // ✅ Confirmar al asesor
-  this.logger.log('[JoinActive] emitiendo joined_chat_ok...');
-  client.emit('joined_chat_ok', { sessionId, clientName: session.clientName });
-  this.logger.log('[JoinActive] joined_chat_ok emitido');
-
-  this.server.to(sessionId).emit('advisor_joined_collab', {
-    sessionId,
-    advisorId,
-    advisorName,
-  });
-
-  this.logger.log(`[Collab] ${advisorName} se unió al chat ${sessionId} como apoyo`);
-}
 
   /**
    * Un asesor colaborador sale del chat.
@@ -377,10 +445,12 @@ async handleJoinActiveChat(
   ) {
     if (client.data.role !== 'advisor') return;
 
-    const advisorId   = client.data.user.id;
+    const advisorId = client.data.user.id;
     const advisorName = client.data.user.name;
 
-    const session = await this.sessionsService.findOne(sessionId).catch(() => null);
+    const session = await this.sessionsService
+      .findOne(sessionId)
+      .catch(() => null);
     if (!session) return;
 
     // El asesor principal no puede "salir" — debe cerrar o transferir
@@ -432,23 +502,38 @@ async handleJoinActiveChat(
       return;
     }
 
-    const before = await this.sessionsService.findOne(sessionId).catch(() => null);
-    if (!before || (before.status !== 'active' && before.status !== 'waiting')) {
-      client.emit('takeover_error', { reason: 'El chat ya no esta disponible.' });
+    const before = await this.sessionsService
+      .findOne(sessionId)
+      .catch(() => null);
+    if (
+      !before ||
+      (before.status !== 'active' && before.status !== 'waiting')
+    ) {
+      client.emit('takeover_error', {
+        reason: 'El chat ya no esta disponible.',
+      });
       return;
     }
 
     const oldAdvisorId = before.advisor?.id ?? null;
-    const session = await this.sessionsService.takeOver(sessionId, newAdvisorId);
+    const session = await this.sessionsService.takeOver(
+      sessionId,
+      newAdvisorId,
+    );
 
-    const oldSocket = oldAdvisorId ? this.connectedAdvisors.get(oldAdvisorId) : null;
+    const oldSocket = oldAdvisorId
+      ? this.connectedAdvisors.get(oldAdvisorId)
+      : null;
     oldSocket?.leave(sessionId);
     if (oldSocket && oldAdvisorId !== newAdvisorId) {
       oldSocket.emit('session_taken', { sessionId, takenBy: newAdvisorName });
     }
 
     client.join(sessionId);
-    client.emit('session_assigned', { sessionId, clientName: session.clientName });
+    client.emit('session_assigned', {
+      sessionId,
+      clientName: session.clientName,
+    });
 
     this.cancelarTimerActivo(sessionId);
     this.timers.set(sessionId, {
@@ -472,9 +557,15 @@ async handleJoinActiveChat(
     );
     this.server.to(sessionId).emit('new_message', msg);
     this.server.emit('session_updated', { sessionId, status: 'active' });
-    this.server.emit('metrics_updated', { type: 'session_status', sessionId, status: 'active' });
+    this.server.emit('metrics_updated', {
+      type: 'session_status',
+      sessionId,
+      status: 'active',
+    });
 
-    for (const advisorId of [oldAdvisorId, newAdvisorId].filter(Boolean) as string[]) {
+    for (const advisorId of [oldAdvisorId, newAdvisorId].filter(
+      Boolean,
+    ) as string[]) {
       const advisor = await this.sessionsService.findAdvisorById(advisorId);
       if (advisor) {
         this.advisorStatuses.set(advisor.id, advisor.status);
@@ -495,7 +586,8 @@ async handleJoinActiveChat(
 
   @SubscribeMessage('send_message')
   async handleMessage(
-    @MessageBody() data: { sessionId: string; content: string; senderName?: string },
+    @MessageBody()
+    data: { sessionId: string; content: string; senderName?: string },
     @ConnectedSocket() client: Socket,
   ) {
     const sessionId = data.sessionId;
@@ -504,7 +596,9 @@ async handleJoinActiveChat(
     if (rateEntry && now < rateEntry.resetAt) {
       rateEntry.count++;
       if (rateEntry.count > this.MAX_MSG_PER_SEC) {
-        client.emit('message_error', { reason: 'Demasiados mensajes. Intenta de nuevo en un momento.' });
+        client.emit('message_error', {
+          reason: 'Demasiados mensajes. Intenta de nuevo en un momento.',
+        });
         return;
       }
     } else {
@@ -512,30 +606,33 @@ async handleJoinActiveChat(
     }
 
     const senderType = client.data.role as 'client' | 'advisor';
-    const senderName = senderType === 'advisor'
-      ? client.data.user?.name
-      : (data.senderName ?? 'Cliente');
+    const senderName =
+      senderType === 'advisor'
+        ? client.data.user?.name
+        : (data.senderName ?? 'Cliente');
 
-    const message = await this.chatService.saveMessage(
-      data.sessionId, data.content, senderType, senderName,
-    ).catch((error) => {
-      client.emit('message_error', { reason: error?.message ?? 'Mensaje invalido' });
-      return null;
-    });
+    const message = await this.chatService
+      .saveMessage(data.sessionId, data.content, senderType, senderName)
+      .catch((error) => {
+        client.emit('message_error', {
+          reason: error?.message ?? 'Mensaje invalido',
+        });
+        return null;
+      });
     if (!message) return;
     this.server.to(data.sessionId).emit('new_message', message);
 
     if (senderType === 'client') {
       this.clientPresence.set(data.sessionId, {
-        online : true,
-        active : true,
+        online: true,
+        active: true,
         socketId: client.id,
         lastSeen: Date.now(),
       });
       this.server.to(data.sessionId).emit('client_presence', {
         sessionId: data.sessionId,
-        online : true,
-        active : true,
+        online: true,
+        active: true,
         lastSeen: new Date().toISOString(),
       });
       await this.cambiarTurno(data.sessionId, 'advisor', true);
@@ -544,7 +641,7 @@ async handleJoinActiveChat(
     }
 
     if (senderType === 'client' && this.aiActiveSessions.has(data.sessionId)) {
-      this.respondWithAi(data.sessionId, data.content).catch(err =>
+      this.respondWithAi(data.sessionId, data.content).catch((err) =>
         this.logger.error('[AutoIA]', err.message),
       );
     }
@@ -566,11 +663,16 @@ async handleJoinActiveChat(
     if (client.data.role !== 'advisor') return;
 
     if (this.estaEnAlmuerzo(data.newAdvisorId)) {
-      client.emit('transfer_error', { reason: 'El asesor está en pausa de almuerzo.' });
+      client.emit('transfer_error', {
+        reason: 'El asesor está en pausa de almuerzo.',
+      });
       return;
     }
 
-    const session   = await this.sessionsService.transfer(data.sessionId, data.newAdvisorId);
+    const session = await this.sessionsService.transfer(
+      data.sessionId,
+      data.newAdvisorId,
+    );
     const newSocket = this.connectedAdvisors.get(data.newAdvisorId);
 
     this.cancelarTimerActivo(data.sessionId);
@@ -590,7 +692,7 @@ async handleJoinActiveChat(
     if (newSocket) {
       newSocket.join(data.sessionId);
       newSocket.emit('session_assigned', {
-        sessionId : data.sessionId,
+        sessionId: data.sessionId,
         clientName: session.clientName,
       });
     }
@@ -607,8 +709,15 @@ async handleJoinActiveChat(
       'Sistema',
     );
     this.server.to(data.sessionId).emit('new_message', msg);
-    this.server.emit('session_updated', { sessionId: data.sessionId, status: 'active' });
-    this.server.emit('metrics_updated', { type: 'session_status', sessionId: data.sessionId, status: 'active' });
+    this.server.emit('session_updated', {
+      sessionId: data.sessionId,
+      status: 'active',
+    });
+    this.server.emit('metrics_updated', {
+      type: 'session_status',
+      sessionId: data.sessionId,
+      status: 'active',
+    });
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -621,7 +730,9 @@ async handleJoinActiveChat(
     @ConnectedSocket() client: Socket,
   ) {
     if (client.data.role !== 'advisor') return;
-    const session   = await this.sessionsService.findOne(sessionId).catch(() => null);
+    const session = await this.sessionsService
+      .findOne(sessionId)
+      .catch(() => null);
     const advisorId = session?.advisor?.id ?? client.data.user?.id;
 
     await this.sessionsService.close(sessionId);
@@ -635,7 +746,11 @@ async handleJoinActiveChat(
       if (a) {
         this.advisorStatuses.set(a.id, a.status);
         this.server.emit('advisor_status_changed', {
-          advisorId: a.id, name: a.name, status: a.status, activeChats: a.activeChats, profilePhotoUrl: a.profilePhotoUrl ?? null,
+          advisorId: a.id,
+          name: a.name,
+          status: a.status,
+          activeChats: a.activeChats,
+          profilePhotoUrl: a.profilePhotoUrl ?? null,
         });
       }
       await this.activarLunchPendiente(advisorId);
@@ -652,7 +767,9 @@ async handleJoinActiveChat(
     @MessageBody() sessionId: string,
     @ConnectedSocket() _client: Socket,
   ) {
-    const session   = await this.sessionsService.findOne(sessionId).catch(() => null);
+    const session = await this.sessionsService
+      .findOne(sessionId)
+      .catch(() => null);
     const advisorId = session?.advisor?.id ?? null;
 
     await this.sessionsService.close(sessionId);
@@ -667,7 +784,11 @@ async handleJoinActiveChat(
       if (a) {
         this.advisorStatuses.set(a.id, a.status);
         this.server.emit('advisor_status_changed', {
-          advisorId: a.id, name: a.name, status: a.status, activeChats: a.activeChats, profilePhotoUrl: a.profilePhotoUrl ?? null,
+          advisorId: a.id,
+          name: a.name,
+          status: a.status,
+          activeChats: a.activeChats,
+          profilePhotoUrl: a.profilePhotoUrl ?? null,
         });
       }
       await this.activarLunchPendiente(advisorId);
@@ -684,7 +805,10 @@ async handleJoinActiveChat(
   // ══════════════════════════════════════════════════════════════════════════
 
   @SubscribeMessage('typing_start')
-  handleTypingStart(@MessageBody() sessionId: string, @ConnectedSocket() client: Socket) {
+  handleTypingStart(
+    @MessageBody() sessionId: string,
+    @ConnectedSocket() client: Socket,
+  ) {
     client.to(sessionId).emit('typing_start', {
       name: client.data.role === 'advisor' ? client.data.user?.name : 'Cliente',
       role: client.data.role,
@@ -693,15 +817,23 @@ async handleJoinActiveChat(
   }
 
   @SubscribeMessage('typing_stop')
-  handleTypingStop(@MessageBody() sessionId: string, @ConnectedSocket() client: Socket) {
+  handleTypingStop(
+    @MessageBody() sessionId: string,
+    @ConnectedSocket() client: Socket,
+  ) {
     client.to(sessionId).emit('typing_stop', { sessionId });
   }
 
   @SubscribeMessage('mark_read')
-  async handleMarkRead(@MessageBody() sessionId: string, @ConnectedSocket() client: Socket) {
+  async handleMarkRead(
+    @MessageBody() sessionId: string,
+    @ConnectedSocket() client: Socket,
+  ) {
     const senderType = client.data.role === 'advisor' ? 'client' : 'advisor';
     await this.chatService.markAsRead(sessionId, senderType);
-    client.to(sessionId).emit('messages_read', { sessionId, readBy: client.data.role });
+    client
+      .to(sessionId)
+      .emit('messages_read', { sessionId, readBy: client.data.role });
   }
 
   @SubscribeMessage('set_active')
@@ -712,15 +844,15 @@ async handleJoinActiveChat(
     client.data.isActive = data.active;
     if (client.data.role === 'client') {
       this.clientPresence.set(data.sessionId, {
-        online : true,
-        active : data.active,
+        online: true,
+        active: data.active,
         socketId: client.id,
         lastSeen: Date.now(),
       });
       this.server.to(data.sessionId).emit('client_presence', {
         sessionId: data.sessionId,
-        online : true,
-        active : data.active,
+        online: true,
+        active: data.active,
         lastSeen: new Date().toISOString(),
       });
     }
@@ -729,7 +861,7 @@ async handleJoinActiveChat(
       this.chatService.markAsRead(data.sessionId, senderType).then(() => {
         client.to(data.sessionId).emit('messages_read', {
           sessionId: data.sessionId,
-          readBy   : client.data.role,
+          readBy: client.data.role,
         });
       });
     }
@@ -745,7 +877,8 @@ async handleJoinActiveChat(
     @ConnectedSocket() client: Socket,
   ) {
     if (client.data.role !== 'advisor') return;
-    const sessionId = typeof payload === 'string' ? payload : payload?.sessionId;
+    const sessionId =
+      typeof payload === 'string' ? payload : payload?.sessionId;
     if (!sessionId) {
       client.emit('remit_ai_error', { reason: 'sessionId no recibido' });
       return;
@@ -755,8 +888,10 @@ async handleJoinActiveChat(
     this.server.to(sessionId).emit('ai_mode_changed', { active: true });
     client.emit('remit_ai_ok', { sessionId });
 
-    const all        = await this.chatService.getHistory(sessionId, 100);
-    const lastClient = [...all].reverse().find(m => m.senderType === 'client');
+    const all = await this.chatService.getHistory(sessionId, 100);
+    const lastClient = [...all]
+      .reverse()
+      .find((m) => m.senderType === 'client');
     if (lastClient) await this.respondWithAi(sessionId, lastClient.content);
   }
 
@@ -766,31 +901,41 @@ async handleJoinActiveChat(
     @ConnectedSocket() client: Socket,
   ) {
     if (client.data.role !== 'advisor') return;
-    const sessionId = typeof payload === 'string' ? payload : payload?.sessionId;
+    const sessionId =
+      typeof payload === 'string' ? payload : payload?.sessionId;
     if (!sessionId) return;
     this.aiActiveSessions.delete(sessionId);
     this.server.to(sessionId).emit('ai_mode_changed', { active: false });
   }
 
-  private async respondWithAi(sessionId: string, clientMessage: string): Promise<void> {
+  private async respondWithAi(
+    sessionId: string,
+    clientMessage: string,
+  ): Promise<void> {
     const session = await this.sessionsService.findOne(sessionId);
-    const all     = await this.chatService.getHistory(sessionId, 100);
+    const all = await this.chatService.getHistory(sessionId, 100);
     const history = all
-      .filter(m => m.content !== clientMessage || m.senderType !== 'client')
+      .filter((m) => m.content !== clientMessage || m.senderType !== 'client')
       .slice(-20)
-      .map(m => ({
-        role: m.senderType === 'client' ? 'user' as const : 'model' as const,
+      .map((m) => ({
+        role:
+          m.senderType === 'client' ? ('user' as const) : ('model' as const),
         text: m.content,
       }));
 
     this.server.to(sessionId).emit('typing_start', {
-      name: 'Asistente Virtual', role: 'advisor', sessionId,
+      name: 'Asistente Virtual',
+      role: 'advisor',
+      sessionId,
     });
 
     try {
       const result = await this.aiService.chat(
-        clientMessage, history, session.clientName,
-        session.colegio ?? '', session.tipoSolicitud ?? '',
+        clientMessage,
+        history,
+        session.clientName,
+        session.colegio ?? '',
+        session.tipoSolicitud ?? '',
       );
       this.server.to(sessionId).emit('typing_stop', { sessionId });
 
@@ -800,9 +945,14 @@ async handleJoinActiveChat(
         return;
       }
       const saved = await this.chatService.saveMessage(
-        sessionId, result.reply, 'advisor', 'Asistente Virtual',
+        sessionId,
+        result.reply,
+        'advisor',
+        'Asistente Virtual',
       );
-      this.server.to(sessionId).emit('new_message', { ...saved, showFeedback: result.showFeedback });
+      this.server
+        .to(sessionId)
+        .emit('new_message', { ...saved, showFeedback: result.showFeedback });
     } catch (err) {
       this.server.to(sessionId).emit('typing_stop', { sessionId });
       this.logger.error('[AutoIA]', (err as Error).message);
@@ -813,14 +963,19 @@ async handleJoinActiveChat(
   // SISTEMA DE TIMERS
   // ══════════════════════════════════════════════════════════════════════════
 
-  private async iniciarTimers(sessionId: string, advisorId: string): Promise<void> {
-    const history  = await this.chatService.getHistory(sessionId, 50);
+  private async iniciarTimers(
+    sessionId: string,
+    advisorId: string,
+  ): Promise<void> {
+    const history = await this.chatService.getHistory(sessionId, 50);
     const realMsgs = history.filter(
-      m => m.senderName !== 'Sistema' && m.senderName !== 'Asistente Virtual',
+      (m) => m.senderName !== 'Sistema' && m.senderName !== 'Asistente Virtual',
     );
     const lastSender = realMsgs.at(-1)?.senderType ?? 'advisor';
 
-    this.logger.log(`[Timer] Inicio sesión ${sessionId} — último real: ${lastSender}`);
+    this.logger.log(
+      `[Timer] Inicio sesión ${sessionId} — último real: ${lastSender}`,
+    );
 
     if (lastSender === 'client') {
       await this.arrancarTimerAsesor(sessionId);
@@ -830,15 +985,17 @@ async handleJoinActiveChat(
   }
 
   private async cambiarTurno(
-    sessionId       : string,
-    nuevoTurno      : 'advisor' | 'client',
+    sessionId: string,
+    nuevoTurno: 'advisor' | 'client',
     resetIterCliente: boolean,
   ): Promise<void> {
     this.cancelarTimerActivo(sessionId);
 
     const entry = this.timers.get(sessionId);
     if (!entry) {
-      this.logger.warn(`[Timer] cambiarTurno: no hay entry para sesión ${sessionId}`);
+      this.logger.warn(
+        `[Timer] cambiarTurno: no hay entry para sesión ${sessionId}`,
+      );
       return;
     }
 
@@ -862,23 +1019,31 @@ async handleJoinActiveChat(
         .catch(() => null);
       if (!config) return;
 
-      const total       = config.asesorInactividadSeg;
-      entry.tipo        = 'advisor';
-      entry.elapsed     = 0;
-      entry.startTime   = Date.now();
-      entry.totalSecs   = total;
+      const total = config.asesorInactividadSeg;
+      entry.tipo = 'advisor';
+      entry.elapsed = 0;
+      entry.startTime = Date.now();
+      entry.totalSecs = total;
 
       this.emitTimer(sessionId, {
-        tipo: 'advisor_waiting', total, elapsed: 0,
-        mensaje: config.asesorInactividadMsg, iteracion: 0, maxIter: 0,
+        tipo: 'advisor_waiting',
+        total,
+        elapsed: 0,
+        mensaje: config.asesorInactividadMsg,
+        iteracion: 0,
+        maxIter: 0,
       });
 
       const tick = () => {
         const realElapsed = Math.floor((Date.now() - entry.startTime) / 1000);
         entry.elapsed = realElapsed;
         this.emitTimer(sessionId, {
-          tipo: 'advisor_waiting', total, elapsed: realElapsed,
-          mensaje: config.asesorInactividadMsg, iteracion: 0, maxIter: 0,
+          tipo: 'advisor_waiting',
+          total,
+          elapsed: realElapsed,
+          mensaje: config.asesorInactividadMsg,
+          iteracion: 0,
+          maxIter: 0,
         });
         if (realElapsed < total) {
           const nextDelay = 1000 - ((Date.now() - entry.startTime) % 1000);
@@ -888,19 +1053,29 @@ async handleJoinActiveChat(
       entry.tick = setTimeout(tick, 1000);
 
       const remainingMs = total * 1000 - (Date.now() - entry.startTime);
-      entry.timeout = setTimeout(async () => {
-        this.cancelarTimerActivo(sessionId);
-        const session = await this.sessionsService.findOne(sessionId).catch(() => null);
-        if (!session || session.status !== 'active') return;
+      entry.timeout = setTimeout(
+        async () => {
+          this.cancelarTimerActivo(sessionId);
+          const session = await this.sessionsService
+            .findOne(sessionId)
+            .catch(() => null);
+          if (!session || session.status !== 'active') return;
 
-        const msg = await this.chatService.saveMessage(
-          sessionId, config.asesorInactividadMsg, 'advisor', 'Sistema',
-        );
-        this.server.to(sessionId).emit('new_message', msg);
-        this.logger.log(`[Timer] Asesor inactivo → mensaje enviado en ${sessionId}`);
+          const msg = await this.chatService.saveMessage(
+            sessionId,
+            config.asesorInactividadMsg,
+            'advisor',
+            'Sistema',
+          );
+          this.server.to(sessionId).emit('new_message', msg);
+          this.logger.log(
+            `[Timer] Asesor inactivo → mensaje enviado en ${sessionId}`,
+          );
 
-        await this.arrancarTimerCliente(sessionId);
-      }, Math.max(0, remainingMs));
+          await this.arrancarTimerCliente(sessionId);
+        },
+        Math.max(0, remainingMs),
+      );
     } finally {
       if (!entry.timeout && !entry.tick) entry.settingUp = false;
     }
@@ -917,25 +1092,31 @@ async handleJoinActiveChat(
         .catch(() => null);
       if (!config) return;
 
-      const total       = config.clienteInactividadSeg;
-      entry.tipo        = 'client';
-      entry.elapsed     = 0;
-      entry.startTime   = Date.now();
-      entry.totalSecs   = total;
+      const total = config.clienteInactividadSeg;
+      entry.tipo = 'client';
+      entry.elapsed = 0;
+      entry.startTime = Date.now();
+      entry.totalSecs = total;
 
       this.emitTimer(sessionId, {
-        tipo: 'client_waiting', total, elapsed: 0,
+        tipo: 'client_waiting',
+        total,
+        elapsed: 0,
         mensaje: config.clienteInactividadMsg,
-        iteracion: entry.iterCliente, maxIter: config.clienteInactividadIters,
+        iteracion: entry.iterCliente,
+        maxIter: config.clienteInactividadIters,
       });
 
       const tick = () => {
         const realElapsed = Math.floor((Date.now() - entry.startTime) / 1000);
         entry.elapsed = realElapsed;
         this.emitTimer(sessionId, {
-          tipo: 'client_waiting', total, elapsed: realElapsed,
+          tipo: 'client_waiting',
+          total,
+          elapsed: realElapsed,
           mensaje: config.clienteInactividadMsg,
-          iteracion: entry.iterCliente, maxIter: config.clienteInactividadIters,
+          iteracion: entry.iterCliente,
+          maxIter: config.clienteInactividadIters,
         });
         if (realElapsed < total) {
           const nextDelay = 1000 - ((Date.now() - entry.startTime) % 1000);
@@ -945,41 +1126,65 @@ async handleJoinActiveChat(
       entry.tick = setTimeout(tick, 1000);
 
       const remainingMs = total * 1000 - (Date.now() - entry.startTime);
-      entry.timeout = setTimeout(async () => {
-        this.cancelarTimerActivo(sessionId);
-        const session = await this.sessionsService.findOne(sessionId).catch(() => null);
-        if (!session || session.status !== 'active') return;
+      entry.timeout = setTimeout(
+        async () => {
+          this.cancelarTimerActivo(sessionId);
+          const session = await this.sessionsService
+            .findOne(sessionId)
+            .catch(() => null);
+          if (!session || session.status !== 'active') return;
 
-        entry.iterCliente++;
+          entry.iterCliente++;
 
-        if (entry.iterCliente <= config.clienteInactividadIters) {
-          const msg = await this.chatService.saveMessage(
-            sessionId, config.clienteInactividadMsg, 'advisor', 'Sistema',
-          );
-          this.server.to(sessionId).emit('new_message', msg);
-          this.logger.log(`[Timer] Cliente inactivo → aviso ${entry.iterCliente}/${config.clienteInactividadIters} en ${sessionId}`);
-          await this.arrancarTimerCliente(sessionId);
-        } else {
-          this.logger.log(`[Timer] Cerrando sesión ${sessionId} por inactividad del cliente`);
-          const msgCierre = await this.chatService.saveMessage(
-            sessionId, config.clienteCierreMsg, 'advisor', 'Sistema',
-          );
-          this.server.to(sessionId).emit('new_message', msgCierre);
-          this.emitTimer(sessionId, {
-            tipo: 'closing', total: 3, elapsed: 0,
-            mensaje: config.clienteCierreMsg,
-            iteracion: entry.iterCliente, maxIter: config.clienteInactividadIters,
-          });
-          setTimeout(async () => {
-            this.eliminarTimer(sessionId);
-            await this.sessionsService.close(sessionId);
-            this.server.to(sessionId).emit('session_closed', { sessionId });
-            this.server.emit('session_updated', { sessionId, status: 'closed' });
-            this.server.emit('metrics_updated', { type: 'session_closed', sessionId });
-            await this.assignPendingSessions();
-          }, 3_000);
-        }
-      }, Math.max(0, remainingMs));
+          if (entry.iterCliente <= config.clienteInactividadIters) {
+            const msg = await this.chatService.saveMessage(
+              sessionId,
+              config.clienteInactividadMsg,
+              'advisor',
+              'Sistema',
+            );
+            this.server.to(sessionId).emit('new_message', msg);
+            this.logger.log(
+              `[Timer] Cliente inactivo → aviso ${entry.iterCliente}/${config.clienteInactividadIters} en ${sessionId}`,
+            );
+            await this.arrancarTimerCliente(sessionId);
+          } else {
+            this.logger.log(
+              `[Timer] Cerrando sesión ${sessionId} por inactividad del cliente`,
+            );
+            const msgCierre = await this.chatService.saveMessage(
+              sessionId,
+              config.clienteCierreMsg,
+              'advisor',
+              'Sistema',
+            );
+            this.server.to(sessionId).emit('new_message', msgCierre);
+            this.emitTimer(sessionId, {
+              tipo: 'closing',
+              total: 3,
+              elapsed: 0,
+              mensaje: config.clienteCierreMsg,
+              iteracion: entry.iterCliente,
+              maxIter: config.clienteInactividadIters,
+            });
+            setTimeout(async () => {
+              this.eliminarTimer(sessionId);
+              await this.sessionsService.close(sessionId);
+              this.server.to(sessionId).emit('session_closed', { sessionId });
+              this.server.emit('session_updated', {
+                sessionId,
+                status: 'closed',
+              });
+              this.server.emit('metrics_updated', {
+                type: 'session_closed',
+                sessionId,
+              });
+              await this.assignPendingSessions();
+            }, 3_000);
+          }
+        },
+        Math.max(0, remainingMs),
+      );
     } finally {
       if (!entry.timeout && !entry.tick) entry.settingUp = false;
     }
@@ -988,17 +1193,23 @@ async handleJoinActiveChat(
   private cancelarTimerActivo(sessionId: string): void {
     const entry = this.timers.get(sessionId);
     if (!entry) return;
-    if (entry.tick)    { clearInterval(entry.tick);   entry.tick    = null; }
-    if (entry.timeout) { clearTimeout(entry.timeout); entry.timeout = null; }
-    entry.tipo      = 'none';
-    entry.elapsed   = 0;
+    if (entry.tick) {
+      clearInterval(entry.tick);
+      entry.tick = null;
+    }
+    if (entry.timeout) {
+      clearTimeout(entry.timeout);
+      entry.timeout = null;
+    }
+    entry.tipo = 'none';
+    entry.elapsed = 0;
     entry.settingUp = false;
   }
 
   private eliminarTimer(sessionId: string): void {
     const entry = this.timers.get(sessionId);
     if (!entry) return;
-    if (entry.tick)    clearInterval(entry.tick);
+    if (entry.tick) clearInterval(entry.tick);
     if (entry.timeout) clearTimeout(entry.timeout);
     entry.settingUp = false;
     this.timers.delete(sessionId);
@@ -1007,12 +1218,12 @@ async handleJoinActiveChat(
   private emitTimer(
     sessionId: string,
     data: {
-      tipo     : 'advisor_waiting' | 'client_waiting' | 'closing';
-      total    : number;
-      elapsed  : number;
-      mensaje  : string;
+      tipo: 'advisor_waiting' | 'client_waiting' | 'closing';
+      total: number;
+      elapsed: number;
+      mensaje: string;
       iteracion: number;
-      maxIter  : number;
+      maxIter: number;
     },
   ): void {
     this.server.to(sessionId).emit('timer_update', { sessionId, ...data });
@@ -1030,9 +1241,10 @@ async handleJoinActiveChat(
     try {
       const waiting = await this.sessionsService.findWaitingSessions();
       for (const session of waiting) {
-        const hasAvailable = await this.sessionsService.findAvailableAdvisorFromList(
-          [...this.connectedAdvisors.keys()],
-        );
+        const hasAvailable =
+          await this.sessionsService.findAvailableAdvisorFromList([
+            ...this.connectedAdvisors.keys(),
+          ]);
         if (!hasAvailable) break;
         await this.autoAssignAdvisor(session.id, session.clientName);
       }
@@ -1041,39 +1253,64 @@ async handleJoinActiveChat(
     }
   }
 
-  private async autoAssignAdvisor(sessionId: string, clientName: string): Promise<boolean> {
+  private async autoAssignAdvisor(
+    sessionId: string,
+    clientName: string,
+  ): Promise<boolean> {
     const session = await this.sessionsService.findOne(sessionId);
     if (session.status !== 'waiting') return false;
 
     const connectedIds = [...this.connectedAdvisors.keys()];
     if (!connectedIds.length) return false;
 
-    const disponiblesIds = connectedIds.filter(id => !this.estaEnAlmuerzo(id));
+    const disponiblesIds = connectedIds.filter(
+      (id) => !this.estaEnAlmuerzo(id),
+    );
     if (!disponiblesIds.length) {
-      this.logger.log('[Assign] Todos los asesores conectados están en almuerzo.');
+      this.logger.log(
+        '[Assign] Todos los asesores conectados están en almuerzo.',
+      );
       return false;
     }
 
-    const advisor = await this.sessionsService.findAvailableAdvisorFromList(disponiblesIds);
+    const advisor =
+      await this.sessionsService.findAvailableAdvisorFromList(disponiblesIds);
     if (!advisor) return false;
 
     if (this.estaEnAlmuerzo(advisor.id)) {
-      this.logger.log(`[Assign] Asesor ${advisor.name} está en almuerzo, salteando.`);
+      this.logger.log(
+        `[Assign] Asesor ${advisor.name} está en almuerzo, salteando.`,
+      );
       return false;
     }
 
     const advisorSocket = this.connectedAdvisors.get(advisor.id);
-    if (!advisorSocket) { this.connectedAdvisors.delete(advisor.id); return false; }
+    if (!advisorSocket) {
+      this.connectedAdvisors.delete(advisor.id);
+      return false;
+    }
 
-    const assigned = await this.sessionsService.assignAdvisor(sessionId, advisor.id);
+    const assigned = await this.sessionsService.assignAdvisor(
+      sessionId,
+      advisor.id,
+    );
     if (assigned.status !== 'active') return false;
 
     advisorSocket.join(sessionId);
-    this.server.to(sessionId).emit('advisor_joined', { name: advisor.name, profilePhotoUrl: advisor.profilePhotoUrl ?? null });
+    this.server.to(sessionId).emit('advisor_joined', {
+      name: advisor.name,
+      profilePhotoUrl: advisor.profilePhotoUrl ?? null,
+    });
     advisorSocket.emit('session_assigned', { sessionId, clientName });
     this.server.emit('session_updated', { sessionId, status: 'active' });
-    this.server.emit('metrics_updated', { type: 'session_status', sessionId, status: 'active' });
-    const refreshedAdvisor = await this.sessionsService.findAdvisorById(advisor.id);
+    this.server.emit('metrics_updated', {
+      type: 'session_status',
+      sessionId,
+      status: 'active',
+    });
+    const refreshedAdvisor = await this.sessionsService.findAdvisorById(
+      advisor.id,
+    );
     if (refreshedAdvisor) {
       this.advisorStatuses.set(refreshedAdvisor.id, refreshedAdvisor.status);
       this.server.emit('advisor_status_changed', {
@@ -1090,15 +1327,15 @@ async handleJoinActiveChat(
     this.broadcastQueuePositions();
 
     this.timers.set(sessionId, {
-      tipo       : 'none',
-      timeout    : null,
-      tick       : null,
-      elapsed    : 0,
+      tipo: 'none',
+      timeout: null,
+      tick: null,
+      elapsed: 0,
       iterCliente: 0,
-      advisorId  : advisor.id,
-      settingUp  : false,
-      startTime  : 0,
-      totalSecs  : 0,
+      advisorId: advisor.id,
+      settingUp: false,
+      startTime: 0,
+      totalSecs: 0,
     });
 
     await this.enviarBienvenidaAsesor(sessionId, advisor.name, advisor.id);
@@ -1113,16 +1350,17 @@ async handleJoinActiveChat(
   // ══════════════════════════════════════════════════════════════════════════
 
   private async enviarBienvenidaAsesor(
-    sessionId  : string,
+    sessionId: string,
     advisorName: string,
-    advisorId  : string,
+    advisorId: string,
   ): Promise<void> {
     const history = await this.chatService.getHistory(sessionId, 50);
 
     const yaRespondio = history.some(
-      m => m.senderType === 'advisor'
-        && m.senderName !== 'Sistema'
-        && m.senderName !== 'Asistente Virtual',
+      (m) =>
+        m.senderType === 'advisor' &&
+        m.senderName !== 'Sistema' &&
+        m.senderName !== 'Asistente Virtual',
     );
     if (yaRespondio) return;
 
@@ -1132,8 +1370,16 @@ async handleJoinActiveChat(
 
     if (!config?.mensajeBienvenida?.trim()) return;
 
-    const texto = config.mensajeBienvenida.replace(/\{\{asesor\}\}/gi, advisorName);
-    const msg   = await this.chatService.saveMessage(sessionId, texto, 'advisor', advisorName);
+    const texto = config.mensajeBienvenida.replace(
+      /\{\{asesor\}\}/gi,
+      advisorName,
+    );
+    const msg = await this.chatService.saveMessage(
+      sessionId,
+      texto,
+      'advisor',
+      advisorName,
+    );
     this.server.to(sessionId).emit('new_message', msg);
     this.logger.log(`[Bienvenida] "${texto}" → sesión ${sessionId}`);
   }
@@ -1143,149 +1389,178 @@ async handleJoinActiveChat(
   // ══════════════════════════════════════════════════════════════════════════
 
   private async checkLunchBreaks(): Promise<void> {
-    const ahora  = new Date();
+    const ahora = new Date();
     const diaSem = ahora.getDay();
-    const hhmm   = `${String(ahora.getHours()).padStart(2,'0')}:${String(ahora.getMinutes()).padStart(2,'0')}`;
+    const hhmm = `${String(ahora.getHours()).padStart(2, '0')}:${String(ahora.getMinutes()).padStart(2, '0')}`;
 
     const entries = [...this.connectedAdvisors];
     const configs = await Promise.all(
       entries.map(([advisorId]) =>
-        this.configuracionService.getEfectiva(advisorId).catch(() => null)
-      )
+        this.configuracionService.getEfectiva(advisorId).catch(() => null),
+      ),
     );
 
-    await Promise.all(entries.map(async ([advisorId, socket], i) => {
-      try {
-        const config = configs[i];
-        if (!config) return;
+    await Promise.all(
+      entries.map(async ([advisorId, socket], i) => {
+        try {
+          const config = configs[i];
+          if (!config) return;
 
-        const almuerzos: Array<{ dia: number; inicio: string; fin: string }> =
-          (config as any).almuerzos ?? [];
+          const almuerzos: Array<{ dia: number; inicio: string; fin: string }> =
+            (config as any).almuerzos ?? [];
 
-        const almuerzoHoy = almuerzos.find(a => a.dia === diaSem);
-        const enHorario   = almuerzoHoy
-          ? (hhmm >= almuerzoHoy.inicio && hhmm < almuerzoHoy.fin)
-          : false;
+          const almuerzoHoy = almuerzos.find((a) => a.dia === diaSem);
+          const enHorario = almuerzoHoy
+            ? hhmm >= almuerzoHoy.inicio && hhmm < almuerzoHoy.fin
+            : false;
 
-        const enAlmuerzoActivo = this.advisorsOnLunch.has(advisorId);
-        const pendiente        = this.advisorsPendingLunch.has(advisorId);
+          const enAlmuerzoActivo = this.advisorsOnLunch.has(advisorId);
+          const pendiente = this.advisorsPendingLunch.has(advisorId);
 
-        // ALMUERZO PRÓXIMO: faltan 5 min o menos
-        if (!enAlmuerzoActivo && !pendiente && almuerzoHoy) {
-          const [hInicio, mInicio] = almuerzoHoy.inicio.split(':').map(Number);
-          const inicioMs = new Date(ahora).setHours(hInicio, mInicio, 0, 0);
-          const diffToStart = inicioMs - ahora.getTime();
-          const cincoMinMs = 5 * 60 * 1000;
+          // ALMUERZO PRÓXIMO: faltan 5 min o menos
+          if (!enAlmuerzoActivo && !pendiente && almuerzoHoy) {
+            const [hInicio, mInicio] = almuerzoHoy.inicio
+              .split(':')
+              .map(Number);
+            const inicioMs = new Date(ahora).setHours(hInicio, mInicio, 0, 0);
+            const diffToStart = inicioMs - ahora.getTime();
+            const cincoMinMs = 5 * 60 * 1000;
 
-          if (diffToStart > 0 && diffToStart <= cincoMinMs && !this.advisorsLunchNotified.has(advisorId)) {
-            this.advisorsLunchNotified.add(advisorId);
-            const minsRest = Math.ceil(diffToStart / 60000);
-            socket.emit('lunch_approaching', {
-              mensaje: `Tu hora de almuerzo (${almuerzoHoy.inicio}) se acerca. Faltan ${minsRest} minuto(s).`,
-              minutos: minsRest,
-              inicio : almuerzoHoy.inicio,
-            });
-          } else if (diffToStart > cincoMinMs || diffToStart <= 0) {
-            this.advisorsLunchNotified.delete(advisorId);
+            if (
+              diffToStart > 0 &&
+              diffToStart <= cincoMinMs &&
+              !this.advisorsLunchNotified.has(advisorId)
+            ) {
+              this.advisorsLunchNotified.add(advisorId);
+              const minsRest = Math.ceil(diffToStart / 60000);
+              socket.emit('lunch_approaching', {
+                mensaje: `Tu hora de almuerzo (${almuerzoHoy.inicio}) se acerca. Faltan ${minsRest} minuto(s).`,
+                minutos: minsRest,
+                inicio: almuerzoHoy.inicio,
+              });
+            } else if (diffToStart > cincoMinMs || diffToStart <= 0) {
+              this.advisorsLunchNotified.delete(advisorId);
+            }
           }
-        }
 
-        // ENTRÓ al horario de almuerzo
-        if (enHorario && !enAlmuerzoActivo && !pendiente) {
-          this.advisorsLunchNotified.delete(advisorId);
-          await this.sessionsService.setAdvisorStatus(advisorId, 'busy').catch(() => null);
-          this.advisorStatuses.set(advisorId, 'busy');
-          this.server.emit('advisor_status_changed', {
-            advisorId, name: socket.data.user?.name, status: 'busy',
-            profilePhotoUrl: socket.data.user?.profilePhotoUrl ?? null,
-          });
-
-          const [ih, im] = almuerzoHoy!.inicio.split(':').map(Number);
-          const [fh, fm] = almuerzoHoy!.fin.split(':').map(Number);
-          const duracionMs = ((fh * 60 + fm) - (ih * 60 + im)) * 60_000;
-
-          const chatsActivos = await this.countChatsActivosAlmuerzo(advisorId);
-
-          if (chatsActivos.total > 0) {
+          // ENTRÓ al horario de almuerzo
+          if (enHorario && !enAlmuerzoActivo && !pendiente) {
             this.advisorsLunchNotified.delete(advisorId);
-            this.advisorsPendingLunch.set(advisorId, {
-              inicioOriginal: almuerzoHoy!.inicio,
-              finOriginal: almuerzoHoy!.fin,
-              duracionMs,
-              inicioReal : ahora,
-            });
-            socket.emit('lunch_pending', {
-              mensaje: `Tienes ${chatsActivos.total} chat(s) activo(s). Termínalos para iniciar tu pausa de almuerzo.`,
-              chats  : chatsActivos.total,
-              chatsWeb : chatsActivos.web,
-              chatsWhatsapp : chatsActivos.whatsapp,
-              inicio : almuerzoHoy!.inicio,
-              finOriginal : almuerzoHoy!.fin,
-            });
-          } else {
-            this.advisorsLunchNotified.delete(advisorId);
-            await this.iniciarAlmuerzoAhora(advisorId, socket, almuerzoHoy!.inicio, almuerzoHoy!.fin, duracionMs, ahora);
-          }
-        }
-
-        // SALIÓ del horario (fin natural)
-        else if (!enHorario && enAlmuerzoActivo) {
-          const finAjustado = this.advisorsOnLunch.get(advisorId)!;
-          const [h, m] = finAjustado.split(':').map(Number);
-          const finAjMs = new Date(ahora).setHours(h, m, 0, 0);
-
-          if (ahora.getTime() >= finAjMs) {
-            await this.terminarAlmuerzo(advisorId, socket);
-          }
-        }
-
-        // Salió del horario antes de aprobar pendiente
-        else if (pendiente && !enHorario) {
-          const pendData = this.advisorsPendingLunch.get(advisorId);
-          if (pendData && hhmm >= pendData.finOriginal) {
-            this.advisorsPendingLunch.delete(advisorId);
-            await this.sessionsService.setAdvisorStatus(advisorId, 'online').catch(() => null);
-            this.advisorStatuses.set(advisorId, 'online');
+            await this.sessionsService
+              .setAdvisorStatus(advisorId, 'busy')
+              .catch(() => null);
+            this.advisorStatuses.set(advisorId, 'busy');
             this.server.emit('advisor_status_changed', {
-              advisorId, name: socket.data.user?.name, status: 'online',
+              advisorId,
+              name: socket.data.user?.name,
+              status: 'busy',
               profilePhotoUrl: socket.data.user?.profilePhotoUrl ?? null,
             });
-            socket.emit('lunch_pending_cancelled');
-            this.logger.log(`[Almuerzo] ❌ ${socket.data.user?.name} horario de almuerzo expiró (tenía chats activos)`);
-            return;
+
+            const [ih, im] = almuerzoHoy!.inicio.split(':').map(Number);
+            const [fh, fm] = almuerzoHoy!.fin.split(':').map(Number);
+            const duracionMs = (fh * 60 + fm - (ih * 60 + im)) * 60_000;
+
+            const chatsActivos =
+              await this.countChatsActivosAlmuerzo(advisorId);
+
+            if (chatsActivos.total > 0) {
+              this.advisorsLunchNotified.delete(advisorId);
+              this.advisorsPendingLunch.set(advisorId, {
+                inicioOriginal: almuerzoHoy!.inicio,
+                finOriginal: almuerzoHoy!.fin,
+                duracionMs,
+                inicioReal: ahora,
+              });
+              socket.emit('lunch_pending', {
+                mensaje: `Tienes ${chatsActivos.total} chat(s) activo(s). Termínalos para iniciar tu pausa de almuerzo.`,
+                chats: chatsActivos.total,
+                chatsWeb: chatsActivos.web,
+                chatsWhatsapp: chatsActivos.whatsapp,
+                inicio: almuerzoHoy!.inicio,
+                finOriginal: almuerzoHoy!.fin,
+              });
+            } else {
+              this.advisorsLunchNotified.delete(advisorId);
+              await this.iniciarAlmuerzoAhora(
+                advisorId,
+                socket,
+                almuerzoHoy!.inicio,
+                almuerzoHoy!.fin,
+                duracionMs,
+                ahora,
+              );
+            }
           }
-          await this.activarLunchPendiente(advisorId);
+
+          // SALIÓ del horario (fin natural)
+          else if (!enHorario && enAlmuerzoActivo) {
+            const finAjustado = this.advisorsOnLunch.get(advisorId)!;
+            const [h, m] = finAjustado.split(':').map(Number);
+            const finAjMs = new Date(ahora).setHours(h, m, 0, 0);
+
+            if (ahora.getTime() >= finAjMs) {
+              await this.terminarAlmuerzo(advisorId, socket);
+            }
+          }
+
+          // Salió del horario antes de aprobar pendiente
+          else if (pendiente && !enHorario) {
+            const pendData = this.advisorsPendingLunch.get(advisorId);
+            if (pendData && hhmm >= pendData.finOriginal) {
+              this.advisorsPendingLunch.delete(advisorId);
+              await this.sessionsService
+                .setAdvisorStatus(advisorId, 'online')
+                .catch(() => null);
+              this.advisorStatuses.set(advisorId, 'online');
+              this.server.emit('advisor_status_changed', {
+                advisorId,
+                name: socket.data.user?.name,
+                status: 'online',
+                profilePhotoUrl: socket.data.user?.profilePhotoUrl ?? null,
+              });
+              socket.emit('lunch_pending_cancelled');
+              this.logger.log(
+                `[Almuerzo] ❌ ${socket.data.user?.name} horario de almuerzo expiró (tenía chats activos)`,
+              );
+              return;
+            }
+            await this.activarLunchPendiente(advisorId);
+          }
+          // Pendiente pero dentro de horario (sigue esperando)
+          else if (pendiente) {
+            await this.activarLunchPendiente(advisorId);
+          }
+        } catch (err) {
+          this.logger.error(
+            `[Almuerzo] Error verificando ${advisorId}:`,
+            (err as Error).message,
+          );
         }
-        // Pendiente pero dentro de horario (sigue esperando)
-        else if (pendiente) {
-          await this.activarLunchPendiente(advisorId);
-        }
-      } catch (err) {
-        this.logger.error(`[Almuerzo] Error verificando ${advisorId}:`, (err as Error).message);
-      }
-    }));
+      }),
+    );
   }
 
   private async iniciarAlmuerzoAhora(
-    advisorId     : string,
-    socket        : Socket,
+    advisorId: string,
+    socket: Socket,
     inicioOriginal: string,
-    finOriginal   : string,
-    duracionMs    : number,
-    inicioReal    : Date,
+    finOriginal: string,
+    duracionMs: number,
+    inicioReal: Date,
   ): Promise<void> {
-    const finAjMs   = inicioReal.getTime() + duracionMs;
+    const finAjMs = inicioReal.getTime() + duracionMs;
     const finAjDate = new Date(finAjMs);
-    const finAjHora = `${String(finAjDate.getHours()).padStart(2,'0')}:${String(finAjDate.getMinutes()).padStart(2,'0')}`;
+    const finAjHora = `${String(finAjDate.getHours()).padStart(2, '0')}:${String(finAjDate.getMinutes()).padStart(2, '0')}`;
 
     this.advisorsOnLunch.set(advisorId, finAjHora);
     this.advisorsPendingLunch.delete(advisorId);
 
-    const ahora    = new Date();
-    const diffMs   = Math.max(0, finAjMs - ahora.getTime());
+    const ahora = new Date();
+    const diffMs = Math.max(0, finAjMs - ahora.getTime());
     const restMins = Math.floor(diffMs / 60000);
     const restSegs = Math.floor((diffMs % 60000) / 1000);
-    const restante = `${String(restMins).padStart(2,'0')}:${String(restSegs).padStart(2,'0')}`;
+    const restante = `${String(restMins).padStart(2, '0')}:${String(restSegs).padStart(2, '0')}`;
 
     socket.emit('lunch_started', {
       fin: finAjHora,
@@ -1294,28 +1569,44 @@ async handleJoinActiveChat(
       finOriginal,
     });
 
-    const ajuste = finAjHora !== finOriginal ? ` (ajustado de ${finOriginal} a ${finAjHora})` : '';
-    this.logger.log(`[Almuerzo] 🍽️  ${socket.data.user?.name} almuerzo hasta ${finAjHora}${ajuste}`);
+    const ajuste =
+      finAjHora !== finOriginal
+        ? ` (ajustado de ${finOriginal} a ${finAjHora})`
+        : '';
+    this.logger.log(
+      `[Almuerzo] 🍽️  ${socket.data.user?.name} almuerzo hasta ${finAjHora}${ajuste}`,
+    );
   }
 
-  private async terminarAlmuerzo(advisorId: string, socket: Socket): Promise<void> {
+  private async terminarAlmuerzo(
+    advisorId: string,
+    socket: Socket,
+  ): Promise<void> {
     this.advisorsOnLunch.delete(advisorId);
-    await this.sessionsService.setAdvisorStatus(advisorId, 'online').catch(() => null);
+    await this.sessionsService
+      .setAdvisorStatus(advisorId, 'online')
+      .catch(() => null);
     this.advisorStatuses.set(advisorId, 'online');
     this.server.emit('advisor_status_changed', {
-      advisorId, name: socket.data.user?.name, status: 'online',
+      advisorId,
+      name: socket.data.user?.name,
+      status: 'online',
       profilePhotoUrl: socket.data.user?.profilePhotoUrl ?? null,
     });
     socket.emit('lunch_ended');
-    this.logger.log(`[Almuerzo] ✅ ${socket.data.user?.name} volvió del almuerzo`);
+    this.logger.log(
+      `[Almuerzo] ✅ ${socket.data.user?.name} volvió del almuerzo`,
+    );
     await this.assignPendingSessions();
   }
 
-  private async countChatsActivosAlmuerzo(advisorId: string): Promise<{ web: number; whatsapp: number; total: number }> {
+  private async countChatsActivosAlmuerzo(
+    advisorId: string,
+  ): Promise<{ web: number; whatsapp: number; total: number }> {
     const [web, whatsapp] = await Promise.all([
       this.sessionsService
         .findActiveSessionsByAdvisor(advisorId)
-        .then(chats => chats.length)
+        .then((chats) => chats.length)
         .catch(() => 0),
       this.advisorsWhatsappService
         .countActiveChatsByAdvisor(advisorId)
@@ -1340,9 +1631,12 @@ async handleJoinActiveChat(
 
     const ahora = new Date();
     await this.iniciarAlmuerzoAhora(
-      advisorId, socket,
-      pendiente.inicioOriginal, pendiente.finOriginal,
-      pendiente.duracionMs, ahora,
+      advisorId,
+      socket,
+      pendiente.inicioOriginal,
+      pendiente.finOriginal,
+      pendiente.duracionMs,
+      ahora,
     );
   }
 
@@ -1359,7 +1653,8 @@ async handleJoinActiveChat(
   // ══════════════════════════════════════════════════════════════════════════
 
   private addToQueue(sessionId: string): void {
-    if (!this.waitingQueue.includes(sessionId)) this.waitingQueue.push(sessionId);
+    if (!this.waitingQueue.includes(sessionId))
+      this.waitingQueue.push(sessionId);
   }
 
   private removeFromQueue(sessionId: string): void {
@@ -1368,20 +1663,26 @@ async handleJoinActiveChat(
   }
 
   private emitQueuePosition(sessionId: string): void {
-    const pos      = this.waitingQueue.indexOf(sessionId);
+    const pos = this.waitingQueue.indexOf(sessionId);
     if (pos === -1) return;
     const socketId = this.sessionToSocket.get(sessionId);
-    if (!socketId)  return;
-    const socket   = this.server.sockets.sockets.get(socketId);
-    socket?.emit('queue_position', { position: pos, total: this.waitingQueue.length });
+    if (!socketId) return;
+    const socket = this.server.sockets.sockets.get(socketId);
+    socket?.emit('queue_position', {
+      position: pos,
+      total: this.waitingQueue.length,
+    });
   }
 
   private broadcastQueuePositions(): void {
     this.waitingQueue.forEach((sessionId, index) => {
       const socketId = this.sessionToSocket.get(sessionId);
-      if (!socketId)  return;
-      const socket   = this.server.sockets.sockets.get(socketId);
-      socket?.emit('queue_position', { position: index, total: this.waitingQueue.length });
+      if (!socketId) return;
+      const socket = this.server.sockets.sockets.get(socketId);
+      socket?.emit('queue_position', {
+        position: index,
+        total: this.waitingQueue.length,
+      });
     });
   }
 }

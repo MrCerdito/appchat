@@ -10,20 +10,26 @@ import { Rating } from './entities/rating.entity';
 
 @Injectable()
 export class SessionsService {
-
   constructor(
-    @InjectRepository(Session)  private readonly sessionRepo: Repository<Session>,
-    @InjectRepository(User)     private readonly userRepo: Repository<User>,
-    @InjectRepository(Message)  private readonly messageRepo: Repository<Message>,
-    @InjectRepository(Colegio)  private readonly colegioRepo: Repository<Colegio>,
-    @InjectRepository(Rating)   private readonly ratingRepo: Repository<Rating>,
+    @InjectRepository(Session)
+    private readonly sessionRepo: Repository<Session>,
+    @InjectRepository(User) private readonly userRepo: Repository<User>,
+    @InjectRepository(Message)
+    private readonly messageRepo: Repository<Message>,
+    @InjectRepository(Colegio)
+    private readonly colegioRepo: Repository<Colegio>,
+    @InjectRepository(Rating) private readonly ratingRepo: Repository<Rating>,
   ) {}
 
   private readonly logger = new Logger(SessionsService.name);
 
   private generarCodigo(): string {
     const year = new Date().getFullYear();
-    const rand = crypto.randomBytes(3).toString('base64url').toUpperCase().slice(0, 4);
+    const rand = crypto
+      .randomBytes(3)
+      .toString('base64url')
+      .toUpperCase()
+      .slice(0, 4);
     return `RC-${year}-${rand}`;
   }
 
@@ -32,13 +38,13 @@ export class SessionsService {
   // NO se pone en 'waiting' hasta que el cliente o la IA soliciten un asesor.
   // Esto evita que el gateway intente asignar un asesor prematuramente.
   async create(data: {
-    clientName:     string;
+    clientName: string;
     identificacion: string;
-    apellido:       string;
-    rol:            string;
-    colegio:        string;
-    colegioLink?:   string | null;
-    tipoSolicitud:  string;
+    apellido: string;
+    rol: string;
+    colegio: string;
+    colegioLink?: string | null;
+    tipoSolicitud: string;
   }): Promise<Session> {
     let codigo = this.generarCodigo();
     let exists = await this.sessionRepo.findOneBy({ codigo });
@@ -47,15 +53,15 @@ export class SessionsService {
       exists = await this.sessionRepo.findOneBy({ codigo });
     }
     const session = this.sessionRepo.create({
-      clientName:     data.clientName,
+      clientName: data.clientName,
       identificacion: data.identificacion,
-      apellido:       data.apellido,
-      rol:            data.rol,
-      colegio:        data.colegio,
-      colegioLink:    data.colegioLink,
-      tipoSolicitud:  data.tipoSolicitud,
+      apellido: data.apellido,
+      rol: data.rol,
+      colegio: data.colegio,
+      colegioLink: data.colegioLink,
+      tipoSolicitud: data.tipoSolicitud,
       codigo,
-      status:         'ai',
+      status: 'ai',
     });
     return this.sessionRepo.save(session);
   }
@@ -64,7 +70,11 @@ export class SessionsService {
     const session = await this.findOne(sessionId);
     if (!session.codigo) {
       const year = new Date().getFullYear();
-      const rand = crypto.randomBytes(3).toString('base64url').toUpperCase().slice(0, 4);
+      const rand = crypto
+        .randomBytes(3)
+        .toString('base64url')
+        .toUpperCase()
+        .slice(0, 4);
       session.codigo = `RC-${year}-${rand}`;
       await this.sessionRepo.save(session);
     }
@@ -103,7 +113,8 @@ export class SessionsService {
       where: { id: saved.id },
       relations: ['advisor'],
     });
-    if (!result) throw new NotFoundException('Sesion no encontrada tras tomar el chat');
+    if (!result)
+      throw new NotFoundException('Sesion no encontrada tras tomar el chat');
     return result;
   }
   async findAll(advisorId?: string): Promise<Session[]> {
@@ -120,7 +131,11 @@ export class SessionsService {
     });
   }
 
-  async findAllPaginated(advisorId: string | undefined, page: number, limit: number): Promise<{ data: Session[]; total: number; page: number; pages: number }> {
+  async findAllPaginated(
+    advisorId: string | undefined,
+    page: number,
+    limit: number,
+  ): Promise<{ data: Session[]; total: number; page: number; pages: number }> {
     const where = advisorId ? { advisor: { id: advisorId } } : {};
     const [data, total] = await this.sessionRepo.findAndCount({
       where,
@@ -133,13 +148,13 @@ export class SessionsService {
   }
 
   async addCollaborator(sessionId: string, advisorId: string): Promise<void> {
-  // Ejemplo con TypeORM — ajusta según tu ORM
-  await this.sessionRepo
-    .createQueryBuilder()
-    .relation('collaborators')
-    .of(sessionId)
-    .add(advisorId);
-}
+    // Ejemplo con TypeORM — ajusta según tu ORM
+    await this.sessionRepo
+      .createQueryBuilder()
+      .relation('collaborators')
+      .of(sessionId)
+      .add(advisorId);
+  }
 
   async findOne(id: string): Promise<Session> {
     const session = await this.sessionRepo.findOne({
@@ -163,7 +178,7 @@ export class SessionsService {
   async assignAdvisor(sessionId: string, advisorId: string): Promise<Session> {
     const session = await this.findOne(sessionId);
     if (session.status !== 'waiting') return session;
-    session.status  = 'active';
+    session.status = 'active';
     session.advisor = { id: advisorId } as any;
     const saved = await this.sessionRepo.save(session);
     await this.syncAdvisorActiveChats(advisorId);
@@ -177,7 +192,9 @@ export class SessionsService {
     return this.pickLeastLoadedAdvisor(advisors);
   }
 
-  async findAvailableAdvisorFromList(connectedIds: string[]): Promise<User | null> {
+  async findAvailableAdvisorFromList(
+    connectedIds: string[],
+  ): Promise<User | null> {
     if (!connectedIds.length) return null;
 
     const candidates = await this.userRepo
@@ -217,28 +234,34 @@ export class SessionsService {
     if (!advisors.length) return null;
 
     const maxChats = Number(process.env.MAX_ACTIVE_CHATS_PER_ADVISOR ?? 4);
-    const counts = await this.getActiveCountsByAdvisor(advisors.map(advisor => advisor.id));
+    const counts = await this.getActiveCountsByAdvisor(
+      advisors.map((advisor) => advisor.id),
+    );
     const available = advisors
-      .map(advisor => ({
+      .map((advisor) => ({
         advisor,
         activeCount: counts.get(advisor.id) ?? 0,
       }))
-      .filter(item => item.activeCount < maxChats)
-      .sort((a, b) =>
-        a.activeCount - b.activeCount ||
-        new Date(a.advisor.createdAt).getTime() - new Date(b.advisor.createdAt).getTime(),
+      .filter((item) => item.activeCount < maxChats)
+      .sort(
+        (a, b) =>
+          a.activeCount - b.activeCount ||
+          new Date(a.advisor.createdAt).getTime() -
+            new Date(b.advisor.createdAt).getTime(),
       );
 
     if (!available.length) return null;
 
     const lowest = available[0].activeCount;
-    const tied = available.filter(item => item.activeCount === lowest);
+    const tied = available.filter((item) => item.activeCount === lowest);
     const picked = tied[Math.floor(Math.random() * tied.length)].advisor;
     await this.syncAdvisorActiveChats(picked.id);
     return picked;
   }
 
-  private async getActiveCountsByAdvisor(advisorIds: string[]): Promise<Map<string, number>> {
+  private async getActiveCountsByAdvisor(
+    advisorIds: string[],
+  ): Promise<Map<string, number>> {
     if (!advisorIds.length) return new Map();
 
     const rows = await this.sessionRepo
@@ -250,10 +273,13 @@ export class SessionsService {
       .groupBy('session.advisor_id')
       .getRawMany<{ advisorId: string; count: string }>();
 
-    return new Map(rows.map(row => [row.advisorId, Number(row.count)]));
+    return new Map(rows.map((row) => [row.advisorId, Number(row.count)]));
   }
 
-  async setAdvisorStatus(advisorId: string, status: string): Promise<User | null> {
+  async setAdvisorStatus(
+    advisorId: string,
+    status: string,
+  ): Promise<User | null> {
     if (!advisorId) return null;
     await this.syncAdvisorActiveChats(advisorId);
     await this.userRepo.update({ id: advisorId }, { status });
@@ -261,10 +287,10 @@ export class SessionsService {
   }
 
   async saveRating(
-    sessionId:  string,
-    estrellas:  number,
+    sessionId: string,
+    estrellas: number,
     comentario: string | null,
-    etiquetas:  string[],
+    etiquetas: string[],
   ): Promise<Rating> {
     const existing = await this.ratingRepo.findOne({
       where: { session: { id: sessionId } },
@@ -272,10 +298,10 @@ export class SessionsService {
     if (existing) return existing;
 
     const rating = this.ratingRepo.create({
-      session:    { id: sessionId } as any,
+      session: { id: sessionId } as any,
       estrellas,
       comentario: comentario ?? null,
-      etiquetas:  etiquetas ?? [],
+      etiquetas: etiquetas ?? [],
     });
     return this.ratingRepo.save(rating);
   }
@@ -312,18 +338,22 @@ export class SessionsService {
 
     if ((result.affected ?? 0) > 0 && session.advisor?.id) {
       await this.syncAdvisorActiveChats(session.advisor.id);
-      this.logger.log(`[Close] ${sessionId} cerrada. Asesor ${session.advisor.id} activeChats sincronizado.`);
+      this.logger.log(
+        `[Close] ${sessionId} cerrada. Asesor ${session.advisor.id} activeChats sincronizado.`,
+      );
     } else if ((result.affected ?? 0) === 0) {
-      this.logger.log(`[Close] ${sessionId} ya estaba cerrada. Sin decremento.`);
+      this.logger.log(
+        `[Close] ${sessionId} ya estaba cerrada. Sin decremento.`,
+      );
     }
 
     return session;
   }
 
-
   async transfer(sessionId: string, newAdvisorId: string): Promise<Session> {
     const session = await this.findOne(sessionId);
-    if (!session.advisor) throw new NotFoundException('Sesion sin asesor asignado');
+    if (!session.advisor)
+      throw new NotFoundException('Sesion sin asesor asignado');
 
     const oldAdvisorId = session.advisor.id;
     session.advisor = { id: newAdvisorId } as any;
@@ -336,15 +366,22 @@ export class SessionsService {
       where: { id: saved.id },
       relations: ['advisor'],
     });
-    if (!result) throw new NotFoundException('Sesion no encontrada tras transferencia');
+    if (!result)
+      throw new NotFoundException('Sesion no encontrada tras transferencia');
     return result;
   }
-
 
   async findAllAdvisors(): Promise<User[]> {
     return this.userRepo.find({
       where: { role: 'advisor' },
-      select: ['id', 'name', 'email', 'status', 'activeChats', 'profilePhotoUrl'],
+      select: [
+        'id',
+        'name',
+        'email',
+        'status',
+        'activeChats',
+        'profilePhotoUrl',
+      ],
     });
   }
 
@@ -361,33 +398,40 @@ export class SessionsService {
     const hoy = new Date(now.toLocaleString('en-US', { timeZone: tz }));
     hoy.setHours(0, 0, 0, 0);
 
-    const inicioSemana = new Date(now.toLocaleString('en-US', { timeZone: tz }));
+    const inicioSemana = new Date(
+      now.toLocaleString('en-US', { timeZone: tz }),
+    );
     inicioSemana.setDate(inicioSemana.getDate() - 7);
     inicioSemana.setHours(0, 0, 0, 0);
 
-    const [total, totalCerradas, totalActivas, hoyAtendidas, semanaAtendidas] = await Promise.all([
-      this.sessionRepo.count({ where: { advisor: { id: advisorId } } }),
-      this.sessionRepo.count({ where: { advisor: { id: advisorId }, status: 'closed' } }),
-      this.sessionRepo.count({ where: { advisor: { id: advisorId }, status: 'active' } }),
-      this.sessionRepo
-        .createQueryBuilder('s')
-        .where('s.advisor_id = :id',      { id: advisorId })
-        .andWhere('s.created_at >= :hoy', { hoy })
-        .getCount(),
-      this.sessionRepo
-        .createQueryBuilder('s')
-        .where('s.advisor_id = :id',         { id: advisorId })
-        .andWhere('s.created_at >= :inicio', { inicio: inicioSemana })
-        .getCount(),
-    ]);
+    const [total, totalCerradas, totalActivas, hoyAtendidas, semanaAtendidas] =
+      await Promise.all([
+        this.sessionRepo.count({ where: { advisor: { id: advisorId } } }),
+        this.sessionRepo.count({
+          where: { advisor: { id: advisorId }, status: 'closed' },
+        }),
+        this.sessionRepo.count({
+          where: { advisor: { id: advisorId }, status: 'active' },
+        }),
+        this.sessionRepo
+          .createQueryBuilder('s')
+          .where('s.advisor_id = :id', { id: advisorId })
+          .andWhere('s.created_at >= :hoy', { hoy })
+          .getCount(),
+        this.sessionRepo
+          .createQueryBuilder('s')
+          .where('s.advisor_id = :id', { id: advisorId })
+          .andWhere('s.created_at >= :inicio', { inicio: inicioSemana })
+          .getCount(),
+      ]);
 
     const [cerradas, advisor, ratings] = await Promise.all([
       this.sessionRepo.find({
-        where:  { advisor: { id: advisorId }, status: 'closed' },
+        where: { advisor: { id: advisorId }, status: 'closed' },
         select: ['createdAt', 'closedAt'],
       }),
       this.userRepo.findOne({
-        where:  { id: advisorId },
+        where: { id: advisorId },
         select: ['id', 'name', 'email', 'status', 'activeChats', 'createdAt'],
       }),
       this.ratingRepo
@@ -408,35 +452,57 @@ export class SessionsService {
       .andWhere('m.sender_type = :senderType', { senderType: 'advisor' })
       .groupBy('m.session_id')
       .addGroupBy('s.created_at')
-      .getRawMany<{ sessionId: string; firstResponseAt: string; sessionCreatedAt: string }>();
+      .getRawMany<{
+        sessionId: string;
+        firstResponseAt: string;
+        sessionCreatedAt: string;
+      }>();
 
     const resolutionMinutes = cerradas
-      .filter(s => s.closedAt)
-      .map(s => (new Date(s.closedAt!).getTime() - new Date(s.createdAt).getTime()) / 1000 / 60);
+      .filter((s) => s.closedAt)
+      .map(
+        (s) =>
+          (new Date(s.closedAt!).getTime() - new Date(s.createdAt).getTime()) /
+          1000 /
+          60,
+      );
 
-    const firstResponseMinutes = firstResponses
-      .map(r => (new Date(r.firstResponseAt).getTime() - new Date(r.sessionCreatedAt).getTime()) / 1000 / 60);
+    const firstResponseMinutes = firstResponses.map(
+      (r) =>
+        (new Date(r.firstResponseAt).getTime() -
+          new Date(r.sessionCreatedAt).getTime()) /
+        1000 /
+        60,
+    );
 
-    const avgResolucionMin = resolutionMinutes.length > 0
-      ? resolutionMinutes.reduce((a, b) => a + b, 0) / resolutionMinutes.length
-      : 0;
+    const avgResolucionMin =
+      resolutionMinutes.length > 0
+        ? resolutionMinutes.reduce((a, b) => a + b, 0) /
+          resolutionMinutes.length
+        : 0;
 
-    const avgPrimeraRespuestaMin = firstResponseMinutes.length > 0
-      ? firstResponseMinutes.reduce((a, b) => a + b, 0) / firstResponseMinutes.length
-      : 0;
+    const avgPrimeraRespuestaMin =
+      firstResponseMinutes.length > 0
+        ? firstResponseMinutes.reduce((a, b) => a + b, 0) /
+          firstResponseMinutes.length
+        : 0;
 
     // Tasa de resolución: cerradas / (cerradas + activas) — mide resolución sobre sesiones atendidas
     const sesionesAtendidas = totalCerradas + totalActivas;
-    const tasaResolucion = sesionesAtendidas > 0 ? Math.round((totalCerradas / sesionesAtendidas) * 100) : 0;
+    const tasaResolucion =
+      sesionesAtendidas > 0
+        ? Math.round((totalCerradas / sesionesAtendidas) * 100)
+        : 0;
 
     const totalRatings = ratings.length;
-    const avgEstrellas = totalRatings > 0
-      ? ratings.reduce((acc, r) => acc + r.estrellas, 0) / totalRatings
-      : 0;
+    const avgEstrellas =
+      totalRatings > 0
+        ? ratings.reduce((acc, r) => acc + r.estrellas, 0) / totalRatings
+        : 0;
 
     const etiquetaCount = new Map<string, number>();
-    ratings.forEach(r => {
-      r.etiquetas.forEach(e => {
+    ratings.forEach((r) => {
+      r.etiquetas.forEach((e) => {
         etiquetaCount.set(e, (etiquetaCount.get(e) ?? 0) + 1);
       });
     });
@@ -447,27 +513,31 @@ export class SessionsService {
 
     return {
       advisor,
-      hoy:                    hoyAtendidas,
-      semana:                 semanaAtendidas,
+      hoy: hoyAtendidas,
+      semana: semanaAtendidas,
       total,
       totalCerradas,
       totalActivas,
       tasaResolucion,
-      avgResolucionMin:       Math.round(avgResolucionMin),
-      medianaResolucionMin:   Math.round(this.percentile(resolutionMinutes, 50)),
-      p95ResolucionMin:       Math.round(this.percentile(resolutionMinutes, 95)),
+      avgResolucionMin: Math.round(avgResolucionMin),
+      medianaResolucionMin: Math.round(this.percentile(resolutionMinutes, 50)),
+      p95ResolucionMin: Math.round(this.percentile(resolutionMinutes, 95)),
       avgPrimeraRespuestaMin: Math.round(avgPrimeraRespuestaMin),
-      medianaPrimeraRespuestaMin: Math.round(this.percentile(firstResponseMinutes, 50)),
-      p95PrimeraRespuestaMin:     Math.round(this.percentile(firstResponseMinutes, 95)),
+      medianaPrimeraRespuestaMin: Math.round(
+        this.percentile(firstResponseMinutes, 50),
+      ),
+      p95PrimeraRespuestaMin: Math.round(
+        this.percentile(firstResponseMinutes, 95),
+      ),
       totalRatings,
-      avgEstrellas:           Math.round(avgEstrellas * 10) / 10,
+      avgEstrellas: Math.round(avgEstrellas * 10) / 10,
       topEtiquetas,
     };
   }
 
   async getComentariosByAdvisor(
     advisorId: string,
-    page:  number = 1,
+    page: number = 1,
     limit: number = 10,
   ): Promise<{ data: any[]; total: number; page: number; pages: number }> {
     const skip = (page - 1) * limit;
@@ -475,7 +545,7 @@ export class SessionsService {
     const total = await this.ratingRepo
       .createQueryBuilder('r')
       .innerJoin('r.session', 's')
-      .where('s.advisor_id = :id',     { id: advisorId })
+      .where('s.advisor_id = :id', { id: advisorId })
       .andWhere('r.comentario IS NOT NULL')
       .andWhere("r.comentario != ''")
       .getCount();
@@ -483,7 +553,7 @@ export class SessionsService {
     const ratings = await this.ratingRepo
       .createQueryBuilder('r')
       .innerJoinAndSelect('r.session', 's')
-      .where('s.advisor_id = :id',     { id: advisorId })
+      .where('s.advisor_id = :id', { id: advisorId })
       .andWhere('r.comentario IS NOT NULL')
       .andWhere("r.comentario != ''")
       .orderBy('r.id', 'DESC')
@@ -491,12 +561,12 @@ export class SessionsService {
       .take(limit)
       .getMany();
 
-    const data = ratings.map(r => ({
-      id:         r.id,
-      estrellas:  r.estrellas,
+    const data = ratings.map((r) => ({
+      id: r.id,
+      estrellas: r.estrellas,
       comentario: r.comentario,
-      etiquetas:  r.etiquetas,
-      createdAt:  r.createdAt,
+      etiquetas: r.etiquetas,
+      createdAt: r.createdAt,
       clientName: r.session.clientName,
     }));
 
@@ -511,35 +581,51 @@ export class SessionsService {
   }
 
   async getMetrics() {
-    const total   = await this.sessionRepo.count();
-    const active  = await this.sessionRepo.count({ where: { status: 'active' } });
-    const waiting = await this.sessionRepo.count({ where: { status: 'waiting' } });
-    const ai      = await this.sessionRepo.count({ where: { status: 'ai' } });
-    const closed  = await this.sessionRepo.count({ where: { status: 'closed' } });
+    const total = await this.sessionRepo.count();
+    const active = await this.sessionRepo.count({
+      where: { status: 'active' },
+    });
+    const waiting = await this.sessionRepo.count({
+      where: { status: 'waiting' },
+    });
+    const ai = await this.sessionRepo.count({ where: { status: 'ai' } });
+    const closed = await this.sessionRepo.count({
+      where: { status: 'closed' },
+    });
 
     const closedSessions = await this.sessionRepo.find({
-      where:  { status: 'closed' },
+      where: { status: 'closed' },
       select: ['createdAt', 'closedAt'],
     });
 
     const minutes = closedSessions
-      .filter(s => s.closedAt)
-      .map(s => (new Date(s.closedAt!).getTime() - new Date(s.createdAt).getTime()) / 1000 / 60);
+      .filter((s) => s.closedAt)
+      .map(
+        (s) =>
+          (new Date(s.closedAt!).getTime() - new Date(s.createdAt).getTime()) /
+          1000 /
+          60,
+      );
 
-    const avgMinutes = minutes.length > 0
-      ? minutes.reduce((a, b) => a + b, 0) / minutes.length
-      : 0;
+    const avgMinutes =
+      minutes.length > 0
+        ? minutes.reduce((a, b) => a + b, 0) / minutes.length
+        : 0;
 
     const advisors = await this.userRepo.find({
-      where:  { role: 'advisor' },
+      where: { role: 'advisor' },
       select: ['id', 'name', 'status', 'activeChats', 'active'],
     });
 
     return {
-      total, active, waiting, ai, closed,
-      avgMinutes:      Math.round(avgMinutes),
-      medianaMinutos:  Math.round(this.percentile(minutes, 50)),
-      p95Minutos:      Math.round(this.percentile(minutes, 95)),
+      total,
+      active,
+      waiting,
+      ai,
+      closed,
+      avgMinutes: Math.round(avgMinutes),
+      medianaMinutos: Math.round(this.percentile(minutes, 50)),
+      p95Minutos: Math.round(this.percentile(minutes, 95)),
       advisors,
     };
   }
@@ -551,7 +637,10 @@ export class SessionsService {
     });
   }
 
-  async findAllAdminPaginated(page: number, limit: number): Promise<{ data: Session[]; total: number; page: number; pages: number }> {
+  async findAllAdminPaginated(
+    page: number,
+    limit: number,
+  ): Promise<{ data: Session[]; total: number; page: number; pages: number }> {
     const [data, total] = await this.sessionRepo.findAndCount({
       relations: ['advisor'],
       order: { createdAt: 'DESC' },
@@ -567,11 +656,11 @@ export class SessionsService {
 
   async getRankingAsesores() {
     const advisors = await this.userRepo.find({
-      where:  { role: 'advisor' },
+      where: { role: 'advisor' },
       select: ['id', 'name', 'status', 'activeChats'],
     });
 
-    const advisorIds = advisors.map(a => a.id);
+    const advisorIds = advisors.map((a) => a.id);
     if (!advisorIds.length) return [];
 
     const [sessionStats, ratingStats] = await Promise.all([
@@ -579,10 +668,20 @@ export class SessionsService {
         .createQueryBuilder('s')
         .select('s.advisor_id', 'advisorId')
         .addSelect('COUNT(s.id)', 'total')
-        .addSelect('SUM(CASE WHEN s.status = :closed THEN 1 ELSE 0 END)', 'closedCount')
-        .where('s.advisor_id IN (:...ids)', { ids: advisorIds, closed: 'closed' })
+        .addSelect(
+          'SUM(CASE WHEN s.status = :closed THEN 1 ELSE 0 END)',
+          'closedCount',
+        )
+        .where('s.advisor_id IN (:...ids)', {
+          ids: advisorIds,
+          closed: 'closed',
+        })
         .groupBy('s.advisor_id')
-        .getRawMany<{ advisorId: string; total: string; closedCount: string }>(),
+        .getRawMany<{
+          advisorId: string;
+          total: string;
+          closedCount: string;
+        }>(),
       this.ratingRepo
         .createQueryBuilder('r')
         .select('s.advisor_id', 'advisorId')
@@ -591,11 +690,15 @@ export class SessionsService {
         .innerJoin('r.session', 's')
         .where('s.advisor_id IN (:...ids)', { ids: advisorIds })
         .groupBy('s.advisor_id')
-        .getRawMany<{ advisorId: string; totalRatings: string; avgEstrellas: string }>(),
+        .getRawMany<{
+          advisorId: string;
+          totalRatings: string;
+          avgEstrellas: string;
+        }>(),
     ]);
 
-    const sessionMap = new Map(sessionStats.map(s => [s.advisorId, s]));
-    const ratingMap = new Map(ratingStats.map(r => [r.advisorId, r]));
+    const sessionMap = new Map(sessionStats.map((s) => [s.advisorId, s]));
+    const ratingMap = new Map(ratingStats.map((r) => [r.advisorId, r]));
 
     // Promedio global de estrellas (para bayesian)
     let globalAvg = 0;
@@ -608,15 +711,14 @@ export class SessionsService {
     globalAvg = totalGlobalRatings > 0 ? globalAvg / totalGlobalRatings : 3;
     const C = 10; // constante de confianza bayesiana
 
-    const ranking = advisors.map(advisor => {
+    const ranking = advisors.map((advisor) => {
       const stats = sessionMap.get(advisor.id);
       const rStats = ratingMap.get(advisor.id);
       const rawAvg = rStats?.avgEstrellas ? Number(rStats.avgEstrellas) : 0;
       const count = Number(rStats?.totalRatings ?? 0);
       // Promedio bayesiano: pondera hacia el promedio global cuando hay pocas reseñas
-      const bayesianAvg = count > 0
-        ? (count * rawAvg + C * globalAvg) / (count + C)
-        : 0;
+      const bayesianAvg =
+        count > 0 ? (count * rawAvg + C * globalAvg) / (count + C) : 0;
       return {
         id: advisor.id,
         name: advisor.name,
@@ -626,20 +728,20 @@ export class SessionsService {
         totalCerradas: Number(stats?.closedCount ?? 0),
         totalRatings: count,
         avgEstrellas: Math.round(rawAvg * 10) / 10,
-        bayesianAvg:  Math.round(bayesianAvg * 10) / 10,
+        bayesianAvg: Math.round(bayesianAvg * 10) / 10,
       };
     });
 
     return ranking.sort((a, b) =>
       b.bayesianAvg !== a.bayesianAvg
         ? b.bayesianAvg - a.bayesianAvg
-        : b.total - a.total
+        : b.total - a.total,
     );
   }
 
   async getAllComentarios(
-    page:       number = 1,
-    limit:      number = 10,
+    page: number = 1,
+    limit: number = 10,
     advisorId?: string,
   ): Promise<{ data: any[]; total: number; page: number; pages: number }> {
     const skip = (page - 1) * limit;
@@ -656,21 +758,24 @@ export class SessionsService {
     }
 
     const total = await qb.getCount();
-    const ratings = await qb.orderBy('r.id', 'DESC').skip(skip).take(limit).getMany();
+    const ratings = await qb
+      .orderBy('r.id', 'DESC')
+      .skip(skip)
+      .take(limit)
+      .getMany();
 
-    const data = ratings.map(r => ({
-      id:          r.id,
-      estrellas:   r.estrellas,
-      comentario:  r.comentario,
-      etiquetas:   r.etiquetas,
-      createdAt:   r.createdAt,
-      clientName:  r.session.clientName,
+    const data = ratings.map((r) => ({
+      id: r.id,
+      estrellas: r.estrellas,
+      comentario: r.comentario,
+      etiquetas: r.etiquetas,
+      createdAt: r.createdAt,
+      clientName: r.session.clientName,
       advisorName: r.session.advisor?.name ?? '—',
     }));
 
     return { data, total, page, pages: Math.ceil(total / limit) };
   }
-
 
   findActiveSessionsByAdvisor(advisorId: string): Promise<Session[]> {
     return this.sessionRepo.find({
@@ -678,6 +783,4 @@ export class SessionsService {
       relations: ['advisor'],
     });
   }
-
-  
 }

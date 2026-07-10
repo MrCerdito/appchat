@@ -237,54 +237,9 @@
   </section>
 
   <aside class="sidebar">
-    <div class="sidebar-header">
-      <div class="brand">
-        <div class="brand-icon">
-          <svg class="wa-brand-svg" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 21l1.65-3.8a9 9 0 1 1 3.4 2.9L3 21"/>
-            <path d="M9 10a.5 .5 0 0 0 1 0V9a.5 .5 0 0 0 -1 0v1a5 5 0 0 0 5 5h1a.5 .5 0 0 0 0 -1h-1a.5 .5 0 0 0 0 1"/>
-          </svg>
-        </div>
-        <div>
-          <div class="brand-name">InnovaCloud</div>
-          <div class="brand-sub">WhatsApp</div>
-        </div>
-      </div>
-
-      <div class="sidebar-actions">
-        <button
-          class="theme-toggle"
-          type="button"
-          (click)="toggleTheme()"
-          [title]="theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
-        >
-          <wa-icon [name]="theme === 'dark' ? 'sun' : 'moon'"></wa-icon>
-        </button>
-
-        <button
-          class="settings-toggle"
-          type="button"
-          (click)="openWhatsappSettings()"
-          title="Configuracion de WhatsApp"
-        >
-          <wa-icon name="settings"></wa-icon>
-        </button>
-
-        <button
-          class="notif-toggle"
-          type="button"
-          [class.enabled]="floatingNotificationsEnabled"
-          (click)="toggleFloatingNotifications()"
-          [title]="floatingNotificationsEnabled ? 'Notificaciones activas' : 'Activar notificaciones'"
-        >
-          <wa-icon [name]="floatingNotificationsEnabled ? 'bell-ringing' : 'bell-off'"></wa-icon>
-        </button>
-      </div>
-    </div>
-
     <div class="connection-strip" [ngClass]="connectionStatus.status">
       <wa-icon [name]="connectionStatus.status === 'connected' ? 'plug-connected' : 'plug-connected-x'"></wa-icon>
-      <span>{{ connectionStatus.status === 'connected' ? (connectionStatus.connectedName || 'WhatsApp conectado') : 'WhatsApp sin conectar' }}</span>
+      <span>{{ connectionStatus.status === 'connected' ? (connectionStatus.connectedName || 'ASESOR conectado') : 'ASESOR sin conectar' }}</span>
     </div>
 
     <div class="search-bar">
@@ -307,12 +262,30 @@
         <span>{{ filter.label }}</span>
         <em>{{ getFilterCount(filter.id) }}</em>
       </button>
-      <select class="more-filter" [ngModel]="selectedMoreFilter" (ngModelChange)="setMoreFilter($event)">
-        <option value="">Mas filtros</option>
-        <option *ngFor="let filter of moreFilterOptions; trackBy: trackByIndex" [value]="filter.id">
-          {{ filter.label }} ({{ getFilterCount(filter.id) }})
-        </option>
-      </select>
+      <div class="more-filter-wrap">
+        <button
+          class="more-filter-btn"
+          type="button"
+          [class.open]="showMoreFilter"
+          (click)="toggleMoreFilter()"
+          title="Mas filtros"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px">
+            <path d="M3 4h18l-7 8v5l-4 2v-7l-7-8z" />
+          </svg>
+        </button>
+        <div class="more-filter-dropdown" *ngIf="showMoreFilter">
+          <button
+            class="more-filter-opt"
+            type="button"
+            *ngFor="let filter of moreFilterOptions; trackBy: trackByIndex"
+            (click)="setFilter(filter.id); showMoreFilter = false"
+          >
+            <span>{{ filter.label }}</span>
+            <em>{{ getFilterCount(filter.id) }}</em>
+          </button>
+        </div>
+      </div>
     </div>
 
     <div class="chat-list">
@@ -337,18 +310,35 @@
             <span class="chat-name">{{ c.name }}</span>
             <span class="chat-time">{{ c.time }}</span>
           </div>
-          <div class="chat-inst">
-            <wa-icon [name]="c.isGroup ? 'users-group' : 'building'"></wa-icon>
-            <span>{{ c.isGroup ? 'Grupo' : (c.institution || 'Sin colegio') }}</span>
+          <div class="chat-inst" *ngIf="c.isGroup">
+            <wa-icon name="users-group"></wa-icon>
+            <span>Grupo</span>
           </div>
           <div class="chat-preview">{{ displayPreview(c) }}</div>
           <div class="chat-meta">
             <span
-              class="tag"
+              class="meta-badge priority-badge"
+              *ngIf="c.priority && c.priority !== 'normal'"
+              [style.background]="priorityColor(c.priority)"
+              [style.color]="c.priority === 'low' ? '#6b7280' : '#fff'"
+            >
+              {{ priorityLabel(c.priority) }}
+            </span>
+            <span
+              class="meta-badge tag"
               [class.mine]="c.assignedTo === currentUserId"
               [class.closed]="isChatClosed(c)"
             >
               {{ getAssignmentLabel(c) }}
+            </span>
+            <span
+              class="meta-badge op-status"
+              *ngIf="!c.isGroup && c.operationalStatusLabel && c.operationalStatusLabel !== 'Nuevo' && c.operationalStatusLabel !== 'En cola'"
+              [class.in-progress]="c.operationalStatus === 'in_progress'"
+              [class.waiting]="c.operationalStatus === 'waiting_technical'"
+              [class.resolved]="c.operationalStatus === 'resolved'"
+            >
+              {{ c.operationalStatusLabel }}
             </span>
             <span class="badge" *ngIf="c.unread > 0">{{ c.unread }}</span>
           </div>
@@ -380,13 +370,6 @@
       </div>
 
       <div class="header-actions">
-        <span
-          class="assignment-chip"
-          [class.mine]="contact.assignedTo === currentUserId"
-          [class.closed]="isChatClosed(contact)"
-        >
-          {{ getAssignmentLabel(contact) }}
-        </span>
         <button
           class="take-chat-btn"
           type="button"
@@ -396,17 +379,6 @@
         >
           <wa-icon [name]="isTakingChat ? 'loader-2' : 'user-plus'"></wa-icon>
           {{ isTakingChat ? 'Tomando...' : 'Tomar chat' }}
-        </button>
-        <button
-          class="close-chat-btn"
-          type="button"
-          *ngIf="contact.assignedTo === currentUserId"
-          (click)="closeActiveChat()"
-          [disabled]="isClosingChat"
-          title="Cerrar atencion y liberar la asignacion"
-        >
-          <wa-icon [name]="isClosingChat ? 'loader-2' : 'circle-check'"></wa-icon>
-          <span>{{ isClosingChat ? 'Cerrando' : 'Cerrar' }}</span>
         </button>
         <button
           class="info-toggle-btn"
@@ -420,13 +392,16 @@
     </header>
 
     <section class="messages-bg" #messagesContainer>
-      <div class="date-sep"><span>Conversacion</span></div>
-
+      <ng-container *ngFor="let group of groupedMessages(contact.messages); trackBy: trackByIndex">
+      <div class="date-sep"><span>{{ group.label }}</span></div>
       <div
         class="msg-row"
-        *ngFor="let msg of visibleConversationMessages(contact.messages); trackBy: trackById"
+        *ngFor="let msg of group.messages; trackBy: trackById"
         [ngClass]="msg.fromMe ? 'out' : 'in'"
       >
+        <div class="sender-tag" *ngIf="msg.senderName && (contact.isGroup || msg.fromMe)" [class.ai-sender]="msg.isAuto">
+          {{ msg.senderName }}
+        </div>
         <div
           class="msg-bubble"
           [class.ai-bubble]="msg.isAuto"
@@ -438,9 +413,6 @@
           <div class="ai-badge" *ngIf="msg.isAuto">
             <wa-icon name="sparkles"></wa-icon>
             Sistema
-          </div>
-          <div class="group-sender" *ngIf="contact.isGroup && !msg.fromMe && msg.senderName">
-            {{ msg.senderName }}
           </div>
           <div class="media-message" *ngIf="msg.type && msg.type !== 'text'">
             <div class="media-placeholder" *ngIf="!msg.mediaUrl">
@@ -483,10 +455,12 @@
           <ng-template #messageBodyView>
             <p *ngIf="shouldShowMessageBody(msg)">{{ displayMessageBody(msg) }}</p>
           </ng-template>
-          <div class="msg-meta">
+          <div class="bubble-meta">
             <span>{{ messageTime(msg) }}</span>
             <em *ngIf="msg.editedAt">editado</em>
-            <wa-icon name="checks" *ngIf="msg.fromMe && msg.status !== 'failed'"></wa-icon>
+            <svg class="bubble-check" *ngIf="msg.fromMe && msg.status !== 'failed'" viewBox="0 0 16 11" fill="currentColor">
+              <path d="M11.07.65l-5.93 6.2L2.45 4.3l-1.1 1.1 3.08 3.3.7.8.8-.8 6.32-6.6L11.07.65z"/>
+            </svg>
             <wa-icon name="alert-circle" *ngIf="msg.status === 'failed'"></wa-icon>
           </div>
           <div class="message-reactions" *ngIf="messageReactions(msg, contact.messages).length">
@@ -542,6 +516,7 @@
 </div>
         </div>
       </div>
+      </ng-container>
 
       <div class="msg-row in" *ngIf="isTyping">
         <div class="typing-indicator">

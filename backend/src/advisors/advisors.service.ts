@@ -1,4 +1,8 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, ILike } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -22,7 +26,16 @@ export class AdvisorsService {
   async findAll(): Promise<User[]> {
     return this.userRepo.find({
       where: { role: 'advisor' },
-      select: ['id', 'name', 'email', 'status', 'activeChats', 'active', 'createdAt', 'profilePhotoUrl'],
+      select: [
+        'id',
+        'name',
+        'email',
+        'status',
+        'activeChats',
+        'active',
+        'createdAt',
+        'profilePhotoUrl',
+      ],
       order: { createdAt: 'DESC' },
     });
   }
@@ -40,7 +53,17 @@ export class AdvisorsService {
 
     const [data, total] = await this.userRepo.findAndCount({
       where,
-      select: ['id', 'name', 'email', 'status', 'activeChats', 'active', 'createdAt', 'role', 'profilePhotoUrl'],
+      select: [
+        'id',
+        'name',
+        'email',
+        'status',
+        'activeChats',
+        'active',
+        'createdAt',
+        'role',
+        'profilePhotoUrl',
+      ],
       order: { createdAt: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,
@@ -58,7 +81,17 @@ export class AdvisorsService {
   async findById(id: string): Promise<User> {
     const user = await this.userRepo.findOne({
       where: { id },
-      select: ['id', 'name', 'email', 'status', 'activeChats', 'active', 'createdAt', 'role', 'profilePhotoUrl'],
+      select: [
+        'id',
+        'name',
+        'email',
+        'status',
+        'activeChats',
+        'active',
+        'createdAt',
+        'role',
+        'profilePhotoUrl',
+      ],
     });
     if (!user) throw new NotFoundException('Asesor no encontrado');
     return user;
@@ -69,16 +102,26 @@ export class AdvisorsService {
     if (exists) throw new ConflictException('El email ya está registrado');
 
     const hash = await bcrypt.hash(password, 10);
-    const user = this.userRepo.create({ name, email, password: hash, role: 'advisor' });
+    const user = this.userRepo.create({
+      name,
+      email,
+      password: hash,
+      role: 'advisor',
+    });
     return this.userRepo.save(user);
   }
 
-  async update(id: string, dto: { name?: string; email?: string }): Promise<User> {
+  async update(
+    id: string,
+    dto: { name?: string; email?: string },
+  ): Promise<User> {
     const user = await this.userRepo.findOne({ where: { id } });
     if (!user) throw new NotFoundException('Asesor no encontrado');
 
     if (dto.email && dto.email !== user.email) {
-      const exists = await this.userRepo.findOne({ where: { email: dto.email } });
+      const exists = await this.userRepo.findOne({
+        where: { email: dto.email },
+      });
       if (exists) throw new ConflictException('El email ya está registrado');
     }
 

@@ -1,6 +1,12 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn,
-  CreateDateColumn, UpdateDateColumn, Index,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../auth/entities/user.entity';
 
@@ -46,7 +52,12 @@ export class Ticket {
   @JoinColumn({ name: 'assigned_to_id' })
   assignedTo: User | null;
 
-  @Column({ name: 'assigned_to_name', type: 'varchar', length: 255, nullable: true })
+  @Column({
+    name: 'assigned_to_name',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
   assignedToName: string | null;
 
   @Column({ name: 'client_name', type: 'varchar', length: 255 })

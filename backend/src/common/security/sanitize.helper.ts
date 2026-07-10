@@ -45,7 +45,10 @@ export function cleanText(value: unknown, maxLength = 4096): string {
     .slice(0, maxLength);
 }
 
-export function sanitizeOutboundText(value: unknown, maxLength: number): string {
+export function sanitizeOutboundText(
+  value: unknown,
+  maxLength: number,
+): string {
   if (typeof value !== 'string') return '';
   return cleanText(value, maxLength);
 }
@@ -53,9 +56,11 @@ export function sanitizeOutboundText(value: unknown, maxLength: number): string 
 export function sanitizeFileName(value: unknown, mimeType = ''): string {
   const fallback = `archivo${mimeType ? '.' + mimeType.split('/')[1] : ''}`;
   const raw = typeof value === 'string' ? value : fallback;
-  return raw
-    .split(/[\\/]/)
-    .pop()
-    ?.replace(/[\u0000-\u001F\u007F<>:"|?*]/g, '-')
-    .trim() || fallback;
+  return (
+    raw
+      .split(/[\\/]/)
+      .pop()
+      ?.replace(/[\u0000-\u001F\u007F<>:"|?*]/g, '-')
+      .trim() || fallback
+  );
 }

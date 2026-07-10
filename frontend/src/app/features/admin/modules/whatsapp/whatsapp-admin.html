@@ -62,25 +62,85 @@
       <span class="eyebrow">WhatsApp en tiempo real</span>
       <h1>Centro de operacion</h1>
     </div>
+    <div class="head-center">
+      <span class="conn-badge" [class]="connectionStatus.status">
+        <lucide-icon [name]="connectionStatus.status === 'connected' ? 'circle' : 'circle'" [size]="10"></lucide-icon>
+        {{ connectionStatus.status === 'connected' ? 'Conectado' : connectionStatus.status === 'connecting' ? 'Conectando...' : connectionStatus.status === 'qr' ? 'Esperando QR' : 'Desconectado' }}
+      </span>
+    </div>
     <div class="head-actions">
       <button type="button" class="icon-btn" (click)="toggleTheme()" [title]="theme === 'dark' ? 'Modo claro' : 'Modo oscuro'">
-        <i class="ti" [ngClass]="theme === 'dark' ? 'ti-sun' : 'ti-moon'"></i>
+        <lucide-icon [name]="theme === 'dark' ? 'sun' : 'moon'" [size]="18"></lucide-icon>
       </button>
       <button type="button" class="icon-btn" (click)="refresh()" title="Actualizar">
-        <i class="ti ti-refresh"></i>
+        <lucide-icon name="refresh-cw" [size]="18"></lucide-icon>
       </button>
     </div>
   </header>
 
+  <div class="status-banner">
+    <div class="sb-item sb-red">
+      <lucide-icon name="octagon-alert" [size]="16"></lucide-icon>
+      <span><strong>{{ summary.slaBreached }}</strong> SLA vencido</span>
+    </div>
+    <div class="sb-item sb-amber">
+      <lucide-icon name="snowflake" [size]="16"></lucide-icon>
+      <span><strong>{{ summary.frozenChats }}</strong> Chats congelados</span>
+    </div>
+    <div class="sb-item sb-blue">
+      <lucide-icon name="user-x" [size]="16"></lucide-icon>
+      <span><strong>{{ inactiveAdvisors }}</strong> Asesores inactivos</span>
+    </div>
+  </div>
+
   <div class="action-feedback" *ngIf="actionMessage">{{ actionMessage }}</div>
 
-  <div class="summary-grid">
-    <article><span>Activos</span><strong>{{ summary.activeChats }}</strong></article>
-    <article><span>En cola</span><strong>{{ summary.queuedChats }}</strong></article>
-    <article><span>Esperando cliente</span><strong>{{ summary.waitingCustomerChats }}</strong></article>
-    <article><span>SLA vencido</span><strong>{{ summary.slaBreached }}</strong></article>
-    <article><span>Fijos</span><strong>{{ summary.fixedClients }}</strong></article>
-    <article><span>Manual/admin</span><strong>{{ summary.manualChats }}</strong></article>
+  <div class="kpi-grid">
+    <article class="kpi-card" *ngFor="let kpi of kpiList; trackBy: trackByIndex">
+      <div class="kpi-icon" [class]="kpi.color"><lucide-icon [name]="kpi.icon" [size]="20"></lucide-icon></div>
+      <div><span>{{ kpi.label }}</span><strong class="num-lg">{{ kpi.value }}<small *ngIf="kpi.mini">{{ kpi.mini }}</small></strong></div>
+    </article>
+  </div>
+
+  <div class="filter-bar">
+    <div class="fb-group">
+      <label>Canal</label>
+      <select [(ngModel)]="canalFilter">
+        <option *ngFor="let opt of canalOptions" [ngValue]="opt.id">{{ opt.label }}</option>
+      </select>
+    </div>
+    <div class="fb-group">
+      <label>Estado</label>
+      <select [(ngModel)]="statusFilter">
+        <option *ngFor="let opt of statusOptions" [ngValue]="opt.id">{{ opt.label }}</option>
+      </select>
+    </div>
+    <div class="fb-group">
+      <label>Asesor</label>
+      <select [(ngModel)]="advisorFilter">
+        <option value="">Todos</option>
+        <option *ngFor="let a of allAdvisors" [value]="a.id">{{ a.name }}</option>
+      </select>
+    </div>
+    <div class="fb-group">
+      <label>SLA</label>
+      <select [(ngModel)]="slaFilter">
+        <option *ngFor="let opt of slaFilterOptions" [ngValue]="opt.id">{{ opt.label }}</option>
+      </select>
+    </div>
+    <div class="fb-group">
+      <label>Prioridad</label>
+      <select [(ngModel)]="priorityFilter">
+        <option *ngFor="let opt of priorityFilterOptions" [ngValue]="opt.id">{{ opt.label }}</option>
+      </select>
+    </div>
+    <div class="fb-group">
+      <label>Fecha</label>
+      <input type="date" [(ngModel)]="filterDate" />
+    </div>
+    <button type="button" class="fb-reset" (click)="resetFilters()" title="Limpiar filtros">
+      <lucide-icon name="rotate-ccw" [size]="16"></lucide-icon>
+    </button>
   </div>
 
   <nav class="tabs">
@@ -96,36 +156,224 @@
   </nav>
 
   <div class="loading" *ngIf="loading">
-    <i class="ti ti-loader-2"></i>
+    <lucide-icon name="loader-2" [size]="20"></lucide-icon>
     Cargando operacion
   </div>
 
   <ng-container *ngIf="!loading">
     <section class="overview" *ngIf="activeTab === 'overview'">
-      <div class="ops-board">
-        <article class="ops-card alert-card">
-          <h2>Alertas criticas</h2>
-          <div class="alert-row" *ngFor="let alert of allAlerts.slice(0, 6); trackBy: trackByIndex" [class]="alert.severity">
-            <i class="ti" [ngClass]="alertIcon(alert)"></i>
-            <div>
-              <strong>{{ alert.title }}</strong>
-              <span>{{ alert.detail }}</span>
+      <div class="ov-body">
+        <div class="ov-col-left">
+          <div class="ov-alerts-box">
+            <div class="ov-alerts-header">
+              <lucide-icon name="bell-ringing" [size]="16"></lucide-icon>
+              <span>Alertas activas</span>
+              <div class="ov-alerts-filter">
+                <select [(ngModel)]="severityFilter">
+                  <option value="all">Todas</option>
+                  <option value="critical">Criticas</option>
+                  <option value="warning">Advertencias</option>
+                  <option value="info">Informacion</option>
+                </select>
+                <span class="alert-count" *ngIf="allAlerts.length">{{ allAlerts.length }}</span>
+              </div>
+            </div>
+            <div class="alert-list-compact">
+              <div
+                class="alert-item"
+                *ngFor="let alert of filteredAlerts.slice(0, 10); trackBy: trackByIndex"
+                [class]="alert.severity"
+              >
+                <lucide-icon [name]="alertTypeIcon(alert)" [size]="18"></lucide-icon>
+                <div>
+                  <strong>{{ alert.title }}</strong>
+                  <span>{{ alert.detail }}</span>
+                </div>
+              </div>
+              <p class="empty-sm" *ngIf="filteredAlerts.length === 0">Sin alertas activas</p>
             </div>
           </div>
-          <p class="empty" *ngIf="allAlerts.length === 0">Sin alertas activas</p>
-        </article>
 
-        <article class="ops-card load-card">
-          <h2>Carga por asesor</h2>
-          <div class="advisor-load" *ngFor="let advisor of allAdvisors; trackBy: trackById">
-            <div>
-              <strong>{{ advisor.name }}</strong>
-              <span>{{ advisorStatusLabel(advisor.status) }} - idle {{ advisor.idleMinutes }} min</span>
+        </div>
+
+        <div class="ov-col-center">
+          <div class="advisor-compact">
+            <header>
+              <h3><lucide-icon name="users" [size]="16"></lucide-icon> Carga de asesores</h3>
+              <span>{{ dailySummary.activeAdvisors }} activos</span>
+            </header>
+            <div
+              class="advisor-row"
+              *ngFor="let advisor of allAdvisors; trackBy: trackById"
+            >
+              <div class="advisor-avatar">{{ advisor.name[0] }}</div>
+              <div class="advisor-info">
+                <strong>{{ advisor.name }}</strong>
+                <div class="advisor-meta">
+                  <span class="status-dot" [class]="advisor.status"></span>
+                  {{ advisorStatusLabel(advisor.status) }}
+                </div>
+              </div>
+              <div class="advisor-load-bar">
+                <div class="load-track">
+                  <div
+                    class="load-fill"
+                    [style.width.%]="(advisor.activeChats / 4) * 100"
+                    [class.full]="advisor.activeChats >= 4"
+                  ></div>
+                </div>
+              </div>
+              <div class="advisor-sla">
+                <span>{{ advisor.activeChats }}/{{ advisor.slaPercent }}%</span>
+              </div>
             </div>
-            <meter min="0" max="3" [value]="advisor.activeChats"></meter>
-            <b>{{ advisor.activeChats }}/3</b>
+            <p class="empty-sm" *ngIf="allAdvisors.length === 0">Sin asesores</p>
           </div>
-        </article>
+        </div>
+
+        <div class="ov-col-right">
+          <div class="ov-side-card">
+            <h3><lucide-icon name="bar-chart-3" [size]="16"></lucide-icon> Resumen del dia</h3>
+            <div class="stat-row">
+              <lucide-icon name="octagon-alert" [size]="15" style="color:#dc2626"></lucide-icon>
+              <span>Alertas criticas</span>
+              <strong class="red">{{ allAlerts.filter(a => a.severity === 'critical').length }}</strong>
+            </div>
+            <div class="stat-row">
+              <lucide-icon name="triangle-alert" [size]="15" style="color:#f59e0b"></lucide-icon>
+              <span>Advertencias</span>
+              <strong class="amber">{{ allAlerts.filter(a => a.severity === 'warning').length }}</strong>
+            </div>
+            <div class="stat-row">
+              <lucide-icon name="users" [size]="15" style="color:#3b82f6"></lucide-icon>
+              <span>Asesores activos</span>
+              <strong>{{ dailySummary.activeAdvisors }}</strong>
+            </div>
+            <div class="stat-row">
+              <lucide-icon name="gauge" [size]="15" style="color:#8b5cf6"></lucide-icon>
+              <span>Carga promedio</span>
+              <strong>{{ dailySummary.avgLoad }}</strong>
+            </div>
+            <div class="stat-row">
+              <lucide-icon name="message-square" [size]="15" style="color:#10b981"></lucide-icon>
+              <span>Mensajes no leidos</span>
+              <strong>{{ dailySummary.newMessages }}</strong>
+            </div>
+            <div class="risk-badge" [class]="riskLevel">
+              <lucide-icon [name]="riskLevel === 'high' ? 'octagon-alert' : riskLevel === 'medium' ? 'triangle-alert' : 'circle-check'" [size]="14"></lucide-icon>
+              Riesgo {{ riskLevel === 'high' ? 'Alto' : riskLevel === 'medium' ? 'Medio' : 'Bajo' }}
+            </div>
+          </div>
+
+          <div class="ov-side-card">
+            <h3><lucide-icon name="zap" [size]="16"></lucide-icon> Acciones rapidas</h3>
+            <button type="button" class="quick-btn" (click)="activeTab = 'chats'; query = ''; statusFilter = 'new'">
+              <lucide-icon name="message-square-plus" [size]="16"></lucide-icon>
+              Ver nuevos chats
+            </button>
+            <button type="button" class="quick-btn" (click)="refresh()">
+              <lucide-icon name="refresh-cw" [size]="16"></lucide-icon>
+              Refrescar dashboard
+            </button>
+            <button type="button" class="quick-btn" (click)="activeTab = 'alerts'">
+              <lucide-icon name="bell" [size]="16"></lucide-icon>
+              Ver todas las alertas
+            </button>
+            <button type="button" class="quick-btn" (click)="generateReport()">
+              <lucide-icon name="file-spreadsheet" [size]="16"></lucide-icon>
+              Generar reporte
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="ov-chat-table-wrap">
+        <div class="ov-chat-table-header">
+          <h3><lucide-icon name="message-circle" [size]="16"></lucide-icon> Todos los chats</h3>
+          <div class="ov-table-meta">
+            <span>{{ filteredChats.length }} chats</span>
+            <select class="per-page" [(ngModel)]="chatsPerPage" (change)="onChatsPerPageChange()">
+              <option *ngFor="let opt of chatsPerPageOptions" [value]="opt">{{ opt }} / pag</option>
+            </select>
+          </div>
+        </div>
+        <div class="ov-table-scroll">
+          <table class="ov-chat-table">
+            <thead>
+              <tr>
+                <th class="col-contact">Chat / Contacto</th>
+                <th class="col-status">Estado</th>
+                <th class="col-assigned">Asignado a</th>
+                <th class="col-msg">Ultimo mensaje</th>
+                <th class="col-sla">SLA</th>
+                <th class="col-priority">Prioridad</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                *ngFor="let chat of pagedChats; trackBy: trackChat"
+                [class.selected]="selectedChat?.id === chat.id"
+                (click)="selectChat(chat)"
+              >
+                <td class="col-contact">
+                  <img [src]="chat.avatar" [alt]="chat.name" class="chat-avatar" />
+                  <div class="chat-contact-info">
+                    <strong class="chat-name">{{ chat.name }}</strong>
+                    <span class="chat-phone">{{ chat.phone }}</span>
+                  </div>
+                </td>
+                <td class="col-status">
+                  <span class="status-pill" [class]="chat.operationalStatus || chat.stage">
+                    {{ chat.operationalStatusLabel || chat.stage }}
+                  </span>
+                </td>
+                <td class="col-assigned">
+                  <span class="assigned-name" [title]="chat.assignedToName || 'Sin asignar'">{{ chat.assignedToName || 'Sin asignar' }}</span>
+                  <span class="assigned-mode" *ngIf="chat.assignmentMode">({{ chat.assignmentMode }})</span>
+                </td>
+                <td class="col-msg">
+                  <span class="msg-preview" [title]="chat.preview || '—'">{{ chat.preview || '—' }}</span>
+                </td>
+                <td class="col-sla">
+                  <div class="sla-indicator" [style.color]="slaColor(chat)">
+                    <div class="sla-bar">
+                      <div class="sla-fill" [style.width.%]="slaPercentFor(chat)" [style.background]="slaColor(chat)"></div>
+                    </div>
+                    <span class="sla-pct">{{ slaPercentFor(chat) }}%</span>
+                  </div>
+                </td>
+                <td class="col-priority">
+                  <select
+                    class="priority-select"
+                    [ngClass]="chat.priority || 'normal'"
+                    [ngModel]="chat.priority || 'normal'"
+                    (change)="updatePriority(chat, $any($event).target.value)"
+                    (click)="$event.stopPropagation()"
+                  >
+                    <option *ngFor="let p of priorityOptions" [value]="p">{{ priorityLabel(p) }}</option>
+                  </select>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="empty-sm" *ngIf="filteredChats.length === 0">No hay chats disponibles</p>
+        <div class="ov-paginator" *ngIf="totalChatPages > 1">
+          <button type="button" class="page-btn" [disabled]="chatsPage <= 1" (click)="prevPage()">
+            <lucide-icon name="chevron-left" [size]="16"></lucide-icon>
+          </button>
+          <button
+            type="button"
+            class="page-btn"
+            *ngFor="let p of chatPageNumbers"
+            [class.active]="p === chatsPage"
+            (click)="goToPage(p)"
+          >{{ p }}</button>
+          <button type="button" class="page-btn" [disabled]="chatsPage >= totalChatPages" (click)="nextPage()">
+            <lucide-icon name="chevron-right" [size]="16"></lucide-icon>
+          </button>
+        </div>
       </div>
     </section>
 

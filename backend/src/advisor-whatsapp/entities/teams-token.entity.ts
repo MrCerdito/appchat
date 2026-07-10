@@ -1,6 +1,9 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, UpdateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { encryptedTextTransformer } from '../../common/security/encrypted-text.transformer';
 
@@ -30,7 +33,12 @@ export class TeamsToken {
   @Column({ name: 'expires_at', type: 'bigint' })
   expiresAt: number;
 
-  @Column({ name: 'account_name', type: 'varchar', length: 255, nullable: true })
+  @Column({
+    name: 'account_name',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
   accountName: string | null;
 
   @CreateDateColumn({ name: 'created_at' })

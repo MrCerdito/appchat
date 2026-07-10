@@ -177,210 +177,17 @@
 
     <div class="shell-spacer"></div>
 
-    <!-- ── Drawer de perfil ───────────────────────────────────────────── -->
-    <div class="profile-drawer" [class.open]="profileOpen">
-      <div class="profile-drawer-inner">
-
-        <div class="drawer-section drawer-photo-section">
-          <div class="profile-photo-wrap" (click)="photoInput.click()">
-            <img *ngIf="currentAdvisor?.profilePhotoUrl; else photoFallback"
-                 [src]="currentAdvisor!.profilePhotoUrl"
-                 [alt]="currentAdvisor?.name"
-                 class="drawer-profile-img" />
-            <ng-template #photoFallback>
-              <span class="drawer-profile-initial">{{ currentAdvisor?.name?.charAt(0) }}</span>
-            </ng-template>
-            <div class="profile-photo-overlay">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                <circle cx="12" cy="13" r="4"/>
-              </svg>
-            </div>
-          </div>
-          <input #photoInput type="file" accept="image/*" class="photo-input-hidden"
-                 (change)="onProfilePhotoSelected($event)" />
-          <button *ngIf="currentAdvisor?.profilePhotoUrl" type="button"
-                  class="photo-remove-btn" (click)="removeProfilePhoto()" title="Eliminar foto">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="3 6 5 6 21 6"/>
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-            </svg>
-          </button>
-          <div class="drawer-photo-name">{{ currentAdvisor?.name }}</div>
-          <div class="drawer-photo-email">{{ currentAdvisor?.email }}</div>
-        </div>
-
-        <div class="drawer-divider"></div>
-
-        <div class="drawer-section">
-          <span class="drawer-label">Estado</span>
-          <div class="status-options">
-            <button class="status-opt-btn"
-              [class.active]="advisorStatus === 'online'"
-              [disabled]="enAlmuerzo"
-              (click)="setStatus('online')">
-              <span class="dot-inline online"></span>
-              <span>Disponible</span>
-              <svg *ngIf="advisorStatus === 'online'" class="check-icon"
-                viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
-            </button>
-
-            <button class="status-opt-btn"
-              [class.active]="advisorStatus === 'busy'"
-              (click)="setStatus('busy')">
-              <span class="dot-inline busy"></span>
-              <span>Ocupado</span>
-              <svg *ngIf="advisorStatus === 'busy'" class="check-icon"
-                viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
-            </button>
-
-            <button class="status-opt-btn"
-              [class.active]="advisorStatus === 'offline'"
-              (click)="setStatus('offline')">
-              <span class="dot-inline offline"></span>
-              <span>Inactivo</span>
-              <svg *ngIf="advisorStatus === 'offline'" class="check-icon"
-                viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
-            </button>
-          </div>
-
-          <div class="lunch-badge" *ngIf="enAlmuerzo">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/>
-              <path d="M7 2v20"/>
-              <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7"/>
-            </svg>
-            <span>Almuerzo — {{ almuerzoRestante }}</span>
-          </div>
-        </div>
-
-        <div class="drawer-divider"></div>
-
-        <div class="drawer-section">
-          <div class="appearance-row" (click)="appearanceOpen = !appearanceOpen">
-            <span class="drawer-label" style="margin-bottom:0">
-              Apariencia
-            </span>
-            <svg class="appearance-chevron" [class.open]="appearanceOpen"
-                 viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="9 18 15 12 9 6"/>
-            </svg>
-          </div>
-
-          <div class="appearance-dropdown" [class.open]="appearanceOpen">
-            <button class="appearance-opt"
-                    [class.active]="(themeService.currentMode$ | async) === 'light'"
-                    (click)="themeService.setMode('light')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="5"/>
-                <line x1="12" y1="1" x2="12" y2="3"/>
-                <line x1="12" y1="21" x2="12" y2="23"/>
-                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-                <line x1="1" y1="12" x2="3" y2="12"/>
-                <line x1="21" y1="12" x2="23" y2="12"/>
-                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-              </svg>
-              <span>Claro</span>
-              <svg *ngIf="(themeService.currentMode$ | async) === 'light'" class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
-            </button>
-
-            <button class="appearance-opt"
-                    [class.active]="(themeService.currentMode$ | async) === 'dark'"
-                    (click)="themeService.setMode('dark')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-              </svg>
-              <span>Oscuro</span>
-              <svg *ngIf="(themeService.currentMode$ | async) === 'dark'" class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
-            </button>
-
-            <button class="appearance-opt"
-                    [class.active]="(themeService.currentMode$ | async) === 'system'"
-                    (click)="themeService.setMode('system')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <rect x="2" y="3" width="20" height="14" rx="2"/>
-                <line x1="8" y1="21" x2="16" y2="21"/>
-                <line x1="12" y1="17" x2="12" y2="21"/>
-              </svg>
-              <span>Sistema</span>
-              <svg *ngIf="(themeService.currentMode$ | async) === 'system'" class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        <div class="drawer-divider"></div>
-
-        <div class="drawer-section">
-          <button class="drawer-action-btn drawer-action-btn--logout" (click)="logout()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-              <polyline points="16 17 21 12 16 7"/>
-              <line x1="21" y1="12" x2="9" y2="12"/>
-            </svg>
-            <span>Cerrar sesión</span>
-          </button>
-        </div>
-
-      </div>
-    </div>
-
-    <!-- ── Trigger de perfil ──────────────────────────────────────────── -->
-    <div class="shell-profile-trigger"
-         (click)="profileOpen = !profileOpen"
-         [class.open]="profileOpen">
-
-      <div class="profile-avatar"
-           [ngClass]="'status-border-' + (enAlmuerzo ? 'lunch' : advisorStatus)">
-        <img *ngIf="currentAdvisor?.profilePhotoUrl; else avatarFallback"
-             [src]="currentAdvisor!.profilePhotoUrl"
-             [alt]="currentAdvisor?.name"
-             class="profile-avatar-img" />
-        <ng-template #avatarFallback>{{ currentAdvisor?.name?.charAt(0) }}</ng-template>
-      </div>
-
-      <div class="profile-trigger-info">
-        <span class="profile-trigger-name">{{ currentAdvisor?.name }}</span>
-        <span class="profile-trigger-status">
-          <span class="status-dot-sm" [ngClass]="advisorStatus"></span>
-          {{ enAlmuerzo        ? 'Almuerzo · ' + almuerzoRestante :
-             advisorStatus === 'online'  ? 'Disponible' :
-             advisorStatus === 'busy'    ? 'Ocupado'    : 'Inactivo' }}
-        </span>
-      </div>
-
-      <svg class="profile-chevron" [class.open]="profileOpen"
-           viewBox="0 0 24 24" fill="none" stroke="currentColor"
-           stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="6 9 12 15 18 9"/>
-      </svg>
+    <!-- ── Cerrar sesión (sidebar) ─────────────────────────────────────── -->
+    <div class="shell-profile-trigger">
+      <button class="drawer-action-btn drawer-action-btn--logout" (click)="logout()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+        <span>Cerrar sesión</span>
+      </button>
     </div>
 
   </aside>
@@ -445,14 +252,166 @@
         </div>
       </div>
 
-      <div class="profile-avatar topbar-avatar"
-           [ngClass]="'status-border-' + (enAlmuerzo ? 'lunch' : advisorStatus)"
-           (click)="profileOpen = !profileOpen">
-        <img *ngIf="currentAdvisor?.profilePhotoUrl; else topbarAvatarFallback"
-             [src]="currentAdvisor!.profilePhotoUrl"
-             [alt]="currentAdvisor?.name"
-             class="profile-avatar-img" />
-        <ng-template #topbarAvatarFallback>{{ currentAdvisor?.name?.charAt(0) }}</ng-template>
+      <div class="topbar-profile-wrap">
+        <div class="profile-avatar topbar-avatar"
+             [ngClass]="'status-border-' + (enAlmuerzo ? 'lunch' : advisorStatus)"
+             (click)="profileOpen = !profileOpen">
+          <img *ngIf="currentAdvisor?.profilePhotoUrl; else topbarAvatarFallback"
+               [src]="currentAdvisor!.profilePhotoUrl"
+               [alt]="currentAdvisor?.name"
+               class="profile-avatar-img" />
+          <ng-template #topbarAvatarFallback>{{ currentAdvisor?.name?.charAt(0) }}</ng-template>
+        </div>
+
+        <div class="profile-dropdown" *ngIf="profileOpen" (click)="$event.stopPropagation()">
+          <div class="pd-header">
+            <div class="pd-photo-wrap" (click)="photoInput.click()">
+              <img *ngIf="currentAdvisor?.profilePhotoUrl; else pdPhotoFallback"
+                   [src]="currentAdvisor!.profilePhotoUrl"
+                   [alt]="currentAdvisor?.name"
+                   class="pd-photo-img" />
+              <ng-template #pdPhotoFallback>
+                <span class="pd-photo-initial">{{ currentAdvisor?.name?.charAt(0) }}</span>
+              </ng-template>
+              <div class="pd-photo-overlay">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                  <circle cx="12" cy="13" r="4"/>
+                </svg>
+              </div>
+            </div>
+            <input #photoInput type="file" accept="image/*" class="photo-input-hidden"
+                   (change)="onProfilePhotoSelected($event)" />
+            <button *ngIf="currentAdvisor?.profilePhotoUrl" type="button"
+                    class="pd-photo-remove" (click)="removeProfilePhoto()" title="Eliminar foto">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+              </svg>
+            </button>
+            <div class="pd-name">{{ currentAdvisor?.name }}</div>
+            <div class="pd-email">{{ currentAdvisor?.email }}</div>
+          </div>
+
+          <div class="pd-divider"></div>
+
+          <div class="pd-section">
+            <span class="pd-label">Estado</span>
+            <div class="pd-status-options">
+              <button class="pd-status-btn"
+                [class.active]="advisorStatus === 'online'"
+                [disabled]="enAlmuerzo"
+                (click)="setStatus('online')">
+                <span class="dot-inline online"></span>
+                <span>Disponible</span>
+                <svg *ngIf="advisorStatus === 'online'" class="check-icon"
+                  viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              </button>
+              <button class="pd-status-btn"
+                [class.active]="advisorStatus === 'busy'"
+                (click)="setStatus('busy')">
+                <span class="dot-inline busy"></span>
+                <span>Ocupado</span>
+                <svg *ngIf="advisorStatus === 'busy'" class="check-icon"
+                  viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              </button>
+              <button class="pd-status-btn"
+                [class.active]="advisorStatus === 'offline'"
+                (click)="setStatus('offline')">
+                <span class="dot-inline offline"></span>
+                <span>Inactivo</span>
+                <svg *ngIf="advisorStatus === 'offline'" class="check-icon"
+                  viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              </button>
+            </div>
+            <div class="pd-lunch-badge" *ngIf="enAlmuerzo">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/>
+                <path d="M7 2v20"/>
+                <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7"/>
+              </svg>
+              <span>Almuerzo — {{ almuerzoRestante }}</span>
+            </div>
+          </div>
+
+          <div class="pd-divider"></div>
+
+          <div class="pd-section">
+            <div class="pd-appearance-row" (click)="appearanceOpen = !appearanceOpen">
+              <span class="pd-label" style="margin-bottom:0">Apariencia</span>
+              <svg class="pd-appearance-chevron" [class.open]="appearanceOpen"
+                   viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </div>
+            <div class="pd-appearance-dropdown" [class.open]="appearanceOpen">
+              <button class="pd-appearance-opt"
+                      [class.active]="(themeService.currentMode$ | async) === 'light'"
+                      (click)="themeService.setMode('light')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="5"/>
+                  <line x1="12" y1="1" x2="12" y2="3"/>
+                  <line x1="12" y1="21" x2="12" y2="23"/>
+                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                  <line x1="1" y1="12" x2="3" y2="12"/>
+                  <line x1="21" y1="12" x2="23" y2="12"/>
+                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                  <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                </svg>
+                <span>Claro</span>
+                <svg *ngIf="(themeService.currentMode$ | async) === 'light'" class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              </button>
+              <button class="pd-appearance-opt"
+                      [class.active]="(themeService.currentMode$ | async) === 'dark'"
+                      (click)="themeService.setMode('dark')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                </svg>
+                <span>Oscuro</span>
+                <svg *ngIf="(themeService.currentMode$ | async) === 'dark'" class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              </button>
+              <button class="pd-appearance-opt"
+                      [class.active]="(themeService.currentMode$ | async) === 'system'"
+                      (click)="themeService.setMode('system')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="2" y="3" width="20" height="14" rx="2"/>
+                  <line x1="8" y1="21" x2="16" y2="21"/>
+                  <line x1="12" y1="17" x2="12" y2="21"/>
+                </svg>
+                <span>Sistema</span>
+                <svg *ngIf="(themeService.currentMode$ | async) === 'system'" class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="dropdown-overlay" *ngIf="profileOpen" (click)="profileOpen = false"></div>
       </div>
     </header>
 

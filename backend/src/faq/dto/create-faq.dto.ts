@@ -1,6 +1,10 @@
 import {
-  IsString, IsNotEmpty, IsOptional,
-  IsArray, IsInt, Length,
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsArray,
+  IsInt,
+  Length,
 } from 'class-validator';
 
 export class CreateFaqDto {

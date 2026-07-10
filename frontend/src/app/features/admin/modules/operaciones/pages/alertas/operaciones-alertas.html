@@ -1,0 +1,64 @@
+<div class="op-al-page">
+  <nav class="op-al-nav">
+    <button class="op-al-back-btn" (click)="volverAlPanel()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+      </svg>
+      Volver al panel
+    </button>
+    <span class="op-al-nav-title">Todas las alertas</span>
+    <span class="op-al-count">{{ alertasFiltradas.length }} alertas</span>
+  </nav>
+
+  <div class="op-al-filters">
+    <button class="op-al-filter-btn" [class.active]="filtroSeveridad === 'todas'" (click)="setFiltro('todas')">Todas</button>
+    <button class="op-al-filter-btn" [class.active]="filtroSeveridad === 'critical'" (click)="setFiltro('critical')" style="--active-bg:#BE123C;">Críticas</button>
+    <button class="op-al-filter-btn" [class.active]="filtroSeveridad === 'warning'" (click)="setFiltro('warning')" style="--active-bg:#B45309;">Advertencias</button>
+    <button class="op-al-filter-btn" [class.active]="filtroSeveridad === 'info'" (click)="setFiltro('info')" style="--active-bg:#4338CA;">Información</button>
+  </div>
+
+  <div class="op-al-body">
+    <ng-container *ngFor="let grupo of agruparPorTipo(alertasFiltradas)">
+      <div class="op-al-group">
+        <h3 class="op-al-group-title">{{ grupo.label }} <small>{{ grupo.items.length }}</small></h3>
+        <div class="op-al-card" *ngFor="let alerta of grupo.items; trackBy: trackByAlertId">
+          <div class="op-al-card-left">
+            <div class="op-al-icon" [style.background]="severidadPastel[alerta.severidad]" [style.color]="severidadTexto[alerta.severidad]">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <ng-container [ngSwitch]="alerta.tipo">
+                  <ng-container *ngSwitchCase="'sla'">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                  </ng-container>
+                  <ng-container *ngSwitchCase="'congelado'">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                  </ng-container>
+                  <ng-container *ngSwitchCase="'inactivo'">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                  </ng-container>
+                  <ng-container *ngSwitchCase="'cola'">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                  </ng-container>
+                </ng-container>
+              </svg>
+            </div>
+            <div class="op-al-info">
+              <strong>{{ alerta.titulo }}</strong>
+              <p>{{ alerta.descripcion }}</p>
+            </div>
+          </div>
+          <div class="op-al-card-right">
+            <span class="op-al-sev-chip" [style.background]="severidadPastel[alerta.severidad]" [style.color]="severidadTexto[alerta.severidad]">
+              {{ severidadLabels[alerta.severidad] }}
+            </span>
+            <small class="op-al-time">{{ timeAgo(alerta.timestamp) }}</small>
+          </div>
+        </div>
+      </div>
+    </ng-container>
+
+    <div class="op-al-empty" *ngIf="alertasFiltradas.length === 0">
+      <p>No hay alertas con este filtro</p>
+    </div>
+  </div>
+</div>

@@ -1,4 +1,12 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, Request, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  HttpCode,
+  HttpStatus,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { IsEmail, IsString, MinLength, Matches } from 'class-validator';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -22,9 +30,13 @@ export class RegisterDto {
 
   @IsString()
   @MinLength(8, { message: 'La contraseña debe tener mínimo 8 caracteres' })
-  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]).{8,}$/, {
-    message: 'La contraseña debe contener mayúscula, minúscula, número y carácter especial',
-  })
+  @Matches(
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]).{8,}$/,
+    {
+      message:
+        'La contraseña debe contener mayúscula, minúscula, número y carácter especial',
+    },
+  )
   password!: string;
 }
 

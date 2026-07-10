@@ -4,28 +4,28 @@ import { Repository } from 'typeorm';
 import { AiLog } from './entitites/ai-log.entity';
 
 export interface LogData {
-  sessionId?        : string;
-  colegio?          : string;
-  rol?              : string;
-  tipoSolicitud?    : string;
-  clientName?       : string;
-  pregunta          : string;
-  respuesta?        : string;
-  chunksUsados?     : {
-    nombre    : string;
-    categoria : string | null;
+  sessionId?: string;
+  colegio?: string;
+  rol?: string;
+  tipoSolicitud?: string;
+  clientName?: string;
+  pregunta: string;
+  respuesta?: string;
+  chunksUsados?: {
+    nombre: string;
+    categoria: string | null;
     chunkIndex: number;
-    distancia : number | null;
-    fragmento : string;
+    distancia: number | null;
+    fragmento: string;
   }[];
-  tuvoContexto?     : boolean;
+  tuvoContexto?: boolean;
   tiempoRespuestaMs?: number;
-  tokensEstimados?  : number;
-  transfer?         : boolean;
-  feedback?         : boolean;
-  esRestringido?    : boolean;
-  huboError?        : boolean;
-  errorMsg?         : string;
+  tokensEstimados?: number;
+  transfer?: boolean;
+  feedback?: boolean;
+  esRestringido?: boolean;
+  huboError?: boolean;
+  errorMsg?: string;
 }
 
 @Injectable()
@@ -42,18 +42,18 @@ export class AiLogsService {
       this.logger.debug(`\n─────────────────────────────────────────
 📋 AI LOG
 ─────────────────────────────────────────
-👤 Cliente     : ${data.clientName    ?? '-'}
-🏫 Colegio     : ${data.colegio       ?? '-'}
-🎭 Rol         : ${data.rol            ?? '-'}
-📌 Solicitud   : ${data.tipoSolicitud  ?? '-'}
+👤 Cliente     : ${data.clientName ?? '-'}
+🏫 Colegio     : ${data.colegio ?? '-'}
+🎭 Rol         : ${data.rol ?? '-'}
+📌 Solicitud   : ${data.tipoSolicitud ?? '-'}
 ❓ Pregunta    : ${data.pregunta}
 💬 Respuesta   : ${data.respuesta ? data.respuesta.slice(0, 120) + (data.respuesta.length > 120 ? '...' : '') : '-'}
-📄 Chunks RAG  : ${data.chunksUsados?.length ? data.chunksUsados.map(c => `\\n   • ${c.nombre} [chunk ${c.chunkIndex}]${c.distancia != null ? ` (dist: ${c.distancia})` : ''}\\n     "${c.fragmento?.slice(0, 100)}..."`).join('') : ' ninguno'}
-🔍 Contexto RAG: ${data.tuvoContexto     ? 'SÍ' : 'NO'}
+📄 Chunks RAG  : ${data.chunksUsados?.length ? data.chunksUsados.map((c) => `\\n   • ${c.nombre} [chunk ${c.chunkIndex}]${c.distancia != null ? ` (dist: ${c.distancia})` : ''}\\n     "${c.fragmento?.slice(0, 100)}..."`).join('') : ' ninguno'}
+🔍 Contexto RAG: ${data.tuvoContexto ? 'SÍ' : 'NO'}
 ⏱️  Tiempo      : ${data.tiempoRespuestaMs ? `${data.tiempoRespuestaMs}ms` : '-'}
-🔢 Tokens est. : ${data.tokensEstimados   ?? '-'}
-🔀 Transfer    : ${data.transfer          ? 'SÍ' : 'NO'}
-🚫 Restringido : ${data.esRestringido     ? 'SÍ' : 'NO'}
+🔢 Tokens est. : ${data.tokensEstimados ?? '-'}
+🔀 Transfer    : ${data.transfer ? 'SÍ' : 'NO'}
+🚫 Restringido : ${data.esRestringido ? 'SÍ' : 'NO'}
 ❌ Error       : ${data.huboError ? `SÍ — ${data.errorMsg}` : 'NO'}
 ─────────────────────────────────────────`);
 
@@ -63,13 +63,16 @@ export class AiLogsService {
       //   chunksUsados: data.chunksUsados ?? [],
       // });
       // await this.repo.save(log);
-
     } catch (e) {
       this.logger.error('[AiLogs] Error:', e);
     }
   }
 
-  async actualizarFeedback(sessionId: string, pregunta: string, util: boolean): Promise<void> {
+  async actualizarFeedback(
+    sessionId: string,
+    pregunta: string,
+    util: boolean,
+  ): Promise<void> {
     try {
       await this.repo.update({ sessionId, pregunta }, { feedback: util });
     } catch (e) {
@@ -81,15 +84,17 @@ export class AiLogsService {
     const qb = this.repo.createQueryBuilder('l');
     if (colegio) qb.where('l.colegio = :colegio', { colegio });
 
-    const [total, conContexto, transfers, errores, feedbackUtil] = await Promise.all([
-      qb.getCount(),
-      qb.clone().andWhere('l.tuvoContexto = true').getCount(),
-      qb.clone().andWhere('l.transfer = true').getCount(),
-      qb.clone().andWhere('l.huboError = true').getCount(),
-      qb.clone().andWhere('l.feedback = true').getCount(),
-    ]);
+    const [total, conContexto, transfers, errores, feedbackUtil] =
+      await Promise.all([
+        qb.getCount(),
+        qb.clone().andWhere('l.tuvoContexto = true').getCount(),
+        qb.clone().andWhere('l.transfer = true').getCount(),
+        qb.clone().andWhere('l.huboError = true').getCount(),
+        qb.clone().andWhere('l.feedback = true').getCount(),
+      ]);
 
-    const tiempoAvg = await qb.clone()
+    const tiempoAvg = await qb
+      .clone()
       .select('AVG(l.tiempoRespuestaMs)', 'avg')
       .getRawOne();
 
@@ -99,10 +104,10 @@ export class AiLogsService {
       transfers,
       errores,
       feedbackUtil,
-      tiempoPromedioMs : Math.round(tiempoAvg?.avg ?? 0),
-      tasaContexto     : total ? Math.round((conContexto  / total) * 100) : 0,
-      tasaTransfer     : total ? Math.round((transfers    / total) * 100) : 0,
-      tasaFeedbackUtil : total ? Math.round((feedbackUtil / total) * 100) : 0,
+      tiempoPromedioMs: Math.round(tiempoAvg?.avg ?? 0),
+      tasaContexto: total ? Math.round((conContexto / total) * 100) : 0,
+      tasaTransfer: total ? Math.round((transfers / total) * 100) : 0,
+      tasaFeedbackUtil: total ? Math.round((feedbackUtil / total) * 100) : 0,
     };
   }
 }

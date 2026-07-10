@@ -66,13 +66,14 @@ export class WhatsappChatService implements OnDestroy {
 
   private connectSocket(): void {
     this.socket = io(`${this.wsUrl}/advisors-whatsapp`, {
-      transports: ['websocket', 'polling'],
+      transports: ['websocket'],
       path: '/socket.io',
       auth: { token: this.getToken() },
       reconnection: true,
       reconnectionDelay: 1_000,
-      reconnectionDelayMax: 10_000,
+      reconnectionDelayMax: 5_000,
       reconnectionAttempts: 20,
+
     });
 
     this.socket.on('connect', () => {
@@ -156,6 +157,10 @@ export class WhatsappChatService implements OnDestroy {
 
   getChatsSnapshot(): WaChat[] {
     return this.chats$.getValue();
+  }
+
+  syncChats(chats: WaChat[]): void {
+    this.chats$.next(chats);
   }
 
   getConnectionStream(): Observable<WaConnectionStatus> {
@@ -341,10 +346,10 @@ export class WhatsappChatService implements OnDestroy {
     ).pipe(tap(chat => this.upsertChat(chat)));
   }
 
-  adminAssignChat(chatId: string, advisorId: string, mode: 'admin' | 'temporary' = 'admin'): Observable<WaChat> {
+  adminAssignChat(chatId: string, advisorId: string, mode: 'admin' | 'temporary' = 'admin', message?: string): Observable<WaChat> {
     return this.http.post<WaChat>(
       `${this.apiUrl}/chats/${chatId}/admin-assign`,
-      { advisorId, mode },
+      { advisorId, mode, ...(message ? { message } : {}) },
       { headers: this.headers() },
     ).pipe(tap(chat => this.upsertChat(chat)));
   }
@@ -369,6 +374,14 @@ export class WhatsappChatService implements OnDestroy {
     return this.http.patch<WaChat>(
       `${this.apiUrl}/chats/${chatId}/operational-status`,
       { status },
+      { headers: this.headers() },
+    ).pipe(tap(chat => this.upsertChat(chat)));
+  }
+
+  updateChatPriority(chatId: string, priority: string): Observable<WaChat> {
+    return this.http.patch<WaChat>(
+      `${this.apiUrl}/chats/${chatId}/priority`,
+      { priority },
       { headers: this.headers() },
     ).pipe(tap(chat => this.upsertChat(chat)));
   }

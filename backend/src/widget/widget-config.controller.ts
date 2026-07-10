@@ -1,6 +1,12 @@
 import {
-  Controller, Get, Post, Delete,
-  Body, UseGuards, HttpCode, HttpStatus,
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Body,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { WidgetConfigService } from './widget-config.service';
 import { WidgetConfig } from './entities/widget-config.entity';
@@ -9,7 +15,6 @@ import { SaveWidgetConfigDto } from './dto/save-widget-config.dto';
 
 @Controller('widget-config')
 export class WidgetConfigController {
-
   constructor(private readonly svc: WidgetConfigService) {}
 
   // ── GET /widget-config — público ─────────────────────────────────────────

@@ -4,7 +4,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { ChatService } from './chat.service';
 import { ChatGateway } from './chat.gateway';
 import { Message } from './entities/message.entity';
-import { AiModule } from '../ai/ai.module';           // ← línea nueva
+import { AiModule } from '../ai/ai.module'; // ← línea nueva
 import { SessionsModule } from '../sessions/sessions.module'; // ← línea nueva
 import { ConfiguracionModule } from 'src/configuracion/configuracion.module';
 import { AdvisorsWhatsappModule } from '../advisor-whatsapp/advisors-whatsapp.module';
@@ -13,9 +13,9 @@ import { AdvisorsWhatsappModule } from '../advisor-whatsapp/advisors-whatsapp.mo
   imports: [
     TypeOrmModule.forFeature([Message]),
     JwtModule,
-    AiModule,       // ← línea nueva
+    AiModule, // ← línea nueva
     forwardRef(() => SessionsModule), // ← línea nueva
-    ConfiguracionModule, 
+    ConfiguracionModule,
     AdvisorsWhatsappModule,
   ],
   providers: [ChatService, ChatGateway],

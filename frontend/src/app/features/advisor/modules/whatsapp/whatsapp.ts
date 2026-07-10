@@ -31,7 +31,7 @@ import {
   WaMessage,
 } from '../../../../core/models/whatsapp.models';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
-import { priorityLabel } from '../../../../shared/utils/ticket-categories';
+import { priorityLabel, priorityColor } from '../../../../shared/utils/ticket-categories';
 
 export type { WaChat as Contact };
 
@@ -98,6 +98,8 @@ interface MessageReactionGroup {
 export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestroy {
   protected readonly trackByIndex = trackByIndex;
   protected readonly trackById = trackById;
+  protected readonly priorityLabel = priorityLabel;
+  protected readonly priorityColor = priorityColor;
 
   @HostBinding('class.theme-light') get isLightTheme(): boolean {
     return this.theme === 'light';
@@ -137,6 +139,8 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   ];
   readonly editWindowMs = 15 * 60_000;
   readonly deleteWindowMs = 60 * 60 * 60_000;
+
+  showMoreFilter = false;
 
   contacts: WaChat[] = [];
   activeContact?: WaChat;
@@ -214,8 +218,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     updatedAt: new Date().toISOString(),
   };
   isRestartingConnection = false;
-  floatingNotificationsEnabled =
-    localStorage.getItem('waFloatingNotifications') !== 'false';
+  floatingNotificationsEnabled = true;
   readonly allowedUploadTypes = [
     'image/jpeg',
     'image/png',
@@ -494,6 +497,11 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     this.activeFilter = filter;
   }
 
+  toggleMoreFilter(): void {
+    this.showMoreFilter = !this.showMoreFilter;
+  }
+
+  /** @deprecated replaced by toggleMoreFilter() dropdown */
   setMoreFilter(filter: WaFilter | ''): void {
     if (filter) this.setFilter(filter);
   }
@@ -786,6 +794,25 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     return messages.filter(message => !this.isReactionMessage(message));
   }
 
+  groupedMessages(messages: WaMessage[]): { label: string; messages: WaMessage[] }[] {
+    const visible = this.visibleConversationMessages(messages);
+    const groups: { label: string; messages: WaMessage[] }[] = [];
+    let currentLabel = '';
+    let currentGroup: WaMessage[] = [];
+    for (const msg of visible) {
+      const date = this.parseDateValue(msg.timestamp);
+      const label = this.formatDateLabel(date);
+      if (label !== currentLabel) {
+        if (currentGroup.length) groups.push({ label: currentLabel, messages: currentGroup });
+        currentLabel = label;
+        currentGroup = [];
+      }
+      currentGroup.push(msg);
+    }
+    if (currentGroup.length) groups.push({ label: currentLabel, messages: currentGroup });
+    return groups;
+  }
+
   messageReactions(message: WaMessage, messages: WaMessage[] = []): MessageReactionView[] {
     return messages
       .filter(candidate => this.reactionBelongsToMessage(candidate, message, messages))
@@ -819,6 +846,25 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
       hour: '2-digit',
       minute: '2-digit',
       hour12: false,
+      timeZone: 'America/Bogota',
+    }).format(date);
+  }
+
+  private formatDateLabel(date: Date): string {
+    const fmt = new Intl.DateTimeFormat('es-CO', {
+      timeZone: 'America/Bogota',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+    });
+    const dateKey = fmt.format(date);
+    const todayKey = fmt.format(new Date());
+    if (dateKey === todayKey) return 'Hoy';
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (fmt.format(yesterday) === dateKey) return 'Ayer';
+    return new Intl.DateTimeFormat('es-CO', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
       timeZone: 'America/Bogota',
     }).format(date);
   }
@@ -1490,25 +1536,6 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     this.cdr.detectChanges();
   };
 
-  toggleFloatingNotifications(): void {
-    this.floatingNotificationsEnabled = !this.floatingNotificationsEnabled;
-    localStorage.setItem(
-      'waFloatingNotifications',
-      String(this.floatingNotificationsEnabled),
-    );
-
-    if (
-      this.floatingNotificationsEnabled &&
-      typeof Notification !== 'undefined' &&
-      Notification.permission === 'default'
-    ) {
-      Notification.requestPermission().catch(() => undefined);
-    }
-  }
-
-  toggleTheme(): void {
-    this.themeService.setMode(this.theme === 'dark' ? 'light' : 'dark');
-  }
 
   handleKey(event: KeyboardEvent): void {
     if (this.showSlashMenu) {

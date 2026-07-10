@@ -95,7 +95,8 @@ export class TeamsMeetingsService {
   }
 
   async completeAuth(code: string, state: string): Promise<string> {
-    if (!code || !state) throw new BadRequestException('Autorizacion incompleta');
+    if (!code || !state)
+      throw new BadRequestException('Autorizacion incompleta');
     const pending = this.pendingAuth.get(state);
     if (!pending) throw new BadRequestException('Sesion de Teams expirada');
     this.pendingAuth.delete(state);
@@ -147,10 +148,11 @@ export class TeamsMeetingsService {
       );
       data = response.data;
     } catch (err: any) {
-  this.handleMicrosoftError(err, 'crear reunion');
-}
+      this.handleMicrosoftError(err, 'crear reunion');
+    }
     const joinUrl = data?.joinWebUrl;
-    if (!joinUrl) throw new BadRequestException('Teams no devolvio un enlace de reunion');
+    if (!joinUrl)
+      throw new BadRequestException('Teams no devolvio un enlace de reunion');
 
     return {
       subject,
@@ -166,9 +168,10 @@ export class TeamsMeetingsService {
     meeting: TeamsMeetingResult,
     contact: CalendarEventContact,
   ): Promise<void> {
-    const accessToken = target === 'shared'
-      ? await this.getAppAccessToken()
-      : await this.getAccessToken(advisorId);
+    const accessToken =
+      target === 'shared'
+        ? await this.getAppAccessToken()
+        : await this.getAccessToken(advisorId);
 
     const description = [
       `<b>Contacto:</b> ${this.escHtml(contact.name)}`,
@@ -179,7 +182,9 @@ export class TeamsMeetingsService {
     if (contact.email) {
       description.push(`<b>Email:</b> ${this.escHtml(contact.email)}`);
     }
-    description.push(`<p><b>Enlace reunión Teams:</b> <a href="${this.escHtml(meeting.joinUrl)}">${this.escHtml(meeting.joinUrl)}</a></p>`);
+    description.push(
+      `<p><b>Enlace reunión Teams:</b> <a href="${this.escHtml(meeting.joinUrl)}">${this.escHtml(meeting.joinUrl)}</a></p>`,
+    );
 
     const eventBody = {
       subject: meeting.subject,
@@ -208,7 +213,9 @@ export class TeamsMeetingsService {
     } else {
       const sharedMailbox = this.config.get<string>('TEAMS_SHARED_CALENDAR_ID');
       if (!sharedMailbox) {
-        this.logger.warn('TEAMS_SHARED_CALENDAR_ID no configurado, saltando calendario compartido');
+        this.logger.warn(
+          'TEAMS_SHARED_CALENDAR_ID no configurado, saltando calendario compartido',
+        );
         return;
       }
       url = `https://graph.microsoft.com/v1.0/groups/${encodeURIComponent(sharedMailbox)}/events`;
@@ -228,7 +235,8 @@ export class TeamsMeetingsService {
 
   private async getAccessToken(advisorId: string): Promise<string> {
     const token = await this.tokenRepo.findOne({ where: { advisorId } });
-    if (!token) throw new UnauthorizedException('Debes iniciar sesion en Teams');
+    if (!token)
+      throw new UnauthorizedException('Debes iniciar sesion en Teams');
     if (token.expiresAt > Date.now() + 60_000) return token.accessToken;
     if (!token.refreshToken) {
       await this.tokenRepo.delete({ advisorId });
@@ -237,12 +245,15 @@ export class TeamsMeetingsService {
 
     try {
       const refreshed = await this.refreshAccessToken(token.refreshToken);
-      await this.tokenRepo.update({ advisorId }, {
-        accessToken: refreshed.accessToken,
-        refreshToken: refreshed.refreshToken,
-        expiresAt: refreshed.expiresAt,
-        accountName: refreshed.accountName,
-      });
+      await this.tokenRepo.update(
+        { advisorId },
+        {
+          accessToken: refreshed.accessToken,
+          refreshToken: refreshed.refreshToken,
+          expiresAt: refreshed.expiresAt,
+          accountName: refreshed.accountName,
+        },
+      );
       return refreshed.accessToken;
     } catch (err: any) {
       await this.tokenRepo.delete({ advisorId });
@@ -252,13 +263,19 @@ export class TeamsMeetingsService {
   }
 
   private async getAppAccessToken(): Promise<string> {
-    if (this.appAccessToken && this.appAccessToken.expiresAt > Date.now() + 60_000) {
+    if (
+      this.appAccessToken &&
+      this.appAccessToken.expiresAt > Date.now() + 60_000
+    ) {
       return this.appAccessToken.token;
     }
 
     const body = new URLSearchParams();
     body.set('client_id', this.clientId());
-    body.set('client_secret', this.config.getOrThrow<string>('MICROSOFT_CLIENT_SECRET'));
+    body.set(
+      'client_secret',
+      this.config.getOrThrow<string>('MICROSOFT_CLIENT_SECRET'),
+    );
     body.set('scope', 'https://graph.microsoft.com/.default');
     body.set('grant_type', 'client_credentials');
 
@@ -269,8 +286,12 @@ export class TeamsMeetingsService {
       });
       data = response.data;
     } catch (err) {
-      this.logger.warn(`Fallo client_credentials: ${err?.response?.status} ${err?.response?.data?.error || err?.message}`);
-      throw new BadRequestException('Error al autenticar aplicacion con Microsoft.');
+      this.logger.warn(
+        `Fallo client_credentials: ${err?.response?.status} ${err?.response?.data?.error || err?.message}`,
+      );
+      throw new BadRequestException(
+        'Error al autenticar aplicacion con Microsoft.',
+      );
     }
 
     const expiresIn = Number(data?.expires_in ?? 3600);
@@ -281,8 +302,14 @@ export class TeamsMeetingsService {
     return this.appAccessToken.token;
   }
 
-  private async exchangeCode(code: string, codeVerifier: string): Promise<{
-    accessToken: string; refreshToken: string; expiresAt: number; accountName?: string;
+  private async exchangeCode(
+    code: string,
+    codeVerifier: string,
+  ): Promise<{
+    accessToken: string;
+    refreshToken: string;
+    expiresAt: number;
+    accountName?: string;
   }> {
     const body = this.baseTokenBody();
     body.set('grant_type', 'authorization_code');
@@ -304,7 +331,10 @@ export class TeamsMeetingsService {
   }
 
   private async refreshAccessToken(refreshToken: string): Promise<{
-    accessToken: string; refreshToken: string; expiresAt: number; accountName?: string;
+    accessToken: string;
+    refreshToken: string;
+    expiresAt: number;
+    accountName?: string;
   }> {
     const body = this.baseTokenBody();
     body.set('grant_type', 'refresh_token');
@@ -324,11 +354,17 @@ export class TeamsMeetingsService {
   }
 
   private handleMicrosoftError(err: any, action: string): never {
-  const status = (err as any)?.response?.status;
-  const data = (err as any)?.response?.data;
-    const code = typeof data?.error === 'string' ? data.error : typeof data?.code === 'string' ? data.code : JSON.stringify(data?.error ?? data?.code ?? '');
+    const status = err?.response?.status;
+    const data = err?.response?.data;
+    const code =
+      typeof data?.error === 'string'
+        ? data.error
+        : typeof data?.code === 'string'
+          ? data.code
+          : JSON.stringify(data?.error ?? data?.code ?? '');
     this.logger.warn(`Microsoft raw error: ${JSON.stringify(data)}`);
-    const description = data?.error_description || data?.message || err?.message || '';
+    const description =
+      data?.error_description || data?.message || err?.message || '';
     this.logger.warn(
       `Microsoft fallo al ${action}: status=${status ?? 'n/a'} code=${code || 'n/a'} detail=${description || 'n/a'}`,
     );
@@ -340,17 +376,25 @@ export class TeamsMeetingsService {
     }
 
     if (code === 'invalid_grant') {
-      throw new BadRequestException('La autorizacion de Microsoft expiro. Cierra esta ventana e intenta conectar de nuevo.');
+      throw new BadRequestException(
+        'La autorizacion de Microsoft expiro. Cierra esta ventana e intenta conectar de nuevo.',
+      );
     }
 
     if (status === 403) {
       if (action.includes('calendario')) {
-        throw new BadRequestException('No tienes permisos para agendar en el calendario. Revisa el permiso Calendars.ReadWrite en Azure.');
+        throw new BadRequestException(
+          'No tienes permisos para agendar en el calendario. Revisa el permiso Calendars.ReadWrite en Azure.',
+        );
       }
-      throw new BadRequestException('La cuenta no tiene permisos para crear reuniones de Teams. Revisa el permiso OnlineMeetings.ReadWrite.');
+      throw new BadRequestException(
+        'La cuenta no tiene permisos para crear reuniones de Teams. Revisa el permiso OnlineMeetings.ReadWrite.',
+      );
     }
 
-    throw new BadRequestException('No se pudo completar la operacion con Microsoft. Intenta nuevamente o revisa la configuracion.');
+    throw new BadRequestException(
+      'No se pudo completar la operacion con Microsoft. Intenta nuevamente o revisa la configuracion.',
+    );
   }
 
   private normalizeTokenSet(data: any, fallbackRefreshToken = '') {
@@ -380,7 +424,9 @@ export class TeamsMeetingsService {
     try {
       const [, payload] = idToken.split('.');
       if (!payload) return undefined;
-      const decoded = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+      const decoded = JSON.parse(
+        Buffer.from(payload, 'base64url').toString('utf8'),
+      );
       return decoded.name || decoded.preferred_username || decoded.email;
     } catch {
       return undefined;
@@ -404,7 +450,8 @@ export class TeamsMeetingsService {
 
   private clientId(): string {
     const value = this.config.get<string>('MICROSOFT_CLIENT_ID');
-    if (!value) throw new BadRequestException('Falta configurar MICROSOFT_CLIENT_ID');
+    if (!value)
+      throw new BadRequestException('Falta configurar MICROSOFT_CLIENT_ID');
     return value;
   }
 
@@ -420,7 +467,8 @@ export class TeamsMeetingsService {
   private redirectUri(): string {
     const configured = this.config.get<string>('MICROSOFT_REDIRECT_URI');
     if (configured) return configured;
-    const appUrl = this.config.get<string>('APP_URL') ?? 'http://localhost:3001';
+    const appUrl =
+      this.config.get<string>('APP_URL') ?? 'http://localhost:3001';
     return `${appUrl}/advisors-whatsapp/teams/oauth/callback`;
   }
 
@@ -439,7 +487,8 @@ export class TeamsMeetingsService {
   private cleanupPendingAuth(): void {
     const maxAge = 10 * 60_000;
     for (const [state, pending] of this.pendingAuth.entries()) {
-      if (Date.now() - pending.createdAt > maxAge) this.pendingAuth.delete(state);
+      if (Date.now() - pending.createdAt > maxAge)
+        this.pendingAuth.delete(state);
     }
   }
 }

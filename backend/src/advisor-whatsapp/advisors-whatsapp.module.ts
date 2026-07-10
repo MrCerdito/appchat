@@ -24,7 +24,11 @@ import { WhatsappMessage } from './entities/whatsapp-message.entity';
     TicketsModule,
   ],
   controllers: [AdvisorsWhatsappController],
-  providers: [AdvisorsWhatsappService, AdvisorsWhatsappGateway, TeamsMeetingsService],
+  providers: [
+    AdvisorsWhatsappService,
+    AdvisorsWhatsappGateway,
+    TeamsMeetingsService,
+  ],
   exports: [AdvisorsWhatsappService],
 })
 export class AdvisorsWhatsappModule {}

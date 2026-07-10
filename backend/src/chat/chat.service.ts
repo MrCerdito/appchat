@@ -3,7 +3,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Message } from './entities/message.entity';
 import { Session } from '../sessions/entities/session.entity';
-import { sanitizeMessage, sanitizeSenderName } from '../common/security/sanitize.helper';
+import {
+  sanitizeMessage,
+  sanitizeSenderName,
+} from '../common/security/sanitize.helper';
 
 @Injectable()
 export class ChatService {
@@ -40,13 +43,13 @@ export class ChatService {
   }
 
   async markAsRead(sessionId: string, senderType: string): Promise<void> {
-  await this.messageRepo
-    .createQueryBuilder()
-    .update()
-    .set({ readAt: new Date() })
-    .where('session_id = :sessionId', { sessionId })
-    .andWhere('sender_type = :senderType', { senderType })
-    .andWhere('read_at IS NULL')
-    .execute();
-}
+    await this.messageRepo
+      .createQueryBuilder()
+      .update()
+      .set({ readAt: new Date() })
+      .where('session_id = :sessionId', { sessionId })
+      .andWhere('sender_type = :senderType', { senderType })
+      .andWhere('read_at IS NULL')
+      .execute();
+  }
 }

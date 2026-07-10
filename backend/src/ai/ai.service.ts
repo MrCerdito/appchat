@@ -9,10 +9,14 @@ export interface AiMessage {
 }
 
 export interface AiResult {
-  reply       : string;
-  transfer    : boolean;
+  reply: string;
+  transfer: boolean;
   showFeedback: boolean;
-  documentos? : { nombre: string; pdfUrl: string | null; categoria: string | null }[];
+  documentos?: {
+    nombre: string;
+    pdfUrl: string | null;
+    categoria: string | null;
+  }[];
 }
 
 export interface WhatsappSummaryMessage {
@@ -20,45 +24,72 @@ export interface WhatsappSummaryMessage {
   body: string;
 }
 
-const ROL_CONFIG: Record<string, {
-  label             : string;
-  descripcion       : string;
-  temasRestringidos : string[];
-  mensajeRestringido: string;
-}> = {
+const ROL_CONFIG: Record<
+  string,
+  {
+    label: string;
+    descripcion: string;
+    temasRestringidos: string[];
+    mensajeRestringido: string;
+  }
+> = {
   administrador: {
-    label             : 'Administrador',
-    descripcion       : 'Tienes acceso completo a toda la información del sistema.',
-    temasRestringidos : [],
+    label: 'Administrador',
+    descripcion: 'Tienes acceso completo a toda la información del sistema.',
+    temasRestringidos: [],
     mensajeRestringido: '',
   },
   docente: {
-    label             : 'Docente',
-    descripcion       : 'Tienes acceso a información académica y administrativa.',
-    temasRestringidos : ['nomina', 'salario', 'contrato personal', 'datos personales de otros docentes'],
-    mensajeRestringido: 'Esa información es de carácter confidencial y no puedo proporcionarla. Te sugiero contactar directamente con el área administrativa.',
+    label: 'Docente',
+    descripcion: 'Tienes acceso a información académica y administrativa.',
+    temasRestringidos: [
+      'nomina',
+      'salario',
+      'contrato personal',
+      'datos personales de otros docentes',
+    ],
+    mensajeRestringido:
+      'Esa información es de carácter confidencial y no puedo proporcionarla. Te sugiero contactar directamente con el área administrativa.',
   },
   estudiante: {
-    label             : 'Estudiante',
-    descripcion       : 'Tienes acceso a información académica y personal.',
-    temasRestringidos : ['pagos', 'facturas', 'deudas', 'boletines', 'notas', 'calificaciones', 'historial académico'],
-    mensajeRestringido: 'Para consultar información sobre pagos, boletines o notas, puedes acceder directamente a la plataforma institucional o dirigirte a la institución para que te brinden esa información.',
+    label: 'Estudiante',
+    descripcion: 'Tienes acceso a información académica y personal.',
+    temasRestringidos: [
+      'pagos',
+      'facturas',
+      'deudas',
+      'boletines',
+      'notas',
+      'calificaciones',
+      'historial académico',
+    ],
+    mensajeRestringido:
+      'Para consultar información sobre pagos, boletines o notas, puedes acceder directamente a la plataforma institucional o dirigirte a la institución para que te brinden esa información.',
   },
   padre: {
-    label             : 'Padre/Madre',
-    descripcion       : 'Tienes acceso a información académica y de pagos de tu hijo.',
-    temasRestringidos : ['información de otros estudiantes', 'datos de docentes', 'información administrativa interna'],
-    mensajeRestringido: 'Esa información no está disponible para consulta. Si necesitas más detalles, te sugerimos contactar directamente con la institución.',
+    label: 'Padre/Madre',
+    descripcion: 'Tienes acceso a información académica y de pagos de tu hijo.',
+    temasRestringidos: [
+      'información de otros estudiantes',
+      'datos de docentes',
+      'información administrativa interna',
+    ],
+    mensajeRestringido:
+      'Esa información no está disponible para consulta. Si necesitas más detalles, te sugerimos contactar directamente con la institución.',
   },
 };
 
 function normalizarRol(rol: string): string {
-  const r = (rol ?? '').toLowerCase().trim()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  if (r.includes('admin'))                                                    return 'administrador';
-  if (r.includes('docente') || r.includes('profesor'))                       return 'docente';
-  if (r.includes('padre') || r.includes('madre') || r.includes('acudiente')) return 'padre';
-  if (r.includes('estudiante') || r.includes('alumno'))                      return 'estudiante';
+  const r = (rol ?? '')
+    .toLowerCase()
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+  if (r.includes('admin')) return 'administrador';
+  if (r.includes('docente') || r.includes('profesor')) return 'docente';
+  if (r.includes('padre') || r.includes('madre') || r.includes('acudiente'))
+    return 'padre';
+  if (r.includes('estudiante') || r.includes('alumno')) return 'estudiante';
   return 'estudiante';
 }
 
@@ -70,9 +101,9 @@ export class AiService {
     'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
   constructor(
-    private config           : ConfigService,
+    private config: ConfigService,
     private documentosService: DocumentosService,
-    private aiLogs           : AiLogsService,
+    private aiLogs: AiLogsService,
   ) {
     this.apiKey = this.config.get<string>('GEMINI_API_KEY') ?? '';
   }
@@ -81,32 +112,45 @@ export class AiService {
   // chat() — respuesta completa
   // ─────────────────────────────────────────────────────────────────────────
   async chat(
-    message       : string,
-    history       : AiMessage[],
-    clientName    : string,
-    colegio       : string,
-    tipoSolicitud : string,
-    rol           : string = 'estudiante',
+    message: string,
+    history: AiMessage[],
+    clientName: string,
+    colegio: string,
+    tipoSolicitud: string,
+    rol: string = 'estudiante',
   ): Promise<AiResult> {
-
     if (!message?.trim())
-      return { reply: 'Por favor escribe un mensaje.', transfer: false, showFeedback: false };
+      return {
+        reply: 'Por favor escribe un mensaje.',
+        transfer: false,
+        showFeedback: false,
+      };
 
     const rolNormalizado = normalizarRol(rol);
-    const config         = ROL_CONFIG[rolNormalizado] ?? ROL_CONFIG['estudiante'];
-    const msgLower       = message.toLowerCase();
+    const config = ROL_CONFIG[rolNormalizado] ?? ROL_CONFIG['estudiante'];
+    const msgLower = message.toLowerCase();
 
     // ── Tema restringido ────────────────────────────────────────────────────
-    const esRestringido = config.temasRestringidos.some(t => msgLower.includes(t.toLowerCase()));
+    const esRestringido = config.temasRestringidos.some((t) =>
+      msgLower.includes(t.toLowerCase()),
+    );
     if (esRestringido) {
       this.aiLogs.guardar({
-        colegio, rol: rolNormalizado, tipoSolicitud, clientName,
-        pregunta     : message,
-        respuesta    : config.mensajeRestringido,
+        colegio,
+        rol: rolNormalizado,
+        tipoSolicitud,
+        clientName,
+        pregunta: message,
+        respuesta: config.mensajeRestringido,
         esRestringido: true,
-        chunksUsados : [],
+        chunksUsados: [],
       });
-      return { reply: config.mensajeRestringido, transfer: false, showFeedback: false, documentos: [] };
+      return {
+        reply: config.mensajeRestringido,
+        transfer: false,
+        showFeedback: false,
+        documentos: [],
+      };
     }
 
     // ── RAG ─────────────────────────────────────────────────────────────────
@@ -115,34 +159,54 @@ export class AiService {
       .catch(() => ({ contexto: '', documentos: [], chunks: [] }));
 
     const { contexto, documentos } = ragResult;
-    const chunks        = (ragResult as any).chunks ?? [];
+    const chunks = (ragResult as any).chunks ?? [];
     const tieneContexto = contexto.trim().length > 0;
 
-    this.logger.debug(`[RAG] tuvoContexto=${tieneContexto} | chunks=${chunks.length} | colegio=${colegio} | rol=${rolNormalizado}`);
+    this.logger.debug(
+      `[RAG] tuvoContexto=${tieneContexto} | chunks=${chunks.length} | colegio=${colegio} | rol=${rolNormalizado}`,
+    );
 
     const systemPrompt = this.buildSystemPrompt(
-      clientName, colegio, tipoSolicitud, config, contexto, tieneContexto
+      clientName,
+      colegio,
+      tipoSolicitud,
+      config,
+      contexto,
+      tieneContexto,
     );
 
     const historyFiltered = history.filter(
-      h => h?.text && typeof h.text === 'string' && h.text.trim().length > 0
-        && (h.role === 'user' || h.role === 'model'),
+      (h) =>
+        h?.text &&
+        typeof h.text === 'string' &&
+        h.text.trim().length > 0 &&
+        (h.role === 'user' || h.role === 'model'),
     );
 
     const contents = [
-      { role: 'user',  parts: [{ text: systemPrompt }] },
-      { role: 'model', parts: [{ text: `Entendido. Estoy listo para ayudar a ${clientName} como ${config.label}.` }] },
-      ...historyFiltered.map(h => ({ role: h.role, parts: [{ text: h.text.trim() }] })),
-      { role: 'user',  parts: [{ text: message.trim() }] },
+      { role: 'user', parts: [{ text: systemPrompt }] },
+      {
+        role: 'model',
+        parts: [
+          {
+            text: `Entendido. Estoy listo para ayudar a ${clientName} como ${config.label}.`,
+          },
+        ],
+      },
+      ...historyFiltered.map((h) => ({
+        role: h.role,
+        parts: [{ text: h.text.trim() }],
+      })),
+      { role: 'user', parts: [{ text: message.trim() }] },
     ];
 
-    const t0       = Date.now();
+    const t0 = Date.now();
     const controller = new AbortController();
-    const timeout    = setTimeout(() => controller.abort(), 30_000);
+    const timeout = setTimeout(() => controller.abort(), 30_000);
     const response = await fetch(`${this.apiUrl}?key=${this.apiKey}`, {
-      method : 'POST',
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body   : JSON.stringify({
+      body: JSON.stringify({
         contents,
         generationConfig: { temperature: 0.3, maxOutputTokens: 1024 },
       }),
@@ -152,23 +216,31 @@ export class AiService {
     if (!response.ok) {
       const err = await response.text();
       this.aiLogs.guardar({
-        colegio, rol: rolNormalizado, tipoSolicitud, clientName,
-        pregunta : message, huboError: true,
-        errorMsg : `Gemini ${response.status}: ${err}`,
+        colegio,
+        rol: rolNormalizado,
+        tipoSolicitud,
+        clientName,
+        pregunta: message,
+        huboError: true,
+        errorMsg: `Gemini ${response.status}: ${err}`,
         chunksUsados: [],
       });
       throw new Error(`Gemini API error: ${response.status} - ${err}`);
     }
 
-    const data     = await response.json();
-    const raw      = (data.candidates?.[0]?.content?.parts?.[0]?.text ?? '').trim();
+    const data = await response.json();
+    const raw = (data.candidates?.[0]?.content?.parts?.[0]?.text ?? '').trim();
     const tiempoMs = Date.now() - t0;
 
     // ── Transfer ─────────────────────────────────────────────────────────────
     if (raw === 'TRANSFER_TO_ADVISOR') {
       this.aiLogs.guardar({
-        colegio, rol: rolNormalizado, tipoSolicitud, clientName,
-        pregunta: message, transfer: true,
+        colegio,
+        rol: rolNormalizado,
+        tipoSolicitud,
+        clientName,
+        pregunta: message,
+        transfer: true,
         tiempoRespuestaMs: tiempoMs,
         chunksUsados: [],
       });
@@ -176,39 +248,43 @@ export class AiService {
     }
 
     const feedbackMatch = raw.match(/\[FEEDBACK:(YES|NO)\]\s*$/);
-    const showFeedback  = feedbackMatch?.[1] === 'YES';
-    const reply         = raw.replace(/\[FEEDBACK:(YES|NO)\]\s*$/, '').trim();
-    const tokens        = Math.round((systemPrompt.length + message.length) / 4);
+    const showFeedback = feedbackMatch?.[1] === 'YES';
+    const reply = raw.replace(/\[FEEDBACK:(YES|NO)\]\s*$/, '').trim();
+    const tokens = Math.round((systemPrompt.length + message.length) / 4);
 
     this.aiLogs.guardar({
-      colegio, rol: rolNormalizado, tipoSolicitud, clientName,
-      pregunta         : message,
-      respuesta        : reply,
-      chunksUsados     : chunks.map((c: any) => ({
-        nombre    : c.nombre,
-        categoria : c.categoria,
+      colegio,
+      rol: rolNormalizado,
+      tipoSolicitud,
+      clientName,
+      pregunta: message,
+      respuesta: reply,
+      chunksUsados: chunks.map((c: any) => ({
+        nombre: c.nombre,
+        categoria: c.categoria,
         chunkIndex: c.chunkIndex ?? 0,
-        distancia : c.distancia  ?? null,
-        fragmento : (c.contenido ?? '').slice(0, 200),
+        distancia: c.distancia ?? null,
+        fragmento: (c.contenido ?? '').slice(0, 200),
       })),
-      tuvoContexto     : tieneContexto,
+      tuvoContexto: tieneContexto,
       tiempoRespuestaMs: tiempoMs,
-      tokensEstimados  : tokens,
-      transfer         : false,
-      esRestringido    : false,
+      tokensEstimados: tokens,
+      transfer: false,
+      esRestringido: false,
     });
 
     // Solo devolver el documento más relevante (ya viene ordenado por distancia)
     // y solo si la IA realmente respondió algo concreto
-    const docsParaDevolver = showFeedback && tieneContexto && documentos.length > 0
-      ? [documentos[0]]
-      : [];
+    const docsParaDevolver =
+      showFeedback && tieneContexto && documentos.length > 0
+        ? [documentos[0]]
+        : [];
 
     return {
-      reply       : reply || 'Lo siento, no pude procesar tu consulta.',
-      transfer    : false,
+      reply: reply || 'Lo siento, no pude procesar tu consulta.',
+      transfer: false,
       showFeedback,
-      documentos  : docsParaDevolver,
+      documentos: docsParaDevolver,
     };
   }
 
@@ -259,17 +335,23 @@ ${cleanDraft}`;
     messages?: WhatsappSummaryMessage[];
   }): Promise<{ summary: string }> {
     const messages = (input.messages ?? [])
-      .filter(message => this.compactText(message.body, 220))
+      .filter((message) => this.compactText(message.body, 220))
       .slice(-20)
-      .map(message => `${message.fromMe ? 'Asesor' : 'Cliente'}: ${this.compactText(message.body, 180)}`)
+      .map(
+        (message) =>
+          `${message.fromMe ? 'Asesor' : 'Cliente'}: ${this.compactText(message.body, 180)}`,
+      )
       .join('\n');
 
     if (!messages) {
-      return { summary: 'Aun no hay mensajes suficientes para resumir esta conversacion.' };
+      return {
+        summary:
+          'Aun no hay mensajes suficientes para resumir esta conversacion.',
+      };
     }
 
     const notes = (input.notes ?? [])
-      .map(note => this.compactText(note, 120))
+      .map((note) => this.compactText(note, 120))
       .filter(Boolean)
       .slice(0, 3)
       .join(' | ');
@@ -296,30 +378,40 @@ Ultimos mensajes:
 ${messages}`;
 
     const summary = await this.generateCompactText(prompt, 200, 0.1);
-    return { summary: this.cleanAiPlainText(summary) || 'No se pudo generar un resumen claro.' };
+    return {
+      summary:
+        this.cleanAiPlainText(summary) ||
+        'No se pudo generar un resumen claro.',
+    };
   }
 
   async chatStream(
-    message       : string,
-    history       : AiMessage[],
-    clientName    : string,
-    colegio       : string,
-    tipoSolicitud : string,
-    rol           : string,
-    emit          : (event: string, data: object) => void,
+    message: string,
+    history: AiMessage[],
+    clientName: string,
+    colegio: string,
+    tipoSolicitud: string,
+    rol: string,
+    emit: (event: string, data: object) => void,
   ): Promise<void> {
-
     const rolNormalizado = normalizarRol(rol);
-    const config         = ROL_CONFIG[rolNormalizado] ?? ROL_CONFIG['estudiante'];
-    const msgLower       = message.toLowerCase();
+    const config = ROL_CONFIG[rolNormalizado] ?? ROL_CONFIG['estudiante'];
+    const msgLower = message.toLowerCase();
 
     // ── Tema restringido ────────────────────────────────────────────────────
-    const esRestringido = config.temasRestringidos.some(t => msgLower.includes(t.toLowerCase()));
+    const esRestringido = config.temasRestringidos.some((t) =>
+      msgLower.includes(t.toLowerCase()),
+    );
     if (esRestringido) {
       this.aiLogs.guardar({
-        colegio, rol: rolNormalizado, tipoSolicitud, clientName,
-        pregunta: message, respuesta: config.mensajeRestringido,
-        esRestringido: true, chunksUsados: [],
+        colegio,
+        rol: rolNormalizado,
+        tipoSolicitud,
+        clientName,
+        pregunta: message,
+        respuesta: config.mensajeRestringido,
+        esRestringido: true,
+        chunksUsados: [],
       });
       emit('chunk', { text: config.mensajeRestringido });
       return;
@@ -331,40 +423,53 @@ ${messages}`;
       .catch(() => ({ contexto: '', documentos: [], chunks: [] }));
 
     const { contexto, documentos } = ragResult;
-    const chunks        = (ragResult as any).chunks ?? [];
+    const chunks = (ragResult as any).chunks ?? [];
     const tieneContexto = contexto.trim().length > 0;
 
-    this.logger.debug(`[RAG] tuvoContexto=${tieneContexto} | chunks=${chunks.length} | colegio=${colegio} | rol=${rolNormalizado}`);
+    this.logger.debug(
+      `[RAG] tuvoContexto=${tieneContexto} | chunks=${chunks.length} | colegio=${colegio} | rol=${rolNormalizado}`,
+    );
 
     // NOTA: NO emitir metadata aquí — todavía no sabemos si la IA
     // va a responder algo concreto. Se emite al final del stream.
 
     const systemPrompt = this.buildSystemPrompt(
-      clientName, colegio, tipoSolicitud, config, contexto, tieneContexto
+      clientName,
+      colegio,
+      tipoSolicitud,
+      config,
+      contexto,
+      tieneContexto,
     );
 
     const historyFiltered = history.filter(
-      h => h?.text?.trim() && (h.role === 'user' || h.role === 'model')
+      (h) => h?.text?.trim() && (h.role === 'user' || h.role === 'model'),
     );
 
     const contents = [
-      { role: 'user',  parts: [{ text: systemPrompt }] },
-      { role: 'model', parts: [{ text: `Entendido. Listo para ayudar a ${clientName}.` }] },
-      ...historyFiltered.map(h => ({ role: h.role, parts: [{ text: h.text.trim() }] })),
-      { role: 'user',  parts: [{ text: message.trim() }] },
+      { role: 'user', parts: [{ text: systemPrompt }] },
+      {
+        role: 'model',
+        parts: [{ text: `Entendido. Listo para ayudar a ${clientName}.` }],
+      },
+      ...historyFiltered.map((h) => ({
+        role: h.role,
+        parts: [{ text: h.text.trim() }],
+      })),
+      { role: 'user', parts: [{ text: message.trim() }] },
     ];
 
     const t0 = Date.now();
     const streamUrl =
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent'
-      + `?key=${this.apiKey}&alt=sse`;
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent' +
+      `?key=${this.apiKey}&alt=sse`;
 
     const controller = new AbortController();
-    const timeout    = setTimeout(() => controller.abort(), 30_000);
+    const timeout = setTimeout(() => controller.abort(), 30_000);
     const response = await fetch(streamUrl, {
-      method : 'POST',
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body   : JSON.stringify({
+      body: JSON.stringify({
         contents,
         generationConfig: { temperature: 0.3, maxOutputTokens: 1000 },
       }),
@@ -374,18 +479,22 @@ ${messages}`;
     if (!response.ok) {
       const err = await response.text();
       this.aiLogs.guardar({
-        colegio, rol: rolNormalizado, tipoSolicitud, clientName,
-        pregunta: message, huboError: true,
+        colegio,
+        rol: rolNormalizado,
+        tipoSolicitud,
+        clientName,
+        pregunta: message,
+        huboError: true,
         errorMsg: `Gemini stream ${response.status}`,
         chunksUsados: [],
       });
       throw new Error(`Gemini stream error: ${response.status} - ${err}`);
     }
 
-    const reader         = response.body!.getReader();
-    const decoder        = new TextDecoder();
-    let   buffer         = '';
-    let   textoAcumulado = '';
+    const reader = response.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let textoAcumulado = '';
 
     while (true) {
       const { done, value } = await reader.read();
@@ -402,12 +511,14 @@ ${messages}`;
 
         try {
           const parsed = JSON.parse(json);
-          const text   = parsed.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+          const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
           if (text) {
             textoAcumulado += text;
             emit('chunk', { text });
           }
-        } catch { /* ignorar */ }
+        } catch {
+          /* ignorar */
+        }
       }
     }
 
@@ -419,29 +530,34 @@ ${messages}`;
 
     if (respondioAlgo && tieneContexto && documentos.length > 0) {
       emit('metadata', {
-        documentos: [{
-          nombre   : documentos[0].nombre,
-          pdfUrl   : documentos[0].pdfUrl,
-          categoria: documentos[0].categoria,
-        }],
+        documentos: [
+          {
+            nombre: documentos[0].nombre,
+            pdfUrl: documentos[0].pdfUrl,
+            categoria: documentos[0].categoria,
+          },
+        ],
       });
     }
 
     // ── Guardar log al finalizar ────────────────────────────────────────────
     this.aiLogs.guardar({
-      colegio, rol: rolNormalizado, tipoSolicitud, clientName,
-      pregunta         : message,
-      respuesta        : textoAcumulado,
-      chunksUsados     : chunks.map((c: any) => ({
-        nombre    : c.nombre,
-        categoria : c.categoria,
+      colegio,
+      rol: rolNormalizado,
+      tipoSolicitud,
+      clientName,
+      pregunta: message,
+      respuesta: textoAcumulado,
+      chunksUsados: chunks.map((c: any) => ({
+        nombre: c.nombre,
+        categoria: c.categoria,
         chunkIndex: c.chunkIndex ?? 0,
-        distancia : c.distancia  ?? null,
-        fragmento : (c.contenido ?? '').slice(0, 200),
+        distancia: c.distancia ?? null,
+        fragmento: (c.contenido ?? '').slice(0, 200),
       })),
-      tuvoContexto     : tieneContexto,
+      tuvoContexto: tieneContexto,
       tiempoRespuestaMs: Date.now() - t0,
-      tokensEstimados  : Math.round((systemPrompt.length + message.length) / 4),
+      tokensEstimados: Math.round((systemPrompt.length + message.length) / 4),
     });
   }
 
@@ -460,10 +576,10 @@ ${messages}`;
 
     try {
       const response = await fetch(`${this.apiUrl}?key=${this.apiKey}`, {
-        method : 'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        signal : controller.signal,
-        body   : JSON.stringify({
+        signal: controller.signal,
+        body: JSON.stringify({
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
           generationConfig: { temperature, maxOutputTokens },
         }),
@@ -475,14 +591,21 @@ ${messages}`;
       }
 
       const data = await response.json();
-      const text = (data.candidates?.[0]?.content?.parts?.[0]?.text ?? '').trim();
-      const finishReason: string | undefined = data.candidates?.[0]?.finishReason;
+      const text = (
+        data.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
+      ).trim();
+      const finishReason: string | undefined =
+        data.candidates?.[0]?.finishReason;
       const usage = data.usageMetadata;
       if (usage) {
-        this.logger.log(`Gemini: finishReason=${finishReason} outputTokens=${usage.candidatesTokenCount ?? '?'} totalTokens=${usage.totalTokenCount ?? '?'}`);
+        this.logger.log(
+          `Gemini: finishReason=${finishReason} outputTokens=${usage.candidatesTokenCount ?? '?'} totalTokens=${usage.totalTokenCount ?? '?'}`,
+        );
       }
       if (finishReason === 'MAX_TOKENS') {
-        this.logger.warn(`Gemini truncado (MAX_TOKENS, ${text.length} chars). Devolviendo borrador original.`);
+        this.logger.warn(
+          `Gemini truncado (MAX_TOKENS, ${text.length} chars). Devolviendo borrador original.`,
+        );
         return '';
       }
       return text;
@@ -497,10 +620,11 @@ ${messages}`;
   }
 
   private compactText(value: unknown, maxLength: number): string {
-    const clean = typeof value === 'string'
-      ? value.replace(/\s+/g, ' ').trim()
-      : '';
-    return clean.length > maxLength ? `${clean.slice(0, maxLength).trim()}...` : clean;
+    const clean =
+      typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : '';
+    return clean.length > maxLength
+      ? `${clean.slice(0, maxLength).trim()}...`
+      : clean;
   }
 
   private cleanAiPlainText(value: string): string {
@@ -511,12 +635,12 @@ ${messages}`;
   }
 
   private buildSystemPrompt(
-    clientName    : string,
-    colegio       : string,
-    tipoSolicitud : string,
-    config        : any,
-    contexto      : string,
-    tieneContexto : boolean,
+    clientName: string,
+    colegio: string,
+    tipoSolicitud: string,
+    config: any,
+    contexto: string,
+    tieneContexto: boolean,
   ): string {
     return `Eres un asistente virtual de atención al cliente especializado en colegios.
 Estás atendiendo a ${clientName}, quien tiene el rol de ${config.label} en el colegio "${colegio}".
@@ -525,28 +649,35 @@ El motivo de su consulta es: ${tipoSolicitud}.
 PERFIL DEL USUARIO:
 - Rol: ${config.label}
 - ${config.descripcion}
-${config.temasRestringidos.length > 0
-  ? `- Temas que NO debes responder para este rol: ${config.temasRestringidos.join(', ')}.
+${
+  config.temasRestringidos.length > 0
+    ? `- Temas que NO debes responder para este rol: ${config.temasRestringidos.join(', ')}.
   Si preguntan sobre estos temas, responde: "${config.mensajeRestringido}"`
-  : '- Tiene acceso completo a toda la información disponible.'
+    : '- Tiene acceso completo a toda la información disponible.'
 }
 
-${tieneContexto ? `INFORMACIÓN DE LA BASE DE CONOCIMIENTO:
+${
+  tieneContexto
+    ? `INFORMACIÓN DE LA BASE DE CONOCIMIENTO:
 La siguiente información proviene de documentos oficiales del sistema.
 Úsala para responder con precisión. NO inventes información que no esté aquí.
 
 ${contexto}
 
 FIN DE LA BASE DE CONOCIMIENTO.
-` : ''}
+`
+    : ''
+}
 
 Reglas importantes:
 - Responde de forma clara, amable y concisa en español.
 - NO uses emojis en ninguna respuesta.
 - Adapta el lenguaje al rol: técnico para administradores/docentes, sencillo para estudiantes y padres.
-${tieneContexto
-  ? '- Basa tu respuesta PRINCIPALMENTE en la información de la base de conocimiento.'
-  : '- Responde con información general disponible.'}
+${
+  tieneContexto
+    ? '- Basa tu respuesta PRINCIPALMENTE en la información de la base de conocimiento.'
+    : '- Responde con información general disponible.'
+}
 - Si el cliente menciona "asesor", "humano", "persona", "agente" o pide hablar con alguien, responde ÚNICAMENTE: TRANSFER_TO_ADVISOR
 - Si la pregunta toca temas restringidos para el rol ${config.label}, redirige amablemente.
 
@@ -558,5 +689,7 @@ Usa [FEEDBACK:NO] en cualquier otro caso (saludos, ambigüedades, redirects, etc
 Agrega SIEMPRE al final exactamente uno: [FEEDBACK:YES] o [FEEDBACK:NO]`;
   }
 
-  getApiKey(): string { return this.apiKey; }
+  getApiKey(): string {
+    return this.apiKey;
+  }
 }

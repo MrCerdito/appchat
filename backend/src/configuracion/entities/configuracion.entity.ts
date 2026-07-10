@@ -1,24 +1,26 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, UpdateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 
 export interface HorarioSlot {
-  dia   : number; // 0=dom, 1=lun ... 6=sáb
+  dia: number; // 0=dom, 1=lun ... 6=sáb
   inicio: string; // "08:00"
-  fin   : string; // "17:00"
+  fin: string; // "17:00"
 }
 
 // ★ Horario de almuerzo personal del asesor
 export interface HorarioAlmuerzo {
-  dia   : number; // 0=dom, 1=lun ... 6=sáb
+  dia: number; // 0=dom, 1=lun ... 6=sáb
   inicio: string; // "12:00"
-  fin   : string; // "13:00"
+  fin: string; // "13:00"
 }
 
 @Entity('configuracion')
 export class Configuracion {
-
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -108,7 +110,8 @@ export class Configuracion {
   @Column({
     name: 'ticket_categories',
     type: 'jsonb',
-    default: () => "'[\"Soporte tecnico\",\"Administrativo\",\"Academico\",\"Facturacion\",\"Otro\"]'::jsonb",
+    default: () =>
+      '\'["Soporte tecnico","Administrativo","Academico","Facturacion","Otro"]\'::jsonb',
   })
   ticketCategories: string[];
 

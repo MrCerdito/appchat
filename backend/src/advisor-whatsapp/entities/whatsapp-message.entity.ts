@@ -1,6 +1,11 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, ManyToOne, JoinColumn, Index,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  ManyToOne,
+  JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../../auth/entities/user.entity';
 import { WhatsappChat } from './whatsapp-chat.entity';
@@ -16,10 +21,17 @@ export class WhatsappMessage {
   id: string;
 
   @Index({ unique: true })
-  @Column({ name: 'meta_message_id', type: 'varchar', length: 255, nullable: true })
+  @Column({
+    name: 'meta_message_id',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
   metaMessageId: string | null;
 
-  @ManyToOne(() => WhatsappChat, (chat) => chat.messages, { onDelete: 'CASCADE' })
+  @ManyToOne(() => WhatsappChat, (chat) => chat.messages, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'chat_id' })
   chat: WhatsappChat;
 
@@ -32,7 +44,12 @@ export class WhatsappMessage {
   @Column({ name: 'sender_name', type: 'varchar', length: 120 })
   senderName: string;
 
-  @Column({ name: 'participant_jid', type: 'varchar', length: 100, nullable: true })
+  @Column({
+    name: 'participant_jid',
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+  })
   participantJid: string | null;
 
   @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })

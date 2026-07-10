@@ -1,11 +1,13 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, Index,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  Index,
 } from 'typeorm';
 
 @Entity('ai_logs')
 export class AiLog {
-
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
@@ -34,11 +36,11 @@ export class AiLog {
 
   @Column('jsonb', { nullable: true })
   chunksUsados: {
-    nombre    : string;
-    categoria : string | null;
+    nombre: string;
+    categoria: string | null;
     chunkIndex: number;
-    distancia : number | null;
-    fragmento : string;
+    distancia: number | null;
+    fragmento: string;
   }[];
 
   @Column({ default: false })

@@ -10,10 +10,13 @@ import {
   WaAdminDashboard,
   WaAdvisorStats,
   WaChat,
+  WaConnectionStatus,
   WaMessage,
   WaOperationalStatus,
 } from '../../../../core/models/whatsapp.models';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
+import { priorityLabel, priorityColor } from '../../../../shared/utils/ticket-categories';
+import { LucideIconComponent } from '../../../../shared/components/lucide-icon/lucide-icon.component';
 
 type AdminWaTab = 'overview' | 'chats' | 'advisors' | 'fixed' | 'alerts';
 
@@ -24,10 +27,18 @@ interface MessageReactionView {
   fromMe: boolean;
 }
 
+interface TimelineEvent {
+  id: string;
+  type: 'message' | 'assignment' | 'status' | 'alert';
+  text: string;
+  time: Date;
+  chatId?: string;
+}
+
 @Component({
   selector: 'app-whatsapp-admin',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, LucideIconComponent],
   templateUrl: './whatsapp-admin.html',
   styleUrl: './whatsapp-admin.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -57,6 +68,10 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
     manualChats: 0,
     slaBreached: 0,
     frozenChats: 0,
+    avgResponseMinutes: 0,
+    slaCompliancePercent: 100,
+    closedToday: 0,
+    uniqueClientsToday: 0,
   };
   selectedChat?: WaChat;
   activeTab: AdminWaTab = 'overview';
@@ -64,6 +79,42 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
   statusFilter: WaOperationalStatus | 'all' = 'all';
   selectedAdvisorId = '';
   selectedMessages: WaMessage[] = [];
+  connectionStatus: WaConnectionStatus = { status: 'disconnected', updatedAt: new Date().toISOString() };
+  timeline: TimelineEvent[] = [];
+  filterDate: string = new Date().toISOString().slice(0, 10);
+  severityFilter: 'all' | 'info' | 'warning' | 'critical' = 'all';
+  chatsPage = 1;
+  chatsPerPage = 10;
+  readonly chatsPerPageOptions = [5, 10, 20, 50];
+  readonly priorityOptions = ['low', 'normal', 'high', 'critical'] as const;
+  canalFilter: 'all' | 'individual' | 'group' = 'all';
+  slaFilter: 'all' | 'at_risk' | 'breached' | 'ok' = 'all';
+  priorityFilter: 'all' | 'low' | 'normal' | 'high' | 'critical' = 'all';
+  advisorFilter: string = '';
+
+  readonly canalOptions: { id: string; label: string }[] = [
+    { id: 'all', label: 'Todos' },
+    { id: 'individual', label: 'Individual' },
+    { id: 'group', label: 'Grupo' },
+  ];
+
+  readonly slaFilterOptions: { id: string; label: string }[] = [
+    { id: 'all', label: 'Todos' },
+    { id: 'at_risk', label: 'En riesgo' },
+    { id: 'breached', label: 'Vencido' },
+    { id: 'ok', label: 'OK' },
+  ];
+
+  readonly priorityFilterOptions: { id: string; label: string }[] = [
+    { id: 'all', label: 'Todas' },
+    { id: 'low', label: priorityLabel('low') },
+    { id: 'normal', label: priorityLabel('normal') },
+    { id: 'high', label: priorityLabel('high') },
+    { id: 'critical', label: priorityLabel('critical') },
+  ];
+  protected readonly priorityLabel = priorityLabel;
+  protected readonly priorityColor = priorityColor;
+  private readonly maxTimeline = 30;
   replyText = '';
   selectedFile?: File;
   sendingReply = false;
@@ -123,6 +174,13 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
       }),
     );
 
+    this.subs.add(
+      this.waService.getConnectionStream().subscribe(status => {
+        this.connectionStatus = status;
+        this.cdr.detectChanges();
+      }),
+    );
+
     this.loadDashboard();
 
     this.subs.add(
@@ -144,6 +202,7 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
 
     this.subs.add(this.waService.onChatAssigned().subscribe(data => {
       this.applyRealtimeChat(data.chat);
+      this.pushTimeline('assignment', `${data.advisorName} asignado a ${data.chat.name}`, data.chat.id);
     }));
 
     this.subs.add(this.waService.onChatUpdated().subscribe(chat => {
@@ -164,6 +223,7 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
         if (nearBottom) this.scrollToBottom(true);
       }
       if (!message.fromMe && !this.isReactionMessage(message)) {
+        this.pushTimeline('message', `Nuevo mensaje de cliente`, message.chatId);
       }
     }));
   }
@@ -185,11 +245,11 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
         this.allAdvisors = dashboard.advisors;
         this.allAlerts = dashboard.alerts;
         this.notifyNewAlerts(dashboard.alerts);
+        this.summary = dashboard.summary;
         this.loading = false;
         if (this.selectedChat) {
           this.selectedChat = dashboard.chats.find(chat => chat.id === this.selectedChat?.id);
         }
-        this.computeSummary(dashboard.summary.slaBreached, dashboard.summary.frozenChats);
         this.cdr.detectChanges();
       },
       error: () => {
@@ -506,7 +566,16 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
         chat.fixedAdvisorName,
       ].some(value => (value || '').toLowerCase().includes(q));
       const matchesStatus = this.statusFilter === 'all' || chat.operationalStatus === this.statusFilter;
-      return matchesQuery && matchesStatus;
+      const matchesCanal = this.canalFilter === 'all'
+        || (this.canalFilter === 'group' && chat.isGroup)
+        || (this.canalFilter === 'individual' && !chat.isGroup);
+      const matchesAdvisor = !this.advisorFilter || chat.assignedTo === this.advisorFilter || chat.fixedAdvisorId === this.advisorFilter;
+      const matchesSla = this.slaFilter === 'all'
+        || (this.slaFilter === 'breached' && this.allAlerts.some(a => a.type === 'sla_breached' && a.chatId === chat.id))
+        || (this.slaFilter === 'at_risk' && this.slaPercentFor(chat) < 50 && this.slaPercentFor(chat) > 0)
+        || (this.slaFilter === 'ok' && this.slaPercentFor(chat) >= 50);
+      const matchesPriority = this.priorityFilter === 'all' || (chat.priority || 'normal') === this.priorityFilter;
+      return matchesQuery && matchesStatus && matchesCanal && matchesAdvisor && matchesSla && matchesPriority;
     });
   }
 
@@ -633,10 +702,12 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
     });
   }
 
-  private computeSummary(slaBreached = this.summary.slaBreached, frozenChats = this.summary.frozenChats): void {
+  private computeSummary(): void {
+    const activeChats = this.allChats.filter(c => c.assignmentStatus === 'active' && !c.isGroup).length;
+    const slaBreached = this.allAlerts.filter(a => a.type === 'sla_breached').length;
     this.summary = {
       totalChats: this.allChats.length,
-      activeChats: this.allChats.filter(c => c.assignmentStatus === 'active' && !c.isGroup).length,
+      activeChats,
       queuedChats: this.allChats.filter(c => c.assignmentStatus === 'waiting' && c.operationalStatus !== 'waiting_customer').length,
       waitingCustomerChats: this.allChats.filter(c => c.operationalStatus === 'waiting_customer').length,
       waitingTechnicalChats: this.allChats.filter(c => c.operationalStatus === 'waiting_technical').length,
@@ -644,7 +715,15 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
       fixedClients: this.allChats.filter(c => !!c.fixedAdvisorId).length,
       manualChats: this.allChats.filter(c => c.assignmentMode === 'manual' || c.assignmentMode === 'admin').length,
       slaBreached,
-      frozenChats,
+      frozenChats: this.allAlerts.filter(a => a.type === 'frozen_chat').length,
+      avgResponseMinutes: this.allAdvisors.length
+        ? Math.round(this.allAdvisors.reduce((s, a) => s + a.avgResponseMinutes, 0) / this.allAdvisors.length)
+        : 0,
+      slaCompliancePercent: activeChats
+        ? Math.max(0, Math.round(((activeChats - slaBreached) / activeChats) * 100))
+        : 100,
+      closedToday: 0,
+      uniqueClientsToday: 0,
     };
   }
 
@@ -663,6 +742,162 @@ export class WhatsappAdminComponent implements OnInit, OnDestroy {
       this.selectedAdvisorId = this.selectedChat.assignedTo || this.selectedChat.fixedAdvisorId || '';
     }
     this.cdr.detectChanges();
+  }
+
+  get pagedChats(): WaChat[] {
+    const start = (this.chatsPage - 1) * this.chatsPerPage;
+    return this.filteredChats.slice(start, start + this.chatsPerPage);
+  }
+
+  get totalChatPages(): number {
+    return Math.max(1, Math.ceil(this.filteredChats.length / this.chatsPerPage));
+  }
+
+  get chatPageNumbers(): number[] {
+    const total = this.totalChatPages;
+    const current = this.chatsPage;
+    const pages: number[] = [];
+    const startPage = Math.max(1, current - 2);
+    const endPage = Math.min(total, current + 2);
+    for (let i = startPage; i <= endPage; i++) pages.push(i);
+    return pages;
+  }
+
+  prevPage(): void {
+    if (this.chatsPage > 1) this.chatsPage--;
+  }
+
+  nextPage(): void {
+    if (this.chatsPage < this.totalChatPages) this.chatsPage++;
+  }
+
+  goToPage(page: number): void {
+    if (page >= 1 && page <= this.totalChatPages) this.chatsPage = page;
+  }
+
+  onChatsPerPageChange(): void {
+    this.chatsPage = 1;
+  }
+
+  updatePriority(chat: WaChat, priority: string): void {
+    this.waService.updateChatPriority(chat.id, priority).subscribe({
+      next: () => {
+        this.showMessage(`Prioridad actualizada a ${priorityLabel(priority)}`);
+      },
+      error: () => this.showMessage('No se pudo actualizar la prioridad.'),
+    });
+  }
+
+  slaColor(chat: WaChat): string {
+    if (chat.assignmentStatus !== 'active') return '#6b7280';
+    const isBreached = this.allAlerts.some(a => a.type === 'sla_breached' && a.chatId === chat.id);
+    if (isBreached) return '#dc2626';
+    if (chat.operationalStatus === 'waiting_customer' || chat.operationalStatus === 'queued') return '#f59e0b';
+    return '#10b981';
+  }
+
+  slaPercentFor(chat: WaChat): number {
+    if (chat.assignmentStatus !== 'active' || !chat.lastClientMsg) return 100;
+    const minutesSince = (Date.now() - new Date(chat.lastClientMsg).getTime()) / 60000;
+    if (minutesSince >= 10) return 0;
+    return Math.max(0, Math.round((1 - minutesSince / 10) * 100));
+  }
+
+  alertTypeIcon(alert: WaAdminAlert): string {
+    const icons: Record<string, string> = {
+      sla_breached: 'octagon-alert',
+      frozen_chat: 'snowflake',
+      advisor_idle: 'pause',
+      long_queue: 'layers',
+      too_many_open: 'messages-square',
+    };
+    return icons[alert.type] ?? (alert.severity === 'critical' ? 'octagon-alert' : alert.severity === 'warning' ? 'triangle-alert' : 'info');
+  }
+
+  generateReport(): void {
+    const rows = this.filteredChats.map(chat => [
+      chat.name,
+      chat.phone,
+      chat.operationalStatusLabel || chat.stage,
+      chat.assignedToName || 'Sin asignar',
+      chat.fixedAdvisorName || '-',
+      chat.preview.slice(0, 60),
+      `${this.slaPercentFor(chat)}%`,
+      priorityLabel(chat.priority || 'normal'),
+      chat.assignmentMode || 'auto',
+      chat.time,
+    ]);
+    const header = ['Contacto', 'Telefono', 'Estado', 'Asignado', 'Fijo', 'Ultimo mensaje', 'SLA', 'Prioridad', 'Modo', 'Ultima actividad'];
+    const csv = [header.join(','), ...rows.map(r => r.map(v => `"${v.replace(/"/g, '""')}"`).join(','))].join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `reporte-whatsapp-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  get filteredAlerts(): WaAdminAlert[] {
+    if (this.severityFilter === 'all') return this.allAlerts;
+    return this.allAlerts.filter(a => a.severity === this.severityFilter);
+  }
+
+  get riskLevel(): 'low' | 'medium' | 'high' {
+    const criticalCount = this.allAlerts.filter(a => a.severity === 'critical').length;
+    const warningCount = this.allAlerts.filter(a => a.severity === 'warning').length;
+    if (criticalCount >= 3) return 'high';
+    if (criticalCount >= 1 || warningCount >= 3) return 'medium';
+    return 'low';
+  }
+
+  get inactiveAdvisors(): number {
+    return this.allAdvisors.filter(a => !a.active || a.status === 'offline').length;
+  }
+
+  get kpiList(): { icon: string; label: string; value: number | string; color: string; mini?: string }[] {
+    return [
+      { icon: 'message-circle', label: 'Activos', value: this.summary.activeChats, color: 'blue' },
+      { icon: 'clock', label: 'En cola', value: this.summary.queuedChats, color: 'amber' },
+      { icon: 'user-pause', label: 'Esperando cliente', value: this.summary.waitingCustomerChats, color: 'purple' },
+      { icon: 'triangle-alert', label: 'SLA vencido', value: this.summary.slaBreached, color: 'red' },
+      { icon: 'circle-check', label: 'Cerrados hoy', value: this.summary.closedToday, color: 'green' },
+      { icon: 'users', label: 'Clientes unicos hoy', value: this.summary.uniqueClientsToday, color: 'teal' },
+      { icon: 'timer', label: 'Respuesta prom.', value: `${this.summary.avgResponseMinutes}`, color: 'orange', mini: 'min' },
+      { icon: 'shield-check', label: 'SLA cumplimiento', value: `${this.summary.slaCompliancePercent}`, color: 'primary', mini: '%' },
+    ];
+  }
+
+  resetFilters(): void {
+    this.query = '';
+    this.statusFilter = 'all';
+    this.canalFilter = 'all';
+    this.slaFilter = 'all';
+    this.priorityFilter = 'all';
+    this.advisorFilter = '';
+    this.selectedAdvisorId = '';
+    this.filterDate = new Date().toISOString().slice(0, 10);
+  }
+
+  get dailySummary() {
+    return {
+      newMessages: this.allChats.reduce((s, c) => s + c.unread, 0),
+      activeAdvisors: this.allAdvisors.filter(a => a.active && a.status !== 'offline').length,
+      avgLoad: this.allAdvisors.length
+        ? Math.round(this.allAdvisors.reduce((s, a) => s + a.activeChats, 0) / this.allAdvisors.length * 10) / 10
+        : 0,
+    };
+  }
+
+  private pushTimeline(type: TimelineEvent['type'], text: string, chatId?: string): void {
+    const event: TimelineEvent = {
+      id: `tl-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      type,
+      text,
+      time: new Date(),
+      chatId,
+    };
+    this.timeline = [event, ...this.timeline].slice(0, this.maxTimeline);
   }
 
   private notifyNewAlerts(_alerts: WaAdminAlert[]): void {

@@ -38,10 +38,7 @@ export class ConfiguracionController {
 
   @Post()
   @HttpCode(HttpStatus.OK)
-  guardar(
-    @Body() body: GuardarConfigAdvisorDto,
-    @Request() req: any,
-  ) {
+  guardar(@Body() body: GuardarConfigAdvisorDto, @Request() req: any) {
     return this.svc.guardar(body, req.user.id);
   }
 
@@ -59,6 +56,6 @@ export class ConfiguracionController {
 
   @Get('ticket-categories')
   getTicketCategories() {
-    return this.svc.getGlobal().then(c => c.ticketCategories ?? []);
+    return this.svc.getGlobal().then((c) => c.ticketCategories ?? []);
   }
 }

@@ -49,10 +49,16 @@ import { AppService } from './app.service';
         JWT_SECRET: Joi.string().min(16).required().label('JWT_SECRET'),
         JWT_EXPIRES: Joi.string().default('8h'),
         GEMINI_API_KEY: Joi.string().optional(),
-        CHAT_ENCRYPTION_KEY: Joi.string().hex().length(64).optional().label('CHAT_ENCRYPTION_KEY'),
+        CHAT_ENCRYPTION_KEY: Joi.string()
+          .hex()
+          .length(64)
+          .optional()
+          .label('CHAT_ENCRYPTION_KEY'),
         RESEND_API_KEY: Joi.string().optional(),
         PORT: Joi.number().default(3001),
-        NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
+        NODE_ENV: Joi.string()
+          .valid('development', 'production', 'test')
+          .default('development'),
         CORS_ORIGINS: Joi.string().optional(),
         APP_URL: Joi.string().uri().optional(),
       }),
@@ -113,8 +119,6 @@ import { AppService } from './app.service';
     SeedModule,
   ],
   controllers: [AppController],
-  providers: [
-    AppService,
-  ],
+  providers: [AppService],
 })
 export class AppModule {}

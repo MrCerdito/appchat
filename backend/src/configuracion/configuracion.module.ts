@@ -5,9 +5,9 @@ import { ConfiguracionController } from './configuracion.controller';
 import { Configuracion } from './entities/configuracion.entity';
 
 @Module({
-  imports    : [TypeOrmModule.forFeature([Configuracion])],
+  imports: [TypeOrmModule.forFeature([Configuracion])],
   controllers: [ConfiguracionController],
-  providers  : [ConfiguracionService],
-  exports    : [ConfiguracionService],
+  providers: [ConfiguracionService],
+  exports: [ConfiguracionService],
 })
 export class ConfiguracionModule {}

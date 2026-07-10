@@ -11,7 +11,7 @@ import { Documento } from './entities/documento.entity';
     MulterModule.register({ dest: './uploads/documentos' }),
   ],
   controllers: [DocumentosController],
-  providers  : [DocumentosService],
-  exports    : [DocumentosService], // exportado para que AiService lo use en el RAG
+  providers: [DocumentosService],
+  exports: [DocumentosService], // exportado para que AiService lo use en el RAG
 })
 export class DocumentosModule {}

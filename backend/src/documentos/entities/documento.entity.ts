@@ -1,10 +1,12 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column, CreateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
 } from 'typeorm';
 
 @Entity('documentos')
 export class Documento {
-
   @PrimaryGeneratedColumn('uuid')
   id: string;
 

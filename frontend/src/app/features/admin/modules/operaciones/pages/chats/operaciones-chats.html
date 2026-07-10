@@ -1,0 +1,153 @@
+<div class="wa-page">
+  <div class="wa-container">
+    <!-- ==================== SIDEBAR ==================== -->
+    <aside class="wa-sidebar">
+      <header class="wa-sidebar-header">
+        <button class="wa-back-btn" (click)="volverAlPanel()" title="Volver al panel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+          </svg>
+        </button>
+        <div class="wa-sidebar-actions">
+          <button class="wa-icon-btn" title="Nuevo chat">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+            </svg>
+          </button>
+          <button class="wa-icon-btn" title="Menú">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <div class="wa-search">
+        <div class="wa-search-inner">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input type="text" placeholder="Busca un chat o inicia uno nuevo" [(ngModel)]="busqueda" />
+        </div>
+      </div>
+
+      <div class="wa-contact-list">
+        <div class="wa-contact" *ngFor="let chat of chatsFiltrados; trackBy: trackByContactoId; let idx = index" [class.active]="selectedChatId === chat.id" (click)="seleccionarChat(chat.id)">
+          <div class="wa-contact-avatar" [style.background]="chat.color">
+            <span class="wa-online-dot" *ngIf="chat.online"></span>
+            <span class="wa-avatar-text">{{ chat.iniciales }}</span>
+          </div>
+          <div class="wa-contact-info">
+            <div class="wa-contact-top">
+              <span class="wa-contact-name">{{ chat.nombre }}</span>
+              <span class="wa-contact-time">{{ chat.hora }}</span>
+            </div>
+            <div class="wa-contact-bottom">
+              <span class="wa-contact-msg">{{ chat.ultimo }}</span>
+              <div class="wa-contact-meta">
+                <span class="wa-badge" *ngIf="chat.noLeidos > 0">{{ chat.noLeidos }}</span>
+                <button class="wa-contact-arrow" *ngIf="chat.noLeidos === 0">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="wa-contact-empty" *ngIf="chatsFiltrados.length === 0">
+          <p>No se encontraron chats</p>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ==================== MAIN PANEL ==================== -->
+    <main class="wa-main">
+      <ng-container *ngIf="!chatSeleccionado; else conversacion">
+        <div class="wa-empty">
+          <div class="wa-empty-icon">
+            <svg viewBox="0 0 39 50" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M19.5 0C9.6 0 1.5 7.5 1.5 16.8c0 4.8 2.1 9 5.4 12l-.9 6 6.3-3.3c2.4.9 4.8 1.2 7.2 1.2 9.9 0 18-7.5 18-16.8S29.1 0 19.5 0z" stroke="#CBD5E0"/>
+              <path d="M14 12h11M14 18h8M14 24h5" stroke="#CBD5E0" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <h2 class="wa-empty-title">WhatsApp Web</h2>
+          <p class="wa-empty-desc">Envía y recibe mensajes al instante desde tu computadora.</p>
+          <p class="wa-empty-hint">Selecciona un chat de la izquierda para ver la conversación.</p>
+          <div class="wa-empty-footer">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+              <rect x="3" y="1" width="10" height="14" rx="1"/>
+              <line x1="6" y1="12" x2="10" y2="12"/>
+            </svg>
+            Tus mensajes están cifrados de extremo a extremo.
+          </div>
+        </div>
+      </ng-container>
+
+      <ng-template #conversacion>
+        <header class="wa-chat-header">
+          <div class="wa-chat-header-user">
+            <div class="wa-contact-avatar wa-chat-avatar-sm" [style.background]="chatSeleccionado!.color">
+              <span class="wa-avatar-text">{{ chatSeleccionado!.iniciales }}</span>
+            </div>
+            <div class="wa-chat-header-info">
+              <strong>{{ chatSeleccionado!.nombre }}</strong>
+              <small>{{ chatSeleccionado!.ultimaVez }}</small>
+            </div>
+          </div>
+          <div class="wa-chat-header-actions">
+            <button class="wa-icon-btn" title="Buscar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+            </button>
+            <button class="wa-icon-btn" title="Menú">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>
+              </svg>
+            </button>
+          </div>
+        </header>
+
+        <div class="wa-messages-area" #messageFeed>
+          <div class="wa-messages-inner" *ngFor="let grupo of mensajesAgrupados">
+            <div class="wa-date-sep">
+              <span>{{ grupo.fecha }}</span>
+            </div>
+            <div class="wa-msg" *ngFor="let msg of grupo.mensajes; trackBy: trackByMensajeId" [class.wa-msg-own]="msg.tipo === 'enviado'">
+              <div class="wa-sender" *ngIf="msg.senderName && (chatSeleccionado?.isGroup || msg.tipo === 'enviado')">{{ msg.senderName }}</div>
+              <div class="wa-bubble">
+                <span class="wa-bubble-text">{{ msg.texto }}</span>
+                <div class="wa-bubble-meta">
+                  <span class="wa-bubble-time">{{ msg.hora }}</span>
+                  <svg class="wa-bubble-check" *ngIf="msg.tipo === 'enviado'" viewBox="0 0 16 11" fill="currentColor">
+                    <path d="M11.07.65l-5.93 6.2L2.45 4.3l-1.1 1.1 3.08 3.3.7.8.8-.8 6.32-6.6L11.07.65z"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="wa-input-area">
+          <button class="wa-input-btn" title="Emoji">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>
+            </svg>
+          </button>
+          <button class="wa-input-btn" title="Adjuntar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+            </svg>
+          </button>
+          <input class="wa-input-field" type="text" placeholder="Escribe un mensaje aquí" [(ngModel)]="nuevoMensaje" (keydown.enter)="enviarMensaje()" />
+          <button class="wa-send-btn" [class.active]="nuevoMensaje.trim().length > 0" (click)="enviarMensaje()" title="Enviar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+          </button>
+        </div>
+      </ng-template>
+    </main>
+  </div>
+</div>

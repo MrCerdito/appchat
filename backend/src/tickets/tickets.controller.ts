@@ -1,6 +1,17 @@
 import {
-  Controller, Get, Post, Patch, Delete,
-  Body, Param, Query, UseGuards, ValidationPipe, Request, HttpCode, HttpStatus,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  ValidationPipe,
+  Request,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { TicketsService } from './tickets.service';
@@ -15,12 +26,18 @@ export class TicketsController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(@Body(new ValidationPipe({ whitelist: true })) dto: CreateTicketDto, @Request() req: any) {
+  create(
+    @Body(new ValidationPipe({ whitelist: true })) dto: CreateTicketDto,
+    @Request() req: any,
+  ) {
     return this.ticketsService.create(dto, req.user.id);
   }
 
   @Get()
-  findAll(@Query(new ValidationPipe({ transform: true, whitelist: true })) query: QueryTicketDto) {
+  findAll(
+    @Query(new ValidationPipe({ transform: true, whitelist: true }))
+    query: QueryTicketDto,
+  ) {
     return this.ticketsService.findAll(query);
   }
 

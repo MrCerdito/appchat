@@ -1,4 +1,19 @@
-import { Controller, Get, Post, Patch, Param, Body, UseGuards, HttpCode, HttpStatus, Request, Query, Logger, Inject, forwardRef } from '@nestjs/common'
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Param,
+  Body,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
+  Request,
+  Query,
+  Logger,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SessionsService } from './sessions.service';
@@ -9,25 +24,38 @@ import { IsString, IsNotEmpty, Length, IsOptional } from 'class-validator';
 import { ChatGateway } from '../chat/chat.gateway';
 
 export class CreateSessionDto {
-  @IsString() @IsNotEmpty() @Length(1, 100)
+  @IsString()
+  @IsNotEmpty()
+  @Length(1, 100)
   clientName: string;
 
-  @IsString() @IsNotEmpty() @Length(1, 20)
+  @IsString()
+  @IsNotEmpty()
+  @Length(1, 20)
   identificacion: string;
 
-  @IsString() @IsNotEmpty() @Length(1, 100)
+  @IsString()
+  @IsNotEmpty()
+  @Length(1, 100)
   apellido: string;
 
-  @IsString() @IsNotEmpty() @Length(1, 50)
+  @IsString()
+  @IsNotEmpty()
+  @Length(1, 50)
   rol: string;
 
-  @IsString() @IsNotEmpty() @Length(1, 100)
+  @IsString()
+  @IsNotEmpty()
+  @Length(1, 100)
   colegio: string;
 
-  @IsString() @IsOptional()
+  @IsString()
+  @IsOptional()
   colegioLink?: string | null;
 
-  @IsString() @IsNotEmpty() @Length(1, 100)
+  @IsString()
+  @IsNotEmpty()
+  @Length(1, 100)
   tipoSolicitud: string;
 }
 
@@ -72,9 +100,11 @@ export class SessionsController {
   @UseGuards(JwtAuthGuard)
   async findAdvisors() {
     const advisors = await this.sessionsService.findAllAdvisors();
-    return advisors.map(a => ({
+    return advisors.map((a) => ({
       ...a,
-      status: (this.chatGateway.advisorStatuses.has(a.id) ? this.chatGateway.advisorStatuses.get(a.id) : a.status) as 'online' | 'busy' | 'offline',
+      status: (this.chatGateway.advisorStatuses.has(a.id)
+        ? this.chatGateway.advisorStatuses.get(a.id)
+        : a.status) as 'online' | 'busy' | 'offline',
     }));
   }
 
@@ -92,10 +122,7 @@ export class SessionsController {
 
   @Get('metrics/asesor/:id')
   @UseGuards(JwtAuthGuard)
-  getMetricsByAdvisor(
-    @Param('id') id: string,
-    @Query('tz') tz?: string,
-  ) {
+  getMetricsByAdvisor(@Param('id') id: string, @Query('tz') tz?: string) {
     return this.sessionsService.getMetricsByAdvisor(id, tz);
   }
 
@@ -165,10 +192,7 @@ export class SessionsController {
   @Patch(':id/takeover')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  takeOver(
-    @Param('id') id: string,
-    @Request() req: any,
-  ) {
+  takeOver(@Param('id') id: string, @Request() req: any) {
     return this.sessionsService.takeOver(id, req.user.id);
   }
 
@@ -200,13 +224,14 @@ export class SessionsController {
   @HttpCode(HttpStatus.CREATED)
   saveRating(
     @Param('id') id: string,
-    @Body() body: { estrellas: number; comentario?: string; etiquetas?: string[] },
+    @Body()
+    body: { estrellas: number; comentario?: string; etiquetas?: string[] },
   ) {
     return this.sessionsService.saveRating(
       id,
       body.estrellas,
       body.comentario ?? null,
-      body.etiquetas  ?? [],
+      body.etiquetas ?? [],
     );
   }
 
@@ -220,7 +245,13 @@ export class SessionsController {
   @HttpCode(HttpStatus.CREATED)
   async createTicketFromSession(
     @Param('id') id: string,
-    @Body() body: { titulo?: string; descripcion?: string; priority?: string; category?: string },
+    @Body()
+    body: {
+      titulo?: string;
+      descripcion?: string;
+      priority?: string;
+      category?: string;
+    },
     @Request() req: any,
   ) {
     const session = await this.sessionsService.findOne(id);
@@ -232,7 +263,7 @@ export class SessionsController {
     });
     messages.reverse();
 
-    const conversation = messages.map(m => ({
+    const conversation = messages.map((m) => ({
       role: m.senderType === 'client' ? 'client' : 'advisor',
       name: m.senderName,
       content: m.content,
@@ -246,7 +277,9 @@ export class SessionsController {
       category: body.category ?? undefined,
       sourceType: 'web' as const,
       sourceId: id,
-      clientName: `${session.clientName || ''} ${session.apellido || ''}`.trim() || 'Cliente',
+      clientName:
+        `${session.clientName || ''} ${session.apellido || ''}`.trim() ||
+        'Cliente',
       clientInfo: {
         identificacion: session.identificacion,
         rol: session.rol,

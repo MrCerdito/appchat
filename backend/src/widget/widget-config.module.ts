@@ -5,9 +5,9 @@ import { WidgetConfigController } from './widget-config.controller';
 import { WidgetConfig } from './entities/widget-config.entity';
 
 @Module({
-  imports    : [TypeOrmModule.forFeature([WidgetConfig])],
+  imports: [TypeOrmModule.forFeature([WidgetConfig])],
   controllers: [WidgetConfigController],
-  providers  : [WidgetConfigService],
-  exports    : [WidgetConfigService],
+  providers: [WidgetConfigService],
+  exports: [WidgetConfigService],
 })
 export class WidgetConfigModule {}

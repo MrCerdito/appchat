@@ -1,7 +1,16 @@
 import {
-  Controller, Get, Post, Patch, Delete,
-  Param, Body, Query, UseGuards, ParseIntPipe,
-  HttpCode, HttpStatus,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Param,
+  Body,
+  Query,
+  UseGuards,
+  ParseIntPipe,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles, RolesGuard } from '../auth/roles.guard';
@@ -14,10 +23,7 @@ export class FaqController {
   constructor(private readonly faqService: FaqService) {}
 
   @Get()
-  findAll(
-    @Query('colegioId') colegioId?: string,
-    @Query('q') q?: string,
-  ) {
+  findAll(@Query('colegioId') colegioId?: string, @Query('q') q?: string) {
     return this.faqService.findAll(
       colegioId ? Number(colegioId) : undefined,
       q,
@@ -47,10 +53,7 @@ export class FaqController {
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
-  update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: UpdateFaqDto,
-  ) {
+  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateFaqDto) {
     return this.faqService.update(id, dto);
   }
 

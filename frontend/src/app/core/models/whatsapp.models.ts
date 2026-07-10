@@ -55,6 +55,7 @@ export interface WaChat {
   quickReplies: string[];
   lastClientMsg: Date;
   messages: WaMessage[];
+  priority?: 'low' | 'normal' | 'high' | 'critical';
 }
 
 export type WaOperationalStatus =
@@ -107,6 +108,10 @@ export interface WaAdminDashboard {
     manualChats: number;
     slaBreached: number;
     frozenChats: number;
+    avgResponseMinutes: number;
+    slaCompliancePercent: number;
+    closedToday: number;
+    uniqueClientsToday: number;
   };
   advisors: WaAdvisorStats[];
   chats: WaChat[];

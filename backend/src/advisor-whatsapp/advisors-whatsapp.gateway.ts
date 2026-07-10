@@ -29,7 +29,11 @@ import {
   },
 })
 export class AdvisorsWhatsappGateway
-  implements OnGatewayConnection, OnGatewayDisconnect, OnModuleInit, OnModuleDestroy
+  implements
+    OnGatewayConnection,
+    OnGatewayDisconnect,
+    OnModuleInit,
+    OnModuleDestroy
 {
   @WebSocketServer()
   server: Server;
@@ -46,10 +50,12 @@ export class AdvisorsWhatsappGateway
 
   onModuleInit() {
     this.subscriptions.add(
-      this.whatsappService.incomingResults$.subscribe(result => this.emitIncoming(result)),
+      this.whatsappService.incomingResults$.subscribe((result) =>
+        this.emitIncoming(result),
+      ),
     );
     this.subscriptions.add(
-      this.whatsappService.messageStatusUpdates$.subscribe(updated => {
+      this.whatsappService.messageStatusUpdates$.subscribe((updated) => {
         this.emitStatus(updated.advisorId, {
           messageId: updated.message.id,
           status: updated.message.status,
@@ -58,7 +64,7 @@ export class AdvisorsWhatsappGateway
       }),
     );
     this.subscriptions.add(
-      this.whatsappService.connectionUpdates$.subscribe(update => {
+      this.whatsappService.connectionUpdates$.subscribe((update) => {
         this.server?.emit('aw_connection_update', update);
       }),
     );
@@ -92,10 +98,15 @@ export class AdvisorsWhatsappGateway
       };
       client.join(this.advisorRoom(payload.sub));
       this.addAdvisorSocket(payload.sub, client.id);
-      this.whatsappService.setConnectedAdvisorIds(this.getConnectedAdvisorIds());
+      this.whatsappService.setConnectedAdvisorIds(
+        this.getConnectedAdvisorIds(),
+      );
 
       client.emit('aw_connected', { advisorId: payload.sub });
-      client.emit('aw_connection_update', await this.whatsappService.getConnectionStatus());
+      client.emit(
+        'aw_connection_update',
+        await this.whatsappService.getConnectionStatus(),
+      );
       this.server.emit('aw_advisors_online', {
         advisorIds: this.getConnectedAdvisorIds(),
       });
@@ -122,7 +133,9 @@ export class AdvisorsWhatsappGateway
       advisorIds: this.getConnectedAdvisorIds(),
     });
 
-    this.logger.log(`Asesor WhatsApp desconectado: ${advisorId}. Sus chats asignados se conservan.`);
+    this.logger.log(
+      `Asesor WhatsApp desconectado: ${advisorId}. Sus chats asignados se conservan.`,
+    );
   }
 
   @SubscribeMessage('aw_join')
@@ -130,7 +143,11 @@ export class AdvisorsWhatsappGateway
     @MessageBody() advisorId: string,
     @ConnectedSocket() client: Socket,
   ) {
-    if (client.data.user?.id !== advisorId && client.data.user?.role !== 'admin') return;
+    if (
+      client.data.user?.id !== advisorId &&
+      client.data.user?.role !== 'admin'
+    )
+      return;
     client.join(this.advisorRoom(advisorId));
   }
 
@@ -143,7 +160,11 @@ export class AdvisorsWhatsappGateway
 
     if (result.assignment) {
       if (result.message) {
-        this.emitToAdvisor(result.assignment.advisorId, 'aw_new_message', result.message);
+        this.emitToAdvisor(
+          result.assignment.advisorId,
+          'aw_new_message',
+          result.message,
+        );
         this.server.emit('aw_new_message', result.message);
       }
       this.emitAssignments([result.assignment]);
@@ -152,10 +173,18 @@ export class AdvisorsWhatsappGateway
 
     if (result.assignedAdvisorId) {
       if (result.message) {
-        this.emitToAdvisor(result.assignedAdvisorId, 'aw_new_message', result.message);
+        this.emitToAdvisor(
+          result.assignedAdvisorId,
+          'aw_new_message',
+          result.message,
+        );
         this.server.emit('aw_new_message', result.message);
       }
-      this.emitToAdvisor(result.assignedAdvisorId, 'aw_chat_updated', result.chat);
+      this.emitToAdvisor(
+        result.assignedAdvisorId,
+        'aw_chat_updated',
+        result.chat,
+      );
       this.server.emit('aw_chat_updated', result.chat);
       return;
     }
@@ -179,10 +208,18 @@ export class AdvisorsWhatsappGateway
         advisorName: assignment.advisorName,
         chat: assignment.chat,
       });
-      this.emitToAdvisor(assignment.advisorId, 'aw_chat_updated', assignment.chat);
+      this.emitToAdvisor(
+        assignment.advisorId,
+        'aw_chat_updated',
+        assignment.chat,
+      );
       this.server.emit('aw_chat_updated', assignment.chat);
       if (assignment.autoMessage) {
-        this.emitToAdvisor(assignment.advisorId, 'aw_new_message', assignment.autoMessage);
+        this.emitToAdvisor(
+          assignment.advisorId,
+          'aw_new_message',
+          assignment.autoMessage,
+        );
         this.server.emit('aw_new_message', assignment.autoMessage);
       }
     }

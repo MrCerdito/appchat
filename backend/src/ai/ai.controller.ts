@@ -8,49 +8,59 @@ import { AiChatDto } from './dto/ai-chat.dto';
 export class AiController {
   constructor(
     private readonly aiService: AiService,
-    private readonly aiLogs  : AiLogsService,
+    private readonly aiLogs: AiLogsService,
   ) {}
 
   @Post('chat')
   async chat(@Body() dto: AiChatDto) {
     if (!dto.message?.trim())
-      return { reply: 'Por favor escribe un mensaje.', transfer: false, showFeedback: false };
+      return {
+        reply: 'Por favor escribe un mensaje.',
+        transfer: false,
+        showFeedback: false,
+      };
 
     return this.aiService.chat(
       dto.message,
-      dto.history       ?? [],
-      dto.clientName    ?? '',
-      dto.colegio       ?? '',
+      dto.history ?? [],
+      dto.clientName ?? '',
+      dto.colegio ?? '',
       dto.tipoSolicitud ?? '',
-      dto.rol           ?? 'estudiante',
+      dto.rol ?? 'estudiante',
     );
   }
 
   @Post('whatsapp/improve')
-  async improveWhatsappDraft(@Body() body: {
-    draft: string;
-    clientName?: string;
-    institution?: string;
-    role?: string;
-  }) {
+  async improveWhatsappDraft(
+    @Body()
+    body: {
+      draft: string;
+      clientName?: string;
+      institution?: string;
+      role?: string;
+    },
+  ) {
     if (!body.draft?.trim()) return { reply: '' };
     return this.aiService.improveWhatsappDraft(body.draft, {
-      clientName : body.clientName ?? '',
+      clientName: body.clientName ?? '',
       institution: body.institution ?? '',
-      role       : body.role ?? '',
+      role: body.role ?? '',
     });
   }
 
   @Post('whatsapp/summary')
-  async summarizeWhatsapp(@Body() body: {
-    clientName?: string;
-    institution?: string;
-    role?: string;
-    city?: string;
-    phone?: string;
-    notes?: string[];
-    messages?: { fromMe: boolean; body: string }[];
-  }) {
+  async summarizeWhatsapp(
+    @Body()
+    body: {
+      clientName?: string;
+      institution?: string;
+      role?: string;
+      city?: string;
+      phone?: string;
+      notes?: string[];
+      messages?: { fromMe: boolean; body: string }[];
+    },
+  ) {
     return this.aiService.summarizeWhatsappConversation(body);
   }
 
@@ -61,9 +71,9 @@ export class AiController {
       return;
     }
 
-    res.setHeader('Content-Type',      'text/event-stream');
-    res.setHeader('Cache-Control',     'no-cache');
-    res.setHeader('Connection',        'keep-alive');
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no');
     res.flushHeaders();
 
@@ -76,11 +86,11 @@ export class AiController {
       emit('start', { message: 'Procesando...' });
       await this.aiService.chatStream(
         dto.message,
-        dto.history       ?? [],
-        dto.clientName    ?? '',
-        dto.colegio       ?? '',
+        dto.history ?? [],
+        dto.clientName ?? '',
+        dto.colegio ?? '',
         dto.tipoSolicitud ?? '',
-        dto.rol           ?? 'estudiante',
+        dto.rol ?? 'estudiante',
         emit,
       );
     } catch (err: any) {
@@ -92,16 +102,24 @@ export class AiController {
   }
 
   @Post('feedback')
-  async feedback(@Body() body: { sessionId: string; pregunta: string; util: boolean }) {
-    await this.aiLogs.actualizarFeedback(body.sessionId, body.pregunta, body.util);
+  async feedback(
+    @Body() body: { sessionId: string; pregunta: string; util: boolean },
+  ) {
+    await this.aiLogs.actualizarFeedback(
+      body.sessionId,
+      body.pregunta,
+      body.util,
+    );
     return { ok: true };
   }
 
   @Get('models')
   async listModels() {
     const apiKey = this.aiService.getApiKey();
-    const res    = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-    const data   = await res.json();
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
+    );
+    const data = await res.json();
     const models = (data.models ?? []).map((m: any) => ({
       name: m.name,
       displayName: m.displayName,

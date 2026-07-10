@@ -1,7 +1,17 @@
 import {
-  Controller, Post, Get, Delete, Patch, Param, Body,
-  UploadedFile, UseInterceptors, UseGuards,
-  BadRequestException, HttpCode, HttpStatus,
+  Controller,
+  Post,
+  Get,
+  Delete,
+  Patch,
+  Param,
+  Body,
+  UploadedFile,
+  UseInterceptors,
+  UseGuards,
+  BadRequestException,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -9,7 +19,6 @@ import { extname, join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
 import { DocumentosService } from './documentos.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-
 
 // Directorio donde se guardan los PDFs subidos
 const UPLOADS_DIR = join(process.cwd(), 'uploads', 'documentos');
@@ -57,16 +66,18 @@ export class DocumentosController {
   )
   async upload(
     @UploadedFile() file: any,
-    @Body() body: {
-      nombre          : string;
-      descripcion     : string;
-      categoria       : string;
-      colegio?        : string;
+    @Body()
+    body: {
+      nombre: string;
+      descripcion: string;
+      categoria: string;
+      colegio?: string;
       rolesPermitidos?: string; // string separado por comas
     },
   ) {
     if (!file) throw new BadRequestException('Archivo PDF requerido');
-    if (!body.nombre?.trim()) throw new BadRequestException('El nombre es requerido');
+    if (!body.nombre?.trim())
+      throw new BadRequestException('El nombre es requerido');
 
     // Leer el buffer del archivo guardado en disco
     const { readFileSync } = require('fs');
@@ -74,37 +85,40 @@ export class DocumentosController {
 
     // URL pública absoluta — debe apuntar al backend, no al frontend
     const backendUrl = process.env.APP_URL ?? 'http://localhost:3001';
-    const pdfUrl     = `${backendUrl}/uploads/documentos/${file.filename}`;
+    const pdfUrl = `${backendUrl}/uploads/documentos/${file.filename}`;
 
     // Parsear roles — vienen como string separado por comas
     // Normalización de roles (sinónimos)
-const mapaRoles: Record<string, string> = {
-  'admin'        : 'administrador',
-  'administrador': 'administrador',
-  'docente'      : 'docente',
-  'profesor'     : 'docente',
-  'estudiante'   : 'estudiante',
-  'alumno'       : 'estudiante',
-  'padre'        : 'padre',
-  'madre'        : 'padre',
-  'acudiente'    : 'padre',
-};
+    const mapaRoles: Record<string, string> = {
+      admin: 'administrador',
+      administrador: 'administrador',
+      docente: 'docente',
+      profesor: 'docente',
+      estudiante: 'estudiante',
+      alumno: 'estudiante',
+      padre: 'padre',
+      madre: 'padre',
+      acudiente: 'padre',
+    };
 
-const rolesPermitidos = body.rolesPermitidos
-  ? body.rolesPermitidos
-      .split(',')
-      .map((r: string) => mapaRoles[r.trim().toLowerCase()] ?? r.trim().toLowerCase())
-      .filter(Boolean)
-  : ['administrador', 'docente', 'estudiante', 'padre'];
+    const rolesPermitidos = body.rolesPermitidos
+      ? body.rolesPermitidos
+          .split(',')
+          .map(
+            (r: string) =>
+              mapaRoles[r.trim().toLowerCase()] ?? r.trim().toLowerCase(),
+          )
+          .filter(Boolean)
+      : ['administrador', 'docente', 'estudiante', 'padre'];
 
     return this.docService.procesarPdf({
-      nombre         : body.nombre.trim(),
-      descripcion    : body.descripcion?.trim() ?? '',
-      categoria      : body.categoria?.trim() ?? 'general',
-      colegio        : body.colegio?.trim() || undefined,
+      nombre: body.nombre.trim(),
+      descripcion: body.descripcion?.trim() ?? '',
+      categoria: body.categoria?.trim() ?? 'general',
+      colegio: body.colegio?.trim() || undefined,
       rolesPermitidos,
       pdfBuffer,
-      pdfPath        : file.path,
+      pdfPath: file.path,
       pdfUrl,
     });
   }
@@ -115,10 +129,11 @@ const rolesPermitidos = body.rolesPermitidos
   @HttpCode(HttpStatus.OK)
   actualizarRoles(
     @Param('nombre') nombre: string,
-    @Body() body: {
-      descripcion    : string;
-      categoria      : string;
-      colegio        : string | null;
+    @Body()
+    body: {
+      descripcion: string;
+      categoria: string;
+      colegio: string | null;
       rolesPermitidos: string;
     },
   ) {

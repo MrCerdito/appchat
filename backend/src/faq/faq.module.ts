@@ -5,9 +5,7 @@ import { FaqService } from './faq.service';
 import { Faq } from './entities/faq.entity';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Faq]),
-  ],
+  imports: [TypeOrmModule.forFeature([Faq])],
   controllers: [FaqController],
   providers: [FaqService],
   exports: [FaqService],

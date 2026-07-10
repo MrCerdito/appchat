@@ -1,4 +1,10 @@
-import { createCipheriv, createDecipheriv, createHash, pbkdf2Sync, randomBytes } from 'crypto';
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  pbkdf2Sync,
+  randomBytes,
+} from 'crypto';
 import { ValueTransformer } from 'typeorm';
 
 const PREFIX_V1 = 'enc:v1:';
@@ -15,9 +21,9 @@ let keyWarningLogged = false;
 function logKeyWarning(): void {
   if (!keyWarningLogged) {
     console.warn(
-      '[SEGURIDAD] CHAT_ENCRYPTION_KEY no está configurada. '
-      + 'Los mensajes se guardarán en TEXTO PLANO sin cifrado. '
-      + 'Configúrala en el archivo .env (64 caracteres hexadecimales).'
+      '[SEGURIDAD] CHAT_ENCRYPTION_KEY no está configurada. ' +
+        'Los mensajes se guardarán en TEXTO PLANO sin cifrado. ' +
+        'Configúrala en el archivo .env (64 caracteres hexadecimales).',
     );
     keyWarningLogged = true;
   }
@@ -43,7 +49,8 @@ function getKey(): Buffer | null {
 export const encryptedTextTransformer: ValueTransformer = {
   to(value: string | null | undefined): string | null {
     if (value == null) return null;
-    if (value.startsWith(PREFIX_V1) || value.startsWith(PREFIX_V2)) return value;
+    if (value.startsWith(PREFIX_V1) || value.startsWith(PREFIX_V2))
+      return value;
 
     const raw = process.env.CHAT_ENCRYPTION_KEY?.trim();
     if (!raw) {
@@ -86,7 +93,11 @@ export const encryptedTextTransformer: ValueTransformer = {
 
         const salt = Buffer.from(saltB64, 'base64');
         const key = deriveKeyV2(raw, salt);
-        const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(ivB64, 'base64'));
+        const decipher = createDecipheriv(
+          'aes-256-gcm',
+          key,
+          Buffer.from(ivB64, 'base64'),
+        );
         decipher.setAuthTag(Buffer.from(tagB64, 'base64'));
         return Buffer.concat([
           decipher.update(Buffer.from(encryptedB64, 'base64')),
@@ -100,7 +111,11 @@ export const encryptedTextTransformer: ValueTransformer = {
         const [ivB64, tagB64, encryptedB64] = payload.split(':');
         if (!ivB64 || !tagB64 || !encryptedB64) return value;
 
-        const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(ivB64, 'base64'));
+        const decipher = createDecipheriv(
+          'aes-256-gcm',
+          key,
+          Buffer.from(ivB64, 'base64'),
+        );
         decipher.setAuthTag(Buffer.from(tagB64, 'base64'));
         return Buffer.concat([
           decipher.update(Buffer.from(encryptedB64, 'base64')),

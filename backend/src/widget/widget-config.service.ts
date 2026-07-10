@@ -5,7 +5,6 @@ import { WidgetConfig } from './entities/widget-config.entity';
 
 @Injectable()
 export class WidgetConfigService {
-
   constructor(
     @InjectRepository(WidgetConfig)
     private readonly repo: Repository<WidgetConfig>,

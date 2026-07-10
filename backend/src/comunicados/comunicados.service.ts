@@ -47,8 +47,11 @@ export class ComunicadosService {
     user: User,
   ): Promise<Comunicado> {
     const c = this.comunicadoRepo.create({
-      asunto, cuerpo, destinatarios,
-      sender: user, senderName: user.name,
+      asunto,
+      cuerpo,
+      destinatarios,
+      sender: user,
+      senderName: user.name,
       status: 'draft',
     });
     return this.comunicadoRepo.save(c);
@@ -61,10 +64,14 @@ export class ComunicadosService {
     destinatarios: Destinatario[],
   ): Promise<Comunicado> {
     const c = await this.findOne(id);
-    if (c.status === 'sent') throw new Error('No se puede editar un comunicado enviado');
+    if (c.status === 'sent')
+      throw new Error('No se puede editar un comunicado enviado');
     c.asunto = asunto;
     c.cuerpo = cuerpo;
-    c.destinatarios = destinatarios.map(d => ({ email: d.email, nombre: d.nombre }));
+    c.destinatarios = destinatarios.map((d) => ({
+      email: d.email,
+      nombre: d.nombre,
+    }));
     return this.comunicadoRepo.save(c);
   }
 
@@ -80,7 +87,7 @@ export class ComunicadosService {
     const isDev = process.env.NODE_ENV !== 'production';
 
     const results = await Promise.allSettled(
-      c.destinatarios.map(async dest => {
+      c.destinatarios.map(async (dest) => {
         const emailDestino = isDev ? 'jeanpfmunozv@gmail.com' : dest.email;
 
         const pixelUrl = `${baseUrl}/track/open/${id}/${encodeURIComponent(dest.email)}`;
@@ -98,7 +105,7 @@ export class ComunicadosService {
 
         if (error) throw new Error(error.message);
         return data;
-      })
+      }),
     );
 
     c.destinatarios = c.destinatarios.map((dest, i): Destinatario => {
@@ -107,12 +114,19 @@ export class ComunicadosService {
         return { email: dest.email, nombre: dest.nombre, sendStatus: 'ok' };
       }
       const msg = String(result.reason?.message ?? 'Error desconocido');
-      return { email: dest.email, nombre: dest.nombre, sendStatus: 'failed', sendError: msg };
+      return {
+        email: dest.email,
+        nombre: dest.nombre,
+        sendStatus: 'failed',
+        sendError: msg,
+      };
     });
 
-    const enviados = c.destinatarios.filter(d => d.sendStatus === 'ok').length;
-    c.status        = enviados > 0 ? 'sent'  : 'failed';
-    c.sentAt        = enviados > 0 ? new Date() : null;
+    const enviados = c.destinatarios.filter(
+      (d) => d.sendStatus === 'ok',
+    ).length;
+    c.status = enviados > 0 ? 'sent' : 'failed';
+    c.sentAt = enviados > 0 ? new Date() : null;
     c.totalEnviados = enviados;
 
     return this.comunicadoRepo.save(c);
@@ -126,31 +140,38 @@ export class ComunicadosService {
     });
 
     const aperturasPorEmail = new Map<string, number>();
-    const clicsPorEmail     = new Map<string, number>();
+    const clicsPorEmail = new Map<string, number>();
 
-    eventos.forEach(e => {
+    eventos.forEach((e) => {
       if (e.tipo === 'apertura') {
-        aperturasPorEmail.set(e.email, (aperturasPorEmail.get(e.email) ?? 0) + 1);
+        aperturasPorEmail.set(
+          e.email,
+          (aperturasPorEmail.get(e.email) ?? 0) + 1,
+        );
       } else {
         clicsPorEmail.set(e.email, (clicsPorEmail.get(e.email) ?? 0) + 1);
       }
     });
 
     return {
-      totalEnviados:  c.totalEnviados,
+      totalEnviados: c.totalEnviados,
       totalAperturas: c.totalAperturas,
-      totalClics:     c.totalClics,
-      tasaApertura: c.totalEnviados > 0
-        ? Math.round((c.totalAperturas / c.totalEnviados) * 100) : 0,
-      tasaClics: c.totalEnviados > 0
-        ? Math.round((c.totalClics / c.totalEnviados) * 100) : 0,
-      detalle: c.destinatarios.map(d => ({
-        email:      d.email,
-        nombre:     d.nombre,
-        aperturas:  aperturasPorEmail.get(d.email) ?? 0,
-        clics:      clicsPorEmail.get(d.email)     ?? 0,
+      totalClics: c.totalClics,
+      tasaApertura:
+        c.totalEnviados > 0
+          ? Math.round((c.totalAperturas / c.totalEnviados) * 100)
+          : 0,
+      tasaClics:
+        c.totalEnviados > 0
+          ? Math.round((c.totalClics / c.totalEnviados) * 100)
+          : 0,
+      detalle: c.destinatarios.map((d) => ({
+        email: d.email,
+        nombre: d.nombre,
+        aperturas: aperturasPorEmail.get(d.email) ?? 0,
+        clics: clicsPorEmail.get(d.email) ?? 0,
         sendStatus: d.sendStatus ?? 'ok',
-        sendError:  d.sendError  ?? null,
+        sendError: d.sendError ?? null,
       })),
       eventos: eventos.slice(0, 50),
     };
@@ -166,15 +187,25 @@ export class ComunicadosService {
   }
 
   async registrarApertura(
-    comunicadoId: string, email: string,
-    userAgent: string, ip: string,
+    comunicadoId: string,
+    email: string,
+    userAgent: string,
+    ip: string,
   ): Promise<void> {
     await this.eventoRepo.save(
       this.eventoRepo.create({
-        comunicado: { id: comunicadoId }, email, tipo: 'apertura', userAgent, ip,
-      })
+        comunicado: { id: comunicadoId },
+        email,
+        tipo: 'apertura',
+        userAgent,
+        ip,
+      }),
     );
-    await this.comunicadoRepo.increment({ id: comunicadoId }, 'totalAperturas', 1);
+    await this.comunicadoRepo.increment(
+      { id: comunicadoId },
+      'totalAperturas',
+      1,
+    );
   }
 
   async markBounced(email: string, reason: string): Promise<void> {
@@ -185,37 +216,50 @@ export class ComunicadosService {
     });
 
     for (const c of comunicados) {
-      const idx = c.destinatarios.findIndex(d => d.email === email && d.sendStatus === 'ok');
+      const idx = c.destinatarios.findIndex(
+        (d) => d.email === email && d.sendStatus === 'ok',
+      );
       if (idx !== -1) {
-        c.destinatarios[idx] = { ...c.destinatarios[idx], sendStatus: 'failed', sendError: `Rebote: ${reason}` };
+        c.destinatarios[idx] = {
+          ...c.destinatarios[idx],
+          sendStatus: 'failed',
+          sendError: `Rebote: ${reason}`,
+        };
         await this.comunicadoRepo.save(c);
       }
     }
   }
 
   async registrarClic(
-    comunicadoId: string, email: string,
-    urlDestino: string, userAgent: string, ip: string,
+    comunicadoId: string,
+    email: string,
+    urlDestino: string,
+    userAgent: string,
+    ip: string,
   ): Promise<string> {
     await this.eventoRepo.save(
       this.eventoRepo.create({
-        comunicado: { id: comunicadoId }, email, tipo: 'clic', urlDestino, userAgent, ip,
-      })
+        comunicado: { id: comunicadoId },
+        email,
+        tipo: 'clic',
+        urlDestino,
+        userAgent,
+        ip,
+      }),
     );
     await this.comunicadoRepo.increment({ id: comunicadoId }, 'totalClics', 1);
     return urlDestino;
   }
 
   private injectTracking(
-    html: string, comunicadoId: string,
-    email: string, baseUrl: string,
+    html: string,
+    comunicadoId: string,
+    email: string,
+    baseUrl: string,
   ): string {
-    return html.replace(
-      /<a\s+href="([^"]+)"/gi,
-      (_, url) => {
-        const tracked = `${baseUrl}/track/click/${comunicadoId}/${encodeURIComponent(email)}?url=${encodeURIComponent(url)}`;
-        return `<a href="${tracked}"`;
-      }
-    );
+    return html.replace(/<a\s+href="([^"]+)"/gi, (_, url) => {
+      const tracked = `${baseUrl}/track/click/${comunicadoId}/${encodeURIComponent(email)}?url=${encodeURIComponent(url)}`;
+      return `<a href="${tracked}"`;
+    });
   }
 }

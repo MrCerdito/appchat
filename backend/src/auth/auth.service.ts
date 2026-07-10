@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
@@ -16,10 +20,17 @@ export class AuthService {
   ) {}
 
   private generateTokens(user: User) {
-    const payload = { sub: user.id, email: user.email, name: user.name, role: user.role };
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+    };
     const access_token = this.jwtService.sign(payload);
     const refresh_token = this.jwtService.sign(payload, {
-      secret: this.config.get<string>('JWT_REFRESH_SECRET') || this.config.get<string>('JWT_SECRET') + '_refresh',
+      secret:
+        this.config.get<string>('JWT_REFRESH_SECRET') ||
+        this.config.get<string>('JWT_SECRET') + '_refresh',
       expiresIn: '30d',
     });
     return { access_token, refresh_token };
@@ -42,7 +53,12 @@ export class AuthService {
     user.refreshToken = await bcrypt.hash(refresh_token, 8);
     await this.userRepo.save(user);
 
-    const userData: any = { id: user.id, name: user.name, email: user.email, role: user.role };
+    const userData: any = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    };
     if (user.profilePhotoUrl) userData.profilePhotoUrl = user.profilePhotoUrl;
     return {
       access_token,
@@ -54,7 +70,9 @@ export class AuthService {
   async refresh(refreshToken: string) {
     try {
       const payload = this.jwtService.verify(refreshToken, {
-        secret: this.config.get<string>('JWT_REFRESH_SECRET') || this.config.get<string>('JWT_SECRET') + '_refresh',
+        secret:
+          this.config.get<string>('JWT_REFRESH_SECRET') ||
+          this.config.get<string>('JWT_SECRET') + '_refresh',
       });
 
       const user = await this.userRepo.findOne({ where: { id: payload.sub } });
@@ -76,7 +94,9 @@ export class AuthService {
 
       return { access_token, refresh_token };
     } catch {
-      throw new UnauthorizedException('Sesión expirada, inicia sesión nuevamente');
+      throw new UnauthorizedException(
+        'Sesión expirada, inicia sesión nuevamente',
+      );
     }
   }
 

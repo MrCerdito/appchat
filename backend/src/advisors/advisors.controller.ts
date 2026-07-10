@@ -1,12 +1,29 @@
 import {
-  Controller, Get, Post, Put, Patch, Delete,
-  Param, Body, Query, UseGuards, ValidationPipe,
-  UseInterceptors, UploadedFile, BadRequestException,
+  Controller,
+  Get,
+  Post,
+  Put,
+  Patch,
+  Delete,
+  Param,
+  Body,
+  Query,
+  UseGuards,
+  ValidationPipe,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { join } from 'path';
-import { existsSync, mkdirSync, readdirSync, writeFileSync, unlinkSync } from 'fs';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  writeFileSync,
+  unlinkSync,
+} from 'fs';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdvisorsService } from './advisors.service';
 import { CreateAdvisorDto } from './dto/create-advisor.dto';
@@ -23,7 +40,16 @@ export class AdvisorsController {
 
   @Get()
   @Roles('admin')
-  findAll(@Query() query: QueryAdvisorDto): Promise<{ data: User[]; total: number; page: number; limit: number; pages: number } | User[]> {
+  findAll(@Query() query: QueryAdvisorDto): Promise<
+    | {
+        data: User[];
+        total: number;
+        page: number;
+        limit: number;
+        pages: number;
+      }
+    | User[]
+  > {
     if (query.page || query.limit || query.search) {
       return this.advisorsService.findAllPaginated(
         query.page ?? 1,
@@ -42,7 +68,9 @@ export class AdvisorsController {
 
   @Post()
   @Roles('admin')
-  create(@Body(new ValidationPipe({ whitelist: true })) body: CreateAdvisorDto): Promise<User> {
+  create(
+    @Body(new ValidationPipe({ whitelist: true })) body: CreateAdvisorDto,
+  ): Promise<User> {
     return this.advisorsService.create(body.name, body.email, body.password);
   }
 
@@ -61,7 +89,9 @@ export class AdvisorsController {
     @Param('id') id: string,
     @Body(new ValidationPipe({ whitelist: true })) body: UpdatePasswordDto,
   ): Promise<{ ok: boolean }> {
-    return this.advisorsService.updatePassword(id, body.password).then(() => ({ ok: true }));
+    return this.advisorsService
+      .updatePassword(id, body.password)
+      .then(() => ({ ok: true }));
   }
 
   @Patch(':id/toggle')
@@ -84,7 +114,10 @@ export class AdvisorsController {
       limits: { fileSize: 5 * 1024 * 1024 },
       fileFilter: (_req, file, cb) => {
         if (!file.mimetype.startsWith('image/')) {
-          return cb(new BadRequestException('Solo se permiten imágenes', ''), false);
+          return cb(
+            new BadRequestException('Solo se permiten imágenes', ''),
+            false,
+          );
         }
         cb(null, true);
       },
@@ -96,15 +129,20 @@ export class AdvisorsController {
   ): Promise<{ profilePhotoUrl: string }> {
     if (!file) throw new BadRequestException('Archivo no recibido');
 
-    const ext = file.originalname.substring(file.originalname.lastIndexOf('.')) || '.jpg';
+    const ext =
+      file.originalname.substring(file.originalname.lastIndexOf('.')) || '.jpg';
     const timestamp = Date.now();
     const filename = `profile-${id}-${timestamp}${ext}`;
     const dir = join(process.cwd(), 'uploads', 'profiles');
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
     try {
-      const oldFiles = readdirSync(dir).filter(f => f.startsWith(`profile-${id}-`));
+      const oldFiles = readdirSync(dir).filter((f) =>
+        f.startsWith(`profile-${id}-`),
+      );
       for (const old of oldFiles) unlinkSync(join(dir, old));
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     writeFileSync(join(dir, filename), file.buffer);
 
     const backendUrl = process.env.APP_URL || 'http://localhost:3001';
@@ -118,11 +156,19 @@ export class AdvisorsController {
   async deletePhoto(@Param('id') id: string): Promise<{ ok: boolean }> {
     const user = await this.advisorsService.findById(id);
     if (user.profilePhotoUrl) {
-      const oldPath = join(process.cwd(), 'uploads', 'profiles', `profile-${id}.*`);
+      const oldPath = join(
+        process.cwd(),
+        'uploads',
+        'profiles',
+        `profile-${id}.*`,
+      );
       try {
         const oldName = user.profilePhotoUrl.split('/').pop();
-        if (oldName) unlinkSync(join(process.cwd(), 'uploads', 'profiles', oldName));
-      } catch { /* File may not exist */ }
+        if (oldName)
+          unlinkSync(join(process.cwd(), 'uploads', 'profiles', oldName));
+      } catch {
+        /* File may not exist */
+      }
     }
     await this.advisorsService.updatePhoto(id, null);
     return { ok: true };

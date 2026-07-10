@@ -17,15 +17,17 @@ async function bootstrap() {
   // =========================
   const NODE_ENV = process.env.NODE_ENV ?? 'development';
   const APP_URL = process.env.APP_URL || 'http://localhost:3001';
-  const CSP_DIRECTIVES = process.env.CSP_DIRECTIVES || [
-    "default-src 'self'",
-    "img-src 'self' data: blob: https:",
-    "media-src 'self' blob:",
-    "connect-src 'self' " + APP_URL + " ws:",
-    "frame-ancestors 'none'",
-    "base-uri 'self'",
-    "form-action 'self'",
-  ].join('; ');
+  const CSP_DIRECTIVES =
+    process.env.CSP_DIRECTIVES ||
+    [
+      "default-src 'self'",
+      "img-src 'self' data: blob: https:",
+      "media-src 'self' blob:",
+      "connect-src 'self' " + APP_URL + ' ws:',
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join('; ');
 
   app.use(
     helmet({
@@ -44,9 +46,10 @@ async function bootstrap() {
       },
       crossOriginEmbedderPolicy: false,
       crossOriginResourcePolicy: { policy: 'cross-origin' },
-      strictTransportSecurity: NODE_ENV === 'production'
-        ? { maxAge: 31536000, includeSubDomains: true }
-        : false,
+      strictTransportSecurity:
+        NODE_ENV === 'production'
+          ? { maxAge: 31536000, includeSubDomains: true }
+          : false,
       referrerPolicy: { policy: 'no-referrer' },
       xFrameOptions: { action: 'deny' },
       xContentTypeOptions: true,
@@ -54,7 +57,10 @@ async function bootstrap() {
   );
 
   app.use((req, res, next) => {
-    res.setHeader('Permissions-Policy', 'camera=(self), microphone=(self), geolocation=()');
+    res.setHeader(
+      'Permissions-Policy',
+      'camera=(self), microphone=(self), geolocation=()',
+    );
     next();
   });
 
@@ -106,11 +112,14 @@ async function bootstrap() {
     '.txt': 'text/plain',
     '.csv': 'text/csv',
     '.doc': 'application/msword',
-    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.docx':
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     '.xls': 'application/vnd.ms-excel',
-    '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    '.xlsx':
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     '.ppt': 'application/vnd.ms-powerpoint',
-    '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    '.pptx':
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
     '.mp2t': 'video/mp2t',
   };
 

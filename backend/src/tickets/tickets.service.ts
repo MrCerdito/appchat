@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like } from 'typeorm';
 import { Ticket } from './ticket.entity';
@@ -36,19 +40,27 @@ export class TicketsService {
       try {
         return await this.createOnce(dto, userId);
       } catch (err: any) {
-        const isDuplicate = err?.code === '23505' || err?.message?.includes?.('duplicate key');
+        const isDuplicate =
+          err?.code === '23505' || err?.message?.includes?.('duplicate key');
         if (!isDuplicate || attempt === MAX_RETRIES) {
           if (isDuplicate) {
-            throw new ConflictException('El codigo del ticket ya existe. Intenta de nuevo.');
+            throw new ConflictException(
+              'El codigo del ticket ya existe. Intenta de nuevo.',
+            );
           }
           throw err;
         }
       }
     }
-    throw new ConflictException('No se pudo generar un codigo unico. Intenta de nuevo.');
+    throw new ConflictException(
+      'No se pudo generar un codigo unico. Intenta de nuevo.',
+    );
   }
 
-  private async createOnce(dto: CreateTicketDto, userId?: string): Promise<Ticket> {
+  private async createOnce(
+    dto: CreateTicketDto,
+    userId?: string,
+  ): Promise<Ticket> {
     const codigo = await this.generarCodigo();
     let assignedTo: User | null = null;
     if (dto.assignedToId) {
@@ -80,15 +92,25 @@ export class TicketsService {
     return this.repo.save(ticket);
   }
 
-  async findAll(query: QueryTicketDto): Promise<{ data: Ticket[]; total: number; page: number; limit: number; pages: number }> {
-    const qb = this.repo.createQueryBuilder('t')
+  async findAll(query: QueryTicketDto): Promise<{
+    data: Ticket[];
+    total: number;
+    page: number;
+    limit: number;
+    pages: number;
+  }> {
+    const qb = this.repo
+      .createQueryBuilder('t')
       .leftJoinAndSelect('t.assignedTo', 'assignedTo')
       .leftJoinAndSelect('t.createdBy', 'createdBy')
       .leftJoinAndSelect('t.closedBy', 'closedBy');
 
     if (query.search) {
       const s = `%${query.search}%`;
-      qb.andWhere('(t.titulo ILIKE :s OR t.codigo ILIKE :s OR t.clientName ILIKE :s)', { s });
+      qb.andWhere(
+        '(t.titulo ILIKE :s OR t.codigo ILIKE :s OR t.clientName ILIKE :s)',
+        { s },
+      );
     }
     if (query.status) {
       qb.andWhere('t.status = :status', { status: query.status });
@@ -100,10 +122,14 @@ export class TicketsService {
       qb.andWhere('t.category = :category', { category: query.category });
     }
     if (query.sourceType) {
-      qb.andWhere('t.sourceType = :sourceType', { sourceType: query.sourceType });
+      qb.andWhere('t.sourceType = :sourceType', {
+        sourceType: query.sourceType,
+      });
     }
     if (query.assignedTo) {
-      qb.andWhere('t.assignedTo = :assignedTo', { assignedTo: query.assignedTo });
+      qb.andWhere('t.assignedTo = :assignedTo', {
+        assignedTo: query.assignedTo,
+      });
     }
 
     const page = Math.max(1, parseInt(query.page ?? '1', 10));
@@ -138,7 +164,11 @@ export class TicketsService {
     return ticket;
   }
 
-  async update(id: string, dto: UpdateTicketDto, userId?: string): Promise<Ticket> {
+  async update(
+    id: string,
+    dto: UpdateTicketDto,
+    userId?: string,
+  ): Promise<Ticket> {
     const ticket = await this.findById(id);
 
     if (dto.titulo !== undefined) ticket.titulo = dto.titulo;
@@ -162,7 +192,7 @@ export class TicketsService {
         ? await this.userRepo.findOneBy({ id: dto.assignedToId })
         : null;
       ticket.assignedTo = assignedTo;
-      ticket.assignedToName = assignedTo?.name ?? null as any;
+      ticket.assignedToName = assignedTo?.name ?? (null as any);
     }
 
     return this.repo.save(ticket);
@@ -170,6 +200,7 @@ export class TicketsService {
 
   async delete(id: string): Promise<void> {
     const result = await this.repo.delete(id);
-    if (result.affected === 0) throw new NotFoundException('Ticket no encontrado');
+    if (result.affected === 0)
+      throw new NotFoundException('Ticket no encontrado');
   }
 }

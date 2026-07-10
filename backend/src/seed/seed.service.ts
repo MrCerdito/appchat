@@ -30,7 +30,9 @@ export class SeedService implements OnApplicationBootstrap {
   }
 
   private async seed() {
-    const adminExists = await this.userRepo.findOne({ where: { role: 'admin' } });
+    const adminExists = await this.userRepo.findOne({
+      where: { role: 'admin' },
+    });
     if (adminExists) {
       this.logger.log('Base de datos ya tiene datos — seed omitido');
       return;
@@ -82,13 +84,17 @@ export class SeedService implements OnApplicationBootstrap {
   private async seedConfiguracion() {
     const config = this.configRepo.create({
       advisorId: null,
-      mensajeBienvenida: '¡Hola! Soy {{asesor}}, tu asesor de soporte. ¿En qué puedo ayudarte hoy?',
+      mensajeBienvenida:
+        '¡Hola! Soy {{asesor}}, tu asesor de soporte. ¿En qué puedo ayudarte hoy?',
       asesorInactividadSeg: 120,
-      asesorInactividadMsg: 'Estamos trabajando en tu solicitud, en breve te atendemos.',
+      asesorInactividadMsg:
+        'Estamos trabajando en tu solicitud, en breve te atendemos.',
       clienteInactividadSeg: 180,
-      clienteInactividadMsg: '¿Sigues en línea? Tu sesión se cerrará pronto si no hay respuesta.',
+      clienteInactividadMsg:
+        '¿Sigues en línea? Tu sesión se cerrará pronto si no hay respuesta.',
       clienteInactividadIters: 2,
-      clienteCierreMsg: 'La sesión ha sido cerrada por inactividad. Puedes iniciar una nueva consulta cuando lo necesites.',
+      clienteCierreMsg:
+        'La sesión ha sido cerrada por inactividad. Puedes iniciar una nueva consulta cuando lo necesites.',
       horarios: [
         { dia: 1, inicio: '08:00', fin: '17:00' },
         { dia: 2, inicio: '08:00', fin: '17:00' },
@@ -96,19 +102,30 @@ export class SeedService implements OnApplicationBootstrap {
         { dia: 4, inicio: '08:00', fin: '17:00' },
         { dia: 5, inicio: '08:00', fin: '17:00' },
       ],
-      horarioFueraMsg: 'En este momento estamos fuera de horario. Nuestro horario de atención es de lunes a viernes de 8:00 a 17:00.',
+      horarioFueraMsg:
+        'En este momento estamos fuera de horario. Nuestro horario de atención es de lunes a viernes de 8:00 a 17:00.',
       horariosActivos: true,
-      whatsappAssignmentMsg: 'Hola, soy {{asesor}}. Ya fui asignado a tu conversacion y revisare tu caso.',
-      whatsappQueueMsg: 'Te encuentras en cola. En breves momentos un asesor se comunicara contigo.',
-      whatsappOutOfHoursMsg: 'Hola. En este momento estamos fuera de servicio. Por favor vuelve {{proximaApertura}}.',
-      whatsappCallUnavailableMsg: 'Actualmente no estamos disponibles para llamadas. Por favor escribenos por este chat y un asesor te atendera.',
+      whatsappAssignmentMsg:
+        'Hola, soy {{asesor}}. Ya fui asignado a tu conversacion y revisare tu caso.',
+      whatsappQueueMsg:
+        'Te encuentras en cola. En breves momentos un asesor se comunicara contigo.',
+      whatsappOutOfHoursMsg:
+        'Hola. En este momento estamos fuera de servicio. Por favor vuelve {{proximaApertura}}.',
+      whatsappCallUnavailableMsg:
+        'Actualmente no estamos disponibles para llamadas. Por favor escribenos por este chat y un asesor te atendera.',
       whatsappQuickReplies: [
         'Hola, con gusto reviso tu caso.',
         'Dame un momento mientras valido la informacion.',
         'Quedo atento si necesitas algo mas.',
       ],
       almuerzos: [],
-      ticketCategories: ['Soporte tecnico', 'Administrativo', 'Academico', 'Facturacion', 'Otro'],
+      ticketCategories: [
+        'Soporte tecnico',
+        'Administrativo',
+        'Academico',
+        'Facturacion',
+        'Otro',
+      ],
     });
     await this.configRepo.save(config);
     this.logger.log('Configuración global creada');
@@ -142,7 +159,11 @@ export class SeedService implements OnApplicationBootstrap {
 
   private async seedColegios() {
     const colegios = this.colegioRepo.create([
-      { nombre: 'Innovacloud', link: 'https://innovacloud.co', email: 'info@innovacloud.co' },
+      {
+        nombre: 'Innovacloud',
+        link: 'https://innovacloud.co',
+        email: 'info@innovacloud.co',
+      },
       { nombre: 'Colegio General', link: '#', email: '' },
     ]);
     await this.colegioRepo.save(colegios);
@@ -153,7 +174,8 @@ export class SeedService implements OnApplicationBootstrap {
     const faqs = this.faqRepo.create([
       {
         pregunta: '¿Cómo puedo contactar a un asesor?',
-        respuesta: 'Puedes contactar a un asesor a través de nuestro chat en línea. Solo escribe tu consulta y un asesor te atenderá a la brevedad.',
+        respuesta:
+          'Puedes contactar a un asesor a través de nuestro chat en línea. Solo escribe tu consulta y un asesor te atenderá a la brevedad.',
         categoria: 'General',
         keywords: ['contactar', 'asesor', 'ayuda', 'humano'],
         orden: 1,
@@ -161,7 +183,8 @@ export class SeedService implements OnApplicationBootstrap {
       },
       {
         pregunta: '¿Cuál es el horario de atención?',
-        respuesta: 'Nuestro horario de atención es de lunes a viernes de 8:00 a 17:00.',
+        respuesta:
+          'Nuestro horario de atención es de lunes a viernes de 8:00 a 17:00.',
         categoria: 'General',
         keywords: ['horario', 'atencion', 'horas'],
         orden: 2,
@@ -169,7 +192,8 @@ export class SeedService implements OnApplicationBootstrap {
       },
       {
         pregunta: '¿Cómo puedo crear un ticket de soporte?',
-        respuesta: 'Durante tu conversación con un asesor, puedes solicitar la creación de un ticket para dar seguimiento a tu caso de manera más estructurada.',
+        respuesta:
+          'Durante tu conversación con un asesor, puedes solicitar la creación de un ticket para dar seguimiento a tu caso de manera más estructurada.',
         categoria: 'Soporte',
         keywords: ['ticket', 'soporte', 'caso', 'seguimiento'],
         orden: 3,

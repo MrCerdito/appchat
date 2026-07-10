@@ -29,7 +29,10 @@ export class ConfiguracionService implements OnModuleInit {
     'sabado',
   ];
 
-  private configCache = new Map<string, { data: Configuracion; expiresAt: number }>();
+  private configCache = new Map<
+    string,
+    { data: Configuracion; expiresAt: number }
+  >();
   private readonly CACHE_TTL_MS = 30_000;
 
   constructor(
@@ -90,7 +93,10 @@ export class ConfiguracionService implements OnModuleInit {
   }
 
   private setCache(key: string, data: Configuracion): void {
-    this.configCache.set(key, { data, expiresAt: Date.now() + this.CACHE_TTL_MS });
+    this.configCache.set(key, {
+      data,
+      expiresAt: Date.now() + this.CACHE_TTL_MS,
+    });
   }
 
   private invalidateCache(advisorId?: string): void {
@@ -110,7 +116,9 @@ export class ConfiguracionService implements OnModuleInit {
       }
     }
 
-    const global = await this.repo.findOne({ where: { advisorId: null as any } });
+    const global = await this.repo.findOne({
+      where: { advisorId: null as any },
+    });
     if (global) {
       this.setCache('global', global);
       return global;
@@ -118,15 +126,27 @@ export class ConfiguracionService implements OnModuleInit {
 
     const defaults: Partial<Configuracion> = {
       mensajeBienvenida: '¡Bienvenido! ¿En qué puedo ayudarte?',
-      asesorInactividadMsg: 'El asesor se ha desconectado. En breve lo atenderá otro.',
+      asesorInactividadMsg:
+        'El asesor se ha desconectado. En breve lo atenderá otro.',
       clienteInactividadMsg: '¿Sigues ahí? Escribe algo para continuar.',
       clienteCierreMsg: 'Gracias por contactarnos. Que tengas un buen día.',
-      horarioFueraMsg: 'Estamos fuera del horario de atención. Vuelve en nuestro horario habitual.',
-      whatsappAssignmentMsg: 'Hola, soy {{asesor}}. Ya fui asignado a tu conversacion y revisare tu caso.',
-      whatsappQueueMsg: 'Te encuentras en cola. En breves momentos un asesor se comunicara contigo.',
-      whatsappOutOfHoursMsg: 'Hola. En este momento estamos fuera de servicio. Por favor vuelve {{proximaApertura}}.',
-      whatsappCallUnavailableMsg: 'Actualmente no estamos disponibles para llamadas. Por favor escribenos por este chat y un asesor te atendera.',
-      ticketCategories: ['Soporte tecnico', 'Administrativo', 'Academico', 'Facturacion', 'Otro'],
+      horarioFueraMsg:
+        'Estamos fuera del horario de atención. Vuelve en nuestro horario habitual.',
+      whatsappAssignmentMsg:
+        'Hola, soy {{asesor}}. Ya fui asignado a tu conversacion y revisare tu caso.',
+      whatsappQueueMsg:
+        'Te encuentras en cola. En breves momentos un asesor se comunicara contigo.',
+      whatsappOutOfHoursMsg:
+        'Hola. En este momento estamos fuera de servicio. Por favor vuelve {{proximaApertura}}.',
+      whatsappCallUnavailableMsg:
+        'Actualmente no estamos disponibles para llamadas. Por favor escribenos por este chat y un asesor te atendera.',
+      ticketCategories: [
+        'Soporte tecnico',
+        'Administrativo',
+        'Academico',
+        'Facturacion',
+        'Otro',
+      ],
       sonidoActivado: true,
       sonidoWhatsapp: 'whatsapp1',
       sonidoAsesor: 'asesor1',
@@ -151,7 +171,7 @@ export class ConfiguracionService implements OnModuleInit {
 
     if (Array.isArray(data.whatsappQuickReplies)) {
       data.whatsappQuickReplies = data.whatsappQuickReplies
-        .map(reply => cleanText(reply, 500))
+        .map((reply) => cleanText(reply, 500))
         .filter(Boolean)
         .slice(0, 20);
     }
@@ -200,7 +220,7 @@ export class ConfiguracionService implements OnModuleInit {
 
     if (Array.isArray(data.ticketCategories)) {
       data.ticketCategories = data.ticketCategories
-        .map(c => cleanText(c, 100))
+        .map((c) => cleanText(c, 100))
         .filter(Boolean)
         .slice(0, 20);
     }
@@ -234,7 +254,7 @@ export class ConfiguracionService implements OnModuleInit {
       };
     }
 
-    const slotHoy = horarios.find(h => h.dia === diaHoy);
+    const slotHoy = horarios.find((h) => h.dia === diaHoy);
     const enJornada = slotHoy
       ? hhmm >= slotHoy.inicio && hhmm < slotHoy.fin
       : false;
@@ -259,7 +279,7 @@ export class ConfiguracionService implements OnModuleInit {
     const ahora = new Date();
     const dia = ahora.getDay();
     const hhmm = this.hhmm(ahora);
-    const slot = slots.find(item => item.dia === dia);
+    const slot = slots.find((item) => item.dia === dia);
     return !!slot && hhmm >= slot.inicio && hhmm < slot.fin;
   }
 
@@ -267,7 +287,8 @@ export class ConfiguracionService implements OnModuleInit {
     horarios: HorarioSlot[],
     ahora: Date,
   ): { label: string; hora: string } {
-    if (!horarios.length) return { label: 'en nuestro proximo horario', hora: '' };
+    if (!horarios.length)
+      return { label: 'en nuestro proximo horario', hora: '' };
 
     const minutosAhora = ahora.getHours() * 60 + ahora.getMinutes();
     const diaHoy = ahora.getDay();
@@ -275,13 +296,16 @@ export class ConfiguracionService implements OnModuleInit {
     for (let offset = 0; offset <= 7; offset++) {
       const dia = (diaHoy + offset) % 7;
       const slotsDia = horarios
-        .filter(slot => slot.dia === dia)
+        .filter((slot) => slot.dia === dia)
         .sort((a, b) => this.toMinutes(a.inicio) - this.toMinutes(b.inicio));
 
       for (const slot of slotsDia) {
-        if (offset === 0 && this.toMinutes(slot.inicio) <= minutosAhora) continue;
-        if (offset === 0) return { label: `hoy a las ${slot.inicio}`, hora: slot.inicio };
-        if (offset === 1) return { label: `manana a las ${slot.inicio}`, hora: slot.inicio };
+        if (offset === 0 && this.toMinutes(slot.inicio) <= minutosAhora)
+          continue;
+        if (offset === 0)
+          return { label: `hoy a las ${slot.inicio}`, hora: slot.inicio };
+        if (offset === 1)
+          return { label: `manana a las ${slot.inicio}`, hora: slot.inicio };
         return {
           label: `el ${this.dias[dia]} a las ${slot.inicio}`,
           hora: slot.inicio,

@@ -1,7 +1,21 @@
 import {
-  Controller, Get, Post, Patch, Delete, Body, Query, Param,
-  Res, HttpCode, HttpStatus, Headers, Logger, UseGuards, Req,
-  UploadedFile, UseInterceptors,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Query,
+  Param,
+  Res,
+  HttpCode,
+  HttpStatus,
+  Headers,
+  Logger,
+  UseGuards,
+  Req,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -34,26 +48,29 @@ export class AdvisorsWhatsappController {
   ) {}
 
   @Get('webhook')
-verifyWebhook(
-  @Query('hub.mode') mode: string,
-  @Query('hub.verify_token') token: string,
-  @Query('hub.challenge') challenge: string,
-) {
-  const verifyToken = this.config.get<string>('WHATSAPP_VERIFY_TOKEN') ?? 'token2025';
+  verifyWebhook(
+    @Query('hub.mode') mode: string,
+    @Query('hub.verify_token') token: string,
+    @Query('hub.challenge') challenge: string,
+  ) {
+    const verifyToken =
+      this.config.get<string>('WHATSAPP_VERIFY_TOKEN') ?? 'token2025';
 
-  if (mode === 'subscribe' && token === verifyToken) {
-    this.logger.log('Webhook de asesores verificado por Meta.');
-    return challenge;
+    if (mode === 'subscribe' && token === verifyToken) {
+      this.logger.log('Webhook de asesores verificado por Meta.');
+      return challenge;
+    }
+
+    this.logger.warn('Verificacion de webhook fallida.');
+    return 'Error validating webhook';
   }
-
-  this.logger.warn('Verificacion de webhook fallida.');
-  return 'Error validating webhook';
-}
 
   @Post('webhook')
   @HttpCode(200)
   receiveWebhook(@Body() _body: any) {
-    this.logger.warn('Webhook Cloud API ignorado: el transporte activo es Baileys por QR.');
+    this.logger.warn(
+      'Webhook Cloud API ignorado: el transporte activo es Baileys por QR.',
+    );
     return { ok: true, transport: 'baileys' };
   }
 
@@ -97,7 +114,13 @@ verifyWebhook(
     @Query('limit') limit = '50',
     @Req() req: Request & { user: any },
   ) {
-    return this.whatsappService.getMessages(chatId, +page, +limit, req.user.id, req.user.role);
+    return this.whatsappService.getMessages(
+      chatId,
+      +page,
+      +limit,
+      req.user.id,
+      req.user.role,
+    );
   }
 
   @Patch('chats/:chatId/messages/:messageId')
@@ -110,7 +133,7 @@ verifyWebhook(
   ) {
     return this.whatsappService
       .editAdvisorMessage(chatId, messageId, req.user.id, req.user.role, body)
-      .then(chat => {
+      .then((chat) => {
         this.whatsappGateway.emitChatUpdated(chat);
         return chat;
       });
@@ -125,7 +148,7 @@ verifyWebhook(
   ) {
     return this.whatsappService
       .deleteAdvisorMessage(chatId, messageId, req.user.id, req.user.role)
-      .then(chat => {
+      .then((chat) => {
         this.whatsappGateway.emitChatUpdated(chat);
         return chat;
       });
@@ -141,8 +164,14 @@ verifyWebhook(
     @Req() req: Request & { user: any },
   ) {
     return this.whatsappService
-      .reactToMessage(chatId, messageId, req.user.id, req.user.role, emoji ?? '')
-      .then(chat => {
+      .reactToMessage(
+        chatId,
+        messageId,
+        req.user.id,
+        req.user.role,
+        emoji ?? '',
+      )
+      .then((chat) => {
         this.whatsappGateway.emitChatUpdated(chat);
         return chat;
       });
@@ -157,7 +186,7 @@ verifyWebhook(
   ) {
     return this.whatsappService
       .addNote(chatId, note, req.user.id, req.user.role)
-      .then(chat => {
+      .then((chat) => {
         this.whatsappGateway.emitChatUpdated(chat);
         return chat;
       });
@@ -173,7 +202,7 @@ verifyWebhook(
   ) {
     return this.whatsappService
       .deleteNote(chatId, +index, req.user.id, req.user.role)
-      .then(chat => {
+      .then((chat) => {
         this.whatsappGateway.emitChatUpdated(chat);
         return chat;
       });
@@ -188,7 +217,7 @@ verifyWebhook(
   ) {
     return this.whatsappService
       .updateTags(chatId, tags, req.user.id, req.user.role)
-      .then(chat => {
+      .then((chat) => {
         this.whatsappGateway.emitChatUpdated(chat);
         return chat;
       });
@@ -203,7 +232,7 @@ verifyWebhook(
   ) {
     return this.whatsappService
       .updateContactInfo(chatId, body, req.user.id, req.user.role)
-      .then(chat => {
+      .then((chat) => {
         this.whatsappGateway.emitChatUpdated(chat);
         return chat;
       });
@@ -243,13 +272,15 @@ verifyWebhook(
   async adminAssignChat(
     @Param('chatId') chatId: string,
     @Req() req: Request & { user: any },
-    @Body() body: { advisorId: string; mode?: 'admin' | 'temporary' },
+    @Body()
+    body: { advisorId: string; mode?: 'admin' | 'temporary'; message?: string },
   ) {
     const assignment = await this.whatsappService.adminAssignChat(
       chatId,
       body.advisorId,
       req.user.role,
       body.mode ?? 'admin',
+      body.message,
     );
     this.whatsappGateway.emitAssignments([assignment]);
     return assignment.chat;
@@ -263,7 +294,11 @@ verifyWebhook(
     @Req() req: Request & { user: any },
     @Body('advisorId') advisorId: string,
   ) {
-    const chat = await this.whatsappService.setFixedAdvisor(chatId, advisorId, req.user.role);
+    const chat = await this.whatsappService.setFixedAdvisor(
+      chatId,
+      advisorId,
+      req.user.role,
+    );
     this.whatsappGateway.emitChatUpdated(chat);
     return chat;
   }
@@ -275,7 +310,10 @@ verifyWebhook(
     @Param('chatId') chatId: string,
     @Req() req: Request & { user: any },
   ) {
-    const chat = await this.whatsappService.clearFixedAdvisor(chatId, req.user.role);
+    const chat = await this.whatsappService.clearFixedAdvisor(
+      chatId,
+      req.user.role,
+    );
     this.whatsappGateway.emitChatUpdated(chat);
     return chat;
   }
@@ -291,6 +329,22 @@ verifyWebhook(
       chatId,
       status,
       req.user.id,
+      req.user.role,
+    );
+    this.whatsappGateway.emitChatUpdated(chat);
+    return chat;
+  }
+
+  @Patch('chats/:chatId/priority')
+  @UseGuards(JwtAuthGuard)
+  async updateChatPriority(
+    @Param('chatId') chatId: string,
+    @Req() req: Request & { user: any },
+    @Body('priority') priority: string,
+  ) {
+    const chat = await this.whatsappService.updateChatPriority(
+      chatId,
+      priority as any,
       req.user.role,
     );
     this.whatsappGateway.emitChatUpdated(chat);
@@ -349,11 +403,20 @@ verifyWebhook(
         throw new Error(oauthErrorDescription || oauthError);
       }
       await this.teamsService.completeAuth(code, state);
-      res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'");
+      res.setHeader(
+        'Content-Security-Policy',
+        "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'",
+      );
       res.type('html').send(this.teamsCallbackHtml(true));
     } catch (err: any) {
-      res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'");
-      res.type('html').status(400).send(this.teamsCallbackHtml(false, err?.message));
+      res.setHeader(
+        'Content-Security-Policy',
+        "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'",
+      );
+      res
+        .type('html')
+        .status(400)
+        .send(this.teamsCallbackHtml(false, err?.message));
     }
   }
 
@@ -363,7 +426,8 @@ verifyWebhook(
   async createTeamsMeeting(
     @Param('chatId') chatId: string,
     @Req() req: Request & { user: any },
-    @Body() body: {
+    @Body()
+    body: {
       subject: string;
       startDateTime: string;
       durationMinutes?: number;
@@ -376,7 +440,11 @@ verifyWebhook(
       req.user.role,
     );
     const meeting = await this.teamsService.createMeeting(req.user.id, body);
-    const text = this.teamsWhatsappText(meeting.subject, meeting.startDateTime, meeting.joinUrl);
+    const text = this.teamsWhatsappText(
+      meeting.subject,
+      meeting.startDateTime,
+      meeting.joinUrl,
+    );
 
     const result = await this.whatsappService.sendAdvisorText(
       req.user.id,
@@ -392,15 +460,22 @@ verifyWebhook(
 
     if (body.calendarTarget && body.calendarTarget !== 'none') {
       try {
-        await this.teamsService.createCalendarEvent(req.user.id, body.calendarTarget, meeting, {
-          name: chat.name,
-          role: chat.role,
-          institution: chat.institution,
-          phone: chat.phone,
-          email: chat.email,
-        });
+        await this.teamsService.createCalendarEvent(
+          req.user.id,
+          body.calendarTarget,
+          meeting,
+          {
+            name: chat.name,
+            role: chat.role,
+            institution: chat.institution,
+            phone: chat.phone,
+            email: chat.email,
+          },
+        );
       } catch (err: any) {
-        this.logger.warn(`No se pudo agendar al calendario: ${err?.message ?? err}`);
+        this.logger.warn(
+          `No se pudo agendar al calendario: ${err?.message ?? err}`,
+        );
       }
     }
 
@@ -444,7 +519,8 @@ verifyWebhook(
   async sendTemplate(
     @Headers('x-api-key') _apiKey: string,
     @Req() req: Request & { user: any },
-    @Body() body: {
+    @Body()
+    body: {
       to: string;
       templateName: string;
       langCode?: string;
@@ -454,7 +530,10 @@ verifyWebhook(
     const { to, templateName, langCode = 'es_CO', components = [] } = body;
 
     if (!to || !templateName) {
-      return { ok: false, error: 'Los campos "to" y "templateName" son obligatorios.' };
+      return {
+        ok: false,
+        error: 'Los campos "to" y "templateName" son obligatorios.',
+      };
     }
 
     try {
@@ -466,7 +545,11 @@ verifyWebhook(
         langCode,
         components,
       );
-      return { ok: true, messageId: result.messageId ?? result.message.id, chat: result.chat };
+      return {
+        ok: true,
+        messageId: result.messageId ?? result.message.id,
+        chat: result.chat,
+      };
     } catch (err: any) {
       const metaError = err.response?.data;
       this.logger.error('Error enviando plantilla:', metaError ?? err.message);
@@ -517,7 +600,13 @@ verifyWebhook(
   @HttpCode(HttpStatus.CREATED)
   async createTicketFromWhatsapp(
     @Param('id') id: string,
-    @Body() body: { titulo?: string; descripcion?: string; priority?: string; category?: string },
+    @Body()
+    body: {
+      titulo?: string;
+      descripcion?: string;
+      priority?: string;
+      category?: string;
+    },
     @Req() req: Request & { user: any },
   ) {
     const chat = await this.whatsappService.getChatById(id);
@@ -529,7 +618,7 @@ verifyWebhook(
     });
     messages.reverse();
 
-    const conversation = messages.map(m => ({
+    const conversation = messages.map((m) => ({
       role: m.fromMe ? 'advisor' : 'client',
       name: m.senderName || (m.fromMe ? 'Asesor' : chat.name),
       content: m.body,
@@ -557,7 +646,11 @@ verifyWebhook(
     return this.ticketsService.create(dto, req.user.id);
   }
 
-  private teamsWhatsappText(subject: string, startDateTime: string, joinUrl: string): string {
+  private teamsWhatsappText(
+    subject: string,
+    startDateTime: string,
+    joinUrl: string,
+  ): string {
     const formatted = new Intl.DateTimeFormat('es-CO', {
       dateStyle: 'medium',
       timeStyle: 'short',
@@ -573,7 +666,11 @@ verifyWebhook(
       ? 'Ya puedes volver a InnovaCloud y crear la reunion.'
       : error || 'Autorizacion fallida';
     const safeMessage = this.escapeHtml(message);
-    const payload = JSON.stringify({ type: 'teams-auth', success, error: success ? '' : error || 'Autorizacion fallida' });
+    const payload = JSON.stringify({
+      type: 'teams-auth',
+      success,
+      error: success ? '' : error || 'Autorizacion fallida',
+    });
     return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${safeTitle}</title><style>body{margin:0;display:grid;place-items:center;min-height:100vh;background:#0b1219;color:#edf4f7;font-family:Segoe UI,system-ui,sans-serif}main{max-width:460px;padding:28px;text-align:center}h1{font-size:22px}p{color:#93a4af;line-height:1.5}button{height:38px;padding:0 16px;border:0;border-radius:8px;background:#20c997;color:#04110d;font-weight:800;cursor:pointer}</style></head><body><main><h1>${safeTitle}</h1><p>${safeMessage}</p><button onclick="window.close()">Cerrar</button></main><script>try{window.opener&&window.opener.postMessage(${payload},'*')}catch(e){}</script></body></html>`;
   }
 

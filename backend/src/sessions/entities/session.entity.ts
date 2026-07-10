@@ -1,6 +1,12 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, ManyToOne, OneToMany, JoinColumn, Index,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  ManyToOne,
+  OneToMany,
+  JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../../auth/entities/user.entity';
 import { Message } from '../../chat/entities/message.entity';
@@ -18,13 +24,25 @@ export class Session {
   @Column({ type: 'varchar', length: 20, unique: true, nullable: true })
   codigo: string | null;
 
-  @Column({ name: 'client_name', type: 'text', transformer: encryptedTextTransformer })
+  @Column({
+    name: 'client_name',
+    type: 'text',
+    transformer: encryptedTextTransformer,
+  })
   clientName: string;
 
-  @Column({ type: 'text', nullable: true, transformer: encryptedTextTransformer })
+  @Column({
+    type: 'text',
+    nullable: true,
+    transformer: encryptedTextTransformer,
+  })
   identificacion: string | null;
 
-  @Column({ type: 'text', nullable: true, transformer: encryptedTextTransformer })
+  @Column({
+    type: 'text',
+    nullable: true,
+    transformer: encryptedTextTransformer,
+  })
   apellido: string | null;
 
   @Column({ type: 'varchar', length: 50, nullable: true })
@@ -33,10 +51,20 @@ export class Session {
   @Column({ type: 'varchar', length: 100, nullable: true })
   colegio: string | null;
 
-  @Column({ name: 'colegio_link', type: 'varchar', length: 500, nullable: true })
+  @Column({
+    name: 'colegio_link',
+    type: 'varchar',
+    length: 500,
+    nullable: true,
+  })
   colegioLink: string | null;
 
-  @Column({ name: 'tipo_solicitud', type: 'varchar', length: 100, nullable: true })
+  @Column({
+    name: 'tipo_solicitud',
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+  })
   tipoSolicitud: string | null;
 
   // ── Estado del ciclo de vida de la sesión ─────────────────────────────────
@@ -48,7 +76,10 @@ export class Session {
   @Column({ length: 20, default: 'ai' })
   status: string;
 
-  @ManyToOne(() => User, (user) => user.sessions, { nullable: true, onDelete: 'SET NULL' })
+  @ManyToOne(() => User, (user) => user.sessions, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
   @JoinColumn({ name: 'advisor_id' })
   advisor: User | null;
 

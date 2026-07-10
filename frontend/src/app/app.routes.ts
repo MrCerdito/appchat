@@ -87,6 +87,31 @@ export const routes: Routes = [
           import('./features/admin/modules/history/history').then(m => m.HistoryGlobalComponent),
       },
       {
+        path: 'operaciones',
+        loadComponent: () =>
+          import('./features/admin/modules/operaciones/operaciones').then(m => m.OperacionesComponent),
+      },
+      {
+        path: 'operaciones/chats',
+        loadComponent: () =>
+          import('./features/admin/modules/operaciones/pages/chats/operaciones-chats').then(m => m.OperacionesChatsComponent),
+      },
+      {
+        path: 'operaciones/asignar',
+        loadComponent: () =>
+          import('./features/admin/modules/operaciones/pages/asignar/operaciones-asignar').then(m => m.OperacionesAsignarComponent),
+      },
+      {
+        path: 'operaciones/asesores',
+        loadComponent: () =>
+          import('./features/admin/modules/operaciones/pages/asesores/operaciones-asesores').then(m => m.OperacionesAsesoresComponent),
+      },
+      {
+        path: 'operaciones/alertas',
+        loadComponent: () =>
+          import('./features/admin/modules/operaciones/pages/alertas/operaciones-alertas').then(m => m.OperacionesAlertasComponent),
+      },
+      {
         path: 'whatsapp',
         loadComponent: () =>
           import('./features/admin/modules/whatsapp/whatsapp-admin').then(m => m.WhatsappAdminComponent),
