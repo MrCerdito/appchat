@@ -1,25 +1,29 @@
 # ── Stage 1: Build ────────────────────────────────────────────────────────────
 FROM node:20-alpine AS builder
+RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm ci
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY backend/package.json ./backend/
+RUN pnpm install --frozen-lockfile
 
-COPY . .
-RUN npm run build
+COPY backend/ ./backend/
+RUN pnpm --filter backend build
 
 # ── Stage 2: Production ───────────────────────────────────────────────────────
 FROM node:20-alpine
+RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 WORKDIR /app
 
 RUN apk add --no-cache curl tzdata
 
-COPY package*.json ./
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY backend/package.json ./backend/
 
-RUN npm ci --omit=dev
+RUN pnpm install --frozen-lockfile --filter backend
 
-COPY --from=builder /app/dist ./dist
-COPY entrypoint.sh /entrypoint.sh
+COPY --from=builder /app/backend/dist ./dist
+COPY backend/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 RUN mkdir -p /app/uploads/documentos /app/uploads/baileys-auth /app/uploads/whatsapp

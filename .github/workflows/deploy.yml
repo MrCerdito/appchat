@@ -23,9 +23,12 @@ jobs:
         run: docker build -t chat-frontend:ci ./frontend
         working-directory: ./frontend
 
+      - name: Install pnpm
+        run: npm install -g pnpm
+
       - name: Run backend lint
-        run: npm ci && npm run lint
-        working-directory: ./backend
+        run: pnpm install --frozen-lockfile && pnpm --filter backend lint
+        working-directory: .
 
   deploy:
     name: CD — Deploy to VPS

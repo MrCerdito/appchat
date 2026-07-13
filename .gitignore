@@ -1,5 +1,6 @@
 ﻿node_modules/
 dist/
+.pnpm-store
 *.tar.gz
 *.zip
 .env

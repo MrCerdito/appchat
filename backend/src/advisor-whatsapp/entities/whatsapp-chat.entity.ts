@@ -24,11 +24,7 @@ export type WhatsappOperationalStatus =
   | 'closed';
 
 export type WhatsappAssignmentMode =
-  | 'auto'
-  | 'manual'
-  | 'admin'
-  | 'fixed'
-  | 'temporary';
+  'auto' | 'manual' | 'admin' | 'fixed' | 'temporary';
 
 @Entity('whatsapp_chats')
 @Index('idx_whatsapp_chats_assigned_advisor_id', ['assignedAdvisor'])

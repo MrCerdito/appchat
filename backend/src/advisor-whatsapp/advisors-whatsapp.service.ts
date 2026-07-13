@@ -214,10 +214,7 @@ export interface IncomingHandlingResult {
 }
 
 export type WhatsappConnectionStatus =
-  | 'disconnected'
-  | 'connecting'
-  | 'qr'
-  | 'connected';
+  'disconnected' | 'connecting' | 'qr' | 'connected';
 
 export interface WhatsappConnectionDto {
   status: WhatsappConnectionStatus;
@@ -1571,7 +1568,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
           text: cleanEmoji,
           key,
         },
-      } as any);
+      });
     }
 
     const raw: IncomingWhatsappMessage = {
@@ -1611,7 +1608,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
         fromMe: true,
         id: message.metaMessageId,
       },
-    } as any);
+    });
   }
 
   private async deleteRemoteMessage(message: WhatsappMessage): Promise<void> {
@@ -1624,7 +1621,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
         fromMe: true,
         id: message.metaMessageId,
       },
-    } as any);
+    });
   }
 
   async sendMediaMessage(

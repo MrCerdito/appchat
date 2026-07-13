@@ -30,7 +30,7 @@ export class WidgetConfigController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   save(@Body() body: SaveWidgetConfigDto): Promise<WidgetConfig> {
-    return this.svc.save(body as Partial<WidgetConfig>);
+    return this.svc.save(body);
   }
 
   // ── DELETE /widget-config — reset a defaults ──────────────────────────────

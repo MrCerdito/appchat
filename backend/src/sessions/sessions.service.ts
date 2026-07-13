@@ -298,7 +298,7 @@ export class SessionsService {
     if (existing) return existing;
 
     const rating = this.ratingRepo.create({
-      session: { id: sessionId } as any,
+      session: { id: sessionId },
       estrellas,
       comentario: comentario ?? null,
       etiquetas: etiquetas ?? [],
