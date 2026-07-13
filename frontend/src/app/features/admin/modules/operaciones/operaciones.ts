@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { Subscription, forkJoin, interval } from 'rxjs';
 import { WhatsappChatService } from '../../../../core/services/whatsapp-chat.service';
 import { AuthService } from '../../../../core/services/auth.service';
-import { WaChat, WaAdvisorStats, WaAdminAlert } from '../../../../core/models/whatsapp.models';
+import { WaChat, WaAdvisorStats, WaAdminAlert, WaConnectionStatus } from '../../../../core/models/whatsapp.models';
 
 interface FilteredAlert {
   type: string;
@@ -39,6 +39,10 @@ export class OperacionesComponent implements OnInit, OnDestroy {
   alerts: WaAdminAlert[] = [];
   loading = true;
   wsConnected = false;
+
+  showSplash = true;
+  splashExiting = false;
+  waConnection: WaConnectionStatus = { status: 'connecting', updatedAt: new Date().toISOString() };
 
   filterEstado = 'todos';
   filterAsesor = 'todos';
@@ -90,10 +94,20 @@ export class OperacionesComponent implements OnInit, OnDestroy {
       }),
     );
 
-    // Conexión WebSocket
+    // Conexión WebSocket + Splash control
     this.subs.push(
       this.whatsappChat.getConnectionStream().subscribe(status => {
         this.wsConnected = status.status === 'connected';
+        this.waConnection = status;
+        if (status.status === 'connected' && this.showSplash && !this.splashExiting) {
+          this.splashExiting = true;
+          this.cdr.markForCheck();
+          setTimeout(() => {
+            this.showSplash = false;
+            this.splashExiting = false;
+            this.cdr.markForCheck();
+          }, 600);
+        }
         this.cdr.markForCheck();
       }),
     );
@@ -286,6 +300,7 @@ export class OperacionesComponent implements OnInit, OnDestroy {
   goToAsesores(): void { this.router.navigate(['/admin/operaciones/asesores']); }
   goToAlertas(): void { this.router.navigate(['/admin/operaciones/alertas']); }
   goToAsignar(): void { this.router.navigate(['/admin/operaciones/asignar']); }
+  goToFijar(): void { this.router.navigate(['/admin/operaciones/fijar']); }
   openChat(chatId: string): void { this.router.navigate(['/admin/operaciones/chats'], { queryParams: { chatId } }); }
 
   openAssignMenu(chatId: string): void {
@@ -311,6 +326,48 @@ export class OperacionesComponent implements OnInit, OnDestroy {
       error: () => {
         this.assignBusy = false;
         this.cdr.markForCheck();
+      },
+    });
+  }
+
+  // ────────── Splash / Conexión ────────────────────────────
+
+  get splashStatusText(): string {
+    switch (this.waConnection.status) {
+      case 'connecting':   return 'Preparando sesión segura...';
+      case 'qr':           return this.waConnection.qrDataUrl ? 'Escanea el código con WhatsApp' : 'Generando código QR...';
+      case 'connected':    return 'Conectado';
+      case 'error':        return this.waConnection.lastError || 'Error de conexión';
+      case 'disconnected': return 'Desconectado';
+      default:             return 'Conectando...';
+    }
+  }
+
+  get splashShowQr(): boolean {
+    return this.waConnection.status === 'qr' && !!this.waConnection.qrDataUrl;
+  }
+
+  get splashShowSpinner(): boolean {
+    return this.waConnection.status === 'connecting' ||
+           (this.waConnection.status === 'qr' && !this.waConnection.qrDataUrl);
+  }
+
+  get splashShowRetry(): boolean {
+    return this.waConnection.status === 'error' || this.waConnection.status === 'disconnected';
+  }
+
+  get splashShowCancel(): boolean {
+    return this.waConnection.status === 'qr' || this.waConnection.status === 'connecting';
+  }
+
+  retryConnection(): void {
+    this.whatsappChat.restartConnection().subscribe();
+  }
+
+  cancelAndRegenerate(): void {
+    this.whatsappChat.logoutConnection().subscribe({
+      next: () => {
+        setTimeout(() => this.whatsappChat.restartConnection().subscribe(), 1000);
       },
     });
   }

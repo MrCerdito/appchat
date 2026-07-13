@@ -90,6 +90,12 @@
         </svg>
         Almuerzo
       </button>
+      <button class="tab" [class.active]="tab === 'respuestas'" (click)="tab = 'respuestas'; initQuickRepliesFromConfig()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+        </svg>
+        Respuestas rapidas
+      </button>
     </div>
 
     <!-- ── Tab Bienvenida ── -->
@@ -321,6 +327,93 @@
               </svg>
               <span class="chip-dia">{{ getDiaNombre(a.dia) }}</span>
               <span class="chip-hora">{{ a.inicio }} – {{ a.fin }}</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════
+         TAB — RESPUESTAS RÁPIDAS (global, compartidas con admin)
+    ══════════════════════════════════════════════════════════ -->
+    <div class="tab-panel" *ngIf="tab === 'respuestas'">
+      <div class="panel-section">
+        <div class="section-info">
+          <h3>Respuestas rapidas globales</h3>
+          <p>Estas respuestas se comparten con el administrador. Las que agregues aqui estaran disponibles para todos los asesores.</p>
+          <p>Usa <code>/</code> en el chat para acceder rapidamente. Soporta <code>**negrita**</code> y <code>[texto](url)</code> para links.</p>
+        </div>
+
+        <div class="qr-list">
+          <div class="qr-item" *ngFor="let reply of quickReplies; let i = index; trackBy: trackByIndex">
+            <div class="qr-item-header" (click)="startEditReply(i)">
+              <div class="qr-item-info">
+                <span class="qr-item-name">{{ reply.name || '(sin nombre)' }}</span>
+                <span class="qr-item-preview">{{ formatPreview(reply.content) }}</span>
+              </div>
+              <div class="qr-item-actions">
+                <button type="button" class="qr-btn-icon" (click)="$event.stopPropagation(); moveQuickReply(i, -1)" [disabled]="i === 0" title="Mover arriba">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 15l-6-6-6 6"/></svg>
+                </button>
+                <button type="button" class="qr-btn-icon" (click)="$event.stopPropagation(); moveQuickReply(i, 1)" [disabled]="i === quickReplies.length - 1" title="Mover abajo">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <button type="button" class="qr-btn-icon qr-btn-danger" (click)="$event.stopPropagation(); removeQuickReply(i)" title="Eliminar">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="qr-item-editor" *ngIf="editingReplyIdx === i">
+              <div class="qr-editor-fields">
+                <div class="field">
+                  <label>Nombre</label>
+                  <input type="text" [(ngModel)]="reply.name" placeholder="Ej: Saludo, Documentacion..." maxlength="60"/>
+                </div>
+                <div class="field">
+                  <label>Contenido</label>
+                  <div class="qr-toolbar">
+                    <button type="button" class="qr-toolbar-btn" (click)="insertBold()" title="Negrita">
+                      <strong>B</strong>
+                    </button>
+                    <button type="button" class="qr-toolbar-btn" (click)="openLinkModal()" title="Insertar link">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                      Link
+                    </button>
+                  </div>
+                  <textarea [(ngModel)]="reply.content" rows="4" placeholder="Escribe el contenido de la respuesta..." (click)="onTextareaClick($any($event.target))" (focus)="onTextareaClick($any($event.target))"></textarea>
+                  <span class="field-hint">
+                    Usa <code>**texto**</code> para negrita y <code>[nombre](url)</code> para links.
+                    Maximo 500 caracteres.
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button type="button" class="qr-add-btn" (click)="addQuickReply()" [disabled]="quickReplies.length >= 20">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+          Nueva respuesta rapida
+        </button>
+        <span class="field-hint" *ngIf="quickReplies.length >= 20">Maximo 20 respuestas rapidas.</span>
+
+        <!-- Modal insertar link -->
+        <div class="qr-link-modal-overlay" *ngIf="showLinkModal" (click)="closeLinkModal()">
+          <div class="qr-link-modal" (click)="$event.stopPropagation()">
+            <h4>Insertar link</h4>
+            <div class="field">
+              <label>Texto a mostrar</label>
+              <input type="text" [(ngModel)]="linkName" placeholder="Ej: Documentacion, Sitio web..."/>
+            </div>
+            <div class="field">
+              <label>URL</label>
+              <input type="url" [(ngModel)]="linkUrl" placeholder="https://..."/>
+            </div>
+            <div class="qr-link-modal-actions">
+              <button type="button" class="qr-btn-cancel" (click)="closeLinkModal()">Cancelar</button>
+              <button type="button" class="qr-btn-insert" (click)="insertLink()" [disabled]="!linkName.trim() || !linkUrl.trim()">Insertar</button>
             </div>
           </div>
         </div>

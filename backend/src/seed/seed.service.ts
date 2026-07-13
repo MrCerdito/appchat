@@ -114,9 +114,9 @@ export class SeedService implements OnApplicationBootstrap {
       whatsappCallUnavailableMsg:
         'Actualmente no estamos disponibles para llamadas. Por favor escribenos por este chat y un asesor te atendera.',
       whatsappQuickReplies: [
-        'Hola, con gusto reviso tu caso.',
-        'Dame un momento mientras valido la informacion.',
-        'Quedo atento si necesitas algo mas.',
+        { name: 'Saludo', content: 'Hola, con gusto reviso tu caso.' },
+        { name: 'Espera', content: 'Dame un momento mientras valido la informacion.' },
+        { name: 'Despedida', content: 'Quedo atento si necesitas algo mas.' },
       ],
       almuerzos: [],
       ticketCategories: [

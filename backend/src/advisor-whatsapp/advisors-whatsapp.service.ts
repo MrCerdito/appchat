@@ -131,7 +131,7 @@ export interface WaChatDto {
   time: string;
   status: 'online' | 'away' | 'offline';
   notes: string[];
-  quickReplies: string[];
+  quickReplies: Array<{ name: string; content: string }>;
   lastClientMsg: Date;
   messages: WaMessageDto[];
   priority?: 'low' | 'normal' | 'high' | 'critical';
@@ -265,10 +265,10 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     'Hola. En este momento estamos fuera de servicio. Por favor vuelve {{proximaApertura}}.';
   private readonly defaultCallUnavailableMessage =
     'Actualmente no estamos disponibles para llamadas. Por favor escribenos por este chat y un asesor te atendera.';
-  private readonly defaultQuickReplies = [
-    'Hola, con gusto reviso tu caso.',
-    'Dame un momento mientras valido la informacion.',
-    'Quedo atento si necesitas algo mas.',
+  readonly defaultQuickReplies = [
+    { name: 'Saludo', content: 'Hola, con gusto reviso tu caso.' },
+    { name: 'Espera', content: 'Dame un momento mientras valido la informacion.' },
+    { name: 'Despedida', content: 'Quedo atento si necesitas algo mas.' },
   ];
   private readonly maxTextLength = 4096;
   private readonly maxCaptionLength = 1024;
@@ -1580,10 +1580,11 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       .getGlobal()
       .catch(() => null);
     const replies = this.normalizeQuickReplies(config?.whatsappQuickReplies);
-    return replies.map((text, index) => ({
+    return replies.map((reply, index) => ({
       id: `reply-${index + 1}`,
-      shortcut: this.quickReplyShortcut(text, index),
-      text,
+      name: reply.name,
+      content: reply.content,
+      shortcut: this.quickReplyShortcut(reply.name, index),
     }));
   }
 
@@ -3031,7 +3032,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
   private toChatDtoWithPreload(
     chat: WhatsappChat,
     messages: WhatsappMessage[],
-    quickReplies: string[],
+    quickReplies: Array<{ name: string; content: string }>,
   ): WaChatDto {
     const dtos = messages.map((m) => this.toMessageDto(m));
     const last =
@@ -3230,17 +3231,35 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     return body;
   }
 
-  private async getQuickReplyTexts(): Promise<string[]> {
+  private async getQuickReplyTexts(): Promise<Array<{ name: string; content: string }>> {
     const replies = await this.getQuickReplies();
-    return replies.map((reply) => reply.text);
+    return replies.map((reply) => ({ name: reply.name, content: reply.content }));
   }
 
-  private normalizeQuickReplies(value: unknown): string[] {
-    const source = Array.isArray(value) ? value : this.defaultQuickReplies;
-    const replies = source
-      .map((reply) => cleanText(reply))
-      .filter(Boolean)
+  private normalizeQuickReplies(value: unknown): Array<{ name: string; content: string }> {
+    if (!Array.isArray(value) || !value.length) return this.defaultQuickReplies;
+
+    const first = value[0];
+
+    if (typeof first === 'string') {
+      return value
+        .map((reply) => {
+          const text = cleanText(reply);
+          if (!text) return null;
+          return { name: text.slice(0, 60), content: text };
+        })
+        .filter(Boolean)
+        .slice(0, 20) as Array<{ name: string; content: string }>;
+    }
+
+    const replies = value
+      .filter((r: any) => r?.name && r?.content)
+      .map((r: any) => ({
+        name: String(r.name).slice(0, 60),
+        content: String(r.content).slice(0, 500),
+      }))
       .slice(0, 20);
+
     return replies.length ? replies : this.defaultQuickReplies;
   }
 

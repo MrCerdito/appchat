@@ -112,9 +112,9 @@ export const routes: Routes = [
           import('./features/admin/modules/operaciones/pages/alertas/operaciones-alertas').then(m => m.OperacionesAlertasComponent),
       },
       {
-        path: 'whatsapp',
+        path: 'operaciones/fijar',
         loadComponent: () =>
-          import('./features/admin/modules/whatsapp/whatsapp-admin').then(m => m.WhatsappAdminComponent),
+          import('./features/admin/modules/operaciones/pages/fijar/operaciones-fijar').then(m => m.OperacionesFijarComponent),
       },
       {
         path: 'configuracion',

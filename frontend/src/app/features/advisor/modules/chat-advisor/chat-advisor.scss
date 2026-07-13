@@ -748,11 +748,16 @@ button {
   background: var(--surface);
   display: flex;
   gap: 8px;
-  align-items: center;
+  align-items: flex-end;
   flex-shrink: 0;
+}
 
-  input {
-    flex: 1;
+.input-box {
+  position: relative;
+  flex: 1;
+
+  textarea {
+    width: 100%;
     background: var(--surface-hover);
     border: 1px solid transparent;
     border-radius: 22px;
@@ -761,6 +766,11 @@ button {
     font-size: 13px;
     color: var(--text);
     outline: none;
+    resize: none;
+    overflow-y: hidden;
+    min-height: 34px;
+    max-height: 120px;
+    line-height: 1.4;
     transition: border-color 0.15s, background 0.15s;
 
     &::placeholder { color: var(--text)3; }
@@ -770,6 +780,89 @@ button {
       border-color: $blue-lt;
     }
   }
+}
+
+.ghost-text {
+  position: absolute;
+  top: 8px;
+  left: 14px;
+  color: var(--text)5;
+  font-size: 13px;
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: calc(100% - 28px);
+}
+
+.slash-menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 6px);
+  z-index: 10;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 18px 44px rgba(0,0,0,.12);
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.slash-header {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text)4;
+  font-size: 11px;
+  font-weight: 600;
+
+  .slash-icon {
+    width: 13px;
+    height: 13px;
+    stroke: $blue;
+  }
+}
+
+.slash-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  align-items: flex-start;
+
+  &:hover, &.highlighted {
+    background: rgba($blue, 0.06);
+  }
+}
+
+.slash-reply-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.slash-reply-name {
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.slash-reply-preview {
+  color: var(--text)4;
+  font-size: 0.78rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .send-btn {
@@ -1696,7 +1789,7 @@ button {
   overflow-wrap: anywhere;
 }
 
-.input-wrap input {
+.input-box {
   min-width: 0;
 }
 
@@ -1881,7 +1974,7 @@ button {
     flex-wrap: wrap;
   }
 
-  .input-wrap input {
+  .input-box {
     flex: 1 0 calc(100% - 44px);
   }
 }

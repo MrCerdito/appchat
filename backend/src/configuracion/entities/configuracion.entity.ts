@@ -98,9 +98,9 @@ export class Configuracion {
     name: 'whatsapp_quick_replies',
     type: 'jsonb',
     default:
-      '["Hola, con gusto reviso tu caso.", "Dame un momento mientras valido la informacion.", "Quedo atento si necesitas algo mas."]',
+      '[{"name":"Saludo","content":"Hola, con gusto reviso tu caso."},{"name":"Espera","content":"Dame un momento mientras valido la informacion."},{"name":"Despedida","content":"Quedo atento si necesitas algo mas."}]',
   })
-  whatsappQuickReplies: string[];
+  whatsappQuickReplies: any[];
 
   // ★ Horarios de almuerzo personales del asesor
   // Columna nueva — requiere ejecutar el ALTER TABLE de abajo en la BD

@@ -19,6 +19,7 @@ import { Subject, firstValueFrom } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AiService } from '../../../../core/services/ai.service';
+import { ConfiguracionFrontendService } from '../../../../core/services/configuracion.service';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
 import { priorityLabel } from '../../../../shared/utils/ticket-categories';
 import { Ticket } from '../../../../core/models/ticket.model';
@@ -83,6 +84,12 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   isAiInsightLoading = false;
   aiInsightText = 'Analisis pendiente.';
 
+  configQuickReplies: Array<{ name: string; content: string }> = [];
+  showSlashMenu = false;
+  slashQuery = '';
+  slashHighlight = 0;
+  ghostSuggestion = '';
+
   // Ticket modal
   showTicketModal = false;
   ticketDto = { titulo: '', descripcion: '', priority: 'medium' as const, category: '' };
@@ -112,6 +119,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     private sound       : SoundService,
     private notification: NotificationService,
     private aiService   : AiService,
+    private configService: ConfiguracionFrontendService,
     private route       : ActivatedRoute,
     private router      : Router,
     private cdr         : ChangeDetectorRef,
@@ -170,6 +178,17 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     return !!this.activeSession && this.activeSession.status !== 'closed';
   }
 
+  get slashFiltered(): Array<{ name: string; content: string }> {
+    const q = this.slashQuery.toLowerCase();
+    return this.configQuickReplies.filter(r =>
+      (r.name + ' ' + r.content).toLowerCase().includes(q)
+    );
+  }
+
+  get visibleQuickReplies(): Array<{ name: string; content: string }> {
+    return this.configQuickReplies.slice(0, 3);
+  }
+
   unreadCount(sessionId: string): number {
     return this.state.getUnread(sessionId);
   }
@@ -188,6 +207,11 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     this.currentAdvisor = this.auth.getUser();
     this.loadSessions();
     this.loadAdvisors();
+
+    this.configService.getGlobal().subscribe(config => {
+      this.configQuickReplies = this.normalizeQuickReplies(config.whatsappQuickReplies);
+      this.cdr.detectChanges();
+    });
 
     const savedStatus = localStorage.getItem('advisor_status') ?? 'online';
     this.socket.emit('set_advisor_status', savedStatus);
@@ -637,6 +661,114 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     }, 1500));
   }
 
+  handleKey(event: KeyboardEvent): void {
+    if (this.showSlashMenu) {
+      if (event.key === 'Tab') {
+        event.preventDefault();
+        const match = this.slashFiltered[this.slashHighlight] ?? this.slashFiltered[0];
+        if (match) this.selectSlashReply(match);
+        return;
+      }
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        if (!this.slashFiltered.length) return;
+        this.slashHighlight = (this.slashHighlight + 1) % this.slashFiltered.length;
+        const item = this.slashFiltered[this.slashHighlight];
+        this.ghostSuggestion = item ? item.content.slice(this.slashQuery.length) : '';
+        return;
+      }
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        if (!this.slashFiltered.length) return;
+        this.slashHighlight =
+          (this.slashHighlight - 1 + this.slashFiltered.length) % this.slashFiltered.length;
+        const item = this.slashFiltered[this.slashHighlight];
+        this.ghostSuggestion = item ? item.content.slice(this.slashQuery.length) : '';
+        return;
+      }
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        const selected = this.slashFiltered[this.slashHighlight];
+        if (selected) this.selectSlashReply(selected);
+        return;
+      }
+      if (event.key === 'Escape') {
+        this.showSlashMenu = false;
+        this.ghostSuggestion = '';
+        return;
+      }
+    }
+
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      this.send();
+    }
+  }
+
+  onInputChange(): void {
+    this.onTyping();
+    const text = this.newMessage;
+    const slashIdx = text.lastIndexOf('/');
+    if (slashIdx === -1) {
+      this.showSlashMenu = false;
+      this.slashQuery = '';
+      this.ghostSuggestion = '';
+      return;
+    }
+
+    this.slashQuery = text.slice(slashIdx + 1).toLowerCase();
+    this.showSlashMenu = true;
+    this.slashHighlight = 0;
+    const match = this.configQuickReplies.find(r =>
+      (r.name + ' ' + r.content).toLowerCase().startsWith(this.slashQuery) && this.slashQuery.length > 0
+    );
+    this.ghostSuggestion = match ? match.content.slice(this.slashQuery.length) : '';
+  }
+
+  selectSlashReply(reply: { name: string; content: string }): void {
+    const slashIdx = this.newMessage.lastIndexOf('/');
+    this.newMessage = slashIdx >= 0
+      ? this.newMessage.slice(0, slashIdx) + reply.content
+      : reply.content;
+    this.showSlashMenu = false;
+    this.slashQuery = '';
+    this.ghostSuggestion = '';
+  }
+
+  useQuickReply(reply: { name: string; content: string }): void {
+    this.newMessage = reply.content;
+    this.showSlashMenu = false;
+    this.slashQuery = '';
+    this.ghostSuggestion = '';
+  }
+
+  formatPreview(text: string): string {
+    return text
+      .replace(/\*\*(.+?)\*\*/g, '$1')
+      .replace(/\[(.+?)\]\((.+?)\)/g, '$1');
+  }
+
+  private normalizeQuickReplies(value?: any[]): Array<{ name: string; content: string }> {
+    const fallback: Array<{ name: string; content: string }> = [
+      { name: 'Saludo', content: 'Hola, con gusto reviso tu caso.' },
+      { name: 'Espera', content: 'Dame un momento mientras valido la informacion.' },
+      { name: 'Despedida', content: 'Quedo atento si necesitas algo mas.' },
+    ];
+    if (!Array.isArray(value) || !value.length) return fallback;
+
+    if (typeof value[0] === 'string') {
+      return value
+        .map((text: string) => ({ name: text.trim().slice(0, 60), content: text.trim() }))
+        .filter(r => r.content)
+        .slice(0, 20);
+    }
+
+    return value
+      .filter((r: any) => r?.name && r?.content)
+      .map((r: any) => ({ name: String(r.name).slice(0, 60), content: String(r.content).slice(0, 500) }))
+      .slice(0, 20);
+  }
+
   // ── Enviar mensaje ────────────────────────────────────────────────────────
   send(): void {
     if (!this.newMessage.trim() || !this.activeSession || !this.canSendMessage) return;
@@ -649,8 +781,13 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
       this.isTyping = false;
       this.socket.emit('typing_stop', sessionId);
     }
-    this.socket.emit('send_message', { sessionId, content: this.newMessage.trim() });
+    const formatted = this.newMessage.trim()
+      .replace(/\*\*(.+?)\*\*/g, '*$1*')
+      .replace(/\[(.+?)\]\((.+?)\)/g, '$1: $2');
+    this.socket.emit('send_message', { sessionId, content: formatted });
     this.newMessage = '';
+    this.showSlashMenu = false;
+    this.ghostSuggestion = '';
   }
 
   async aiInsight(): Promise<void> {

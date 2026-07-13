@@ -26,8 +26,15 @@ export class ConfiguracionComponent implements OnInit {
   error = '';
   almuerzoActivo = false;
   almuerzoRestante = '';
-  tab: 'bienvenida' | 'asesor' | 'cliente' | 'almuerzo' = 'bienvenida';
+  tab: 'bienvenida' | 'asesor' | 'cliente' | 'almuerzo' | 'respuestas' = 'bienvenida';
   diaSeleccionado: number | null = null;
+
+  quickReplies: Array<{ name: string; content: string }> = [];
+  editingReplyIdx: number | null = null;
+  activeTextarea: HTMLTextAreaElement | null = null;
+  showLinkModal = false;
+  linkName = '';
+  linkUrl = '';
 
   readonly placeholderBienvenida = 'Hola, soy {{asesor}}, en que puedo ayudarte?';
 
@@ -62,10 +69,17 @@ export class ConfiguracionComponent implements OnInit {
         this.cdr.detectChanges();
       },
     });
+
+    this.svc.getGlobal().subscribe({
+      next: (globalConfig) => {
+        this.quickReplies = this.normalizeQuickReplies(globalConfig.whatsappQuickReplies);
+        this.cdr.detectChanges();
+      },
+    });
   }
 
     private advisorFields: (keyof ConfiguracionData)[] = [
-    'mensajeBienvenida', 'asesorInactividadSeg', 'asesorInactividadMsg',
+    'mensajeBienvenida', 'horarioFueraMsg', 'asesorInactividadSeg', 'asesorInactividadMsg',
     'clienteInactividadSeg', 'clienteInactividadMsg', 'clienteInactividadIters',
     'clienteCierreMsg', 'almuerzos',
   ];
@@ -94,14 +108,22 @@ export class ConfiguracionComponent implements OnInit {
     this.svc.guardar(payload).subscribe({
       next: (config) => {
         this.config = { ...config, almuerzos: config.almuerzos ?? [] };
-        this.saving = false;
-        this.saved = true;
-        this.notification.success('Configuración guardada', 'Tus cambios se aplicaron correctamente.');
-        setTimeout(() => {
-          this.saved = false;
-          this.cdr.detectChanges();
-        }, 3000);
-        this.cdr.detectChanges();
+
+        this.svc.guardarGlobal({ whatsappQuickReplies: this.quickReplies }).subscribe({
+          next: () => {
+            this.saving = false;
+            this.saved = true;
+            this.notification.success('Configuración guardada', 'Tus cambios se aplicaron correctamente.');
+            setTimeout(() => { this.saved = false; this.cdr.detectChanges(); }, 3000);
+            this.cdr.detectChanges();
+          },
+          error: (err) => {
+            this.saving = false;
+            this.error = this.extractError(err);
+            this.notification.error('Error al guardar respuestas rápidas', this.error);
+            this.cdr.detectChanges();
+          },
+        });
       },
       error: (err) => {
         this.saving = false;
@@ -187,5 +209,131 @@ export class ConfiguracionComponent implements OnInit {
       { length: this.config?.clienteInactividadIters ?? 0 },
       (_, i) => i,
     );
+  }
+
+  initQuickRepliesFromConfig(): void {
+    this.svc.getGlobal().subscribe({
+      next: (globalConfig) => {
+        this.quickReplies = this.normalizeQuickReplies(globalConfig.whatsappQuickReplies);
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  private normalizeQuickReplies(value: any[]): Array<{ name: string; content: string }> {
+    if (!Array.isArray(value) || !value.length) {
+      return [
+        { name: 'Saludo', content: 'Hola, con gusto reviso tu caso.' },
+        { name: 'Espera', content: 'Dame un momento mientras valido la informacion.' },
+        { name: 'Despedida', content: 'Quedo atento si necesitas algo mas.' },
+      ];
+    }
+    if (typeof value[0] === 'string') {
+      return value
+        .map((text: string) => ({ name: text.trim().slice(0, 60), content: text.trim() }))
+        .filter(r => r.content)
+        .slice(0, 20);
+    }
+    return value
+      .filter((r: any) => r?.name && r?.content)
+      .map((r: any) => ({ name: String(r.name).slice(0, 60), content: String(r.content).slice(0, 500) }))
+      .slice(0, 20);
+  }
+
+  addQuickReply(): void {
+    if (this.quickReplies.length >= 20) return;
+    this.quickReplies.push({ name: '', content: '' });
+    this.editingReplyIdx = this.quickReplies.length - 1;
+  }
+
+  removeQuickReply(idx: number): void {
+    this.quickReplies.splice(idx, 1);
+    if (this.editingReplyIdx === idx) this.editingReplyIdx = null;
+    else if (this.editingReplyIdx !== null && this.editingReplyIdx > idx) this.editingReplyIdx--;
+  }
+
+  moveQuickReply(idx: number, dir: -1 | 1): void {
+    const newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= this.quickReplies.length) return;
+    const temp = this.quickReplies[idx];
+    this.quickReplies[idx] = this.quickReplies[newIdx];
+    this.quickReplies[newIdx] = temp;
+    if (this.editingReplyIdx === idx) this.editingReplyIdx = newIdx;
+    else if (this.editingReplyIdx === newIdx) this.editingReplyIdx = idx;
+  }
+
+  startEditReply(idx: number): void {
+    this.editingReplyIdx = this.editingReplyIdx === idx ? null : idx;
+    if (this.editingReplyIdx !== null) {
+      setTimeout(() => {
+        const el = document.querySelector(`.qr-item:nth-child(${idx + 1}) .qr-item-editor textarea`) as HTMLTextAreaElement | null;
+        if (el) this.activeTextarea = el;
+      });
+    }
+  }
+
+  onTextareaClick(textarea: HTMLTextAreaElement): void {
+    this.activeTextarea = textarea;
+  }
+
+  formatPreview(text: string): string {
+    return text
+      .replace(/\*\*(.+?)\*\*/g, '$1')
+      .replace(/\[(.+?)\]\((.+?)\)/g, '$1');
+  }
+
+  insertBold(): void {
+    const textarea = this.activeTextarea;
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selected = textarea.value.substring(start, end);
+    const reply = this.quickReplies[this.editingReplyIdx!];
+    if (!reply) return;
+
+    const before = textarea.value.substring(0, start);
+    const after = textarea.value.substring(end);
+    const wrapped = selected ? `**${selected}**` : '**texto**';
+    textarea.value = before + wrapped + after;
+    reply.content = textarea.value;
+
+    const newCursorPos = start + wrapped.length;
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(selected ? newCursorPos : start + 2, selected ? newCursorPos : start + 7);
+    });
+  }
+
+  openLinkModal(): void {
+    this.linkName = '';
+    this.linkUrl = '';
+    this.showLinkModal = true;
+  }
+
+  closeLinkModal(): void {
+    this.showLinkModal = false;
+  }
+
+  insertLink(): void {
+    if (!this.linkName.trim() || !this.linkUrl.trim()) return;
+    const textarea = this.activeTextarea;
+    if (!textarea) return;
+    const reply = this.quickReplies[this.editingReplyIdx!];
+    if (!reply) return;
+
+    const start = textarea.selectionStart;
+    const link = `[${this.linkName.trim()}](${this.linkUrl.trim()})`;
+    const before = textarea.value.substring(0, start);
+    const after = textarea.value.substring(textarea.selectionEnd);
+    textarea.value = before + link + after;
+    reply.content = textarea.value;
+
+    this.showLinkModal = false;
+    this.linkName = '';
+    this.linkUrl = '';
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + link.length, start + link.length);
+    });
   }
 }

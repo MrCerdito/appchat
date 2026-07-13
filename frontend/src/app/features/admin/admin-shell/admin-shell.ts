@@ -37,18 +37,18 @@ export class AdminShellComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.currentAdmin = this.auth.getUser();
     this.socket.connect(this.auth.getToken() ?? undefined);
-    this.syncWhatsappShellMode();
+    this.syncSidebarMode();
     this.routerSub = this.router.events
       .pipe(filter(event => event instanceof NavigationEnd))
-      .subscribe(() => this.syncWhatsappShellMode());
+      .subscribe(() => this.syncSidebarMode());
   }
 
   ngOnDestroy(): void {
     this.routerSub?.unsubscribe();
   }
 
-  get isWhatsappRoute(): boolean {
-    return this.router.url.includes('/admin/whatsapp');
+  get isOperacionesRoute(): boolean {
+    return this.router.url.includes('/admin/operaciones');
   }
 
   openSidebar(): void {
@@ -57,8 +57,9 @@ export class AdminShellComponent implements OnInit, OnDestroy {
   }
 
   collapseSidebar(): void {
-    if (!this.isWhatsappRoute) return;
-    this.sidebarCollapsed = true;
+    if (this.isOperacionesRoute) {
+      this.sidebarCollapsed = true;
+    }
     this.sidebarOpen = false;
   }
 
@@ -66,7 +67,7 @@ export class AdminShellComponent implements OnInit, OnDestroy {
     if (window.innerWidth <= 768) {
       this.sidebarOpen = false;
     }
-    if (this.isWhatsappRoute) {
+    if (this.isOperacionesRoute) {
       this.sidebarCollapsed = true;
     }
   }
@@ -77,8 +78,8 @@ export class AdminShellComponent implements OnInit, OnDestroy {
     this.router.navigate(['/login']);
   }
 
-  private syncWhatsappShellMode(): void {
-    this.sidebarCollapsed = this.isWhatsappRoute;
+  private syncSidebarMode(): void {
+    this.sidebarCollapsed = this.isOperacionesRoute;
     this.sidebarOpen = false;
   }
 }

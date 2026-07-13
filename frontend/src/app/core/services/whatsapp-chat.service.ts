@@ -192,6 +192,14 @@ export class WhatsappChatService implements OnDestroy {
     ).pipe(tap(status => this.connection$.next(status)));
   }
 
+  logoutConnection(): Observable<WaConnectionStatus> {
+    return this.http.post<WaConnectionStatus>(
+      `${this.apiUrl}/connection/logout`,
+      {},
+      { headers: this.headers() },
+    ).pipe(tap(status => this.connection$.next(status)));
+  }
+
   private chatsPage = 1;
   private chatsLimit = 50;
   private hasMoreChats = true;

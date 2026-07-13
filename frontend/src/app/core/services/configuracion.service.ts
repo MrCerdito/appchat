@@ -33,7 +33,7 @@ export interface ConfiguracionData {
   whatsappQueueMsg: string;
   whatsappOutOfHoursMsg: string;
   whatsappCallUnavailableMsg: string;
-  whatsappQuickReplies: string[];
+  whatsappQuickReplies: any[];
   sonidoActivado: boolean;
   sonidoWhatsapp: string;
   sonidoAsesor: string;

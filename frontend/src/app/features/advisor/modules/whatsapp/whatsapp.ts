@@ -117,10 +117,10 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     'Hola, soy {{asesor}}. Ya fui asignado a tu conversacion y revisare tu caso.';
   readonly defaultCallUnavailableMsg =
     'Actualmente no estamos disponibles para llamadas. Por favor escribenos por este chat y un asesor te atendera.';
-  readonly defaultQuickReplies = [
-    'Hola, con gusto reviso tu caso.',
-    'Dame un momento mientras valido la informacion.',
-    'Quedo atento si necesitas algo mas.',
+  readonly defaultQuickReplies: Array<{ name: string; content: string }> = [
+    { name: 'Saludo', content: 'Hola, con gusto reviso tu caso.' },
+    { name: 'Espera', content: 'Dame un momento mientras valido la informacion.' },
+    { name: 'Despedida', content: 'Quedo atento si necesitas algo mas.' },
   ];
   readonly filterOptions: { id: WaFilter; label: string }[] = [
     { id: 'all', label: 'Todos' },
@@ -304,7 +304,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
           assignmentMsg: config.whatsappAssignmentMsg || this.defaultAssignmentMsg,
           queueMsg: config.whatsappQueueMsg || this.queueCopy,
           callUnavailableMsg: config.whatsappCallUnavailableMsg || this.defaultCallUnavailableMsg,
-          quickRepliesText: replies.join('\n'),
+          quickRepliesText: replies.map((r: any) => r.content).join('\n'),
         };
         this.applyQuickRepliesToContacts(replies);
         this.cdr.detectChanges();
@@ -466,15 +466,20 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     return !!this.messageText.trim() || !!this.selectedFile;
   }
 
-  get slashFiltered(): string[] {
+  get slashFiltered(): Array<{ name: string; content: string }> {
     const q = this.slashQuery.toLowerCase();
-    return this.activeContact?.quickReplies?.filter(reply =>
-      reply.toLowerCase().includes(q),
+    return (this.activeContact?.quickReplies ?? []).filter((reply: any) => {
+      const text = typeof reply === 'string' ? reply : (reply.name + ' ' + reply.content);
+      return text.toLowerCase().includes(q);
+    }).map((reply: any) =>
+      typeof reply === 'string' ? { name: reply.slice(0, 60), content: reply } : reply
     ) ?? [];
   }
 
-  get visibleQuickReplies(): string[] {
-    return this.activeContact?.quickReplies?.slice(0, 3) ?? [];
+  get visibleQuickReplies(): Array<{ name: string; content: string }> {
+    return (this.activeContact?.quickReplies ?? []).slice(0, 3).map((reply: any) =>
+      typeof reply === 'string' ? { name: reply.slice(0, 60), content: reply } : reply
+    ) ?? [];
   }
 
   get selectedMoreFilter(): WaFilter | '' {
@@ -941,9 +946,10 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
       return;
     }
 
-    const text = this.messageText.trim();
-    if (!text || !this.activeContact || this.isSending || !this.canReply) return;
+    const rawText = this.messageText.trim();
+    if (!rawText || !this.activeContact || this.isSending || !this.canReply) return;
 
+    const text = this.formatForWhatsApp(rawText);
     const now = new Date();
     const optimisticMsg = {
       id: `tmp-${Date.now()}`,
@@ -1566,7 +1572,8 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
         event.preventDefault();
         if (!this.slashFiltered.length) return;
         this.slashHighlight = (this.slashHighlight + 1) % this.slashFiltered.length;
-        this.ghostSuggestion = this.slashFiltered[this.slashHighlight]?.slice(this.slashQuery.length) ?? '';
+        const item = this.slashFiltered[this.slashHighlight];
+        this.ghostSuggestion = item ? item.content.slice(this.slashQuery.length) : '';
         return;
       }
       if (event.key === 'ArrowUp') {
@@ -1574,7 +1581,8 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
         if (!this.slashFiltered.length) return;
         this.slashHighlight =
           (this.slashHighlight - 1 + this.slashFiltered.length) % this.slashFiltered.length;
-        this.ghostSuggestion = this.slashFiltered[this.slashHighlight]?.slice(this.slashQuery.length) ?? '';
+        const item = this.slashFiltered[this.slashHighlight];
+        this.ghostSuggestion = item ? item.content.slice(this.slashQuery.length) : '';
         return;
       }
       if (event.key === 'Enter') {
@@ -1609,17 +1617,24 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     this.slashQuery = this.messageText.slice(slashIdx + 1).toLowerCase();
     this.showSlashMenu = true;
     this.slashHighlight = 0;
-    const match = this.activeContact?.quickReplies?.find(reply =>
-      reply.toLowerCase().startsWith(this.slashQuery) && this.slashQuery.length > 0,
-    );
-    this.ghostSuggestion = match ? match.slice(this.slashQuery.length) : '';
+    const match = (this.activeContact?.quickReplies ?? []).find((reply: any) => {
+      const text = typeof reply === 'string' ? reply : (reply.name + ' ' + reply.content);
+      return text.toLowerCase().startsWith(this.slashQuery) && this.slashQuery.length > 0;
+    });
+    if (match) {
+      const content = typeof match === 'string' ? match : match.content;
+      this.ghostSuggestion = content.slice(this.slashQuery.length);
+    } else {
+      this.ghostSuggestion = '';
+    }
   }
 
-  selectSlashReply(reply: string): void {
+  selectSlashReply(reply: any): void {
+    const content = typeof reply === 'string' ? reply : reply.content;
     const slashIdx = this.messageText.lastIndexOf('/');
     this.messageText = slashIdx >= 0
-      ? this.messageText.slice(0, slashIdx) + reply
-      : reply;
+      ? this.messageText.slice(0, slashIdx) + content
+      : content;
     this.showSlashMenu = false;
     this.slashQuery = '';
     this.ghostSuggestion = '';
@@ -1627,8 +1642,9 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     this.messageInput?.nativeElement?.focus();
   }
 
-  useQuickReply(reply: string): void {
-    this.messageText = reply;
+  useQuickReply(reply: any): void {
+    const content = typeof reply === 'string' ? reply : reply.content;
+    this.messageText = content;
     this.resizeMessageInput();
     this.messageInput?.nativeElement?.focus();
   }
@@ -1666,7 +1682,7 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
             assignmentMsg: config.whatsappAssignmentMsg || this.defaultAssignmentMsg,
             queueMsg: config.whatsappQueueMsg || this.queueCopy,
             callUnavailableMsg: config.whatsappCallUnavailableMsg || this.defaultCallUnavailableMsg,
-            quickRepliesText: replies.join('\n'),
+            quickRepliesText: replies.map((r: any) => r.content).join('\n'),
           };
           this.applyQuickRepliesToContacts(replies);
           this.isSavingWhatsappSettings = false;
@@ -2254,27 +2270,50 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     return message || fallback;
   }
 
-  private normalizeQuickReplies(value?: string[]): string[] {
-    const replies = Array.isArray(value)
-      ? value.map(reply => reply.trim()).filter(Boolean)
-      : [];
-    return replies.length ? replies.slice(0, 20) : [...this.defaultQuickReplies];
+  private normalizeQuickReplies(value?: any[]): Array<{ name: string; content: string }> {
+    if (!Array.isArray(value) || !value.length) return [...this.defaultQuickReplies];
+
+    if (typeof value[0] === 'string') {
+      return value
+        .map((text: string) => ({ name: text.trim().slice(0, 60), content: text.trim() }))
+        .filter(r => r.content)
+        .slice(0, 20);
+    }
+
+    return value
+      .filter((r: any) => r?.name && r?.content)
+      .map((r: any) => ({ name: String(r.name).slice(0, 60), content: String(r.content).slice(0, 500) }))
+      .slice(0, 20);
   }
 
-  private quickRepliesFromSettingsText(value: string): string[] {
+  private quickRepliesFromSettingsText(value: string): Array<{ name: string; content: string }> {
     const replies = value
       .split(/\r?\n/)
       .map(reply => reply.trim())
       .filter(Boolean)
       .slice(0, 20);
-    return replies.length ? replies : [...this.defaultQuickReplies];
+    return replies.length
+      ? replies.map(text => ({ name: text.slice(0, 60), content: text }))
+      : [...this.defaultQuickReplies];
   }
 
-  private applyQuickRepliesToContacts(replies: string[]): void {
+  private applyQuickRepliesToContacts(replies: Array<{ name: string; content: string }>): void {
     this.contacts = this.contacts.map(contact => ({ ...contact, quickReplies: replies }));
     if (this.activeContact) {
       this.activeContact = { ...this.activeContact, quickReplies: replies };
     }
+  }
+
+  formatForWhatsApp(text: string): string {
+    return text
+      .replace(/\*\*(.+?)\*\*/g, '*$1*')
+      .replace(/\[(.+?)\]\((.+?)\)/g, '$1: $2');
+  }
+
+  formatPreview(text: string): string {
+    return text
+      .replace(/\*\*(.+?)\*\*/g, '$1')
+      .replace(/\[(.+?)\]\((.+?)\)/g, '$1');
   }
 
   private scrollToBottom(): void {

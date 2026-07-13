@@ -14,7 +14,7 @@ import { WhatsappChatService } from '../../../../core/services/whatsapp-chat.ser
 import { WaConnectionStatus } from '../../../../core/models/whatsapp.models';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
 
-type ConfigTab = 'jornada' | 'whatsapp' | 'mensajes' | 'inactividad';
+type ConfigTab = 'jornada' | 'whatsapp' | 'mensajes' | 'inactividad' | 'respuestas';
 
 @Component({
   selector: 'app-admin-configuracion',
@@ -33,6 +33,13 @@ export class AdminConfiguracionComponent implements OnInit {
   error = '';
   tab: ConfigTab = 'jornada';
   diaSeleccionado: number | null = null;
+
+  quickReplies: Array<{ name: string; content: string }> = [];
+  editingReplyIdx: number | null = null;
+  activeTextarea: HTMLTextAreaElement | null = null;
+  showLinkModal = false;
+  linkName = '';
+  linkUrl = '';
 
   readonly placeholderBienvenida =
     'Hola, soy {{asesor}}, en que puedo ayudarte?';
@@ -135,6 +142,7 @@ export class AdminConfiguracionComponent implements OnInit {
     this.saving = true;
     this.error = '';
 
+    this.config.whatsappQuickReplies = this.quickReplies;
     this.applySoundConfig();
     this.svc.guardarGlobal(this.config).subscribe({
       next: (config) => {
@@ -286,6 +294,130 @@ export class AdminConfiguracionComponent implements OnInit {
       sonidoAsesor: config.sonidoAsesor ?? 'asesor1',
       sonidoCliente: config.sonidoCliente ?? 'cliente1',
       sonidoAsignacion: config.sonidoAsignacion ?? 'asignacion1',
+      whatsappQuickReplies: this.normalizeQuickReplies(config.whatsappQuickReplies),
     };
+  }
+
+  private normalizeQuickReplies(value: any[]): Array<{ name: string; content: string }> {
+    if (!Array.isArray(value) || !value.length) {
+      return [
+        { name: 'Saludo', content: 'Hola, con gusto reviso tu caso.' },
+        { name: 'Espera', content: 'Dame un momento mientras valido la informacion.' },
+        { name: 'Despedida', content: 'Quedo atento si necesitas algo mas.' },
+      ];
+    }
+    if (typeof value[0] === 'string') {
+      return value
+        .map((text: string) => ({ name: text.trim().slice(0, 60), content: text.trim() }))
+        .filter(r => r.content)
+        .slice(0, 20);
+    }
+    return value
+      .filter((r: any) => r?.name && r?.content)
+      .map((r: any) => ({ name: String(r.name).slice(0, 60), content: String(r.content).slice(0, 500) }))
+      .slice(0, 20);
+  }
+
+  addQuickReply(): void {
+    if (!this.config || this.quickReplies.length >= 20) return;
+    this.quickReplies.push({ name: '', content: '' });
+    this.editingReplyIdx = this.quickReplies.length - 1;
+  }
+
+  removeQuickReply(idx: number): void {
+    this.quickReplies.splice(idx, 1);
+    if (this.editingReplyIdx === idx) this.editingReplyIdx = null;
+    else if (this.editingReplyIdx !== null && this.editingReplyIdx > idx) this.editingReplyIdx--;
+  }
+
+  moveQuickReply(idx: number, dir: -1 | 1): void {
+    const newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= this.quickReplies.length) return;
+    const temp = this.quickReplies[idx];
+    this.quickReplies[idx] = this.quickReplies[newIdx];
+    this.quickReplies[newIdx] = temp;
+    if (this.editingReplyIdx === idx) this.editingReplyIdx = newIdx;
+    else if (this.editingReplyIdx === newIdx) this.editingReplyIdx = idx;
+  }
+
+  startEditReply(idx: number): void {
+    this.editingReplyIdx = this.editingReplyIdx === idx ? null : idx;
+    if (this.editingReplyIdx !== null) {
+      setTimeout(() => {
+        const el = document.querySelector(`.qr-item:nth-child(${idx + 1}) .qr-item-editor textarea`) as HTMLTextAreaElement | null;
+        if (el) this.activeTextarea = el;
+      });
+    }
+  }
+
+  onTextareaClick(textarea: HTMLTextAreaElement): void {
+    this.activeTextarea = textarea;
+  }
+
+  formatPreview(text: string): string {
+    return text
+      .replace(/\*\*(.+?)\*\*/g, '$1')
+      .replace(/\[(.+?)\]\((.+?)\)/g, '$1');
+  }
+
+  insertBold(): void {
+    const textarea = this.activeTextarea;
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selected = textarea.value.substring(start, end);
+    const reply = this.quickReplies[this.editingReplyIdx!];
+    if (!reply) return;
+
+    const before = textarea.value.substring(0, start);
+    const after = textarea.value.substring(end);
+    const wrapped = selected ? `**${selected}**` : '**texto**';
+    textarea.value = before + wrapped + after;
+    reply.content = textarea.value;
+
+    const newCursorPos = start + wrapped.length;
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(selected ? newCursorPos : start + 2, selected ? newCursorPos : start + 7);
+    });
+  }
+
+  openLinkModal(): void {
+    this.linkName = '';
+    this.linkUrl = '';
+    this.showLinkModal = true;
+  }
+
+  closeLinkModal(): void {
+    this.showLinkModal = false;
+  }
+
+  insertLink(): void {
+    if (!this.linkName.trim() || !this.linkUrl.trim()) return;
+    const textarea = this.activeTextarea;
+    if (!textarea) return;
+    const reply = this.quickReplies[this.editingReplyIdx!];
+    if (!reply) return;
+
+    const start = textarea.selectionStart;
+    const link = `[${this.linkName.trim()}](${this.linkUrl.trim()})`;
+    const before = textarea.value.substring(0, start);
+    const after = textarea.value.substring(textarea.selectionEnd);
+    textarea.value = before + link + after;
+    reply.content = textarea.value;
+
+    this.showLinkModal = false;
+    this.linkName = '';
+    this.linkUrl = '';
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + link.length, start + link.length);
+    });
+  }
+
+  initQuickRepliesFromConfig(): void {
+    if (this.config) {
+      this.quickReplies = this.normalizeQuickReplies(this.config.whatsappQuickReplies);
+    }
   }
 }

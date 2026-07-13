@@ -31,6 +31,11 @@ export class GuardarConfigAdvisorDto {
   mensajeBienvenida?: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  horarioFueraMsg?: string;
+
+  @IsOptional()
   @IsInt()
   @Min(10)
   @Max(3600)
@@ -68,4 +73,8 @@ export class GuardarConfigAdvisorDto {
   @ValidateNested({ each: true })
   @Type(() => HorarioAlmuerzoObject)
   almuerzos?: HorarioAlmuerzo[];
+
+  @IsOptional()
+  @IsArray()
+  whatsappQuickReplies?: any[];
 }

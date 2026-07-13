@@ -96,9 +96,7 @@ export class GuardarConfigGlobalDto {
 
   @IsOptional()
   @IsArray()
-  @IsString({ each: true })
-  @MaxLength(500, { each: true })
-  whatsappQuickReplies?: string[];
+  whatsappQuickReplies?: any[];
 
   @IsOptional()
   @IsArray()

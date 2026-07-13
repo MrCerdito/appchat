@@ -210,15 +210,41 @@
         </div>
 
         <footer class="input-wrap">
-          <input
-            type="text"
-            [(ngModel)]="newMessage"
-            [placeholder]="aiModeActive ? 'Escribe para retomar el control...' : 'Escribe un mensaje...'"
-            (keyup.enter)="send()"
-            (input)="onTyping()"
-            [disabled]="!canSendMessage"
-            maxlength="1000"
-          >
+          <div class="input-box">
+            <textarea
+              [(ngModel)]="newMessage"
+              (ngModelChange)="onInputChange()"
+              rows="1"
+              [placeholder]="aiModeActive ? 'Escribe para retomar el control...  (Shift+Enter nueva linea)' : 'Escribe un mensaje o / para respuestas rapidas  (Shift+Enter nueva linea)'"
+              (keydown)="handleKey($event)"
+              [disabled]="!canSendMessage"
+              maxlength="1000"
+            ></textarea>
+            <span class="ghost-text" *ngIf="ghostSuggestion">{{ ghostSuggestion }}</span>
+
+            <div class="slash-menu" *ngIf="showSlashMenu && slashFiltered.length > 0">
+              <div class="slash-header">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="slash-icon">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                </svg>
+                Respuestas rapidas
+              </div>
+              <button
+                type="button"
+                class="slash-item"
+                *ngFor="let reply of slashFiltered; trackBy: trackByIndex; let i = index"
+                [class.highlighted]="i === slashHighlight"
+                (mouseenter)="slashHighlight = i"
+                (click)="selectSlashReply(reply)"
+              >
+                <div class="slash-reply-text">
+                  <span class="slash-reply-name">{{ reply.name }}</span>
+                  <span class="slash-reply-preview">{{ formatPreview(reply.content) }}</span>
+                </div>
+              </button>
+            </div>
+          </div>
+
           <button class="send-btn" type="button" (click)="send()" [disabled]="!newMessage.trim() || !canSendMessage">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <line x1="22" y1="2" x2="11" y2="13"></line>

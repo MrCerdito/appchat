@@ -52,7 +52,7 @@ export interface WaChat {
   time: string;
   status: 'online' | 'away' | 'offline';
   notes: string[];
-  quickReplies: string[];
+  quickReplies: Array<{ name: string; content: string }> | string[];
   lastClientMsg: Date;
   messages: WaMessage[];
   priority?: 'low' | 'normal' | 'high' | 'critical';
@@ -120,8 +120,14 @@ export interface WaAdminDashboard {
 
 export interface QuickReply {
   id: string;
+  name: string;
+  content: string;
   shortcut: string;
-  text: string;
+}
+
+export interface QuickReplyItem {
+  name: string;
+  content: string;
 }
 
 export interface AwNewMessage extends WaMessage {}

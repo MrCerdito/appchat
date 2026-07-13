@@ -561,8 +561,9 @@
           *ngFor="let reply of visibleQuickReplies; trackBy: trackByIndex"
           (click)="useQuickReply(reply)"
           [disabled]="!canReply"
+          [title]="reply.content"
         >
-          {{ reply }}
+          {{ reply.name }}
         </button>
       </div>
 
@@ -629,8 +630,10 @@
             (mouseenter)="slashHighlight = i"
             (click)="selectSlashReply(reply)"
           >
-            <span>/</span>
-            {{ reply }}
+            <div class="slash-reply-text">
+              <span class="slash-reply-name">{{ reply.name }}</span>
+              <span class="slash-reply-preview">{{ formatPreview(reply.content) }}</span>
+            </div>
           </button>
         </div>
 

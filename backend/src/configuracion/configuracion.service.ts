@@ -170,10 +170,27 @@ export class ConfiguracionService implements OnModuleInit {
     this.sanitizeConfigText(data);
 
     if (Array.isArray(data.whatsappQuickReplies)) {
-      data.whatsappQuickReplies = data.whatsappQuickReplies
-        .map((reply) => cleanText(reply, 500))
-        .filter(Boolean)
-        .slice(0, 20);
+      const first = data.whatsappQuickReplies[0];
+
+      if (typeof first === 'string') {
+        data.whatsappQuickReplies = (data.whatsappQuickReplies as string[])
+          .map((text) => {
+            const clean = cleanText(text, 500);
+            if (!clean) return null;
+            return { name: clean.slice(0, 60), content: clean };
+          })
+          .filter(Boolean)
+          .slice(0, 20) as any;
+      } else {
+        data.whatsappQuickReplies = (data.whatsappQuickReplies as any[])
+          .filter((r) => r?.name && r?.content)
+          .map((r) => ({
+            name: String(r.name).slice(0, 60),
+            content: cleanText(String(r.content), 500) || '',
+          }))
+          .filter((r) => r.content)
+          .slice(0, 20);
+      }
     }
 
     const existing = await this.repo.findOne({
@@ -186,7 +203,11 @@ export class ConfiguracionService implements OnModuleInit {
       Object.assign(existing, data);
       saved = await this.repo.save(existing);
     } else {
-      const nueva = this.repo.create({ ...data, advisorId: advisorId ?? null });
+      const global = await this.repo.findOne({ where: { advisorId: null as any } });
+      const defaults = global ? { ...global } : {};
+      delete (defaults as any).id;
+      delete (defaults as any).advisorId;
+      const nueva = this.repo.create({ ...defaults, ...data, advisorId: advisorId ?? null });
       saved = await this.repo.save(nueva);
     }
 

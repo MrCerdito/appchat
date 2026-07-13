@@ -367,51 +367,21 @@
   overflow: auto;
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
-.whatsapp-shell-toggle {
-  display: none;
-}
-
-.admin-shell.whatsapp-focus {
-  .shell-outlet {
-    position: relative;
-    overflow: hidden;
-    background: var(--bg);
-  }
-
-  .whatsapp-shell-toggle {
-    position: absolute;
-    top: 14px;
-    left: 14px;
-    z-index: 50;
-    display: grid;
-    place-items: center;
-    width: 38px;
-    height: 38px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: var(--surface);
-    color: var(--text-muted);
-    cursor: pointer;
-
-    svg {
-      width: 18px;
-      height: 18px;
-    }
-  }
-}
-
-.admin-shell.whatsapp-focus.sidebar-collapsed {
+// ── Sidebar collapsed (Operaciones) ────────────────────────
+.admin-shell.sidebar-collapsed {
   .shell-sidebar {
     width: 0;
     min-width: 0;
     transform: translateX(-100%);
     border: 0;
+    overflow: hidden;
   }
 }
 
-.admin-shell.whatsapp-focus:not(.sidebar-collapsed) {
+.admin-shell:not(.sidebar-collapsed) {
   .sidebar-overlay {
     display: block;
     opacity: 1;
@@ -423,5 +393,30 @@
     inset: 0 auto 0 0;
     z-index: 300;
     transform: translateX(0);
+  }
+}
+
+// ── Toggle button (flotante) ──────────────────────────────
+.sidebar-toggle-btn {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+
+  svg { width: 18px; height: 18px; }
+
+  &:hover {
+    background: var(--sidebar-hover);
+    color: var(--text);
   }
 }

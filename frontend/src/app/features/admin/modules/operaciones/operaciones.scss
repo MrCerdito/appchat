@@ -1481,3 +1481,171 @@
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
 }
+
+// ═══════════════════════════════════════════════════════════
+// SPLASH SCREEN
+// ═══════════════════════════════════════════════════════════
+
+.op-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #0F172A 100%);
+  animation: op-splash-in 0.5s ease-out;
+
+  &.exiting {
+    animation: op-splash-out 0.6s ease-in forwards;
+  }
+}
+
+.op-splash-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 48px 56px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  backdrop-filter: blur(20px);
+  max-width: 440px;
+  width: 90%;
+}
+
+.op-splash-logo {
+  width: 72px;
+  height: 72px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #10B981, #059669);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 32px rgba(16, 185, 129, 0.3);
+
+  svg {
+    width: 40px;
+    height: 40px;
+    color: #fff;
+  }
+}
+
+.op-splash-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #F8FAFC;
+  text-align: center;
+  margin: 0;
+  letter-spacing: -0.3px;
+}
+
+.op-splash-subtitle {
+  font-size: 14px;
+  color: #94A3B8;
+  margin: -12px 0 0;
+  text-align: center;
+}
+
+.op-splash-qr-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  margin-top: 8px;
+  animation: op-splash-fade-in 0.4s ease-out;
+}
+
+.op-splash-qr-img {
+  width: 220px;
+  height: 220px;
+  border-radius: 14px;
+  background: #fff;
+  padding: 10px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+}
+
+.op-splash-qr-hint {
+  font-size: 12px;
+  color: #94A3B8;
+  text-align: center;
+  line-height: 1.5;
+  max-width: 280px;
+}
+
+.op-splash-spinner-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 0;
+}
+
+.op-splash-spinner {
+  width: 44px;
+  height: 44px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top-color: #10B981;
+  border-radius: 50%;
+  animation: op-splash-spin 0.8s linear infinite;
+}
+
+.op-splash-retry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 28px;
+  background: linear-gradient(135deg, #10B981, #059669);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 8px;
+
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+.op-splash-status {
+  font-size: 13px;
+  color: #64748B;
+  text-align: center;
+  margin: 0;
+
+  &.error {
+    color: #EF4444;
+  }
+}
+
+@keyframes op-splash-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes op-splash-out {
+  from { opacity: 1; }
+  to { opacity: 0; pointer-events: none; }
+}
+
+@keyframes op-splash-fade-in {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes op-splash-spin {
+  to { transform: rotate(360deg); }
+}

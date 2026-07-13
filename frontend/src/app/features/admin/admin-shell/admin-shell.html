@@ -1,4 +1,4 @@
-<div class="admin-shell" [class.whatsapp-focus]="isWhatsappRoute" [class.sidebar-collapsed]="sidebarCollapsed">
+<div class="admin-shell" [class.sidebar-collapsed]="sidebarCollapsed">
 
   <!-- Overlay para cerrar sidebar en móvil -->
   <div class="sidebar-overlay" [class.visible]="sidebarOpen" (click)="collapseSidebar()"></div>
@@ -56,16 +56,6 @@
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
         </svg>
         <span>Operaciones 2.0</span>
-      </a>
-
-      <a class="nav-item" routerLink="whatsapp" routerLinkActive="active" (click)="closeSidebarOnMobile()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 11.5a8.4 8.4 0 0 1-12.1 7.55L3 21l1.95-5.74A8.4 8.4 0 1 1 21 11.5z"/>
-          <path d="M9 10.5c.5 1.6 1.7 2.8 3.5 3.5"/>
-          <path d="M13.2 14.1l1.1-.5 1.4.8c.2.1.2.4.1.6-.3.7-.9 1.1-1.7 1.1-2.5 0-6.2-3.4-6.2-6.1 0-.8.4-1.5 1.1-1.8.2-.1.5 0 .6.2l.8 1.4-.5 1.1"/>
-        </svg>
-        <span>WhatsApp</span>
       </a>
 
       <span class="nav-label section-spacer">Análisis</span>
@@ -240,9 +230,9 @@
 
     <div class="shell-outlet">
       <button
-        class="whatsapp-shell-toggle"
+        class="sidebar-toggle-btn"
         type="button"
-        *ngIf="isWhatsappRoute && sidebarCollapsed"
+        *ngIf="sidebarCollapsed"
         (click)="openSidebar()"
         title="Mostrar menu"
       >
