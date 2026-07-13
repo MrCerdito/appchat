@@ -515,6 +515,14 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     );
   }
 
+  get hasMoreChats(): boolean {
+    return this.waService.hasMore;
+  }
+
+  get isLoadingMoreChats(): boolean {
+    return this.waService.isLoadingMore;
+  }
+
   selectContact(contact: WaChat): void {
     this.activeContact = contact;
     this.showInfoPanel = false;

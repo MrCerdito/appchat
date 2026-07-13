@@ -350,14 +350,14 @@
       </div>
 
       <button
-        *ngIf="waService.hasMore && filteredContacts.length > 0"
+        *ngIf="hasMoreChats && filteredContacts.length > 0"
         type="button"
         class="load-more-btn"
-        [disabled]="waService.isLoadingMore"
+        [disabled]="isLoadingMoreChats"
         (click)="loadMoreChats()"
       >
-        <span *ngIf="waService.isLoadingMore">Cargando...</span>
-        <span *ngIf="!waService.isLoadingMore">Cargar mas chats</span>
+        <span *ngIf="isLoadingMoreChats">Cargando...</span>
+        <span *ngIf="!isLoadingMoreChats">Cargar mas chats</span>
       </button>
     </div>
   </aside>
