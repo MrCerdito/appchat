@@ -16,7 +16,7 @@ RUN pnpm --filter frontend build --configuration=production
 
 FROM nginx:alpine
 RUN apk add --no-cache envsubst
-COPY --from=builder /app/dist/frontend/browser /usr/share/nginx/html
+COPY --from=builder /app/frontend/dist/frontend/browser /usr/share/nginx/html
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
 COPY frontend/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
