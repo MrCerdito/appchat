@@ -8,9 +8,10 @@ WORKDIR /app
 
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY frontend/package.json ./frontend/
+COPY backend/package.json ./backend/
 RUN pnpm install --frozen-lockfile
 
-COPY frontend/ .
+COPY frontend/ ./frontend/
 RUN pnpm --filter frontend build --configuration=production
 
 FROM nginx:alpine

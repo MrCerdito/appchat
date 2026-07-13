@@ -13,5 +13,4 @@ Backup
 test
 deploy
 .opencode
-*.html
 docker-compose.yml
