@@ -844,6 +844,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       const chatIds = chats.map((c) => c.id);
       const allMessages = await this.messageRepo
         .createQueryBuilder('msg')
+        .leftJoinAndSelect('msg.chat', 'chat')
         .leftJoinAndSelect('msg.advisor', 'advisor')
         .where('msg.chat_id IN (:...chatIds)', { chatIds })
         .orderBy('msg.created_at', 'ASC')
@@ -878,6 +879,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     const chatIds = chats.map((c) => c.id);
     const allMessages = await this.messageRepo
       .createQueryBuilder('msg')
+      .leftJoinAndSelect('msg.chat', 'chat')
       .leftJoinAndSelect('msg.advisor', 'advisor')
       .where('msg.chat_id IN (:...chatIds)', { chatIds })
       .orderBy('msg.created_at', 'ASC')
