@@ -32,8 +32,8 @@ services:
   # ── Backend (NestJS) ─────────────────────────────────────────────────
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: chat-backend
     restart: unless-stopped
     stop_grace_period: 30s
@@ -66,8 +66,8 @@ services:
   # ── Frontend (Angular + Nginx) ───────────────────────────────────────
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: frontend/Dockerfile
       args:
         BASE_HREF: /agora/
     container_name: chat-frontend
