@@ -76,8 +76,14 @@ export class AdvisorsWhatsappController {
 
   @Get('chats')
   @UseGuards(JwtAuthGuard)
-  listChats(@Req() req: Request & { user: any }) {
-    return this.whatsappService.listChats(req.user.id, req.user.role);
+  listChats(
+    @Req() req: Request & { user: any },
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const p = page ? Math.max(1, parseInt(page, 10) || 1) : undefined;
+    const l = limit ? Math.min(100, Math.max(1, parseInt(limit, 10) || 50)) : undefined;
+    return this.whatsappService.listChats(req.user.id, req.user.role, p, l);
   }
 
   @Get('admin/dashboard')

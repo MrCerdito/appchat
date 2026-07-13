@@ -66,6 +66,15 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_whatsapp_chats_jid_unique
 CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_chat_created
   ON public.whatsapp_messages(chat_id, created_at);
 
+CREATE INDEX IF NOT EXISTS idx_whatsapp_chats_last_message_at
+  ON public.whatsapp_chats(last_message_at DESC NULLS LAST);
+
+CREATE INDEX IF NOT EXISTS idx_whatsapp_chats_last_client_message_at
+  ON public.whatsapp_chats(last_client_message_at DESC NULLS LAST);
+
+CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_from_me
+  ON public.whatsapp_messages(from_me);
+
 ALTER TABLE IF EXISTS public.whatsapp_chats
   ALTER COLUMN phone TYPE varchar(100),
   ADD COLUMN IF NOT EXISTS jid varchar(100) NULL,

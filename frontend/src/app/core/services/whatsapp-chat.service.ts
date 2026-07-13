@@ -110,8 +110,10 @@ export class WhatsappChatService implements OnDestroy {
     });
 
     this.socket.on('aw_queue_updated', (data: AwQueueUpdated = {}) => {
-      if (data.chat) this.queueUpdated$.next(data);
-      this.loadChats().subscribe();
+      if (data.chat) {
+        this.queueUpdated$.next(data);
+        this.upsertChat(data.chat);
+      }
     });
 
     this.socket.on('aw_connection_update', (data: WaConnectionStatus) => {
@@ -190,13 +192,53 @@ export class WhatsappChatService implements OnDestroy {
     ).pipe(tap(status => this.connection$.next(status)));
   }
 
-  loadChats(): Observable<WaChat[]> {
-    return this.http.get<WaChat[]>(`${this.apiUrl}/chats`, { headers: this.headers() }).pipe(
-      tap(chats => this.chats$.next(chats)),
+  private chatsPage = 1;
+  private chatsLimit = 50;
+  private hasMoreChats = true;
+  private loadingMore = false;
+
+  loadChats(page = 1, limit = 50): Observable<WaChat[] | { chats: WaChat[]; total: number; hasMore: boolean }> {
+    return this.http.get<WaChat[] | { chats: WaChat[]; total: number; hasMore: boolean }>(
+      `${this.apiUrl}/chats`,
+      { headers: this.headers(), params: { page: String(page), limit: String(limit) } },
+    ).pipe(
+      tap(res => {
+        if (Array.isArray(res)) {
+          this.chats$.next(res);
+        } else {
+          this.hasMoreChats = res.hasMore;
+          this.chatsPage = page;
+          if (page === 1) {
+            this.chats$.next(res.chats);
+          } else {
+            const current = this.chats$.getValue();
+            this.chats$.next([...current, ...res.chats]);
+          }
+        }
+      }),
       catchError(() => {
-        return of([]);
+        return of([] as WaChat[]);
       }),
     );
+  }
+
+  loadMoreChats(): Observable<WaChat[] | { chats: WaChat[]; total: number; hasMore: boolean }> {
+    if (this.loadingMore || !this.hasMoreChats) {
+      return of([] as WaChat[]);
+    }
+    this.loadingMore = true;
+    return this.loadChats(this.chatsPage + 1, this.chatsLimit).pipe(
+      tap(() => { this.loadingMore = false; }),
+      catchError(() => { this.loadingMore = false; return of([] as WaChat[]); }),
+    );
+  }
+
+  get hasMore(): boolean {
+    return this.hasMoreChats;
+  }
+
+  get isLoadingMore(): boolean {
+    return this.loadingMore;
   }
 
   loadAdminDashboard(): Observable<WaAdminDashboard> {
@@ -433,7 +475,6 @@ export class WhatsappChatService implements OnDestroy {
     const idx = current.findIndex(c => c.id === msg.chatId);
 
     if (idx === -1) {
-      this.loadChats().subscribe();
       return true;
     }
 

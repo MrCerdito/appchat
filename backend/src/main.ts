@@ -4,6 +4,7 @@ import { ValidationPipe, Logger } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { join } from 'path';
 import helmet from 'helmet';
+import compression from 'compression';
 
 const logger = new Logger('Bootstrap');
 
@@ -28,6 +29,13 @@ async function bootstrap() {
       "base-uri 'self'",
       "form-action 'self'",
     ].join('; ');
+
+  app.use(
+    compression({
+      threshold: 1024,
+      level: 6,
+    }),
+  );
 
   app.use(
     helmet({

@@ -312,8 +312,9 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     );
 
     this.subs.add(
-      this.waService.loadChats().subscribe(chats => {
+      this.waService.loadChats().subscribe(res => {
         this.isLoadingChats = false;
+        const chats = Array.isArray(res) ? res : res.chats;
         if (!this.activeContact && chats.length) this.selectContact(chats[0]);
         this.cdr.detectChanges();
       }),
@@ -504,6 +505,14 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   /** @deprecated replaced by toggleMoreFilter() dropdown */
   setMoreFilter(filter: WaFilter | ''): void {
     if (filter) this.setFilter(filter);
+  }
+
+  loadMoreChats(): void {
+    this.subs.add(
+      this.waService.loadMoreChats().subscribe(() => {
+        this.cdr.detectChanges();
+      }),
+    );
   }
 
   selectContact(contact: WaChat): void {

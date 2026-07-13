@@ -350,6 +350,14 @@ a{text-decoration:none;color:inherit}
 }
 .empty-main{display:flex; align-items:center; justify-content:center; gap:10px; border-style:solid; margin:0; flex-direction:column}
 
+.load-more-btn{
+  display:block; width:100%; padding:10px; margin:8px 0 16px;
+  background:transparent; border:1px solid var(--wa-line); border-radius:8px;
+  color:var(--wa-muted); font-size:13px; cursor:pointer; text-align:center;
+  &:hover{background:var(--wa-hover); color:var(--wa-text)}
+  &:disabled{opacity:0.5; cursor:default}
+}
+
 // ==================== MAIN CHAT ====================
 .main{flex:1; min-width:0; display:flex; flex-direction:column; background:var(--wa-bg); height:100%; overflow:hidden}
 

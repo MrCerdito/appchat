@@ -816,14 +816,88 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     return chat;
   }
 
-  async listChats(_advisorId: string, _role: string): Promise<WaChatDto[]> {
+  async listChats(
+    _advisorId: string,
+    _role: string,
+    page?: number,
+    limit?: number,
+  ): Promise<WaChatDto[] | { chats: WaChatDto[]; total: number; hasMore: boolean }> {
     const qb = this.chatRepo
       .createQueryBuilder('chat')
       .leftJoinAndSelect('chat.assignedAdvisor', 'advisor')
+      .leftJoinAndSelect('chat.fixedAdvisor', 'fixedAdvisor')
       .orderBy('chat.lastMessageAt', 'DESC');
 
+    const isPaginated = page !== undefined && limit !== undefined;
+
+    if (isPaginated) {
+      const total = await qb.getCount();
+      const chats = await qb
+        .skip((page! - 1) * limit!)
+        .take(limit!)
+        .getMany();
+
+      if (!chats.length) {
+        return { chats: [], total, hasMore: false };
+      }
+
+      const chatIds = chats.map((c) => c.id);
+      const allMessages = await this.messageRepo
+        .createQueryBuilder('msg')
+        .leftJoinAndSelect('msg.advisor', 'advisor')
+        .where('msg.chat_id IN (:...chatIds)', { chatIds })
+        .orderBy('msg.created_at', 'ASC')
+        .getMany();
+
+      const messagesByChat = new Map<string, WhatsappMessage[]>();
+      for (const msg of allMessages) {
+        const list = messagesByChat.get(msg.chat.id) ?? [];
+        list.push(msg);
+        messagesByChat.set(msg.chat.id, list);
+      }
+
+      const quickReplies = await this.getQuickReplyTexts();
+      const dtos = chats.map((chat) =>
+        this.toChatDtoWithPreload(
+          chat,
+          messagesByChat.get(chat.id) ?? [],
+          quickReplies,
+        ),
+      );
+
+      return {
+        chats: dtos,
+        total,
+        hasMore: page! * limit! < total,
+      };
+    }
+
     const chats = await qb.getMany();
-    return Promise.all(chats.map((chat) => this.toChatDto(chat, true)));
+    if (!chats.length) return [];
+
+    const chatIds = chats.map((c) => c.id);
+    const allMessages = await this.messageRepo
+      .createQueryBuilder('msg')
+      .leftJoinAndSelect('msg.advisor', 'advisor')
+      .where('msg.chat_id IN (:...chatIds)', { chatIds })
+      .orderBy('msg.created_at', 'ASC')
+      .getMany();
+
+    const messagesByChat = new Map<string, WhatsappMessage[]>();
+    for (const msg of allMessages) {
+      const list = messagesByChat.get(msg.chat.id) ?? [];
+      list.push(msg);
+      messagesByChat.set(msg.chat.id, list);
+    }
+
+    const quickReplies = await this.getQuickReplyTexts();
+    return chats.map((chat) =>
+      this.toChatDtoWithPreload(
+        chat,
+        messagesByChat.get(chat.id) ?? [],
+        quickReplies,
+      ),
+    );
   }
 
   async getAdminDashboard(role: string): Promise<WhatsappAdminDashboardDto> {
@@ -848,8 +922,9 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       this.buildAdvisorStats(advisor, chats, messages),
     );
     const alerts = this.buildAdminAlerts(chats, advisorStats, messages);
-    const dtoChats = await Promise.all(
-      chats.map((chat) => this.toChatDto(chat, false)),
+    const quickReplies = await this.getQuickReplyTexts();
+    const dtoChats = chats.map((chat) =>
+      this.toChatDtoWithPreload(chat, [], quickReplies),
     );
 
     const avgResponseMinutes = advisorStats.length
@@ -2947,6 +3022,67 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       quickReplies: await this.getQuickReplyTexts(),
       lastClientMsg: chat.lastClientMessageAt ?? chat.updatedAt,
       messages,
+      priority: chat.priority ?? 'normal',
+    };
+  }
+
+  private toChatDtoWithPreload(
+    chat: WhatsappChat,
+    messages: WhatsappMessage[],
+    quickReplies: string[],
+  ): WaChatDto {
+    const dtos = messages.map((m) => this.toMessageDto(m));
+    const last =
+      [...dtos]
+        .reverse()
+        .find((message) => message.type !== 'reaction') ??
+      dtos[dtos.length - 1];
+    const lastPreview = last ? this.messagePreview(last) : '';
+    const preview =
+      chat.isGroup && last && !last.fromMe && last.senderName
+        ? `${last.senderName}: ${lastPreview}`
+        : lastPreview;
+    const assigned = chat.assignedAdvisor;
+    const assignmentStatus = chat.status;
+    const isWaiting = !chat.isGroup && assignmentStatus === 'waiting';
+    const isClosed = assignmentStatus === 'closed';
+
+    return {
+      id: chat.id,
+      name: chat.name,
+      role: chat.isGroup ? 'Grupo WhatsApp' : chat.role || 'Cliente WhatsApp',
+      institution: chat.isGroup ? 'Grupo' : chat.institution || 'WhatsApp',
+      institutionUrl: chat.institutionUrl || '',
+      city: chat.city || '',
+      avatar: chat.profilePictureUrl || this.avatarFor(chat.name || chat.phone),
+      phone: chat.phone,
+      jid: chat.jid ?? undefined,
+      isGroup: chat.isGroup,
+      email: chat.email || '',
+      plan: chat.plan || 'WhatsApp',
+      modules: chat.modules?.length ? chat.modules : ['Atencion'],
+      stage: isClosed ? 'Cerrado' : isWaiting ? 'Pendiente' : 'Asignado',
+      stageIdx: isClosed ? 2 : isWaiting ? 0 : 1,
+      tag: isClosed ? 'cerrado' : isWaiting ? 'pendiente' : 'asignado',
+      assignmentStatus,
+      operationalStatus:
+        chat.operationalStatus ?? this.inferOperationalStatus(chat),
+      operationalStatusLabel: this.operationalStatusLabel(
+        chat.operationalStatus ?? this.inferOperationalStatus(chat),
+      ),
+      assignmentMode: chat.assignmentMode ?? undefined,
+      assignedTo: assigned?.id,
+      assignedToName: assigned?.name,
+      fixedAdvisorId: chat.fixedAdvisor?.id,
+      fixedAdvisorName: chat.fixedAdvisor?.name,
+      unread: chat.unreadCount ?? 0,
+      preview,
+      time: this.formatTime(chat.lastMessageAt ?? chat.updatedAt),
+      status: isClosed ? 'offline' : isWaiting ? 'away' : 'online',
+      notes: chat.notes ?? [],
+      quickReplies,
+      lastClientMsg: chat.lastClientMessageAt ?? chat.updatedAt,
+      messages: dtos,
       priority: chat.priority ?? 'normal',
     };
   }

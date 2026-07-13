@@ -348,6 +348,17 @@
       <div class="empty-list" *ngIf="!isLoadingChats && filteredContacts.length === 0">
         No hay conversaciones para este filtro
       </div>
+
+      <button
+        *ngIf="waService.hasMore && filteredContacts.length > 0"
+        type="button"
+        class="load-more-btn"
+        [disabled]="waService.isLoadingMore"
+        (click)="loadMoreChats()"
+      >
+        <span *ngIf="waService.isLoadingMore">Cargando...</span>
+        <span *ngIf="!waService.isLoadingMore">Cargar mas chats</span>
+      </button>
     </div>
   </aside>
 
