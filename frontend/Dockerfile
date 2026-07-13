@@ -6,7 +6,7 @@ FROM node:20-alpine AS builder
 RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 WORKDIR /app
 
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
 COPY frontend/package.json ./frontend/
 COPY backend/package.json ./backend/
 RUN pnpm install --frozen-lockfile

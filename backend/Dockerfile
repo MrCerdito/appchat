@@ -3,7 +3,7 @@ FROM node:20-alpine AS builder
 RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 WORKDIR /app
 
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
 COPY backend/package.json ./backend/
 RUN pnpm install --frozen-lockfile
 
@@ -17,10 +17,11 @@ WORKDIR /app
 
 RUN apk add --no-cache curl tzdata
 
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
 COPY backend/package.json ./backend/
+COPY frontend/package.json ./frontend/
 
-RUN pnpm install --frozen-lockfile --filter backend
+RUN pnpm install --frozen-lockfile
 
 COPY --from=builder /app/backend/dist ./dist
 COPY backend/entrypoint.sh /entrypoint.sh
