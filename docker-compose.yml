@@ -19,6 +19,11 @@ services:
       - "127.0.0.1:5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d app"]
       interval: 10s
@@ -36,7 +41,7 @@ services:
       dockerfile: backend/Dockerfile
     container_name: chat-backend
     restart: unless-stopped
-    stop_grace_period: 30s
+    stop_grace_period: 15s
     env_file:
       - ./backend/.env
     environment:
@@ -53,12 +58,17 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
-      interval: 30s
-      timeout: 10s
+      interval: 15s
+      timeout: 5s
       retries: 3
-      start_period: 40s
+      start_period: 30s
     logging: *default-logging
     networks:
       - chat-net
@@ -81,6 +91,11 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 128M
     logging: *default-logging
     networks:
       - chat-net

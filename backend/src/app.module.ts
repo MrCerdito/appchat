@@ -77,7 +77,7 @@ import { AppService } from './app.service';
         password: config.get<string>('DB_PASS') as string,
         database: config.get<string>('DB_NAME') as string,
         extra: {
-          max: 50,
+          max: 20,
           idleTimeoutMillis: 30000,
           connectionTimeoutMillis: 5000,
         },
@@ -99,7 +99,7 @@ import { AppService } from './app.service';
           Faq,
           Ticket,
         ],
-        synchronize: true,
+        synchronize: config.get<string>('NODE_ENV') !== 'production',
         logging: false,
       }),
     }),
