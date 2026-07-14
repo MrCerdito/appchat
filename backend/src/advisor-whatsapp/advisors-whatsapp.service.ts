@@ -250,6 +250,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
   private readonly handledCallIds = new Set<string>();
   private socketId = 0;
   private connectionSequence = 0;
+  private qrReceivedInSession = false;
 
   readonly connectionUpdates$ = new Subject<WhatsappConnectionDto>();
   readonly incomingResults$ = new Subject<IncomingHandlingResult>();
@@ -356,6 +357,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     this.sock = null;
     this.currentQr = null;
     this.currentQrDataUrl = null;
+    this.qrReceivedInSession = false;
     return this.ensureBaileysConnection();
   }
 
@@ -369,6 +371,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       ?.end(new Error('Sesion de WhatsApp cerrada'))
       .catch(() => undefined);
     this.sock = null;
+    this.qrReceivedInSession = false;
     await rm(this.baileysAuthDir(), { recursive: true, force: true }).catch(
       () => undefined,
     );
@@ -398,6 +401,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
 
   private async createBaileysSocket(): Promise<WhatsappConnectionDto> {
     this.setConnectionState('connecting');
+    this.qrReceivedInSession = false;
     await mkdir(this.baileysAuthDir(), { recursive: true });
 
     const { state, saveCreds } = await useMultiFileAuthState(
@@ -478,6 +482,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     const { connection, lastDisconnect, qr } = update;
 
     if (qr) {
+      this.qrReceivedInSession = true;
       this.currentQr = qr;
       this.currentQrDataUrl = await QRCode.toDataURL(qr, {
         margin: 1,
@@ -514,6 +519,16 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       this.sock = null;
       this.currentQr = null;
       this.currentQrDataUrl = null;
+
+      if (shouldReconnect && !this.qrReceivedInSession) {
+        this.logger.warn(
+          'Conexion cerrada sin QR previo — credenciales corruptas. Limpiando sesion...',
+        );
+        await rm(this.baileysAuthDir(), { recursive: true, force: true }).catch(
+          () => undefined,
+        );
+      }
+
       this.setConnectionState('disconnected', reason);
       if (shouldReconnect) this.scheduleReconnect();
     }
