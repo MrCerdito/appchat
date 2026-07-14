@@ -1649,3 +1649,261 @@
 @keyframes op-splash-spin {
   to { transform: rotate(360deg); }
 }
+
+// --- SPLASH PROGRESS BAR ---
+
+.op-splash-progress {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  margin-top: 4px;
+
+  &.determinate {
+    background: rgba(255, 255, 255, 0.12);
+  }
+}
+
+.op-splash-progress-bar {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #10B981, #34D399);
+  transition: width 0.4s ease;
+}
+
+.op-splash-percent {
+  font-size: 14px;
+  font-weight: 600;
+  color: #34D399;
+  text-align: center;
+  margin-top: 4px;
+}
+
+// --- SPLASH DISCONNECT BUTTON ---
+
+.op-splash-disconnect {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: rgba(239, 68, 68, 0.15);
+  color: #EF4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 4px;
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  &:hover:not(:disabled) {
+    background: rgba(239, 68, 68, 0.25);
+    border-color: rgba(239, 68, 68, 0.5);
+    transform: translateY(-1px);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+// --- NAV DISCONNECT BUTTON ---
+
+.op-nav-disconnect {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  background: rgba(239, 68, 68, 0.08);
+  color: #DC2626;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+
+  svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+  }
+
+  span {
+    white-space: nowrap;
+  }
+
+  &:hover:not(:disabled) {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.4);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+// --- SPLASH HAMBURGER ---
+
+.op-splash-hamburger {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 10001;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #CBD5E1;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  transition: all 0.2s ease;
+
+  svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #F8FAFC;
+  }
+}
+
+.op-splash-connecting {
+  position: relative;
+}
+
+// --- SPLASH LOADING MODE ---
+
+.op-splash-loading {
+  padding: 56px 48px;
+  gap: 16px;
+}
+
+.op-splash-loading-spinner {
+  padding: 24px 0;
+
+  .op-splash-spinner {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+.op-splash-loading-text {
+  font-size: 13px;
+  color: #64748B;
+  text-align: center;
+  margin: 0;
+}
+
+// --- SPLASH RESPONSIVE ---
+
+@media (max-width: 480px) {
+  .op-splash-card {
+    padding: 32px 24px;
+    gap: 16px;
+    max-width: 95%;
+  }
+
+  .op-splash-logo {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+
+    svg {
+      width: 30px;
+      height: 30px;
+    }
+  }
+
+  .op-splash-title {
+    font-size: 18px;
+  }
+
+  .op-splash-subtitle {
+    font-size: 12px;
+  }
+
+  .op-splash-qr-img {
+    width: 180px;
+    height: 180px;
+  }
+
+  .op-splash-qr-hint {
+    font-size: 11px;
+    max-width: 220px;
+  }
+
+  .op-splash-spinner {
+    width: 36px;
+    height: 36px;
+  }
+
+  .op-splash-retry {
+    padding: 10px 20px;
+    font-size: 13px;
+  }
+
+  .op-splash-status {
+    font-size: 12px;
+  }
+
+  .op-splash-disconnect {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .op-splash-loading {
+    padding: 40px 24px;
+    gap: 14px;
+  }
+
+  .op-splash-percent {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 360px) {
+  .op-splash-card {
+    padding: 28px 16px;
+    border-radius: 14px;
+  }
+
+  .op-splash-title {
+    font-size: 16px;
+  }
+
+  .op-splash-qr-img {
+    width: 160px;
+    height: 160px;
+  }
+
+  .op-splash-hamburger {
+    width: 38px;
+    height: 38px;
+    top: 12px;
+    left: 12px;
+
+    svg {
+      width: 18px;
+      height: 18px;
+    }
+  }
+}

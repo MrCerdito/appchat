@@ -208,32 +208,30 @@
     </div>
   </section>
 
-  <section class="connection-panel" *ngIf="connectionStatus.status !== 'connected'">
-    <header>
-      <div>
-        <strong>Conectar WhatsApp</strong>
-        <span>{{ connectionStatus.status === 'qr' ? 'Escanea el QR con el WhatsApp unico' : 'Preparando sesion segura' }}</span>
-      </div>
-      <button
-        type="button"
-        class="icon-action"
-        (click)="restartWhatsappConnection()"
-        [disabled]="isRestartingConnection"
-        title="Reintentar conexion"
-      >
-        <wa-icon [name]="isRestartingConnection ? 'loader-2' : 'refresh'"></wa-icon>
-      </button>
-    </header>
-    <div class="qr-wrap" *ngIf="connectionStatus.qrDataUrl; else waitingQr">
-      <img [src]="connectionStatus.qrDataUrl" alt="QR de WhatsApp" />
-    </div>
-    <ng-template #waitingQr>
-      <div class="qr-waiting">
+  <section class="waiting-admin" *ngIf="connectionStatus.status !== 'connected'">
+    <div class="waiting-admin-card">
+      <div class="waiting-admin-icon">
         <wa-icon name="loader-2"></wa-icon>
-        <span>Generando QR</span>
       </div>
-    </ng-template>
-    <p *ngIf="connectionStatus.lastError">{{ connectionStatus.lastError }}</p>
+      <h2>Esperando escaneo del admin</h2>
+      <p>El administrador debe escanear el código QR de WhatsApp para conectar el sistema.</p>
+      <p class="waiting-admin-status" *ngIf="connectionStatus.lastError">
+        {{ connectionStatus.lastError }}
+      </p>
+    </div>
+  </section>
+
+  <section class="loading-chats" *ngIf="connectionStatus.status === 'connected' && isLoadingChats">
+    <div class="loading-chats-card">
+      <div class="loading-chats-spinner">
+        <wa-icon name="loader-2"></wa-icon>
+      </div>
+      <h2>Conectado</h2>
+      <p>Cargando conversaciones de WhatsApp...</p>
+      <div class="loading-chats-bar">
+        <div class="loading-chats-bar-fill"></div>
+      </div>
+    </div>
   </section>
 
   <aside class="sidebar">

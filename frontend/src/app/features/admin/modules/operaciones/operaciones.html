@@ -1,6 +1,16 @@
 <!-- ═══════════ SPLASH SCREEN ═══════════ -->
 <div class="op-splash" *ngIf="showSplash" [class.exiting]="splashExiting">
-  <div class="op-splash-card">
+
+  <!-- ── MODO CONNECTING (QR / spinner / error) ── -->
+  <div class="op-splash-card op-splash-connecting" *ngIf="splashMode === 'connecting'">
+    <button class="op-splash-hamburger" (click)="openAdminSidebar()" title="Menú de navegación">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" y1="6" x2="21" y2="6"/>
+        <line x1="3" y1="12" x2="21" y2="12"/>
+        <line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
+
     <div class="op-splash-logo">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
         <path d="M21 11.5a8.4 8.4 0 0 1-12.1 7.55L3 21l1.95-5.74A8.4 8.4 0 1 1 21 11.5z"/>
@@ -30,15 +40,44 @@
       Reconectar
     </button>
 
-    <!-- Cancel & regenerate QR -->
-    <button class="op-splash-cancel" *ngIf="splashShowCancel" (click)="cancelAndRegenerate()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-      </svg>
-      Cancelar y regenerar QR
-    </button>
-
     <p class="op-splash-status" [class.error]="waConnection.status === 'error'">{{ splashStatusText }}</p>
+
+    <button class="op-splash-disconnect" *ngIf="waConnection.status !== 'connected'" (click)="logoutWhatsapp()" [disabled]="isLoggingOut">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 16l-4 4"/>
+        <path d="M7 12l5 5l-1.5 1.5a3.536 3.536 0 1 1 -5 -5l1.5 -1.5z"/>
+        <path d="M17 12l-5 -5l1.5 -1.5a3.536 3.536 0 1 1 5 5l-1.5 1.5z"/>
+        <path d="M3 21l2.5 -2.5"/>
+        <path d="M18.5 5.5l2.5 -2.5"/>
+        <path d="M10 11l-2 2"/>
+        <path d="M13 14l-2 2"/>
+        <path d="M16 16l4 4"/>
+      </svg>
+      {{ isLoggingOut ? 'Desconectando...' : 'Desconectar WhatsApp' }}
+    </button>
+  </div>
+
+  <!-- ── MODO LOADING (barra de progreso real) ── -->
+  <div class="op-splash-card op-splash-loading" *ngIf="splashMode === 'loading'">
+    <div class="op-splash-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 11.5a8.4 8.4 0 0 1-12.1 7.55L3 21l1.95-5.74A8.4 8.4 0 1 1 21 11.5z"/>
+        <path d="M9 10.5c.5 1.6 1.7 2.8 3.5 3.5"/>
+        <path d="M13.2 14.1l1.1-.5 1.4.8c.2.1.2.4.1.6-.3.7-.9 1.1-1.7 1.1-2.5 0-6.2-3.4-6.2-6.1 0-.8.4-1.5 1.1-1.8.2-.1.5 0 .6.2l.8 1.4-.5 1.1"/>
+      </svg>
+    </div>
+    <h1 class="op-splash-title">Bienvenido a Gestión de Operaciones</h1>
+
+    <div class="op-splash-spinner-wrap op-splash-loading-spinner">
+      <div class="op-splash-spinner"></div>
+    </div>
+
+    <div class="op-splash-progress determinate">
+      <div class="op-splash-progress-bar" [style.width.%]="loadingProgress"></div>
+    </div>
+    <span class="op-splash-percent">{{ loadingProgress | number:'1.0-0' }}%</span>
+
+    <p class="op-splash-loading-text">Cargando información del centro de operaciones...</p>
   </div>
 </div>
 
@@ -59,6 +98,19 @@
         <span class="op-ws-dot"></span>
         <span class="op-ws-label">{{ wsConnected ? 'Conectado' : 'Desconectado' }}</span>
       </div>
+      <button class="op-nav-disconnect" *ngIf="wsConnected" (click)="logoutWhatsapp()" [disabled]="isLoggingOut" title="Desconectar WhatsApp">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 16l-4 4"/>
+          <path d="M7 12l5 5l-1.5 1.5a3.536 3.536 0 1 1 -5 -5l1.5 -1.5z"/>
+          <path d="M17 12l-5 -5l1.5 -1.5a3.536 3.536 0 1 1 5 5l-1.5 1.5z"/>
+          <path d="M3 21l2.5 -2.5"/>
+          <path d="M18.5 5.5l2.5 -2.5"/>
+          <path d="M10 11l-2 2"/>
+          <path d="M13 14l-2 2"/>
+          <path d="M16 16l4 4"/>
+        </svg>
+        <span>{{ isLoggingOut ? 'Desconectando...' : 'Desconectar' }}</span>
+      </button>
     </div>
   </nav>
 

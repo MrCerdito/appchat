@@ -2,7 +2,7 @@ import { Component, ChangeDetectionStrategy, ChangeDetectorRef, OnDestroy, OnIni
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { Subscription, forkJoin, interval } from 'rxjs';
+import { Subscription, interval } from 'rxjs';
 import { WhatsappChatService } from '../../../../core/services/whatsapp-chat.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { WaChat, WaAdvisorStats, WaAdminAlert, WaConnectionStatus } from '../../../../core/models/whatsapp.models';
@@ -42,6 +42,8 @@ export class OperacionesComponent implements OnInit, OnDestroy {
 
   showSplash = true;
   splashExiting = false;
+  splashMode: 'connecting' | 'loading' = 'connecting';
+  loadingProgress = 0;
   waConnection: WaConnectionStatus = { status: 'connecting', updatedAt: new Date().toISOString() };
 
   filterEstado = 'todos';
@@ -55,7 +57,10 @@ export class OperacionesComponent implements OnInit, OnDestroy {
 
   assignChatId: string | null = null;
   assignBusy = false;
+  isLoggingOut = false;
 
+  private dashboardLoaded = false;
+  private progressTimer: ReturnType<typeof setInterval> | null = null;
   private subs: Subscription[] = [];
 
   constructor(
@@ -66,27 +71,27 @@ export class OperacionesComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    // ── 1. Carga inicial ──────────────────────────────────
-    forkJoin([
-      this.whatsappChat.loadAdminDashboard(),
-      this.whatsappChat.loadConnection(),
-    ]).subscribe(([dashboard, _conn]) => {
+    // ── 1. Load dashboard data independently ──────────────────
+    this.whatsappChat.loadAdminDashboard().subscribe(dashboard => {
       this.summary = dashboard.summary;
       this.advisors = dashboard.advisors;
       this.alerts = dashboard.alerts;
       this.chats = dashboard.chats;
       this.whatsappChat.syncChats(dashboard.chats);
-      this.loading = false;
+      this.dashboardLoaded = true;
       this.cdr.markForCheck();
     });
 
-    // ── 3. Unirse a sala WebSocket (tiempo real) ──────────
+    // ── 2. Join WebSocket room ─────────────────────────────
     const user = this.auth.getUser();
     if (user?.id) {
       this.whatsappChat.joinAsAdvisor(user.id);
     }
 
-    // ── 4. Suscripciones en tiempo real ───────────────────
+    // ── 3. Load current connection status ──────────────────
+    this.whatsappChat.loadConnection().subscribe();
+
+    // ── 4. Real-time subscriptions ───────────────────────
     this.subs.push(
       this.whatsappChat.getChatsStream().subscribe(chats => {
         this.chats = chats;
@@ -94,32 +99,33 @@ export class OperacionesComponent implements OnInit, OnDestroy {
       }),
     );
 
-    // Conexión WebSocket + Splash control
+    // ── 5. Connection stream + splash control ────────────
     this.subs.push(
       this.whatsappChat.getConnectionStream().subscribe(status => {
         this.wsConnected = status.status === 'connected';
         this.waConnection = status;
-        if (status.status === 'connected' && this.showSplash && !this.splashExiting) {
-          this.splashExiting = true;
-          this.cdr.markForCheck();
-          setTimeout(() => {
-            this.showSplash = false;
-            this.splashExiting = false;
-            this.cdr.markForCheck();
-          }, 600);
+
+        if (this.showSplash) {
+          if (status.status === 'connected') {
+            this.startLoadingProgress();
+          } else if (status.status === 'qr' || status.status === 'connecting' || status.status === 'disconnected' || status.status === 'error') {
+            this.splashMode = 'connecting';
+            this.stopProgressTimer();
+          }
         }
+
         this.cdr.markForCheck();
       }),
     );
 
-    // Eventos del socket (no actualizan datos, solo forzan detección de cambios)
+    // Socket events (force change detection only)
     this.subs.push(
       this.whatsappChat.onNewMessage().subscribe(() => this.cdr.markForCheck()),
       this.whatsappChat.onChatAssigned().subscribe(() => this.cdr.markForCheck()),
       this.whatsappChat.onChatUpdated().subscribe(() => this.cdr.markForCheck()),
     );
 
-    // ── 5. Auto‑refresh periódico (fallback) ──────────────
+    // ── 6. Auto-refresh fallback ──────────────────────────
     this.subs.push(
       interval(15_000).subscribe(() => {
         this.whatsappChat.loadAdminDashboard().subscribe(dashboard => {
@@ -348,31 +354,81 @@ export class OperacionesComponent implements OnInit, OnDestroy {
   }
 
   get splashShowSpinner(): boolean {
-    return this.waConnection.status === 'connecting' ||
-           (this.waConnection.status === 'qr' && !this.waConnection.qrDataUrl);
+    return this.splashMode === 'connecting' && (
+      this.waConnection.status === 'connecting' ||
+      (this.waConnection.status === 'qr' && !this.waConnection.qrDataUrl)
+    );
   }
 
   get splashShowRetry(): boolean {
     return this.waConnection.status === 'error' || this.waConnection.status === 'disconnected';
   }
 
-  get splashShowCancel(): boolean {
-    return this.waConnection.status === 'qr' || this.waConnection.status === 'connecting';
+  private startLoadingProgress(): void {
+    if (this.splashMode === 'loading') return;
+    this.splashMode = 'loading';
+    this.loadingProgress = 0;
+    this.stopProgressTimer();
+
+    const tick = () => {
+      if (!this.dashboardLoaded) {
+        const remaining = 100 - this.loadingProgress;
+        const increment = Math.min(remaining * 0.15 + Math.random() * 3, 8);
+        this.loadingProgress = Math.min(this.loadingProgress + increment, 90);
+      } else {
+        this.loadingProgress = 100;
+        this.stopProgressTimer();
+        setTimeout(() => {
+          this.showSplash = false;
+          this.loading = false;
+          this.cdr.markForCheck();
+        }, 500);
+      }
+      this.cdr.markForCheck();
+    };
+
+    this.progressTimer = setInterval(tick, 400);
+    tick();
+  }
+
+  private stopProgressTimer(): void {
+    if (this.progressTimer) {
+      clearInterval(this.progressTimer);
+      this.progressTimer = null;
+    }
   }
 
   retryConnection(): void {
     this.whatsappChat.restartConnection().subscribe();
   }
 
-  cancelAndRegenerate(): void {
+  logoutWhatsapp(): void {
+    if (this.isLoggingOut) return;
+    this.isLoggingOut = true;
+    this.splashMode = 'connecting';
+    this.stopProgressTimer();
+    this.loadingProgress = 0;
     this.whatsappChat.logoutConnection().subscribe({
       next: () => {
-        setTimeout(() => this.whatsappChat.restartConnection().subscribe(), 1000);
+        this.isLoggingOut = false;
+        setTimeout(() => this.whatsappChat.restartConnection().subscribe(), 500);
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.isLoggingOut = false;
+        this.whatsappChat.restartConnection().subscribe();
+        this.cdr.markForCheck();
       },
     });
   }
 
+  openAdminSidebar(): void {
+    const btn = document.querySelector('.sidebar-toggle-btn') as HTMLButtonElement;
+    btn?.click();
+  }
+
   ngOnDestroy(): void {
+    this.stopProgressTimer();
     this.subs.forEach(s => s.unsubscribe());
   }
 }

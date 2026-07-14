@@ -289,7 +289,6 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     this.subs.add(
       this.waService.getConnectionStream().subscribe(status => {
         this.connectionStatus = status;
-        this.isRestartingConnection = false;
         this.cdr.detectChanges();
       }),
     );
@@ -1692,30 +1691,6 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
         error: () => {
           this.isSavingWhatsappSettings = false;
           this.whatsappSettingsMessage = 'No se pudo guardar la configuracion.';
-          this.cdr.detectChanges();
-        },
-      }),
-    );
-  }
-
-  restartWhatsappConnection(): void {
-    if (this.isRestartingConnection) return;
-    this.isRestartingConnection = true;
-    this.subs.add(
-      this.waService.restartConnection().subscribe({
-        next: status => {
-          this.connectionStatus = status;
-          this.isRestartingConnection = false;
-          this.cdr.detectChanges();
-        },
-        error: () => {
-          this.isRestartingConnection = false;
-          this.connectionStatus = {
-            ...this.connectionStatus,
-            status: 'disconnected',
-            lastError: 'No se pudo reiniciar la conexion.',
-            updatedAt: new Date().toISOString(),
-          };
           this.cdr.detectChanges();
         },
       }),

@@ -248,6 +248,8 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
   private readonly contactNameCache = new Map<string, string>();
   private readonly connectedAdvisorIds = new Set<string>();
   private readonly handledCallIds = new Set<string>();
+  private socketId = 0;
+  private connectionSequence = 0;
 
   readonly connectionUpdates$ = new Subject<WhatsappConnectionDto>();
   readonly incomingResults$ = new Subject<IncomingHandlingResult>();
@@ -401,6 +403,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     const { state, saveCreds } = await useMultiFileAuthState(
       this.baileysAuthDir(),
     );
+    const currentSocketId = ++this.socketId;
     const sock = makeWASocket({
       auth: state,
       printQRInTerminal: false,
@@ -412,7 +415,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     this.sock = sock;
     sock.ev.on('creds.update', saveCreds);
     sock.ev.on('connection.update', (update) => {
-      this.handleBaileysConnectionUpdate(update).catch((err) => {
+      this.handleBaileysConnectionUpdate(update, currentSocketId).catch((err) => {
         this.logger.warn(
           `Error procesando estado de Baileys: ${err?.message ?? err}`,
         );
@@ -463,7 +466,15 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
 
   private async handleBaileysConnectionUpdate(
     update: Partial<proto.IWebMessageInfo> & any,
+    sourceSocketId?: number,
   ): Promise<void> {
+    if (sourceSocketId !== undefined && sourceSocketId !== this.socketId) {
+      this.logger.debug(
+        `Ignorando evento de socket viejo #${sourceSocketId} (actual: #${this.socketId})`,
+      );
+      return;
+    }
+
     const { connection, lastDisconnect, qr } = update;
 
     if (qr) {
@@ -526,7 +537,10 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     this.connectionStatus = status;
     this.lastConnectionError = error;
     this.connectionUpdatedAt = new Date();
-    this.connectionUpdates$.next(this.getConnectionDto());
+    this.connectionUpdates$.next({
+      ...this.getConnectionDto(),
+      sequence: ++this.connectionSequence,
+    } as any);
   }
 
   private getConnectionDto(): WhatsappConnectionDto {

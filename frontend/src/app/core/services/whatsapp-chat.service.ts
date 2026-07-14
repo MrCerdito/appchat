@@ -59,6 +59,7 @@ export class WhatsappChatService implements OnDestroy {
     status: 'connecting',
     updatedAt: new Date().toISOString(),
   });
+  private lastConnectionSequence = 0;
 
   constructor(private http: HttpClient) {
     this.connectSocket();
@@ -77,11 +78,11 @@ export class WhatsappChatService implements OnDestroy {
     });
 
     this.socket.on('connect', () => {
-      this.connection$.next({ status: 'connected', updatedAt: new Date().toISOString() });
+      // NO actualizar connection$ aquí — solo aw_connection_update define el estado real de WhatsApp
     });
 
     this.socket.on('disconnect', (reason) => {
-      this.connection$.next({ status: 'disconnected', updatedAt: new Date().toISOString() });
+      // NO actualizar connection$ aquí — solo aw_connection_update define el estado real de WhatsApp
     });
 
     this.socket.on('connect_error', (err) => {
@@ -116,7 +117,13 @@ export class WhatsappChatService implements OnDestroy {
       }
     });
 
-    this.socket.on('aw_connection_update', (data: WaConnectionStatus) => {
+    this.socket.on('aw_connection_update', (data: WaConnectionStatus & { sequence?: number }) => {
+      if (data.sequence !== undefined && data.sequence <= this.lastConnectionSequence) {
+        return;
+      }
+      if (data.sequence !== undefined) {
+        this.lastConnectionSequence = data.sequence;
+      }
       this.connection$.next(data);
     });
   }
