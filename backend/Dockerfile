@@ -27,7 +27,10 @@ COPY --from=builder /app/backend/dist ./dist
 COPY backend/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-RUN mkdir -p /app/uploads/documentos /app/uploads/baileys-auth /app/uploads/whatsapp
+RUN mkdir -p /app/uploads/documentos /app/uploads/baileys-auth /app/uploads/whatsapp \
+    && chown -R node:node /app
+
+USER node
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD curl -f http://localhost:3001/health || exit 1

@@ -6,6 +6,7 @@ import { filter, Subscription } from 'rxjs';
 import { AuthService } from '../../../core/services/auth.service';
 import { SocketService } from '../../../core/services/socket.service';
 import { ThemeService } from '../../../core/services/theme.service';
+import { LayoutService } from '../../../core/services/layout.service';
 import { User } from '../../../core/models/user.model';
 import { trackByIndex, trackById } from '../../../shared/utils/track-by';
 
@@ -26,12 +27,14 @@ export class AdminShellComponent implements OnInit, OnDestroy {
   appearanceOpen = false;
 
   private routerSub?: Subscription;
+  private layoutSub?: Subscription;
 
   constructor(
     private auth: AuthService,
     private socket: SocketService,
     protected themeService: ThemeService,
     private router: Router,
+    private layoutService: LayoutService,
   ) {}
 
   ngOnInit(): void {
@@ -41,10 +44,14 @@ export class AdminShellComponent implements OnInit, OnDestroy {
     this.routerSub = this.router.events
       .pipe(filter(event => event instanceof NavigationEnd))
       .subscribe(() => this.syncSidebarMode());
+    this.layoutSub = this.layoutService.sidebarForcedVisible$.subscribe(() => {
+      this.syncSidebarMode();
+    });
   }
 
   ngOnDestroy(): void {
     this.routerSub?.unsubscribe();
+    this.layoutSub?.unsubscribe();
   }
 
   get isOperacionesRoute(): boolean {
@@ -79,7 +86,11 @@ export class AdminShellComponent implements OnInit, OnDestroy {
   }
 
   private syncSidebarMode(): void {
-    this.sidebarCollapsed = this.isOperacionesRoute;
+    if (this.layoutService.sidebarForcedVisible) {
+      this.sidebarCollapsed = false;
+    } else {
+      this.sidebarCollapsed = this.isOperacionesRoute;
+    }
     this.sidebarOpen = false;
   }
 }

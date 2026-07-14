@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { Subscription, interval } from 'rxjs';
 import { WhatsappChatService } from '../../../../core/services/whatsapp-chat.service';
 import { AuthService } from '../../../../core/services/auth.service';
+import { LayoutService } from '../../../../core/services/layout.service';
 import { WaChat, WaAdvisorStats, WaAdminAlert, WaConnectionStatus } from '../../../../core/models/whatsapp.models';
 
 interface FilteredAlert {
@@ -68,6 +69,7 @@ export class OperacionesComponent implements OnInit, OnDestroy {
     private whatsappChat: WhatsappChatService,
     private auth: AuthService,
     private cdr: ChangeDetectorRef,
+    private layoutService: LayoutService,
   ) {}
 
   ngOnInit(): void {
@@ -106,6 +108,7 @@ export class OperacionesComponent implements OnInit, OnDestroy {
         this.waConnection = status;
 
         if (this.showSplash) {
+          this.layoutService.setSidebarForcedVisible(true);
           if (status.status === 'connected') {
             this.startLoadingProgress();
           } else if (status.status === 'qr' || status.status === 'connecting' || status.status === 'disconnected' || status.status === 'error') {
@@ -380,6 +383,7 @@ export class OperacionesComponent implements OnInit, OnDestroy {
         this.stopProgressTimer();
         setTimeout(() => {
           this.showSplash = false;
+          this.layoutService.setSidebarForcedVisible(false);
           this.loading = false;
           this.cdr.markForCheck();
         }, 500);
@@ -406,6 +410,8 @@ export class OperacionesComponent implements OnInit, OnDestroy {
     if (this.isLoggingOut) return;
     this.isLoggingOut = true;
     this.splashMode = 'connecting';
+    this.showSplash = true;
+    this.layoutService.setSidebarForcedVisible(true);
     this.stopProgressTimer();
     this.loadingProgress = 0;
     this.whatsappChat.logoutConnection().subscribe({
@@ -430,5 +436,6 @@ export class OperacionesComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.stopProgressTimer();
     this.subs.forEach(s => s.unsubscribe());
+    this.layoutService.setSidebarForcedVisible(false);
   }
 }

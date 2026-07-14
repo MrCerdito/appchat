@@ -203,9 +203,12 @@ export class AiService {
     const t0 = Date.now();
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30_000);
-    const response = await fetch(`${this.apiUrl}?key=${this.apiKey}`, {
+    const response = await fetch(this.apiUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': this.apiKey,
+      },
       body: JSON.stringify({
         contents,
         generationConfig: { temperature: 0.3, maxOutputTokens: 1024 },
@@ -225,7 +228,8 @@ export class AiService {
         errorMsg: `Gemini ${response.status}: ${err}`,
         chunksUsados: [],
       });
-      throw new Error(`Gemini API error: ${response.status} - ${err}`);
+      this.logger.error(`Gemini API error: ${response.status} - ${err}`);
+      throw new Error('Error al procesar tu mensaje. Intenta de nuevo.');
     }
 
     const data = await response.json();
@@ -462,13 +466,16 @@ ${messages}`;
     const t0 = Date.now();
     const streamUrl =
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent' +
-      `?key=${this.apiKey}&alt=sse`;
+      '?alt=sse';
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30_000);
     const response = await fetch(streamUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': this.apiKey,
+      },
       body: JSON.stringify({
         contents,
         generationConfig: { temperature: 0.3, maxOutputTokens: 1000 },
@@ -488,7 +495,8 @@ ${messages}`;
         errorMsg: `Gemini stream ${response.status}`,
         chunksUsados: [],
       });
-      throw new Error(`Gemini stream error: ${response.status} - ${err}`);
+      this.logger.error(`Gemini stream error: ${response.status} - ${err}`);
+      throw new Error('Error al procesar tu mensaje. Intenta de nuevo.');
     }
 
     const reader = response.body!.getReader();
@@ -575,9 +583,12 @@ ${messages}`;
     const timeoutId = setTimeout(() => controller.abort(), 20000);
 
     try {
-      const response = await fetch(`${this.apiUrl}?key=${this.apiKey}`, {
+      const response = await fetch(this.apiUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': this.apiKey,
+        },
         signal: controller.signal,
         body: JSON.stringify({
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
@@ -587,7 +598,8 @@ ${messages}`;
 
       if (!response.ok) {
         const err = await response.text();
-        throw new Error(`Gemini API error: ${response.status} - ${err}`);
+        this.logger.error(`Gemini API error: ${response.status} - ${err}`);
+        throw new Error('Error al procesar tu mensaje. Intenta de nuevo.');
       }
 
       const data = await response.json();

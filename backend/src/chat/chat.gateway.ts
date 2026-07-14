@@ -278,6 +278,26 @@ export class ChatGateway
     @MessageBody() data: { sessionId: string; clientName?: string },
     @ConnectedSocket() client: Socket,
   ) {
+    if (!data.sessionId || typeof data.sessionId !== 'string') {
+      client.emit('join_error', { reason: 'ID de sesión inválido' });
+      return;
+    }
+
+    if (client.data.role === 'client') {
+      try {
+        const session = await this.sessionsService.findOne(data.sessionId);
+        if (!session || session.status === 'closed') {
+          client.emit('join_error', {
+            reason: 'Sesión no válida o cerrada',
+          });
+          return;
+        }
+      } catch {
+        client.emit('join_error', { reason: 'Sesión no encontrada' });
+        return;
+      }
+    }
+
     client.join(data.sessionId);
     client.data.sessionId = data.sessionId;
 
@@ -765,8 +785,17 @@ export class ChatGateway
   @SubscribeMessage('client_close_session')
   async handleClientClose(
     @MessageBody() sessionId: string,
-    @ConnectedSocket() _client: Socket,
+    @ConnectedSocket() client: Socket,
   ) {
+    if (client.data.role !== 'client') return;
+
+    if (client.data.sessionId !== sessionId) {
+      client.emit('close_error', {
+        reason: 'No autorizado para cerrar esta sesión',
+      });
+      return;
+    }
+
     const session = await this.sessionsService
       .findOne(sessionId)
       .catch(() => null);

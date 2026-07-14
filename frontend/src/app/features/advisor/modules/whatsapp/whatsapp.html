@@ -221,15 +221,16 @@
     </div>
   </section>
 
-  <section class="loading-chats" *ngIf="connectionStatus.status === 'connected' && isLoadingChats">
+  <section class="loading-chats" *ngIf="connectionStatus.status === 'connected' && loadingProgress < 100">
     <div class="loading-chats-card">
       <div class="loading-chats-spinner">
         <wa-icon name="loader-2"></wa-icon>
       </div>
       <h2>Conectado</h2>
       <p>Cargando conversaciones de WhatsApp...</p>
+      <span class="loading-chats-pct">{{ loadingProgress }}%</span>
       <div class="loading-chats-bar">
-        <div class="loading-chats-bar-fill"></div>
+        <div class="loading-chats-bar-fill" [style.width.%]="loadingProgress"></div>
       </div>
     </div>
   </section>

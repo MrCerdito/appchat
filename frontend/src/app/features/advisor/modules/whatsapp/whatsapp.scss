@@ -199,13 +199,14 @@ a{text-decoration:none;color:inherit}
   overflow:hidden;margin-top:16px
 }
 .loading-chats-bar-fill{
-  height:100%;width:40%;border-radius:2px;
+  height:100%;border-radius:2px;
   background:var(--wa-green);
-  animation:wa-slide-bar 1.4s ease-in-out infinite
+  transition:width 0.4s ease
 }
-@keyframes wa-slide-bar{
-  0%{transform:translateX(-100%)}
-  100%{transform:translateX(350%)}
+.loading-chats-pct{
+  display:block;margin:10px 0 4px;
+  font-size:22px;font-weight:700;color:var(--wa-green);
+  font-variant-numeric:tabular-nums
 }
 .settings-message{margin:12px 16px 0;color:var(--wa-green);font-size:12px;font-weight:800}
 .settings-actions,.modal-actions{display:flex;justify-content:flex-end;gap:8px;padding:14px 16px}

@@ -2,6 +2,7 @@ import {
   Injectable,
   UnauthorizedException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -27,10 +28,12 @@ export class AuthService {
       role: user.role,
     };
     const access_token = this.jwtService.sign(payload);
+    const refresh_secret = this.config.get<string>('JWT_REFRESH_SECRET');
+    if (!refresh_secret) {
+      throw new Error('JWT_REFRESH_SECRET no está configurado');
+    }
     const refresh_token = this.jwtService.sign(payload, {
-      secret:
-        this.config.get<string>('JWT_REFRESH_SECRET') ||
-        this.config.get<string>('JWT_SECRET') + '_refresh',
+      secret: refresh_secret,
       expiresIn: '30d',
     });
     return { access_token, refresh_token };
@@ -70,9 +73,7 @@ export class AuthService {
   async refresh(refreshToken: string) {
     try {
       const payload = this.jwtService.verify(refreshToken, {
-        secret:
-          this.config.get<string>('JWT_REFRESH_SECRET') ||
-          this.config.get<string>('JWT_SECRET') + '_refresh',
+        secret: this.config.get<string>('JWT_REFRESH_SECRET'),
       });
 
       const user = await this.userRepo.findOne({ where: { id: payload.sub } });
@@ -106,6 +107,21 @@ export class AuthService {
   }
 
   async register(name: string, email: string, password: string) {
+    if (password.length < 12) {
+      throw new BadRequestException(
+        'La contraseña debe tener al menos 12 caracteres',
+      );
+    }
+    if (
+      !/[A-Z]/.test(password) ||
+      !/[a-z]/.test(password) ||
+      !/[0-9]/.test(password)
+    ) {
+      throw new BadRequestException(
+        'La contraseña debe incluir mayúscula, minúscula y número',
+      );
+    }
+
     const exists = await this.userRepo.findOne({ where: { email } });
     if (exists) throw new ConflictException('El email ya está registrado');
 

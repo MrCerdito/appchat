@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import * as Joi from 'joi';
 import { AuthModule } from './auth/auth.module';
 import { SessionsModule } from './sessions/sessions.module';
@@ -37,6 +39,12 @@ import { AppService } from './app.service';
 
 @Module({
   imports: [
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 60,
+      },
+    ]),
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
@@ -47,6 +55,10 @@ import { AppService } from './app.service';
         DB_PASS: Joi.string().required(),
         DB_NAME: Joi.string().required(),
         JWT_SECRET: Joi.string().min(16).required().label('JWT_SECRET'),
+        JWT_REFRESH_SECRET: Joi.string()
+          .min(16)
+          .required()
+          .label('JWT_REFRESH_SECRET'),
         JWT_EXPIRES: Joi.string().default('8h'),
         GEMINI_API_KEY: Joi.string().optional(),
         CHAT_ENCRYPTION_KEY: Joi.string()
@@ -119,6 +131,12 @@ import { AppService } from './app.service';
     SeedModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}

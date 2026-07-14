@@ -176,6 +176,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   hasImprovedOnce = false;
   isAiInsightLoading = false;
   isLoadingChats = true;
+  loadingProgress = 0;
   isEditingContact = false;
   isSavingContact = false;
   isTakingChat = false;
@@ -256,6 +257,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   private recordingChunks: Blob[] = [];
   private recordingTimer?: ReturnType<typeof setInterval>;
   private subs = new Subscription();
+  private progressTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     private readonly waService: WhatsappChatService,
@@ -310,9 +312,13 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
       }),
     );
 
+    this.startLoadingProgress();
+
     this.subs.add(
       this.waService.loadChats().subscribe(res => {
         this.isLoadingChats = false;
+        this.loadingProgress = 100;
+        this.stopProgressTimer();
         const chats = Array.isArray(res) ? res : res.chats;
         if (!this.activeContact && chats.length) this.selectContact(chats[0]);
         this.cdr.detectChanges();
@@ -350,6 +356,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   }
 
   ngOnDestroy(): void {
+    this.stopProgressTimer();
     this.subs.unsubscribe();
     window.removeEventListener('message', this.handleTeamsAuthMessage);
     window.removeEventListener('click', this.closeMessageMenuOnWindowClick);
@@ -357,6 +364,33 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     this.stopRecordingTimer();
     this.mediaRecorder?.stream.getTracks().forEach(track => track.stop());
     this.clearSelectedFile();
+  }
+
+  private startLoadingProgress(): void {
+    this.loadingProgress = 0;
+    this.stopProgressTimer();
+
+    const tick = () => {
+      if (this.isLoadingChats) {
+        const remaining = 100 - this.loadingProgress;
+        const increment = Math.min(remaining * 0.15 + Math.random() * 3, 8);
+        this.loadingProgress = Math.min(this.loadingProgress + increment, 90);
+      } else {
+        this.loadingProgress = 100;
+        this.stopProgressTimer();
+      }
+      this.cdr.detectChanges();
+    };
+
+    this.progressTimer = setInterval(tick, 400);
+    tick();
+  }
+
+  private stopProgressTimer(): void {
+    if (this.progressTimer) {
+      clearInterval(this.progressTimer);
+      this.progressTimer = null;
+    }
   }
 
   get filteredContacts(): WaChat[] {

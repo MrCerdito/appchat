@@ -366,9 +366,12 @@ export class DocumentosService {
   }
 
   private async generarEmbedding(texto: string): Promise<number[]> {
-    const response = await fetch(`${this.embedUrl}?key=${this.apiKey}`, {
+    const response = await fetch(this.embedUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': this.apiKey,
+      },
       body: JSON.stringify({
         model: 'models/gemini-embedding-001',
         content: { parts: [{ text: texto.slice(0, 2000) }] },

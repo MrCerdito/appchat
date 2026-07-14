@@ -13,6 +13,7 @@ import {
   Logger,
   Inject,
   forwardRef,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -199,11 +200,20 @@ export class SessionsController {
   // ── Rutas dinámicas AL FINAL ──────────────────────────────
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.sessionsService.findOne(id);
+  @UseGuards(JwtAuthGuard)
+  async findOne(@Param('id') id: string, @Request() req: any) {
+    const session = await this.sessionsService.findOne(id);
+    const userRole = req.user.role;
+    if (userRole === 'estudiante' || userRole === 'padre') {
+      if (session.advisor?.id !== req.user.id) {
+        throw new ForbiddenException('No autorizado para ver esta sesión');
+      }
+    }
+    return session;
   }
 
   @Get(':id/codigo')
+  @UseGuards(JwtAuthGuard)
   findCodigo(@Param('id') id: string) {
     return this.sessionsService.findCodigo(id);
   }
@@ -215,18 +225,36 @@ export class SessionsController {
   }
 
   @Post(':id/close')
+  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  close(@Param('id') id: string) {
-    return this.sessionsService.close(id);
+  async close(@Param('id') id: string, @Request() req: any) {
+    const session = await this.sessionsService.findOne(id);
+    const userRole = req.user.role;
+    if (userRole === 'administrador' || session.advisor?.id === req.user.id) {
+      return this.sessionsService.close(id);
+    }
+    throw new ForbiddenException(
+      'Solo el asesor asignado o un administrador puede cerrar la sesión',
+    );
   }
 
   @Post(':id/rating')
+  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.CREATED)
-  saveRating(
+  async saveRating(
     @Param('id') id: string,
     @Body()
     body: { estrellas: number; comentario?: string; etiquetas?: string[] },
+    @Request() req: any,
   ) {
+    const session = await this.sessionsService.findOne(id);
+    if (req.user.role === 'estudiante' || req.user.role === 'padre') {
+      if (session.clientName !== req.user.name) {
+        throw new ForbiddenException(
+          'Solo el cliente que inició la sesión puede calificar',
+        );
+      }
+    }
     return this.sessionsService.saveRating(
       id,
       body.estrellas,
@@ -236,6 +264,7 @@ export class SessionsController {
   }
 
   @Get(':id/rating')
+  @UseGuards(JwtAuthGuard)
   getRating(@Param('id') id: string) {
     return this.sessionsService.getRating(id);
   }

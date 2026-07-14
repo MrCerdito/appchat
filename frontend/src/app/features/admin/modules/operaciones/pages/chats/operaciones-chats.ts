@@ -44,10 +44,13 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
   selectedChatId: string | null = null;
   busqueda = '';
   nuevoMensaje = '';
+  loadingProgress = 0;
 
   private chatsMap = new Map<string, WaChat>();
   private messagesMap = new Map<string, WaMessage[]>();
   private subs: Subscription[] = [];
+  private progressTimer: ReturnType<typeof setInterval> | null = null;
+  private dataReady = false;
 
   constructor(
     private router: Router,
@@ -57,6 +60,9 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    this.dataReady = false;
+    this.startLoadingProgress();
+
     this.whatsappChat.loadChats().subscribe();
 
     this.subs.push(
@@ -64,17 +70,28 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
         for (const chat of chats) {
           this.chatsMap.set(chat.id, chat);
         }
+        if (this.selectedChatId && this.chatsMap.has(this.selectedChatId)) {
+          this.whatsappChat.loadMessages(this.selectedChatId, 1, 100).subscribe(messages => {
+            this.messagesMap.set(this.selectedChatId!, messages);
+            this.dataReady = true;
+            this.cdr.markForCheck();
+            setTimeout(() => this.scrollToBottom(), 100);
+          });
+        } else {
+          this.dataReady = true;
+        }
         this.cdr.markForCheck();
       }),
     );
 
     this.route.queryParams.subscribe(params => {
-      if (params['chatId'] && this.chatsMap.has(params['chatId'])) {
-        this.seleccionarChat(params['chatId']);
-      } else if (params['chatId']) {
-        const id = params['chatId'];
-        this.selectedChatId = id;
-        this.loadChatMessages(id);
+      if (params['chatId']) {
+        this.selectedChatId = params['chatId'];
+        if (this.chatsMap.has(params['chatId'])) {
+          this.seleccionarChat(params['chatId']);
+        } else {
+          this.loadChatMessages(params['chatId']);
+        }
       }
     });
 
@@ -101,8 +118,11 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
   }
 
   private loadChatMessages(chatId: string): void {
+    this.dataReady = false;
+    this.startLoadingProgress();
     this.whatsappChat.loadMessages(chatId, 1, 100).subscribe(messages => {
       this.messagesMap.set(chatId, messages);
+      this.dataReady = true;
       this.cdr.markForCheck();
       setTimeout(() => this.scrollToBottom(), 100);
     });
@@ -246,7 +266,35 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
   trackByContactoId(_: number, c: Contacto): string { return c.id; }
   trackByMensajeId(_: number, m: Mensaje): string { return m.id; }
 
+  private startLoadingProgress(): void {
+    this.loadingProgress = 0;
+    this.stopProgressTimer();
+
+    const tick = () => {
+      if (!this.dataReady) {
+        const remaining = 100 - this.loadingProgress;
+        const increment = Math.min(remaining * 0.15 + Math.random() * 3, 8);
+        this.loadingProgress = Math.min(this.loadingProgress + increment, 90);
+      } else {
+        this.loadingProgress = 100;
+        this.stopProgressTimer();
+      }
+      this.cdr.markForCheck();
+    };
+
+    this.progressTimer = setInterval(tick, 400);
+    tick();
+  }
+
+  private stopProgressTimer(): void {
+    if (this.progressTimer) {
+      clearInterval(this.progressTimer);
+      this.progressTimer = null;
+    }
+  }
+
   ngOnDestroy(): void {
+    this.stopProgressTimer();
     this.subs.forEach(s => s.unsubscribe());
   }
 }
