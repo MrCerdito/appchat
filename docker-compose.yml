@@ -83,7 +83,7 @@ services:
     container_name: chat-frontend
     restart: unless-stopped
     environment:
-      API_URL: ""
+      API_URL: /agora
       WS_URL: ""
       API_KEY: ${API_KEY:-token2025}
     ports:
