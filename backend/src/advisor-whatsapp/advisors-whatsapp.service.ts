@@ -23,6 +23,7 @@ import makeWASocket, {
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import QRCode from 'qrcode';
+import { SocksProxyAgent } from 'socks-proxy-agent';
 import { mkdir, rm, writeFile } from 'fs/promises';
 import { extname, join } from 'path';
 import { Subject } from 'rxjs';
@@ -251,6 +252,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
   private socketId = 0;
   private connectionSequence = 0;
   private qrReceivedInSession = false;
+  private reconnectAttempts = 0;
 
   readonly connectionUpdates$ = new Subject<WhatsappConnectionDto>();
   readonly incomingResults$ = new Subject<IncomingHandlingResult>();
@@ -358,6 +360,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     this.currentQr = null;
     this.currentQrDataUrl = null;
     this.qrReceivedInSession = false;
+    this.reconnectAttempts = 0;
     return this.ensureBaileysConnection();
   }
 
@@ -408,12 +411,18 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       this.baileysAuthDir(),
     );
     const currentSocketId = ++this.socketId;
+    const proxyUrl = process.env.WHATSAPP_PROXY_URL;
+    const agent = proxyUrl ? new SocksProxyAgent(proxyUrl) : undefined;
+    if (proxyUrl) {
+      this.logger.log(`Usando proxy SOCKS5 para WhatsApp: ${proxyUrl.replace(/\/\/.*@/, '//***@')}`);
+    }
     const sock = makeWASocket({
       auth: state,
       printQRInTerminal: false,
       syncFullHistory: false,
       markOnlineOnConnect: true,
       generateHighQualityLinkPreview: false,
+      ...(agent ? { agent } : {}),
     });
 
     this.sock = sock;
@@ -499,6 +508,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     if (connection === 'open') {
       this.currentQr = null;
       this.currentQrDataUrl = null;
+      this.reconnectAttempts = 0;
       this.connectedJid = this.sock?.user?.id
         ? jidNormalizedUser(this.sock.user.id)
         : null;
@@ -536,13 +546,16 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
 
   private scheduleReconnect(): void {
     if (this.reconnectTimer) return;
+    const delay = Math.min(3_000 * 2 ** this.reconnectAttempts, 60_000);
+    this.reconnectAttempts++;
+    this.logger.log(`Reconexion programada en ${delay / 1000}s (intento #${this.reconnectAttempts})`);
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
       this.ensureBaileysConnection().catch((err) => {
         this.logger.warn(`Reconexion Baileys fallida: ${err?.message ?? err}`);
         this.scheduleReconnect();
       });
-    }, 3_000);
+    }, delay);
   }
 
   private setConnectionState(
