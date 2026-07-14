@@ -54,6 +54,16 @@
     "secure": false,
     "changeOrigin": true
   },
+  "/faq": {
+    "target": "http://localhost:3001",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/tickets": {
+    "target": "http://localhost:3001",
+    "secure": false,
+    "changeOrigin": true
+  },
   "/socket.io": {
     "target": "http://localhost:3001",
     "secure": false,

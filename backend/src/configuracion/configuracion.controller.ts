@@ -10,6 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Roles, RolesGuard } from '../auth/roles.guard';
 import { Public } from '../auth/public.decorator';
 import { ConfiguracionService } from './configuracion.service';
 import { GuardarConfigGlobalDto } from './dto/guardar-config-global.dto';
@@ -32,6 +33,8 @@ export class ConfiguracionController {
   }
 
   @Get('global')
+  @UseGuards(RolesGuard)
+  @Roles('admin')
   getGlobal() {
     return this.svc.getGlobal();
   }
@@ -44,6 +47,8 @@ export class ConfiguracionController {
 
   @Post('global')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(RolesGuard)
+  @Roles('admin')
   guardarGlobal(@Body() body: GuardarConfigGlobalDto) {
     return this.svc.guardar(body, undefined);
   }

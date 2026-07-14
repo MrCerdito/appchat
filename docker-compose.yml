@@ -42,16 +42,18 @@ services:
     container_name: chat-backend
     restart: unless-stopped
     stop_grace_period: 15s
-    network_mode: host
+    ports:
+      - "127.0.0.1:3001:3001"
     env_file:
       - ./backend/.env
     environment:
-      DB_HOST: 127.0.0.1
-      DB_PORT: 5433
+      DB_HOST: postgres
+      DB_PORT: 5432
       TZ: America/Bogota
       NODE_ENV: production
       CORS_ORIGINS: ${CORS_ORIGINS:-https://innoovacloud.com}
       APP_URL: ${APP_URL:-https://innoovacloud.com}
+      WHATSAPP_PROXY_URL: socks5://127.0.0.1:40000
     volumes:
       - uploads_data:/app/uploads
     depends_on:
@@ -69,14 +71,14 @@ services:
       retries: 3
       start_period: 30s
     logging: *default-logging
+    networks:
+      - chat-net
 
   # ── Frontend (Angular + Nginx) ───────────────────────────────────────
   frontend:
     build:
       context: .
       dockerfile: frontend/Dockerfile
-      args:
-        BASE_HREF: /agora/
     container_name: chat-frontend
     restart: unless-stopped
     environment:
@@ -94,14 +96,15 @@ services:
           cpus: "0.5"
           memory: 128M
     logging: *default-logging
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     networks:
       - chat-net
 
 networks:
   chat-net:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
 
 volumes:
   pgdata:

@@ -107,18 +107,19 @@ export class AuthService {
   }
 
   async register(name: string, email: string, password: string) {
-    if (password.length < 12) {
+    if (password.length < 8) {
       throw new BadRequestException(
-        'La contraseña debe tener al menos 12 caracteres',
+        'La contraseña debe tener al menos 8 caracteres',
       );
     }
     if (
       !/[A-Z]/.test(password) ||
       !/[a-z]/.test(password) ||
-      !/[0-9]/.test(password)
+      !/[0-9]/.test(password) ||
+      !/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(password)
     ) {
       throw new BadRequestException(
-        'La contraseña debe incluir mayúscula, minúscula y número',
+        'La contraseña debe incluir mayúscula, minúscula, número y carácter especial',
       );
     }
 

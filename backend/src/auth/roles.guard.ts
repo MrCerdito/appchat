@@ -18,11 +18,12 @@ export class RolesGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const roles = this.reflector.get<string[]>('roles', context.getHandler());
-    if (!roles) {
-      throw new ForbiddenException(
-        'Acceso denegado: no hay roles definidos para esta ruta',
-      );
+    const roles = this.reflector.getAllAndOverride<string[]>('roles', [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (!roles || roles.length === 0) {
+      return true;
     }
     const { user } = context.switchToHttp().getRequest();
     if (!user || !roles.includes(user?.role)) {

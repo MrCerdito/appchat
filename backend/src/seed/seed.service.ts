@@ -53,8 +53,8 @@ export class SeedService implements OnApplicationBootstrap {
   }
 
   private async seedUsers() {
-    const passwordHashAdmin = await bcrypt.hash('Admin123', 10);
-    const passwordHashAsesor = await bcrypt.hash('asesor123', 10);
+    const passwordHashAdmin = await bcrypt.hash('Admin@123456', 10);
+    const passwordHashAsesor = await bcrypt.hash('Asesor@123456', 10);
 
     const admin = this.userRepo.create({
       name: 'Administrador',

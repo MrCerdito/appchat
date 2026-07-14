@@ -5,4 +5,4 @@ chown -R node:node /app/uploads 2>/dev/null || true
 
 export NODE_ENV=${NODE_ENV:-production}
 
-exec node dist/src/main
+exec node -r tsconfig-paths/register dist/src/main

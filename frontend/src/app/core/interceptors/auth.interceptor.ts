@@ -61,7 +61,9 @@ function handle401(
   isRefreshing = true;
   refreshTokenSubject.next(null);
 
-  return authService.refreshToken().pipe(
+  const doRefresh = () => authService.refreshToken();
+
+  return doRefresh().pipe(
     switchMap(res => {
       isRefreshing = false;
       refreshTokenSubject.next(res.access_token);
@@ -69,7 +71,7 @@ function handle401(
     }),
     catchError(firstErr => {
       return timer(1000).pipe(
-        switchMap(() => authService.refreshToken().pipe(
+        switchMap(() => doRefresh().pipe(
           switchMap(res => {
             isRefreshing = false;
             refreshTokenSubject.next(res.access_token);
@@ -77,6 +79,8 @@ function handle401(
           }),
           catchError(secondErr => {
             isRefreshing = false;
+            refreshTokenSubject.error(secondErr);
+            refreshTokenSubject.next(null);
             const notification = inject(NotificationService);
             notification.error('Sesión expirada', 'Tu sesión ha expirado. Inicia sesión nuevamente.');
             setTimeout(() => {
