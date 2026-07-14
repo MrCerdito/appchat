@@ -23,7 +23,6 @@ import makeWASocket, {
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import QRCode from 'qrcode';
-import { SocksProxyAgent } from 'socks-proxy-agent';
 import { mkdir, rm, writeFile } from 'fs/promises';
 import { extname, join } from 'path';
 import { Subject } from 'rxjs';
@@ -412,7 +411,8 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     );
     const currentSocketId = ++this.socketId;
     const proxyUrl = process.env.WHATSAPP_PROXY_URL;
-    const agent = proxyUrl ? new SocksProxyAgent(proxyUrl) : undefined;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const agent = proxyUrl ? new (require('socks-proxy-agent').SocksProxyAgent)(proxyUrl) : undefined;
     if (proxyUrl) {
       this.logger.log(`Usando proxy SOCKS5 para WhatsApp: ${proxyUrl.replace(/\/\/.*@/, '//***@')}`);
     }
