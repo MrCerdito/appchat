@@ -15,7 +15,7 @@ FROM node:20-alpine
 RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 WORKDIR /app
 
-RUN apk add --no-cache curl tzdata su-exec
+RUN apk add --no-cache curl tzdata
 
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
 COPY backend/package.json ./backend/
@@ -29,8 +29,6 @@ RUN chmod +x /entrypoint.sh
 
 RUN mkdir -p /app/uploads/documentos /app/uploads/baileys-auth /app/uploads/whatsapp \
     && chown -R node:node /app
-
-USER node
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD curl -f http://localhost:3001/health || exit 1
