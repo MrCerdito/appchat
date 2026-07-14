@@ -53,6 +53,18 @@ export class ConfiguracionController {
     return this.svc.guardar(body, undefined);
   }
 
+  @Get('quick-replies')
+  async getQuickReplies() {
+    const config = await this.svc.getGlobal();
+    return config.whatsappQuickReplies ?? [];
+  }
+
+  @Post('quick-replies')
+  @HttpCode(HttpStatus.OK)
+  guardarQuickReplies(@Body() body: { whatsappQuickReplies: any[] }) {
+    return this.svc.guardar({ whatsappQuickReplies: body.whatsappQuickReplies }, undefined);
+  }
+
   @Delete()
   @HttpCode(HttpStatus.OK)
   resetear(@Request() req: any) {

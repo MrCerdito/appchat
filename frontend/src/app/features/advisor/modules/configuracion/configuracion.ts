@@ -70,9 +70,9 @@ export class ConfiguracionComponent implements OnInit {
       },
     });
 
-    this.svc.getGlobal().subscribe({
-      next: (globalConfig) => {
-        this.quickReplies = this.normalizeQuickReplies(globalConfig.whatsappQuickReplies);
+    this.svc.getQuickRepliesConfig().subscribe({
+      next: (quickReplies) => {
+        this.quickReplies = this.normalizeQuickReplies(quickReplies);
         this.cdr.detectChanges();
       },
     });
@@ -109,7 +109,7 @@ export class ConfiguracionComponent implements OnInit {
       next: (config) => {
         this.config = { ...config, almuerzos: config.almuerzos ?? [] };
 
-        this.svc.guardarGlobal({ whatsappQuickReplies: this.quickReplies }).subscribe({
+        this.svc.guardarQuickReplies({ whatsappQuickReplies: this.quickReplies }).subscribe({
           next: () => {
             this.saving = false;
             this.saved = true;
@@ -212,9 +212,9 @@ export class ConfiguracionComponent implements OnInit {
   }
 
   initQuickRepliesFromConfig(): void {
-    this.svc.getGlobal().subscribe({
-      next: (globalConfig) => {
-        this.quickReplies = this.normalizeQuickReplies(globalConfig.whatsappQuickReplies);
+    this.svc.getQuickRepliesConfig().subscribe({
+      next: (quickReplies) => {
+        this.quickReplies = this.normalizeQuickReplies(quickReplies);
         this.cdr.detectChanges();
       },
     });

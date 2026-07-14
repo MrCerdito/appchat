@@ -63,6 +63,14 @@ export class ConfiguracionFrontendService {
     return this.http.post<ConfiguracionData>(`${this.url}/global`, data);
   }
 
+  getQuickRepliesConfig(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.url}/quick-replies`);
+  }
+
+  guardarQuickReplies(data: { whatsappQuickReplies: any[] }): Observable<any> {
+    return this.http.post(`${this.url}/quick-replies`, data);
+  }
+
   resetear(): Observable<{ ok: boolean }> {
     return this.http.delete<{ ok: boolean }>(this.url);
   }

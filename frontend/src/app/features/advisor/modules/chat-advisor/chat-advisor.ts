@@ -133,13 +133,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   }
 
   get activeSessions(): Session[] {
-    const active = this.sessions.filter(s => s.status === 'waiting' || s.status === 'active');
-    if (!this.searchQuery.trim()) return active;
-    const q = this.searchQuery.toLowerCase();
-    return active.filter(s =>
-      s.clientName?.toLowerCase().includes(q) ||
-      s.apellido?.toLowerCase().includes(q)
-    );
+    return this.sessions.filter(s => s.status === 'waiting' || s.status === 'active');
   }
 
   get waitingCount(): number {
@@ -148,6 +142,23 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
 
   get assignedCount(): number {
     return this.sessions.filter(s => s.status === 'active').length;
+  }
+
+  get recentSessions(): Session[] {
+    const activeIds = new Set(this.activeSessions.map(s => s.id));
+    if (this.activeSession) activeIds.add(this.activeSession.id);
+    let recent = this.sessions
+      .filter(s => !activeIds.has(s.id))
+      .slice(0, 4);
+    if (this.searchQuery.trim()) {
+      const q = this.searchQuery.toLowerCase();
+      recent = recent.filter(s =>
+        s.clientName?.toLowerCase().includes(q) ||
+        s.apellido?.toLowerCase().includes(q) ||
+        s.colegio?.toLowerCase().includes(q)
+      );
+    }
+    return recent;
   }
 
   get activeAdvisorName(): string {
@@ -181,7 +192,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   get slashFiltered(): Array<{ name: string; content: string }> {
     const q = this.slashQuery.toLowerCase();
     return this.configQuickReplies.filter(r =>
-      (r.name + ' ' + r.content).toLowerCase().includes(q)
+      r.name.toLowerCase().includes(q)
     );
   }
 
@@ -208,9 +219,15 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     this.loadSessions();
     this.loadAdvisors();
 
-    this.configService.getGlobal().subscribe(config => {
-      this.configQuickReplies = this.normalizeQuickReplies(config.whatsappQuickReplies);
-      this.cdr.detectChanges();
+    this.configService.getQuickRepliesConfig().subscribe({
+      next: (replies) => {
+        this.configQuickReplies = this.normalizeQuickReplies(replies);
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.configQuickReplies = this.normalizeQuickReplies(undefined);
+        this.cdr.detectChanges();
+      }
     });
 
     const savedStatus = localStorage.getItem('advisor_status') ?? 'online';
@@ -720,9 +737,9 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     this.showSlashMenu = true;
     this.slashHighlight = 0;
     const match = this.configQuickReplies.find(r =>
-      (r.name + ' ' + r.content).toLowerCase().startsWith(this.slashQuery) && this.slashQuery.length > 0
+      r.name.toLowerCase().startsWith(this.slashQuery) && this.slashQuery.length > 0
     );
-    this.ghostSuggestion = match ? match.content.slice(this.slashQuery.length) : '';
+    this.ghostSuggestion = match ? match.name.slice(this.slashQuery.length) : '';
   }
 
   selectSlashReply(reply: { name: string; content: string }): void {
@@ -782,8 +799,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
       this.socket.emit('typing_stop', sessionId);
     }
     const formatted = this.newMessage.trim()
-      .replace(/\*\*(.+?)\*\*/g, '*$1*')
-      .replace(/\[(.+?)\]\((.+?)\)/g, '$1: $2');
+      .replace(/\*\*(.+?)\*\*/g, '*$1*');
     this.socket.emit('send_message', { sessionId, content: formatted });
     this.newMessage = '';
     this.showSlashMenu = false;
@@ -834,7 +850,15 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
       .replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>')
       .replace(/(<li>.*<\/li>\n?)+/g, '<ol>$&</ol>')
       .replace(
-        /((https?:\/\/|www\.)[^\s<]+)/g,
+        /\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g,
+        '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
+      )
+      .replace(
+        /link:((https?:\/\/|www\.)[^\s<]+)/gi,
+        '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+      )
+      .replace(
+        /(?<!href="|src=")((https?:\/\/|www\.)[^\s<]+)/g,
         (match) => {
           const url = match.startsWith('www.') ? `https://${match}` : match;
           return `<a href="${url}" target="_blank" rel="noopener noreferrer">${match}</a>`;

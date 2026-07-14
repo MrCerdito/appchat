@@ -3,36 +3,32 @@
     <div class="sidebar-head">
       <div class="sidebar-brand">
         <img class="sidebar-logo" src="/icon.jpg" alt="Innova Cloud">
-        <div>
+        <div class="brand-text">
           <span class="sidebar-title">Innova Cloud</span>
           <span class="sidebar-subtitle">Chat en linea</span>
         </div>
       </div>
-     
-      <div class="ops-row">
-        <div>
-          <strong>{{ activeSessions.length }}</strong>
-          <span>Activos</span>
+
+      <div class="stats-bar">
+        <div class="stat stat--active">
+          <span class="stat-num">{{ activeSessions.length }}</span>
+          <span class="stat-label">Activos</span>
         </div>
-        <div>
-          <strong>{{ waitingCount }}</strong>
-          <span>Espera</span>
+        <div class="stat stat--waiting">
+          <span class="stat-num">{{ waitingCount }}</span>
+          <span class="stat-label">Espera</span>
         </div>
-        <div *ngIf="assignedCount > 0">
-          <strong>{{ assignedCount }}</strong>
-          <span>Asignados</span>
+        <div class="stat stat--assigned" *ngIf="assignedCount > 0">
+          <span class="stat-num">{{ assignedCount }}</span>
+          <span class="stat-label">Asignados</span>
         </div>
-      </div>
-      <div class="search-box">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="8"></circle>
-          <path d="m21 21-4.35-4.35"></path>
-        </svg>
-        <input type="text" placeholder="Buscar cliente, colegio o solicitud" [(ngModel)]="searchQuery">
       </div>
     </div>
 
     <div class="sessions-list">
+      <div class="section-label" *ngIf="activeSessions.length > 0">
+        Chats asignados
+      </div>
       <button
         type="button"
         *ngFor="let session of activeSessions; trackBy: trackById"
@@ -49,21 +45,23 @@
           [class.dot-wait]="session.status === 'waiting'"
         ></div>
         <div class="session-txt">
-          <span class="s-name">{{ sessionFullName(session) }}</span>
+          <div class="s-top">
+            <span class="s-name">{{ sessionFullName(session) }}</span>
+            <span class="s-time">{{ session.createdAt | date:'HH:mm' }}</span>
+          </div>
           <span class="s-sub">{{ session.colegio || 'Sin colegio' }}</span>
-          <span class="s-sub muted">{{ session.tipoSolicitud || 'Solicitud general' }}</span>
-        </div>
-        <div class="session-meta">
-          <span class="s-time">{{ session.createdAt | date:'HH:mm' }}</span>
-          <span class="badge-unread" *ngIf="unreadCount(session.id) > 0">
-            {{ unreadCount(session.id) }}
-          </span>
-          <span class="badge-wait" *ngIf="unreadCount(session.id) === 0 && session.status === 'waiting'">
-            Espera
-          </span>
-          <span class="badge-activo" *ngIf="unreadCount(session.id) === 0 && session.status === 'active'">
-            Activo
-          </span>
+          <div class="s-bottom">
+            <span class="s-sub muted">{{ session.tipoSolicitud || 'General' }}</span>
+            <span class="badge-unread" *ngIf="unreadCount(session.id) > 0">
+              {{ unreadCount(session.id) }}
+            </span>
+            <span class="badge-wait" *ngIf="unreadCount(session.id) === 0 && session.status === 'waiting'">
+              Espera
+            </span>
+            <span class="badge-activo" *ngIf="unreadCount(session.id) === 0 && session.status === 'active'">
+              Activo
+            </span>
+          </div>
         </div>
       </button>
 
@@ -72,6 +70,38 @@
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
         </svg>
         <span>Sin chats activos</span>
+      </div>
+    </div>
+
+    <div class="sidebar-foot">
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"></circle>
+          <path d="m21 21-4.35-4.35"></path>
+        </svg>
+        <input type="text" placeholder="Buscar recientes..." [(ngModel)]="searchQuery">
+      </div>
+      <div class="recent-section" *ngIf="recentSessions.length > 0">
+        <span class="recent-label">Mis recientes</span>
+        <button
+          type="button"
+          *ngFor="let session of recentSessions; trackBy: trackById"
+          class="session-card recent-card"
+          [class.selected]="activeSession?.id === session.id"
+          (click)="joinSession(session)"
+        >
+          <div class="ava ava-sm" [ngClass]="avatarColor(session.id)">
+            {{ safeInitial(session.clientName) }}
+          </div>
+          <div class="session-txt">
+            <div class="s-top">
+              <span class="s-name">{{ sessionFullName(session) }}</span>
+              <span class="s-time">{{ session.createdAt | date:'HH:mm' }}</span>
+            </div>
+            <span class="s-sub">{{ session.colegio || 'Sin colegio' }}</span>
+          </div>
+          <span class="badge-closed">Cerrado</span>
+        </button>
       </div>
     </div>
   </aside>
@@ -239,7 +269,6 @@
               >
                 <div class="slash-reply-text">
                   <span class="slash-reply-name">{{ reply.name }}</span>
-                  <span class="slash-reply-preview">{{ formatPreview(reply.content) }}</span>
                 </div>
               </button>
             </div>

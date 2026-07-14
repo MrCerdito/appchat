@@ -926,9 +926,19 @@ detenerStream(): void {
     .replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>')
     // Wrappear listas consecutivas en <ol>
     .replace(/(<li>.*<\/li>\n?)+/g, '<ol>$&</ol>')
+    // Markdown links: [texto](url) → <a href="url">texto</a>
+    .replace(
+      /\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g,
+      '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
+    )
+    // Links con prefijo: link:https://... → <a>https://...</a>
+    .replace(
+      /link:((https?:\/\/|www\.)[^\s<]+)/gi,
+      '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+    )
     // Hipervínculos: convertir URLs en enlaces clickables
     .replace(
-      /((https?:\/\/|www\.)[^\s<]+)/g,
+      /(?<!href="|src=")((https?:\/\/|www\.)[^\s<]+)/g,
       (match) => {
         const url = match.startsWith('www.') ? `https://${match}` : match;
         return `<a href="${url}" target="_blank" rel="noopener noreferrer">${match}</a>`;
