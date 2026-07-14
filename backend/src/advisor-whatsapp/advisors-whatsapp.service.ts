@@ -410,19 +410,12 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       this.baileysAuthDir(),
     );
     const currentSocketId = ++this.socketId;
-    const proxyUrl = process.env.WHATSAPP_PROXY_URL;
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const agent = proxyUrl ? new (require('socks-proxy-agent').SocksProxyAgent)(proxyUrl) : undefined;
-    if (proxyUrl) {
-      this.logger.log(`Usando proxy SOCKS5 para WhatsApp: ${proxyUrl.replace(/\/\/.*@/, '//***@')}`);
-    }
     const sock = makeWASocket({
       auth: state,
       printQRInTerminal: false,
       syncFullHistory: false,
       markOnlineOnConnect: true,
       generateHighQualityLinkPreview: false,
-      ...(agent ? { agent } : {}),
     });
 
     this.sock = sock;
@@ -529,15 +522,6 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       this.sock = null;
       this.currentQr = null;
       this.currentQrDataUrl = null;
-
-      if (shouldReconnect && !this.qrReceivedInSession) {
-        this.logger.warn(
-          'Conexion cerrada sin QR previo — credenciales corruptas. Limpiando sesion...',
-        );
-        await rm(this.baileysAuthDir(), { recursive: true, force: true }).catch(
-          () => undefined,
-        );
-      }
 
       this.setConnectionState('disconnected', reason);
       if (shouldReconnect) this.scheduleReconnect();

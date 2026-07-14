@@ -15,7 +15,7 @@ FROM node:20-alpine
 RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 WORKDIR /app
 
-RUN apk add --no-cache curl tzdata
+RUN apk add --no-cache curl tzdata su-exec
 
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
 COPY backend/package.json ./backend/
