@@ -1,0 +1,252 @@
+.opa-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #F8FAFC;
+}
+
+.opa-nav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 24px;
+  border-bottom: 1px solid #E5E7EB;
+  background: #fff;
+  flex-shrink: 0;
+}
+
+.opa-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: #10B981;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 8px;
+  transition: all .12s ease;
+
+  svg { width: 16px; height: 16px; }
+
+  &:hover {
+    background: #D1FAE5;
+    color: #059669;
+  }
+}
+
+.opa-nav-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1E293B;
+}
+
+.opa-filters {
+  display: flex;
+  gap: 8px;
+  padding: 14px 24px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.opa-filter-btn {
+  padding: 6px 18px;
+  border: 1px solid #E5E7EB;
+  border-radius: 20px;
+  background: #fff;
+  color: #64748B;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .12s ease;
+
+  &:hover {
+    border-color: #10B981;
+    color: #10B981;
+  }
+
+  &.active {
+    background: #10B981;
+    border-color: #10B981;
+    color: #fff;
+  }
+}
+
+.opa-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  padding: 0 24px 24px;
+  flex: 1;
+  align-content: start;
+  overflow-y: auto;
+}
+
+.opa-card {
+  border: 1px solid #E5E7EB;
+  border-radius: 10px;
+  background: #fff;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 1px 2px rgba(15,23,42,.04);
+  transition: box-shadow .15s ease, border-color .15s ease;
+
+  &:hover {
+    border-color: #CBD5E1;
+    box-shadow: 0 1px 4px rgba(15,23,42,.08);
+  }
+}
+
+.opa-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.opa-avatar {
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.opa-info {
+  min-width: 0;
+
+  strong {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1E293B;
+  }
+}
+
+.opa-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  margin-top: 2px;
+
+  &::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+
+  &.online::before  { background: #10B981; }
+  &.online          { color: #059669; }
+
+  &.busy::before    { background: #3B82F6; }
+  &.busy            { color: #2563EB; }
+
+  &.away::before    { background: #F59E0B; }
+  &.away            { color: #D97706; }
+}
+
+.opa-metrics {
+  display: flex;
+  flex-direction: column;
+}
+
+.opa-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 0;
+  border-bottom: 1px solid #F1F5F9;
+
+  &:last-child { border-bottom: 0; }
+
+  span {
+    font-size: 11px;
+    font-weight: 500;
+    color: #64748B;
+  }
+
+  strong {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1E293B;
+
+    small {
+      font-size: 10px;
+      font-weight: 500;
+      color: #64748B;
+      margin-left: 2px;
+    }
+
+    &.danger { color: #DC2626; }
+  }
+}
+
+.opa-cap-row {
+  padding: 5px 0;
+  border-bottom: 1px solid #F1F5F9;
+}
+
+.opa-cap-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+
+  span {
+    font-size: 11px;
+    font-weight: 500;
+    color: #64748B;
+  }
+
+  strong {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1E293B;
+
+    small {
+      font-size: 10px;
+      font-weight: 500;
+      color: #64748B;
+      margin-left: 2px;
+    }
+
+    &.danger { color: #DC2626; }
+  }
+}
+
+.opa-cap-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: #F1F5F9;
+  overflow: hidden;
+}
+
+.opa-cap-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width .3s ease;
+}
+
+@media (max-width: 1400px) {
+  .opa-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (max-width: 1024px) {
+  .opa-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 660px) {
+  .opa-grid { grid-template-columns: 1fr; }
+  .opa-filters { padding: 12px 16px; }
+  .opa-grid { padding: 0 16px 16px; }
+}

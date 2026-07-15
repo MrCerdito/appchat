@@ -1,0 +1,61 @@
+Comandos para desplegar
+Opción 1: Setup inicial automatizado (recomendado)
+# 1. Subir proyecto al VPS
+scp -r . root@TU_IP:/opt/chat
+
+# 2. Conectar al VPS
+ssh root@TU_IP
+
+# 3. Ejecutar setup (instala Docker, nginx, SSL, levanta todo)
+cd /opt/chat
+chmod +x deploy/setup-vps.sh
+./deploy/setup-vps.sh
+El script hace automáticamente:
+- Instala Docker, Nginx, Certbot
+- Crea backend/.env desde .env.production
+- Genera JWT_SECRET y CHAT_ENCRYPTION_KEY
+- Configura nginx + SSL
+- Build y levanta los 3 contenedores
+Opción 2: Si ya tienes Docker y nginx instalados
+# 1. Subir proyecto
+scp -r . root@TU_IP:/opt/chat
+
+# 2. Conectar
+ssh root@TU_IP
+
+# 3. Configurar .env (si no existe)
+cd /opt/chat
+cp backend/.env.production backend/.env
+# Editar backend/.env con tus valores reales
+
+# 4. Configurar nginx
+cp deploy/nginx-host.conf /etc/nginx/sites-available/chat
+ln -sf /etc/nginx/sites-available/chat /etc/nginx/sites-enabled/
+rm -f /etc/nginx/sites-enabled/default
+nginx -t && systemctl reload nginx
+
+# 5. Obtener SSL
+certbot certonly --webroot -w /var/www/html \
+  -d innoovacloud.com -d www.innoovacloud.com \
+  --non-interactive --agree-tos -m admin@innoovacloud.com
+
+# 6. Activar HTTPS
+cp deploy/nginx-host.conf /etc/nginx/sites-available/chat
+nginx -t && systemctl reload nginx
+
+# 7. Levantar contenedores
+docker compose up -d --build
+
+# 8. Verificar
+docker compose ps
+curl http://localhost:3001/health
+Actualizaciones futuras
+# En el VPS, después de subir cambios:
+cd /opt/chat
+./deploy/setup-vps.sh --upgrade
+Comandos útiles diarios
+docker compose logs -f backend     # Ver logs del backend
+docker compose logs -f frontend    # Ver logs del frontend
+docker compose ps                  # Estado de contenedores
+./deploy/backup.sh                 # Backup DB + uploads
+docker compose down && docker compose up -d  # Reiniciar todo
