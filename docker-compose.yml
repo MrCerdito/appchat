@@ -51,8 +51,8 @@ services:
       DB_PORT: 5432
       TZ: America/Bogota
       NODE_ENV: production
-      CORS_ORIGINS: ${CORS_ORIGINS:-https://innoovacloud.com}
-      APP_URL: ${APP_URL:-https://innoovacloud.com}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://reportacasos.innovacloud.co}
+      APP_URL: ${APP_URL:-https://reportacasos.innovacloud.co}
       WHATSAPP_PROXY_URL: socks5://127.0.0.1:40000
     volumes:
       - uploads_data:/app/uploads
