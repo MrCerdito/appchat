@@ -25,6 +25,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       '/widget-config',
       '/configuracion/horario-hoy',
       '/sessions/colegios/list',
+      '/codigo',
     ];
     const isPublic = PUBLIC_URLS.some(url => req.url.includes(url));
 

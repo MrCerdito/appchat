@@ -212,8 +212,9 @@ export class SessionsController {
     return session;
   }
 
+  // Publico: el cliente anonimo del chat necesita el codigo de su propio caso
+  // (el id es un UUID no adivinable)
   @Get(':id/codigo')
-  @UseGuards(JwtAuthGuard)
   findCodigo(@Param('id') id: string) {
     return this.sessionsService.findCodigo(id);
   }
