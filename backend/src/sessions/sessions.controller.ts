@@ -239,6 +239,12 @@ export class SessionsController {
     );
   }
 
+  @Post(':id/close-anonymous')
+  @HttpCode(HttpStatus.OK)
+  async closeAnonymous(@Param('id') id: string) {
+    return this.sessionsService.close(id);
+  }
+
   @Post(':id/rating')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.CREATED)

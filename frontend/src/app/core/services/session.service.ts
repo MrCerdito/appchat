@@ -169,6 +169,10 @@ close(sessionId: string): Observable<any> {
   return this.http.post(`${environment.apiUrl}/sessions/${sessionId}/close`, {});
 }
 
+closeAnonymous(sessionId: string): Observable<any> {
+  return this.http.post(`${environment.apiUrl}/sessions/${sessionId}/close-anonymous`, {});
+}
+
 getCodigo(sessionId: string): Observable<{ codigo: string }> {
   return this.http.get<{ codigo: string }>(`${environment.apiUrl}/sessions/${sessionId}/codigo`);
 }

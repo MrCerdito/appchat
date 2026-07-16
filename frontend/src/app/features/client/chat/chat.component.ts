@@ -378,7 +378,7 @@ get rolLabel(): string {
 
       // Cerrar en backend (sin bloquear la redirección).
       if (this.session?.id) {
-        this.sessionService.close(this.session.id).subscribe({
+        this.sessionService.closeAnonymous(this.session.id).subscribe({
           next : () => undefined,
           error: () => undefined,
         });
@@ -1059,7 +1059,7 @@ private escapeHtml(value: string): string {
 
   if (this.aiMode) {
     if (this.session?.id) {
-      this.sessionService.close(this.session.id).subscribe({
+      this.sessionService.closeAnonymous(this.session.id).subscribe({
         error: () => this.notification.error('Error', 'No se pudo cerrar la sesión'),
       });
     }
