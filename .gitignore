@@ -1,9 +1,0 @@
-﻿node_modules/
-dist/
-.pnpm-store
-*.tar.gz
-*.zip
-.env
-backend/uploads/baileys-auth/
-backend/uploads/whatsapp/
-BD.csv
