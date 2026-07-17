@@ -1,0 +1,304 @@
+<div class="history-page">
+  <div class="page-header">
+    <div>
+      <h1>Historial</h1>
+      <p>Consulta todas las conversaciones</p>
+    </div>
+  </div>
+
+  <!-- Mobile Tab Bar -->
+  <div class="mobile-tab-bar">
+    <button [class.active]="mobileView === 'list'" (click)="mobileView = 'list'">Sesiones</button>
+    <button [class.active]="mobileView === 'chat'" [disabled]="!activeSession"
+      (click)="mobileView = 'chat'">Conversación</button>
+  </div>
+
+  <div class="history-layout">
+
+    <!-- ══ SIDEBAR ══════════════════════════════════════════════════════════ -->
+    <aside class="sessions-sidebar" [class.mobile-hidden]="mobileView === 'chat'">
+
+      <div class="search-bar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        <input type="text" [(ngModel)]="search"
+          placeholder="Buscar por nombre, asesor, colegio o ID..."/>
+      </div>
+
+      <div class="filter-tabs">
+        <button [class.active]="filter === 'all'"    (click)="filter = 'all'">Todos</button>
+        <button [class.active]="filter === 'active'" (click)="filter = 'active'">Activos</button>
+        <button [class.active]="filter === 'closed'" (click)="filter = 'closed'">Cerrados</button>
+      </div>
+
+      <div class="advanced-toggle">
+        <button (click)="showAdvancedFilters = !showAdvancedFilters">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px">
+            <line x1="4" y1="6" x2="20" y2="6"/>
+            <line x1="8" y1="12" x2="16" y2="12"/>
+            <line x1="11" y1="18" x2="13" y2="18"/>
+          </svg>
+          {{ showAdvancedFilters ? 'Ocultar filtros' : 'Más filtros' }}
+          @if (hasActiveFilters) {
+          <span class="filter-dot"></span>
+          }
+        </button>
+        @if (hasActiveFilters) {
+        <button class="clear-btn" (click)="clearFilters()">
+          Limpiar todo
+        </button>
+        }
+      </div>
+
+      @if (showAdvancedFilters) {
+      <div class="advanced-filters">
+        <div class="filter-group">
+          <label>Colegio</label>
+          <select [(ngModel)]="filterColegio">
+            <option value="">Todos</option>
+            @for (c of colegios; track trackByIndex($index)) {
+            <option [value]="c">{{ c }}</option>
+            }
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Rol</label>
+          <select [(ngModel)]="filterRol">
+            <option value="">Todos</option>
+            @for (r of roles; track trackByIndex($index)) {
+            <option [value]="r">{{ r }}</option>
+            }
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Solicitud</label>
+          <select [(ngModel)]="filterSolicitud">
+            <option value="">Todas</option>
+            @for (s of solicitudes; track trackByIndex($index)) {
+            <option [value]="s">{{ s }}</option>
+            }
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Identificación</label>
+          <input type="text" [(ngModel)]="filterIdentificacion"
+            placeholder="Buscar por documento..."/>
+        </div>
+      </div>
+      }
+
+      <div class="results-count">
+        {{ filteredSessions.length }} sesión{{ filteredSessions.length !== 1 ? 'es' : '' }}
+      </div>
+
+      <div class="sessions-list">
+        @for (session of filteredSessions; track trackById($index, session)) {
+        <div class="session-card"
+          [class.selected]="activeSession?.id === session.id"
+          [class.is-closed]="session.status === 'closed'"
+          (click)="selectSession(session)">
+
+          <div class="session-avatar" [class.closed]="session.status === 'closed'">
+            {{ session.clientName.charAt(0) }}
+          </div>
+
+          <div class="session-info">
+            <span class="session-name">{{ session.clientName }}</span>
+            @if (session.colegio) {
+            <span class="session-detail">{{ session.colegio }}</span>
+            }
+            <span class="session-preview">
+              {{ session.advisor?.name ? 'Asesor: ' + session.advisor!.name : 'Sin asesor' }}
+            </span>
+          </div>
+
+          <div class="session-right">
+            <span class="session-time">{{ session.createdAt | date:'dd/MM HH:mm' }}</span>
+            <span class="badge" [ngClass]="'badge-' + session.status">
+              {{ getStatusLabel(session.status) }}
+            </span>
+          </div>
+        </div>
+        }
+
+        @if (filteredSessions.length === 0) {
+        <div class="empty-list">
+          Sin resultados para los filtros aplicados
+        </div>
+        }
+      </div>
+    </aside>
+
+    <!-- ══ CHAT AREA ═════════════════════════════════════════════════════════ -->
+    <div class="chat-area" [class.mobile-hidden]="mobileView === 'list'">
+
+      <!-- Estado vacío -->
+      @if (!activeSession) {
+      <div class="empty-state">
+        <div class="empty-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+        </div>
+        <h3>Selecciona una sesión</h3>
+        <p>Visualiza el historial completo de cualquier conversación.</p>
+      </div>
+      }
+
+      <!-- Chat panel -->
+      @if (activeSession) {
+      <div class="chat-panel">
+
+        <!-- Cabecera -->
+        <div class="chat-header">
+          <div class="client-info">
+            <button class="back-btn" (click)="mobileView = 'list'" aria-label="Volver">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"/>
+              </svg>
+            </button>
+            <div class="avatar">{{ activeSession.clientName.charAt(0) }}</div>
+            <div class="header-text">
+              <span class="client-name">{{ activeSession.clientName }}</span>
+              <span class="session-meta">
+                {{ activeSession.advisor?.name ? 'Atendido por ' + activeSession.advisor!.name : 'Sin asesor asignado' }}
+                · {{ activeSession.createdAt | date:'dd/MM/yyyy HH:mm' }}
+              </span>
+              @if (activeSession.colegio || activeSession.rol) {
+              <span class="session-meta">
+                {{ activeSession.colegio }}{{ activeSession.rol ? ' · ' + activeSession.rol : '' }}
+              </span>
+              }
+            </div>
+          </div>
+
+          <div class="header-right">
+            <span class="badge" [ngClass]="'badge-' + activeSession.status">
+              {{ getStatusLabel(activeSession.status) }}
+            </span>
+
+            <!-- ★ Ya estoy en este chat -->
+            @if (alreadyInChat) {
+            <div class="in-chat-badge">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+              Ya estás en este chat
+            </div>
+            }
+
+            <!-- ★ Botón unirse -->
+            @if (canTakeOver) {
+            <button class="takeover-btn"
+              [class.takeover-btn--loading]="takeoverLoading"
+              [disabled]="takeoverLoading"
+              (click)="takeOver()">
+              @if (!takeoverLoading) {
+              <svg viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <line x1="19" y1="8" x2="19" y2="14"/>
+                <line x1="22" y1="11" x2="16" y2="11"/>
+              </svg>
+              }
+              @if (takeoverLoading) {
+              <svg class="spin-icon" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+              </svg>
+              }
+              {{ takeoverLoading ? 'Tomando...' : 'Tomar chat' }}
+            </button>
+            }
+          </div>
+        </div>
+
+        <!-- Toast feedback -->
+        @if (takeoverFeedback) {
+        <div class="takeover-toast"
+          [class.takeover-toast--ok]="takeoverFeedback.type === 'ok'"
+          [class.takeover-toast--error]="takeoverFeedback.type === 'error'">
+          {{ takeoverFeedback.text }}
+        </div>
+        }
+
+        <!-- Buscar en mensajes -->
+        <div class="msg-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+            <circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path>
+          </svg>
+          <input type="text" placeholder="Buscar en mensajes..." [(ngModel)]="msgSearchQuery">
+        </div>
+
+        <!-- Mensajes -->
+        <div class="messages" #messagesContainer>
+          @if (loading) {
+          <div class="no-messages">
+            <span class="loading-dots">
+              <span></span><span></span><span></span>
+            </span>
+            Cargando mensajes...
+          </div>
+          }
+
+          @for (msg of filteredMessages; track trackById($index, msg)) {
+
+            <!-- Sistema -->
+            @if (msg.senderName === 'Sistema') {
+            <div class="system-msg">
+              <div class="system-msg-inner">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="12" y1="8" x2="12" y2="12"/>
+                  <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <span>{{ msg.content }}</span>
+              </div>
+              <span class="system-time">{{ msg.createdAt | date:'HH:mm' }}</span>
+            </div>
+            }
+
+            <!-- Normal -->
+            @if (msg.senderName !== 'Sistema') {
+            <div class="message"
+              [class.mine]="msg.senderType === 'advisor'"
+              [class.theirs]="msg.senderType === 'client'">
+              <span class="sender">{{ msg.senderName }}</span>
+              <div class="bubble">{{ msg.content }}</div>
+              <span class="time">{{ msg.createdAt | date:'HH:mm' }}</span>
+            </div>
+            }
+
+          }
+
+          @if (!loading && messages.length === 0) {
+          <div class="no-messages">
+            Sin mensajes en esta conversación
+          </div>
+          }
+        </div>
+
+        <div class="readonly-notice">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+          Solo lectura — vista de administrador
+        </div>
+      </div>
+      }
+    </div>
+
+  </div>
+</div>

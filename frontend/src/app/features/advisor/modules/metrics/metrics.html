@@ -1,0 +1,265 @@
+<div class="page">
+
+  @if (metrics) {
+  <header class="header">
+    <div class="header-identity">
+      <div class="avatar">{{ metrics.advisor.name.charAt(0) }}</div>
+      <div>
+        <h1>{{ metrics.advisor.name }}</h1>
+        <span class="status-dot" [class]="metrics.advisor.status"></span>
+        <span class="status-text">{{ getStatusLabel(metrics.advisor.status) }}</span>
+      </div>
+    </div>
+    <span class="meta-label">Actualizado {{ lastUpdated | date:'HH:mm:ss' }}</span>
+  </header>
+  }
+
+  @if (!loading && !error && metrics) {
+  <div class="dashboard">
+
+    <!-- ── Columna izquierda ── -->
+    <div class="left-col">
+
+      <section class="kpi-row">
+        <div class="kpi-divider"></div>
+        <div class="kpi">
+          <span class="kpi-num">{{ metrics.hoy }}</span>
+          <span class="kpi-label">Hoy</span>
+        </div>
+        <div class="kpi-divider"></div>
+        <div class="kpi">
+          <span class="kpi-num">{{ metrics.semana }}</span>
+          <span class="kpi-label">Semana</span>
+        </div>
+        <div class="kpi-divider"></div>
+        <div class="kpi">
+          <span class="kpi-num">{{ metrics.total }}</span>
+          <span class="kpi-label">Histórico</span>
+        </div>
+        <div class="kpi-divider"></div>
+        <div class="kpi">
+          <span class="kpi-num accent">{{ metrics.totalActivas }}</span>
+          <span class="kpi-label">Activos</span>
+        </div>
+        <div class="kpi-divider"></div>
+        <div class="kpi">
+          <span class="kpi-num gold">{{ metrics.avgEstrellas || '—' }}</span>
+          <span class="kpi-label">Calificación</span>
+        </div>
+      </section>
+
+      <section class="health-strip">
+        <div class="health-score">
+          <span class="health-num">{{ getPerformanceScore() }}</span>
+          <span class="health-label">Puntaje operativo</span>
+        </div>
+        <div class="health-detail">
+          <span>{{ getCargaLabel() }}</span>
+          <small>{{ metrics.advisor.activeChats }} chats activos · {{ metrics.totalCerradas }} cierres · {{ metrics.totalRatings }} reseñas</small>
+        </div>
+      </section>
+
+      <section class="cards-grid">
+        <div class="card span-full">
+          <div class="card-top">
+            <span class="card-label">Tasa de resolución</span>
+            <span class="card-value" [style.color]="getResolucionColor(metrics.tasaResolucion)">
+              {{ metrics.tasaResolucion }}<small>%</small>
+            </span>
+          </div>
+          <div class="track">
+            <div class="fill" [style.width.%]="metrics.tasaResolucion"
+              [style.background]="getResolucionColor(metrics.tasaResolucion)"></div>
+          </div>
+          <span class="card-sub">{{ metrics.totalCerradas }} cerradas de {{ metrics.totalCerradas + metrics.totalActivas }} atendidas</span>
+        </div>
+        <div class="card">
+          <div class="card-top">
+            <span class="card-label">Tiempo de resolución</span>
+            <span class="card-value blue">{{ metrics.avgResolucionMin }}<small>min</small></span>
+          </div>
+          <div class="card-stats-row">
+            <span>Mediana: <b>{{ metrics.medianaResolucionMin }}min</b></span>
+            <span>P95: <b>{{ metrics.p95ResolucionMin }}min</b></span>
+          </div>
+          <div class="track">
+            <div class="fill blue" [style.width.%]="Math.min((metrics.medianaResolucionMin / 60) * 100, 100)"></div>
+          </div>
+          <span class="card-sub">Mediana apertura → cierre</span>
+        </div>
+        <div class="card">
+          <div class="card-top">
+            <span class="card-label">Primera respuesta</span>
+            <span class="card-value purple">{{ metrics.avgPrimeraRespuestaMin }}<small>min</small></span>
+          </div>
+          <div class="card-stats-row">
+            <span>Mediana: <b>{{ metrics.medianaPrimeraRespuestaMin }}min</b></span>
+            <span>P95: <b>{{ metrics.p95PrimeraRespuestaMin }}min</b></span>
+          </div>
+          <div class="track">
+            <div class="fill purple" [style.width.%]="Math.min((metrics.medianaPrimeraRespuestaMin / 15) * 100, 100)"></div>
+          </div>
+          <span class="card-sub">Mediana hasta tu primer mensaje</span>
+        </div>
+      </section>
+
+      <section class="summary-strip">
+        <div class="strip-item">
+          <span class="s-val">{{ metrics.advisor.activeChats }} / 4</span>
+          <span class="s-label">Chats activos</span>
+        </div>
+        <div class="strip-item">
+          <span class="s-val">{{ metrics.totalCerradas }}</span>
+          <span class="s-label">Cerradas</span>
+        </div>
+        <div class="strip-item">
+          <span class="s-val">{{ metrics.advisor.createdAt | date:'MMM yyyy' }}</span>
+          <span class="s-label">Miembro desde</span>
+        </div>
+        <div class="strip-item overflow">
+          <span class="s-val">{{ metrics.advisor.email }}</span>
+          <span class="s-label">Correo</span>
+        </div>
+      </section>
+
+      <!-- ── Tabla de comentarios ── -->
+      <section class="comments-card">
+        <div class="comments-header">
+          <span class="section-title">Comentarios de clientes</span>
+          @if (comentTotal > 0) {
+          <span class="comments-total">{{ comentTotal }} en total</span>
+          }
+        </div>
+
+        @if (comentarios.length === 0) {
+        <div class="empty-state">
+          Sin comentarios aún
+        </div>
+        }
+
+        @if (comentarios.length > 0) {
+        <table class="comments-table">
+          <thead>
+            <tr>
+              <th>Cliente</th>
+              <th>Comentario</th>
+              <th>Etiquetas</th>
+              <th>Estrellas</th>
+              <th>Fecha</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (c of comentarios; track trackById($index, c)) {
+            <tr>
+              <td class="td-client">{{ c.clientName }}</td>
+              <td class="td-text">{{ c.comentario }}</td>
+              <td class="td-chips">
+                <div class="chip-row">
+                  @for (e of c.etiquetas; track $index) {
+                  <span class="chip-tag">{{ e }}</span>
+                  }
+                </div>
+              </td>
+              <td class="td-stars">
+                <div class="inline-stars">
+                  @for (s of getStars(c.estrellas); track $index) {
+                  <span class="star" [class]="s">★</span>
+                  }
+                </div>
+              </td>
+              <td class="td-date">{{ c.createdAt | date:'dd MMM yy' }}</td>
+            </tr>
+            }
+          </tbody>
+        </table>
+        }
+
+        @if (comentPages > 1) {
+        <div class="pagination">
+          <button class="page-btn" [disabled]="comentPage === 1" (click)="loadComentarios(comentPage - 1)">‹</button>
+          <span class="page-info">{{ comentPage }} / {{ comentPages }}</span>
+          <button class="page-btn" [disabled]="comentPage === comentPages" (click)="loadComentarios(comentPage + 1)">›</button>
+        </div>
+        }
+      </section>
+
+    </div>
+
+    <!-- ── Columna derecha ── -->
+    <aside class="right-col">
+
+      <!-- Rating resumen -->
+      @if (metrics.totalRatings > 0) {
+      <div class="rating-card">
+        <div class="rating-top">
+          <span class="big-score">{{ metrics.avgEstrellas }}</span>
+          <div class="stars-row">
+            @for (s of getStars(metrics.avgEstrellas); track $index) {
+            <span class="star" [class]="s">★</span>
+            }
+          </div>
+          <span class="rating-sub">{{ metrics.totalRatings }} reseñas</span>
+        </div>
+        @if (metrics.topEtiquetas.length > 0) {
+        <div class="rating-tags">
+          <span class="section-micro">Lo más destacado</span>
+          <div class="chips">
+            @for (t of metrics.topEtiquetas; track $index) {
+            <div class="chip">
+              <span class="chip-name">{{ t.etiqueta }}</span>
+              <span class="chip-count">{{ t.count }}</span>
+            </div>
+            }
+          </div>
+        </div>
+        }
+      </div>
+      }
+      @if (metrics.totalRatings === 0) {
+      <div class="empty-rating">
+        Sin calificaciones aún
+      </div>
+      }
+
+      <!-- Ranking -->
+      <div class="ranking-col">
+        <div class="ranking-header">
+          <span class="ranking-title">Top asesores</span>
+          <span class="ranking-sub">Por calificación</span>
+        </div>
+        <div class="ranking-list">
+          @for (a of ranking; track trackById($index, a)) {
+          <div class="ranking-item" [class.me]="isCurrentUser(a.id)">
+            <span class="pos">{{ $index + 1 }}</span>
+            <div class="rank-avatar">{{ a.name.charAt(0) }}</div>
+            <div class="rank-info">
+              <span class="rank-name">
+                {{ a.name }}
+                @if (isCurrentUser(a.id)) {
+                <span class="you-badge">tú</span>
+                }
+              </span>
+              <span class="rank-detail">{{ a.total }} sesiones</span>
+            </div>
+            <div class="rank-right">
+              <span class="rank-score">{{ a.avgEstrellas > 0 ? a.avgEstrellas : '—' }}</span>
+              <span class="rank-reviews">{{ a.totalRatings > 0 ? a.totalRatings + ' reseñas' : 'sin reseñas' }}</span>
+            </div>
+          </div>
+          }
+        </div>
+      </div>
+
+    </aside>
+
+  </div>
+  }
+
+  @if (loading) {
+  <div class="state">Cargando…</div>
+  }
+  @if (error) {
+  <div class="state err">Error al cargar.</div>
+  }
+
+</div>

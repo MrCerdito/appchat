@@ -1,0 +1,67 @@
+<div class="opa-page">
+  <nav class="opa-nav">
+    <button class="opa-back-btn" (click)="volverAlPanel()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+      </svg>
+      Volver al panel
+    </button>
+    <span class="opa-nav-title">Asesores</span>
+  </nav>
+
+  <div class="opa-filters">
+    <button class="opa-filter-btn" [class.active]="filtroStatus === 'todos'" (click)="setFiltro('todos')">Todos</button>
+    <button class="opa-filter-btn" [class.active]="filtroStatus === 'online'" (click)="setFiltro('online')">Disponible</button>
+    <button class="opa-filter-btn" [class.active]="filtroStatus === 'busy'" (click)="setFiltro('busy')">En chat</button>
+    <button class="opa-filter-btn" [class.active]="filtroStatus === 'away'" (click)="setFiltro('away')">Ausente</button>
+  </div>
+
+  <div class="opa-grid">
+    @for (asesor of asesoresFiltrados; track trackByAdvisorId($index, asesor)) {
+    <div class="opa-card">
+      <div class="opa-top">
+        <div class="opa-avatar" [style.background]="getAvatarColor(asesor.name)">{{ getInitials(asesor.name) }}</div>
+        <div class="opa-info">
+          <strong>{{ asesor.name }}</strong>
+          <span class="opa-status" [class]="statusClass(asesor)">{{ statusLabel(asesor) }}</span>
+        </div>
+      </div>
+      <div class="opa-metrics">
+        <div class="opa-row">
+          <span>Chats activos</span>
+          <strong>{{ asesor.activeChats }}</strong>
+        </div>
+        <div class="opa-row">
+          <span>SLA en riesgo</span>
+          <strong [class.danger]="slaRiesgo(asesor) > 0">{{ slaRiesgo(asesor) }}</strong>
+        </div>
+        <div class="opa-row">
+          <span>Cerrados</span>
+          <strong>{{ asesor.closedChats }}</strong>
+        </div>
+        <div class="opa-cap-row">
+          <div class="opa-cap-header">
+            <span>Capacidad</span>
+            <strong [class.danger]="advisorCapacity(asesor) > 110">{{ advisorCapacity(asesor) }}<small>%</small></strong>
+          </div>
+          <div class="opa-cap-bar">
+            <div class="opa-cap-fill" [style.width.%]="Math.min(advisorCapacity(asesor), 100)" [style.background]="capacidadColor(advisorCapacity(asesor))"></div>
+          </div>
+        </div>
+        <div class="opa-row">
+          <span>Tiempo resp.</span>
+          <strong>{{ asesor.avgResponseMinutes }}<small>min</small></strong>
+        </div>
+        <div class="opa-row">
+          <span>Asignados</span>
+          <strong>{{ asesor.manualChats }}</strong>
+        </div>
+        <div class="opa-row">
+          <span>Fijos</span>
+          <strong>{{ asesor.fixedClients }}</strong>
+        </div>
+      </div>
+    </div>
+    }
+  </div>
+</div>
