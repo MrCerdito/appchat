@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
@@ -65,7 +65,7 @@ export class ComunicadosService {
   ): Promise<Comunicado> {
     const c = await this.findOne(id);
     if (c.status === 'sent')
-      throw new Error('No se puede editar un comunicado enviado');
+      throw new BadRequestException('No se puede editar un comunicado enviado');
     c.asunto = asunto;
     c.cuerpo = cuerpo;
     c.destinatarios = destinatarios.map((d) => ({
@@ -77,8 +77,8 @@ export class ComunicadosService {
 
   async send(id: string): Promise<Comunicado> {
     const c = await this.findOne(id);
-    if (c.status === 'sent') throw new Error('Ya fue enviado');
-    if (!c.destinatarios.length) throw new Error('Sin destinatarios');
+    if (c.status === 'sent') throw new BadRequestException('Ya fue enviado');
+    if (!c.destinatarios.length) throw new BadRequestException('Sin destinatarios');
 
     const baseUrl = this.config.get('APP_URL') ?? 'http://localhost:3001';
     const from = this.config.get('MAIL_FROM');
@@ -103,7 +103,7 @@ export class ComunicadosService {
           html: cuerpoFinal,
         });
 
-        if (error) throw new Error(error.message);
+        if (error) throw new BadRequestException(error.message);
         return data;
       }),
     );

@@ -5,6 +5,8 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { Subscription, interval } from 'rxjs';
 import { WhatsappChatService } from '../../../../../../core/services/whatsapp-chat.service';
 import { WaChat, WaMessage } from '../../../../../../core/models/whatsapp.models';
+import { getInitials, getAvatarColor } from '../../../../../../shared/utils/avatar';
+import { scrollToBottom } from '../../../../../../shared/utils/scroll';
 
 interface Contacto {
   id: string;
@@ -71,11 +73,14 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
           this.chatsMap.set(chat.id, chat);
         }
         if (this.selectedChatId && this.chatsMap.has(this.selectedChatId)) {
-          this.whatsappChat.loadMessages(this.selectedChatId, 1, 100).subscribe(messages => {
-            this.messagesMap.set(this.selectedChatId!, messages);
-            this.dataReady = true;
-            this.cdr.markForCheck();
-            setTimeout(() => this.scrollToBottom(), 100);
+          this.whatsappChat.loadMessages(this.selectedChatId, 1, 100).subscribe({
+            next: (messages) => {
+              this.messagesMap.set(this.selectedChatId!, messages);
+              this.dataReady = true;
+              this.cdr.markForCheck();
+              setTimeout(() => this.scrollToBottom(), 100);
+            },
+            error: (err) => console.error('HTTP Error:', err),
           });
         } else {
           this.dataReady = true;
@@ -84,21 +89,24 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
       }),
     );
 
-    this.route.queryParams.subscribe(params => {
-      if (params['chatId']) {
-        this.selectedChatId = params['chatId'];
-        if (this.chatsMap.has(params['chatId'])) {
-          this.seleccionarChat(params['chatId']);
-        } else {
-          this.loadChatMessages(params['chatId']);
+    this.route.queryParams.subscribe({
+      next: (params) => {
+        if (params['chatId']) {
+          this.selectedChatId = params['chatId'];
+          if (this.chatsMap.has(params['chatId'])) {
+            this.seleccionarChat(params['chatId']);
+          } else {
+            this.loadChatMessages(params['chatId'], true);
+          }
         }
-      }
+      },
+      error: (err) => console.error('HTTP Error:', err),
     });
 
     this.subs.push(
       this.whatsappChat.onNewMessage().subscribe(data => {
         if (data.chatId === this.selectedChatId) {
-          this.loadChatMessages(this.selectedChatId);
+          this.loadChatMessages(this.selectedChatId, true);
         }
         this.cdr.markForCheck();
       }),
@@ -112,28 +120,34 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
 
     this.subs.push(
       interval(15_000).subscribe(() => {
-        this.whatsappChat.loadChats().subscribe();
+    this.whatsappChat.loadChats().subscribe({
+      error: (err) => console.error('HTTP Error:', err),
+    });
       }),
     );
   }
 
-  private loadChatMessages(chatId: string): void {
-    this.dataReady = false;
-    this.startLoadingProgress();
-    this.whatsappChat.loadMessages(chatId, 1, 100).subscribe(messages => {
-      this.messagesMap.set(chatId, messages);
-      this.dataReady = true;
-      this.cdr.markForCheck();
-      setTimeout(() => this.scrollToBottom(), 100);
+  private loadChatMessages(chatId: string, silent = false): void {
+    if (!silent) {
+      this.dataReady = false;
+      this.startLoadingProgress();
+    }
+    this.whatsappChat.loadMessages(chatId, 1, 100).subscribe({
+      next: (messages) => {
+        this.messagesMap.set(chatId, messages);
+        this.dataReady = true;
+        this.cdr.markForCheck();
+        setTimeout(() => this.scrollToBottom(), 100);
+      },
+      error: (err) => console.error('HTTP Error:', err),
     });
   }
 
   private scrollToBottom(): void {
     try {
-      this.messageFeed?.nativeElement?.scrollTo({
-        top: this.messageFeed.nativeElement.scrollHeight,
-        behavior: 'smooth',
-      });
+      if (this.messageFeed?.nativeElement) {
+        scrollToBottom(this.messageFeed.nativeElement);
+      }
     } catch {}
   }
 
@@ -200,16 +214,8 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
     };
   }
 
-  private getInitials(name: string): string {
-    return name.split(/\s+/).map(w => w[0]).join('').substring(0, 2).toUpperCase();
-  }
-
-  private getAvatarColor(name: string): string {
-    const colors = ['#128C7E', '#5F4B8B', '#E91E63', '#FF9800', '#2196F3', '#009688', '#3B82F6', '#EC4899'];
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    return colors[Math.abs(hash) % colors.length];
-  }
+  private getInitials = getInitials;
+  private getAvatarColor = getAvatarColor;
 
   private tz = 'America/Bogota';
 
@@ -241,8 +247,10 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
 
   seleccionarChat(id: string): void {
     this.selectedChatId = id;
-    this.loadChatMessages(id);
-    this.whatsappChat.markRead(id).subscribe();
+    this.loadChatMessages(id, true);
+    this.whatsappChat.markRead(id).subscribe({
+      error: (err) => console.error('HTTP Error:', err),
+    });
   }
 
   volverAlPanel(): void {
@@ -254,11 +262,14 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
     const chat = this.chatsMap.get(this.selectedChatId);
     if (!chat) return;
     const to = chat.jid || chat.phone;
-    this.whatsappChat.sendMessage(to, this.nuevoMensaje.trim()).subscribe(res => {
-      if (res.ok && this.selectedChatId) {
-        this.loadChatMessages(this.selectedChatId);
-      }
-      this.cdr.markForCheck();
+    this.whatsappChat.sendMessage(to, this.nuevoMensaje.trim()).subscribe({
+      next: (res) => {
+        if (res.ok && this.selectedChatId) {
+          this.loadChatMessages(this.selectedChatId, true);
+        }
+        this.cdr.markForCheck();
+      },
+      error: (err) => console.error('HTTP Error:', err),
     });
     this.nuevoMensaje = '';
   }

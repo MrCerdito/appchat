@@ -1,6 +1,8 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { DocumentosService, DocumentoItem } from '../../../../core/services/documentos.service';
 import { NotificationService } from '../../../../core/services/notification.service';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
@@ -11,8 +13,9 @@ import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
   imports    : [CommonModule, FormsModule],
   templateUrl: './documentos.component.html',
   styleUrl   : './documentos.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class DocumentosComponent implements OnInit {
+export class DocumentosComponent implements OnInit, OnDestroy {
   protected readonly trackByIndex = trackByIndex;
   protected readonly trackById = trackById;
   documentos   : DocumentoItem[] = [];
@@ -60,6 +63,8 @@ export class DocumentosComponent implements OnInit {
     { value: 'padre',      label: 'Padre/Madre' },
   ];
 
+  private destroy$ = new Subject<void>();
+
   constructor(
     private docService: DocumentosService,
     private notification: NotificationService,
@@ -68,9 +73,14 @@ export class DocumentosComponent implements OnInit {
 
   ngOnInit(): void { this.cargarDocumentos(); }
 
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
   cargarDocumentos(): void {
     this.loading = true;
-    this.docService.listar().subscribe({
+    this.docService.listar().pipe(takeUntil(this.destroy$)).subscribe({
       next : (docs) => { this.documentos = docs; this.loading = false; this.cdr.detectChanges(); },
       error: ()     => { this.loading = false; this.notification.error('Error', 'No se pudieron cargar los documentos.'); this.cdr.detectChanges(); },
     });
@@ -103,7 +113,7 @@ export class DocumentosComponent implements OnInit {
     if (this.form.colegio.trim()) formData.append('colegio', this.form.colegio.trim());
 
     this.uploading = true;
-    this.docService.subir(formData).subscribe({
+    this.docService.subir(formData).pipe(takeUntil(this.destroy$)).subscribe({
       next: (res) => {
         this.uploading    = false;
         this.uploadResult = res;
@@ -156,7 +166,7 @@ export class DocumentosComponent implements OnInit {
         colegio        : this.form.colegio.trim() || null,
         rolesPermitidos: this.form.rolesPermitidos.join(','),
       }
-    ).subscribe({
+    ).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
         this.uploading = false;
         this.showForm  = false;
@@ -182,7 +192,7 @@ export class DocumentosComponent implements OnInit {
     if (!this.docAEliminar) return;
     const nombre = this.docAEliminar.nombre;
     this.docAEliminar = null;
-    this.docService.eliminar(nombre).subscribe({
+    this.docService.eliminar(nombre).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => { this.documentos = this.documentos.filter(d => d.nombre !== nombre); this.notification.success('Documento eliminado', ''); this.cdr.detectChanges(); },
     });
   }
@@ -218,7 +228,7 @@ export class DocumentosComponent implements OnInit {
     if (!this.testQuery.trim()) return;
     this.testCargando  = true;
     this.testResultado = null;
-    this.docService.buscar(this.testQuery).subscribe({
+    this.docService.buscar(this.testQuery).pipe(takeUntil(this.destroy$)).subscribe({
       next : (res) => { this.testResultado = res; this.testCargando = false; this.cdr.detectChanges(); },
       error: ()    => { this.testCargando = false; this.cdr.detectChanges(); },
     });

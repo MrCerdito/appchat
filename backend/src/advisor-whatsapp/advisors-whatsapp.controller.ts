@@ -22,7 +22,9 @@ import { Repository } from 'typeorm';
 import { Request } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { memoryStorage } from 'multer';
+import { diskStorage } from 'multer';
+import { join } from 'path';
+import { existsSync, mkdirSync } from 'fs';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { TicketsService } from '../tickets/tickets.service';
 import {
@@ -567,7 +569,17 @@ export class AdvisorsWhatsappController {
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: memoryStorage(),
+      storage: diskStorage({
+        destination: (_req, _file, cb) => {
+          const dir = join(process.cwd(), 'uploads', 'whatsapp');
+          if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+          cb(null, dir);
+        },
+        filename: (_req, file, cb) => {
+          const ext = file.originalname.split('.').pop() || 'bin';
+          cb(null, `wa-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`);
+        },
+      }),
       limits: { fileSize: 64 * 1024 * 1024 },
     }),
   )

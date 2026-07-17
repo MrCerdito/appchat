@@ -152,6 +152,7 @@ export class TicketsService {
     return this.repo.find({
       order: { createdAt: 'DESC' },
       relations: ['assignedTo', 'createdBy', 'closedBy'],
+      take: 500,
     });
   }
 

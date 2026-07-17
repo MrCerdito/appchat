@@ -30,6 +30,11 @@ export class SeedService implements OnApplicationBootstrap {
   }
 
   private async seed() {
+    if (process.env.NODE_ENV === 'production') {
+      this.logger.log('Producción detectada — seed omitido por seguridad');
+      return;
+    }
+
     const adminExists = await this.userRepo.findOne({
       where: { role: 'admin' },
     });

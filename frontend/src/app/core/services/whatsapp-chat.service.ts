@@ -4,6 +4,7 @@ import { Observable, Subject, of, BehaviorSubject } from 'rxjs';
 import { catchError, tap } from 'rxjs/operators';
 import { io, Socket } from 'socket.io-client';
 import { environment } from '../../../environments/environment';
+import { formatBogotaTime } from '../../shared/utils/date';
 
 import {
   WaChat,
@@ -574,12 +575,8 @@ export class WhatsappChatService implements OnDestroy {
   }
 
   private formatBogotaTime(value: Date | string): string {
-    return new Intl.DateTimeFormat('es-CO', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-      timeZone: 'America/Bogota',
-    }).format(this.parseDateValue(value));
+    const d = this.parseDateValue(value);
+    return formatBogotaTime(d);
   }
 
   private parseDateValue(value: Date | string): Date {

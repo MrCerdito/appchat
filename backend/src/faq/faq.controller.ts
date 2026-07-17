@@ -11,6 +11,7 @@ import {
   ParseIntPipe,
   HttpCode,
   HttpStatus,
+  Header,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles, RolesGuard } from '../auth/roles.guard';
@@ -22,6 +23,7 @@ import { UpdateFaqDto } from './dto/update-faq.dto';
 export class FaqController {
   constructor(private readonly faqService: FaqService) {}
 
+  @Header('Cache-Control', 'public, max-age=300')
   @Get()
   findAll(@Query('colegioId') colegioId?: string, @Query('q') q?: string) {
     return this.faqService.findAll(

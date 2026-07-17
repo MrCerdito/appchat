@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   OneToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { Session } from './session.entity';
 import { Min, Max } from 'class-validator';
@@ -14,6 +15,7 @@ export class Rating {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Index('idx_ratings_session_id')
   @OneToOne(() => Session, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'session_id' })
   session: Session;

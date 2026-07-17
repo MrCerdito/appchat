@@ -128,6 +128,9 @@ export class GuardarConfigGlobalDto {
   @IsString()
   @MaxLength(30)
   sonidoAsignacion?: string;
+
+  @IsOptional()
+  aiPromptConfig?: Record<string, any>;
 }
 
 class HorarioSlotObject {

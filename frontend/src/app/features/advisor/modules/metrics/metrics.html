@@ -1,6 +1,7 @@
 <div class="page">
 
-  <header class="header" *ngIf="metrics">
+  @if (metrics) {
+  <header class="header">
     <div class="header-identity">
       <div class="avatar">{{ metrics.advisor.name.charAt(0) }}</div>
       <div>
@@ -11,8 +12,10 @@
     </div>
     <span class="meta-label">Actualizado {{ lastUpdated | date:'HH:mm:ss' }}</span>
   </header>
+  }
 
-  <div class="dashboard" *ngIf="!loading && !error && metrics">
+  @if (!loading && !error && metrics) {
+  <div class="dashboard">
 
     <!-- ── Columna izquierda ── -->
     <div class="left-col">
@@ -123,14 +126,19 @@
       <section class="comments-card">
         <div class="comments-header">
           <span class="section-title">Comentarios de clientes</span>
-          <span class="comments-total" *ngIf="comentTotal > 0">{{ comentTotal }} en total</span>
+          @if (comentTotal > 0) {
+          <span class="comments-total">{{ comentTotal }} en total</span>
+          }
         </div>
 
-        <div *ngIf="comentarios.length === 0" class="empty-state">
+        @if (comentarios.length === 0) {
+        <div class="empty-state">
           Sin comentarios aún
         </div>
+        }
 
-        <table class="comments-table" *ngIf="comentarios.length > 0">
+        @if (comentarios.length > 0) {
+        <table class="comments-table">
           <thead>
             <tr>
               <th>Cliente</th>
@@ -141,29 +149,38 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let c of comentarios; trackBy: trackById">
+            @for (c of comentarios; track trackById($index, c)) {
+            <tr>
               <td class="td-client">{{ c.clientName }}</td>
               <td class="td-text">{{ c.comentario }}</td>
               <td class="td-chips">
                 <div class="chip-row">
-                  <span class="chip-tag" *ngFor="let e of c.etiquetas; trackBy: trackByIndex">{{ e }}</span>
+                  @for (e of c.etiquetas; track $index) {
+                  <span class="chip-tag">{{ e }}</span>
+                  }
                 </div>
               </td>
               <td class="td-stars">
                 <div class="inline-stars">
-                  <span *ngFor="let s of getStars(c.estrellas); trackBy: trackByIndex" class="star" [class]="s">★</span>
+                  @for (s of getStars(c.estrellas); track $index) {
+                  <span class="star" [class]="s">★</span>
+                  }
                 </div>
               </td>
               <td class="td-date">{{ c.createdAt | date:'dd MMM yy' }}</td>
             </tr>
+            }
           </tbody>
         </table>
+        }
 
-        <div class="pagination" *ngIf="comentPages > 1">
+        @if (comentPages > 1) {
+        <div class="pagination">
           <button class="page-btn" [disabled]="comentPage === 1" (click)="loadComentarios(comentPage - 1)">‹</button>
           <span class="page-info">{{ comentPage }} / {{ comentPages }}</span>
           <button class="page-btn" [disabled]="comentPage === comentPages" (click)="loadComentarios(comentPage + 1)">›</button>
         </div>
+        }
       </section>
 
     </div>
@@ -172,27 +189,37 @@
     <aside class="right-col">
 
       <!-- Rating resumen -->
-      <div class="rating-card" *ngIf="metrics.totalRatings > 0">
+      @if (metrics.totalRatings > 0) {
+      <div class="rating-card">
         <div class="rating-top">
           <span class="big-score">{{ metrics.avgEstrellas }}</span>
           <div class="stars-row">
-            <span *ngFor="let s of getStars(metrics.avgEstrellas); trackBy: trackByIndex" class="star" [class]="s">★</span>
+            @for (s of getStars(metrics.avgEstrellas); track $index) {
+            <span class="star" [class]="s">★</span>
+            }
           </div>
           <span class="rating-sub">{{ metrics.totalRatings }} reseñas</span>
         </div>
-        <div class="rating-tags" *ngIf="metrics.topEtiquetas.length > 0">
+        @if (metrics.topEtiquetas.length > 0) {
+        <div class="rating-tags">
           <span class="section-micro">Lo más destacado</span>
           <div class="chips">
-            <div class="chip" *ngFor="let t of metrics.topEtiquetas; trackBy: trackByIndex">
+            @for (t of metrics.topEtiquetas; track $index) {
+            <div class="chip">
               <span class="chip-name">{{ t.etiqueta }}</span>
               <span class="chip-count">{{ t.count }}</span>
             </div>
+            }
           </div>
         </div>
+        }
       </div>
-      <div class="empty-rating" *ngIf="metrics.totalRatings === 0">
+      }
+      @if (metrics.totalRatings === 0) {
+      <div class="empty-rating">
         Sin calificaciones aún
       </div>
+      }
 
       <!-- Ranking -->
       <div class="ranking-col">
@@ -201,14 +228,16 @@
           <span class="ranking-sub">Por calificación</span>
         </div>
         <div class="ranking-list">
-          <div *ngFor="let a of ranking; trackBy: trackById; let i = index"
-            class="ranking-item" [class.me]="isCurrentUser(a.id)">
-            <span class="pos">{{ i + 1 }}</span>
+          @for (a of ranking; track trackById($index, a)) {
+          <div class="ranking-item" [class.me]="isCurrentUser(a.id)">
+            <span class="pos">{{ $index + 1 }}</span>
             <div class="rank-avatar">{{ a.name.charAt(0) }}</div>
             <div class="rank-info">
               <span class="rank-name">
                 {{ a.name }}
-                <span class="you-badge" *ngIf="isCurrentUser(a.id)">tú</span>
+                @if (isCurrentUser(a.id)) {
+                <span class="you-badge">tú</span>
+                }
               </span>
               <span class="rank-detail">{{ a.total }} sesiones</span>
             </div>
@@ -217,14 +246,20 @@
               <span class="rank-reviews">{{ a.totalRatings > 0 ? a.totalRatings + ' reseñas' : 'sin reseñas' }}</span>
             </div>
           </div>
+          }
         </div>
       </div>
 
     </aside>
 
   </div>
+  }
 
-  <div *ngIf="loading" class="state">Cargando…</div>
-  <div *ngIf="error" class="state err">Error al cargar.</div>
+  @if (loading) {
+  <div class="state">Cargando…</div>
+  }
+  @if (error) {
+  <div class="state err">Error al cargar.</div>
+  }
 
 </div>

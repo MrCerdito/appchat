@@ -1,6 +1,7 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { NavigationEnd, Router, RouterModule } from '@angular/router';
+import { ToastContainerComponent } from '../../../shared/components/toast-container.component';
 import { filter, Subscription } from 'rxjs';
 
 import { AuthService } from '../../../core/services/auth.service';
@@ -13,9 +14,10 @@ import { trackByIndex, trackById } from '../../../shared/utils/track-by';
 @Component({
   selector: 'app-admin-shell',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, ToastContainerComponent],
   templateUrl: './admin-shell.html',
   styleUrl: './admin-shell.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AdminShellComponent implements OnInit, OnDestroy {
   protected readonly trackByIndex = trackByIndex;
@@ -43,9 +45,15 @@ export class AdminShellComponent implements OnInit, OnDestroy {
     this.syncSidebarMode();
     this.routerSub = this.router.events
       .pipe(filter(event => event instanceof NavigationEnd))
-      .subscribe(() => this.syncSidebarMode());
-    this.layoutSub = this.layoutService.sidebarForcedVisible$.subscribe(() => {
-      this.syncSidebarMode();
+      .subscribe({
+        next: () => this.syncSidebarMode(),
+        error: (err) => console.error('HTTP Error:', err),
+      });
+    this.layoutSub = this.layoutService.sidebarForcedVisible$.subscribe({
+      next: () => {
+        this.syncSidebarMode();
+      },
+      error: (err) => console.error('HTTP Error:', err),
     });
   }
 

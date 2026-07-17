@@ -9,7 +9,7 @@ import {
   OnInit,
   ViewChild,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { WaIconComponent } from '../../../../shared/components/wa-icon/wa-icon.component';
 import { firstValueFrom, Subscription, timeout } from 'rxjs';
@@ -32,6 +32,8 @@ import {
 } from '../../../../core/models/whatsapp.models';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
 import { priorityLabel, priorityColor } from '../../../../shared/utils/ticket-categories';
+import { scrollToBottom as scrollToBottomEl } from '../../../../shared/utils/scroll';
+import { formatBogotaTime as formatBogotaTimeShared } from '../../../../shared/utils/date';
 
 export type { WaChat as Contact };
 
@@ -90,7 +92,7 @@ interface MessageReactionGroup {
 @Component({
   selector: 'app-whatsapp-chat',
   standalone: true,
-  imports: [CommonModule, FormsModule, WaIconComponent],
+  imports: [CommonModule, FormsModule, WaIconComponent, DecimalPipe],
   templateUrl: './whatsapp.html',
   styleUrl: './whatsapp.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -547,8 +549,11 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
 
   loadMoreChats(): void {
     this.subs.add(
-      this.waService.loadMoreChats().subscribe(() => {
-        this.cdr.detectChanges();
+      this.waService.loadMoreChats().subscribe({
+        next: () => {
+          this.cdr.detectChanges();
+        },
+        error: (err) => console.error('HTTP Error:', err),
       }),
     );
   }
@@ -897,12 +902,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
 
   private formatBogotaTime(value: Date | string): string {
     const date = this.parseDateValue(value);
-    return new Intl.DateTimeFormat('es-CO', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-      timeZone: 'America/Bogota',
-    }).format(date);
+    return formatBogotaTimeShared(date);
   }
 
   private formatDateLabel(date: Date): string {
@@ -1008,21 +1008,27 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     this.resizeMessageInput();
 
     this.subs.add(
-      this.waService.sendMessage(this.addressForContact(this.activeContact), text).subscribe(res => {
-        this.isSending = false;
-        if (res.ok && res.chat) {
-          this.activeContact = res.chat;
-          this.shouldScroll = true;
-          this.cdr.detectChanges();
-          return;
-        }
+      this.waService.sendMessage(this.addressForContact(this.activeContact), text).subscribe({
+        next: (res) => {
+          this.isSending = false;
+          if (res.ok && res.chat) {
+            this.activeContact = res.chat;
+            this.shouldScroll = true;
+            this.cdr.detectChanges();
+            return;
+          }
 
-        const messages = [...(this.activeContact?.messages ?? [])];
-        const idx = messages.findIndex(msg => msg.id === optimisticMsg.id);
-        if (idx >= 0) messages[idx] = { ...messages[idx], status: 'failed' };
-        if (this.activeContact) this.activeContact = { ...this.activeContact, messages };
-        this.sendError = 'No se pudo enviar. Revisa la conexion o la asignacion.';
-        this.cdr.detectChanges();
+          const messages = [...(this.activeContact?.messages ?? [])];
+          const idx = messages.findIndex(msg => msg.id === optimisticMsg.id);
+          if (idx >= 0) messages[idx] = { ...messages[idx], status: 'failed' };
+          if (this.activeContact) this.activeContact = { ...this.activeContact, messages };
+          this.sendError = 'No se pudo enviar. Revisa la conexion o la asignacion.';
+          this.cdr.detectChanges();
+        },
+        error: (err) => {
+          this.isSending = false;
+          console.error('HTTP Error:', err);
+        },
       }),
     );
   }
@@ -1065,22 +1071,28 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     this.resizeMessageInput();
 
     this.subs.add(
-      this.waService.sendMedia(this.addressForContact(contact), file, caption).subscribe(res => {
-        this.isSending = false;
-        if (res.ok && res.chat) {
-          this.activeContact = res.chat;
-          this.clearSelectedFile();
-          this.shouldScroll = true;
-          this.cdr.detectChanges();
-          return;
-        }
+      this.waService.sendMedia(this.addressForContact(contact), file, caption).subscribe({
+        next: (res) => {
+          this.isSending = false;
+          if (res.ok && res.chat) {
+            this.activeContact = res.chat;
+            this.clearSelectedFile();
+            this.shouldScroll = true;
+            this.cdr.detectChanges();
+            return;
+          }
 
-        const messages = [...(this.activeContact?.messages ?? [])];
-        const idx = messages.findIndex(msg => msg.id === optimisticMsg.id);
-        if (idx >= 0) messages[idx] = { ...messages[idx], status: 'failed' };
-        if (this.activeContact) this.activeContact = { ...this.activeContact, messages };
-        this.sendError = 'No se pudo enviar el archivo. Revisa la conexion o la asignacion.';
-        this.cdr.detectChanges();
+          const messages = [...(this.activeContact?.messages ?? [])];
+          const idx = messages.findIndex(msg => msg.id === optimisticMsg.id);
+          if (idx >= 0) messages[idx] = { ...messages[idx], status: 'failed' };
+          if (this.activeContact) this.activeContact = { ...this.activeContact, messages };
+          this.sendError = 'No se pudo enviar el archivo. Revisa la conexion o la asignacion.';
+          this.cdr.detectChanges();
+        },
+        error: (err) => {
+          this.isSending = false;
+          console.error('HTTP Error:', err);
+        },
       }),
     );
   }
@@ -1353,9 +1365,12 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
       category: '',
     };
     if (this.ticketCategories.length === 0) {
-      this.ticketService.getCategories().subscribe(cats => {
-        this.ticketCategories = cats;
-        this.cdr.detectChanges();
+      this.ticketService.getCategories().subscribe({
+        next: (cats) => {
+          this.ticketCategories = cats;
+          this.cdr.detectChanges();
+        },
+        error: (err) => console.error('HTTP Error:', err),
       });
     }
     this.showTicketModal = true;
@@ -1392,7 +1407,9 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
         const label = priorityLabel(ticket.priority);
         const address = contact.jid || contact.phone;
         if (address) {
-          this.waService.sendMessage(address, `Se generó el ticket ${ticket.codigo} con prioridad ${label} y fue asignado a ${this.currentUserName}.`).subscribe();
+          this.waService.sendMessage(address, `Se generó el ticket ${ticket.codigo} con prioridad ${label} y fue asignado a ${this.currentUserName}.`).subscribe({
+            error: (err) => console.error('HTTP Error:', err),
+          });
         }
         this.cdr.detectChanges();
       },
@@ -2327,8 +2344,7 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
 
   private scrollToBottom(): void {
     try {
-      this.messagesContainer.nativeElement.scrollTop =
-        this.messagesContainer.nativeElement.scrollHeight;
+      scrollToBottomEl(this.messagesContainer.nativeElement);
     } catch {
       // View not ready yet.
     }

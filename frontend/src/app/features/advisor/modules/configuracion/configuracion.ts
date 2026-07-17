@@ -1,6 +1,8 @@
-import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import {
   ConfiguracionData,
   ConfiguracionFrontendService,
@@ -15,8 +17,9 @@ import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
   imports: [CommonModule, FormsModule],
   templateUrl: './configuracion.html',
   styleUrl: './configuracion.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ConfiguracionComponent implements OnInit {
+export class ConfiguracionComponent implements OnInit, OnDestroy {
   protected readonly trackByIndex = trackByIndex;
   protected readonly trackById = trackById;
   config: ConfiguracionData | null = null;
@@ -48,6 +51,8 @@ export class ConfiguracionComponent implements OnInit {
     { value: 6, label: 'Sabado', short: 'Sab' },
   ];
 
+  private destroy$ = new Subject<void>();
+
   constructor(
     private readonly svc: ConfiguracionFrontendService,
     private readonly notification: NotificationService,
@@ -55,7 +60,7 @@ export class ConfiguracionComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.svc.getEfectiva().subscribe({
+    this.svc.getEfectiva().pipe(takeUntil(this.destroy$)).subscribe({
       next: (config) => {
         this.config = { ...config, almuerzos: config.almuerzos ?? [] };
         this.loading = false;
@@ -70,12 +75,18 @@ export class ConfiguracionComponent implements OnInit {
       },
     });
 
-    this.svc.getQuickRepliesConfig().subscribe({
+    this.svc.getQuickRepliesConfig().pipe(takeUntil(this.destroy$)).subscribe({
       next: (quickReplies) => {
         this.quickReplies = this.normalizeQuickReplies(quickReplies);
         this.cdr.detectChanges();
       },
+      error: (err) => console.error('HTTP Error:', err),
     });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
     private advisorFields: (keyof ConfiguracionData)[] = [

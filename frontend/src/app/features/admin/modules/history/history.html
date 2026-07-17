@@ -16,9 +16,13 @@
         <button [class.active]="filter === 'active'" (click)="filter = 'active'">Activos</button>
         <button [class.active]="filter === 'closed'" (click)="filter = 'closed'">Cerrados</button>
       </div>
-      <div class="loading-skeleton" *ngIf="loading">
-        <div class="skel-row" *ngFor="let _ of [].constructor(5); trackBy: trackByIndex"></div>
+      @if (loading) {
+      <div class="loading-skeleton">
+        @for (_ of [].constructor(5); track $index) {
+        <div class="skel-row"></div>
+        }
       </div>
+      }
       <cdk-virtual-scroll-viewport
         *ngIf="!loading"
         itemSize="68"
@@ -35,12 +39,16 @@
         >
           <div class="session-avatar" [class.closed]="session.status === 'closed'">
             {{ session.clientName.charAt(0) }}
-            <span class="unread-dot" *ngIf="unreadFor(session.id) > 0"></span>
+            @if (unreadFor(session.id) > 0) {
+            <span class="unread-dot"></span>
+            }
           </div>
           <div class="session-info">
             <span class="session-name">
               {{ session.clientName }}
-              <span class="unread-badge" *ngIf="unreadFor(session.id) > 0">{{ unreadFor(session.id) }}</span>
+              @if (unreadFor(session.id) > 0) {
+              <span class="unread-badge">{{ unreadFor(session.id) }}</span>
+              }
             </span>
             <span class="session-preview">
               {{ session.advisor?.name ? 'Asesor: ' + session.advisor!.name : 'Sin asesor' }}
@@ -53,22 +61,29 @@
             </span>
           </div>
         </div>
-        <div class="loading-more" *ngIf="loadingMore">
+        @if (loadingMore) {
+        <div class="loading-more">
           <i class="ti ti-loader-2"></i> Cargando mas sesiones...
         </div>
-        <div class="empty-list" *ngIf="filteredSessions.length === 0">
+        }
+        @if (filteredSessions.length === 0) {
+        <div class="empty-list">
           <span>Sin resultados</span>
         </div>
+        }
       </cdk-virtual-scroll-viewport>
     </aside>
 
     <div class="chat-area">
-      <div *ngIf="!activeSession" class="empty-state">
+      @if (!activeSession) {
+      <div class="empty-state">
         <h3>Selecciona una sesion</h3>
         <p>Visualiza el historial completo de cualquier conversacion.</p>
       </div>
+      }
 
-      <div *ngIf="activeSession" class="chat-panel">
+      @if (activeSession) {
+      <div class="chat-panel">
         <div class="chat-header">
           <div class="client-info">
             <div class="avatar">{{ activeSession.clientName.charAt(0) }}</div>
@@ -86,21 +101,28 @@
         </div>
 
         <div class="messages" #messagesContainer>
-          <div *ngIf="loading" class="no-messages">Cargando mensajes...</div>
-          <div *ngFor="let msg of messages; trackBy: trackById" class="message"
+          @if (loading) {
+          <div class="no-messages">Cargando mensajes...</div>
+          }
+          @for (msg of messages; track trackById($index, msg)) {
+          <div class="message"
             [class.mine]="msg.senderType === 'advisor'"
             [class.theirs]="msg.senderType === 'client'">
             <span class="sender">{{ msg.senderName }}</span>
             <div class="bubble">{{ msg.content }}</div>
             <span class="time">{{ msg.createdAt | date: 'HH:mm' }}</span>
           </div>
-          <div *ngIf="!loading && messages.length === 0" class="no-messages">Sin mensajes</div>
+          }
+          @if (!loading && messages.length === 0) {
+          <div class="no-messages">Sin mensajes</div>
+          }
         </div>
 
         <div class="readonly-notice">
           Solo lectura — vista de administrador
         </div>
       </div>
+      }
     </div>
   </div>
 </div>

@@ -4,6 +4,12 @@ dist/
 *.tar.gz
 *.zip
 .env
+.env.*
+!.env.example
 backend/uploads/baileys-auth/
 backend/uploads/whatsapp/
 BD.csv
+Backup/backend.env
+backend/.env.save
+backend/BD/bd_plain.sql
+backups/

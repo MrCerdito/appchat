@@ -1,3 +1,4 @@
+<app-toast-container />
 <div class="admin-shell" [class.sidebar-collapsed]="sidebarCollapsed">
 
   <!-- Overlay para cerrar sidebar en móvil -->
@@ -126,11 +127,14 @@
     <div class="shell-profile">
       <div class="profile-row" (click)="menuOpen = !menuOpen" [class.open]="menuOpen">
         <div class="profile-avatar">
-          <img *ngIf="currentAdmin?.profilePhotoUrl; else adminSidebarAvatarFallback"
+          @if (currentAdmin?.profilePhotoUrl) {
+          <img
                [src]="currentAdmin!.profilePhotoUrl"
                [alt]="currentAdmin?.name"
                class="profile-avatar-img" />
-          <ng-template #adminSidebarAvatarFallback>{{ currentAdmin?.name?.charAt(0) }}</ng-template>
+          } @else {
+          {{ currentAdmin?.name?.charAt(0) }}
+          }
         </div>
         <div class="profile-info">
           <span class="profile-name">{{ currentAdmin?.name }}</span>
@@ -142,7 +146,8 @@
         </svg>
       </div>
 
-      <div class="status-dropdown" *ngIf="menuOpen">
+      @if (menuOpen) {
+      <div class="status-dropdown">
         <span class="dropdown-label">Apariencia</span>
         <button class="status-option"
                 [class.active]="themeService.currentMode === 'light'"
@@ -192,6 +197,7 @@
           Cerrar sesión
         </button>
       </div>
+      }
     </div>
 
   </aside>
@@ -220,19 +226,22 @@
         <span>Admin</span>
       </div>
       <div class="profile-avatar topbar-avatar">
-        <img *ngIf="currentAdmin?.profilePhotoUrl; else adminTopbarAvatarFallback"
+        @if (currentAdmin?.profilePhotoUrl) {
+        <img
              [src]="currentAdmin!.profilePhotoUrl"
              [alt]="currentAdmin?.name"
              class="profile-avatar-img" />
-        <ng-template #adminTopbarAvatarFallback>{{ currentAdmin?.name?.charAt(0) }}</ng-template>
+        } @else {
+        {{ currentAdmin?.name?.charAt(0) }}
+        }
       </div>
     </header>
 
     <div class="shell-outlet">
+      @if (sidebarCollapsed) {
       <button
         class="sidebar-toggle-btn"
         type="button"
-        *ngIf="sidebarCollapsed"
         (click)="openSidebar()"
         title="Mostrar menu"
       >
@@ -243,6 +252,7 @@
           <line x1="3" y1="18" x2="21" y2="18"/>
         </svg>
       </button>
+      }
       <router-outlet/>
     </div>
 

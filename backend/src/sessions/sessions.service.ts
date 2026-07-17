@@ -634,6 +634,7 @@ export class SessionsService {
     return this.sessionRepo.find({
       relations: ['advisor'],
       order: { createdAt: 'DESC' },
+      take: 500,
     });
   }
 

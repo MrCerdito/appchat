@@ -126,7 +126,8 @@
           </div>
         </div>
 
-        <div *ngIf="error" class="error-msg">
+        @if (error) {
+        <div class="error-msg">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"/>
@@ -135,10 +136,14 @@
           </svg>
           {{ error }}
         </div>
+        }
 
         <button (click)="login()" [disabled]="loading || !email.trim() || !password.trim()">
-          <span *ngIf="!loading">Ingresar</span>
-          <span *ngIf="loading" class="spinner"></span>
+          @if (!loading) {
+          <span>Ingresar</span>
+          } @else {
+          <span class="spinner"></span>
+          }
         </button>
 
       </div>

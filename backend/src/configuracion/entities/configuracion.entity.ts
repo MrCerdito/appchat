@@ -131,6 +131,10 @@ export class Configuracion {
   @Column({ name: 'sonido_asignacion', length: 30, default: 'asignacion1' })
   sonidoAsignacion: string;
 
+  // ── IA Prompt ──────────────────────────────────────────────────────────────
+  @Column({ name: 'ai_prompt_config', type: 'jsonb', nullable: true })
+  aiPromptConfig: Record<string, any> | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

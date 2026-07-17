@@ -48,15 +48,20 @@ export class OperacionesAsignarComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.whatsappChat.loadAdminDashboard().subscribe(dashboard => {
-      this.asesores = dashboard.advisors.map(a => ({
-        id: a.id,
-        nombre: a.name,
-      }));
-      this.cdr.markForCheck();
+    this.whatsappChat.loadAdminDashboard().subscribe({
+      next: (dashboard) => {
+        this.asesores = dashboard.advisors.map(a => ({
+          id: a.id,
+          nombre: a.name,
+        }));
+        this.cdr.markForCheck();
+      },
+      error: (err) => console.error('HTTP Error:', err),
     });
 
-    this.whatsappChat.loadChats().subscribe();
+    this.whatsappChat.loadChats().subscribe({
+      error: (err) => console.error('HTTP Error:', err),
+    });
 
     this.subs.push(
       this.whatsappChat.getChatsStream().subscribe(chats => {
@@ -78,7 +83,9 @@ export class OperacionesAsignarComponent implements OnInit, OnDestroy {
 
     this.subs.push(
       interval(15_000).subscribe(() => {
-        this.whatsappChat.loadChats().subscribe();
+        this.whatsappChat.loadChats().subscribe({
+          error: (err) => console.error('HTTP Error:', err),
+        });
       }),
     );
   }

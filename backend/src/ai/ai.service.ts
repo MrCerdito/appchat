@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentosService } from '../documentos/documentos.service';
 import { AiLogsService } from './ai-logs.service';
+import { ConfiguracionService } from '../configuracion/configuracion.service';
 
 export interface AiMessage {
   role: 'user' | 'model';
@@ -104,6 +105,7 @@ export class AiService {
     private config: ConfigService,
     private documentosService: DocumentosService,
     private aiLogs: AiLogsService,
+    private configuracionService: ConfiguracionService,
   ) {
     this.apiKey = this.config.get<string>('GEMINI_API_KEY') ?? '';
   }
@@ -127,26 +129,40 @@ export class AiService {
       };
 
     const rolNormalizado = normalizarRol(rol);
-    const config = ROL_CONFIG[rolNormalizado] ?? ROL_CONFIG['estudiante'];
+    const configDefault = ROL_CONFIG[rolNormalizado] ?? ROL_CONFIG['estudiante'];
     const msgLower = message.toLowerCase();
+
+    // ── Cargar config IA de DB ───────────────────────────────────────────────
+    const globalConfig = await this.configuracionService.getGlobal();
+    const aiCfg = (globalConfig as any).aiPromptConfig;
+
+    // ── Merge: DB roles override hardcoded defaults ──────────────────────────
+    const rolFromDb = aiCfg?.roles?.[rolNormalizado];
+    const config = {
+      ...configDefault,
+      ...(rolFromDb || {}),
+      temasRestringidos: rolFromDb?.temasRestringidos ?? configDefault.temasRestringidos,
+      mensajeRestringido: rolFromDb?.mensajeRestringido || configDefault.mensajeRestringido,
+    };
 
     // ── Tema restringido ────────────────────────────────────────────────────
     const esRestringido = config.temasRestringidos.some((t) =>
       msgLower.includes(t.toLowerCase()),
     );
     if (esRestringido) {
+      const msgRestringido = config.mensajeRestringido;
       this.aiLogs.guardar({
         colegio,
         rol: rolNormalizado,
         tipoSolicitud,
         clientName,
         pregunta: message,
-        respuesta: config.mensajeRestringido,
+        respuesta: msgRestringido,
         esRestringido: true,
         chunksUsados: [],
       });
       return {
-        reply: config.mensajeRestringido,
+        reply: msgRestringido,
         transfer: false,
         showFeedback: false,
         documentos: [],
@@ -173,6 +189,7 @@ export class AiService {
       config,
       contexto,
       tieneContexto,
+      aiCfg,
     );
 
     const historyFiltered = history.filter(
@@ -399,25 +416,39 @@ ${messages}`;
     emit: (event: string, data: object) => void,
   ): Promise<void> {
     const rolNormalizado = normalizarRol(rol);
-    const config = ROL_CONFIG[rolNormalizado] ?? ROL_CONFIG['estudiante'];
+    const configDefault = ROL_CONFIG[rolNormalizado] ?? ROL_CONFIG['estudiante'];
     const msgLower = message.toLowerCase();
+
+    // ── Cargar config IA de DB ───────────────────────────────────────────────
+    const globalConfig = await this.configuracionService.getGlobal();
+    const aiCfg = (globalConfig as any).aiPromptConfig;
+
+    // ── Merge: DB roles override hardcoded defaults ──────────────────────────
+    const rolFromDb = aiCfg?.roles?.[rolNormalizado];
+    const config = {
+      ...configDefault,
+      ...(rolFromDb || {}),
+      temasRestringidos: rolFromDb?.temasRestringidos ?? configDefault.temasRestringidos,
+      mensajeRestringido: rolFromDb?.mensajeRestringido || configDefault.mensajeRestringido,
+    };
 
     // ── Tema restringido ────────────────────────────────────────────────────
     const esRestringido = config.temasRestringidos.some((t) =>
       msgLower.includes(t.toLowerCase()),
     );
     if (esRestringido) {
+      const msgRestringido = config.mensajeRestringido;
       this.aiLogs.guardar({
         colegio,
         rol: rolNormalizado,
         tipoSolicitud,
         clientName,
         pregunta: message,
-        respuesta: config.mensajeRestringido,
+        respuesta: msgRestringido,
         esRestringido: true,
         chunksUsados: [],
       });
-      emit('chunk', { text: config.mensajeRestringido });
+      emit('chunk', { text: msgRestringido });
       return;
     }
 
@@ -444,6 +475,7 @@ ${messages}`;
       config,
       contexto,
       tieneContexto,
+      aiCfg,
     );
 
     const historyFiltered = history.filter(
@@ -653,52 +685,97 @@ ${messages}`;
     config: any,
     contexto: string,
     tieneContexto: boolean,
+    aiPromptConfig?: Record<string, any> | null,
   ): string {
-    return `Eres un asistente virtual de atención al cliente especializado en colegios.
-Estás atendiendo a ${clientName}, quien tiene el rol de ${config.label} en el colegio "${colegio}".
-El motivo de su consulta es: ${tipoSolicitud}.
+    // Si hay prompt personalizado, usarlo directamente con variables reemplazadas
+    if (aiPromptConfig?.promptPersonalizado) {
+      let prompt = aiPromptConfig.promptPersonalizado;
+      prompt = prompt.replace(/\{\{CLIENT_NAME\}\}/g, clientName);
+      prompt = prompt.replace(/\{\{COLEGIO\}\}/g, colegio);
+      prompt = prompt.replace(/\{\{ROL\}\}/g, config.label);
+      prompt = prompt.replace(/\{\{DESCRIPCION_ROL\}\}/g, config.descripcion);
+      prompt = prompt.replace(/\{\{MOTIVO\}\}/g, tipoSolicitud);
+      prompt = prompt.replace(
+        /\{\{TEMAS_RESTRINGIDOS\}\}/g,
+        config.temasRestringidos.join(', '),
+      );
+      prompt = prompt.replace(/\{\{MENSAJE_RESTRINGIDO\}\}/g, config.mensajeRestringido || '');
+      if (tieneContexto) {
+        prompt = prompt.replace(
+          /\{\{CONTEXTO_RAG\}\}/g,
+          `INFORMACIÓN DE LA BASE DE CONOCIMIENTO:\n${contexto}\nFIN DE LA BASE DE CONOCIMIENTO.`,
+        );
+      } else {
+        prompt = prompt.replace(/\{\{CONTEXTO_RAG\}\}/g, '');
+      }
+      return prompt;
+    }
 
-PERFIL DEL USUARIO:
-- Rol: ${config.label}
-- ${config.descripcion}
-${
-  config.temasRestringidos.length > 0
-    ? `- Temas que NO debes responder para este rol: ${config.temasRestringidos.join(', ')}.
-  Si preguntan sobre estos temas, responde: "${config.mensajeRestringido}"`
-    : '- Tiene acceso completo a toda la información disponible.'
-}
+    // Ensamblar desde secciones del formulario
+    const nombre = aiPromptConfig?.nombreAsistente || 'asistente virtual de atención al cliente';
+    const especialidad = aiPromptConfig?.especialidad || 'colegios';
+    const instrucciones = aiPromptConfig?.instruccionesGenerales ||
+      'Responde de forma clara, amable y concisa en español. NO uses emojis. Adapta el lenguaje al rol: técnico para administradores/docentes, sencillo para estudiantes y padres.';
+    const frasesTransferencia = aiPromptConfig?.frasesTransferencia?.length
+      ? aiPromptConfig.frasesTransferencia.join('", "')
+      : 'asesor", "humano", "persona", "agente';
+    const feedbackReglas = aiPromptConfig?.feedbackPositivo ||
+      'SOLO si resolviste completamente una pregunta real y concreta';
 
-${
-  tieneContexto
-    ? `INFORMACIÓN DE LA BASE DE CONOCIMIENTO:
-La siguiente información proviene de documentos oficiales del sistema.
-Úsala para responder con precisión. NO inventes información que no esté aquí.
+    const partes: string[] = [];
 
-${contexto}
+    partes.push(
+      `Eres un/a ${nombre} especializado en ${especialidad}.`,
+      `Estás atendiendo a ${clientName}, quien tiene el rol de ${config.label} en el colegio "${colegio}".`,
+      `El motivo de su consulta es: ${tipoSolicitud}.`,
+      '',
+      'PERFIL DEL USUARIO:',
+      `- Rol: ${config.label}`,
+      `- ${config.descripcion}`,
+    );
 
-FIN DE LA BASE DE CONOCIMIENTO.
-`
-    : ''
-}
+    if (config.temasRestringidos.length > 0) {
+      partes.push(
+        `- Temas que NO debes responder para este rol: ${config.temasRestringidos.join(', ')}.`,
+        `  Si preguntan sobre estos temas, responde: "${config.mensajeRestringido}"`,
+      );
+    } else {
+      partes.push('- Tiene acceso completo a toda la información disponible.');
+    }
 
-Reglas importantes:
-- Responde de forma clara, amable y concisa en español.
-- NO uses emojis en ninguna respuesta.
-- Adapta el lenguaje al rol: técnico para administradores/docentes, sencillo para estudiantes y padres.
-${
-  tieneContexto
-    ? '- Basa tu respuesta PRINCIPALMENTE en la información de la base de conocimiento.'
-    : '- Responde con información general disponible.'
-}
-- Si el cliente menciona "asesor", "humano", "persona", "agente" o pide hablar con alguien, responde ÚNICAMENTE: TRANSFER_TO_ADVISOR
-- Si la pregunta toca temas restringidos para el rol ${config.label}, redirige amablemente.
+    if (tieneContexto) {
+      partes.push(
+        '',
+        'INFORMACIÓN DE LA BASE DE CONOCIMIENTO:',
+        'La siguiente información proviene de documentos oficiales del sistema.',
+        'Úsala para responder con precisión. NO inventes información que no esté aquí.',
+        '',
+        contexto,
+        '',
+        'FIN DE LA BASE DE CONOCIMIENTO.',
+      );
+    }
 
-────────────────────────────────────────
-CONTROL DE FEEDBACK
-────────────────────────────────────────
-Usa [FEEDBACK:YES] SOLO si resolviste completamente una pregunta real y concreta.
-Usa [FEEDBACK:NO] en cualquier otro caso (saludos, ambigüedades, redirects, etc).
-Agrega SIEMPRE al final exactamente uno: [FEEDBACK:YES] o [FEEDBACK:NO]`;
+    partes.push(
+      '',
+      'Reglas importantes:',
+      `- ${instrucciones}`,
+      `- NO uses emojis en ninguna respuesta.`,
+      tieneContexto
+        ? '- Basa tu respuesta PRINCIPALMENTE en la información de la base de conocimiento.'
+        : '- Responde con información general disponible.',
+      `- Si el cliente menciona "${frasesTransferencia}" o pide hablar con alguien, responde ÚNICAMENTE: TRANSFER_TO_ADVISOR`,
+      `- Si la pregunta toca temas restringidos para el rol ${config.label}, redirige amablemente.`,
+      '',
+      '────────────────────────────────────────',
+      'CONTROL DE FEEDBACK',
+      '────────────────────────────────────────',
+      `Usa [FEEDBACK:YES] ${feedbackReglas}.`,
+      'Usa [FEEDBACK:NO] en cualquier otro caso (saludos, ambigüedades, redirects, etc).',
+      'Agrega SIEMPRE al final exactamente uno: [FEEDBACK:YES] o [FEEDBACK:NO]',
+    );
+
+    return partes.join('\n');
   }
 
   getApiKey(): string {

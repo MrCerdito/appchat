@@ -71,6 +71,10 @@ export class ConfiguracionService implements OnModuleInit {
       ALTER TABLE IF EXISTS public.configuracion
       ADD COLUMN IF NOT EXISTS sonido_asignacion varchar(30) NOT NULL DEFAULT 'asignacion1'
     `);
+    await this.repo.query(`
+      ALTER TABLE IF EXISTS public.configuracion
+      ADD COLUMN IF NOT EXISTS ai_prompt_config jsonb DEFAULT NULL
+    `);
 
     const count = await this.repo.count({ where: { advisorId: null as any } });
     if (count === 0) {
@@ -159,6 +163,47 @@ export class ConfiguracionService implements OnModuleInit {
     return saved;
   }
 
+  async getEfectivaBatch(advisorIds: string[]): Promise<Map<string, Configuracion>> {
+    const result = new Map<string, Configuracion>();
+    const missingIds: string[] = [];
+
+    const globalCached = this.getFromCache('global');
+    let globalConfig: Configuracion | null = globalCached;
+
+    for (const id of advisorIds) {
+      const cached = this.getFromCache(this.cacheKey(id));
+      if (cached) {
+        result.set(id, cached);
+      } else {
+        missingIds.push(id);
+      }
+    }
+
+    if (missingIds.length > 0) {
+      const overrides = await this.repo
+        .createQueryBuilder('c')
+        .where('c.advisor_id IN (:...ids)', { ids: missingIds })
+        .getMany();
+
+      const overrideMap = new Map(overrides.map(o => [o.advisorId!, o]));
+      for (const id of missingIds) {
+        const override = overrideMap.get(id);
+        if (override) {
+          this.setCache(this.cacheKey(id), override);
+          result.set(id, override);
+        } else {
+          if (!globalConfig) {
+            globalConfig = await this.repo.findOne({ where: { advisorId: null as any } });
+            if (globalConfig) this.setCache('global', globalConfig);
+          }
+          if (globalConfig) result.set(id, globalConfig);
+        }
+      }
+    }
+
+    return result;
+  }
+
   async getGlobal(): Promise<Configuracion> {
     return this.getEfectiva();
   }
@@ -200,6 +245,10 @@ export class ConfiguracionService implements OnModuleInit {
     let saved: Configuracion;
 
     if (existing) {
+      const readOnlyKeys = ['id', 'advisorId', 'createdAt', 'updatedAt'];
+      for (const key of readOnlyKeys) {
+        delete (data as any)[key];
+      }
       Object.assign(existing, data);
       saved = await this.repo.save(existing);
     } else {
@@ -244,6 +293,57 @@ export class ConfiguracionService implements OnModuleInit {
         .map((c) => cleanText(c, 100))
         .filter(Boolean)
         .slice(0, 20);
+    }
+
+    if (data.aiPromptConfig && typeof data.aiPromptConfig === 'object') {
+      const aiCfg = data.aiPromptConfig as Record<string, any>;
+      if (typeof aiCfg.nombreAsistente === 'string') {
+        aiCfg.nombreAsistente = cleanText(aiCfg.nombreAsistente, 200);
+      }
+      if (typeof aiCfg.especialidad === 'string') {
+        aiCfg.especialidad = cleanText(aiCfg.especialidad, 200);
+      }
+      if (typeof aiCfg.instruccionesGenerales === 'string') {
+        aiCfg.instruccionesGenerales = cleanText(aiCfg.instruccionesGenerales, 2000);
+      }
+      if (typeof aiCfg.feedbackPositivo === 'string') {
+        aiCfg.feedbackPositivo = cleanText(aiCfg.feedbackPositivo, 500);
+      }
+      if (Array.isArray(aiCfg.frasesTransferencia)) {
+        aiCfg.frasesTransferencia = aiCfg.frasesTransferencia
+          .map((f: any) => cleanText(String(f), 50))
+          .filter(Boolean)
+          .slice(0, 20);
+      }
+      if (typeof aiCfg.promptPersonalizado === 'string') {
+        aiCfg.promptPersonalizado = cleanText(aiCfg.promptPersonalizado, 10000);
+      }
+      if (aiCfg.roles && typeof aiCfg.roles === 'object') {
+        const validKeys = ['administrador', 'docente', 'estudiante', 'padre'];
+        for (const key of Object.keys(aiCfg.roles)) {
+          if (!validKeys.includes(key)) {
+            delete aiCfg.roles[key];
+            continue;
+          }
+          const role = aiCfg.roles[key];
+          if (typeof role.descripcion === 'string') {
+            role.descripcion = cleanText(role.descripcion, 500);
+          }
+          if (typeof role.mensajeRestringido === 'string') {
+            role.mensajeRestringido = cleanText(role.mensajeRestringido, 500);
+          }
+          if (Array.isArray(role.temasRestringidos)) {
+            role.temasRestringidos = role.temasRestringidos
+              .map((t: any) => cleanText(String(t), 50))
+              .filter(Boolean)
+              .slice(0, 30);
+          }
+        }
+      }
+      const jsonStr = JSON.stringify(aiCfg);
+      if (jsonStr.length > 50000) {
+        data.aiPromptConfig = null;
+      }
     }
   }
 

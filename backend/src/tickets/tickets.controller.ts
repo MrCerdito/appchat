@@ -12,15 +12,17 @@ import {
   Request,
   HttpCode,
   HttpStatus,
+  ForbiddenException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard, Roles } from '../auth/roles.guard';
 import { TicketsService } from './tickets.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { UpdateTicketDto } from './dto/update-ticket.dto';
 import { QueryTicketDto } from './dto/query-ticket.dto';
 
 @Controller('tickets')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class TicketsController {
   constructor(private readonly ticketsService: TicketsService) {}
 
@@ -41,6 +43,7 @@ export class TicketsController {
     return this.ticketsService.findAll(query);
   }
 
+  @Roles('admin')
   @Get('all')
   findAllSimple() {
     return this.ticketsService.findAllSimple();
@@ -60,6 +63,7 @@ export class TicketsController {
     return this.ticketsService.update(id, dto, req.user.id);
   }
 
+  @Roles('admin')
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   delete(@Param('id') id: string) {

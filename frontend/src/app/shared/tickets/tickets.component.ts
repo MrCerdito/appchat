@@ -198,16 +198,22 @@ export class TicketsComponent implements OnInit, OnDestroy {
   }
 
   loadCategories(): void {
-    this.ticketService.getCategories().subscribe(cats => {
-      this.categories = cats;
-      this.cdr.detectChanges();
+    this.ticketService.getCategories().subscribe({
+      next: (cats) => {
+        this.categories = cats;
+        this.cdr.detectChanges();
+      },
+      error: (err) => console.error('HTTP Error:', err),
     });
   }
 
   loadAdvisors(): void {
-    this.sessionService.findAdvisors().subscribe(a => {
-      this.advisors = a;
-      this.cdr.detectChanges();
+    this.sessionService.findAdvisors().subscribe({
+      next: (a) => {
+        this.advisors = a;
+        this.cdr.detectChanges();
+      },
+      error: (err) => console.error('HTTP Error:', err),
     });
   }
 
@@ -394,7 +400,9 @@ export class TicketsComponent implements OnInit, OnDestroy {
 
   saveCategories(): void {
     if (!this.categories.length) this.categories = [...DEFAULT_TICKET_CATEGORIES];
-    this.ticketService.saveCategories(this.categories).subscribe();
+    this.ticketService.saveCategories(this.categories).subscribe({
+      error: (err) => console.error('HTTP Error:', err),
+    });
   }
 
   ngOnDestroy(): void {

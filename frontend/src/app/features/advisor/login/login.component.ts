@@ -1,4 +1,4 @@
-import { Component, ChangeDetectorRef } from '@angular/core';
+import { Component, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -13,6 +13,7 @@ import { trackByIndex, trackById } from '../../../shared/utils/track-by';
   imports: [CommonModule, FormsModule, ToastContainerComponent],
   templateUrl: './login.component.html',
   styleUrl: './login.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LoginComponent {
   protected readonly trackByIndex = trackByIndex;

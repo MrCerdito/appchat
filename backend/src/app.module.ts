@@ -24,7 +24,7 @@ import { Configuracion } from './configuracion/entities/configuracion.entity';
 import { AdvisorsModule } from './advisors/advisors.module';
 import { WidgetConfigModule } from './widget/widget-config.module';
 import { WidgetConfig } from './widget/entities/widget-config.entity';
-import { AiLog } from './ai/entitites/ai-log.entity';
+import { AiLog } from './ai/entities/ai-log.entity';
 import { AdvisorsWhatsappModule } from './advisor-whatsapp/advisors-whatsapp.module';
 import { TeamsToken } from './advisor-whatsapp/entities/teams-token.entity';
 import { WhatsappChat } from './advisor-whatsapp/entities/whatsapp-chat.entity';

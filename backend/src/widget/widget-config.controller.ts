@@ -7,6 +7,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Header,
 } from '@nestjs/common';
 import { WidgetConfigService } from './widget-config.service';
 import { WidgetConfig } from './entities/widget-config.entity';
@@ -20,6 +21,7 @@ export class WidgetConfigController {
   // ── GET /widget-config — público ─────────────────────────────────────────
   // Sin guard: el widget.js embebido en páginas externas llama este endpoint
   // para obtener la config al momento de renderizarse.
+  @Header('Cache-Control', 'public, max-age=60')
   @Get()
   get(): Promise<WidgetConfig> {
     return this.svc.get();

@@ -1,6 +1,8 @@
-import { Component, OnInit, ChangeDetectorRef, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { FaqService, Faq, CreateFaqDto } from '../../../../core/services/faq.service';
 import { trackByIndex } from '../../../../shared/utils/track-by';
 
@@ -8,6 +10,7 @@ import { trackByIndex } from '../../../../shared/utils/track-by';
   selector: 'app-faq-admin',
   standalone: true,
   imports: [CommonModule, FormsModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="faq-admin">
       <div class="faq-admin-header">
@@ -19,12 +22,16 @@ import { trackByIndex } from '../../../../shared/utils/track-by';
         <input type="text" [(ngModel)]="filtro" placeholder="Buscar preguntas..." (input)="filtrar()" />
       </div>
 
-      <div class="faq-admin-table" *ngIf="!cargando; else loading">
-        <div class="faq-row" *ngFor="let faq of faqsFiltradas; trackBy: trackByIndex">
+      <div class="faq-admin-table">
+        @if (!cargando) {
+        @for (faq of faqsFiltradas; track $index) {
+        <div class="faq-row">
           <div class="faq-row-info">
             <strong>{{ faq.pregunta }}</strong>
             <span class="faq-row-meta">
-              <span class="faq-cat-badge" *ngIf="faq.categoria">{{ faq.categoria }}</span>
+              @if (faq.categoria) {
+              <span class="faq-cat-badge">{{ faq.categoria }}</span>
+              }
               <span class="faq-ord">Orden: {{ faq.orden }}</span>
               <span class="faq-status" [class.inactive]="!faq.activo">{{ faq.activo ? 'Activo' : 'Inactivo' }}</span>
             </span>
@@ -34,13 +41,18 @@ import { trackByIndex } from '../../../../shared/utils/track-by';
             <button class="btn-delete" (click)="eliminar(faq.id)">🗑️</button>
           </div>
         </div>
-        <div class="faq-empty" *ngIf="faqsFiltradas.length === 0">
+        }
+        @if (faqsFiltradas.length === 0) {
+        <div class="faq-empty">
           <p>No hay preguntas frecuentes. Crea la primera.</p>
         </div>
+        }
+        }
       </div>
     </div>
 
-    <div class="modal-overlay" *ngIf="modalAbierto" (mousedown)="onOverlayMousedown($event)" (click)="onOverlayClick($event)">
+    @if (modalAbierto) {
+    <div class="modal-overlay" (mousedown)="onOverlayMousedown($event)" (click)="onOverlayClick($event)">
       <div class="modal-content" (mousedown)="onContentMousedown($event)" (click)="$event.stopPropagation()">
         <h3>{{ editando ? 'Editar FAQ' : 'Nueva FAQ' }}</h3>
 
@@ -83,10 +95,11 @@ import { trackByIndex } from '../../../../shared/utils/track-by';
         </div>
       </div>
     </div>
+    }
 
-    <ng-template #loading>
-      <div class="faq-loading">Cargando...</div>
-    </ng-template>
+    @if (cargando) {
+    <div class="faq-loading">Cargando...</div>
+    }
   `,
   styles: [`
     .faq-admin { padding: 1.5rem; font-family: 'DM Sans', sans-serif; }
@@ -121,7 +134,7 @@ import { trackByIndex } from '../../../../shared/utils/track-by';
     .faq-loading { text-align: center; padding: 2rem; color: #6b6560; }
   `]
 })
-export class FaqAdminComponent implements OnInit {
+export class FaqAdminComponent implements OnInit, OnDestroy {
   protected readonly trackByIndex = trackByIndex;
 
   faqs: Faq[] = [];
@@ -133,6 +146,7 @@ export class FaqAdminComponent implements OnInit {
   guardando = false;
 
   private clickStartedInside = false;
+  private destroy$ = new Subject<void>();
 
   form = {
     pregunta: '',
@@ -152,12 +166,20 @@ export class FaqAdminComponent implements OnInit {
     this.cargar();
   }
 
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
   private cargar(): void {
-    this.faqService.getAll().subscribe(faqs => {
-      this.faqs = faqs;
-      this.filtrar();
-      this.cargando = false;
-      this.cdr.detectChanges();
+    this.faqService.getAll().pipe(takeUntil(this.destroy$)).subscribe({
+      next: (faqs) => {
+        this.faqs = faqs;
+        this.filtrar();
+        this.cargando = false;
+        this.cdr.detectChanges();
+      },
+      error: (err) => console.error('HTTP Error:', err),
     });
   }
 
@@ -223,7 +245,7 @@ export class FaqAdminComponent implements OnInit {
     };
 
     if (this.editando) {
-      this.faqService.update(this.editando.id, dto).subscribe({
+      this.faqService.update(this.editando.id, dto).pipe(takeUntil(this.destroy$)).subscribe({
         next: () => {
           this.cerrarModal();
           this.cargar();
@@ -234,7 +256,7 @@ export class FaqAdminComponent implements OnInit {
         }
       });
     } else {
-      this.faqService.create(dto).subscribe({
+      this.faqService.create(dto).pipe(takeUntil(this.destroy$)).subscribe({
         next: () => {
           this.cerrarModal();
           this.cargar();
@@ -249,7 +271,7 @@ export class FaqAdminComponent implements OnInit {
 
   eliminar(id: number): void {
     if (confirm('¿Eliminar esta pregunta frecuente?')) {
-      this.faqService.remove(id).subscribe(() => this.cargar());
+      this.faqService.remove(id).pipe(takeUntil(this.destroy$)).subscribe(() => this.cargar());
     }
   }
 }

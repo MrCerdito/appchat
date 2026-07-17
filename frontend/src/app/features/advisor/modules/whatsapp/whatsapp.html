@@ -1,8 +1,11 @@
 <div class="layout" [class.chat-open]="!!activeContact">
   
 
-  <div class="settings-backdrop" *ngIf="showWhatsappSettings" (click)="closeWhatsappSettings()"></div>
-  <div class="photo-backdrop" *ngIf="profilePhotoPreview" (click)="closeProfilePhoto()">
+  @if (showWhatsappSettings) {
+  <div class="settings-backdrop" (click)="closeWhatsappSettings()"></div>
+  }
+  @if (profilePhotoPreview) {
+  <div class="photo-backdrop" (click)="closeProfilePhoto()">
     <figure class="photo-viewer" (click)="$event.stopPropagation()">
       <img [src]="profilePhotoPreview.src" [alt]="profilePhotoPreview.name" />
       <figcaption>{{ profilePhotoPreview.name }}</figcaption>
@@ -11,9 +14,10 @@
       </button>
     </figure>
   </div>
+  }
+  @if (mediaPreview) {
   <div
     class="media-backdrop"
-    *ngIf="mediaPreview"
     (click)="closeMediaPreview()"
     (wheel)="onMediaWheel($event)"
     (touchstart)="onMediaTouchStart($event)"
@@ -42,7 +46,9 @@
       </button>
     </figure>
   </div>
-  <section class="settings-modal" *ngIf="showWhatsappSettings">
+  }
+  @if (showWhatsappSettings) {
+  <section class="settings-modal">
     <header>
       <div>
         <strong>Configuracion WhatsApp</strong>
@@ -91,7 +97,9 @@
       <em>Escribe una respuesta por linea. Se mostraran al usar / en el chat.</em>
     </label>
 
-    <p class="settings-message" *ngIf="whatsappSettingsMessage">{{ whatsappSettingsMessage }}</p>
+    @if (whatsappSettingsMessage) {
+    <p class="settings-message">{{ whatsappSettingsMessage }}</p>
+    }
 
     <div class="settings-actions">
       <button type="button" class="secondary-btn" (click)="closeWhatsappSettings()">Cancelar</button>
@@ -106,9 +114,13 @@
       </button>
     </div>
   </section>
+  }
 
-  <div class="settings-backdrop" *ngIf="showTeamsMeeting" (click)="closeTeamsMeeting()"></div>
-  <section class="settings-modal teams-modal" *ngIf="showTeamsMeeting">
+  @if (showTeamsMeeting) {
+  <div class="settings-backdrop" (click)="closeTeamsMeeting()"></div>
+  }
+  @if (showTeamsMeeting) {
+  <section class="settings-modal teams-modal">
     <header>
       <div>
         <strong>Reunion en Teams</strong>
@@ -119,7 +131,8 @@
       </button>
     </header>
 
-    <div class="teams-connect" *ngIf="!isTeamsConnected">
+    @if (!isTeamsConnected) {
+    <div class="teams-connect">
       <wa-icon name="brand-teams"></wa-icon>
       <p>Inicia sesion con la cuenta que creara las videollamadas.</p>
       <button type="button" class="primary-btn" (click)="connectTeams()" [disabled]="isLoadingTeams">
@@ -127,6 +140,7 @@
         Conectar Teams
       </button>
     </div>
+    }
 
     <label>
       <span>Nombre de la reunion</span>
@@ -173,7 +187,9 @@
       </div>
     </div>
 
-    <p class="settings-message" *ngIf="teamsMeetingMessage">{{ teamsMeetingMessage }}</p>
+    @if (teamsMeetingMessage) {
+    <p class="settings-message">{{ teamsMeetingMessage }}</p>
+    }
 
     <div class="settings-actions">
       <button type="button" class="secondary-btn" (click)="closeTeamsMeeting()">Cancelar</button>
@@ -188,9 +204,13 @@
       </button>
     </div>
   </section>
+  }
 
-  <div class="settings-backdrop" *ngIf="showAiInsightModal" (click)="closeAiInsightModal()"></div>
-  <section class="settings-modal ai-insight-modal" *ngIf="showAiInsightModal">
+  @if (showAiInsightModal) {
+  <div class="settings-backdrop" (click)="closeAiInsightModal()"></div>
+  }
+  @if (showAiInsightModal) {
+  <section class="settings-modal ai-insight-modal">
     <header>
       <div>
         <strong>Analisis IA</strong>
@@ -207,33 +227,40 @@
       <button type="button" class="primary-btn" (click)="closeAiInsightModal()">Cerrar</button>
     </div>
   </section>
+  }
 
-  <section class="waiting-admin" *ngIf="connectionStatus.status !== 'connected'">
+  @if (connectionStatus.status !== 'connected') {
+  <section class="waiting-admin">
     <div class="waiting-admin-card">
       <div class="waiting-admin-icon">
         <wa-icon name="loader-2"></wa-icon>
       </div>
       <h2>Esperando escaneo del admin</h2>
       <p>El administrador debe escanear el código QR de WhatsApp para conectar el sistema.</p>
-      <p class="waiting-admin-status" *ngIf="connectionStatus.lastError">
+      @if (connectionStatus.lastError) {
+      <p class="waiting-admin-status">
         {{ connectionStatus.lastError }}
       </p>
+      }
     </div>
   </section>
+  }
 
-  <section class="loading-chats" *ngIf="connectionStatus.status === 'connected' && loadingProgress < 100">
+  @if (connectionStatus.status === 'connected' && loadingProgress < 100) {
+  <section class="loading-chats">
     <div class="loading-chats-card">
       <div class="loading-chats-spinner">
         <wa-icon name="loader-2"></wa-icon>
       </div>
       <h2>Conectado</h2>
       <p>Cargando conversaciones de WhatsApp...</p>
-      <span class="loading-chats-pct">{{ loadingProgress }}%</span>
+      <span class="loading-chats-pct">{{ loadingProgress | number:'1.0-0' }}%</span>
       <div class="loading-chats-bar">
         <div class="loading-chats-bar-fill" [style.width.%]="loadingProgress"></div>
       </div>
     </div>
   </section>
+  }
 
   <aside class="sidebar">
     <div class="connection-strip" [ngClass]="connectionStatus.status">
@@ -251,16 +278,17 @@
     </div>
 
     <div class="filter-tabs">
+      @for (filter of filterOptions; track trackByIndex($index)) {
       <button
         class="tab"
         type="button"
-        *ngFor="let filter of filterOptions; trackBy: trackByIndex"
         [class.active]="activeFilter === filter.id"
         (click)="setFilter(filter.id)"
       >
         <span>{{ filter.label }}</span>
         <em>{{ getFilterCount(filter.id) }}</em>
       </button>
+      }
       <div class="more-filter-wrap">
         <button
           class="more-filter-btn"
@@ -273,24 +301,27 @@
             <path d="M3 4h18l-7 8v5l-4 2v-7l-7-8z" />
           </svg>
         </button>
-        <div class="more-filter-dropdown" *ngIf="showMoreFilter">
+        @if (showMoreFilter) {
+        <div class="more-filter-dropdown">
+          @for (filter of moreFilterOptions; track trackByIndex($index)) {
           <button
             class="more-filter-opt"
             type="button"
-            *ngFor="let filter of moreFilterOptions; trackBy: trackByIndex"
             (click)="setFilter(filter.id); showMoreFilter = false"
           >
             <span>{{ filter.label }}</span>
             <em>{{ getFilterCount(filter.id) }}</em>
           </button>
+          }
         </div>
+        }
       </div>
     </div>
 
     <div class="chat-list">
+      @for (c of filteredContacts; track trackById($index, c)) {
       <button
         type="button"
-        *ngFor="let c of filteredContacts; trackBy: trackById"
         class="chat-item"
         [class.active]="c.id === activeContact?.id"
         [class.mine]="c.assignedTo === currentUserId"
@@ -309,20 +340,23 @@
             <span class="chat-name">{{ c.name }}</span>
             <span class="chat-time">{{ c.time }}</span>
           </div>
-          <div class="chat-inst" *ngIf="c.isGroup">
+          @if (c.isGroup) {
+          <div class="chat-inst">
             <wa-icon name="users-group"></wa-icon>
             <span>Grupo</span>
           </div>
+          }
           <div class="chat-preview">{{ displayPreview(c) }}</div>
           <div class="chat-meta">
+            @if (c.priority && c.priority !== 'normal') {
             <span
               class="meta-badge priority-badge"
-              *ngIf="c.priority && c.priority !== 'normal'"
               [style.background]="priorityColor(c.priority)"
               [style.color]="c.priority === 'low' ? '#6b7280' : '#fff'"
             >
               {{ priorityLabel(c.priority) }}
             </span>
+            }
             <span
               class="meta-badge tag"
               [class.mine]="c.assignedTo === currentUserId"
@@ -330,38 +364,50 @@
             >
               {{ getAssignmentLabel(c) }}
             </span>
+            @if (!c.isGroup && c.operationalStatusLabel && c.operationalStatusLabel !== 'Nuevo' && c.operationalStatusLabel !== 'En cola') {
             <span
               class="meta-badge op-status"
-              *ngIf="!c.isGroup && c.operationalStatusLabel && c.operationalStatusLabel !== 'Nuevo' && c.operationalStatusLabel !== 'En cola'"
               [class.in-progress]="c.operationalStatus === 'in_progress'"
               [class.waiting]="c.operationalStatus === 'waiting_technical'"
               [class.resolved]="c.operationalStatus === 'resolved'"
             >
               {{ c.operationalStatusLabel }}
             </span>
-            <span class="badge" *ngIf="c.unread > 0">{{ c.unread }}</span>
+            }
+            @if (c.unread > 0) {
+            <span class="badge">{{ c.unread }}</span>
+            }
           </div>
         </div>
       </button>
+      }
 
-      <div class="empty-list" *ngIf="!isLoadingChats && filteredContacts.length === 0">
+      @if (!isLoadingChats && filteredContacts.length === 0) {
+      <div class="empty-list">
         No hay conversaciones para este filtro
       </div>
+      }
 
+      @if (hasMoreChats && filteredContacts.length > 0) {
       <button
-        *ngIf="hasMoreChats && filteredContacts.length > 0"
         type="button"
         class="load-more-btn"
         [disabled]="isLoadingMoreChats"
         (click)="loadMoreChats()"
       >
-        <span *ngIf="isLoadingMoreChats">Cargando...</span>
-        <span *ngIf="!isLoadingMoreChats">Cargar mas chats</span>
+        @if (isLoadingMoreChats) {
+        <span>Cargando...</span>
+        }
+        @if (!isLoadingMoreChats) {
+        <span>Cargar mas chats</span>
+        }
       </button>
+      }
     </div>
   </aside>
 
-  <main class="main" *ngIf="activeContact as contact; else noContact">
+  @if (activeContact; as contact) {
+  <main class="main">
     <header class="chat-header">
       <button class="mobile-back-btn" type="button" (click)="closeActiveContactView()" title="Volver a chats">
         <wa-icon name="chevron-left"></wa-icon>
@@ -380,16 +426,17 @@
       </div>
 
       <div class="header-actions">
+        @if (canTakeQueuedChat) {
         <button
           class="take-chat-btn"
           type="button"
-          *ngIf="canTakeQueuedChat"
           (click)="takeActiveChat()"
           [disabled]="isTakingChat"
         >
           <wa-icon [name]="isTakingChat ? 'loader-2' : 'user-plus'"></wa-icon>
           {{ isTakingChat ? 'Tomando...' : 'Tomar chat' }}
         </button>
+        }
         <button
           class="info-toggle-btn"
           type="button"
@@ -402,16 +449,18 @@
     </header>
 
     <section class="messages-bg" #messagesContainer>
-      <ng-container *ngFor="let group of groupedMessages(contact.messages); trackBy: trackByIndex">
+      @for (group of groupedMessages(contact.messages); track trackByIndex($index)) {
       <div class="date-sep"><span>{{ group.label }}</span></div>
+      @for (msg of group.messages; track trackById($index, msg)) {
       <div
         class="msg-row"
-        *ngFor="let msg of group.messages; trackBy: trackById"
         [ngClass]="msg.fromMe ? 'out' : 'in'"
       >
-        <div class="sender-tag" *ngIf="msg.senderName && (contact.isGroup || msg.fromMe)" [class.ai-sender]="msg.isAuto">
+        @if (msg.senderName && (contact.isGroup || msg.fromMe)) {
+        <div class="sender-tag" [class.ai-sender]="msg.isAuto">
           {{ msg.senderName }}
         </div>
+        }
         <div
           class="msg-bubble"
           [class.ai-bubble]="msg.isAuto"
@@ -420,60 +469,86 @@
           [class.context-active]="messageMenu?.message?.id === msg.id"
           (contextmenu)="openMessageMenu($event, msg)"
         >
-          <div class="ai-badge" *ngIf="msg.isAuto">
+          @if (msg.isAuto) {
+          <div class="ai-badge">
             <wa-icon name="sparkles"></wa-icon>
             Sistema
           </div>
-          <div class="media-message" *ngIf="msg.type && msg.type !== 'text'">
-            <div class="media-placeholder" *ngIf="!msg.mediaUrl">
+          }
+          @if (msg.type && msg.type !== 'text') {
+          <div class="media-message">
+            @if (!msg.mediaUrl) {
+            <div class="media-placeholder">
               <wa-icon name="paperclip"></wa-icon>
               <span>{{ mediaFallbackLabel(msg.type, msg.fileName) }}</span>
             </div>
-            <ng-container *ngIf="msg.mediaUrl" [ngSwitch]="msg.type">
-              <img
-                *ngSwitchCase="'image'"
-                class="media-image"
-                [src]="mediaUrlFor(msg)"
-                [alt]="msg.fileName || msg.body || 'Imagen'"
-                (click)="openMediaPreview(msg, $event)"
-              />
-              <video *ngSwitchCase="'video'" class="media-video" [src]="mediaUrlFor(msg)" controls playsinline></video>
-              <div *ngSwitchCase="'audio'" class="voice-note" [class.out]="msg.fromMe">
-                <wa-icon name="microphone"></wa-icon>
-                <audio class="media-audio" [src]="mediaUrlFor(msg)" controls preload="metadata"></audio>
-              </div>
-              <a
-                *ngSwitchDefault
-                class="media-document"
-                [href]="mediaUrlFor(msg)"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <wa-icon name="file-text"></wa-icon>
-                <span>{{ msg.fileName || 'Abrir archivo' }}</span>
-                <em *ngIf="msg.fileSize">{{ formatFileSize(msg.fileSize) }}</em>
-              </a>
-            </ng-container>
+            }
+            @if (msg.mediaUrl) {
+            @switch (msg.type) {
+              @case ('image') {
+                <img
+                  class="media-image"
+                  [src]="mediaUrlFor(msg)"
+                  [alt]="msg.fileName || msg.body || 'Imagen'"
+                  (click)="openMediaPreview(msg, $event)"
+                />
+              }
+              @case ('video') {
+                <video class="media-video" [src]="mediaUrlFor(msg)" controls playsinline></video>
+              }
+              @case ('audio') {
+                <div class="voice-note" [class.out]="msg.fromMe">
+                  <wa-icon name="microphone"></wa-icon>
+                  <audio class="media-audio" [src]="mediaUrlFor(msg)" controls preload="metadata"></audio>
+                </div>
+              }
+              @default {
+                <a
+                  class="media-document"
+                  [href]="mediaUrlFor(msg)"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <wa-icon name="file-text"></wa-icon>
+                  <span>{{ msg.fileName || 'Abrir archivo' }}</span>
+                  @if (msg.fileSize) {
+                  <em>{{ formatFileSize(msg.fileSize) }}</em>
+                  }
+                </a>
+              }
+            }
+            }
           </div>
-          <div class="message-edit" *ngIf="editingMessageId === msg.id; else messageBodyView">
+          }
+          @if (editingMessageId === msg.id) {
+          <div class="message-edit">
             <textarea rows="2" [(ngModel)]="editingMessageText"></textarea>
             <div>
               <button type="button" (click)="cancelEditMessage()">Cancelar</button>
               <button type="button" class="save-edit" (click)="saveEditedMessage(msg)">Guardar</button>
             </div>
           </div>
-          <ng-template #messageBodyView>
-            <p *ngIf="shouldShowMessageBody(msg)">{{ displayMessageBody(msg) }}</p>
-          </ng-template>
+          } @else {
+            @if (shouldShowMessageBody(msg)) {
+            <p>{{ displayMessageBody(msg) }}</p>
+            }
+          }
           <div class="bubble-meta">
             <span>{{ messageTime(msg) }}</span>
-            <em *ngIf="msg.editedAt">editado</em>
-            <svg class="bubble-check" *ngIf="msg.fromMe && msg.status !== 'failed'" viewBox="0 0 16 11" fill="currentColor">
+            @if (msg.editedAt) {
+            <em>editado</em>
+            }
+            @if (msg.fromMe && msg.status !== 'failed') {
+            <svg class="bubble-check" viewBox="0 0 16 11" fill="currentColor">
               <path d="M11.07.65l-5.93 6.2L2.45 4.3l-1.1 1.1 3.08 3.3.7.8.8-.8 6.32-6.6L11.07.65z"/>
             </svg>
-            <wa-icon name="alert-circle" *ngIf="msg.status === 'failed'"></wa-icon>
+            }
+            @if (msg.status === 'failed') {
+            <wa-icon name="alert-circle"></wa-icon>
+            }
           </div>
-          <div class="message-reactions" *ngIf="messageReactions(msg, contact.messages).length">
+          @if (messageReactions(msg, contact.messages).length) {
+          <div class="message-reactions">
   <!-- Contador clickeable -->
   <button
     type="button"
@@ -485,9 +560,9 @@
   </button>
 
   <!-- Popover -->
+  @if (openReactionPopoverId === msg.id) {
   <div
     class="reactions-popover"
-    *ngIf="openReactionPopoverId === msg.id"
     (click)="$event.stopPropagation()"
   >
     <div class="reactions-popover-header">
@@ -497,23 +572,26 @@
       <span class="reaction-filter-chip reaction-filter-total">
         <b>{{ messageReactions(msg, contact.messages).length }}</b>
       </span>
-      <span class="reaction-filter-chip" *ngFor="let group of reactionGroups(msg, contact.messages); trackBy: trackByIndex">
+      @for (group of reactionGroups(msg, contact.messages); track trackByIndex($index)) {
+      <span class="reaction-filter-chip">
         <b>{{ group.emoji }}</b>
         <em>{{ group.count }}</em>
       </span>
+      }
     </div>
     <div class="reactions-popover-list">
+      @for (reaction of messageReactions(msg, contact.messages); track trackByIndex($index)) {
       <div
         class="reactions-popover-item"
-        *ngFor="let reaction of messageReactions(msg, contact.messages); trackBy: trackByIndex"
         [class.mine]="reaction.fromMe"
         (click)="reaction.fromMe && !reaction.removed ? reactToMessage(msg, '') : null"
       >
         <span class="reaction-avatar" [class.mine]="reaction.fromMe">
-          <ng-container *ngIf="reaction.fromMe; else advisorInitial">
+          @if (reaction.fromMe) {
             <wa-icon name="cloud"></wa-icon>
-          </ng-container>
-          <ng-template #advisorInitial>{{ reaction.by.charAt(0) || 'A' }}</ng-template>
+          } @else {
+            {{ reaction.by.charAt(0) || 'A' }}
+          }
         </span>
         <div class="reaction-person">
           <strong>{{ reaction.fromMe ? 'Tu' : reaction.by }}</strong>
@@ -521,18 +599,24 @@
         </div>
         <em class="reaction-row-emoji">{{ reaction.emoji }}</em>
       </div>
+      }
     </div>
   </div>
-</div>
+  }
+          </div>
+          }
         </div>
       </div>
-      </ng-container>
+      }
+      }
 
-      <div class="msg-row in" *ngIf="isTyping">
+      @if (isTyping) {
+      <div class="msg-row in">
         <div class="typing-indicator">
           <span></span><span></span><span></span>
         </div>
       </div>
+      }
     </section>
 
 
@@ -540,41 +624,61 @@
       <wa-icon name="users-group"></wa-icon>
       Grupo compartido. No se asigna asesor ni se envian mensajes automaticos.
     </div>-->
-    <div class="state-banner closed" *ngIf="isAttentionClosed">
+    @if (isAttentionClosed) {
+    <div class="state-banner closed">
       <wa-icon name="archive"></wa-icon>
       Atencion cerrada. El historial se conserva y se reabrira cuando el cliente escriba de nuevo.
     </div>
-    <div class="state-banner locked" *ngIf="isAssignedToSomeoneElse">
+    }
+    @if (isAssignedToSomeoneElse) {
+    <div class="state-banner locked">
       <wa-icon name="user-shield"></wa-icon>
       Este chat esta asignado a otro asesor.
     </div>
-    <div class="state-banner error" *ngIf="sendError">
+    }
+    @if (sendError) {
+    <div class="state-banner error">
       <wa-icon name="alert-circle"></wa-icon>
       {{ sendError }}
     </div>
+    }
 
     <footer class="input-area" [class.blocked]="!canReply">
-      <div class="quick-row" *ngIf="visibleQuickReplies.length">
+      @if (visibleQuickReplies.length) {
+      <div class="quick-row">
+        @for (reply of visibleQuickReplies; track trackByIndex($index)) {
         <button
           type="button"
-          *ngFor="let reply of visibleQuickReplies; trackBy: trackByIndex"
           (click)="useQuickReply(reply)"
           [disabled]="!canReply"
           [title]="reply.content"
         >
           {{ reply.name }}
         </button>
+        }
       </div>
+      }
 
-      <div class="attachment-preview" *ngIf="selectedFile" [class.audio-preview]="selectedFileKind === 'audio'">
-        <div class="attachment-media" [ngSwitch]="selectedFileKind">
-          <img *ngSwitchCase="'image'" [src]="selectedFilePreviewUrl" [alt]="selectedFile.name" />
-          <video *ngSwitchCase="'video'" [src]="selectedFilePreviewUrl" muted></video>
-          <div *ngSwitchCase="'audio'" class="attachment-voice">
-            <wa-icon name="microphone"></wa-icon>
-            <audio [src]="selectedFilePreviewUrl" controls preload="metadata"></audio>
-          </div>
-          <wa-icon *ngSwitchDefault name="file-text"></wa-icon>
+      @if (selectedFile) {
+      <div class="attachment-preview" [class.audio-preview]="selectedFileKind === 'audio'">
+        <div class="attachment-media">
+          @switch (selectedFileKind) {
+            @case ('image') {
+              <img [src]="selectedFilePreviewUrl" [alt]="selectedFile.name" />
+            }
+            @case ('video') {
+              <video [src]="selectedFilePreviewUrl" muted></video>
+            }
+            @case ('audio') {
+              <div class="attachment-voice">
+                <wa-icon name="microphone"></wa-icon>
+                <audio [src]="selectedFilePreviewUrl" controls preload="metadata"></audio>
+              </div>
+            }
+            @default {
+              <wa-icon name="file-text"></wa-icon>
+            }
+          }
         </div>
         <div class="attachment-info">
           <strong>{{ selectedFile.name }}</strong>
@@ -586,13 +690,17 @@
           <wa-icon name="x"></wa-icon>
         </button>
       </div>
+      }
 
-      <div class="recording-strip" *ngIf="isRecordingAudio">
+      @if (isRecordingAudio) {
+      <div class="recording-strip">
         <span></span>
         Grabando audio {{ formatRecordingTime(recordingSeconds) }}
       </div>
+      }
 
-      <div class="ai-suggestion-popup" *ngIf="showAiSuggestion && aiSuggestion">
+      @if (showAiSuggestion && aiSuggestion) {
+      <div class="ai-suggestion-popup">
         <div class="ai-suggestion-header">
           <wa-icon name="sparkles"></wa-icon>
           <span>Mejora con IA</span>
@@ -614,17 +722,19 @@
           </button>
         </div>
       </div>
+      }
 
       <div class="composer-row">
-        <div class="slash-menu" *ngIf="showSlashMenu && slashFiltered.length > 0">
+        @if (showSlashMenu && slashFiltered.length > 0) {
+        <div class="slash-menu">
           <div class="slash-header">
             <wa-icon name="bolt"></wa-icon>
             Respuestas rapidas
           </div>
+          @for (reply of slashFiltered; track trackByIndex($index); let i = $index) {
           <button
             type="button"
             class="slash-item"
-            *ngFor="let reply of slashFiltered; trackBy: trackByIndex; let i = index"
             [class.highlighted]="i === slashHighlight"
             (mouseenter)="slashHighlight = i"
             (click)="selectSlashReply(reply)"
@@ -634,7 +744,9 @@
               <span class="slash-reply-preview">{{ formatPreview(reply.content) }}</span>
             </div>
           </button>
+          }
         </div>
+        }
 
         <input
           #imageInput
@@ -715,7 +827,9 @@
             [disabled]="!canReply || isAiGenerating || isSending"
             (keydown)="handleKey($event)"
           ></textarea>
-          <span class="ghost-text" *ngIf="ghostSuggestion">{{ ghostSuggestion }}</span>
+          @if (ghostSuggestion) {
+          <span class="ghost-text">{{ ghostSuggestion }}</span>
+          }
         </div>
 
         <button
@@ -741,17 +855,23 @@
       </div>
     </footer>
   </main>
-
-  <ng-template #noContact>
+  } @else {
     <main class="main empty-main">
       <wa-icon name="message-circle"></wa-icon>
-      <strong *ngIf="isLoadingChats">Cargando conversaciones</strong>
-      <strong *ngIf="!isLoadingChats">No hay conversaciones disponibles</strong>
+      @if (isLoadingChats) {
+      <strong>Cargando conversaciones</strong>
+      }
+      @if (!isLoadingChats) {
+      <strong>No hay conversaciones disponibles</strong>
+      }
     </main>
-  </ng-template>
+  }
 
-  <div class="info-backdrop" *ngIf="showInfoPanel" (click)="showInfoPanel = false"></div>
-  <aside class="right-panel" *ngIf="activeContact as contact" [class.open]="showInfoPanel">
+  @if (showInfoPanel) {
+  <div class="info-backdrop" (click)="showInfoPanel = false"></div>
+  }
+  @if (activeContact; as contact) {
+  <aside class="right-panel" [class.open]="showInfoPanel">
     <section class="profile-head">
       <img [src]="avatarSrc(contact)" [alt]="contact.name" (click)="openProfilePhoto(contact, $event)" (error)="useFallbackAvatar($event, contact)" />
       <div>
@@ -768,7 +888,8 @@
       </button>
     </section>
 
-    <section class="panel-section contact-editor" *ngIf="isEditingContact; else contactView">
+    @if (isEditingContact) {
+    <section class="panel-section contact-editor">
       <div class="section-title">
         <wa-icon name="id"></wa-icon>
         Informacion editable
@@ -818,10 +939,11 @@
           Guardar
         </button>
       </div>
-      <p class="save-message" *ngIf="contactSaveMessage">{{ contactSaveMessage }}</p>
+      @if (contactSaveMessage) {
+      <p class="save-message">{{ contactSaveMessage }}</p>
+      }
     </section>
-
-    <ng-template #contactView>
+    } @else {
       <section class="panel-section operation-card">
         <div class="section-title">
           <wa-icon name="activity"></wa-icon>
@@ -835,9 +957,9 @@
         </div>
 
         <div class="operation-actions">
+          @for (status of operationalStatusOptions; track trackByIndex($index)) {
           <button
             type="button"
-            *ngFor="let status of operationalStatusOptions; trackBy: trackByIndex"
             [class.active]="contact.operationalStatus === status.id"
             [disabled]="isUpdatingOperationalStatus || isAssignedToSomeoneElse || contact.isGroup"
             (click)="updateOperationalStatus(status.id)"
@@ -845,12 +967,17 @@
           >
             {{ status.label }}
           </button>
+          }
         </div>
-        <p class="save-message" *ngIf="contactSaveMessage">{{ contactSaveMessage }}</p>
-        <button class="ticket-btn" type="button" (click)="openTicketModal()" *ngIf="!isAssignedToSomeoneElse">
+        @if (contactSaveMessage) {
+        <p class="save-message">{{ contactSaveMessage }}</p>
+        }
+        @if (!isAssignedToSomeoneElse) {
+        <button class="ticket-btn" type="button" (click)="openTicketModal()">
           <wa-icon name="file-text"></wa-icon>
           {{ creatingTicket ? 'Generando...' : 'Generar ticket' }}
         </button>
+        }
       </section>
 
       <section class="panel-section">
@@ -867,8 +994,8 @@
             <span>Cargo</span>
             <strong>{{ contact.role || 'Sin cargo' }}</strong>
           </div>
+          @if (getInstitutionHref(contact)) {
           <a
-            *ngIf="getInstitutionHref(contact); else plainInstitution"
             class="info-card link-card"
             [href]="getInstitutionHref(contact)"
             target="_blank"
@@ -877,12 +1004,12 @@
             <span>Colegio</span>
             <strong>{{ contact.institution || 'Sin colegio' }}</strong>
           </a>
-          <ng-template #plainInstitution>
+          } @else {
             <div class="info-card">
               <span>Colegio</span>
               <strong>{{ contact.institution || 'Sin colegio' }}</strong>
             </div>
-          </ng-template>
+          }
           <div>
             <span>Lugar</span>
             <strong>{{ contact.city || 'Sin lugar' }}</strong>
@@ -893,13 +1020,15 @@
           <wa-icon name="phone"></wa-icon>
           <span>{{ contact.phone || 'Sin telefono' }}</span>
         </a>
-        <a class="info-row" [href]="getEmailHref(contact)" *ngIf="getEmailHref(contact)">
+        @if (getEmailHref(contact)) {
+        <a class="info-row" [href]="getEmailHref(contact)">
           <wa-icon name="mail"></wa-icon>
           <span>{{ contact.email }}</span>
         </a>
+        }
       </section>
 
-    </ng-template>
+    }
 
     <section class="panel-section teams-card">
       <div class="section-title">
@@ -923,8 +1052,12 @@
         <wa-icon [name]="isAiInsightLoading ? 'loader-2' : 'sparkles'"></wa-icon>
         Analisis IA
       </div>
-      <p *ngIf="!isAiInsightLoading">{{ aiInsightText }}</p>
-      <div class="ai-loading-bar" *ngIf="isAiInsightLoading"><span></span></div>
+      @if (!isAiInsightLoading) {
+      <p>{{ aiInsightText }}</p>
+      }
+      @if (isAiInsightLoading) {
+      <div class="ai-loading-bar"><span></span></div>
+      }
     </section>
 
     <section class="panel-section notes-card">
@@ -949,49 +1082,59 @@
       </div>
 
       <div class="note-list">
-        <article class="note-item" *ngFor="let note of contact.notes; trackBy: trackByIndex; let i = index">
+        @for (note of contact.notes; track trackByIndex($index); let i = $index) {
+        <article class="note-item">
           <p>{{ note }}</p>
           <button type="button" class="note-del" (click)="removeNote(i)" title="Eliminar">
             <wa-icon name="trash"></wa-icon>
           </button>
         </article>
+        }
       </div>
     </section>
   </aside>
+  }
 
+  @if (messageMenu) {
   <div
     class="message-menu"
-    *ngIf="messageMenu"
     [style.left.px]="messageMenu.x"
     [style.top.px]="messageMenu.y"
     [class.from-client]="messageMenu.side === 'left'"
     [class.from-advisor]="messageMenu.side === 'right'"
     (click)="$event.stopPropagation()"
   >
-    <div class="menu-reactions" *ngIf="canReactToMessage(messageMenu.message)">
+    @if (canReactToMessage(messageMenu.message)) {
+    <div class="menu-reactions">
       <span>Reaccionar</span>
+      @for (emoji of reactionOptions; track trackByIndex($index)) {
       <button
         type="button"
-        *ngFor="let emoji of reactionOptions; trackBy: trackByIndex"
         (click)="reactToMessage(messageMenu.message, emoji)"
         [class.selected]="ownReactionEmoji(messageMenu.message, activeContact?.messages || []) === emoji"
         [title]="'Reaccionar con ' + emoji"
       >
         {{ emoji }}
       </button>
+      }
     </div>
-    <button type="button" *ngIf="canEditMessage(messageMenu.message)" (click)="startEditMessage(messageMenu.message)">
+    }
+    @if (canEditMessage(messageMenu.message)) {
+    <button type="button" (click)="startEditMessage(messageMenu.message)">
       <wa-icon name="pencil"></wa-icon>
       Editar
     </button>
+    }
     <button type="button" class="danger" (click)="deleteMessage(messageMenu.message)">
       <wa-icon name="trash"></wa-icon>
       Eliminar
     </button>
   </div>
+  }
 
   <!-- ── Modal flotante ticket WhatsApp ──────────────────── -->
-  <div class="wa-ticket-modal" *ngIf="showTicketModal">
+  @if (showTicketModal) {
+  <div class="wa-ticket-modal">
     <div class="wa-ticket-modal-inner" (click)="$event.stopPropagation()">
       <h3>Generar ticket</h3>
       <label>
@@ -1011,7 +1154,9 @@
         <span>Categoria</span>
         <select [(ngModel)]="ticketDto.category">
           <option value="">Sin categoria</option>
-          <option *ngFor="let c of ticketCategories" [value]="c">{{ c }}</option>
+          @for (c of ticketCategories; track $index) {
+          <option [value]="c">{{ c }}</option>
+          }
         </select>
       </label>
       <div class="modal-actions">
@@ -1022,12 +1167,15 @@
       </div>
     </div>
   </div>
+  }
 
   <!-- ── Toast flotante ticket ─────────────────────────── -->
-  <div class="toast-floating" *ngIf="ticketFeedback"
+  @if (ticketFeedback) {
+  <div class="toast-floating"
     [class.toast-ok]="ticketFeedback.type === 'ok'"
     [class.toast-error]="ticketFeedback.type === 'error'">
     <strong>{{ ticketFeedback.type === 'ok' ? 'Ticket generado' : 'Error' }}</strong>
     <span>{{ ticketFeedback.text }}</span>
   </div>
+  }
 </div>

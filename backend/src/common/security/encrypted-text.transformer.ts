@@ -5,6 +5,7 @@ import {
   pbkdf2Sync,
   randomBytes,
 } from 'crypto';
+import { Logger } from '@nestjs/common';
 import { ValueTransformer } from 'typeorm';
 
 const PREFIX_V1 = 'enc:v1:';
@@ -16,12 +17,13 @@ const IV_LENGTH = 12;
 const TAG_LENGTH = 16;
 const SALT_LENGTH = 32;
 
+const logger = new Logger('Encryption');
 let keyWarningLogged = false;
 
 function logKeyWarning(): void {
   if (!keyWarningLogged) {
-    console.warn(
-      '[SEGURIDAD] CHAT_ENCRYPTION_KEY no está configurada. ' +
+    logger.warn(
+      'CHAT_ENCRYPTION_KEY no está configurada. ' +
         'Los mensajes se guardarán en TEXTO PLANO sin cifrado. ' +
         'Configúrala en el archivo .env (64 caracteres hexadecimales).',
     );

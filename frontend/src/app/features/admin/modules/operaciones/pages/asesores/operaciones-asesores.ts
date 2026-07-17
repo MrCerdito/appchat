@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { Subscription, interval } from 'rxjs';
 import { WhatsappChatService } from '../../../../../../core/services/whatsapp-chat.service';
 import { WaAdvisorStats } from '../../../../../../core/models/whatsapp.models';
+import { getInitials, getAvatarColor } from '../../../../../../shared/utils/avatar';
 
 @Component({
   selector: 'app-operaciones-asesores',
@@ -27,9 +28,12 @@ export class OperacionesAsesoresComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.whatsappChat.loadAdminDashboard().subscribe(dashboard => {
-      this.asesores = dashboard.advisors;
-      this.cdr.markForCheck();
+    this.whatsappChat.loadAdminDashboard().subscribe({
+      next: (dashboard) => {
+        this.asesores = dashboard.advisors;
+        this.cdr.markForCheck();
+      },
+      error: (err) => console.error('HTTP Error:', err),
     });
 
     this.subs.push(
@@ -40,9 +44,12 @@ export class OperacionesAsesoresComponent implements OnInit, OnDestroy {
 
     this.subs.push(
       interval(30_000).subscribe(() => {
-        this.whatsappChat.loadAdminDashboard().subscribe(dashboard => {
-          this.asesores = dashboard.advisors;
-          this.cdr.markForCheck();
+        this.whatsappChat.loadAdminDashboard().subscribe({
+          next: (dashboard) => {
+            this.asesores = dashboard.advisors;
+            this.cdr.markForCheck();
+          },
+          error: (err) => console.error('HTTP Error:', err),
         });
       }),
     );
@@ -77,16 +84,8 @@ export class OperacionesAsesoresComponent implements OnInit, OnDestroy {
     return Math.max(0, Math.round((1 - advisor.slaPercent / 100) * advisor.activeChats));
   }
 
-  getInitials(name: string): string {
-    return name.split(/\s+/).map(w => w[0]).join('').substring(0, 2).toUpperCase();
-  }
-
-  getAvatarColor(name: string): string {
-    const colors = ['#10B981', '#8B5CF6', '#F59E0B', '#EF4444', '#3B82F6', '#EC4899', '#14B8A6', '#F97316'];
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    return colors[Math.abs(hash) % colors.length];
-  }
+  getInitials = getInitials;
+  getAvatarColor = getAvatarColor;
 
   statusLabel(advisor: WaAdvisorStats): string {
     if (!advisor.active) return 'Inactivo';

@@ -16,6 +16,7 @@ import { AiService, AiMessage, AiResponse } from '../../../core/services/ai.serv
 import { environment } from '../../../../environments/environment';
 import { HttpClient } from '@angular/common/http';
 import { trackByIndex, trackById } from '../../../shared/utils/track-by';
+import { scrollToBottom } from '../../../shared/utils/scroll';
 import { FaqComponent } from '../faq/faq.component';
 import { ToastContainerComponent } from '../../../shared/components/toast-container.component';
 
@@ -240,9 +241,12 @@ get rolLabel(): string {
 
     this.verificarJornada();
 
-    this.sessionService.getColegios().subscribe(c => {
-      this.colegios = c;
-      this.cdr.detectChanges();
+    this.sessionService.getColegios().subscribe({
+      next: (c) => {
+        this.colegios = c;
+        this.cdr.detectChanges();
+      },
+      error: (err) => console.error('HTTP Error:', err),
     });
 
     const savedSession = localStorage.getItem(SESSION_KEY);
@@ -488,14 +492,18 @@ get rolLabel(): string {
       colegio       : this.colegio.trim(),
       colegioLink   : this.colegioLink || null,
       tipoSolicitud : this.tipoSolicitud,
-    }).subscribe((session) => {
+    }).subscribe({
+      next: (session) => {
   this.session = session;
   this.aiMode  = true;
   this.step    = 'chat';
 
-  this.sessionService.getCodigo(session.id).subscribe(res => {
-    this.codigoSesion = res.codigo;
-    this.cdr.detectChanges();
+  this.sessionService.getCodigo(session.id).subscribe({
+    next: (res) => {
+      this.codigoSesion = res.codigo;
+      this.cdr.detectChanges();
+    },
+    error: (err) => console.error('HTTP Error:', err),
   });
 
   localStorage.setItem(SESSION_KEY, JSON.stringify({ ...session, aiMode: true }));
@@ -516,7 +524,9 @@ get rolLabel(): string {
   this.addAiMessage('model', bienvenida);
   this.iniciarTimerInactividadIa();
   this.cdr.detectChanges();
-});
+      },
+      error: (err) => console.error('HTTP Error:', err),
+    });
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -802,7 +812,9 @@ get rolLabel(): string {
       sessionId: this.session.id,
       pregunta,
       util,
-    }).subscribe();
+    }).subscribe({
+      error: (err) => console.error('HTTP Error:', err),
+    });
   }
 
   this.cdr.detectChanges();
@@ -1089,10 +1101,13 @@ private escapeHtml(value: string): string {
   enviarRating(): void {
     if (!this.ratingEstrellas || !this.sessionIdParaRating) return;
     this.sessionService.saveRating(this.sessionIdParaRating, this.ratingEstrellas, this.ratingComentario.trim() || null, this.ratingEtiquetas)
-      .subscribe(() => {
-        this.ratingEnviado = true;
-        this.cdr.detectChanges();
-        setTimeout(() => this.clearSession(), 2000);
+      .subscribe({
+        next: () => {
+          this.ratingEnviado = true;
+          this.cdr.detectChanges();
+          setTimeout(() => this.clearSession(), 2000);
+        },
+        error: (err) => console.error('HTTP Error:', err),
       });
   }
 
@@ -1165,7 +1180,7 @@ private escapeHtml(value: string): string {
   private scrollToBottom(): void {
     setTimeout(() => {
       if (this.messagesContainer) {
-        this.messagesContainer.nativeElement.scrollTop = this.messagesContainer.nativeElement.scrollHeight;
+        scrollToBottom(this.messagesContainer.nativeElement);
       }
     }, 50);
   }

@@ -1,5 +1,5 @@
-import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { SlicePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
@@ -14,16 +14,17 @@ import { WhatsappChatService } from '../../../../core/services/whatsapp-chat.ser
 import { WaConnectionStatus } from '../../../../core/models/whatsapp.models';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
 
-type ConfigTab = 'jornada' | 'whatsapp' | 'mensajes' | 'inactividad' | 'respuestas';
+type ConfigTab = 'jornada' | 'whatsapp' | 'mensajes' | 'inactividad' | 'respuestas' | 'ia';
 
 @Component({
   selector: 'app-admin-configuracion',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule, SlicePipe],
   templateUrl: './admin-configuracion.html',
   styleUrl: './admin-configuracion.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class AdminConfiguracionComponent implements OnInit {
+export class AdminConfiguracionComponent implements OnInit, OnDestroy {
   protected readonly trackByIndex = trackByIndex;
   protected readonly trackById = trackById;
   config: ConfiguracionData | null = null;
@@ -40,6 +41,33 @@ export class AdminConfiguracionComponent implements OnInit {
   showLinkModal = false;
   linkName = '';
   linkUrl = '';
+
+  // ── IA Prompt ──────────────────────────────────────────────────────────────
+  aiPromptNombre = 'asistente virtual de atención al cliente';
+  aiPromptEspecialidad = 'colegios';
+  aiPromptInstrucciones = '';
+  aiPromptFrasesTransferencia: string[] = ['asesor', 'humano', 'persona', 'agente'];
+  aiPromptFeedback = '';
+  aiPromptPersonalizado = '';
+  aiPromptUseCustom = false;
+  newTransferPhrase = '';
+  selectedRole: string = 'estudiante';
+  newRestrictedTopic = '';
+  iaSectionOpen = { identidad: true, instrucciones: true, roles: true, transferencia: false, feedback: false, avanzado: false };
+
+  readonly aiRoles = [
+    { key: 'administrador', label: 'Administrador', icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' },
+    { key: 'docente', label: 'Docente', icon: 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z' },
+    { key: 'estudiante', label: 'Estudiante', icon: 'M22 10v6M2 10l10-5 10 5-10 5z M6 12v5c3 3 6 3 12 0v-5' },
+    { key: 'padre', label: 'Padre/Madre', icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M23 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75' },
+  ];
+
+  aiRolesConfig: Record<string, { descripcion: string; temasRestringidos: string[]; mensajeRestringido: string }> = {
+    administrador: { descripcion: 'Tienes acceso completo a toda la información del sistema.', temasRestringidos: [], mensajeRestringido: '' },
+    docente: { descripcion: 'Tienes acceso a información académica y administrativa.', temasRestringidos: [], mensajeRestringido: '' },
+    estudiante: { descripcion: 'Tienes acceso a información académica y personal.', temasRestringidos: [], mensajeRestringido: '' },
+    padre: { descripcion: 'Tienes acceso a información académica y de pagos de tu hijo.', temasRestringidos: [], mensajeRestringido: '' },
+  };
 
   readonly placeholderBienvenida =
     'Hola, soy {{asesor}}, en que puedo ayudarte?';
@@ -110,6 +138,8 @@ export class AdminConfiguracionComponent implements OnInit {
     { value: 6, label: 'Sabado', short: 'Sab' },
   ];
 
+  private destroy$ = new Subject<void>();
+
   constructor(
     private readonly svc: ConfiguracionFrontendService,
     private readonly notification: NotificationService,
@@ -119,7 +149,7 @@ export class AdminConfiguracionComponent implements OnInit {
 
   ngOnInit(): void {
     this.sound.loadSoundConfig();
-    this.svc.getGlobal().subscribe({
+    this.svc.getGlobal().pipe(takeUntil(this.destroy$)).subscribe({
       next: (config) => {
         this.config = this.normalize(config);
         this.loading = false;
@@ -143,8 +173,9 @@ export class AdminConfiguracionComponent implements OnInit {
     this.error = '';
 
     this.config.whatsappQuickReplies = this.quickReplies;
+    this.saveAiPromptConfig();
     this.applySoundConfig();
-    this.svc.guardarGlobal(this.config).subscribe({
+    this.svc.guardarGlobal(this.config).pipe(takeUntil(this.destroy$)).subscribe({
       next: (config) => {
         this.config = this.normalize(config);
         this.saving = false;
@@ -278,6 +309,7 @@ export class AdminConfiguracionComponent implements OnInit {
   }
 
   private normalize(config: ConfiguracionData): ConfiguracionData {
+    this.loadAiPromptConfig(config.aiPromptConfig);
     return {
       ...config,
       horarios: config.horarios ?? [],
@@ -419,5 +451,120 @@ export class AdminConfiguracionComponent implements OnInit {
     if (this.config) {
       this.quickReplies = this.normalizeQuickReplies(this.config.whatsappQuickReplies);
     }
+  }
+
+  // ── IA Prompt methods ──────────────────────────────────────────────────────
+  private loadAiPromptConfig(aiCfg: Record<string, any> | null | undefined): void {
+    if (aiCfg && typeof aiCfg === 'object') {
+      this.aiPromptNombre = aiCfg['nombreAsistente'] || 'asistente virtual de atención al cliente';
+      this.aiPromptEspecialidad = aiCfg['especialidad'] || 'colegios';
+      this.aiPromptInstrucciones = aiCfg['instruccionesGenerales'] || '';
+      this.aiPromptFrasesTransferencia = Array.isArray(aiCfg['frasesTransferencia']) && aiCfg['frasesTransferencia'].length
+        ? aiCfg['frasesTransferencia']
+        : ['asesor', 'humano', 'persona', 'agente'];
+      this.aiPromptFeedback = aiCfg['feedbackPositivo'] || '';
+      this.aiPromptPersonalizado = aiCfg['promptPersonalizado'] || '';
+      this.aiPromptUseCustom = !!aiCfg['promptPersonalizado'];
+      if (aiCfg['roles'] && typeof aiCfg['roles'] === 'object') {
+        for (const [key, val] of Object.entries(aiCfg['roles'] as Record<string, any>)) {
+          if (this.aiRolesConfig[key]) {
+            this.aiRolesConfig[key] = {
+              descripcion: val['descripcion'] || this.aiRolesConfig[key].descripcion,
+              temasRestringidos: Array.isArray(val['temasRestringidos']) ? val['temasRestringidos'] : this.aiRolesConfig[key].temasRestringidos,
+              mensajeRestringido: val['mensajeRestringido'] || this.aiRolesConfig[key].mensajeRestringido,
+            };
+          }
+        }
+      }
+    } else {
+      this.resetAiPromptDefaults();
+    }
+  }
+
+  private resetAiPromptDefaults(): void {
+    this.aiPromptNombre = 'asistente virtual de atención al cliente';
+    this.aiPromptEspecialidad = 'colegios';
+    this.aiPromptInstrucciones = '';
+    this.aiPromptFrasesTransferencia = ['asesor', 'humano', 'persona', 'agente'];
+    this.aiPromptFeedback = '';
+    this.aiPromptPersonalizado = '';
+    this.aiPromptUseCustom = false;
+    this.aiRolesConfig = {
+      administrador: { descripcion: 'Tienes acceso completo a toda la información del sistema.', temasRestringidos: [], mensajeRestringido: '' },
+      docente: { descripcion: 'Tienes acceso a información académica y administrativa.', temasRestringidos: [], mensajeRestringido: '' },
+      estudiante: { descripcion: 'Tienes acceso a información académica y personal.', temasRestringidos: [], mensajeRestringido: '' },
+      padre: { descripcion: 'Tienes acceso a información académica y de pagos de tu hijo.', temasRestringidos: [], mensajeRestringido: '' },
+    };
+  }
+
+  saveAiPromptConfig(): void {
+    if (!this.config) return;
+    if (this.aiPromptUseCustom) {
+      this.config.aiPromptConfig = {
+        promptPersonalizado: this.aiPromptPersonalizado || null,
+      };
+    } else {
+      this.config.aiPromptConfig = {
+        nombreAsistente: this.aiPromptNombre,
+        especialidad: this.aiPromptEspecialidad,
+        instruccionesGenerales: this.aiPromptInstrucciones,
+        roles: this.aiRolesConfig,
+        frasesTransferencia: this.aiPromptFrasesTransferencia,
+        feedbackPositivo: this.aiPromptFeedback,
+        promptPersonalizado: null,
+      };
+    }
+  }
+
+  toggleIaSection(key: keyof typeof this.iaSectionOpen): void {
+    this.iaSectionOpen[key] = !this.iaSectionOpen[key];
+  }
+
+  selectRole(key: string): void {
+    this.selectedRole = key;
+  }
+
+  getRoleConfig(key: string) {
+    return this.aiRolesConfig[key];
+  }
+
+  addRestrictedTopic(): void {
+    const topic = this.newRestrictedTopic.trim().toLowerCase();
+    const role = this.aiRolesConfig[this.selectedRole];
+    if (topic && role && !role.temasRestringidos.includes(topic) && role.temasRestringidos.length < 20) {
+      role.temasRestringidos.push(topic);
+      this.newRestrictedTopic = '';
+    }
+  }
+
+  removeRestrictedTopic(topic: string): void {
+    const role = this.aiRolesConfig[this.selectedRole];
+    if (role) {
+      role.temasRestringidos = role.temasRestringidos.filter(t => t !== topic);
+    }
+  }
+
+  addTransferPhrase(): void {
+    const phrase = this.newTransferPhrase.trim().toLowerCase();
+    if (phrase && !this.aiPromptFrasesTransferencia.includes(phrase) && this.aiPromptFrasesTransferencia.length < 20) {
+      this.aiPromptFrasesTransferencia.push(phrase);
+      this.newTransferPhrase = '';
+    }
+  }
+
+  removeTransferPhrase(phrase: string): void {
+    this.aiPromptFrasesTransferencia = this.aiPromptFrasesTransferencia.filter(p => p !== phrase);
+  }
+
+  resetAiPrompt(): void {
+    this.resetAiPromptDefaults();
+    if (this.config) {
+      this.config.aiPromptConfig = null;
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 }

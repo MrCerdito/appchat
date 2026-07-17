@@ -94,6 +94,7 @@ export class MetricsComponent implements OnInit, OnDestroy {
         this.ranking = r;
         this.cdr.detectChanges();
       },
+      error: (err) => console.error('HTTP Error:', err),
     });
   }
 
@@ -107,6 +108,7 @@ export class MetricsComponent implements OnInit, OnDestroy {
         this.comentTotal = res.total;
         this.cdr.detectChanges();
       },
+      error: (err) => console.error('HTTP Error:', err),
     });
   }
 

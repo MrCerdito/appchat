@@ -10,6 +10,7 @@ import { AuthService } from '../../../../core/services/auth.service';
 import { Message } from '../../../../core/models/message.model';
 import { Session } from '../../../../core/models/session.model';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
+import { scrollToBottom } from '../../../../shared/utils/scroll';
 
 @Component({
   selector: 'app-history-global',
@@ -225,6 +226,7 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
         this.buildFilterOptions();
         this.cdr.detectChanges();
       },
+      error: (err) => console.error('HTTP Error:', err),
     });
   }
 
@@ -279,8 +281,7 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
   private scrollToBottom(): void {
     setTimeout(() => {
       if (this.messagesContainer) {
-        this.messagesContainer.nativeElement.scrollTop =
-          this.messagesContainer.nativeElement.scrollHeight;
+        scrollToBottom(this.messagesContainer.nativeElement);
       }
     }, 50);
   }

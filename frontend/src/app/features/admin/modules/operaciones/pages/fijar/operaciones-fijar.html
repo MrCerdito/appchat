@@ -42,7 +42,8 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let chat of chatsFiltrados; trackBy: trackByChatId" [class.fijado-row]="chat.isFijado">
+        @for (chat of chatsFiltrados; track trackByChatId($index, chat)) {
+        <tr [class.fijado-row]="chat.isFijado">
           <td>
             <div class="opf-cliente">
               <div class="opf-avatar" [style.background]="chat.avatar">{{ chat.iniciales }}</div>
@@ -55,47 +56,54 @@
           <td><span class="opf-tag">{{ chat.colegio }}</span></td>
           <td><span class="opf-priority" [class]="prioridadClass(chat.prioridad)">{{ chat.prioridad | titlecase }}</span></td>
           <td>
-            <span *ngIf="chat.asesorActualNombre && chat.asesorActualNombre !== '—'; else sinAsesorActual" class="opf-asesor-actual">
+            @if (chat.asesorActualNombre && chat.asesorActualNombre !== '—') {
+            <span class="opf-asesor-actual">
               {{ chat.asesorActualNombre }}
             </span>
-            <ng-template #sinAsesorActual>
-              <span class="opf-sin-asesor">Sin asignar</span>
-            </ng-template>
+            } @else {
+            <span class="opf-sin-asesor">Sin asignar</span>
+            }
           </td>
           <td>
-            <span *ngIf="chat.isFijado; else sinFijar" class="opf-fijado-badge">
+            @if (chat.isFijado) {
+            <span class="opf-fijado-badge">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 17v5"/><path d="M9 11l-4 4h14l-4-4"/><path d="M15 3.5L9.5 9 15 11l-5.5 5.5"/>
               </svg>
               {{ chat.asesorFijoNombre }}
             </span>
-            <ng-template #sinFijar>
-              <span class="opf-sin-fijar">—</span>
-            </ng-template>
+            } @else {
+            <span class="opf-sin-fijar">—</span>
+            }
           </td>
           <td>
-            <button *ngIf="!chat.isFijado; else desfijarBtn" class="opf-action-btn fix" [disabled]="fixing.has(chat.id)" (click)="openFixPopup(chat.id, chat.cliente)">
+            @if (!chat.isFijado) {
+            <button class="opf-action-btn fix" [disabled]="fixing.has(chat.id)" (click)="openFixPopup(chat.id, chat.cliente)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 17v5"/><path d="M9 11l-4 4h14l-4-4"/><path d="M15 3.5L9.5 9 15 11l-5.5 5.5"/>
               </svg>
               Fijar
             </button>
-            <ng-template #desfijarBtn>
-              <button class="opf-action-btn unfix" [disabled]="fixing.has(chat.id)" (click)="desfijarChat(chat.id)">
-                {{ fixing.has(chat.id) ? '...' : 'Desfijar' }}
-              </button>
-            </ng-template>
+            } @else {
+            <button class="opf-action-btn unfix" [disabled]="fixing.has(chat.id)" (click)="desfijarChat(chat.id)">
+              {{ fixing.has(chat.id) ? '...' : 'Desfijar' }}
+            </button>
+            }
           </td>
         </tr>
-        <tr *ngIf="chatsFiltrados.length === 0">
+        }
+        @if (chatsFiltrados.length === 0) {
+        <tr>
           <td colspan="6" class="opf-empty">No hay chats para mostrar</td>
         </tr>
+        }
       </tbody>
     </table>
   </div>
 
   <!-- Popup fijar asesor -->
-  <div class="opf-popup-overlay" *ngIf="showFixPopup" (click)="closeFixPopup()">
+  @if (showFixPopup) {
+  <div class="opf-popup-overlay" (click)="closeFixPopup()">
     <div class="opf-popup" (click)="$event.stopPropagation()">
       <div class="opf-popup-header">
         <div>
@@ -110,17 +118,20 @@
       </div>
       <div class="opf-popup-body">
         <p class="opf-popup-hint">Este asesor atenderá siempre los mensajes de este chat.</p>
-        <button class="opf-popup-advisor" *ngFor="let advisor of asesores; trackBy: trackByAdvisorId" (click)="fijarChat(advisor.id)">
+        @for (advisor of asesores; track trackByAdvisorId($index, advisor)) {
+        <button class="opf-popup-advisor" (click)="fijarChat(advisor.id)">
           <div class="opf-popup-adv-avatar">{{ advisor.nombre.charAt(0) }}</div>
           <span>{{ advisor.nombre }}</span>
           <svg class="opf-popup-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
           </svg>
         </button>
+        }
       </div>
       <div class="opf-popup-footer">
         <button class="opf-btn opf-btn-secondary" (click)="closeFixPopup()">Cancelar</button>
       </div>
     </div>
   </div>
+  }
 </div>

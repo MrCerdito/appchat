@@ -1,6 +1,8 @@
-import { Component, OnInit, ChangeDetectorRef, ViewChild, ElementRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy, ViewChild, ElementRef } from '@angular/core';
+import { DatePipe, SlicePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { ComunicadosService, Colegio } from '../../../../core/services/comunicados.service';
 import { Comunicado, Destinatario } from '../../../../core/models/comunicado.model';
 import { NotificationService } from '../../../../core/services/notification.service';
@@ -11,11 +13,12 @@ type View = 'inbox' | 'sent' | 'drafts' | 'compose';
 @Component({
   selector: 'app-comunicados',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule, DatePipe, SlicePipe],
   templateUrl: './comunicados.html',
   styleUrl: './comunicados.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ComunicadosComponent implements OnInit {
+export class ComunicadosComponent implements OnInit, OnDestroy {
   protected readonly trackByIndex = trackByIndex;
   protected readonly trackById = trackById;
   view: View = 'inbox';
@@ -48,6 +51,8 @@ export class ComunicadosComponent implements OnInit {
 
   @ViewChild('editor') editorRef!: ElementRef;
 
+  private destroy$ = new Subject<void>();
+
   constructor(
     private service: ComunicadosService,
     private notification: NotificationService,
@@ -56,15 +61,23 @@ export class ComunicadosComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadAll();
-    this.service.getColegios().subscribe(c => {
-      this.colegios = c;
-      this.cdr.detectChanges();
+    this.service.getColegios().pipe(takeUntil(this.destroy$)).subscribe({
+      next: (c) => {
+        this.colegios = c;
+        this.cdr.detectChanges();
+      },
+      error: (err) => console.error('HTTP Error:', err),
     });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   loadAll(): void {
     this.loading = true;
-    this.service.getAll().subscribe({
+    this.service.getAll().pipe(takeUntil(this.destroy$)).subscribe({
       next: (c) => { this.comunicados = c; this.loading = false; this.cdr.detectChanges(); },
       error: () => {
       this.loading = false;
@@ -77,7 +90,7 @@ export class ComunicadosComponent implements OnInit {
   loadStats(id: string): void {
     this.statsLoading = true;
     this.showStats = false;
-    this.service.getStats(id).subscribe({
+    this.service.getStats(id).pipe(takeUntil(this.destroy$)).subscribe({
       next: (s) => {
         this.stats = s;
         this.showStats = true;
@@ -204,7 +217,7 @@ export class ComunicadosComponent implements OnInit {
       ? this.service.update(this.editingId, this.asunto, body, this.destinatarios)
       : this.service.saveDraft(this.asunto, body, this.destinatarios);
 
-    obs.subscribe({
+    obs.pipe(takeUntil(this.destroy$)).subscribe({
       next: (c) => {
         this.editingId = c.id;
         this.saving = false;
@@ -232,9 +245,9 @@ export class ComunicadosComponent implements OnInit {
       ? this.service.update(this.editingId, this.asunto, body, this.destinatarios)
       : this.service.saveDraft(this.asunto, body, this.destinatarios);
 
-    save$.subscribe({
+    save$.pipe(takeUntil(this.destroy$)).subscribe({
       next: (c) => {
-        this.service.send(c.id).subscribe({
+        this.service.send(c.id).pipe(takeUntil(this.destroy$)).subscribe({
           next: () => {
             this.sending = false;
             this.view = 'sent';
@@ -264,7 +277,7 @@ export class ComunicadosComponent implements OnInit {
 
   deleteComunicado(id: string): void {
     if (!confirm('¿Eliminar este comunicado?')) return;
-    this.service.remove(id).subscribe({
+    this.service.remove(id).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
         this.selected = null;
         this.showStats = false;

@@ -10,10 +10,15 @@
     </div>
   </header>
 
-  <div *ngIf="loading" class="state">Cargando…</div>
-  <div *ngIf="error" class="state err">Error al cargar.</div>
+  @if (loading) {
+  <div class="state">Cargando…</div>
+  }
+  @if (error) {
+  <div class="state err">Error al cargar.</div>
+  }
 
-  <div class="dashboard" *ngIf="!loading && !error && metrics">
+  @if (!loading && !error && metrics) {
+  <div class="dashboard">
 
     <!-- ── Columna izquierda ── -->
     <div class="left-col">
@@ -72,7 +77,8 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let a of metrics.advisors; trackBy: trackById">
+            @for (a of metrics.advisors; track trackById($index, metrics.advisors)) {
+            <tr>
               <td class="td-client">
                 <div class="advisor-name">
                   <div class="rank-avatar">{{ a.name.charAt(0) }}</div>
@@ -87,6 +93,7 @@
               </td>
               <td class="td-date">{{ a.activeChats }} / 9</td>
             </tr>
+            }
           </tbody>
         </table>
       </section>
@@ -98,17 +105,24 @@
           <div class="header-actions">
             <select class="advisor-filter" [(ngModel)]="selectedAdvisor" (change)="onAdvisorFilter()">
               <option value="">Todos los asesores</option>
-              <option *ngFor="let a of metrics.advisors; trackBy: trackById" [value]="a.id">{{ a.name }}</option>
+              @for (a of metrics.advisors; track trackById($index, metrics.advisors)) {
+              <option [value]="a.id">{{ a.name }}</option>
+              }
             </select>
-            <span class="comments-total" *ngIf="comentTotal > 0">{{ comentTotal }} en total</span>
+            @if (comentTotal > 0) {
+            <span class="comments-total">{{ comentTotal }} en total</span>
+            }
           </div>
         </div>
 
-        <div *ngIf="comentarios.length === 0" class="empty-state">
+        @if (comentarios.length === 0) {
+        <div class="empty-state">
           Sin comentarios aún
         </div>
+        }
 
-        <table class="comments-table" *ngIf="comentarios.length > 0">
+        @if (comentarios.length > 0) {
+        <table class="comments-table">
           <thead>
             <tr>
               <th>Cliente</th>
@@ -120,30 +134,39 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let c of comentarios; trackBy: trackById">
+            @for (c of comentarios; track trackById($index, c)) {
+            <tr>
               <td class="td-client">{{ c.clientName }}</td>
               <td class="td-client">{{ c.advisorName }}</td>
               <td class="td-text">{{ c.comentario }}</td>
               <td class="td-chips">
                 <div class="chip-row">
-                  <span class="chip-tag" *ngFor="let e of c.etiquetas; trackBy: trackByIndex">{{ e }}</span>
+                  @for (e of c.etiquetas; track $index) {
+                  <span class="chip-tag">{{ e }}</span>
+                  }
                 </div>
               </td>
               <td class="td-stars">
                 <div class="inline-stars">
-                  <span *ngFor="let s of getStars(c.estrellas); trackBy: trackByIndex" class="star" [class]="s">★</span>
+                  @for (s of getStars(c.estrellas); track $index) {
+                  <span class="star" [class]="s">★</span>
+                  }
                 </div>
               </td>
               <td class="td-date">{{ c.createdAt | date:'dd MMM yy' }}</td>
             </tr>
+            }
           </tbody>
         </table>
+        }
 
-        <div class="pagination" *ngIf="comentPages > 1">
+        @if (comentPages > 1) {
+        <div class="pagination">
           <button class="page-btn" [disabled]="comentPage === 1" (click)="loadComentarios(comentPage - 1)">‹</button>
           <span class="page-info">{{ comentPage }} / {{ comentPages }}</span>
           <button class="page-btn" [disabled]="comentPage === comentPages" (click)="loadComentarios(comentPage + 1)">›</button>
         </div>
+        }
       </section>
 
     </div>
@@ -157,8 +180,9 @@
           <span class="ranking-sub">Por calificación</span>
         </div>
         <div class="ranking-list">
-          <div *ngFor="let a of ranking; trackBy: trackById; let i = index" class="ranking-item">
-            <span class="pos">{{ i + 1 }}</span>
+          @for (a of ranking; track trackById($index, a)) {
+          <div class="ranking-item">
+            <span class="pos">{{ $index + 1 }}</span>
             <div class="rank-avatar">{{ a.name.charAt(0) }}</div>
             <div class="rank-info">
               <span class="rank-name">{{ a.name }}</span>
@@ -169,11 +193,13 @@
               <span class="rank-reviews">{{ a.totalRatings > 0 ? a.totalRatings + ' reseñas' : 'sin reseñas' }}</span>
             </div>
           </div>
+          }
         </div>
       </div>
 
     </aside>
 
   </div>
+  }
 
 </div>

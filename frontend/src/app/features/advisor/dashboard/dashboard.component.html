@@ -1,3 +1,4 @@
+<app-toast-container />
 <div class="advisor-shell" [class.compact-shell-mode]="compactShellMode">
 
   <!-- ── Overlay móvil ──────────────────────────────────────────────────── -->
@@ -7,7 +8,8 @@
   </div>
 
   <!-- ── Modal de almuerzo ──────────────────────────────────────────────── -->
-  <div class="almuerzo-overlay" *ngIf="enAlmuerzo">
+  @if (enAlmuerzo) {
+  <div class="almuerzo-overlay">
     <div class="almuerzo-modal">
 
       <div class="almuerzo-icon">
@@ -22,13 +24,17 @@
       <h2>¡Hora del almuerzo!</h2>
       <p>Estás en tu pausa de almuerzo.<br>No recibirás nuevos chats durante este tiempo.</p>
 
-      <div class="almuerzo-schedule" *ngIf="almuerzoInicio">
+      @if (almuerzoInicio) {
+      <div class="almuerzo-schedule">
         <span class="schedule-label">Horario de almuerzo</span>
         <span class="schedule-range">{{ almuerzoInicio }} — {{ almuerzoFinOriginal }}</span>
-        <span class="schedule-adjust" *ngIf="almuerzoFinHora !== almuerzoFinOriginal">
+        @if (almuerzoFinHora !== almuerzoFinOriginal) {
+        <span class="schedule-adjust">
           Ajustado hasta las {{ almuerzoFinHora }}
         </span>
+        }
       </div>
+      }
 
       <div class="almuerzo-countdown-wrap">
         <span class="countdown-label">Regresas en</span>
@@ -42,6 +48,7 @@
       <span class="almuerzo-nota">El sistema reanudará automáticamente al finalizar</span>
     </div>
   </div>
+  }
 
   <!-- ── Sidebar ────────────────────────────────────────────────────────── -->
   <aside class="shell-sidebar" [class.open]="sidebarOpen">
@@ -76,7 +83,9 @@
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
         </svg>
         <span>Chats</span>
-        <span class="nav-badge" *ngIf="chatUnreadCount > 0">{{ chatUnreadCount }}</span>
+        @if (chatUnreadCount > 0) {
+        <span class="nav-badge">{{ chatUnreadCount }}</span>
+        }
       </a>
 
       <a class="nav-item" routerLink="whatsapp" routerLinkActive="active"
@@ -86,7 +95,9 @@
           <path d="M16.02 3C9.39 3 4 8.39 4 15.02c0 2.63.86 5.07 2.32 7.05L5 29l7.12-1.87c1.92 1.05 4.1 1.64 6.42 1.64 6.63 0 12.02-5.39 12.02-12.02C30.56 8.39 25.65 3 19.02 3h-3z"/>
         </svg>
         <span>Whatsapp</span>
-        <span class="nav-badge" *ngIf="whatsappUnreadCount > 0">{{ whatsappUnreadCount }}</span>
+        @if (whatsappUnreadCount > 0) {
+        <span class="nav-badge">{{ whatsappUnreadCount }}</span>
+        }
       </a>
 
       <!-- Gestión -->
@@ -214,7 +225,9 @@
           </svg>
         </div>
         <span>SoporteApp</span>
-        <span class="topbar-badge" *ngIf="totalUnreadCount > 0">{{ totalUnreadCount }}</span>
+        @if (totalUnreadCount > 0) {
+        <span class="topbar-badge">{{ totalUnreadCount }}</span>
+        }
       </div>
 
       <!-- ── Asesores conectados (topbar) ──────────────────────────────── -->
@@ -222,33 +235,41 @@
            [class.expanded]="allAdvisorsOpen"
            (click)="toggleAllAdvisors()">
         <div class="topbar-adv-pills">
+          @for (adv of otherAdvisors.slice(0, 3); track $index) {
           <div class="tb-pill"
-               *ngFor="let adv of otherAdvisors.slice(0, 3)"
                [class.status-online]="adv.status === 'online'"
                [class.status-busy]="adv.status === 'busy'"
                [class.status-offline]="adv.status === 'offline'"
                [title]="adv.name + ' — ' + (adv.status === 'online' ? 'Disponible' : adv.status === 'busy' ? 'Ocupado' : 'Inactivo')">
-            <img *ngIf="adv.profilePhotoUrl; else tbPillFallback"
+            @if (adv.profilePhotoUrl) {
+            <img
                  [src]="adv.profilePhotoUrl" [alt]="adv.name"
                  class="tb-pill-img" />
-            <ng-template #tbPillFallback>{{ adv.name.charAt(0) }}</ng-template>
+            } @else {
+            {{ adv.name.charAt(0) }}
+            }
           </div>
+          }
         </div>
         <div class="topbar-adv-list">
+          @for (adv of allAdvisors; track $index) {
           <div class="tb-list-item"
-               *ngFor="let adv of allAdvisors"
                [class.is-me]="adv.advisorId === currentAdvisor?.id">
             <span class="tb-list-dot" [ngClass]="adv.status"></span>
-            <img *ngIf="adv.profilePhotoUrl; else tbListFallback"
+            @if (adv.profilePhotoUrl) {
+            <img
                  [src]="adv.profilePhotoUrl" [alt]="adv.name"
                  class="tb-list-img" />
-            <ng-template #tbListFallback>
+            } @else {
               <span class="tb-list-char">{{ adv.name.charAt(0) }}</span>
-            </ng-template>
+            }
             <span class="tb-list-name">{{ adv.name }}</span>
-            <span class="tb-list-badge" *ngIf="adv.advisorId === currentAdvisor?.id">Tú</span>
+            @if (adv.advisorId === currentAdvisor?.id) {
+            <span class="tb-list-badge">Tú</span>
+            }
             <span class="tb-list-status">{{ adv.status === 'online' ? 'Disponible' : adv.status === 'busy' ? 'Ocupado' : 'Inactivo' }}</span>
           </div>
+          }
         </div>
       </div>
 
@@ -256,23 +277,28 @@
         <div class="profile-avatar topbar-avatar"
              [ngClass]="'status-border-' + (enAlmuerzo ? 'lunch' : advisorStatus)"
              (click)="profileOpen = !profileOpen">
-          <img *ngIf="currentAdvisor?.profilePhotoUrl; else topbarAvatarFallback"
+          @if (currentAdvisor?.profilePhotoUrl) {
+          <img
                [src]="currentAdvisor!.profilePhotoUrl"
                [alt]="currentAdvisor?.name"
                class="profile-avatar-img" />
-          <ng-template #topbarAvatarFallback>{{ currentAdvisor?.name?.charAt(0) }}</ng-template>
+          } @else {
+          {{ currentAdvisor?.name?.charAt(0) }}
+          }
         </div>
 
-        <div class="profile-dropdown" *ngIf="profileOpen" (click)="$event.stopPropagation()">
+        @if (profileOpen) {
+        <div class="profile-dropdown" (click)="$event.stopPropagation()">
           <div class="pd-header">
             <div class="pd-photo-wrap" (click)="photoInput.click()">
-              <img *ngIf="currentAdvisor?.profilePhotoUrl; else pdPhotoFallback"
+              @if (currentAdvisor?.profilePhotoUrl) {
+              <img
                    [src]="currentAdvisor!.profilePhotoUrl"
                    [alt]="currentAdvisor?.name"
                    class="pd-photo-img" />
-              <ng-template #pdPhotoFallback>
+              } @else {
                 <span class="pd-photo-initial">{{ currentAdvisor?.name?.charAt(0) }}</span>
-              </ng-template>
+              }
               <div class="pd-photo-overlay">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                   stroke-linecap="round" stroke-linejoin="round">
@@ -283,7 +309,8 @@
             </div>
             <input #photoInput type="file" accept="image/*" class="photo-input-hidden"
                    (change)="onProfilePhotoSelected($event)" />
-            <button *ngIf="currentAdvisor?.profilePhotoUrl" type="button"
+            @if (currentAdvisor?.profilePhotoUrl) {
+            <button type="button"
                     class="pd-photo-remove" (click)="removeProfilePhoto()" title="Eliminar foto">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                 stroke-linecap="round" stroke-linejoin="round">
@@ -291,6 +318,7 @@
                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
               </svg>
             </button>
+            }
             <div class="pd-name">{{ currentAdvisor?.name }}</div>
             <div class="pd-email">{{ currentAdvisor?.email }}</div>
           </div>
@@ -306,36 +334,43 @@
                 (click)="setStatus('online')">
                 <span class="dot-inline online"></span>
                 <span>Disponible</span>
-                <svg *ngIf="advisorStatus === 'online'" class="check-icon"
+                @if (advisorStatus === 'online') {
+                <svg class="check-icon"
                   viewBox="0 0 24 24" fill="none" stroke="currentColor"
                   stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                   <polyline points="20 6 9 17 4 12"/>
                 </svg>
+                }
               </button>
               <button class="pd-status-btn"
                 [class.active]="advisorStatus === 'busy'"
                 (click)="setStatus('busy')">
                 <span class="dot-inline busy"></span>
                 <span>Ocupado</span>
-                <svg *ngIf="advisorStatus === 'busy'" class="check-icon"
+                @if (advisorStatus === 'busy') {
+                <svg class="check-icon"
                   viewBox="0 0 24 24" fill="none" stroke="currentColor"
                   stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                   <polyline points="20 6 9 17 4 12"/>
                 </svg>
+                }
               </button>
               <button class="pd-status-btn"
                 [class.active]="advisorStatus === 'offline'"
                 (click)="setStatus('offline')">
                 <span class="dot-inline offline"></span>
                 <span>Inactivo</span>
-                <svg *ngIf="advisorStatus === 'offline'" class="check-icon"
+                @if (advisorStatus === 'offline') {
+                <svg class="check-icon"
                   viewBox="0 0 24 24" fill="none" stroke="currentColor"
                   stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                   <polyline points="20 6 9 17 4 12"/>
                 </svg>
+                }
               </button>
             </div>
-            <div class="pd-lunch-badge" *ngIf="enAlmuerzo">
+            @if (enAlmuerzo) {
+            <div class="pd-lunch-badge">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                 stroke-linecap="round" stroke-linejoin="round">
                 <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/>
@@ -344,6 +379,7 @@
               </svg>
               <span>Almuerzo — {{ almuerzoRestante }}</span>
             </div>
+            }
           </div>
 
           <div class="pd-divider"></div>
@@ -374,10 +410,12 @@
                   <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
                 </svg>
                 <span>Claro</span>
-                <svg *ngIf="(themeService.currentMode$ | async) === 'light'" class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                @if ((themeService.currentMode$ | async) === 'light') {
+                <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                   stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                   <polyline points="20 6 9 17 4 12"/>
                 </svg>
+                }
               </button>
               <button class="pd-appearance-opt"
                       [class.active]="(themeService.currentMode$ | async) === 'dark'"
@@ -387,10 +425,12 @@
                   <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
                 </svg>
                 <span>Oscuro</span>
-                <svg *ngIf="(themeService.currentMode$ | async) === 'dark'" class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                @if ((themeService.currentMode$ | async) === 'dark') {
+                <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                   stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                   <polyline points="20 6 9 17 4 12"/>
                 </svg>
+                }
               </button>
               <button class="pd-appearance-opt"
                       [class.active]="(themeService.currentMode$ | async) === 'system'"
@@ -402,21 +442,27 @@
                   <line x1="12" y1="17" x2="12" y2="21"/>
                 </svg>
                 <span>Sistema</span>
-                <svg *ngIf="(themeService.currentMode$ | async) === 'system'" class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                @if ((themeService.currentMode$ | async) === 'system') {
+                <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                   stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                   <polyline points="20 6 9 17 4 12"/>
                 </svg>
+                }
               </button>
             </div>
           </div>
         </div>
+        }
 
-        <div class="dropdown-overlay" *ngIf="profileOpen" (click)="profileOpen = false"></div>
+        @if (profileOpen) {
+        <div class="dropdown-overlay" (click)="profileOpen = false"></div>
+        }
       </div>
     </header>
 
     <!-- Banner almuerzo próximo -->
-    <div class="lunch-approaching-banner" *ngIf="almuerzoProximoMensaje && !enAlmuerzo && !almuerzoMensaje">
+    @if (almuerzoProximoMensaje && !enAlmuerzo && !almuerzoMensaje) {
+    <div class="lunch-approaching-banner">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
         stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="10"/>
@@ -425,9 +471,11 @@
       </svg>
       <span>{{ almuerzoProximoMensaje }}</span>
     </div>
+    }
 
     <!-- Banner almuerzo pendiente -->
-    <div class="lunch-pending-banner" *ngIf="almuerzoMensaje && !enAlmuerzo">
+    @if (almuerzoMensaje && !enAlmuerzo) {
+    <div class="lunch-pending-banner">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
         stroke-linecap="round" stroke-linejoin="round">
         <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/>
@@ -437,15 +485,24 @@
       <div class="lunch-pending-text">
         <span class="pending-title">Almuerzo pendiente</span>
         <span class="pending-desc">{{ almuerzoMensaje }}</span>
-        <div class="pending-breakdown" *ngIf="almuerzoChatsWeb > 0 || almuerzoChatsWhatsapp > 0">
-          <span class="breakdown-item" *ngIf="almuerzoChatsWeb > 0">● Chat asesor: {{ almuerzoChatsWeb }} sin finalizar</span>
-          <span class="breakdown-item" *ngIf="almuerzoChatsWhatsapp > 0">● WhatsApp: {{ almuerzoChatsWhatsapp }} sin finalizar</span>
+        @if (almuerzoChatsWeb > 0 || almuerzoChatsWhatsapp > 0) {
+        <div class="pending-breakdown">
+          @if (almuerzoChatsWeb > 0) {
+          <span class="breakdown-item">● Chat asesor: {{ almuerzoChatsWeb }} sin finalizar</span>
+          }
+          @if (almuerzoChatsWhatsapp > 0) {
+          <span class="breakdown-item">● WhatsApp: {{ almuerzoChatsWhatsapp }} sin finalizar</span>
+          }
         </div>
-        <span class="pending-hours" *ngIf="almuerzoInicio">
+        }
+        @if (almuerzoInicio) {
+        <span class="pending-hours">
           Horario: {{ almuerzoInicio }} — {{ almuerzoFinOriginal }}
         </span>
+        }
       </div>
     </div>
+    }
 
     <div class="shell-outlet">
       <router-outlet/>

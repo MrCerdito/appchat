@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { NotificationService } from '../../core/services/notification.service';
 
@@ -6,6 +6,7 @@ import { NotificationService } from '../../core/services/notification.service';
   selector: 'app-toast-container',
   standalone: true,
   imports: [CommonModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="toast-container" aria-live="polite">
       @for (toast of notification.toasts(); track toast.id) {

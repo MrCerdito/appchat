@@ -50,7 +50,8 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let chat of chatsFiltrados; trackBy: trackByChatId">
+        @for (chat of chatsFiltrados; track trackByChatId($index, chat)) {
+        <tr>
           <td>
             <div class="opas-cliente">
               <div class="opas-avatar" [style.background]="chat.avatar">{{ chat.iniciales }}</div>
@@ -65,10 +66,12 @@
           <td class="opas-msg-cell">{{ chat.ultimoMensaje }}</td>
           <td>{{ chat.tiempoEspera }}</td>
           <td>
-            <select class="opas-select" [ngModel]="selectedAdvisor[chat.id]" (ngModelChange)="selectedAdvisor[chat.id] = $event">
-              <option value="">Sin asesor</option>
-              <option *ngFor="let a of asesores; trackBy: trackByAdvisorId" [value]="a.id">{{ a.nombre }}</option>
-            </select>
+              <select class="opas-select" [ngModel]="selectedAdvisor[chat.id]" (ngModelChange)="selectedAdvisor[chat.id] = $event">
+                <option value="">Sin asesor</option>
+                @for (a of asesores; track trackByAdvisorId($index, a)) {
+                <option [value]="a.id">{{ a.nombre }}</option>
+                }
+              </select>
           </td>
           <td>
             <button class="opas-assign-btn" [class.loading]="assigning.has(chat.id)" [disabled]="assigning.has(chat.id) || !selectedAdvisor[chat.id] || selectedAdvisor[chat.id] === chat.asesorAsignado" (click)="asignarChat(chat.id, selectedAdvisor[chat.id])">
@@ -76,9 +79,12 @@
             </button>
           </td>
         </tr>
-        <tr *ngIf="chatsFiltrados.length === 0">
+        }
+        @if (chatsFiltrados.length === 0) {
+        <tr>
           <td colspan="7" class="opas-empty">No hay chats pendientes de asignación</td>
         </tr>
+        }
       </tbody>
     </table>
   </div>

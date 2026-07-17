@@ -54,16 +54,22 @@ export class OperacionesAlertasComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.whatsappChat.loadAdminDashboard().subscribe(dashboard => {
-      this.rawAlerts = dashboard.alerts;
-      this.cdr.markForCheck();
+    this.whatsappChat.loadAdminDashboard().subscribe({
+      next: (dashboard) => {
+        this.rawAlerts = dashboard.alerts;
+        this.cdr.markForCheck();
+      },
+      error: (err) => console.error('HTTP Error:', err),
     });
 
     this.subs.push(
       interval(30_000).subscribe(() => {
-        this.whatsappChat.loadAdminDashboard().subscribe(dashboard => {
-          this.rawAlerts = dashboard.alerts;
-          this.cdr.markForCheck();
+        this.whatsappChat.loadAdminDashboard().subscribe({
+          next: (dashboard) => {
+            this.rawAlerts = dashboard.alerts;
+            this.cdr.markForCheck();
+          },
+          error: (err) => console.error('HTTP Error:', err),
         });
       }),
     );

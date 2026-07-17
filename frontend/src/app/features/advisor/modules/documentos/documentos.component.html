@@ -29,15 +29,18 @@
   </div>
 
   <!-- Éxito -->
-  <div class="upload-success" *ngIf="uploadResult">
+  @if (uploadResult) {
+  <div class="upload-success">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
       stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
     <span><strong>{{ uploadResult.nombre }}</strong> procesado — {{ uploadResult.chunks }} fragmentos indexados.</span>
     <button class="close-success" (click)="uploadResult = null">✕</button>
   </div>
+  }
 
   <!-- Form subida -->
-  <div class="upload-form" *ngIf="showForm">
+  @if (showForm) {
+  <div class="upload-form">
     <div class="form-header">
       <span>{{ editMode ? 'Editar documento' : 'Subir nuevo documento' }}</span>
       <button class="form-close" (click)="showForm = false; resetForm()">✕</button>
@@ -45,24 +48,32 @@
     <div class="form-grid">
 
       <!-- Zona archivo (solo en modo subida) -->
-      <div class="file-zone" *ngIf="!editMode"
+      @if (!editMode) {
+      <div class="file-zone"
         [class.has-file]="archivoSeleccionado"
         (click)="fileInput.click()">
         <input #fileInput type="file" accept=".pdf" (change)="onFileChange($event)" hidden/>
-        <svg *ngIf="!archivoSeleccionado" viewBox="0 0 24 24" fill="none"
+        @if (!archivoSeleccionado) {
+        <svg viewBox="0 0 24 24" fill="none"
           stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
           <polyline points="17 8 12 3 7 8"/>
           <line x1="12" y1="3" x2="12" y2="15"/>
         </svg>
-        <svg *ngIf="archivoSeleccionado" viewBox="0 0 24 24" fill="none"
+        }
+        @if (archivoSeleccionado) {
+        <svg viewBox="0 0 24 24" fill="none"
           stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
           <polyline points="14 2 14 8 20 8"/>
         </svg>
+        }
         <span class="file-label">{{ archivoSeleccionado ? archivoNombre : 'Toca para seleccionar PDF' }}</span>
-        <span class="file-sub" *ngIf="!archivoSeleccionado">Máximo 20MB</span>
+        @if (!archivoSeleccionado) {
+        <span class="file-sub">Máximo 20MB</span>
+        }
       </div>
+      }
 
       <div class="form-fields">
         <div class="field" [class.error]="submitted && !form.nombre.trim()">
@@ -80,7 +91,9 @@
           <div class="field">
             <label>Categoría</label>
             <select [(ngModel)]="form.categoria">
-              <option *ngFor="let c of categorias; trackBy: trackByIndex" [value]="c.value">{{ c.label }}</option>
+              @for (c of categorias; track trackByIndex($index)) {
+              <option [value]="c.value">{{ c.label }}</option>
+              }
             </select>
           </div>
           <div class="field">
@@ -93,43 +106,55 @@
         <div class="field">
           <label>Roles que pueden ver este documento</label>
           <div class="roles-check">
-            <label class="role-opt" *ngFor="let r of rolesDisponibles; trackBy: trackByIndex"
+            @for (r of rolesDisponibles; track trackByIndex($index)) {
+            <label class="role-opt"
               [class.active]="tieneRol(r.value)"
               (click)="toggleRol(r.value)">
-              <svg *ngIf="tieneRol(r.value)" viewBox="0 0 24 24" fill="none"
+              @if (tieneRol(r.value)) {
+              <svg viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="20 6 9 17 4 12"/>
               </svg>
+              }
               {{ r.label }}
             </label>
+            }
           </div>
         </div>
 
-        <div class="upload-error" *ngIf="uploadError">{{ uploadError }}</div>
+        @if (uploadError) {
+        <div class="upload-error">{{ uploadError }}</div>
+        }
 
         <div class="form-actions">
           <button class="btn-cancel" (click)="showForm = false; resetForm()">Cancelar</button>
           <button class="btn-submit" [disabled]="uploading"
             (click)="editMode ? guardarEdicion() : subirDocumento()">
-            <svg *ngIf="uploading" class="spin" viewBox="0 0 24 24" fill="none"
+            @if (uploading) {
+            <svg class="spin" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
               <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
             </svg>
+            }
             {{ uploading ? 'Procesando...' : editMode ? 'Guardar cambios' : 'Subir y procesar' }}
           </button>
         </div>
       </div>
     </div>
   </div>
+  }
 
   <!-- Loading -->
-  <div class="loading-state" *ngIf="loading">
+  @if (loading) {
+  <div class="loading-state">
     <div class="spinner"></div>
     <span>Cargando documentos...</span>
   </div>
+  }
 
   <!-- ── Tabla (tablet/desktop) ────────────────────────────────────── -->
-  <div class="table-wrap" *ngIf="!loading && documentos.length > 0">
+  @if (!loading && documentos.length > 0) {
+  <div class="table-wrap">
     <table class="docs-table">
       <thead>
         <tr>
@@ -143,7 +168,8 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let doc of documentos; trackBy: trackById">
+        @for (doc of documentos; track trackById($index, doc)) {
+        <tr>
           <td>
             <div class="doc-name-cell">
               <div class="doc-icon-sm">
@@ -155,29 +181,39 @@
               </div>
               <div>
                 <span class="doc-nombre">{{ doc.nombre }}</span>
-                <span class="doc-desc" *ngIf="doc.descripcion">{{ doc.descripcion }}</span>
+                @if (doc.descripcion) {
+                <span class="doc-desc">{{ doc.descripcion }}</span>
+                }
               </div>
             </div>
           </td>
           <td><span class="tag tag-cat">{{ getCategoriaLabel(doc.categoria) }}</span></td>
           <td>
-            <span class="tag tag-colegio" *ngIf="doc.colegio">{{ doc.colegio }}</span>
-            <span class="tag tag-global"  *ngIf="!doc.colegio">Todos</span>
+            @if (doc.colegio) {
+            <span class="tag tag-colegio">{{ doc.colegio }}</span>
+            } @else {
+            <span class="tag tag-global">Todos</span>
+            }
           </td>
           <td>
             <div class="roles-tags">
-              <span class="tag tag-rol" *ngFor="let r of getRolesArray(doc.roles_permitidos); trackBy: trackByIndex">
+              @for (r of getRolesArray(doc.roles_permitidos); track trackByIndex($index)) {
+              <span class="tag tag-rol">
                 {{ getRolLabel(r) }}
               </span>
-              <span class="tag tag-global" *ngIf="!doc.roles_permitidos">Todos</span>
+              }
+              @if (!doc.roles_permitidos) {
+              <span class="tag tag-global">Todos</span>
+              }
             </div>
           </td>
           <td class="center"><span class="tag tag-chunks">{{ doc.total_chunks }}</span></td>
           <td class="muted">{{ doc.created_at | date: 'dd/MM/yyyy' }}</td>
           <td>
             <div class="actions-cell">
+              @if (doc.pdf_url) {
               <button class="action-btn action-btn--view" title="Ver PDF"
-                *ngIf="doc.pdf_url" (click)="abrirPdf(doc.pdf_url!)">
+                (click)="abrirPdf(doc.pdf_url!)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                   stroke-linecap="round" stroke-linejoin="round">
                   <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
@@ -185,6 +221,7 @@
                 </svg>
                 Ver
               </button>
+              }
               <button class="action-btn action-btn--edit" (click)="abrirEdicion(doc)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                   stroke-linecap="round" stroke-linejoin="round">
@@ -205,13 +242,17 @@
             </div>
           </td>
         </tr>
+        }
       </tbody>
     </table>
   </div>
+  }
 
   <!-- ── Cards (mobile) ────────────────────────────────────────────── -->
-  <div class="mobile-cards" *ngIf="!loading && documentos.length > 0">
-    <div class="mobile-card" *ngFor="let doc of documentos; trackBy: trackById">
+  @if (!loading && documentos.length > 0) {
+  <div class="mobile-cards">
+    @for (doc of documentos; track trackById($index, doc)) {
+    <div class="mobile-card">
 
       <div class="mobile-card-header">
         <div class="doc-icon-sm">
@@ -223,27 +264,37 @@
         </div>
         <div class="mobile-card-title">
           <span class="doc-nombre">{{ doc.nombre }}</span>
-          <span class="doc-desc" *ngIf="doc.descripcion">{{ doc.descripcion }}</span>
+          @if (doc.descripcion) {
+          <span class="doc-desc">{{ doc.descripcion }}</span>
+          }
         </div>
         <span class="mobile-card-date">{{ doc.created_at | date: 'dd/MM/yy' }}</span>
       </div>
 
       <div class="mobile-card-meta">
         <span class="tag tag-cat">{{ getCategoriaLabel(doc.categoria) }}</span>
-        <span class="tag tag-colegio" *ngIf="doc.colegio">{{ doc.colegio }}</span>
-        <span class="tag tag-global"  *ngIf="!doc.colegio">Todos</span>
+        @if (doc.colegio) {
+        <span class="tag tag-colegio">{{ doc.colegio }}</span>
+        } @else {
+        <span class="tag tag-global">Todos</span>
+        }
         <span class="tag tag-chunks">{{ doc.total_chunks }} fragmentos</span>
       </div>
 
       <div class="roles-tags">
-        <span class="tag tag-rol" *ngFor="let r of getRolesArray(doc.roles_permitidos); trackBy: trackByIndex">
+        @for (r of getRolesArray(doc.roles_permitidos); track trackByIndex($index)) {
+        <span class="tag tag-rol">
           {{ getRolLabel(r) }}
         </span>
-        <span class="tag tag-global" *ngIf="!doc.roles_permitidos">Todos los roles</span>
+        }
+        @if (!doc.roles_permitidos) {
+        <span class="tag tag-global">Todos los roles</span>
+        }
       </div>
 
       <div class="mobile-card-actions">
-        <button class="action-btn action-btn--view" *ngIf="doc.pdf_url" (click)="abrirPdf(doc.pdf_url!)">
+        @if (doc.pdf_url) {
+        <button class="action-btn action-btn--view" (click)="abrirPdf(doc.pdf_url!)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round">
             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
@@ -251,6 +302,7 @@
           </svg>
           Ver PDF
         </button>
+        }
         <button class="action-btn action-btn--edit" (click)="abrirEdicion(doc)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round">
@@ -270,10 +322,13 @@
         </button>
       </div>
     </div>
+    }
   </div>
+  }
 
   <!-- Empty state -->
-  <div class="empty-state" *ngIf="!loading && documentos.length === 0">
+  @if (!loading && documentos.length === 0) {
+  <div class="empty-state">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"
       stroke-linecap="round" stroke-linejoin="round">
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -283,6 +338,7 @@
     <p>Sube un PDF para que la IA pueda usarlo al responder preguntas.</p>
     <button class="btn-primary" (click)="showForm = true">Subir primer documento</button>
   </div>
+  }
 
   <!-- Panel de prueba RAG -->
   <div class="test-panel">
@@ -301,26 +357,34 @@
         {{ testCargando ? 'Buscando...' : 'Buscar' }}
       </button>
     </div>
-    <div class="test-resultado" *ngIf="testResultado">
-      <div *ngIf="testResultado.documentos?.length > 0">
+    @if (testResultado) {
+    <div class="test-resultado">
+      @if (testResultado.documentos?.length > 0) {
+      <div>
         <strong>Documentos encontrados:</strong>
-        <div class="test-doc" *ngFor="let d of testResultado.documentos; trackBy: trackByIndex">
+        @for (d of testResultado.documentos; track trackByIndex($index)) {
+        <div class="test-doc">
           <span class="test-doc-nombre">{{ d.nombre }}</span>
           <span class="test-doc-cat">{{ d.categoria }}</span>
         </div>
+        }
         <details class="test-contexto">
           <summary>Ver contexto inyectado ({{ testResultado.contexto?.length }} chars)</summary>
           <pre>{{ testResultado.contexto }}</pre>
         </details>
       </div>
-      <div *ngIf="!testResultado.documentos?.length" class="test-empty">
+      } @else {
+      <div class="test-empty">
         No se encontraron documentos relevantes para esa pregunta.
       </div>
+      }
     </div>
+    }
   </div>
 
   <!-- Modal confirmar borrado -->
-  <div class="modal-backdrop" *ngIf="docAEliminar" (click)="docAEliminar = null">
+  @if (docAEliminar) {
+  <div class="modal-backdrop" (click)="docAEliminar = null">
     <div class="modal" (click)="$event.stopPropagation()">
       <div class="modal-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -337,5 +401,6 @@
       </div>
     </div>
   </div>
+  }
 
 </div>

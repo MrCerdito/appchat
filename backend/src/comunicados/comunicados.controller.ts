@@ -11,10 +11,13 @@ import {
   HttpCode,
   HttpStatus,
   InternalServerErrorException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Roles, RolesGuard } from '../auth/roles.guard';
 import { ComunicadosService } from './comunicados.service';
 import { IsString, IsArray } from 'class-validator';
+import { Public } from '../auth/public.decorator';
 
 export class ComunicadoDto {
   @IsString() asunto: string;
@@ -23,7 +26,7 @@ export class ComunicadoDto {
 }
 
 @Controller('comunicados')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class ComunicadosController {
   constructor(private readonly service: ComunicadosService) {}
 
@@ -42,6 +45,7 @@ export class ComunicadosController {
     return this.service.findOne(id);
   }
 
+  @Roles('admin')
   @Post('draft')
   @HttpCode(HttpStatus.CREATED)
   saveDraft(@Body() dto: ComunicadoDto, @Request() req: any) {
@@ -53,6 +57,7 @@ export class ComunicadosController {
     );
   }
 
+  @Roles('admin')
   @Put(':id')
   update(@Param('id') id: string, @Body() dto: ComunicadoDto) {
     return this.service.updateDraft(
@@ -63,6 +68,7 @@ export class ComunicadosController {
     );
   }
 
+  @Roles('admin')
   @Post(':id/send')
   @HttpCode(HttpStatus.OK)
   async send(@Param('id') id: string) {
@@ -75,6 +81,7 @@ export class ComunicadosController {
     return result;
   }
 
+  @Roles('admin')
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param('id') id: string) {
@@ -85,6 +92,7 @@ export class ComunicadosController {
   getStats(@Param('id') id: string) {
     return this.service.getStats(id);
   }
+  @Public()
   @Post('webhook/resend')
   async resendWebhook(@Body() body: any) {
     const { type, data } = body;

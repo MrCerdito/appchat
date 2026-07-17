@@ -66,6 +66,7 @@ export class WidgetComponent implements OnInit, OnDestroy {
   protected readonly trackByIndex = trackByIndex;
   protected readonly trackById = trackById;
   config   : WidgetConfig = { ...DEFAULT_CONFIG };
+  srcUrl   = '';
   saved    = false;
   saving   = false;
   loading  = true;
@@ -138,7 +139,7 @@ export class WidgetComponent implements OnInit, OnDestroy {
   cargar(): void {
     this.loading = true;
     this.http.get<any>(this.apiUrl).subscribe({
-      next : (res) => { this.config = this.mapConfig(res); this.loading = false; this.cdr.detectChanges(); },
+      next : (res) => { this.config = this.mapConfig(res); this.srcUrl = this.config.chatUrl ? `${this.config.chatUrl}/widget.js` : ''; this.loading = false; this.cdr.detectChanges(); },
       error: ()    => { this.config = { ...DEFAULT_CONFIG }; this.loading = false; this.cdr.detectChanges(); },
     });
   }
@@ -201,9 +202,22 @@ export class WidgetComponent implements OnInit, OnDestroy {
     });
   }
 
+  onSrcInput(url: string): void {
+    this.srcUrl = url.trim();
+    try {
+      const u = new URL(this.srcUrl);
+      const path = u.pathname;
+      const lastSlash = path.lastIndexOf('/');
+      const dir = lastSlash > 0 ? path.substring(0, lastSlash) : '';
+      this.config.chatUrl = (u.origin + dir).replace(/\/+$/, '');
+    } catch (_) {}
+    this.cdr.detectChanges();
+  }
+
   // ── Computed ──────────────────────────────────────────────────────────────
   get scriptIntegracion(): string {
-    return `<!-- Widget de Chat -->\n<script src="${this.config.chatUrl}/widget.js" defer><\/script>`;
+    const url = this.srcUrl || `${this.config.chatUrl}/widget.js`;
+    return `<!-- Widget de Chat -->\n<script src="${url}" defer><\/script>`;
   }
 
   get previewSize(): number {

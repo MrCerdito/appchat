@@ -39,6 +39,7 @@ export interface ConfiguracionData {
   sonidoAsesor: string;
   sonidoCliente: string;
   sonidoAsignacion: string;
+  aiPromptConfig: Record<string, any> | null;
 }
 
 @Injectable({ providedIn: 'root' })

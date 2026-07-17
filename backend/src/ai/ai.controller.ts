@@ -1,16 +1,22 @@
-import { Controller, Post, Body, Get, Res } from '@nestjs/common';
+import { Controller, Post, Body, Get, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { AiService } from './ai.service';
 import { AiLogsService } from './ai-logs.service';
 import { AiChatDto } from './dto/ai-chat.dto';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.guard';
+import { Public } from '../auth/public.decorator';
 
 @Controller('ai')
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class AiController {
   constructor(
     private readonly aiService: AiService,
     private readonly aiLogs: AiLogsService,
   ) {}
 
+  @Public()
   @Post('chat')
   async chat(@Body() dto: AiChatDto) {
     if (!dto.message?.trim())
@@ -64,6 +70,7 @@ export class AiController {
     return this.aiService.summarizeWhatsappConversation(body);
   }
 
+  @Public()
   @Post('stream')
   async stream(@Body() dto: AiChatDto, @Res() res: Response) {
     if (!dto.message?.trim()) {
@@ -101,6 +108,7 @@ export class AiController {
     }
   }
 
+  @Public()
   @Post('feedback')
   async feedback(
     @Body() body: { sessionId: string; pregunta: string; util: boolean },
@@ -113,6 +121,7 @@ export class AiController {
     return { ok: true };
   }
 
+  @Roles('admin')
   @Get('models')
   async listModels() {
     const apiKey = this.aiService.getApiKey();

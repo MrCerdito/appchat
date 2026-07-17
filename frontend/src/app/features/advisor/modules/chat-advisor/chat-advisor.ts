@@ -22,6 +22,7 @@ import { AiService } from '../../../../core/services/ai.service';
 import { ConfiguracionFrontendService } from '../../../../core/services/configuracion.service';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
 import { priorityLabel } from '../../../../shared/utils/ticket-categories';
+import { scrollToBottom } from '../../../../shared/utils/scroll';
 import { Ticket } from '../../../../core/models/ticket.model';
 
 // ── Payload exacto que emite el backend ──────────────────────────────────────
@@ -257,7 +258,8 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
           const joined = sessions.find(s => s.id === sessionId);
           if (joined) this.joinSession(joined);
           this.cdr.detectChanges();
-        }
+        },
+        error: (err) => console.error('HTTP Error:', err),
       });
     }
   }, 300);
@@ -274,22 +276,23 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe((data) => {
         // Recargar lista para incluir el nuevo chat
-        this.sessionService.findAll().subscribe({
-          next: (sessions) => {
-            this.sessions = sessions;
-            sessions
-              .filter(s => s.status === 'active' || s.status === 'waiting')
-              .forEach(s => this.joinRoom(s.id));
+          this.sessionService.findAll().subscribe({
+            next: (sessions) => {
+              this.sessions = sessions;
+              sessions
+                .filter(s => s.status === 'active' || s.status === 'waiting')
+                .forEach(s => this.joinRoom(s.id));
 
-            // Abrir automáticamente el chat al que se unió
-            const joined = sessions.find(s => s.id === data.sessionId);
-            if (joined) {
-              this.joinSession(joined);
-            }
+              // Abrir automáticamente el chat al que se unió
+              const joined = sessions.find(s => s.id === data.sessionId);
+              if (joined) {
+                this.joinSession(joined);
+              }
 
-            this.cdr.detectChanges();
-          },
-        });
+              this.cdr.detectChanges();
+            },
+            error: (err) => console.error('HTTP Error:', err),
+          });
       });
 
     this.socket.on<{ advisorId: string; name: string; status: string; activeChats?: number }>('advisor_status_changed')
@@ -592,9 +595,12 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   }
 
   loadAdvisors(): void {
-    this.sessionService.findAdvisors().subscribe(a => {
-      this.advisors = a.filter(x => x.id !== this.currentAdvisor?.id);
-      this.cdr.detectChanges();
+    this.sessionService.findAdvisors().subscribe({
+      next: (a) => {
+        this.advisors = a.filter(x => x.id !== this.currentAdvisor?.id);
+        this.cdr.detectChanges();
+      },
+      error: (err) => console.error('HTTP Error:', err),
     });
   }
 
@@ -642,7 +648,8 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     const sessionId = this.activeSession.id;
     this.socket.emit('close_session', sessionId);
     this.clearSession(sessionId);
-    this.sessions = this.sessions.filter(s => s.id !== sessionId);
+    const idx = this.sessions.findIndex(s => s.id === sessionId);
+    if (idx !== -1) this.sessions[idx] = { ...this.sessions[idx], status: 'closed' };
     this.showCloseConfirm = false;
     this.showTransfer     = false;
     this.remitFeedback    = null;
@@ -895,9 +902,12 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   }
 
   loadTicketCategories(): void {
-    this.ticketService.getCategories().subscribe(cats => {
-      this.ticketCategories = cats;
-      this.cdr.detectChanges();
+    this.ticketService.getCategories().subscribe({
+      next: (cats) => {
+        this.ticketCategories = cats;
+        this.cdr.detectChanges();
+      },
+      error: (err) => console.error('HTTP Error:', err),
     });
   }
 
@@ -995,8 +1005,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   private scrollToBottom(): void {
     setTimeout(() => {
       if (this.messagesContainer) {
-        this.messagesContainer.nativeElement.scrollTop =
-          this.messagesContainer.nativeElement.scrollHeight;
+        scrollToBottom(this.messagesContainer.nativeElement);
       }
     }, 50);
   }

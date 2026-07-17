@@ -1,5 +1,5 @@
 import { Component, ChangeDetectionStrategy, ChangeDetectorRef, OnDestroy, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { DecimalPipe, TitleCasePipe } from '@angular/common';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { Subscription, interval } from 'rxjs';
@@ -7,6 +7,7 @@ import { WhatsappChatService } from '../../../../core/services/whatsapp-chat.ser
 import { AuthService } from '../../../../core/services/auth.service';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { WaChat, WaAdvisorStats, WaAdminAlert, WaConnectionStatus } from '../../../../core/models/whatsapp.models';
+import { getInitials, getAvatarColor } from '../../../../shared/utils/avatar';
 
 interface FilteredAlert {
   type: string;
@@ -18,7 +19,7 @@ interface FilteredAlert {
 @Component({
   selector: 'app-operaciones',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule, DecimalPipe, TitleCasePipe],
   templateUrl: './operaciones.html',
   styleUrl: './operaciones.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -74,14 +75,17 @@ export class OperacionesComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     // ── 1. Load dashboard data independently ──────────────────
-    this.whatsappChat.loadAdminDashboard().subscribe(dashboard => {
-      this.summary = dashboard.summary;
-      this.advisors = dashboard.advisors;
-      this.alerts = dashboard.alerts;
-      this.chats = dashboard.chats;
-      this.whatsappChat.syncChats(dashboard.chats);
-      this.dashboardLoaded = true;
-      this.cdr.markForCheck();
+    this.whatsappChat.loadAdminDashboard().subscribe({
+      next: (dashboard) => {
+        this.summary = dashboard.summary;
+        this.advisors = dashboard.advisors;
+        this.alerts = dashboard.alerts;
+        this.chats = dashboard.chats;
+        this.whatsappChat.syncChats(dashboard.chats);
+        this.dashboardLoaded = true;
+        this.cdr.markForCheck();
+      },
+      error: (err) => console.error('HTTP Error:', err),
     });
 
     // ── 2. Join WebSocket room ─────────────────────────────
@@ -91,7 +95,9 @@ export class OperacionesComponent implements OnInit, OnDestroy {
     }
 
     // ── 3. Load current connection status ──────────────────
-    this.whatsappChat.loadConnection().subscribe();
+    this.whatsappChat.loadConnection().subscribe({
+      error: (err) => console.error('HTTP Error:', err),
+    });
 
     // ── 4. Real-time subscriptions ───────────────────────
     this.subs.push(
@@ -131,12 +137,15 @@ export class OperacionesComponent implements OnInit, OnDestroy {
     // ── 6. Auto-refresh fallback ──────────────────────────
     this.subs.push(
       interval(15_000).subscribe(() => {
-        this.whatsappChat.loadAdminDashboard().subscribe(dashboard => {
-          this.summary = dashboard.summary;
-          this.advisors = dashboard.advisors;
-          this.alerts = dashboard.alerts;
-          this.whatsappChat.syncChats(dashboard.chats);
-          this.cdr.markForCheck();
+        this.whatsappChat.loadAdminDashboard().subscribe({
+          next: (dashboard) => {
+            this.summary = dashboard.summary;
+            this.advisors = dashboard.advisors;
+            this.alerts = dashboard.alerts;
+            this.whatsappChat.syncChats(dashboard.chats);
+            this.cdr.markForCheck();
+          },
+          error: (err) => console.error('HTTP Error:', err),
         });
       }),
     );
@@ -277,16 +286,8 @@ export class OperacionesComponent implements OnInit, OnDestroy {
     this.currentPage = 1;
   }
 
-  getInitials(name: string): string {
-    return name.split(/\s+/).map(w => w[0]).join('').substring(0, 2).toUpperCase();
-  }
-
-  getAvatarColor(name: string): string {
-    const colors = ['#10B981', '#8B5CF6', '#F59E0B', '#EF4444', '#3B82F6', '#EC4899', '#14B8A6', '#F97316'];
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    return colors[Math.abs(hash) % colors.length];
-  }
+  getInitials = getInitials;
+  getAvatarColor = getAvatarColor;
 
   statusLabel(advisor: WaAdvisorStats): string {
     if (!advisor.active) return 'Inactivo';
@@ -403,7 +404,9 @@ export class OperacionesComponent implements OnInit, OnDestroy {
   }
 
   retryConnection(): void {
-    this.whatsappChat.restartConnection().subscribe();
+    this.whatsappChat.restartConnection().subscribe({
+      error: (err) => console.error('HTTP Error:', err),
+    });
   }
 
   logoutWhatsapp(): void {
@@ -417,12 +420,16 @@ export class OperacionesComponent implements OnInit, OnDestroy {
     this.whatsappChat.logoutConnection().subscribe({
       next: () => {
         this.isLoggingOut = false;
-        setTimeout(() => this.whatsappChat.restartConnection().subscribe(), 500);
+        setTimeout(() => this.whatsappChat.restartConnection().subscribe({
+          error: (err) => console.error('HTTP Error:', err),
+        }), 500);
         this.cdr.markForCheck();
       },
       error: () => {
         this.isLoggingOut = false;
-        this.whatsappChat.restartConnection().subscribe();
+        this.whatsappChat.restartConnection().subscribe({
+          error: (err) => console.error('HTTP Error:', err),
+        });
         this.cdr.markForCheck();
       },
     });

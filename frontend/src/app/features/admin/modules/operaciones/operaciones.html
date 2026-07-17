@@ -1,8 +1,10 @@
 <!-- ═══════════ SPLASH SCREEN ═══════════ -->
-<div class="op-splash" *ngIf="showSplash" [class.exiting]="splashExiting">
+@if (showSplash) {
+<div class="op-splash" [class.exiting]="splashExiting">
 
   <!-- ── MODO CONNECTING (QR / spinner / error) ── -->
-  <div class="op-splash-card op-splash-connecting" *ngIf="splashMode === 'connecting'">
+  @if (splashMode === 'connecting') {
+  <div class="op-splash-card op-splash-connecting">
     <button class="op-splash-hamburger" (click)="openAdminSidebar()" title="Menú de navegación">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <line x1="3" y1="6" x2="21" y2="6"/>
@@ -22,27 +24,34 @@
     <p class="op-splash-subtitle">Centro de control WhatsApp · InnovaCloud</p>
 
     <!-- QR -->
-    <div class="op-splash-qr-wrap" *ngIf="splashShowQr">
+    @if (splashShowQr) {
+    <div class="op-splash-qr-wrap">
       <img class="op-splash-qr-img" [src]="waConnection.qrDataUrl" alt="Código QR de WhatsApp" />
       <p class="op-splash-qr-hint">Abre WhatsApp → Dispositivos vinculados → Vincular dispositivo</p>
     </div>
+    }
 
     <!-- Spinner -->
-    <div class="op-splash-spinner-wrap" *ngIf="splashShowSpinner">
+    @if (splashShowSpinner) {
+    <div class="op-splash-spinner-wrap">
       <div class="op-splash-spinner"></div>
     </div>
+    }
 
     <!-- Retry -->
-    <button class="op-splash-retry" *ngIf="splashShowRetry" (click)="retryConnection()">
+    @if (splashShowRetry) {
+    <button class="op-splash-retry" (click)="retryConnection()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
       </svg>
       Reconectar
     </button>
+    }
 
     <p class="op-splash-status" [class.error]="waConnection.status === 'error'">{{ splashStatusText }}</p>
 
-    <button class="op-splash-disconnect" *ngIf="waConnection.status !== 'connected'" (click)="logoutWhatsapp()" [disabled]="isLoggingOut">
+    @if (waConnection.status !== 'connected') {
+    <button class="op-splash-disconnect" (click)="logoutWhatsapp()" [disabled]="isLoggingOut">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M20 16l-4 4"/>
         <path d="M7 12l5 5l-1.5 1.5a3.536 3.536 0 1 1 -5 -5l1.5 -1.5z"/>
@@ -55,10 +64,13 @@
       </svg>
       {{ isLoggingOut ? 'Desconectando...' : 'Desconectar WhatsApp' }}
     </button>
+    }
   </div>
+  }
 
   <!-- ── MODO LOADING (barra de progreso real) ── -->
-  <div class="op-splash-card op-splash-loading" *ngIf="splashMode === 'loading'">
+  @if (splashMode === 'loading') {
+  <div class="op-splash-card op-splash-loading">
     <div class="op-splash-logo">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
         <path d="M21 11.5a8.4 8.4 0 0 1-12.1 7.55L3 21l1.95-5.74A8.4 8.4 0 1 1 21 11.5z"/>
@@ -79,10 +91,13 @@
 
     <p class="op-splash-loading-text">Cargando información del centro de operaciones...</p>
   </div>
+  }
 </div>
+}
 
 <!-- ═══════════ CONTENIDO PRINCIPAL ═══════════ -->
-<div class="op-page" *ngIf="!showSplash">
+@if (!showSplash) {
+<div class="op-page">
   <nav class="op-nav">
     <div class="op-nav-left">
       <svg class="op-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -98,7 +113,8 @@
         <span class="op-ws-dot"></span>
         <span class="op-ws-label">{{ wsConnected ? 'Conectado' : 'Desconectado' }}</span>
       </div>
-      <button class="op-nav-disconnect" *ngIf="wsConnected" (click)="logoutWhatsapp()" [disabled]="isLoggingOut" title="Desconectar WhatsApp">
+      @if (wsConnected) {
+      <button class="op-nav-disconnect" (click)="logoutWhatsapp()" [disabled]="isLoggingOut" title="Desconectar WhatsApp">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M20 16l-4 4"/>
           <path d="M7 12l5 5l-1.5 1.5a3.536 3.536 0 1 1 -5 -5l1.5 -1.5z"/>
@@ -111,54 +127,66 @@
         </svg>
         <span>{{ isLoggingOut ? 'Desconectando...' : 'Desconectar' }}</span>
       </button>
+      }
     </div>
   </nav>
 
   <!-- Skeleton loading -->
-  <ng-container *ngIf="loading; else loaded">
-    <div class="op-skeleton">
-      <div class="op-skeleton-strip"></div>
-      <div class="op-skeleton-kpis">
-        <div class="op-skeleton-card" *ngFor="let _ of [].constructor(6); trackBy: trackByIndex"></div>
-      </div>
-      <div class="op-skeleton-filters"></div>
-      <div class="op-skeleton-body">
-        <div class="op-skeleton-left">
-          <div class="op-skeleton-advisors">
-            <div class="op-skeleton-adv-header"></div>
-            <div class="op-skeleton-adv-row">
-              <div class="op-skeleton-adv-card" *ngFor="let _ of [].constructor(4); trackBy: trackByIndex"></div>
-            </div>
+  @if (loading) {
+  <div class="op-skeleton">
+    <div class="op-skeleton-strip"></div>
+    <div class="op-skeleton-kpis">
+      @for (_ of [].constructor(6); track trackByIndex($index)) {
+      <div class="op-skeleton-card"></div>
+      }
+    </div>
+    <div class="op-skeleton-filters"></div>
+    <div class="op-skeleton-body">
+      <div class="op-skeleton-left">
+        <div class="op-skeleton-advisors">
+          <div class="op-skeleton-adv-header"></div>
+          <div class="op-skeleton-adv-row">
+            @for (_ of [].constructor(4); track trackByIndex($index)) {
+            <div class="op-skeleton-adv-card"></div>
+            }
           </div>
         </div>
-        <div class="op-skeleton-right"></div>
       </div>
+      <div class="op-skeleton-right"></div>
     </div>
-  </ng-container>
-
-  <ng-template #loaded>
+  </div>
+  } @else {
     <div class="op-alerts-strip">
       <div class="op-alerts-items">
+        @for (chip of alertChips; track trackByAlertType($index, chip)) {
         <div class="op-alert-chip"
           [class.op-ac-red]="chip.severity === 'red'"
           [class.op-ac-amber]="chip.severity === 'amber'"
           [class.op-ac-orange]="chip.severity === 'orange'"
-          [class.op-ac-blue]="chip.severity === 'blue'"
-          *ngFor="let chip of alertChips; trackBy: trackByAlertType">
+          [class.op-ac-blue]="chip.severity === 'blue'">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path *ngIf="chip.type === 'sla_breached'" d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-            <line *ngIf="chip.type === 'sla_breached'" x1="12" y1="9" x2="12" y2="13"/><line *ngIf="chip.type === 'sla_breached'" x1="12" y1="17" x2="12.01" y2="17"/>
-            <path *ngIf="chip.type === 'frozen'" d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-            <path *ngIf="chip.type === 'inactive_advisor'" d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-            <circle *ngIf="chip.type === 'inactive_advisor'" cx="12" cy="7" r="4"/>
-            <path *ngIf="chip.type === 'waiting_customers'" d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-            <circle *ngIf="chip.type === 'waiting_customers'" cx="9" cy="7" r="4"/>
-            <path *ngIf="chip.type === 'waiting_customers'" d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-            <path *ngIf="chip.type === 'waiting_customers'" d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            @if (chip.type === 'sla_breached') {
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            }
+            @if (chip.type === 'frozen') {
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            }
+            @if (chip.type === 'inactive_advisor') {
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+            }
+            @if (chip.type === 'waiting_customers') {
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            }
           </svg>
           <span class="op-alert-count">{{ chip.count }}</span>
           {{ chip.label }}
         </div>
+        }
       </div>
       <button class="op-alerts-view-all" (click)="goToAlertas()">Ver todas las alertas</button>
     </div>
@@ -256,7 +284,9 @@
         <label>Asesor</label>
         <select [(ngModel)]="filterAsesor" (change)="applyFilters()">
           <option value="todos">Todos</option>
-          <option *ngFor="let a of advisorOptions; trackBy: trackByAdvisorId" [value]="a.id">{{ a.name }}</option>
+          @for (a of advisorOptions; track trackByAdvisorId($index, a)) {
+          <option [value]="a.id">{{ a.name }}</option>
+          }
         </select>
       </div>
       <div class="op-filter-group">
@@ -289,7 +319,8 @@
           <button class="op-advisors-show-all" (click)="goToAsesores()">Mostrar todos los asesores</button>
         </div>
         <div class="op-advisors-row">
-          <div class="op-advisor-card" *ngFor="let advisor of advisors.slice(0, 4); trackBy: trackByAdvisorId">
+          @for (advisor of advisors.slice(0, 4); track trackByAdvisorId($index, advisor)) {
+          <div class="op-advisor-card">
             <div class="op-adv-top">
               <div class="op-adv-avatar" [style.background]="getAvatarColor(advisor.name)">{{ getInitials(advisor.name) }}</div>
               <div class="op-adv-info">
@@ -333,6 +364,7 @@
               </div>
             </div>
           </div>
+          }
         </div>
       </div>
 
@@ -389,7 +421,8 @@
               </tr>
             </thead>
             <tbody>
-              <tr (click)="openChat(chat.id)" class="op-chat-row" *ngFor="let chat of paginatedChats; trackBy: trackByChatId">
+              @for (chat of paginatedChats; track trackByChatId($index, chat)) {
+              <tr (click)="openChat(chat.id)" class="op-chat-row">
                 <td>
                   <div class="op-cliente-info">
                     <div class="op-cliente-avatar" [style.background]="getAvatarColor(chat.name)">{{ getInitials(chat.name) }}</div>
@@ -428,9 +461,12 @@
                   </div>
                 </td>
               </tr>
-              <tr *ngIf="paginatedChats.length === 0">
+              }
+              @if (paginatedChats.length === 0) {
+              <tr>
                 <td colspan="9" style="text-align:center;color:#94A3B8;padding:40px 0;">No hay chats con los filtros seleccionados</td>
               </tr>
+              }
             </tbody>
           </table>
         </div>
@@ -438,7 +474,9 @@
           <span class="op-chats-total">Mostrando {{ paginatedChats.length }} de {{ totalFiltered }} chats</span>
           <div class="op-paginator">
             <button class="op-page-btn" (click)="setPage(1)" [class.active]="currentPage === 1">&laquo;</button>
-            <button class="op-page-btn" *ngFor="let _ of [].constructor(totalPages); let i = index; trackBy: trackByIndex" (click)="setPage(i + 1)" [class.active]="currentPage === i + 1">{{ i + 1 }}</button>
+            @for (_ of [].constructor(totalPages); track $index; let i = $index) {
+            <button class="op-page-btn" (click)="setPage(i + 1)" [class.active]="currentPage === i + 1">{{ i + 1 }}</button>
+            }
             <button class="op-page-btn" (click)="setPage(totalPages)" [class.active]="currentPage === totalPages">&raquo;</button>
           </div>
         </div>
@@ -469,7 +507,8 @@
       </div>
     </div>
     <!-- Assign popup -->
-    <div class="op-assign-overlay" *ngIf="assignChatId" (click)="closeAssignMenu()">
+    @if (assignChatId) {
+    <div class="op-assign-overlay" (click)="closeAssignMenu()">
       <div class="op-assign-popup" (click)="$event.stopPropagation()">
         <div class="op-assign-header">
           <div class="op-assign-header-text">
@@ -483,7 +522,8 @@
           </button>
         </div>
         <div class="op-assign-body">
-          <div class="op-assign-advisor" *ngFor="let advisor of advisors; trackBy: trackByAdvisorId" (click)="confirmAssign(advisor.id)">
+          @for (advisor of advisors; track trackByAdvisorId($index, advisor)) {
+          <div class="op-assign-advisor" (click)="confirmAssign(advisor.id)">
             <div class="op-adv-avatar" [style.background]="getAvatarColor(advisor.name)">{{ getInitials(advisor.name) }}</div>
             <div class="op-assign-adv-info">
               <strong>{{ advisor.name }}</strong>
@@ -499,12 +539,17 @@
               <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
             </svg>
           </div>
+          }
         </div>
         <div class="op-assign-footer">
-          <div *ngIf="assignBusy" class="op-assign-loading">Asignando...</div>
+          @if (assignBusy) {
+          <div class="op-assign-loading">Asignando...</div>
+          }
           <button class="op-btn op-btn-secondary" (click)="closeAssignMenu()">Cancelar</button>
         </div>
       </div>
     </div>
-  </ng-template>
+    }
+  }
 </div>
+}

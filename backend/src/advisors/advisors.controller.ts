@@ -13,9 +13,11 @@ import {
   UseInterceptors,
   UploadedFile,
   BadRequestException,
+  ForbiddenException,
+  Request,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { memoryStorage } from 'multer';
+import { diskStorage } from 'multer';
 import { join } from 'path';
 import {
   existsSync,
@@ -110,7 +112,17 @@ export class AdvisorsController {
   @Roles('admin', 'advisor')
   @UseInterceptors(
     FileInterceptor('photo', {
-      storage: memoryStorage(),
+      storage: diskStorage({
+        destination: (_req, _file, cb) => {
+          const dir = join(process.cwd(), 'uploads', 'profiles');
+          if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+          cb(null, dir);
+        },
+        filename: (_req, file, cb) => {
+          const ext = file.originalname.substring(file.originalname.lastIndexOf('.')) || '.jpg';
+          cb(null, `temp-${Date.now()}${ext}`);
+        },
+      }),
       limits: { fileSize: 5 * 1024 * 1024 },
       fileFilter: (_req, file, cb) => {
         if (!file.mimetype.startsWith('image/')) {
@@ -126,15 +138,22 @@ export class AdvisorsController {
   async uploadPhoto(
     @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File,
+    @Request() req: any,
   ): Promise<{ profilePhotoUrl: string }> {
     if (!file) throw new BadRequestException('Archivo no recibido');
+    if (req.user.role === 'advisor' && req.user.id !== id) {
+      throw new ForbiddenException('No puedes modificar la foto de otro asesor');
+    }
 
     const ext =
       file.originalname.substring(file.originalname.lastIndexOf('.')) || '.jpg';
     const timestamp = Date.now();
     const filename = `profile-${id}-${timestamp}${ext}`;
     const dir = join(process.cwd(), 'uploads', 'profiles');
-    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    
+    const tempPath = (file as any).path;
+    const targetPath = join(dir, filename);
+    
     try {
       const oldFiles = readdirSync(dir).filter((f) =>
         f.startsWith(`profile-${id}-`),
@@ -143,7 +162,16 @@ export class AdvisorsController {
     } catch {
       /* ignore */
     }
-    writeFileSync(join(dir, filename), file.buffer);
+    
+    try {
+      const { renameSync } = await import('fs');
+      renameSync(tempPath, targetPath);
+    } catch {
+      const { readFileSync } = await import('fs');
+      const data = readFileSync(tempPath);
+      writeFileSync(targetPath, data);
+      try { unlinkSync(tempPath); } catch { /* ignore */ }
+    }
 
     const backendUrl = process.env.APP_URL || 'http://localhost:3001';
     const profilePhotoUrl = `${backendUrl}/uploads/profiles/${filename}`;
@@ -153,7 +181,10 @@ export class AdvisorsController {
 
   @Delete(':id/photo')
   @Roles('admin', 'advisor')
-  async deletePhoto(@Param('id') id: string): Promise<{ ok: boolean }> {
+  async deletePhoto(@Param('id') id: string, @Request() req: any): Promise<{ ok: boolean }> {
+    if (req.user.role === 'advisor' && req.user.id !== id) {
+      throw new ForbiddenException('No puedes eliminar la foto de otro asesor');
+    }
     const user = await this.advisorsService.findById(id);
     if (user.profilePhotoUrl) {
       const oldPath = join(

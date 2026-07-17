@@ -30,7 +30,9 @@
           <polygon points="22 2 15 22 11 13 2 9 22 2"/>
         </svg>
         <span>Enviados</span>
-        <span class="mail-count failed" *ngIf="failedCount > 0">{{ failedCount }}</span>
+        @if (failedCount > 0) {
+        <span class="mail-count failed">{{ failedCount }}</span>
+        }
       </button>
 
       <button class="mail-nav-item" [class.active]="view === 'drafts'"
@@ -43,23 +45,29 @@
           <line x1="16" y1="17" x2="8" y2="17"/>
         </svg>
         <span>Borradores</span>
-        <span class="mail-count draft" *ngIf="draftCount > 0">{{ draftCount }}</span>
+        @if (draftCount > 0) {
+        <span class="mail-count draft">{{ draftCount }}</span>
+        }
       </button>
     </nav>
   </aside>
 
   <!-- Lista de comunicados -->
-  <div class="mail-list" *ngIf="view !== 'compose'">
+  @if (view !== 'compose') {
+  <div class="mail-list">
     <div class="mail-list-header">
       <h2>{{ view === 'inbox' ? 'Todos los comunicados' : view === 'sent' ? 'Enviados' : 'Borradores' }}</h2>
     </div>
     <div class="mail-list-body">
-      <div *ngIf="loading" class="mail-empty">
+      @if (loading) {
+      <div class="mail-empty">
         <div class="spinner"></div>
         Cargando...
       </div>
+      }
 
-      <div *ngFor="let c of filtered; trackBy: trackById"
+      @for (c of filtered; track trackById($index, c)) {
+      <div
         class="mail-item"
         [class.selected]="selected?.id === c.id"
         [class.draft]="c.status === 'draft'"
@@ -80,8 +88,10 @@
           {{ c.status === 'sent' ? 'Enviado' : c.status === 'failed' ? 'No enviado' : 'Borrador' }}
         </span>
       </div>
+      }
 
-      <div *ngIf="!loading && filtered.length === 0" class="mail-empty">
+      @if (!loading && filtered.length === 0) {
+      <div class="mail-empty">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"
           stroke-linecap="round" stroke-linejoin="round">
           <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/>
@@ -89,13 +99,17 @@
         </svg>
         <span>Sin comunicados</span>
       </div>
+      }
     </div>
   </div>
+  }
 
   <!-- Panel derecho: detalle -->
-  <div class="mail-detail" *ngIf="view !== 'compose'">
+  @if (view !== 'compose') {
+  <div class="mail-detail">
 
-    <div *ngIf="!selected" class="mail-detail-empty">
+    @if (!selected) {
+    <div class="mail-detail-empty">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"
         stroke-linecap="round" stroke-linejoin="round">
         <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
@@ -103,15 +117,18 @@
       </svg>
       <p>Selecciona un comunicado para leerlo</p>
     </div>
+    }
 
-    <div *ngIf="selected" class="mail-reader">
+    @if (selected) {
+    <div class="mail-reader">
 
       <!-- Header del lector -->
       <div class="reader-header">
         <div class="reader-subject">{{ selected.asunto }}</div>
 
         <!-- Alerta si falló -->
-        <div class="failed-alert" *ngIf="selected.status === 'failed'">
+        @if (selected.status === 'failed') {
+        <div class="failed-alert">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"/>
@@ -121,6 +138,7 @@
           Este comunicado no pudo ser entregado a ningún destinatario.
           <button class="failed-retry-btn" (click)="openCompose(selected)">Editar y reintentar</button>
         </div>
+        }
 
         <div class="reader-meta">
           <div class="reader-sender">
@@ -137,8 +155,8 @@
             </div>
           </div>
           <div class="reader-actions">
+            @if (selected.status === 'draft' || selected.status === 'failed') {
             <button class="reader-btn edit"
-              *ngIf="selected.status === 'draft' || selected.status === 'failed'"
               (click)="openCompose(selected)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                 stroke-linecap="round" stroke-linejoin="round">
@@ -147,8 +165,9 @@
               </svg>
               Editar
             </button>
+            }
+            @if (selected.status === 'sent') {
             <button class="reader-btn stats"
-              *ngIf="selected.status === 'sent'"
               (click)="loadStats(selected.id)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                 stroke-linecap="round" stroke-linejoin="round">
@@ -158,6 +177,7 @@
               </svg>
               {{ statsLoading ? 'Cargando...' : 'Ver estadísticas' }}
             </button>
+            }
             <button class="reader-btn delete" (click)="deleteComunicado(selected.id)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                 stroke-linecap="round" stroke-linejoin="round">
@@ -174,28 +194,35 @@
         <div class="reader-recipients">
           <span class="recipients-label">Para:</span>
           <div class="recipients-list">
+            @for (d of selected.destinatarios; track trackByIndex($index)) {
             <span class="recipient-chip"
-              *ngFor="let d of selected.destinatarios; trackBy: trackByIndex"
               [class.chip-failed]="d.sendStatus === 'failed'"
               [class.chip-ok]="d.sendStatus === 'ok'"
               [title]="d.sendStatus === 'failed' ? (d.sendError || 'No entregado') : ''">
               {{ d.nombre }} &lt;{{ d.email }}&gt;
-              <svg *ngIf="d.sendStatus === 'failed'" class="chip-icon-fail"
+              @if (d.sendStatus === 'failed') {
+              <svg class="chip-icon-fail"
                 viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                 stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="10"/>
                 <line x1="12" y1="8" x2="12" y2="12"/>
                 <line x1="12" y1="16" x2="12.01" y2="16"/>
               </svg>
-              <svg *ngIf="d.sendStatus === 'ok'" class="chip-icon-ok"
+              }
+              @if (d.sendStatus === 'ok') {
+              <svg class="chip-icon-ok"
                 viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                 stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="20 6 9 17 4 12"/>
               </svg>
+              }
             </span>
-            <span class="recipient-chip empty" *ngIf="!selected.destinatarios.length">
+            }
+            @if (!selected.destinatarios.length) {
+            <span class="recipient-chip empty">
               Sin destinatarios
             </span>
+            }
           </div>
         </div>
       </div>
@@ -204,7 +231,8 @@
       <div class="reader-body" [innerHTML]="selected.cuerpo"></div>
 
       <!-- Panel de estadísticas -->
-      <div class="stats-panel" *ngIf="showStats && stats">
+      @if (showStats && stats) {
+      <div class="stats-panel">
         <div class="stats-panel-header">
           <span class="stats-title">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -238,10 +266,12 @@
             <span class="stat-num">{{ stats.totalClics }}</span>
             <span class="stat-lbl">Clics · {{ stats.tasaClics }}%</span>
           </div>
-          <div class="stat-box red" *ngIf="statsFailedCount > 0">
-  <span class="stat-num">{{ statsFailedCount }}</span>
-  <span class="stat-lbl">No entregados</span>
-</div>
+          @if (statsFailedCount > 0) {
+          <div class="stat-box red">
+            <span class="stat-num">{{ statsFailedCount }}</span>
+            <span class="stat-lbl">No entregados</span>
+          </div>
+          }
         </div>
 
         <!-- Tabla de destinatarios -->
@@ -252,24 +282,30 @@
             <span>Aperturas</span>
             <span>Clics</span>
           </div>
-          <div class="stats-row" *ngFor="let d of stats.detalle; trackBy: trackByIndex"
+          @for (d of stats.detalle; track trackByIndex($index)) {
+          <div class="stats-row"
             [class.row-failed]="d.sendStatus === 'failed'">
             <span class="dest-info">
               <span class="dest-n">{{ d.nombre }}</span>
               <span class="dest-e">{{ d.email }}</span>
-              <span class="dest-error" *ngIf="d.sendStatus === 'failed' && d.sendError">
+              @if (d.sendStatus === 'failed' && d.sendError) {
+              <span class="dest-error">
                 {{ d.sendError }}
               </span>
+              }
             </span>
             <span class="delivery-cell">
-              <span class="pill delivered" *ngIf="d.sendStatus !== 'failed'">
+              @if (d.sendStatus !== 'failed') {
+              <span class="pill delivered">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                   stroke-linecap="round" stroke-linejoin="round">
                   <polyline points="20 6 9 17 4 12"/>
                 </svg>
                 Entregado
               </span>
-              <span class="pill not-delivered" *ngIf="d.sendStatus === 'failed'">
+              }
+              @if (d.sendStatus === 'failed') {
+              <span class="pill not-delivered">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                   stroke-linecap="round" stroke-linejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18"/>
@@ -277,24 +313,38 @@
                 </svg>
                 No entregado
               </span>
+              }
             </span>
             <span class="stat-val">
-              <span class="pill opened" *ngIf="d.aperturas > 0">{{ d.aperturas }}</span>
-              <span class="stat-zero" *ngIf="d.aperturas === 0">—</span>
+              @if (d.aperturas > 0) {
+              <span class="pill opened">{{ d.aperturas }}</span>
+              }
+              @if (d.aperturas === 0) {
+              <span class="stat-zero">—</span>
+              }
             </span>
             <span class="stat-val">
-              <span class="pill clicked" *ngIf="d.clics > 0">{{ d.clics }}</span>
-              <span class="stat-zero" *ngIf="d.clics === 0">—</span>
+              @if (d.clics > 0) {
+              <span class="pill clicked">{{ d.clics }}</span>
+              }
+              @if (d.clics === 0) {
+              <span class="stat-zero">—</span>
+              }
             </span>
           </div>
+          }
         </div>
       </div>
+      }
 
     </div>
+    }
   </div>
+  }
 
   <!-- Ventana de redacción -->
-  <div class="compose-panel" *ngIf="view === 'compose'">
+  @if (view === 'compose') {
+  <div class="compose-panel">
     <div class="compose-header">
       <span class="compose-title">{{ editingId ? 'Editar comunicado' : 'Nuevo comunicado' }}</span>
       <button class="compose-close" (click)="view = 'inbox'; selected = null">
@@ -306,14 +356,17 @@
       </button>
     </div>
 
-    <div class="alert success" *ngIf="success">
+    @if (success) {
+    <div class="alert success">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
         stroke-linecap="round" stroke-linejoin="round">
         <polyline points="20 6 9 17 4 12"/>
       </svg>
       {{ success }}
     </div>
-    <div class="alert error" *ngIf="error">
+    }
+    @if (error) {
+    <div class="alert error">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
         stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="10"/>
@@ -322,13 +375,15 @@
       </svg>
       {{ error }}
     </div>
+    }
 
     <!-- Para -->
     <div class="compose-field compose-field--to">
       <span class="field-label">Para</span>
       <div class="to-area">
         <div class="chips-row">
-          <div class="dest-chip" *ngFor="let d of destinatarios; trackBy: trackByIndex">
+          @for (d of destinatarios; track trackByIndex($index)) {
+          <div class="dest-chip">
             <span class="dest-name">{{ d.nombre }}</span>
             <span class="dest-email">&lt;{{ d.email }}&gt;</span>
             <button class="chip-remove" (click)="removeDestinatario(d.email)">
@@ -339,6 +394,7 @@
               </svg>
             </button>
           </div>
+          }
         </div>
         <div class="to-inputs">
           <input type="text" [(ngModel)]="nombreInput" placeholder="Nombre (opcional)"/>
@@ -361,11 +417,13 @@
             + Todos los colegios
           </button>
         </div>
-        <div class="colegios-picker" *ngIf="showColegiosPicker">
+        @if (showColegiosPicker) {
+        <div class="colegios-picker">
           <input type="text" [(ngModel)]="colegioSearch" placeholder="Buscar colegio..."
             class="colegios-search"/>
           <div class="colegios-list">
-            <div *ngFor="let c of filteredColegios; trackBy: trackById"
+            @for (c of filteredColegios; track trackById($index, c)) {
+            <div
               class="colegio-row"
               [class.added]="destinatarios.some(d => d.email === c.email)"
               (click)="addColegio(c)">
@@ -373,20 +431,26 @@
                 <span class="colegio-nombre">{{ c.nombre }}</span>
                 <span class="colegio-email">{{ c.email || 'Sin email' }}</span>
               </div>
-              <svg *ngIf="destinatarios.some(d => d.email === c.email)"
+              @if (destinatarios.some(d => d.email === c.email)) {
+              <svg
                 class="added-icon" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="20 6 9 17 4 12"/>
               </svg>
-              <svg *ngIf="!destinatarios.some(d => d.email === c.email) && c.email"
+              }
+              @if (!destinatarios.some(d => d.email === c.email) && c.email) {
+              <svg
                 class="add-icon" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="12" y1="5" x2="12" y2="19"/>
                 <line x1="5" y1="12" x2="19" y2="12"/>
               </svg>
+              }
             </div>
+            }
           </div>
         </div>
+        }
       </div>
     </div>
 
@@ -469,5 +533,6 @@
       </button>
     </div>
   </div>
+  }
 
 </div>

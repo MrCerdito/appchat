@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy, ElementRef, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ToastContainerComponent } from '../../../shared/components/toast-container.component';
 import { NavigationEnd, Router, RouterModule } from '@angular/router';
 import { Subject } from 'rxjs';
 import { filter, takeUntil } from 'rxjs/operators';
@@ -30,7 +31,7 @@ interface ConnectedAdvisor {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule],
+  imports: [CommonModule, RouterModule, FormsModule, ToastContainerComponent],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -105,14 +106,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.registerSocketListeners();
     this.registerGlobalNotificationListeners();
     this.syncUnreadIndicators();
-    this.sessionService.findAdvisors().subscribe(users => {
-      this.allAdvisors = users.map(u => ({
-        advisorId: u.id,
-        name: u.name,
-        status: (u.status || 'offline') as 'online' | 'busy' | 'offline',
-        profilePhotoUrl: u.profilePhotoUrl ?? null,
-      }));
-      this.cdr.detectChanges();
+    this.sessionService.findAdvisors().subscribe({
+      next: (users) => {
+        this.allAdvisors = users.map(u => ({
+          advisorId: u.id,
+          name: u.name,
+          status: (u.status || 'offline') as 'online' | 'busy' | 'offline',
+          profilePhotoUrl: u.profilePhotoUrl ?? null,
+        }));
+        this.cdr.detectChanges();
+      },
+      error: (err) => console.error('HTTP Error:', err),
     });
     this.syncShellMode(this.router.url);
   }
@@ -297,7 +301,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.refreshGlobalBadge();
       });
 
-    this.whatsapp.loadChats().subscribe();
+    this.whatsapp.loadChats().subscribe({
+      error: (err) => console.error('HTTP Error:', err),
+    });
     document.addEventListener('visibilitychange', this.handleVisibilityChange);
   }
 
@@ -380,13 +386,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   loadActiveCount(): void {
-    this.sessionService.findAll().subscribe(sessions => {
-      this.chatState.reconcileSessions(sessions);
-      this.chatState.sessions$.next(sessions);
-      this.activeChatsCount = sessions.filter(
-        s => s.status === 'waiting' || s.status === 'active',
-      ).length;
-      this.cdr.detectChanges();
+    this.sessionService.findAll().subscribe({
+      next: (sessions) => {
+        this.chatState.reconcileSessions(sessions);
+        this.chatState.sessions$.next(sessions);
+        this.activeChatsCount = sessions.filter(
+          s => s.status === 'waiting' || s.status === 'active',
+        ).length;
+        this.cdr.detectChanges();
+      },
+      error: (err) => console.error('HTTP Error:', err),
     });
   }
 

@@ -25,35 +25,52 @@
     </div>
   </div>
 
-  <div class="alert success" *ngIf="success">{{ success }}</div>
-  <div class="alert error" *ngIf="error && !showForm">{{ error }}</div>
+  @if (success) {
+  <div class="alert success">{{ success }}</div>
+  }
+  @if (error && !showForm) {
+  <div class="alert error">{{ error }}</div>
+  }
 
   <!-- ── Formulario ─────────────────────────────────────── -->
-  <div class="form-card" *ngIf="showForm">
+  @if (showForm) {
+  <div class="form-card">
     <h3>{{ editingId ? 'Editar asesor' : 'Nuevo asesor' }}</h3>
     <div class="form-grid">
       <div class="field" [class.has-error]="formErrors['name']">
         <label>Nombre</label>
         <input type="text" [(ngModel)]="form.name" placeholder="Nombre completo" maxlength="100"/>
-        <span class="field-error" *ngIf="formErrors['name']">{{ formErrors['name'] }}</span>
+        @if (formErrors['name']) {
+        <span class="field-error">{{ formErrors['name'] }}</span>
+        }
       </div>
       <div class="field" [class.has-error]="formErrors['email']">
         <label>Email</label>
         <input type="email" [(ngModel)]="form.email" placeholder="correo@empresa.com" maxlength="150"/>
-        <span class="field-error" *ngIf="formErrors['email']">{{ formErrors['email'] }}</span>
+        @if (formErrors['email']) {
+        <span class="field-error">{{ formErrors['email'] }}</span>
+        }
       </div>
       <div class="field" [class.has-error]="formErrors['password']">
         <label>
           {{ editingId ? 'Nueva contraseña (opcional)' : 'Contraseña' }}
-          <span class="field-hint" *ngIf="editingId">
+          @if (editingId) {
+          <span class="field-hint">
             <label><input type="checkbox" [(ngModel)]="showPasswordField"/> Cambiar contraseña</label>
           </span>
+          }
         </label>
-        <input *ngIf="!editingId || showPasswordField" type="password" [(ngModel)]="form.password" placeholder="Mínimo 8 caracteres"/>
-        <span class="field-error" *ngIf="formErrors['password']">{{ formErrors['password'] }}</span>
+        @if (!editingId || showPasswordField) {
+        <input type="password" [(ngModel)]="form.password" placeholder="Mínimo 8 caracteres"/>
+        }
+        @if (formErrors['password']) {
+        <span class="field-error">{{ formErrors['password'] }}</span>
+        }
       </div>
     </div>
-    <div class="alert error" *ngIf="error">{{ error }}</div>
+    @if (error) {
+    <div class="alert error">{{ error }}</div>
+    }
     <div class="form-actions">
       <button class="btn-secondary" (click)="showForm = false">Cancelar</button>
       <button class="btn-primary" (click)="save()" [disabled]="loading">
@@ -61,6 +78,7 @@
       </button>
     </div>
   </div>
+  }
 
   <!-- ── Buscador ───────────────────────────────────────── -->
   <div class="toolbar">
@@ -77,11 +95,14 @@
         class="search-input"
       />
     </div>
-    <span class="result-count" *ngIf="!loading">{{ total }} asesor{{ total !== 1 ? 'es' : '' }}</span>
+    @if (!loading) {
+    <span class="result-count">{{ total }} asesor{{ total !== 1 ? 'es' : '' }}</span>
+    }
   </div>
 
   <!-- ── Loading skeleton ───────────────────────────────── -->
-  <div class="table-card" *ngIf="loading && advisors.length === 0">
+  @if (loading && advisors.length === 0) {
+  <div class="table-card">
     <table>
       <thead>
         <tr>
@@ -95,7 +116,8 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let _ of [].constructor(5); trackBy: trackByIndex">
+        @for (_ of [1,2,3,4,5]; track $index) {
+        <tr>
           <td><div class="skeleton skeleton-name"></div></td>
           <td><div class="skeleton skeleton-email"></div></td>
           <td><div class="skeleton skeleton-badge"></div></td>
@@ -104,12 +126,15 @@
           <td><div class="skeleton skeleton-badge"></div></td>
           <td><div class="skeleton skeleton-actions"></div></td>
         </tr>
+        }
       </tbody>
     </table>
   </div>
+  }
 
   <!-- ── Tabla ──────────────────────────────────────────── -->
-  <div class="table-card" *ngIf="!loading || advisors.length > 0">
+  @if (!loading || advisors.length > 0) {
+  <div class="table-card">
     <div class="table-wrapper">
       <table>
         <thead>
@@ -125,15 +150,19 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let a of advisors; trackBy: trackById" [class.inactive]="!a.active">
+          @for (a of advisors; track trackById($index, a)) {
+          <tr [class.inactive]="!a.active">
             <td>
               <div class="advisor-cell">
                 <div class="avatar" [class.offline]="a.status === 'offline'" [class.busy]="a.status === 'busy'">
-                  <img *ngIf="a.profilePhotoUrl; else advisorListAvatarFallback"
+                  @if (a.profilePhotoUrl) {
+                  <img
                        [src]="a.profilePhotoUrl"
                        [alt]="a.name"
                        class="avatar-img" />
-                  <ng-template #advisorListAvatarFallback>{{ a.name.charAt(0) }}</ng-template>
+                  } @else {
+                  {{ a.name.charAt(0) }}
+                  }
                 </div>
                 <span>{{ a.name }}</span>
               </div>
@@ -166,15 +195,19 @@
               </div>
             </td>
           </tr>
-          <tr *ngIf="advisors.length === 0 && !loading">
+          }
+          @if (advisors.length === 0 && !loading) {
+          <tr>
             <td colspan="8" class="empty">No se encontraron asesores</td>
           </tr>
+          }
         </tbody>
       </table>
     </div>
 
     <!-- ── Paginación ───────────────────────────────────── -->
-    <div class="pagination" *ngIf="pages > 1">
+    @if (pages > 1) {
+    <div class="pagination">
       <div class="pagination-info">
         Página {{ page }} de {{ pages }} ({{ total }} asesores)
       </div>
@@ -191,10 +224,13 @@
         <button class="page-btn" [disabled]="page >= pages" (click)="goToPage(pages)" title="Última">»</button>
       </div>
     </div>
+    }
   </div>
+  }
 
   <!-- ── Modal de confirmación ──────────────────────────── -->
-  <div class="modal-overlay" *ngIf="confirmAction" (click)="cancelConfirm()">
+  @if (confirmAction) {
+  <div class="modal-overlay" (click)="cancelConfirm()">
     <div class="modal-card" (click)="$event.stopPropagation()">
       <h3>¿Eliminar asesor?</h3>
       <p>
@@ -210,4 +246,5 @@
       </div>
     </div>
   </div>
+  }
 </div>

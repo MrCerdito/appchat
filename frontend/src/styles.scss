@@ -254,6 +254,36 @@ img {
   to   { opacity: 1; transform: translateX(0); }
 }
 
+/* ─── Connectivity banner ───────────────────────────── */
+.connectivity-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  background: #fef2f2;
+  border-bottom: 2px solid #ef4444;
+  color: #991b1b;
+  font-size: 0.85rem;
+  font-weight: 600;
+  animation: connectivity-slide-down 0.25s ease;
+}
+
+.connectivity-banner svg {
+  flex-shrink: 0;
+  stroke: #dc2626;
+}
+
+@keyframes connectivity-slide-down {
+  from { opacity: 0; transform: translateY(-100%); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 /* ─── Utility classes ────────────────────────────────── */
 .text-muted { color: var(--text-muted); }
 .text-faint { color: var(--text-faint); }

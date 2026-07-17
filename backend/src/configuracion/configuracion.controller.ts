@@ -8,6 +8,7 @@ import {
   Post,
   Request,
   UseGuards,
+  Header,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles, RolesGuard } from '../auth/roles.guard';
@@ -22,6 +23,7 @@ export class ConfiguracionController {
   constructor(private readonly svc: ConfiguracionService) {}
 
   @Public()
+  @Header('Cache-Control', 'public, max-age=60')
   @Get('horario-hoy')
   horarioHoy() {
     return this.svc.getHorarioEstado();

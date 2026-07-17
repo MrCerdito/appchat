@@ -93,17 +93,21 @@ export class AdvisorMetricsComponent implements OnInit, OnDestroy {
         this.ranking = r;
         this.cdr.detectChanges();
       },
+      error: (err) => console.error('HTTP Error:', err),
     });
   }
 
   loadComentarios(page = 1): void {
     if (!this.userId) return;
-    this.sessionService.getComentariosByAdvisor(this.userId, page, 5).subscribe(res => {
-      this.comentarios = res.data;
-      this.comentPage  = res.page;
-      this.comentPages = res.pages;
-      this.comentTotal = res.total;
-      this.cdr.detectChanges();
+    this.sessionService.getComentariosByAdvisor(this.userId, page, 5).subscribe({
+      next: (res) => {
+        this.comentarios = res.data;
+        this.comentPage  = res.page;
+        this.comentPages = res.pages;
+        this.comentTotal = res.total;
+        this.cdr.detectChanges();
+      },
+      error: (err) => console.error('HTTP Error:', err),
     });
   }
 

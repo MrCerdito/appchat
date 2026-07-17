@@ -17,7 +17,8 @@
   </div>
 
   <div class="opa-grid">
-    <div class="opa-card" *ngFor="let asesor of asesoresFiltrados; trackBy: trackByAdvisorId">
+    @for (asesor of asesoresFiltrados; track trackByAdvisorId($index, asesor)) {
+    <div class="opa-card">
       <div class="opa-top">
         <div class="opa-avatar" [style.background]="getAvatarColor(asesor.name)">{{ getInitials(asesor.name) }}</div>
         <div class="opa-info">
@@ -61,5 +62,6 @@
         </div>
       </div>
     </div>
+    }
   </div>
 </div>

@@ -109,10 +109,10 @@ export class ChatGateway
   afterInit() {
     this.pollingInterval = setInterval(
       () => this.assignPendingSessions(),
-      3_000,
+      10_000,
     );
     this.checkLunchBreaks();
-    this.lunchInterval = setInterval(() => this.checkLunchBreaks(), 5_000);
+    this.lunchInterval = setInterval(() => this.checkLunchBreaks(), 30_000);
   }
 
   // ── Conexión ──────────────────────────────────────────────────────────────
@@ -284,6 +284,13 @@ export class ChatGateway
     }
 
     if (client.data.role === 'client') {
+      if (client.data.sessionId && client.data.sessionId !== data.sessionId) {
+        client.emit('join_error', {
+          reason: 'Ya estás conectado a otra sesión',
+        });
+        return;
+      }
+
       try {
         const session = await this.sessionsService.findOne(data.sessionId);
         if (!session || session.status === 'closed') {
@@ -1423,16 +1430,15 @@ export class ChatGateway
     const hhmm = `${String(ahora.getHours()).padStart(2, '0')}:${String(ahora.getMinutes()).padStart(2, '0')}`;
 
     const entries = [...this.connectedAdvisors];
-    const configs = await Promise.all(
-      entries.map(([advisorId]) =>
-        this.configuracionService.getEfectiva(advisorId).catch(() => null),
-      ),
-    );
+    const advisorIds = entries.map(([id]) => id);
+    const configMap = await this.configuracionService
+      .getEfectivaBatch(advisorIds)
+      .catch(() => new Map());
 
     await Promise.all(
-      entries.map(async ([advisorId, socket], i) => {
+      entries.map(async ([advisorId, socket]) => {
         try {
-          const config = configs[i];
+          const config = configMap.get(advisorId);
           if (!config) return;
 
           const almuerzos: Array<{ dia: number; inicio: string; fin: string }> =
