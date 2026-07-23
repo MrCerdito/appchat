@@ -83,6 +83,9 @@ export class WhatsappMessage {
   @Column({ name: 'edited_at', type: 'timestamp', nullable: true })
   editedAt: Date | null;
 
+  @Column({ name: 'reply_to_message_id', type: 'varchar', length: 255, nullable: true })
+  replyToMessageId: string | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 }

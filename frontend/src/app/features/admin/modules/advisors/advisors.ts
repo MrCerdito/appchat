@@ -307,7 +307,7 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
   formatDate(date?: string): string {
     if (!date) return '-';
     const d = new Date(date);
-    return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    return d.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'America/Bogota' });
   }
 
   private showSuccess(msg: string): void {

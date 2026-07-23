@@ -88,6 +88,7 @@ import { AppService } from './app.service';
         username: config.get<string>('DB_USER') as string,
         password: config.get<string>('DB_PASS') as string,
         database: config.get<string>('DB_NAME') as string,
+        timezone: 'UTC',
         extra: {
           max: 20,
           idleTimeoutMillis: 30000,

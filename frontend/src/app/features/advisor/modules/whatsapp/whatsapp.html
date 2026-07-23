@@ -1,4 +1,4 @@
-<div class="layout" [class.chat-open]="!!activeContact">
+<div class="layout" [class.chat-open]="!!activeContact" [class.compact-layout]="compactList">
   
 
   @if (showWhatsappSettings) {
@@ -262,7 +262,26 @@
   </section>
   }
 
-  <aside class="sidebar">
+  <aside class="sidebar" [class.compact]="compactList">
+
+    @if (compactList) {
+    <div class="compact-filter-wrap">
+      <button
+        class="compact-filter-btn"
+        type="button"
+        [class.active]="showCompactFilter"
+        #compactFilterBtn
+        (click)="toggleCompactFilter($event)"
+        title="Filtros"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px">
+          <path d="M3 4h18l-7 8v5l-4 2v-7l-7-8z" />
+        </svg>
+        <span class="cf-label">{{ activeFilterLabel }}</span>
+      </button>
+    </div>
+    }
+
     <div class="connection-strip" [ngClass]="connectionStatus.status">
       <wa-icon [name]="connectionStatus.status === 'connected' ? 'plug-connected' : 'plug-connected-x'"></wa-icon>
       <span>{{ connectionStatus.status === 'connected' ? (connectionStatus.connectedName || 'ASESOR conectado') : 'ASESOR sin conectar' }}</span>
@@ -328,16 +347,26 @@
         [class.in-queue]="c.tag === 'pendiente'"
         [class.group-chat]="c.isGroup"
         [class.closed-attention]="isChatClosed(c)"
+        [class.recent]="isRecentChat(c)"
         [ngClass]="operationalStatusClass(c)"
         (click)="selectContact(c)"
       >
-        <div class="avatar-wrap">
-          <img class="chat-avatar" [src]="avatarSrc(c)" [alt]="c.name" (click)="openProfilePhoto(c, $event)" (error)="useFallbackAvatar($event, c)" />
+        <div class="avatar-wrap"
+          [class]="compactList ? operationalStatusClass(c) : ''"
+          [class.is-group]="c.isGroup"
+          [class.is-closed]="isChatClosed(c)"
+          [class.is-recent]="isRecentChat(c)"
+        >
+          <img class="chat-avatar" [src]="avatarSrc(c)" [alt]="c.name" (click)="!compactList && openProfilePhoto(c, $event)" (error)="useFallbackAvatar($event, c)" />
+          <span class="status-dot" [class]="c.status"></span>
+          @if (c.unread > 0) {
+          <span class="badge">{{ c.unread }}</span>
+          }
         </div>
 
         <div class="chat-info">
           <div class="chat-top">
-            <span class="chat-name">{{ c.name }}</span>
+            <span class="chat-name" [class.has-unread]="c.unread > 0">{{ c.name }}</span>
             <span class="chat-time">{{ c.time }}</span>
           </div>
           @if (c.isGroup) {
@@ -374,19 +403,12 @@
               {{ c.operationalStatusLabel }}
             </span>
             }
-            @if (c.unread > 0) {
-            <span class="badge">{{ c.unread }}</span>
-            }
           </div>
         </div>
       </button>
       }
 
-      @if (!isLoadingChats && filteredContacts.length === 0) {
-      <div class="empty-list">
-        No hay conversaciones para este filtro
-      </div>
-      }
+    
 
       @if (hasMoreChats && filteredContacts.length > 0) {
       <button
@@ -414,14 +436,15 @@
       </button>
       <div class="avatar-wrap">
         <img class="chat-avatar" [src]="avatarSrc(contact)" [alt]="contact.name" (click)="openProfilePhoto(contact, $event)" (error)="useFallbackAvatar($event, contact)" />
+        <span class="status-dot" [class]="contact.status"></span>
       </div>
 
       <div class="chat-header-info">
         <div class="header-name">{{ contact.name }}</div>
-        <div class="header-sub">
-          <span>{{ contact.role || 'Cliente WhatsApp' }}</span>
-          <span>{{ contact.institution || 'Sin colegio' }}</span>
-          <span>{{ contact.city || 'Sin lugar' }}</span>
+        <div class="header-presence">
+          <span class="presence-pill" [class.presence-active]="contact.status === 'online'" [class.presence-away]="contact.status === 'away'" [class.presence-offline]="contact.status === 'offline'">
+            {{ getPresenceLabel(contact) }}
+          </span>
         </div>
       </div>
 
@@ -445,6 +468,17 @@
         >
           <wa-icon name="info-circle"></wa-icon>
         </button>
+        @if (contact.assignedTo === currentUserId && !isAttentionClosed) {
+        <button
+          class="close-header-btn"
+          type="button"
+          (click)="closeActiveChat()"
+          [disabled]="isClosingChat"
+          title="Cerrar atencion"
+        >
+          <wa-icon name="x"></wa-icon>
+        </button>
+        }
       </div>
     </header>
 
@@ -468,6 +502,9 @@
           [class.editing]="editingMessageId === msg.id"
           [class.context-active]="messageMenu?.message?.id === msg.id"
           (contextmenu)="openMessageMenu($event, msg)"
+          (touchstart)="onBubbleTouchStart($event, msg)"
+          (touchend)="onBubbleTouchEnd()"
+          (touchmove)="onBubbleTouchMove()"
         >
           @if (msg.isAuto) {
           <div class="ai-badge">
@@ -529,6 +566,15 @@
             </div>
           </div>
           } @else {
+            @if (msg.replyToMessageId) {
+            <div class="quoted-block">
+              <div class="quoted-bar"></div>
+              <div class="quoted-content">
+                <strong>{{ msg.quotedSender || 'Mensaje' }}</strong>
+                <span>{{ msg.quotedBody | slice:0:60 }}{{ (msg.quotedBody || '').length > 60 ? '...' : '' }}</span>
+              </div>
+            </div>
+            }
             @if (shouldShowMessageBody(msg)) {
             <p>{{ displayMessageBody(msg) }}</p>
             }
@@ -560,9 +606,10 @@
   </button>
 
   <!-- Popover -->
-  @if (openReactionPopoverId === msg.id) {
+  @if (openReactionPopoverId === msg.id || closingReactionPopoverId === msg.id) {
   <div
     class="reactions-popover"
+    [class.closing]="closingReactionPopoverId === msg.id"
     (click)="$event.stopPropagation()"
   >
     <div class="reactions-popover-header">
@@ -724,6 +771,21 @@
       </div>
       }
 
+      @if (replyingTo) {
+      <div class="reply-preview-bar">
+        <div class="reply-preview-info">
+          <wa-icon name="corner-up-left"></wa-icon>
+          <div>
+            <strong>{{ replyingTo.fromMe ? 'Tu' : (replyingTo.senderName || 'Cliente') }}</strong>
+            <span>{{ replyingTo.body | slice:0:80 }}{{ (replyingTo.body || '').length > 80 ? '...' : '' }}</span>
+          </div>
+        </div>
+        <button type="button" class="reply-cancel-btn" (click)="cancelReply()">
+          <wa-icon name="x"></wa-icon>
+        </button>
+      </div>
+      }
+
       <div class="composer-row">
         @if (showSlashMenu && slashFiltered.length > 0) {
         <div class="slash-menu">
@@ -862,7 +924,7 @@
       <strong>Cargando conversaciones</strong>
       }
       @if (!isLoadingChats) {
-      <strong>No hay conversaciones disponibles</strong>
+      <strong>Elige una conversacion asignada</strong>
       }
     </main>
   }
@@ -877,6 +939,15 @@
       <div>
         <h2>{{ contact.name }}</h2>
         <p>{{ getAssignmentLabel(contact) }}</p>
+        <button
+          class="close-chat-btn"
+          type="button"
+          (click)="closeActiveChat()"
+          [disabled]="isClosingChat || activeContact.assignedTo !== currentUserId"
+        >
+          <wa-icon name="x-circle"></wa-icon>
+          Cerrar chat
+        </button>
       </div>
       <button
         class="icon-action"
@@ -1119,16 +1190,68 @@
       }
     </div>
     }
+    <button type="button" (click)="startReply(messageMenu.message)">
+      <wa-icon name="corner-up-left"></wa-icon>
+      Responder
+    </button>
+    <button type="button" (click)="startForward(messageMenu.message)">
+      <wa-icon name="corner-up-right"></wa-icon>
+      Reenviar
+    </button>
     @if (canEditMessage(messageMenu.message)) {
     <button type="button" (click)="startEditMessage(messageMenu.message)">
       <wa-icon name="pencil"></wa-icon>
       Editar
     </button>
     }
+    @if (messageMenu.message.body) {
+    <button type="button" (click)="copyMessageText(messageMenu.message)">
+      <wa-icon name="copy"></wa-icon>
+      Copiar
+    </button>
+    }
     <button type="button" class="danger" (click)="deleteMessage(messageMenu.message)">
       <wa-icon name="trash"></wa-icon>
       Eliminar
     </button>
+  </div>
+  }
+
+  @if (forwardingMessage) {
+  <div class="wa-ticket-modal" (click)="cancelForward()">
+    <div class="wa-ticket-modal-inner" (click)="$event.stopPropagation()">
+      <h3>Reenviar mensaje</h3>
+      <p style="font-size:12px; color:var(--wa-muted); margin:0 0 12px">Selecciona el chat destino</p>
+      <input
+        type="text"
+        placeholder="Buscar chat..."
+        [ngModel]="forwardSearchQuery"
+        (ngModelChange)="forwardSearchQuery = $event"
+        style="margin-bottom:10px"
+      />
+      <div class="forward-chat-list">
+        @for (chat of filteredChats; track chat.id) {
+        <button
+          type="button"
+          class="forward-chat-item"
+          (click)="confirmForward(chat.id)"
+          [disabled]="isForwarding"
+        >
+          <div class="fci-avatar">{{ (chat.name || '?').charAt(0) }}</div>
+          <div class="fci-info">
+            <strong>{{ chat.name || chat.phone || 'Desconocido' }}</strong>
+            <span>{{ chat.phone || '' }}</span>
+          </div>
+        </button>
+        }
+        @if (!filteredChats.length) {
+        <div style="padding:16px; text-align:center; color:var(--wa-muted); font-size:12px">No hay chats disponibles</div>
+        }
+      </div>
+      <div style="display:flex; justify-content:flex-end; gap:6px; margin-top:12px">
+        <button type="button" class="ticket-cancel" (click)="cancelForward()">Cancelar</button>
+      </div>
+    </div>
   </div>
   }
 
@@ -1176,6 +1299,29 @@
     [class.toast-error]="ticketFeedback.type === 'error'">
     <strong>{{ ticketFeedback.type === 'ok' ? 'Ticket generado' : 'Error' }}</strong>
     <span>{{ ticketFeedback.text }}</span>
+  </div>
+  }
+
+  <!-- ── Toast flotante asignación / forward ───────────── -->
+  @if (assignmentToast) {
+  <div class="toast-floating toast-ok">{{ assignmentToast }}</div>
+  }
+
+  <!-- Compact filter dropdown — outside sidebar to avoid overflow:hidden -->
+  @if (showCompactFilter && compactList) {
+  <div class="compact-filter-backdrop" (click)="showCompactFilter = false"></div>
+  <div class="compact-filter-dropdown" [style.top.px]="compactFilterTop" [style.left.px]="compactFilterLeft">
+    @for (filter of allFilters; track trackByIndex($index)) {
+    <button
+      class="cf-item"
+      [class.active]="activeFilter === filter.id"
+      type="button"
+      (click)="setFilter(filter.id); showCompactFilter = false"
+    >
+      <span>{{ filter.label }}</span>
+      <em>{{ getFilterCount(filter.id) }}</em>
+    </button>
+    }
   </div>
   }
 </div>

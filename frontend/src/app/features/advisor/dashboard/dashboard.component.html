@@ -230,61 +230,30 @@
         }
       </div>
 
-      <!-- ── Asesores conectados (topbar) ──────────────────────────────── -->
-      <div class="topbar-adv"
-           [class.expanded]="allAdvisorsOpen"
-           (click)="toggleAllAdvisors()">
-        <div class="topbar-adv-pills">
-          @for (adv of otherAdvisors.slice(0, 3); track $index) {
-          <div class="tb-pill"
-               [class.status-online]="adv.status === 'online'"
-               [class.status-busy]="adv.status === 'busy'"
-               [class.status-offline]="adv.status === 'offline'"
-               [title]="adv.name + ' — ' + (adv.status === 'online' ? 'Disponible' : adv.status === 'busy' ? 'Ocupado' : 'Inactivo')">
-            @if (adv.profilePhotoUrl) {
-            <img
-                 [src]="adv.profilePhotoUrl" [alt]="adv.name"
-                 class="tb-pill-img" />
-            } @else {
-            {{ adv.name.charAt(0) }}
-            }
-          </div>
-          }
-        </div>
-        <div class="topbar-adv-list">
-          @for (adv of allAdvisors; track $index) {
-          <div class="tb-list-item"
-               [class.is-me]="adv.advisorId === currentAdvisor?.id">
-            <span class="tb-list-dot" [ngClass]="adv.status"></span>
-            @if (adv.profilePhotoUrl) {
-            <img
-                 [src]="adv.profilePhotoUrl" [alt]="adv.name"
-                 class="tb-list-img" />
-            } @else {
-              <span class="tb-list-char">{{ adv.name.charAt(0) }}</span>
-            }
-            <span class="tb-list-name">{{ adv.name }}</span>
-            @if (adv.advisorId === currentAdvisor?.id) {
-            <span class="tb-list-badge">Tú</span>
-            }
-            <span class="tb-list-status">{{ adv.status === 'online' ? 'Disponible' : adv.status === 'busy' ? 'Ocupado' : 'Inactivo' }}</span>
-          </div>
-          }
-        </div>
-      </div>
-
+      <!-- ── Asesor: nombre + cargo + flecha ────────────────────────────── -->
       <div class="topbar-profile-wrap">
-        <div class="profile-avatar topbar-avatar"
-             [ngClass]="'status-border-' + (enAlmuerzo ? 'lunch' : advisorStatus)"
+        <div class="topbar-advisor-trigger"
+             [class.open]="profileOpen"
              (click)="profileOpen = !profileOpen">
-          @if (currentAdvisor?.profilePhotoUrl) {
-          <img
-               [src]="currentAdvisor!.profilePhotoUrl"
-               [alt]="currentAdvisor?.name"
-               class="profile-avatar-img" />
-          } @else {
-          {{ currentAdvisor?.name?.charAt(0) }}
-          }
+          <div class="topbar-avatar-sm"
+               [ngClass]="'status-border-' + (enAlmuerzo ? 'lunch' : advisorStatus)">
+            @if (currentAdvisor?.profilePhotoUrl) {
+            <img
+                 [src]="currentAdvisor!.profilePhotoUrl"
+                 [alt]="currentAdvisor?.name"
+                 class="topbar-avatar-img" />
+            } @else {
+            {{ currentAdvisor?.name?.charAt(0) }}
+            }
+          </div>
+          <div class="topbar-advisor-text">
+            <span class="topbar-advisor-name">{{ currentAdvisor?.name }}</span>
+            <span class="topbar-advisor-role">{{ currentAdvisor?.role || 'Asesor' }}</span>
+          </div>
+          <svg class="topbar-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
         </div>
 
         @if (profileOpen) {

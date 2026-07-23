@@ -304,8 +304,9 @@ export class WhatsappChatService implements OnDestroy {
       tap(res => {
         if (res.chat) this.upsertChat(res.chat);
       }),
-      catchError(() => {
-        return of({ ok: false });
+      catchError((err) => {
+        const msg = err?.error?.message || err?.error?.error || 'Error al enviar el archivo.';
+        return of({ ok: false, error: msg } as any);
       }),
     );
   }
@@ -394,6 +395,28 @@ export class WhatsappChatService implements OnDestroy {
       { emoji },
       { headers: this.headers() },
     ).pipe(tap(chat => this.upsertChat(chat)));
+  }
+
+  replyToMessage(chatId: string, messageId: string, text: string): Observable<{ ok: boolean; messageId?: string; chat?: WaChat }> {
+    return this.http.post<{ ok: boolean; messageId?: string; chat?: WaChat }>(
+      `${this.apiUrl}/chats/${chatId}/messages/${messageId}/reply`,
+      { text },
+      { headers: this.headers() },
+    ).pipe(
+      tap(res => { if (res.chat) this.upsertChat(res.chat); }),
+      catchError(() => of({ ok: false })),
+    );
+  }
+
+  forwardMessage(chatId: string, messageId: string, targetChatId: string): Observable<{ ok: boolean; messageId?: string; chat?: WaChat }> {
+    return this.http.post<{ ok: boolean; messageId?: string; chat?: WaChat }>(
+      `${this.apiUrl}/chats/${chatId}/messages/${messageId}/forward`,
+      { targetChatId },
+      { headers: this.headers() },
+    ).pipe(
+      tap(res => { if (res.chat) this.upsertChat(res.chat); }),
+      catchError(() => of({ ok: false })),
+    );
   }
 
   takeChat(chatId: string): Observable<WaChat> {
@@ -581,9 +604,6 @@ export class WhatsappChatService implements OnDestroy {
 
   private parseDateValue(value: Date | string): Date {
     if (value instanceof Date) return value;
-    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?$/.test(value)) {
-      return new Date(`${value}Z`);
-    }
     return new Date(value);
   }
 

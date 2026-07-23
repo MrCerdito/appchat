@@ -20,6 +20,10 @@ export interface WaMessage {
   reactionToMessageId?: string;
   reactionByName?: string;
   reactionRemoved?: boolean;
+  replyToMessageId?: string;
+  quotedBody?: string;
+  quotedSender?: string;
+  isForwarded?: boolean;
 }
 
 export interface WaChat {

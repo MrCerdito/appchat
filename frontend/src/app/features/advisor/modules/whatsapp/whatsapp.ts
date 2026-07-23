@@ -143,6 +143,9 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   readonly deleteWindowMs = 60 * 60 * 60_000;
 
   showMoreFilter = false;
+  showCompactFilter = false;
+  compactFilterTop = 0;
+  compactFilterLeft = 0;
 
   contacts: WaChat[] = [];
   activeContact?: WaChat;
@@ -154,6 +157,8 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   messageText = '';
   selectedFile?: File;
   openReactionPopoverId = '';
+  closingReactionPopoverId = '';
+  private closeReactionTimer: ReturnType<typeof setTimeout> | null = null;
   selectedFilePreviewUrl = '';
   selectedFileKind: 'image' | 'video' | 'audio' | 'document' = 'document';
   selectedAudioDuration = 0;
@@ -194,6 +199,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   showTeamsMeeting = false;
   showInfoPanel = false;
   showAiInsightModal = false;
+  compactList = false;
   profilePhotoPreview?: { src: string; name: string };
   mediaPreview?: { src: string; name: string };
   mediaZoom = 1;
@@ -205,9 +211,15 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   private mediaDragPanX = 0;
   private mediaDragPanY = 0;
   private mediaPinchDist = 0;
+  private longPressTimer: ReturnType<typeof setTimeout> | null = null;
+  private longPressMsgId = '';
   messageMenu?: { x: number; y: number; message: WaMessage; side: 'left' | 'right' };
   editingMessageId = '';
   editingMessageText = '';
+  replyingTo: WaMessage | null = null;
+  forwardingMessage: WaMessage | null = null;
+  forwardSearchQuery = '';
+  isForwarding = false;
   isTeamsConnected = false;
   isLoadingTeams = false;
   isCreatingTeamsMeeting = false;
@@ -260,6 +272,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   private recordingTimer?: ReturnType<typeof setInterval>;
   private subs = new Subscription();
   private progressTimer: ReturnType<typeof setInterval> | null = null;
+  private resizeObserver: ResizeObserver | null = null;
 
   constructor(
     private readonly waService: WhatsappChatService,
@@ -349,6 +362,11 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
 
     window.addEventListener('message', this.handleTeamsAuthMessage);
     window.addEventListener('click', this.closeMessageMenuOnWindowClick);
+
+    // ── Compact mode ───────────────────────────────────────────────────────
+    this.checkCompact();
+    this.resizeObserver = new ResizeObserver(() => this.checkCompact());
+    this.resizeObserver.observe(document.body);
   }
 
   ngAfterViewChecked(): void {
@@ -357,12 +375,24 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     this.shouldScroll = false;
   }
 
+  // ── Compact mode check ───────────────────────────────────────────────────
+  private checkCompact(): void {
+    const compact = window.innerWidth <= 900;
+    if (compact !== this.compactList) {
+      this.compactList = compact;
+      this.cdr.detectChanges();
+    }
+  }
+
   ngOnDestroy(): void {
     this.stopProgressTimer();
     this.subs.unsubscribe();
+    this.resizeObserver?.disconnect();
     window.removeEventListener('message', this.handleTeamsAuthMessage);
     window.removeEventListener('click', this.closeMessageMenuOnWindowClick);
     if (this.toastTimer) clearTimeout(this.toastTimer);
+    if (this.closeReactionTimer) clearTimeout(this.closeReactionTimer);
+    if (this.longPressTimer) clearTimeout(this.longPressTimer);
     this.stopRecordingTimer();
     this.mediaRecorder?.stream.getTracks().forEach(track => track.stop());
     this.clearSelectedFile();
@@ -523,6 +553,10 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
       : '';
   }
 
+  get allFilters(): { id: WaFilter; label: string }[] {
+    return [...this.filterOptions, ...this.moreFilterOptions];
+  }
+
   get replyPlaceholder(): string {
     if (!this.activeContact) return 'Selecciona una conversacion';
     if (this.connectionStatus.status !== 'connected') return 'Conecta WhatsApp escaneando el QR';
@@ -540,6 +574,23 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
 
   toggleMoreFilter(): void {
     this.showMoreFilter = !this.showMoreFilter;
+  }
+
+  get activeFilterLabel(): string {
+    const all = [...this.filterOptions, ...this.moreFilterOptions];
+    return all.find(f => f.id === this.activeFilter)?.label ?? '';
+  }
+
+  toggleCompactFilter(event: MouseEvent): void {
+    event.stopPropagation();
+    if (this.showCompactFilter) {
+      this.showCompactFilter = false;
+      return;
+    }
+    const btn = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    this.compactFilterTop = btn.top;
+    this.compactFilterLeft = btn.right + 8;
+    this.showCompactFilter = true;
   }
 
   /** @deprecated replaced by toggleMoreFilter() dropdown */
@@ -926,7 +977,131 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
 
   toggleReactionPopover(event: MouseEvent, msgId: string): void {
   event.stopPropagation();
-  this.openReactionPopoverId = this.openReactionPopoverId === msgId ? '' : msgId;
+  if (this.closeReactionTimer) { clearTimeout(this.closeReactionTimer); this.closeReactionTimer = null; }
+  if (this.openReactionPopoverId === msgId) {
+    this.closingReactionPopoverId = msgId;
+    this.closeReactionTimer = setTimeout(() => {
+      this.openReactionPopoverId = '';
+      this.closingReactionPopoverId = '';
+      this.closeReactionTimer = null;
+      this.cdr.detectChanges();
+    }, 150);
+  } else {
+    this.closingReactionPopoverId = '';
+    this.openReactionPopoverId = msgId;
+  }
+}
+
+dismissReactionPopover(): void {
+  if (!this.openReactionPopoverId) return;
+  if (this.closeReactionTimer) { clearTimeout(this.closeReactionTimer); this.closeReactionTimer = null; }
+  this.closingReactionPopoverId = this.openReactionPopoverId;
+  this.closeReactionTimer = setTimeout(() => {
+    this.openReactionPopoverId = '';
+    this.closingReactionPopoverId = '';
+    this.closeReactionTimer = null;
+    this.cdr.detectChanges();
+  }, 150);
+}
+
+copyMessageText(message: WaMessage): void {
+  const text = (message.body || '').trim();
+  if (!text) return;
+  navigator.clipboard.writeText(text);
+  this.sendError = '';
+  this.messageMenu = undefined;
+}
+
+startReply(message: WaMessage): void {
+  this.replyingTo = message;
+  this.messageMenu = undefined;
+  this.forwardingMessage = null;
+}
+
+cancelReply(): void {
+  this.replyingTo = null;
+}
+
+startForward(message: WaMessage): void {
+  this.forwardingMessage = message;
+  this.forwardSearchQuery = '';
+  this.messageMenu = undefined;
+  this.replyingTo = null;
+}
+
+cancelForward(): void {
+  this.forwardingMessage = null;
+  this.forwardSearchQuery = '';
+}
+
+confirmForward(targetChatId: string): void {
+  if (!this.forwardingMessage || !this.activeContact || this.isForwarding) return;
+  this.isForwarding = true;
+  this.subs.add(
+    this.waService.forwardMessage(this.activeContact.id, this.forwardingMessage.id, targetChatId).subscribe({
+      next: (res) => {
+        this.isForwarding = false;
+        if (res.ok) {
+          this.cancelForward();
+          this.assignmentToast = 'Mensaje reenviado correctamente';
+          if (this.toastTimer) clearTimeout(this.toastTimer);
+          this.toastTimer = setTimeout(() => this.assignmentToast = '', 3000);
+          const target = this.contacts.find(c => c.id === targetChatId);
+          if (target) {
+            this.selectContact(target);
+          }
+        } else {
+          this.sendError = 'No se pudo reenviar el mensaje.';
+        }
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.isForwarding = false;
+        this.sendError = 'No se pudo reenviar el mensaje.';
+        this.cdr.detectChanges();
+      },
+    }),
+  );
+}
+
+get filteredChats(): WaChat[] {
+  const q = this.forwardSearchQuery.toLowerCase().trim();
+  const chats = this.contacts.filter(c => c.id !== this.activeContact?.id);
+  if (!q) return chats.slice(0, 20);
+  return chats.filter(c => (c.name || '').toLowerCase().includes(q) || (c.phone || '').includes(q)).slice(0, 20);
+}
+
+onBubbleTouchStart(event: TouchEvent, msg: WaMessage): void {
+  if (event.touches.length !== 1) return;
+  const touch = event.touches[0];
+  this.longPressMsgId = msg.id;
+  this.longPressTimer = setTimeout(() => {
+    this.longPressTimer = null;
+    const el = event.currentTarget as HTMLElement;
+    const rect = el.getBoundingClientRect();
+    const menuWidth = 198;
+    const menuHeight = 200;
+    const preferredX = msg.fromMe ? rect.left - menuWidth - 10 : rect.right + 10;
+    const fallbackX = msg.fromMe ? rect.right - menuWidth : rect.left;
+    const rawX = preferredX < 8 || preferredX + menuWidth > window.innerWidth - 8 ? fallbackX : preferredX;
+    const rawY = rect.top + (rect.height / 2) - 28;
+    this.messageMenu = {
+      x: Math.max(8, Math.min(rawX, window.innerWidth - menuWidth - 8)),
+      y: Math.max(8, Math.min(rawY, window.innerHeight - menuHeight - 8)),
+      message: msg,
+      side: msg.fromMe ? 'right' : 'left',
+    };
+    this.cdr.detectChanges();
+  }, 500);
+}
+
+onBubbleTouchEnd(): void {
+  if (this.longPressTimer) { clearTimeout(this.longPressTimer); this.longPressTimer = null; }
+  this.longPressMsgId = '';
+}
+
+onBubbleTouchMove(): void {
+  if (this.longPressTimer) { clearTimeout(this.longPressTimer); this.longPressTimer = null; }
 }
 
 uniqueReactionEmojis(msg: WaMessage, messages: WaMessage[]): string[] {
@@ -967,10 +1142,7 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     this.messageMenu = undefined;
     this.cdr.detectChanges();
   }
-  if (this.openReactionPopoverId) {   // ← agrega esto
-    this.openReactionPopoverId = '';
-    this.cdr.detectChanges();
-  }
+  this.dismissReactionPopover();
 };
 
   sendMessage(): void {
@@ -983,6 +1155,8 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     if (!rawText || !this.activeContact || this.isSending || !this.canReply) return;
 
     const text = this.formatForWhatsApp(rawText);
+    const replyingTo = this.replyingTo;
+    this.replyingTo = null;
     const now = new Date();
     const optimisticMsg = {
       id: `tmp-${Date.now()}`,
@@ -993,6 +1167,9 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
       status: 'sent' as const,
       isAuto: false,
       type: 'text',
+      replyToMessageId: replyingTo?.metaMessageId || replyingTo?.id,
+      quotedBody: replyingTo?.body,
+      quotedSender: replyingTo?.senderName,
     };
 
     this.activeContact = {
@@ -1008,8 +1185,11 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     this.resizeMessageInput();
 
     this.subs.add(
-      this.waService.sendMessage(this.addressForContact(this.activeContact), text).subscribe({
-        next: (res) => {
+      (replyingTo
+        ? this.waService.replyToMessage(this.activeContact.id, replyingTo.id, text)
+        : this.waService.sendMessage(this.addressForContact(this.activeContact), text)
+      ).subscribe({
+        next: (res: any) => {
           this.isSending = false;
           if (res.ok && res.chat) {
             this.activeContact = res.chat;
@@ -1025,9 +1205,15 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
           this.sendError = 'No se pudo enviar. Revisa la conexion o la asignacion.';
           this.cdr.detectChanges();
         },
-        error: (err) => {
+        error: (err: any) => {
           this.isSending = false;
-          console.error('HTTP Error:', err);
+          const messages = [...(this.activeContact?.messages ?? [])];
+          const idx = messages.findIndex(msg => msg.id === optimisticMsg.id);
+          if (idx >= 0) messages[idx] = { ...messages[idx], status: 'failed' };
+          if (this.activeContact) this.activeContact = { ...this.activeContact, messages };
+          this.sendError = err?.error?.error || err?.error?.message || 'Error al enviar el mensaje.';
+          this.clearSelectedFile();
+          this.cdr.detectChanges();
         },
       }),
     );
@@ -1086,12 +1272,18 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
           const idx = messages.findIndex(msg => msg.id === optimisticMsg.id);
           if (idx >= 0) messages[idx] = { ...messages[idx], status: 'failed' };
           if (this.activeContact) this.activeContact = { ...this.activeContact, messages };
-          this.sendError = 'No se pudo enviar el archivo. Revisa la conexion o la asignacion.';
+          this.sendError = (res as any).error || 'No se pudo enviar el archivo. Revisa la conexion o la asignacion.';
           this.cdr.detectChanges();
         },
         error: (err) => {
           this.isSending = false;
-          console.error('HTTP Error:', err);
+          const messages = [...(this.activeContact?.messages ?? [])];
+          const idx = messages.findIndex(msg => msg.id === optimisticMsg.id);
+          if (idx >= 0) messages[idx] = { ...messages[idx], status: 'failed' };
+          if (this.activeContact) this.activeContact = { ...this.activeContact, messages };
+          this.sendError = err?.error?.error || err?.error?.message || 'Error al enviar el archivo.';
+          this.clearSelectedFile();
+          this.cdr.detectChanges();
         },
       }),
     );
@@ -1149,8 +1341,10 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     this.selectedFilePreviewUrl = '';
     this.selectedFileKind = 'document';
     this.selectedAudioDuration = 0;
-    if (resetInput && this.fileInput?.nativeElement) {
-      this.fileInput.nativeElement.value = '';
+    if (resetInput) {
+      [this.fileInput, this.imageInput, this.videoInput, this.docInput].forEach(ref => {
+        if (ref?.nativeElement) ref.nativeElement.value = '';
+      });
     }
   }
 
@@ -1440,6 +1634,9 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     this.subs.add(
       this.waService.updateOperationalStatus(this.activeContact.id, status).subscribe({
         next: chat => {
+          this.contacts = this.contacts.map(contact =>
+            contact.id === chat.id ? chat : contact,
+          );
           this.activeContact = chat;
           this.contactDraft = this.draftFromContact(chat);
           this.isUpdatingOperationalStatus = false;
@@ -1457,6 +1654,12 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
 
   operationalStatusClass(contact: WaChat): string {
     return contact.operationalStatus || contact.assignmentStatus || 'new';
+  }
+
+  isRecentChat(contact: WaChat): boolean {
+    if (!contact.lastClientMsg) return false;
+    const diffMs = Date.now() - new Date(contact.lastClientMsg).getTime();
+    return diffMs <= 5 * 60 * 1000;
   }
 
   takeActiveChat(): void {
@@ -1774,6 +1977,25 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     if (!contact?.assignedTo) return 'En cola';
     if (contact.assignedTo === this.currentUserId) return 'Mi chat';
     return contact.assignedToName ? `Asignado a ${contact.assignedToName}` : 'Asignado';
+  }
+
+  getHeaderStatus(contact?: WaChat): string {
+    if (!contact) return '';
+    if (this.isChatClosed(contact)) return 'Cerrado';
+    const parts: string[] = [];
+    if (contact.status === 'online') parts.push('Activo');
+    else if (contact.status === 'away') parts.push('Ausente');
+    else parts.push('Inactivo');
+    if (contact.assignedToName) parts.push(contact.assignedToName);
+    else if (contact.assignedTo === this.currentUserId) parts.push('Mi chat');
+    return parts.join(' · ');
+  }
+
+  getPresenceLabel(contact?: WaChat): string {
+    if (!contact) return '';
+    if (contact.status === 'online') return 'Cliente activo en el chat';
+    if (contact.status === 'away') return 'Cliente ausente';
+    return 'Cliente inactivo';
   }
 
   isChatClosed(contact?: WaChat): boolean {
@@ -2232,9 +2454,6 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
 
   private parseDateValue(value: Date | string): Date {
     if (value instanceof Date) return value;
-    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?$/.test(value)) {
-      return new Date(`${value}Z`);
-    }
     return new Date(value);
   }
 
@@ -2286,8 +2505,8 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
   }
 
   private toDateTimeLocalValue(date: Date): string {
-    const pad = (value: number) => String(value).padStart(2, '0');
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    const bogotaStr = date.toLocaleString('sv-SE', { timeZone: 'America/Bogota' });
+    return bogotaStr.slice(0, 16);
   }
 
   private errorText(err: any, fallback: string): string {
