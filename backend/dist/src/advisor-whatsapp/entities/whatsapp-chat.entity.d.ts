@@ -1,0 +1,38 @@
+import { User } from '../../auth/entities/user.entity';
+import { WhatsappMessage } from './whatsapp-message.entity';
+export type WhatsappChatStatus = 'waiting' | 'active' | 'closed';
+export type WhatsappOperationalStatus = 'new' | 'queued' | 'assigned' | 'in_progress' | 'waiting_customer' | 'waiting_technical' | 'resolved' | 'closed';
+export type WhatsappAssignmentMode = 'auto' | 'manual' | 'admin' | 'fixed' | 'temporary';
+export declare class WhatsappChat {
+    id: string;
+    phone: string;
+    jid: string | null;
+    isGroup: boolean;
+    name: string;
+    profilePictureUrl: string | null;
+    role: string;
+    institution: string;
+    institutionUrl: string | null;
+    city: string;
+    email: string | null;
+    plan: string;
+    modules: string[];
+    status: WhatsappChatStatus;
+    operationalStatus: WhatsappOperationalStatus;
+    operationalStatusUpdatedAt: Date | null;
+    assignedAdvisor: User | null;
+    unreadCount: number;
+    notes: string[];
+    tags: string[];
+    lastMessageAt: Date | null;
+    lastClientMessageAt: Date | null;
+    assignedAt: Date | null;
+    assignmentMode: WhatsappAssignmentMode | null;
+    fixedAdvisor: User | null;
+    queueNoticeSent: boolean;
+    outOfHoursNoticeSent: boolean;
+    priority: 'low' | 'normal' | 'high' | 'critical';
+    messages: WhatsappMessage[];
+    createdAt: Date;
+    updatedAt: Date;
+}

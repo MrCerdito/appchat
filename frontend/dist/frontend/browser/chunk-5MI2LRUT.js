@@ -1,0 +1,1 @@
+function o(t){return t?t.split(" ").map(r=>r.charAt(0)).join("").toUpperCase().slice(0,2):"?"}function c(t){if(!t)return"#6b7280";let r=["#ef4444","#f59e0b","#10b981","#3b82f6","#8b5cf6","#ec4899","#06b6d4","#84cc16"],e=0;for(let n of t)e=n.charCodeAt(0)+((e<<5)-e);return r[Math.abs(e)%r.length]}export{o as a,c as b};
