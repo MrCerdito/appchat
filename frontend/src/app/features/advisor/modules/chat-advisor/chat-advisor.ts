@@ -23,6 +23,7 @@ import { ConfiguracionFrontendService } from '../../../../core/services/configur
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
 import { priorityLabel } from '../../../../shared/utils/ticket-categories';
 import { scrollToBottom } from '../../../../shared/utils/scroll';
+import { relativeTime } from '../../../../shared/utils/date';
 import { Ticket } from '../../../../core/models/ticket.model';
 
 // ── Payload exacto que emite el backend ──────────────────────────────────────
@@ -64,9 +65,9 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   protected readonly trackById = trackById;
 
   @ViewChild('messagesContainer') messagesContainer!: ElementRef;
+  @ViewChild('msgInput') msgInput!: ElementRef<HTMLTextAreaElement>;
 
   // ── Estado UI ─────────────────────────────────────────────────────────────
-  searchQuery      = '';
   currentAdvisor   : User | null    = null;
   advisors         : User[]         = [];
   sessions         : Session[]      = [];
@@ -76,6 +77,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   showInfoPanel    = false;
   newMessage       = '';
   typingMap        = new Map<string, string>();
+  compactList      = false;
 
   remitLoading  = false;
   remitFeedback : { type: 'ok' | 'error'; text: string } | null = null;
@@ -109,6 +111,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   private typingTimeouts = new Map<string, any>();
   private isTyping       = false;
   private destroy$       = new Subject<void>();
+  private resizeObserver: ResizeObserver | null = null;
 
   constructor(
     private socket      : SocketService,
@@ -147,19 +150,9 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
 
   get recentSessions(): Session[] {
     const activeIds = new Set(this.activeSessions.map(s => s.id));
-    if (this.activeSession) activeIds.add(this.activeSession.id);
-    let recent = this.sessions
+    return this.sessions
       .filter(s => !activeIds.has(s.id))
       .slice(0, 4);
-    if (this.searchQuery.trim()) {
-      const q = this.searchQuery.toLowerCase();
-      recent = recent.filter(s =>
-        s.clientName?.toLowerCase().includes(q) ||
-        s.apellido?.toLowerCase().includes(q) ||
-        s.colegio?.toLowerCase().includes(q)
-      );
-    }
-    return recent;
   }
 
   get activeAdvisorName(): string {
@@ -236,6 +229,11 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     this.socket.emit('advisor_ready');
 
     this.registerSocketEvents();
+
+    // ── Compact mode (barra de avatares) ───────────────────────────────────
+    this.checkCompact();
+    this.resizeObserver = new ResizeObserver(() => this.checkCompact());
+    this.resizeObserver.observe(document.body);
     
 
 
@@ -729,7 +727,15 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     }
   }
 
+  private resizeInput(): void {
+    const el = this.msgInput?.nativeElement;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+  }
+
   onInputChange(): void {
+    this.resizeInput();
     this.onTyping();
     const text = this.newMessage;
     const slashIdx = text.lastIndexOf('/');
@@ -809,6 +815,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
       .replace(/\*\*(.+?)\*\*/g, '*$1*');
     this.socket.emit('send_message', { sessionId, content: formatted });
     this.newMessage = '';
+    this.resizeInput();
     this.showSlashMenu = false;
     this.ghostSuggestion = '';
   }
@@ -1001,6 +1008,37 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     }
   }
 
+  // ── Relative time (recent chats) ────────────────────────────────────────
+  relativeTime(dateStr?: string | null): string {
+    if (!dateStr) return '';
+    return relativeTime(dateStr);
+  }
+
+  // ── Date separators ─────────────────────────────────────────────────────
+  showDateSeparator(index: number): boolean {
+    if (index === 0) return true;
+    const current = new Date(this.messages[index].createdAt).toDateString();
+    const prev    = new Date(this.messages[index - 1].createdAt).toDateString();
+    return current !== prev;
+  }
+
+  dateSeparatorLabel(dateStr: string): string {
+    const d   = new Date(dateStr);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const diffDays = Math.round((today.getTime() - target.getTime()) / 86400000);
+
+    if (diffDays === 0) return 'Hoy';
+    if (diffDays === 1) return 'Ayer';
+    return d.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'short' });
+  }
+
+  // ── Navigate to history ─────────────────────────────────────────────────
+  navigateToHistory(): void {
+    this.router.navigate(['/dashboard/history']);
+  }
+
   // ── Scroll ────────────────────────────────────────────────────────────────
   private scrollToBottom(): void {
     setTimeout(() => {
@@ -1010,11 +1048,21 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     }, 50);
   }
 
+  // ── Compact mode check ───────────────────────────────────────────────────
+  private checkCompact(): void {
+    const compact = window.innerWidth <= 900;
+    if (compact !== this.compactList) {
+      this.compactList = compact;
+      this.cdr.detectChanges();
+    }
+  }
+
   // ── Destroy ───────────────────────────────────────────────────────────────
   ngOnDestroy(): void {
     this.state.setActiveSession(null);
     this.destroy$.next();
     this.destroy$.complete();
+    this.resizeObserver?.disconnect();
     if (this.activeSession) {
       this.socket.emit('set_active', { sessionId: this.activeSession.id, active: false });
     }

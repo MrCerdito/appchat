@@ -1,38 +1,42 @@
-<div class="chat-module">
-  <aside class="sidebar">
-    <div class="sidebar-head">
-      <div class="sidebar-brand">
-        <img class="sidebar-logo" src="/icon.jpg" alt="Innova Cloud">
-        <div class="brand-text">
-          <span class="sidebar-title">Innova Cloud</span>
-          <span class="sidebar-subtitle">Chat en linea</span>
+<div class="chat-shell">
+
+  <!-- ═══ CONVERSATIONS PANEL ═══════════════════════════════════════════════ -->
+  <aside class="conversations-panel" [class.compact]="compactList">
+    <div class="conv-header">
+      <div class="conv-brand">
+        <img class="conv-logo" src="/icon.jpg" alt="Innova Cloud">
+        <div>
+          <span class="conv-title">Innova Cloud</span>
+          <span class="conv-subtitle">Chat en linea</span>
         </div>
       </div>
-
-      <div class="stats-bar">
-        <div class="stat stat--active">
-          <span class="stat-num">{{ activeSessions.length }}</span>
-          <span class="stat-label">Activos</span>
+      <div class="conv-stats">
+        <div class="conv-stat conv-stat--active">
+          <span class="conv-stat-num">{{ activeSessions.length }}</span>
+          <span class="conv-stat-label">Activos</span>
         </div>
-        <div class="stat stat--waiting">
-          <span class="stat-num">{{ waitingCount }}</span>
-          <span class="stat-label">Espera</span>
+        <div class="conv-stat conv-stat--waiting">
+          <span class="conv-stat-num">{{ waitingCount }}</span>
+          <span class="conv-stat-label">Espera</span>
         </div>
         @if (assignedCount > 0) {
-        <div class="stat stat--assigned">
-          <span class="stat-num">{{ assignedCount }}</span>
-          <span class="stat-label">Asignados</span>
+        <div class="conv-stat conv-stat--assigned">
+          <span class="conv-stat-num">{{ assignedCount }}</span>
+          <span class="conv-stat-label">Asignados</span>
         </div>
         }
       </div>
     </div>
 
-    <div class="sessions-list">
+    <!-- Assigned chats -->
+    <div class="conv-assigned">
       @if (activeSessions.length > 0) {
-      <div class="section-label">
-        Chats asignados
+      <div class="conv-section-title">
+        <span>Chats asignados</span>
+        <span class="conv-count">{{ activeSessions.length }}</span>
       </div>
       }
+
       @for (session of activeSessions; track trackById($index, session)) {
       <button
         type="button"
@@ -42,34 +46,27 @@
       >
         <div class="ava" [ngClass]="avatarColor(session.id)">
           {{ safeInitial(session.clientName) }}
+          @if (unreadCount(session.id) > 0) {
+          <span class="badge-unread">{{ unreadCount(session.id) }}</span>
+          }
         </div>
-        <div
-          class="status-dot"
+        <div class="status-dot"
           [class.dot-active]="session.status === 'active'"
           [class.dot-wait]="session.status === 'waiting'"
         ></div>
         <div class="session-txt">
           <div class="s-top">
             <span class="s-name">{{ sessionFullName(session) }}</span>
-            <span class="s-time">{{ session.createdAt | date:'HH:mm' }}</span>
+            <span class="s-time">{{ session.createdAt | date:'HH:mm':'America/Bogota' }}</span>
           </div>
           <span class="s-sub">{{ session.colegio || 'Sin colegio' }}</span>
           <div class="s-bottom">
             <span class="s-sub muted">{{ session.tipoSolicitud || 'General' }}</span>
-            @if (unreadCount(session.id) > 0) {
-            <span class="badge-unread">
-              {{ unreadCount(session.id) }}
-            </span>
-            }
             @if (unreadCount(session.id) === 0 && session.status === 'waiting') {
-            <span class="badge-wait">
-              Espera
-            </span>
+            <span class="badge-wait">Espera</span>
             }
             @if (unreadCount(session.id) === 0 && session.status === 'active') {
-            <span class="badge-activo">
-              Activo
-            </span>
+            <span class="badge-activo">Activo</span>
             }
           </div>
         </div>
@@ -86,42 +83,42 @@
       }
     </div>
 
-    <div class="sidebar-foot">
-      <div class="search-box">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="8"></circle>
-          <path d="m21 21-4.35-4.35"></path>
-        </svg>
-        <input type="text" placeholder="Buscar recientes..." [(ngModel)]="searchQuery">
+    <!-- Recent chats -->
+    @if (recentSessions.length > 0) {
+    <div class="conv-recent">
+      <div class="conv-section-title">
+        <span>Mis recientes</span>
       </div>
-      @if (recentSessions.length > 0) {
-      <div class="recent-section">
-        <span class="recent-label">Mis recientes</span>
-        @for (session of recentSessions; track trackById($index, session)) {
-        <button
-          type="button"
-          class="session-card recent-card"
-          [class.selected]="activeSession?.id === session.id"
-          (click)="joinSession(session)"
-        >
-          <div class="ava ava-sm" [ngClass]="avatarColor(session.id)">
-            {{ safeInitial(session.clientName) }}
+      @for (session of recentSessions; track trackById($index, session)) {
+      <button
+        type="button"
+        class="session-card"
+        [class.selected]="activeSession?.id === session.id"
+        (click)="joinSession(session)"
+      >
+        <div class="ava ava-sm" [ngClass]="avatarColor(session.id)">
+          {{ safeInitial(session.clientName) }}
+        </div>
+        <div class="session-txt">
+          <div class="s-top">
+            <span class="s-name">{{ sessionFullName(session) }}</span>
+            <span class="s-time">{{ relativeTime(session.createdAt) }}</span>
           </div>
-          <div class="session-txt">
-            <div class="s-top">
-              <span class="s-name">{{ sessionFullName(session) }}</span>
-              <span class="s-time">{{ session.createdAt | date:'HH:mm' }}</span>
-            </div>
-            <span class="s-sub">{{ session.colegio || 'Sin colegio' }}</span>
-          </div>
-        </button>
-        }
-      </div>
+          <span class="s-sub">{{ session.colegio || 'Sin colegio' }}</span>
+        </div>
+      </button>
       }
+      <button type="button" class="view-all-btn" (click)="navigateToHistory()">
+        Ver todos los chats &rarr;
+      </button>
     </div>
+    }
   </aside>
 
-  <main class="chat-area">
+  <!-- ═══ CHAT MAIN ═════════════════════════════════════════════════════════ -->
+  <main class="chat-main">
+
+    <!-- Empty state -->
     @if (!activeSession) {
     <div class="empty-state">
       <div class="empty-icon">
@@ -134,350 +131,319 @@
     </div>
     }
 
+    <!-- Active chat -->
     @if (activeSession) {
-    <section class="chat-panel">
-      <div class="chat-body">
-        <header class="chat-header">
-          <div class="header-left">
-            <button class="icon-btn btn-back" type="button" (click)="closeActiveSessionView()" title="Volver">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="15 18 9 12 15 6"></polyline>
-              </svg>
-            </button>
-            <div class="head-ava">{{ safeInitial(activeSession.clientName) }}</div>
-            <div class="head-info">
-              <span class="head-name">{{ sessionFullName(activeSession) }}</span>
-              <span
-                class="head-status"
-                [class.status-active]="activeSession.status === 'active'"
-                [class.status-wait]="activeSession.status === 'waiting'"
-              >
-                {{ statusLabel(activeSession) }} · {{ activeAdvisorName }}
-              </span>
-              <span class="client-presence-pill" [ngClass]="clientPresenceClass(activeSession)">
-                {{ clientPresenceLabel(activeSession) }}
-              </span>
-            </div>
-          </div>
 
-          <div class="header-actions">
-            <button
-              class="icon-btn"
-              type="button"
-              title="Mostrar informacion"
-              (click)="showInfoPanel = !showInfoPanel"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="16" x2="12" y2="12"></line>
-                <line x1="12" y1="8" x2="12.01" y2="8"></line>
-              </svg>
-            </button>
-            @if (isCollaborator) {
-            <button
-              class="icon-btn icon-leave"
-              type="button"
-              title="Salir del chat"
-              (click)="leaveCollabChat()"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                <polyline points="16 17 21 12 16 7"></polyline>
-                <line x1="21" y1="12" x2="9" y2="12"></line>
-              </svg>
-            </button>
-            }
-            @if (!isCollaborator) {
-            <button
-              class="icon-btn icon-danger"
-              type="button"
-              title="Cerrar chat"
-              (click)="showCloseConfirm = true"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </button>
-            }
-          </div>
-        </header>
-
-        @if (aiModeActive) {
-        <div class="ai-banner">
-          <span class="ai-dot"></span>
-          <span>IA respondiendo automaticamente. Escribe para retomar el control.</span>
+    <!-- Header -->
+    <header class="chat-header">
+      <div class="header-left">
+        <button class="icon-btn btn-back" type="button" (click)="closeActiveSessionView()" title="Volver">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+        </button>
+        <div class="header-avatar">{{ safeInitial(activeSession.clientName) }}</div>
+        <div class="header-meta">
+          <span class="header-name">{{ sessionFullName(activeSession) }}</span>
+          <span class="client-presence-pill" [ngClass]="clientPresenceClass(activeSession)">
+            {{ clientPresenceLabel(activeSession) }}
+          </span>
         </div>
-        }
-
-        <div class="messages" #messagesContainer>
-          @for (msg of messages; track trackById($index, msg)) {
-            @if (msg.senderName === 'Sistema') {
-            <div class="sys-msg">
-              <div class="sys-inner">
-                <span>{{ msg.content }}</span>
-              </div>
-              <span class="sys-time">{{ msg.createdAt | date:'HH:mm' }} · Automatico</span>
-            </div>
-            }
-
-            @if (msg.senderName !== 'Sistema') {
-            <div
-              class="msg"
-              [class.mine]="msg.senderType === 'advisor' && msg.senderName === currentAdvisor?.name"
-              [class.theirs]="msg.senderType === 'client'"
-              [class.collab]="msg.senderType === 'advisor' && msg.senderName !== currentAdvisor?.name"
-            >
-              <div class="msg-row">
-
-                @if (msg.senderType === 'advisor' && msg.senderName !== currentAdvisor?.name) {
-                <span
-                  class="msg-sender"
-                >
-                  {{ msg.senderName }}
-                </span>
-                }
-                <div class="bubble">
-                <span [innerHTML]="formatMessage(msg.content)"></span>
-                @if (msg.senderType === 'advisor') {
-                <span class="read-mark">
-                  {{ msg.readAt ? '✓✓' : '✓' }}
-                </span>
-                }
-              </div>
-              </div>
-              @if (msg.documentos && msg.documentos.length > 0) {
-              <div class="doc-adjuntos">
-                <span class="doc-adjuntos-label">Documentos relacionados</span>
-                @for (doc of msg.documentos; track $index) {
-                <a class="doc-adjunto-item" [href]="doc.pdfUrl" target="_blank">
-                  <span class="doc-adjunto-nombre">{{ doc.nombre }}</span>
-                  @if (doc.categoria) {
-                  <span class="doc-adjunto-cat">{{ doc.categoria }}</span>
-                  }
-                </a>
-                }
-              </div>
-              }
-              <span class="msg-time">{{ msg.createdAt | date:'HH:mm' }}</span>
-            </div>
-            }
-          }
-          @if (messages.length === 0) {
-          <div class="no-messages">Sin mensajes aun</div>
-          }
-        </div>
-
-        @if (isTypingActive) {
-        <div class="typing-row">
-          <div class="typing-dots">
-            <span></span><span></span><span></span>
-          </div>
-          <span class="typing-lbl">{{ typingNameActive }} esta escribiendo</span>
-        </div>
-        }
-
-        <footer class="input-wrap">
-          <div class="input-box">
-            <textarea
-              [(ngModel)]="newMessage"
-              (ngModelChange)="onInputChange()"
-              rows="1"
-              [placeholder]="aiModeActive ? 'Escribe para retomar el control...  (Shift+Enter nueva linea)' : 'Escribe un mensaje o / para respuestas rapidas  (Shift+Enter nueva linea)'"
-              (keydown)="handleKey($event)"
-              [disabled]="!canSendMessage"
-              maxlength="1000"
-            ></textarea>
-            @if (ghostSuggestion) {
-            <span class="ghost-text">{{ ghostSuggestion }}</span>
-            }
-
-            @if (showSlashMenu && slashFiltered.length > 0) {
-            <div class="slash-menu">
-              <div class="slash-header">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="slash-icon">
-                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-                </svg>
-                Respuestas rapidas
-              </div>
-              @for (reply of slashFiltered; track trackByIndex($index); let i = $index) {
-              <button
-                type="button"
-                class="slash-item"
-                [class.highlighted]="i === slashHighlight"
-                (mouseenter)="slashHighlight = i"
-                (click)="selectSlashReply(reply)"
-              >
-                <div class="slash-reply-text">
-                  <span class="slash-reply-name">{{ reply.name }}</span>
-                </div>
-              </button>
-              }
-            </div>
-            }
-          </div>
-
-          <button class="send-btn" type="button" (click)="send()" [disabled]="!newMessage.trim() || !canSendMessage">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <line x1="22" y1="2" x2="11" y2="13"></line>
-              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-            </svg>
-          </button>
-        </footer>
       </div>
-
-      @if (showInfoPanel) {
-      <div class="info-backdrop" (click)="showInfoPanel = false"></div>
-      }
-      <aside class="side-panel" [class.open]="showInfoPanel">
-        <button class="panel-close" type="button" (click)="showInfoPanel = false" title="Ocultar informacion">
+      <div class="header-actions">
+        <button class="icon-btn" type="button" title="Mostrar informacion" (click)="showInfoPanel = !showInfoPanel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+        </button>
+        @if (isCollaborator) {
+        <button class="icon-btn icon-leave" type="button" title="Salir del chat" (click)="leaveCollabChat()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
+        </button>
+        }
+        @if (!isCollaborator) {
+        <button class="icon-btn icon-danger" type="button" title="Cerrar chat" (click)="showCloseConfirm = true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
             <line x1="18" y1="6" x2="6" y2="18"></line>
             <line x1="6" y1="6" x2="18" y2="18"></line>
           </svg>
         </button>
-        <section class="panel-profile">
-          <div class="panel-ava">{{ safeInitial(activeSession.clientName) }}</div>
-          <div class="panel-name">{{ sessionFullName(activeSession) }}</div>
-          <div class="panel-req-label">{{ activeSession.identificacion || 'Sin identificacion' }}</div>
-          <span class="req-tag">{{ activeSession.tipoSolicitud || 'Solicitud general' }}</span>
-        </section>
+        }
+      </div>
+    </header>
 
-        <section class="panel-actions">
-          <button class="p-btn p-btn-ticket" type="button" (click)="openTicketModal()">
-            Generar ticket
-          </button>
-          @if (!isCollaborator) {
-          <button class="p-btn p-btn-transfer" type="button" (click)="showTransfer = !showTransfer">
-            Transferir
-          </button>
-          }
-          @if (!aiModeActive) {
-          <button class="p-btn p-btn-ai" type="button" (click)="remitToAi()" [disabled]="remitLoading">
-            {{ remitLoading ? 'Activando IA...' : 'Remitir a IA' }}
-          </button>
-          }
-          @if (aiModeActive) {
-          <button class="p-btn p-btn-retake" type="button" (click)="retakeControl()">
-            Retomar control
-          </button>
-          }
-          @if (!isCollaborator) {
-          <button class="p-btn p-btn-close" type="button" (click)="showCloseConfirm = true">
-            Cerrar atencion
-          </button>
-          }
-          @if (isCollaborator) {
-          <button class="p-btn p-btn-transfer" type="button" (click)="leaveCollabChat()">
-            Salir del apoyo
-          </button>
-          }
-        </section>
+    <!-- AI banner -->
+    @if (aiModeActive) {
+    <div class="ai-banner">
+      <span class="ai-dot"></span>
+      <span>IA respondiendo automaticamente. Escribe para retomar el control.</span>
+    </div>
+    }
 
-        @if (remitFeedback) {
-        <div class="toast" [class.toast-ok]="remitFeedback.type === 'ok'" [class.toast-error]="remitFeedback.type === 'error'">
-          {{ remitFeedback.text }}
+    <!-- Messages -->
+    <div class="chat-messages" #messagesContainer>
+      @for (msg of messages; track trackById($index, msg)) {
+
+        <!-- Date separator -->
+        @if (showDateSeparator($index)) {
+        <div class="date-separator">
+          <span class="date-separator-label">{{ dateSeparatorLabel(msg.createdAt) }}</span>
         </div>
         }
 
-        @if (timerState; as timer) {
-        <section class="timer-card"
-          [class.timer-advisor]="timer.tipo === 'advisor_waiting'"
-          [class.timer-client]="timer.tipo === 'client_waiting'"
-          [class.timer-closing]="timer.tipo === 'closing'"
-          [class.timer-alert]="timer.estado === 'alerta'">
-          <div class="timer-head">
-            <span class="timer-dot" [ngClass]="'dot-' + timer.estado"></span>
-            <span class="timer-lbl">{{ timer.tipo === 'advisor_waiting' ? 'Respuesta del asesor' : timer.tipo === 'client_waiting' ? 'Respuesta del cliente' : 'Cerrando chat' }}</span>
-            <span class="timer-count" [class.count-alerta]="timer.estado === 'alerta'">{{ timer.restante }}s</span>
+        <!-- System message -->
+        @if (msg.senderName === 'Sistema') {
+        <div class="msg msg--system">
+          <div class="sys-inner">
+            <span class="sys-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="10" rx="2"></rect>
+                <circle cx="12" cy="5" r="2"></circle>
+                <path d="M12 7v4"></path>
+              </svg>
+            </span>
+            <span>{{ msg.content }}</span>
+            <span class="sys-label">Automatico</span>
           </div>
-          <div class="timer-bar-track">
-            <div class="timer-bar" [ngClass]="'bar-' + timer.estado" [style.width.%]="timer.pct"></div>
-          </div>
-          @if (timer.mensaje) {
-          <div class="timer-msg-preview">
-            <span class="timer-msg-lbl">Mensaje automatico</span>
-            <span class="timer-msg-txt">{{ timer.mensaje }}</span>
-          </div>
-          }
-        </section>
+          <span class="msg-time">{{ msg.createdAt | date:'HH:mm':'America/Bogota' }}</span>
+        </div>
         }
 
-        <section class="info-section">
-          <div class="info-row">
-            <span class="info-lbl">Rol</span>
-            <span class="info-val">{{ activeSession.rol || 'Sin rol' }}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-lbl">Colegio</span>
-            @if (openClientLink(activeSession)) {
-            <a class="info-link" [href]="openClientLink(activeSession)" target="_blank" rel="noopener noreferrer">
-              {{ activeSession.colegio || 'Sin colegio' }}
-            </a>
-            } @else {
-              <span class="info-val">{{ activeSession.colegio || 'Sin colegio' }}</span>
+        <!-- Client / Advisor / Collaborator message -->
+        @if (msg.senderName !== 'Sistema') {
+        <div class="msg"
+          [class.msg--client]="msg.senderType === 'client'"
+          [class.msg--advisor]="msg.senderType === 'advisor' && msg.senderName === currentAdvisor?.name"
+          [class.msg--collab]="msg.senderType === 'advisor' && msg.senderName !== currentAdvisor?.name"
+        >
+          @if (msg.senderType === 'advisor' && msg.senderName !== currentAdvisor?.name) {
+          <span class="msg-sender">{{ msg.senderName }}</span>
+          }
+          <div class="bubble">
+            <span [innerHTML]="formatMessage(msg.content)"></span>
+            @if (msg.senderType === 'advisor') {
+            <span class="read-mark">{{ msg.readAt ? '\u2713\u2713' : '\u2713' }}</span>
             }
           </div>
-          <div class="info-row">
-            <span class="info-lbl">Estado</span>
-            <span class="info-val">{{ statusLabel(activeSession) }}</span>
+          @if (msg.documentos && msg.documentos.length > 0) {
+          <div class="doc-adjuntos">
+            <span class="doc-adjuntos-label">Documentos relacionados</span>
+            @for (doc of msg.documentos; track $index) {
+            <a class="doc-adjunto-item" [href]="doc.pdfUrl" target="_blank">
+              <span class="doc-adjunto-nombre">{{ doc.nombre }}</span>
+              @if (doc.categoria) {
+              <span class="doc-adjunto-cat">{{ doc.categoria }}</span>
+              }
+            </a>
+            }
           </div>
-          <div class="info-row">
-            <span class="info-lbl">Creado</span>
-            <span class="info-val">{{ activeSession.createdAt | date:'medium' }}</span>
-          </div>
-        </section>
-
-        <section class="panel-section ai-card" (click)="aiInsight()" [class.loading]="isAiInsightLoading">
-          <div class="section-title">
-            <i class="ti" [ngClass]="isAiInsightLoading ? 'ti-loader-2' : 'ti-sparkles'"></i>
-            Analisis IA
-          </div>
-          @if (!isAiInsightLoading) {
-          <p>{{ aiInsightText }}</p>
           }
-          @if (isAiInsightLoading) {
-          <div class="ai-loading-bar"><span></span></div>
-          }
-        </section>
+          <span class="msg-time">{{ msg.createdAt | date:'HH:mm':'America/Bogota' }}</span>
+        </div>
+        }
+      }
 
-        @if (showTransfer) {
-        <section class="transfer-panel">
-          <span class="transfer-title">Transferir a asesor</span>
-          @for (advisor of advisors; track trackById($index, advisor)) {
+      @if (messages.length === 0) {
+      <div class="no-messages">Sin mensajes aun</div>
+      }
+    </div>
+
+    <!-- Typing indicator -->
+    @if (isTypingActive) {
+    <div class="typing-row">
+      <div class="typing-dots">
+        <span></span><span></span><span></span>
+      </div>
+      <span class="typing-lbl">{{ typingNameActive }} esta escribiendo</span>
+    </div>
+    }
+
+    <!-- Input bar -->
+    <footer class="chat-input">
+      <button class="input-icon-btn" type="button" title="Adjuntar archivo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"></path>
+        </svg>
+      </button>
+      <div class="input-field">
+        <textarea
+          #msgInput
+          [(ngModel)]="newMessage"
+          (ngModelChange)="onInputChange()"
+          rows="1"
+          [placeholder]="aiModeActive ? 'Escribe para retomar el control...  (Shift+Enter nueva linea)' : 'Escribe un mensaje o / para respuestas rapidas  (Shift+Enter nueva linea)'"
+          (keydown)="handleKey($event)"
+          [disabled]="!canSendMessage"
+          maxlength="1000"
+        ></textarea>
+        @if (ghostSuggestion) {
+        <span class="ghost-text">{{ ghostSuggestion }}</span>
+        }
+
+        @if (showSlashMenu && slashFiltered.length > 0) {
+        <div class="slash-menu">
+          <div class="slash-header">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="slash-icon">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+            </svg>
+            Respuestas rapidas
+          </div>
+          @for (reply of slashFiltered; track trackByIndex($index); let i = $index) {
           <button
             type="button"
-            class="adv-row"
-            [class.adv-disabled]="advisor.status === 'offline'"
-            (click)="transferTo(advisor.id)"
+            class="slash-item"
+            [class.highlighted]="i === slashHighlight"
+            (mouseenter)="slashHighlight = i"
+            (click)="selectSlashReply(reply)"
           >
-            <span class="adv-ava">
-              @if (advisor.profilePhotoUrl) {
-              <img
-                   [src]="advisor.profilePhotoUrl"
-                   [alt]="advisor.name"
-                   class="adv-ava-img" />
-              } @else {
-              {{ safeInitial(advisor.name) }}
-              }
-            </span>
-            <span class="adv-txt">
-              <span class="adv-name">{{ advisor.name }}</span>
-              <span class="adv-meta">{{ advisor.activeChats || 0 }} chats activos</span>
-            </span>
-            <span class="adv-badge" [ngClass]="'badge-' + advisor.status">{{ advisor.status }}</span>
+            <div class="slash-reply-text">
+              <span class="slash-reply-name">{{ reply.name }}</span>
+            </div>
           </button>
           }
-          @if (advisors.length === 0) {
-          <div class="empty-adv">No hay asesores disponibles</div>
-          }
-        </section>
+        </div>
         }
-      </aside>
-    </section>
+      </div>
+      <button class="send-btn" type="button" (click)="send()" [disabled]="!newMessage.trim() || !canSendMessage">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="22" y1="2" x2="11" y2="13"></line>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+        </svg>
+      </button>
+    </footer>
+
+    <!-- Side panel backdrop -->
+    @if (showInfoPanel) {
+    <div class="info-backdrop" (click)="showInfoPanel = false"></div>
+    }
+
+    <!-- Side panel -->
+    <aside class="side-panel" [class.open]="showInfoPanel">
+      <button class="panel-close" type="button" (click)="showInfoPanel = false" title="Ocultar informacion">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+
+      <section class="panel-profile">
+        <div class="panel-ava">{{ safeInitial(activeSession.clientName) }}</div>
+        <div class="panel-name">{{ sessionFullName(activeSession) }}</div>
+        <div class="panel-req-label">{{ activeSession.identificacion || 'Sin identificacion' }}</div>
+        <span class="req-tag">{{ activeSession.tipoSolicitud || 'Solicitud general' }}</span>
+      </section>
+
+      <section class="panel-actions">
+        <button class="p-btn p-btn-ticket" type="button" (click)="openTicketModal()">
+          Generar ticket
+        </button>
+        @if (!isCollaborator) {
+        <button class="p-btn p-btn-transfer" type="button" (click)="showTransfer = !showTransfer">
+          Transferir
+        </button>
+        }
+        @if (!aiModeActive) {
+        <button class="p-btn p-btn-ai" type="button" (click)="remitToAi()" [disabled]="remitLoading">
+          {{ remitLoading ? 'Activando IA...' : 'Remitir a IA' }}
+        </button>
+        }
+        @if (aiModeActive) {
+        <button class="p-btn p-btn-retake" type="button" (click)="retakeControl()">
+          Retomar control
+        </button>
+        }
+        @if (!isCollaborator) {
+        <button class="p-btn p-btn-close" type="button" (click)="showCloseConfirm = true">
+          Cerrar atencion
+        </button>
+        }
+        @if (isCollaborator) {
+        <button class="p-btn p-btn-transfer" type="button" (click)="leaveCollabChat()">
+          Salir del apoyo
+        </button>
+        }
+      </section>
+
+      @if (remitFeedback) {
+      <div class="toast" [class.toast-ok]="remitFeedback.type === 'ok'" [class.toast-error]="remitFeedback.type === 'error'">
+        {{ remitFeedback.text }}
+      </div>
+      }
+
+      @if (timerState; as timer) {
+      <section class="timer-card"
+        [class.timer-advisor]="timer.tipo === 'advisor_waiting'"
+        [class.timer-client]="timer.tipo === 'client_waiting'"
+        [class.timer-closing]="timer.tipo === 'closing'"
+        [class.timer-alert]="timer.estado === 'alerta'">
+        <div class="timer-head">
+          <span class="timer-dot" [ngClass]="'dot-' + timer.estado"></span>
+          <span class="timer-lbl">{{ timer.tipo === 'advisor_waiting' ? 'Respuesta del asesor' : timer.tipo === 'client_waiting' ? 'Respuesta del cliente' : 'Cerrando chat' }}</span>
+          <span class="timer-count" [class.count-alerta]="timer.estado === 'alerta'">{{ timer.restante }}s</span>
+        </div>
+        <div class="timer-bar-track">
+          <div class="timer-bar" [ngClass]="'bar-' + timer.estado" [style.width.%]="timer.pct"></div>
+        </div>
+        @if (timer.mensaje) {
+        <div class="timer-msg-preview">
+          <span class="timer-msg-lbl">Mensaje automatico</span>
+          <span class="timer-msg-txt">{{ timer.mensaje }}</span>
+        </div>
+        }
+      </section>
+      }
+
+      <section class="info-section">
+        <div class="info-row">
+          <span class="info-lbl">Rol</span>
+          <span class="info-val">{{ activeSession.rol || 'Sin rol' }}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-lbl">Colegio</span>
+          @if (openClientLink(activeSession)) {
+          <a class="info-link" [href]="openClientLink(activeSession)" target="_blank" rel="noopener noreferrer">
+            {{ activeSession.colegio || 'Sin colegio' }}
+          </a>
+          } @else {
+          <span class="info-val">{{ activeSession.colegio || 'Sin colegio' }}</span>
+          }
+        </div>
+        <div class="info-row">
+          <span class="info-lbl">Estado</span>
+          <span class="info-val">{{ statusLabel(activeSession) }}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-lbl">Creado</span>
+          <span class="info-val">{{ activeSession.createdAt | date:'medium':'America/Bogota' }}</span>
+        </div>
+      </section>
+
+      <section class="panel-section ai-card" (click)="aiInsight()" [class.loading]="isAiInsightLoading">
+        <div class="section-title">
+          <i class="ti" [ngClass]="isAiInsightLoading ? 'ti-loader-2' : 'ti-sparkles'"></i>
+          Analisis IA
+        </div>
+        @if (!isAiInsightLoading) {
+        <p>{{ aiInsightText }}</p>
+        }
+        @if (isAiInsightLoading) {
+        <div class="ai-loading-bar"><span></span></div>
+        }
+      </section>
+
+    </aside>
     }
   </main>
 
+  <!-- ═══ MODALS ═══════════════════════════════════════════════════════════ -->
+
+  <!-- Close confirm -->
   @if (showCloseConfirm) {
   <div class="modal-backdrop">
     <section class="modal">
@@ -498,6 +464,7 @@
   </div>
   }
 
+  <!-- AI insight modal -->
   @if (showAiInsightModal) {
   <div class="modal-backdrop" (click)="closeAiInsightModal()"></div>
   }
@@ -522,7 +489,7 @@
   </section>
   }
 
-  <!-- ── Toast flotante ticket ─────────────────────────── -->
+  <!-- Toast flotante ticket -->
   @if (ticketFeedback) {
   <div class="toast-floating"
     [class.toast-ok]="ticketFeedback.type === 'ok'"
@@ -532,7 +499,7 @@
   </div>
   }
 
-  <!-- ── Modal ticket flotante ────────────────────────── -->
+  <!-- Ticket modal -->
   @if (showTicketModal) {
   <div class="floating-modal" (click)="closeTicketModal()">
     <div class="floating-modal-inner" (click)="$event.stopPropagation()">
@@ -570,6 +537,44 @@
         <button class="modal-confirm" type="button" (click)="createTicket()" [disabled]="!ticketDto.titulo.trim() || creatingTicket">
           {{ creatingTicket ? 'Creando...' : 'Crear ticket' }}
         </button>
+      </div>
+    </div>
+  </div>
+  }
+
+  <!-- Transfer modal -->
+  @if (showTransfer) {
+  <div class="floating-modal" (click)="showTransfer = false">
+    <div class="floating-modal-inner" (click)="$event.stopPropagation()">
+      <h3>Transferir a asesor</h3>
+      <div class="transfer-modal-body">
+        @for (advisor of advisors; track trackById($index, advisor)) {
+        <button
+          type="button"
+          class="adv-row"
+          [class.adv-disabled]="advisor.status === 'offline'"
+          (click)="transferTo(advisor.id)"
+        >
+          <span class="adv-ava">
+            @if (advisor.profilePhotoUrl) {
+            <img [src]="advisor.profilePhotoUrl" [alt]="advisor.name" class="adv-ava-img" />
+            } @else {
+            {{ safeInitial(advisor.name) }}
+            }
+          </span>
+          <span class="adv-txt">
+            <span class="adv-name">{{ advisor.name }}</span>
+            <span class="adv-meta">{{ advisor.activeChats || 0 }} chats activos</span>
+          </span>
+          <span class="adv-badge" [ngClass]="'badge-' + advisor.status">{{ advisor.status }}</span>
+        </button>
+        }
+        @if (advisors.length === 0) {
+        <div class="empty-adv">No hay asesores disponibles</div>
+        }
+      </div>
+      <div class="modal-actions">
+        <button class="modal-cancel" type="button" (click)="showTransfer = false">Cancelar</button>
       </div>
     </div>
   </div>

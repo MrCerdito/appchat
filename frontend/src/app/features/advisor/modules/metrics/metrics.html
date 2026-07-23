@@ -10,7 +10,7 @@
         <span class="status-text">{{ getStatusLabel(metrics.advisor.status) }}</span>
       </div>
     </div>
-    <span class="meta-label">Actualizado {{ lastUpdated | date:'HH:mm:ss' }}</span>
+    <span class="meta-label">Actualizado {{ lastUpdated | date:'HH:mm:ss':'America/Bogota' }}</span>
   </header>
   }
 
@@ -113,7 +113,7 @@
           <span class="s-label">Cerradas</span>
         </div>
         <div class="strip-item">
-          <span class="s-val">{{ metrics.advisor.createdAt | date:'MMM yyyy' }}</span>
+          <span class="s-val">{{ metrics.advisor.createdAt | date:'MMM yyyy':'America/Bogota' }}</span>
           <span class="s-label">Miembro desde</span>
         </div>
         <div class="strip-item overflow">
@@ -167,7 +167,7 @@
                   }
                 </div>
               </td>
-              <td class="td-date">{{ c.createdAt | date:'dd MMM yy' }}</td>
+              <td class="td-date">{{ c.createdAt | date:'dd MMM yy':'America/Bogota' }}</td>
             </tr>
             }
           </tbody>

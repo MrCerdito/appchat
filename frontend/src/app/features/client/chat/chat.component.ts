@@ -1041,7 +1041,7 @@ private escapeHtml(value: string): string {
     if (min < 60) return `hace ${min} min`;
     const horas = Math.floor(min / 60);
     if (horas < 24) return `hace ${horas}h`;
-    return new Date(iso).toLocaleDateString('es', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    return new Date(iso).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' });
   }
 
   copiarTexto(texto: string): void {

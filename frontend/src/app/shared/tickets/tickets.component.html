@@ -211,7 +211,7 @@
                 </td>
                 <td>{{ t.category || '?' }}</td>
                 <td>{{ t.assignedToName || '?' }}</td>
-                <td class="cell-date">{{ t.createdAt | date:'dd/MM/yy' }}</td>
+                <td class="cell-date">{{ t.createdAt | date:'dd/MM/yy':'America/Bogota' }}</td>
               </tr>
               }
             </tbody>
@@ -337,12 +337,12 @@
             </div>
             <div class="ts-detail-row">
               <span class="ts-detail-lbl">Creado</span>
-              <span class="ts-detail-val">{{ selectedTicket.createdAt | date:'medium' }}</span>
+              <span class="ts-detail-val">{{ selectedTicket.createdAt | date:'medium':'America/Bogota' }}</span>
             </div>
             @if (selectedTicket.closedAt) {
             <div class="ts-detail-row">
               <span class="ts-detail-lbl">Cerrado</span>
-              <span class="ts-detail-val">{{ selectedTicket.closedAt | date:'medium' }} {{ selectedTicket.closedBy ? 'por ' + selectedTicket.closedBy.name : '' }}</span>
+              <span class="ts-detail-val">{{ selectedTicket.closedAt | date:'medium':'America/Bogota' }} {{ selectedTicket.closedBy ? 'por ' + selectedTicket.closedBy.name : '' }}</span>
             </div>
             }
           </div>
@@ -363,7 +363,7 @@
               <div class="ts-detail-bubble">
                 <strong>{{ msg.name }}</strong>
                 <p>{{ msg.content }}</p>
-                <span class="ts-detail-time">{{ msg.timestamp | date:'dd/MM/yy HH:mm' }}</span>
+                <span class="ts-detail-time">{{ msg.timestamp | date:'dd/MM/yy HH:mm':'America/Bogota' }}</span>
               </div>
             </div>
             }

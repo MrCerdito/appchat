@@ -116,7 +116,7 @@
           </div>
 
           <div class="session-right">
-            <span class="session-time">{{ session.createdAt | date:'dd/MM HH:mm' }}</span>
+            <span class="session-time">{{ session.createdAt | date:'dd/MM HH:mm':'America/Bogota' }}</span>
             <span class="badge" [ngClass]="'badge-' + session.status">
               {{ getStatusLabel(session.status) }}
             </span>
@@ -167,7 +167,7 @@
               <span class="client-name">{{ activeSession.clientName }}</span>
               <span class="session-meta">
                 {{ activeSession.advisor?.name ? 'Atendido por ' + activeSession.advisor!.name : 'Sin asesor asignado' }}
-                · {{ activeSession.createdAt | date:'dd/MM/yyyy HH:mm' }}
+                · {{ activeSession.createdAt | date:'dd/MM/yyyy HH:mm':'America/Bogota' }}
               </span>
               @if (activeSession.colegio || activeSession.rol) {
               <span class="session-meta">
@@ -264,7 +264,7 @@
                 </svg>
                 <span>{{ msg.content }}</span>
               </div>
-              <span class="system-time">{{ msg.createdAt | date:'HH:mm' }}</span>
+              <span class="system-time">{{ msg.createdAt | date:'HH:mm':'America/Bogota' }}</span>
             </div>
             }
 
@@ -275,7 +275,7 @@
               [class.theirs]="msg.senderType === 'client'">
               <span class="sender">{{ msg.senderName }}</span>
               <div class="bubble">{{ msg.content }}</div>
-              <span class="time">{{ msg.createdAt | date:'HH:mm' }}</span>
+              <span class="time">{{ msg.createdAt | date:'HH:mm':'America/Bogota' }}</span>
             </div>
             }
 

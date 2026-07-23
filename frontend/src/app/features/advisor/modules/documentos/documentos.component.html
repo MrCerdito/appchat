@@ -208,7 +208,7 @@
             </div>
           </td>
           <td class="center"><span class="tag tag-chunks">{{ doc.total_chunks }}</span></td>
-          <td class="muted">{{ doc.created_at | date: 'dd/MM/yyyy' }}</td>
+          <td class="muted">{{ doc.created_at | date: 'dd/MM/yyyy':'America/Bogota' }}</td>
           <td>
             <div class="actions-cell">
               @if (doc.pdf_url) {
@@ -268,7 +268,7 @@
           <span class="doc-desc">{{ doc.descripcion }}</span>
           }
         </div>
-        <span class="mobile-card-date">{{ doc.created_at | date: 'dd/MM/yy' }}</span>
+        <span class="mobile-card-date">{{ doc.created_at | date: 'dd/MM/yy':'America/Bogota' }}</span>
       </div>
 
       <div class="mobile-card-meta">

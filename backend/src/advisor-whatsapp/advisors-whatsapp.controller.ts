@@ -22,9 +22,7 @@ import { Repository } from 'typeorm';
 import { Request } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { join } from 'path';
-import { existsSync, mkdirSync } from 'fs';
+import { memoryStorage } from 'multer';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { TicketsService } from '../tickets/tickets.service';
 import {
@@ -522,6 +520,58 @@ export class AdvisorsWhatsappController {
     }
   }
 
+  @Post('chats/:chatId/messages/:messageId/reply')
+  @UseGuards(JwtAuthGuard)
+  async replyToMessage(
+    @Req() req: Request & { user: any },
+    @Param('chatId') chatId: string,
+    @Param('messageId') messageId: string,
+    @Body() body: { text: string },
+  ) {
+    if (!body.text) {
+      return { ok: false, error: 'El campo "text" es obligatorio.' };
+    }
+    const result = await this.whatsappService.replyToMessage(
+      req.user.id,
+      req.user.role,
+      chatId,
+      messageId,
+      body.text,
+    );
+    this.whatsappGateway.emitIncoming({
+      chat: result.chat,
+      message: result.message,
+      assignedAdvisorId: result.chat.assignedTo,
+    });
+    return { ok: true, messageId: result.message.id, chat: result.chat };
+  }
+
+  @Post('chats/:chatId/messages/:messageId/forward')
+  @UseGuards(JwtAuthGuard)
+  async forwardMessage(
+    @Req() req: Request & { user: any },
+    @Param('chatId') chatId: string,
+    @Param('messageId') messageId: string,
+    @Body() body: { targetChatId: string },
+  ) {
+    if (!body.targetChatId) {
+      return { ok: false, error: 'El campo "targetChatId" es obligatorio.' };
+    }
+    const result = await this.whatsappService.forwardMessage(
+      req.user.id,
+      req.user.role,
+      chatId,
+      messageId,
+      body.targetChatId,
+    );
+    this.whatsappGateway.emitIncoming({
+      chat: result.chat,
+      message: result.message,
+      assignedAdvisorId: result.chat.assignedTo,
+    });
+    return { ok: true, messageId: result.message.id, chat: result.chat };
+  }
+
   @Post('send-template')
   @UseGuards(JwtAuthGuard)
   async sendTemplate(
@@ -569,17 +619,7 @@ export class AdvisorsWhatsappController {
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (_req, _file, cb) => {
-          const dir = join(process.cwd(), 'uploads', 'whatsapp');
-          if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-          cb(null, dir);
-        },
-        filename: (_req, file, cb) => {
-          const ext = file.originalname.split('.').pop() || 'bin';
-          cb(null, `wa-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`);
-        },
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: 64 * 1024 * 1024 },
     }),
   )
@@ -592,25 +632,19 @@ export class AdvisorsWhatsappController {
       return { ok: false, error: 'Los campos "to" y "file" son obligatorios.' };
     }
 
-    try {
-      const result = await this.whatsappService.sendAdvisorMedia(
-        req.user.id,
-        req.user.role,
-        body.to,
-        file,
-        body.caption ?? '',
-      );
-      this.whatsappGateway.emitIncoming({
-        chat: result.chat,
-        message: result.message,
-        assignedAdvisorId: result.chat.assignedTo,
-      });
-      return { ok: true, messageId: result.message.id, chat: result.chat };
-    } catch (err: any) {
-      const metaError = err.response?.data;
-      this.logger.error('Error enviando archivo:', metaError ?? err.message);
-      return { ok: false, error: metaError ?? err.message };
-    }
+    const result = await this.whatsappService.sendAdvisorMedia(
+      req.user.id,
+      req.user.role,
+      body.to,
+      file,
+      body.caption ?? '',
+    );
+    this.whatsappGateway.emitIncoming({
+      chat: result.chat,
+      message: result.message,
+      assignedAdvisorId: result.chat.assignedTo,
+    });
+    return { ok: true, messageId: result.message.id, chat: result.chat };
   }
 
   @Post(':id/ticket')

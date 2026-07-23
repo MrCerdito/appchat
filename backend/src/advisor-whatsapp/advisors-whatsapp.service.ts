@@ -99,6 +99,10 @@ export interface WaMessageDto {
   reactionToMessageId?: string;
   reactionByName?: string;
   reactionRemoved?: boolean;
+  replyToMessageId?: string;
+  quotedBody?: string;
+  quotedSender?: string;
+  isForwarded?: boolean;
 }
 
 export interface WaChatDto {
@@ -1173,7 +1177,25 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       skip,
       take: limit,
     });
-    return messages.map((message) => this.toMessageDto(message));
+
+    const replyIds = [...new Set(
+      messages
+        .map(m => m.replyToMessageId)
+        .filter((id): id is string => !!id),
+    )];
+
+    const quotedMap = new Map<string, { body: string; senderName: string }>();
+    if (replyIds.length) {
+      const quotedMsgs = await this.messageRepo.find({
+        where: replyIds.map(id => ({ metaMessageId: id })),
+        select: ['metaMessageId', 'body', 'senderName'],
+      });
+      for (const q of quotedMsgs) {
+        if (q.metaMessageId) quotedMap.set(q.metaMessageId, { body: q.body, senderName: q.senderName });
+      }
+    }
+
+    return messages.map((message) => this.toMessageDto(message, quotedMap));
   }
 
   async editAdvisorMessage(
@@ -1312,6 +1334,193 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       chat: await this.toChatDto(chat, true),
       message: this.toMessageDto(message),
     };
+  }
+
+  async replyToMessage(
+    advisorId: string,
+    role: string,
+    chatId: string,
+    messageId: string,
+    text: string,
+  ): Promise<{ chat: WaChatDto; message: WaMessageDto }> {
+    this.assertWhatsappUserRole(role);
+    const cleanText = sanitizeOutboundText(text, this.maxTextLength);
+    if (!cleanText) throw new BadRequestException('Mensaje requerido');
+
+    const target = await this.messageRepo.findOne({
+      where: { id: messageId, chat: { id: chatId } },
+      relations: ['chat', 'chat.assignedAdvisor'],
+    });
+    if (!target) throw new NotFoundException('Mensaje no encontrado');
+
+    const chat = target.chat;
+    if (
+      !chat.isGroup &&
+      role !== 'admin' &&
+      chat.assignedAdvisor?.id !== advisorId
+    ) {
+      throw new ForbiddenException('Este chat esta asignado a otro asesor');
+    }
+
+    const advisor = await this.userRepo.findOne({ where: { id: advisorId } });
+    const jid = this.getChatJid(chat);
+
+    const contextInfo: any = {};
+    if (target.metaMessageId) {
+      contextInfo.stanzaId = target.metaMessageId;
+      const body = target.body || '';
+      const t = (target.type || 'text').toLowerCase();
+      if (t === 'image') {
+        contextInfo.quotedMessage = { imageMessage: { caption: body } };
+      } else if (t === 'video') {
+        contextInfo.quotedMessage = { videoMessage: { caption: body } };
+      } else if (t === 'audio') {
+        contextInfo.quotedMessage = { audioMessage: {} };
+      } else if (t === 'document') {
+        contextInfo.quotedMessage = { documentMessage: { fileName: target.fileName || 'archivo' } };
+      } else {
+        contextInfo.quotedMessage = { conversation: body };
+      }
+      if (chat.isGroup && target.participantJid) {
+        contextInfo.participant = target.participantJid;
+      }
+    }
+
+    const sock = await this.getReadySocket();
+    const payload: any = { text: cleanText };
+    if (Object.keys(contextInfo).length) payload.contextInfo = contextInfo;
+    const sent = await sock.sendMessage(jid, payload);
+
+    const metaMessageId = sent?.key?.id ?? null;
+    const message = await this.messageRepo.save(
+      this.messageRepo.create({
+        chat,
+        metaMessageId,
+        body: cleanText,
+        fromMe: true,
+        senderName: advisor?.name ?? 'Asesor',
+        participantJid: this.connectedJid,
+        advisor: advisor ?? null,
+        status: 'sent',
+        isAuto: false,
+        type: 'text',
+        replyToMessageId: target.metaMessageId ?? target.id,
+      }),
+    );
+
+    chat.lastMessageAt = new Date();
+    if (!chat.isGroup && chat.status === 'active') {
+      chat.operationalStatus = 'in_progress';
+    }
+    await this.chatRepo.save(chat);
+
+    return {
+      chat: await this.toChatDto(chat, true),
+      message: this.toMessageDto(message, new Map([
+        [message.replyToMessageId!, { body: target.body, senderName: target.senderName }],
+      ])),
+    };
+  }
+
+  async forwardMessage(
+    advisorId: string,
+    role: string,
+    chatId: string,
+    messageId: string,
+    targetChatId: string,
+  ): Promise<{ chat: WaChatDto; message: WaMessageDto }> {
+    this.assertWhatsappUserRole(role);
+
+    const sourceMsg = await this.messageRepo.findOne({
+      where: { id: messageId, chat: { id: chatId } },
+      relations: ['chat', 'chat.assignedAdvisor'],
+    });
+    if (!sourceMsg) throw new NotFoundException('Mensaje no encontrado');
+
+    const sourceChat = sourceMsg.chat;
+    if (
+      !sourceChat.isGroup &&
+      role !== 'admin' &&
+      sourceChat.assignedAdvisor?.id !== advisorId
+    ) {
+      throw new ForbiddenException('Este chat esta asignado a otro asesor');
+    }
+
+    const targetChat = await this.findChatOrFail(targetChatId);
+    if (
+      !targetChat.isGroup &&
+      role !== 'admin' &&
+      targetChat.assignedAdvisor?.id !== advisorId
+    ) {
+      throw new ForbiddenException('El chat destino esta asignado a otro asesor');
+    }
+
+    const advisor = await this.userRepo.findOne({ where: { id: advisorId } });
+    const jid = this.getChatJid(targetChat);
+
+    const sock = await this.getReadySocket();
+    let sent: any;
+
+    if (sourceMsg.mediaUrl && sourceMsg.type !== 'text') {
+      const mediaBuffer = await this.downloadMediaFromUrl(sourceMsg.mediaUrl).catch(() => null);
+      if (mediaBuffer) {
+        const payload: any = {};
+        if (sourceMsg.type === 'image') { payload.image = mediaBuffer; if (sourceMsg.mimeType) payload.mimetype = sourceMsg.mimeType; }
+        else if (sourceMsg.type === 'video') { payload.video = mediaBuffer; if (sourceMsg.mimeType) payload.mimetype = sourceMsg.mimeType; }
+        else if (sourceMsg.type === 'audio') { payload.audio = mediaBuffer; payload.mimetype = sourceMsg.mimeType || 'audio/ogg'; }
+        else { payload.document = mediaBuffer; payload.mimetype = sourceMsg.mimeType || 'application/octet-stream'; payload.fileName = sourceMsg.fileName || `archivo-${Date.now()}`; }
+        payload.contextInfo = { forwardingScore: 1, isForwarded: true };
+        sent = await sock.sendMessage(jid, payload);
+      }
+    }
+
+    if (!sent) {
+      sent = await sock.sendMessage(jid, {
+        text: sourceMsg.body || '[Mensaje reenviado]',
+        contextInfo: { forwardingScore: 1, isForwarded: true },
+      });
+    }
+
+    const metaMessageId = sent?.key?.id ?? null;
+    const message = await this.messageRepo.save(
+      this.messageRepo.create({
+        chat: targetChat,
+        metaMessageId,
+        body: sourceMsg.body || '[Mensaje reenviado]',
+        fromMe: true,
+        senderName: advisor?.name ?? 'Asesor',
+        participantJid: this.connectedJid,
+        advisor: advisor ?? null,
+        status: 'sent',
+        isAuto: false,
+        type: sourceMsg.type || 'text',
+        mediaUrl: sourceMsg.mediaUrl,
+        mimeType: sourceMsg.mimeType,
+        fileName: sourceMsg.fileName,
+        fileSize: sourceMsg.fileSize,
+        replyToMessageId: null,
+      }),
+    );
+
+    targetChat.lastMessageAt = new Date();
+    if (!targetChat.isGroup && targetChat.status === 'active') {
+      targetChat.operationalStatus = 'in_progress';
+    }
+    await this.chatRepo.save(targetChat);
+
+    return {
+      chat: await this.toChatDto(targetChat, true),
+      message: this.toMessageDto(message),
+    };
+  }
+
+  private async downloadMediaFromUrl(url: string): Promise<Buffer | null> {
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) return null;
+      const arrayBuf = await resp.arrayBuffer();
+      return Buffer.from(arrayBuf);
+    } catch { return null; }
   }
 
   async sendAdvisorMedia(
@@ -3116,7 +3325,8 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  private toMessageDto(message: WhatsappMessage): WaMessageDto {
+  private toMessageDto(message: WhatsappMessage, quotedMap?: Map<string, { body: string; senderName: string }>): WaMessageDto {
+    const quoted = message.replyToMessageId ? quotedMap?.get(message.replyToMessageId) : undefined;
     return {
       id: message.id,
       chatId: message.chat?.id,
@@ -3149,6 +3359,10 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
         message.type === 'reaction'
           ? !message.body || message.body === this.removedReactionBody
           : undefined,
+      replyToMessageId: message.replyToMessageId ?? undefined,
+      quotedBody: quoted?.body,
+      quotedSender: quoted?.senderName,
+      isForwarded: message.type === 'forwarded',
     };
   }
 

@@ -79,7 +79,7 @@
         <div class="mail-item-info">
           <div class="mail-item-top">
             <span class="mail-item-sender">{{ c.senderName }}</span>
-            <span class="mail-item-time">{{ c.createdAt | date:'dd/MM/yyyy' }}</span>
+            <span class="mail-item-time">{{ c.createdAt | date:'dd/MM/yyyy':'America/Bogota' }}</span>
           </div>
           <span class="mail-item-subject">{{ c.asunto }}</span>
           <span class="mail-item-preview" [innerHTML]="c.cuerpo | slice:0:80"></span>
@@ -147,10 +147,10 @@
               <span class="sender-name">{{ selected.senderName }}</span>
               <span class="sender-date">
                 {{ selected.status === 'sent'
-                    ? (selected.sentAt | date:'dd/MM/yyyy HH:mm')
+                    ? (selected.sentAt | date:'dd/MM/yyyy HH:mm':'America/Bogota')
                     : selected.status === 'failed'
-                      ? 'No enviado — ' + (selected.createdAt | date:'dd/MM/yyyy')
-                      : 'Borrador — ' + (selected.createdAt | date:'dd/MM/yyyy') }}
+                      ? 'No enviado — ' + (selected.createdAt | date:'dd/MM/yyyy':'America/Bogota')
+                      : 'Borrador — ' + (selected.createdAt | date:'dd/MM/yyyy':'America/Bogota') }}
               </span>
             </div>
           </div>

@@ -382,3 +382,42 @@ input[type="time"] {
 @keyframes slideDown { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes slideUp   { from { opacity: 0; transform: translateY(16px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @keyframes spin      { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+// ── Responsive ─────────────────────────────────────────────────────────────
+@media (max-width: 720px) {
+  .config-page { padding: 1rem; max-width: none; }
+  .config-header { flex-wrap: wrap; }
+  .btn-save { width: 100%; }
+  .tabs { overflow-x: auto; }
+  .tab { min-width: 130px; flex: 0 0 auto; }
+  .panel-section { padding: 1rem; border-radius: 12px; }
+  .fields-row { grid-template-columns: 1fr; }
+  .preview-bubble { max-width: 100%; }
+  .qr-item-header { padding: 0.7rem 0.8rem; }
+}
+
+@media (max-width: 480px) {
+  .config-page { padding: 0.75rem; }
+  .panel-section { padding: 0.85rem; }
+  .config-title { gap: 0.6rem; h1 { font-size: 1rem; } p { font-size: 0.75rem; } }
+  .config-icon { width: 36px; height: 36px; svg { width: 18px; height: 18px; } }
+  .tabs { gap: 2px; padding: 3px; }
+  .tab { min-width: 110px; padding: 0.5rem 0.6rem; font-size: 0.75rem; }
+  .qr-item-header { padding: 0.65rem 0.7rem; gap: 0.5rem; }
+  .qr-item-name { font-size: 0.8rem; }
+  .qr-item-preview { font-size: 0.72rem; }
+  .qr-item-actions { gap: 2px; }
+  .qr-btn-icon { width: 26px; height: 26px; svg { width: 12px; height: 12px; } }
+  .qr-toolbar { flex-wrap: wrap; }
+  .qr-toolbar-btn { padding: 3px 6px; font-size: 0.7rem; }
+  .qr-editor-fields { padding-top: 0.5rem; gap: 0.5rem; }
+  .qr-item-editor { padding: 0 0.7rem 0.7rem; }
+  .qr-add-btn { padding: 0.5rem 0.8rem; font-size: 0.78rem; }
+  .qr-link-modal { width: 90vw; padding: 1rem; border-radius: 12px; }
+  .qr-link-modal-actions { flex-direction: column; gap: 0.4rem; }
+  .qr-btn-cancel, .qr-btn-insert { width: 100%; text-align: center; justify-content: center; }
+  .field { textarea, input[type="number"] { padding: 0.55rem 0.7rem; font-size: 0.82rem; } }
+  .preview-box { padding: 0.75rem; }
+  .preview-bubble { font-size: 0.82rem; padding: 0.55rem 0.8rem; }
+  .btn-save { padding: 0.5rem 1rem; font-size: 0.82rem; }
+}
