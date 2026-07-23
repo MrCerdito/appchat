@@ -1,0 +1,918 @@
+<div class="config-page">
+
+  <div class="config-header">
+    <div class="config-title">
+      <div class="config-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+          stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06
+            a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09
+            A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83
+            l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09
+            A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83
+            l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09
+            a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83
+            l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09
+            a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </div>
+      <div>
+        <h1>Configuración global</h1>
+        <p>Jornada laboral, mensajes automáticos y comportamiento de la plataforma</p>
+      </div>
+    </div>
+    <button class="btn-save" [disabled]="saving" (click)="guardar()">
+      @if (saving) {
+      <svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+      </svg>
+      }
+      @if (!saving && !saved) {
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+        <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+      </svg>
+      }
+      @if (saved) {
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+      }
+      {{ saving ? 'Guardando...' : saved ? '¡Guardado!' : 'Guardar cambios' }}
+    </button>
+  </div>
+
+  @if (error) {
+  <div class="config-error">{{ error }}</div>
+  }
+
+  @if (loading) {
+  <div class="loading-state">
+    <div class="spinner"></div><span>Cargando configuración...</span>
+  </div>
+  }
+
+  @if (!loading && config) {
+  <div class="config-body">
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab" [class.active]="tab === 'jornada'" (click)="tab = 'jornada'">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+        </svg>
+        Jornada laboral
+      </button>
+      <button class="tab" [class.active]="tab === 'mensajes'" (click)="tab = 'mensajes'">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+        Mensajes
+      </button>
+      <button class="tab" [class.active]="tab === 'whatsapp'" (click)="tab = 'whatsapp'">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 11.5a8.4 8.4 0 0 1-12.6 7.3L3 20l1.4-5A8.4 8.4 0 1 1 21 11.5z"/>
+          <path d="M9.5 8.5c.3 3 2 4.8 5 5"/>
+        </svg>
+        WhatsApp
+      </button>
+      <button class="tab" [class.active]="tab === 'inactividad'" (click)="tab = 'inactividad'">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="8" r="4"/><path d="M6 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
+        </svg>
+        Inactividad
+      </button>
+      <button class="tab" [class.active]="tab === 'respuestas'" (click)="tab = 'respuestas'; initQuickRepliesFromConfig()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+        </svg>
+        Respuestas rapidas
+      </button>
+      <button class="tab" [class.active]="tab === 'ia'" (click)="tab = 'ia'">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.58-3.25 3.93"/><path d="M8 12a4 4 0 0 1 8 0"/>
+          <path d="M4 18c0-2.2 3.6-4 8-4s8 1.8 8 4"/><circle cx="8" cy="6" r="1" fill="currentColor"/>
+          <circle cx="16" cy="6" r="1" fill="currentColor"/>
+        </svg>
+        Prompt IA
+      </button>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════
+         TAB — JORNADA LABORAL
+    ══════════════════════════════════════════════════════════ -->
+    @if (tab === 'jornada') {
+    <div class="tab-panel">
+      <div class="panel-section">
+
+        <div class="section-info">
+          <h3>Jornada laboral global</h3>
+          <p>Define los días y horarios en que la plataforma acepta nuevas conversaciones.
+             Fuera de este horario los clientes verán el mensaje configurado abajo.</p>
+        </div>
+
+        <!-- Toggle global -->
+        <div class="toggle-row">
+          <div class="toggle-row-info">
+            <span class="toggle-label">Activar control de horarios</span>
+            <span class="toggle-sub">
+              Cuando está activo, los clientes solo pueden iniciar chats dentro del horario configurado
+            </span>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" [(ngModel)]="config.horariosActivos"/>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <!-- Selector de días -->
+        <div class="dias-selector" [class.disabled]="!config.horariosActivos">
+          @for (dia of dias; track trackByIndex($index)) {
+          <button class="dia-pill"
+            [class.dia-pill--active]="tieneHorario(dia.value)"
+            [class.dia-pill--selected]="diaSeleccionado === dia.value && tieneHorario(dia.value)"
+            (click)="seleccionarDia(dia.value)">
+            <span class="dia-pill-label">{{ dia.short }}</span>
+            @if (tieneHorario(dia.value)) {
+            <span class="dia-pill-dot"></span>
+            }
+          </button>
+          }
+        </div>
+
+        <!-- Panel del día seleccionado -->
+        @if (diaSeleccionado !== null && tieneHorario(diaSeleccionado)) {
+        <div class="dia-config-panel">
+
+          <div class="dia-config-header">
+            <div class="dia-config-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+              <h4>{{ getDiaNombre(diaSeleccionado) }}</h4>
+            </div>
+            <button class="btn-quitar" (click)="quitarDia(diaSeleccionado)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                <path d="M10 11v6"/><path d="M14 11v6"/>
+                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+              </svg>
+              Quitar día
+            </button>
+          </div>
+
+          <div class="dia-config-section">
+            <span class="section-row-label">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+              Horario de atención
+            </span>
+            <div class="time-row">
+              <div class="time-field">
+                <span class="time-field-label">Apertura</span>
+                <input type="time"
+                  [ngModel]="getHorario(diaSeleccionado).inicio"
+                  (ngModelChange)="setInicio(diaSeleccionado, $event)"
+                  [disabled]="!config.horariosActivos"/>
+              </div>
+              <div class="time-arrow">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+                </svg>
+              </div>
+              <div class="time-field">
+                <span class="time-field-label">Cierre</span>
+                <input type="time"
+                  [ngModel]="getHorario(diaSeleccionado).fin"
+                  (ngModelChange)="setFin(diaSeleccionado, $event)"
+                  [disabled]="!config.horariosActivos"/>
+              </div>
+            </div>
+          </div>
+
+          <!-- Barra visual -->
+          <div class="dia-resumen">
+            <div class="dia-resumen-bar">
+              <div class="resumen-slot"
+                [style.left.%]="horaAPct(getHorario(diaSeleccionado).inicio)"
+                [style.width.%]="horaAPct(getHorario(diaSeleccionado).fin) - horaAPct(getHorario(diaSeleccionado).inicio)">
+              </div>
+            </div>
+            <div class="dia-resumen-labels">
+              <span>7am</span><span>9am</span><span>11am</span>
+              <span>1pm</span><span>3pm</span><span>5pm</span><span>7pm</span>
+            </div>
+          </div>
+
+        </div>
+        }
+
+        <!-- Estado vacío -->
+        @if (diaSeleccionado === null || !tieneHorario(diaSeleccionado)) {
+        <div class="dia-empty">
+          <div class="dia-empty-inner">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+              stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+              <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+            <p>Selecciona un día para configurar su jornada</p>
+            <span>Haz clic en una píldora para activar o editar ese día</span>
+          </div>
+        </div>
+        }
+
+        <!-- Resumen de jornadas activas -->
+        @if (config.horarios.length > 0) {
+        <div class="jornada-resumen">
+          <span class="jornada-resumen-label">Jornada configurada</span>
+          <div class="jornada-chips">
+            @for (h of config.horarios; track trackByIndex($index)) {
+            <div class="jornada-chip">
+              <span class="chip-dia">{{ getDiaNombre(h.dia) }}</span>
+              <span class="chip-hora">{{ h.inicio }} – {{ h.fin }}</span>
+            </div>
+            }
+          </div>
+        </div>
+        }
+
+        <!-- Mensaje fuera de horario -->
+        <div class="field">
+          <label>Mensaje fuera de horario</label>
+          <textarea [(ngModel)]="config.horarioFueraMsg" rows="3"
+            placeholder=""></textarea>
+          <span class="field-hint">
+            El cliente verá este mensaje cuando intente iniciar un chat fuera del horario configurado
+          </span>
+        </div>
+
+      </div>
+    </div>
+    }
+
+    <!-- ══════════════════════════════════════════════════════════
+         TAB — MENSAJES
+    ══════════════════════════════════════════════════════════ -->
+    @if (tab === 'mensajes') {
+    <div class="tab-panel">
+      <div class="panel-section">
+        <div class="section-info">
+          <h3>Mensaje de bienvenida por defecto</h3>
+          <p>Mensaje que envían los asesores al conectarse con un cliente.
+             Cada asesor puede personalizarlo en su propia configuración.
+             Usa <code [innerHTML]="'{{' + 'asesor' + '}}'"></code> para el nombre.</p>
+        </div>
+        <div class="field">
+          <label>Mensaje</label>
+          <textarea [(ngModel)]="config.mensajeBienvenida" rows="4"
+            [attr.placeholder]="placeholderBienvenida"></textarea>
+        </div>
+        <div class="preview-box">
+          <span class="preview-label">Vista previa</span>
+          <div class="preview-bubble">{{ config.mensajeBienvenida || '(vacío)' }}</div>
+        </div>
+      </div>
+
+      <!-- ── Sonido ─────────────────────────────────────── -->
+      <div class="panel-section">
+        <div class="section-info">
+          <h3>Sonido de notificaciones</h3>
+          <p>Controla los sonidos que se reproducen al recibir nuevos mensajes y notificaciones en la plataforma</p>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-row-info">
+            <span class="toggle-label">Activar sonidos</span>
+            <span class="toggle-sub">Reproduce un sonido al recibir nuevos mensajes, asignaciones o notificaciones</span>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" [(ngModel)]="config.sonidoActivado"/>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        @if (config.sonidoActivado) {
+        <div class="sound-grid">
+          <div class="sound-category">
+            <label>Sonido WhatsApp</label>
+            <div class="sound-select-row">
+              <select [(ngModel)]="config.sonidoWhatsapp">
+                @for (opt of sonidoWhatsappOptions; track trackByIndex($index)) {
+                <option [value]="opt.value">{{ opt.label }}</option>
+                }
+              </select>
+              <button class="btn-test" (click)="testSound('whatsapp', config.sonidoWhatsapp)" title="Probar sonido">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="sound-category">
+            <label>Sonido Asesor</label>
+            <div class="sound-select-row">
+              <select [(ngModel)]="config.sonidoAsesor">
+                @for (opt of sonidoAsesorOptions; track trackByIndex($index)) {
+                <option [value]="opt.value">{{ opt.label }}</option>
+                }
+              </select>
+              <button class="btn-test" (click)="testSound('asesor', config.sonidoAsesor)" title="Probar sonido">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="sound-category">
+            <label>Sonido Cliente</label>
+            <div class="sound-select-row">
+              <select [(ngModel)]="config.sonidoCliente">
+                @for (opt of sonidoClienteOptions; track trackByIndex($index)) {
+                <option [value]="opt.value">{{ opt.label }}</option>
+                }
+              </select>
+              <button class="btn-test" (click)="testSound('cliente', config.sonidoCliente)" title="Probar sonido">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="sound-category">
+            <label>Sonido Asignación</label>
+            <div class="sound-select-row">
+              <select [(ngModel)]="config.sonidoAsignacion">
+                @for (opt of sonidoAsignacionOptions; track trackByIndex($index)) {
+                <option [value]="opt.value">{{ opt.label }}</option>
+                }
+              </select>
+              <button class="btn-test" (click)="testSound('asignacion', config.sonidoAsignacion)" title="Probar sonido">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        }
+      </div>
+    </div>
+    }
+
+    <!-- ══════════════════════════════════════════════════════════
+         TAB — INACTIVIDAD
+    ══════════════════════════════════════════════════════════ -->
+    @if (tab === 'whatsapp') {
+    <div class="tab-panel">
+      <div class="panel-section whatsapp-settings">
+        <div class="section-info">
+          <h3>Mensajes automaticos de WhatsApp</h3>
+          <p>Define los textos que recibe el cliente cuando entra a cola, cuando se le asigna un asesor y cuando escribe fuera del horario de servicio.</p>
+        </div>
+
+        <div class="placeholder-row">
+          <span>Variables disponibles</span>
+          <code [innerHTML]="'{{' + 'asesor' + '}}'"></code>
+          <code [innerHTML]="'{{' + 'proximaApertura' + '}}'"></code>
+          <code [innerHTML]="'{{' + 'horaApertura' + '}}'"></code>
+        </div>
+
+        <div class="field">
+          <label>Mensaje cuando se asigna un asesor</label>
+          <textarea [(ngModel)]="config.whatsappAssignmentMsg" rows="3"
+            [attr.placeholder]="placeholderWhatsappAsignacion"></textarea>
+          <span class="field-hint">Usa <code [innerHTML]="'{{' + 'asesor' + '}}'"></code> para insertar el nombre del asesor asignado.</span>
+        </div>
+        <div class="preview-box">
+          <span class="preview-label">Vista previa</span>
+          <div class="preview-bubble">{{ previewWhatsappAssignment() }}</div>
+        </div>
+
+        <div class="field">
+          <label>Mensaje de cola</label>
+          <textarea [(ngModel)]="config.whatsappQueueMsg" rows="3"
+            [attr.placeholder]="placeholderWhatsappCola"></textarea>
+        </div>
+        <div class="preview-box">
+          <span class="preview-label">Vista previa</span>
+          <div class="preview-bubble">{{ config.whatsappQueueMsg || '(vacio)' }}</div>
+        </div>
+
+        <div class="field">
+          <label>Mensaje fuera de servicio</label>
+          <textarea [(ngModel)]="config.whatsappOutOfHoursMsg" rows="3"
+            [attr.placeholder]="placeholderWhatsappFuera"></textarea>
+          <span class="field-hint">Este mensaje se enviara si el cliente escribe fuera de la jornada laboral configurada.</span>
+        </div>
+        <div class="preview-box">
+          <span class="preview-label">Vista previa</span>
+          <div class="preview-bubble">{{ previewWhatsappOutOfHours() }}</div>
+        </div>
+
+        <div class="field">
+          <label>Mensaje cuando llaman por WhatsApp</label>
+          <textarea [(ngModel)]="config.whatsappCallUnavailableMsg" rows="3"
+            [attr.placeholder]="placeholderWhatsappLlamada"></textarea>
+          <span class="field-hint">Se envia automaticamente al rechazar una llamada o videollamada entrante.</span>
+        </div>
+        <div class="preview-box">
+          <span class="preview-label">Vista previa</span>
+          <div class="preview-bubble">{{ config.whatsappCallUnavailableMsg || '(vacio)' }}</div>
+        </div>
+      </div>
+    </div>
+    }
+
+    @if (tab === 'inactividad') {
+    <div class="tab-panel">
+      <div class="panel-section">
+
+        <div class="section-info">
+          <h3>Parámetros de inactividad</h3>
+          <p>Configuración global que aplica a todos los asesores que no tengan
+             valores personalizados. Los asesores pueden sobrescribir estos valores
+             en su propia configuración.</p>
+        </div>
+
+        <!-- Inactividad asesor -->
+        <div class="inac-block">
+          <div class="inac-block-title">
+            <div class="inac-icon inac-icon--amber">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="8" r="4"/>
+                <path d="M6 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
+              </svg>
+            </div>
+            <div>
+              <span class="inac-title">Inactividad del asesor</span>
+              <span class="inac-sub">Si el asesor no responde en este tiempo, se envía un mensaje automático al cliente</span>
+            </div>
+          </div>
+          <div class="fields-row">
+            <div class="field">
+              <label>Tiempo de espera</label>
+              <div class="time-input">
+                <input type="number" min="1" max="60"
+                  [ngModel]="segsToMins(config.asesorInactividadSeg)"
+                  (ngModelChange)="setAsesorMins($event)"/>
+                <span class="time-unit">minutos</span>
+              </div>
+              <span class="field-hint">Recomendado: 2–5 min</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>Mensaje automático al cliente</label>
+            <textarea [(ngModel)]="config.asesorInactividadMsg" rows="2"
+              placeholder="Estamos trabajando en tu solicitud..."></textarea>
+          </div>
+        </div>
+
+        <div class="inac-divider"></div>
+
+        <!-- Inactividad cliente -->
+        <div class="inac-block">
+          <div class="inac-block-title">
+            <div class="inac-icon inac-icon--blue">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="8" r="4"/>
+                <path d="M6 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
+              </svg>
+            </div>
+            <div>
+              <span class="inac-title">Inactividad del cliente</span>
+              <span class="inac-sub">Si el cliente no responde, se envían avisos periódicos y al agotar los intentos se cierra la sesión</span>
+            </div>
+          </div>
+          <div class="fields-row">
+            <div class="field">
+              <label>Tiempo entre avisos</label>
+              <div class="time-input">
+                <input type="number" min="1" max="60"
+                  [ngModel]="segsToMins(config.clienteInactividadSeg)"
+                  (ngModelChange)="setClienteMins($event)"/>
+                <span class="time-unit">minutos</span>
+              </div>
+            </div>
+            <div class="field">
+              <label>Avisos antes de cerrar</label>
+              <div class="time-input">
+                <input type="number" min="1" max="5" [(ngModel)]="config.clienteInactividadIters"/>
+                <span class="time-unit">avisos</span>
+              </div>
+            </div>
+          </div>
+          <div class="field">
+            <label>Mensaje de aviso</label>
+            <textarea [(ngModel)]="config.clienteInactividadMsg" rows="2"
+              placeholder="¿Sigues en línea? Tu sesión se cerrará pronto..."></textarea>
+          </div>
+        <div class="field">
+          <label>Mensaje de cierre</label>
+          <textarea [(ngModel)]="config.clienteCierreMsg" rows="2"
+            placeholder="La sesión ha sido cerrada por inactividad."></textarea>
+        </div>
+      </div>
+
+        <!-- Flujo visual -->
+        <div class="flow-preview">
+          <span class="flow-label">Flujo de cierre automático</span>
+          <div class="flow-steps">
+            <div class="flow-step"><div class="flow-dot blue"></div>
+              <span>Cliente inactivo {{ segsToMins(config.clienteInactividadSeg) }} min</span></div>
+            <div class="flow-arrow">↓</div>
+            @for (i of getIters(); track trackByIndex($index)) {
+            <div class="flow-step"><div class="flow-dot amber"></div>
+              <span>Aviso {{ i + 1 }}: "{{ (config.clienteInactividadMsg || '') | slice:0:50 }}{{ config.clienteInactividadMsg.length > 50 ? '…' : '' }}"</span></div>
+            <div class="flow-arrow">↓</div>
+            }
+            <div class="flow-step"><div class="flow-dot red"></div>
+              <span>Sesión cerrada automáticamente</span></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    }
+
+    <!-- ══════════════════════════════════════════════════════════
+         TAB — RESPUESTAS RÁPIDAS
+    ══════════════════════════════════════════════════════════ -->
+    @if (tab === 'respuestas') {
+    <div class="tab-panel">
+      <div class="panel-section">
+        <div class="section-info">
+          <h3>Respuestas rapidas con /</h3>
+          <p>Define las respuestas que los asesores pueden usar escribiendo <code>/</code> en el chat.
+             Cada respuesta tiene un nombre para identificarla y el contenido que se enviara.
+             Soporta <code>**negrita**</code> y <code>[texto](url)</code> para links.</p>
+        </div>
+
+        <div class="qr-list">
+          @for (reply of quickReplies; track trackByIndex($index); let i = $index) {
+          <div class="qr-item">
+            <div class="qr-item-header" (click)="startEditReply(i)">
+              <div class="qr-item-info">
+                <span class="qr-item-name">{{ reply.name || '(sin nombre)' }}</span>
+                <span class="qr-item-preview">{{ formatPreview(reply.content) }}</span>
+              </div>
+              <div class="qr-item-actions">
+                <button type="button" class="qr-btn-icon" (click)="$event.stopPropagation(); moveQuickReply(i, -1)" [disabled]="i === 0" title="Mover arriba">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 15l-6-6-6 6"/></svg>
+                </button>
+                <button type="button" class="qr-btn-icon" (click)="$event.stopPropagation(); moveQuickReply(i, 1)" [disabled]="i === quickReplies.length - 1" title="Mover abajo">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <button type="button" class="qr-btn-icon qr-btn-danger" (click)="$event.stopPropagation(); removeQuickReply(i)" title="Eliminar">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                </button>
+              </div>
+            </div>
+
+            @if (editingReplyIdx === i) {
+            <div class="qr-item-editor">
+              <div class="qr-editor-fields">
+                <div class="field">
+                  <label>Nombre</label>
+                  <input type="text" [(ngModel)]="reply.name" placeholder="Ej: Saludo, Documentacion..." maxlength="60"/>
+                </div>
+                <div class="field">
+                  <label>Contenido</label>
+                  <div class="qr-toolbar">
+                    <button type="button" class="qr-toolbar-btn" (click)="insertBold()" title="Negrita">
+                      <strong>B</strong>
+                    </button>
+                    <button type="button" class="qr-toolbar-btn" (click)="openLinkModal()" title="Insertar link">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                      Link
+                    </button>
+                  </div>
+                  <textarea #replyContent [(ngModel)]="reply.content" rows="4" placeholder="Escribe el contenido de la respuesta..." (click)="onTextareaClick($any($event.target))" (focus)="onTextareaClick($any($event.target))"></textarea>
+                  <span class="field-hint">
+                    Usa <code>**texto**</code> para negrita y <code>[nombre](url)</code> para links.
+                    Maximo 500 caracteres.
+                  </span>
+                </div>
+              </div>
+            </div>
+            }
+          </div>
+          }
+        </div>
+
+        <button type="button" class="qr-add-btn" (click)="addQuickReply()" [disabled]="quickReplies.length >= 20">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+          Nueva respuesta rapida
+        </button>
+        @if (quickReplies.length >= 20) {
+        <span class="field-hint">Maximo 20 respuestas rapidas.</span>
+        }
+
+        <!-- Modal insertar link -->
+        @if (showLinkModal) {
+        <div class="qr-link-modal-overlay" (click)="closeLinkModal()">
+          <div class="qr-link-modal" (click)="$event.stopPropagation()">
+            <h4>Insertar link</h4>
+            <div class="field">
+              <label>Texto a mostrar</label>
+              <input type="text" [(ngModel)]="linkName" placeholder="Ej: Documentacion, Sitio web..."/>
+            </div>
+            <div class="field">
+              <label>URL</label>
+              <input type="url" [(ngModel)]="linkUrl" placeholder="https://..."/>
+            </div>
+            <div class="qr-link-modal-actions">
+              <button type="button" class="qr-btn-cancel" (click)="closeLinkModal()">Cancelar</button>
+              <button type="button" class="qr-btn-insert" (click)="insertLink()" [disabled]="!linkName.trim() || !linkUrl.trim()">Insertar</button>
+            </div>
+          </div>
+        </div>
+        }
+
+      </div>
+    </div>
+    }
+
+    <!-- ══════════════════════════════════════════════════════════
+         TAB — PROMPT IA
+    ══════════════════════════════════════════════════════════ -->
+    @if (tab === 'ia') {
+    <div class="tab-panel">
+      <div class="panel-section">
+        <div class="section-info">
+          <h3>Configuracion del Asistente IA</h3>
+          <p>Personaliza como la IA responde a los clientes. Los campos se usan para armar el prompt automaticamente.
+             Si necesitas control total, usa el editor avanzado abajo.</p>
+        </div>
+
+        <!-- Seccion: Identidad -->
+        <div class="ia-section">
+          <div class="ia-section-header" (click)="toggleIaSection('identidad')">
+            <div class="ia-section-header-left">
+              <div class="ia-section-icon ia-section-icon--purple">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                  <circle cx="12" cy="7" r="4"/>
+                </svg>
+              </div>
+              <span class="ia-section-title">Identidad</span>
+            </div>
+            <svg class="ia-chevron" [class.open]="iaSectionOpen.identidad" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
+          @if (iaSectionOpen.identidad) {
+          <div class="ia-section-body">
+            <div class="field">
+              <label>Nombre del asistente</label>
+              <input type="text" [(ngModel)]="aiPromptNombre" maxlength="200" placeholder="asistente virtual de atencion al cliente"/>
+              <span class="field-hint">Identidad principal de la IA (ej: "asistente virtual de atencion al cliente")</span>
+            </div>
+            <div class="field">
+              <label>Especialidad</label>
+              <input type="text" [(ngModel)]="aiPromptEspecialidad" maxlength="200" placeholder="colegios"/>
+              <span class="field-hint">Area de conocimiento (ej: "colegios", "tecnologia", "salud")</span>
+            </div>
+          </div>
+          }
+        </div>
+
+        <!-- Seccion: Instrucciones generales -->
+        <div class="ia-section">
+          <div class="ia-section-header" (click)="toggleIaSection('instrucciones')">
+            <div class="ia-section-header-left">
+              <div class="ia-section-icon ia-section-icon--blue">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+                </svg>
+              </div>
+              <span class="ia-section-title">Instrucciones generales</span>
+            </div>
+            <svg class="ia-chevron" [class.open]="iaSectionOpen.instrucciones" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
+          @if (iaSectionOpen.instrucciones) {
+          <div class="ia-section-body">
+            <div class="field">
+              <label>Como debe responder la IA</label>
+              <textarea [(ngModel)]="aiPromptInstrucciones" rows="4"
+                placeholder="Responde de forma clara, amable y concisa en espanol. Adapta el lenguaje al rol del usuario."></textarea>
+              <span class="field-hint">Instrucciones de comportamiento general de la IA</span>
+            </div>
+          </div>
+          }
+        </div>
+
+        <!-- Seccion: Configuracion por Rol -->
+        <div class="ia-section">
+          <div class="ia-section-header" (click)="toggleIaSection('roles')">
+            <div class="ia-section-header-left">
+              <div class="ia-section-icon ia-section-icon--amber">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                  <circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+              </div>
+              <span class="ia-section-title">Configuracion por Rol</span>
+            </div>
+            <svg class="ia-chevron" [class.open]="iaSectionOpen.roles" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
+          @if (iaSectionOpen.roles) {
+          <div class="ia-section-body">
+            <span class="ia-chips-label">Selecciona un rol para configurar</span>
+            <div class="ia-role-tabs">
+              @for (role of aiRoles; track role.key) {
+              <button class="ia-role-tab" [class.active]="selectedRole === role.key" (click)="selectRole(role.key)">
+                {{ role.label }}
+              </button>
+              }
+            </div>
+
+            <div class="ia-role-panel">
+              <div class="field">
+                <label>Descripcion del rol</label>
+                <textarea [(ngModel)]="getRoleConfig(selectedRole).descripcion" rows="2"
+                  placeholder="Que puede hacer este rol..."></textarea>
+                <span class="field-hint">Describe que tipo de usuario es y que acceso tiene</span>
+              </div>
+
+              <div class="field">
+                <label>Temas restringidos</label>
+                <span class="field-hint">Temas que la IA NO puede responder para este rol. Chips: haz clic en el [x] para eliminar</span>
+                <div class="ia-chips">
+                  @for (topic of getRoleConfig(selectedRole).temasRestringidos; track topic) {
+                  <span class="ia-chip ia-chip--amber">
+                    {{ topic }}
+                    <button type="button" class="ia-chip-remove" (click)="removeRestrictedTopic(topic)">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12" height="12"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
+                    </button>
+                  </span>
+                  }
+                  @if (getRoleConfig(selectedRole).temasRestringidos.length === 0) {
+                  <span class="ia-chips-empty">Sin temas restringidos (acceso completo)</span>
+                  }
+                </div>
+                <div class="ia-add-phrase">
+                  <input type="text" [(ngModel)]="newRestrictedTopic" placeholder="Ej: pagos, notas, nomina..." maxlength="50"
+                    (keydown.enter)="addRestrictedTopic()"/>
+                  <button type="button" class="ia-add-btn" (click)="addRestrictedTopic()" [disabled]="!newRestrictedTopic.trim()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                    Agregar
+                  </button>
+                </div>
+              </div>
+
+              <div class="field">
+                <label>Mensaje cuando pregunta tema restringido</label>
+                <textarea [(ngModel)]="getRoleConfig(selectedRole).mensajeRestringido" rows="3"
+                  placeholder="Lo siento, no puedo proporcionar esa informacion..."></textarea>
+                <span class="field-hint">Este mensaje se envia cuando el usuario pregunta algo restringido para su rol</span>
+              </div>
+            </div>
+
+          </div>
+          }
+        </div>
+
+        <!-- Seccion: Transferencia a asesor -->
+        <div class="ia-section">
+          <div class="ia-section-header" (click)="toggleIaSection('transferencia')">
+            <div class="ia-section-header-left">
+              <div class="ia-section-icon ia-section-icon--green">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+              </div>
+              <span class="ia-section-title">Transferencia a asesor</span>
+            </div>
+            <svg class="ia-chevron" [class.open]="iaSectionOpen.transferencia" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
+          @if (iaSectionOpen.transferencia) {
+          <div class="ia-section-body">
+            <span class="ia-chips-label">Frases que activan la transferencia</span>
+            <div class="ia-chips">
+              @for (phrase of aiPromptFrasesTransferencia; track phrase) {
+              <span class="ia-chip">
+                {{ phrase }}
+                <button type="button" class="ia-chip-remove" (click)="removeTransferPhrase(phrase)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12" height="12"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
+                </button>
+              </span>
+              }
+            </div>
+            <div class="ia-add-phrase">
+              <input type="text" [(ngModel)]="newTransferPhrase" placeholder="Escribir frase..." maxlength="50"
+                (keydown.enter)="addTransferPhrase()"/>
+              <button type="button" class="ia-add-btn" (click)="addTransferPhrase()" [disabled]="!newTransferPhrase.trim()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                Agregar
+              </button>
+            </div>
+          </div>
+          }
+        </div>
+
+        <!-- Seccion: Feedback -->
+        <div class="ia-section">
+          <div class="ia-section-header" (click)="toggleIaSection('feedback')">
+            <div class="ia-section-header-left">
+              <div class="ia-section-icon ia-section-icon--teal">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
+                </svg>
+              </div>
+              <span class="ia-section-title">Control de feedback</span>
+            </div>
+            <svg class="ia-chevron" [class.open]="iaSectionOpen.feedback" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
+          @if (iaSectionOpen.feedback) {
+          <div class="ia-section-body">
+            <div class="field">
+              <label>Cuando marcar como resuelto</label>
+              <textarea [(ngModel)]="aiPromptFeedback" rows="3"
+                placeholder="SOLO si resolviste completamente una pregunta real y concreta"></textarea>
+              <span class="field-hint">La IA usa esto para decidir si muestra el boton de calificacion al cliente</span>
+            </div>
+          </div>
+          }
+        </div>
+
+        <!-- Seccion: Editor avanzado -->
+        <div class="ia-section">
+          <div class="ia-section-header" (click)="toggleIaSection('avanzado')">
+            <div class="ia-section-header-left">
+              <div class="ia-section-icon ia-section-icon--gray">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+                </svg>
+              </div>
+              <span class="ia-section-title">Editor avanzado</span>
+              @if (aiPromptUseCustom) {
+              <span class="ia-badge">Activo</span>
+              }
+            </div>
+            <svg class="ia-chevron" [class.open]="iaSectionOpen.avanzado" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
+          @if (iaSectionOpen.avanzado) {
+          <div class="ia-section-body">
+            <div class="toggle-row">
+              <div class="toggle-row-info">
+                <span class="toggle-label">Usar prompt personalizado</span>
+                <span class="toggle-sub">Cuando esta activo, la IA usa este prompt completo e ignora las secciones de arriba</span>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" [(ngModel)]="aiPromptUseCustom"/>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            @if (aiPromptUseCustom) {
+            <div class="field">
+              <label>Prompt completo</label>
+              <textarea [(ngModel)]="aiPromptPersonalizado" rows="12" class="ia-textarea"
+                placeholder="Escribe el prompt completo aqui. Puedes usar variables como CLIENT_NAME, COLEGIO, ROL, MOTIVO, DESCRIPCION_ROL, TEMAS_RESTRINGIDOS, MENSAJE_RESTRINGIDO, CONTEXTO_RAG."></textarea>
+              <span class="field-hint">Variables disponibles:
+                <code [innerHTML]="'{{' + 'CLIENT_NAME' + '}}'"></code>
+                <code [innerHTML]="'{{' + 'COLEGIO' + '}}'"></code>
+                <code [innerHTML]="'{{' + 'ROL' + '}}'"></code>
+                <code [innerHTML]="'{{' + 'MOTIVO' + '}}'"></code>
+                <code [innerHTML]="'{{' + 'DESCRIPCION_ROL' + '}}'"></code>
+                <code [innerHTML]="'{{' + 'TEMAS_RESTRINGIDOS' + '}}'"></code>
+                <code [innerHTML]="'{{' + 'MENSAJE_RESTRINGIDO' + '}}'"></code>
+                <code [innerHTML]="'{{' + 'CONTEXTO_RAG' + '}}'"></code>
+              </span>
+            </div>
+            }
+          </div>
+          }
+        </div>
+
+        <div class="ia-actions">
+          <button type="button" class="ia-reset-btn" (click)="resetAiPrompt()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+              <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+            </svg>
+            Restablecer predeterminado
+          </button>
+        </div>
+
+      </div>
+    </div>
+    }
+
+  </div>
+  }
+</div>

@@ -1,0 +1,72 @@
+<div class="faq-screen">
+  <div class="faq-header">
+    <div class="faq-header-text">
+      <h2>Preguntas Frecuentes</h2>
+      <p>Encuentra respuestas rápidas a tus dudas</p>
+    </div>
+    <button class="faq-chat-btn primary" (click)="irAlChat()">
+      Iniciar conversación
+    </button>
+  </div>
+
+  <div class="faq-search">
+    <svg class="faq-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+    <input type="text" [(ngModel)]="filtroTexto" placeholder="Buscar preguntas..." class="faq-search-input"/>
+  </div>
+
+  @if (categorias.length > 0) {
+  <div class="faq-categorias">
+    <button class="faq-cat-pill"
+      [class.active]="!categoriaActiva"
+      (click)="categoriaActiva = ''">
+      Todas
+    </button>
+    @for (cat of categorias; track $index) {
+    <button class="faq-cat-pill"
+      [class.active]="categoriaActiva === cat"
+      (click)="selectCategoria(cat)">
+      {{ cat }}
+    </button>
+    }
+  </div>
+  }
+
+  @if (!cargando) {
+  <div class="faq-lista">
+    @if (faqsFiltradas.length === 0) {
+    <div class="faq-empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        <line x1="8" y1="11" x2="14" y2="11"/>
+      </svg>
+      <p>No encontramos resultados para "<strong>{{ filtroTexto }}</strong>"</p>
+    <button class="faq-chat-btn primary" (click)="irAlChat()">
+        Iniciar conversación
+      </button>
+    </div>
+    }
+
+    @for (faq of faqsFiltradas; track $index) {
+    <div class="faq-item">
+      <button class="faq-pregunta" (click)="toggleFaq(faq.id)">
+        <span>{{ faq.pregunta }}</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+          [class.rotated]="faqExpandida === faq.id">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+      @if (faqExpandida === faq.id) {
+      <div class="faq-respuesta" [innerHTML]="formatearRespuesta(faq.respuesta)"></div>
+      }
+    </div>
+    }
+  </div>
+  } @else {
+  <div class="faq-loading">
+    <div class="faq-spinner"></div>
+    <p>Cargando preguntas frecuentes...</p>
+  </div>
+  }
+</div>

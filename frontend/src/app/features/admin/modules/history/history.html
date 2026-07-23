@@ -1,0 +1,128 @@
+<div class="history-page">
+  <div class="page-header">
+    <div>
+      <h1>Historial de sesiones</h1>
+      <p>Todas las conversaciones del sistema</p>
+    </div>
+  </div>
+
+  <div class="history-layout">
+    <aside class="sessions-sidebar">
+      <div class="search-bar">
+        <input type="text" [(ngModel)]="search" placeholder="Buscar cliente o asesor..." />
+      </div>
+      <div class="filter-tabs">
+        <button [class.active]="filter === 'all'"    (click)="filter = 'all'">Todos</button>
+        <button [class.active]="filter === 'active'" (click)="filter = 'active'">Activos</button>
+        <button [class.active]="filter === 'closed'" (click)="filter = 'closed'">Cerrados</button>
+      </div>
+      @if (loading) {
+      <div class="loading-skeleton">
+        @for (_ of [].constructor(5); track $index) {
+        <div class="skel-row"></div>
+        }
+      </div>
+      }
+      <cdk-virtual-scroll-viewport
+        *ngIf="!loading"
+        itemSize="68"
+        minBufferPx="200"
+        maxBufferPx="400"
+        class="sessions-list"
+      >
+        <div
+          *cdkVirtualFor="let session of filteredSessions; trackBy: trackSession"
+          class="session-card"
+          [class.selected]="activeSession?.id === session.id"
+          [class.is-closed]="session.status === 'closed'"
+          (click)="selectSession(session)"
+        >
+          <div class="session-avatar" [class.closed]="session.status === 'closed'">
+            {{ session.clientName.charAt(0) }}
+            @if (unreadFor(session.id) > 0) {
+            <span class="unread-dot"></span>
+            }
+          </div>
+          <div class="session-info">
+            <span class="session-name">
+              {{ session.clientName }}
+              @if (unreadFor(session.id) > 0) {
+              <span class="unread-badge">{{ unreadFor(session.id) }}</span>
+              }
+            </span>
+            <span class="session-preview">
+              {{ session.advisor?.name ? 'Asesor: ' + session.advisor!.name : 'Sin asesor' }}
+            </span>
+          </div>
+          <div class="session-right">
+            <span class="session-time">{{ session.createdAt | date: 'dd/MM HH:mm':'America/Bogota' }}</span>
+            <span class="badge" [class]="'badge-' + session.status">
+              {{ getStatusLabel(session.status) }}
+            </span>
+          </div>
+        </div>
+        @if (loadingMore) {
+        <div class="loading-more">
+          <i class="ti ti-loader-2"></i> Cargando mas sesiones...
+        </div>
+        }
+        @if (filteredSessions.length === 0) {
+        <div class="empty-list">
+          <span>Sin resultados</span>
+        </div>
+        }
+      </cdk-virtual-scroll-viewport>
+    </aside>
+
+    <div class="chat-area">
+      @if (!activeSession) {
+      <div class="empty-state">
+        <h3>Selecciona una sesion</h3>
+        <p>Visualiza el historial completo de cualquier conversacion.</p>
+      </div>
+      }
+
+      @if (activeSession) {
+      <div class="chat-panel">
+        <div class="chat-header">
+          <div class="client-info">
+            <div class="avatar">{{ activeSession.clientName.charAt(0) }}</div>
+            <div>
+              <span class="client-name">{{ activeSession.clientName }}</span>
+              <span class="session-meta">
+                {{ activeSession.advisor?.name ? 'Atendido por ' + activeSession.advisor!.name : 'Sin asesor asignado' }}
+                · {{ activeSession.createdAt | date: 'dd/MM/yyyy HH:mm':'America/Bogota' }}
+              </span>
+            </div>
+          </div>
+          <span class="badge" [class]="'badge-' + activeSession.status">
+            {{ getStatusLabel(activeSession.status) }}
+          </span>
+        </div>
+
+        <div class="messages" #messagesContainer>
+          @if (loading) {
+          <div class="no-messages">Cargando mensajes...</div>
+          }
+          @for (msg of messages; track trackById($index, msg)) {
+          <div class="message"
+            [class.mine]="msg.senderType === 'advisor'"
+            [class.theirs]="msg.senderType === 'client'">
+            <span class="sender">{{ msg.senderName }}</span>
+            <div class="bubble">{{ msg.content }}</div>
+            <span class="time">{{ msg.createdAt | date: 'HH:mm':'America/Bogota' }}</span>
+          </div>
+          }
+          @if (!loading && messages.length === 0) {
+          <div class="no-messages">Sin mensajes</div>
+          }
+        </div>
+
+        <div class="readonly-notice">
+          Solo lectura — vista de administrador
+        </div>
+      </div>
+      }
+    </div>
+  </div>
+</div>

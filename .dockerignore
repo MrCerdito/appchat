@@ -1,0 +1,16 @@
+node_modules
+**/node_modules
+**/dist
+.git
+.github
+.env
+.env.*
+*.log
+uploads
+BD
+BD.csv
+Backup
+test
+deploy
+.opencode
+docker-compose.yml
