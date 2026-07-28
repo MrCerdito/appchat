@@ -371,7 +371,7 @@ export class SessionsController {
 
   @Post('colegios')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('administrador')
+  @Roles('admin')
   @HttpCode(HttpStatus.CREATED)
   createColegio(
     @Body(new ValidationPipe({ whitelist: true })) dto: CreateColegioDto,
@@ -381,7 +381,7 @@ export class SessionsController {
 
   @Patch('colegios/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('administrador')
+  @Roles('admin')
   @HttpCode(HttpStatus.OK)
   updateColegio(
     @Param('id') id: string,
@@ -392,9 +392,35 @@ export class SessionsController {
 
   @Delete('colegios/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('administrador')
+  @Roles('admin')
   @HttpCode(HttpStatus.OK)
   deleteColegio(@Param('id') id: string) {
     return this.sessionsService.deleteColegio(id);
+  }
+
+  // ── Import/Export Colegios ─────────────────────────────────
+
+  @Post('colegios/import')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @HttpCode(HttpStatus.CREATED)
+  async importColegios(@Body() data: CreateColegioDto[]) {
+    const results = await this.sessionsService.importColegios(data);
+    return { imported: results.length };
+  }
+
+  @Get('colegios/export')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  async exportColegios(@Query('format') format: string) {
+    const colegios = await this.sessionsService.exportColegios();
+    if (format === 'csv') {
+      const header = 'nombre;link;email\n';
+      const rows = colegios
+        .map((c) => `"${c.nombre}";"${c.link}";"${c.email ?? ''}"`)
+        .join('\n');
+      return { csv: header + rows, data: colegios };
+    }
+    return colegios;
   }
 }

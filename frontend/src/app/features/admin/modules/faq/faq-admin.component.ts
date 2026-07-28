@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { FaqService, Faq, CreateFaqDto } from '../../../../core/services/faq.service';
+import { NotificationService } from '../../../../core/services/notification.service';
 import { trackByIndex } from '../../../../shared/utils/track-by';
 
 @Component({
@@ -15,8 +16,13 @@ import { trackByIndex } from '../../../../shared/utils/track-by';
     <div class="faq-admin">
       <div class="faq-admin-header">
         <h2>Gestión de Preguntas Frecuentes</h2>
-        <button class="btn-add" (click)="abrirModal()">+ Nueva FAQ</button>
+        <div class="faq-admin-actions">
+          <button class="btn-add" (click)="exportarCsv()">Exportar CSV</button>
+          <button class="btn-add" (click)="fileInput.click()">Importar CSV</button>
+          <button class="btn-add" (click)="abrirModal()">+ Nueva FAQ</button>
+        </div>
       </div>
+      <input #fileInput type="file" accept=".csv" hidden (change)="importarCsv($event)" />
 
       <div class="faq-admin-search">
         <input type="text" [(ngModel)]="filtro" placeholder="Buscar preguntas..." (input)="filtrar()" />
@@ -103,9 +109,10 @@ import { trackByIndex } from '../../../../shared/utils/track-by';
   `,
   styles: [`
     .faq-admin { padding: 1.5rem; font-family: 'DM Sans', sans-serif; }
-    .faq-admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .faq-admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem; }
     .faq-admin-header h2 { margin: 0; font-size: 1.1rem; }
-    .btn-add { padding: 0.5rem 1rem; background: #1a1a1a; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 0.85rem; }
+    .faq-admin-actions { display: flex; gap: 0.5rem; }
+    .btn-add { padding: 0.5rem 1rem; background: #1a1a1a; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 0.85rem; white-space: nowrap; }
     .faq-admin-search { margin-bottom: 1rem; }
     .faq-admin-search input { width: 100%; padding: 0.6rem 0.85rem; border: 1px solid #e2ddd8; border-radius: 8px; font-family: inherit; font-size: 0.85rem; box-sizing: border-box; }
     .faq-row { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border: 1px solid #e2ddd8; border-radius: 10px; margin-bottom: 0.4rem; background: #fff; }
@@ -160,7 +167,39 @@ export class FaqAdminComponent implements OnInit, OnDestroy {
   constructor(
     private faqService: FaqService,
     private cdr: ChangeDetectorRef,
+    private notification: NotificationService,
   ) {}
+
+  exportarCsv(): void {
+    this.faqService.exportCsv().pipe(takeUntil(this.destroy$)).subscribe({
+      next: (blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'faqs.csv';
+        a.click();
+        window.URL.revokeObjectURL(url);
+      },
+      error: () => this.notification.error('Error', 'No se pudo exportar'),
+    });
+  }
+
+  importarCsv(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files?.length) return;
+    const file = input.files[0];
+    this.faqService.importCsv(file).pipe(takeUntil(this.destroy$)).subscribe({
+      next: (res) => {
+        this.notification.success('Importación completa', `${res.imported} preguntas importadas`);
+        input.value = '';
+        this.cargar();
+      },
+      error: (err) => {
+        this.notification.error('Error', err.error?.message || 'No se pudo importar el archivo');
+        input.value = '';
+      },
+    });
+  }
 
   ngOnInit(): void {
     this.cargar();

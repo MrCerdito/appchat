@@ -23,7 +23,7 @@ import { Attachment } from './entities/message.entity';
 // ─────────────────────────────────────────────────────────────────────────────
 // Tipos internos
 // ─────────────────────────────────────────────────────────────────────────────
-type TipoTimer = 'advisor' | 'client' | 'none';
+type TipoTimer = 'advisor' | 'client' | 'reconnection' | 'none';
 
 interface TimerEntry {
   tipo: TipoTimer;
@@ -170,6 +170,18 @@ export class ChatGateway
   async handleDisconnect(client: Socket) {
     if (client.data.role === 'advisor') {
       const advisorId = client.data.user?.id;
+      const advisorName = client.data.user?.name;
+
+      // Start reconnection timers for active sessions
+      if (advisorId) {
+        const activeSessions = await this.sessionsService
+          .findActiveSessionsByAdvisor(advisorId)
+          .catch(() => []);
+        for (const session of activeSessions) {
+          await this.arrancarTimerReconexion(session.id, advisorId, advisorName);
+        }
+      }
+
       // Remove from Redis + local state
       await this.redisState.cleanupAdvisor(advisorId);
       await this.sessionsService.setAdvisorStatus(advisorId, 'offline');
@@ -358,6 +370,16 @@ export class ChatGateway
           ? new Date(presence.lastSeen).toISOString()
           : undefined,
       });
+
+      // Cancel reconnection timer — advisor is back
+      const entry = this.timers.get(data.sessionId);
+      if (entry && entry.tipo === 'reconnection') {
+        this.cancelarTimerActivo(data.sessionId);
+        this.server.to(data.sessionId).emit('reconnection_ok', {
+          sessionId: data.sessionId,
+        });
+        this.logger.log(`[Reconexion] Asesor reconectado a sesión ${data.sessionId}`);
+      }
     }
 
     if (client.data.role === 'client') {
@@ -1256,6 +1278,116 @@ export class ChatGateway
     } finally {
       if (!entry.timeout && !entry.tick) entry.settingUp = false;
     }
+  }
+
+  private async arrancarTimerReconexion(
+    sessionId: string,
+    advisorId: string,
+    advisorName: string,
+  ): Promise<void> {
+    const config = await this.configuracionService
+      .getGlobal()
+      .catch(() => null);
+    if (!config) return;
+
+    const total = config.asesorReconexionSeg;
+    if (total <= 0) return;
+
+    // Cancel existing inactivity timer if any
+    this.cancelarTimerActivo(sessionId);
+
+    const entry: TimerEntry = {
+      tipo: 'reconnection',
+      timeout: null,
+      tick: null,
+      elapsed: 0,
+      iterCliente: 0,
+      advisorId,
+      settingUp: false,
+      startTime: Date.now(),
+      totalSecs: total,
+    };
+    this.timers.set(sessionId, entry);
+
+    // Notify client
+    this.server.to(sessionId).emit('session_interrupted', {
+      sessionId,
+      tiempoLimiteSeg: total,
+      mensaje: config.asesorReconexionMsg,
+    });
+
+    const tick = () => {
+      const realElapsed = Math.floor((Date.now() - entry.startTime) / 1000);
+      entry.elapsed = realElapsed;
+      if (realElapsed < total) {
+        const nextDelay = 1000 - ((Date.now() - entry.startTime) % 1000);
+        entry.tick = setTimeout(tick, nextDelay);
+      }
+    };
+    entry.tick = setTimeout(tick, 1000);
+
+    const remainingMs = total * 1000 - (Date.now() - entry.startTime);
+    entry.timeout = setTimeout(
+      async () => {
+        this.cancelarTimerActivo(sessionId);
+        const session = await this.sessionsService
+          .findOne(sessionId)
+          .catch(() => null);
+        if (!session || session.status !== 'active') return;
+        if (entry.tipo !== 'reconnection') return;
+
+        // Send disconnect message
+        const msg = await this.chatService.saveMessage(
+          sessionId,
+          config.asesorReconexionMsg,
+          'advisor',
+          'Sistema',
+        );
+        this.server.to(sessionId).emit('new_message', msg);
+
+        // Close session
+        await this.sessionsService.close(sessionId);
+        this.eliminarTimer(sessionId);
+
+        this.server.to(sessionId).emit('session_closed', { sessionId });
+        this.server.to(sessionId).emit('redirect_to_new_chat', {
+          sessionId,
+          mensaje:
+            'Hubo problemas de conexión. Por favor inicia una nueva conversación.',
+        });
+        this.server.emit('session_updated', {
+          sessionId,
+          status: 'closed',
+        });
+
+        if (advisorId) {
+          const a = await this.sessionsService
+            .findAdvisorById(advisorId)
+            .catch(() => null);
+          if (a) {
+            await this.redisState.setAdvisorStatus(a.id, a.status);
+            this.server.emit('advisor_status_changed', {
+              advisorId: a.id,
+              name: a.name,
+              status: a.status,
+              activeChats: a.activeChats,
+              profilePhotoUrl: a.profilePhotoUrl ?? null,
+            });
+          }
+          await this.activarLunchPendiente(advisorId);
+        }
+        await this.redisState.removeFromQueue(sessionId);
+        await this.redisState.deleteRateLimit(sessionId);
+        await this.redisState.deleteSessionSocket(sessionId);
+        await this.broadcastQueuePositions();
+        await this.assignPendingSessions();
+
+        this.logger.log(
+          `[Reconexion] Sesión ${sessionId} cerrada por reconexión fallida del asesor`,
+        );
+      },
+      Math.max(0, remainingMs),
+    );
   }
 
   private cancelarTimerActivo(sessionId: string): void {

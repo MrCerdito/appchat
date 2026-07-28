@@ -122,6 +122,14 @@ export class SessionService {
     return this.http.delete<{ ok: boolean }>(`${environment.apiUrl}/sessions/colegios/${id}`);
   }
 
+  exportColegios(): Observable<any> {
+    return this.http.get(`${environment.apiUrl}/sessions/colegios/export?format=csv`);
+  }
+
+  importColegios(data: any[]): Observable<{ imported: number }> {
+    return this.http.post<{ imported: number }>(`${environment.apiUrl}/sessions/colegios/import`, data);
+  }
+
   getMetricsByAdvisor(advisorId: string): Observable<AdvisorMetrics> {
     return this.http.get<AdvisorMetrics>(
       `${environment.apiUrl}/sessions/metrics/asesor/${advisorId}`

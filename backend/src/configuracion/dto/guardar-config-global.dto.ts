@@ -33,6 +33,17 @@ export class GuardarConfigGlobalDto {
   @IsOptional()
   @IsInt()
   @Min(10)
+  @Max(600)
+  asesorReconexionSeg?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  asesorReconexionMsg?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(10)
   @Max(3600)
   clienteInactividadSeg?: number;
 

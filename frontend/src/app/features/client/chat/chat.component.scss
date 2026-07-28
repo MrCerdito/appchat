@@ -736,6 +736,28 @@ $radius-pill: 999px;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// RECONEXION BANNER
+// ══════════════════════════════════════════════════════════════════════════════
+.reconexion-banner {
+  padding: 10px 24px;
+  background: #fff7ed;
+  border-bottom: 1px solid #fed7aa;
+
+  .reconexion-inner {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 13px; color: #9a3412;
+
+    svg { width: 20px; height: 20px; flex-shrink: 0; }
+
+    .reconexion-texto {
+      flex: 1;
+      strong { display: block; }
+      .reconexion-timer { font-size: 11px; opacity: 0.8; }
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // CODIGO BANNER
 // ══════════════════════════════════════════════════════════════════════════════
 .codigo-banner {

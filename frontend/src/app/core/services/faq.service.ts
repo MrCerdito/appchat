@@ -54,4 +54,14 @@ export class FaqService {
   remove(id: number): Observable<void> {
     return this.http.delete<void>(`${environment.apiUrl}/faq/${id}`);
   }
+
+  importCsv(file: File): Observable<{ imported: number }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<{ imported: number }>(`${environment.apiUrl}/faq/import`, formData);
+  }
+
+  exportCsv(): Observable<Blob> {
+    return this.http.get(`${environment.apiUrl}/faq/export`, { responseType: 'blob' });
+  }
 }

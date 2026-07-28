@@ -39,6 +39,13 @@ export class Configuracion {
   @Column({ name: 'asesor_inactividad_msg', type: 'text' })
   asesorInactividadMsg: string;
 
+  // ── Reconexion asesor ─────────────────────────────────────────────────────
+  @Column({ name: 'asesor_reconexion_seg', type: 'int', default: 120 })
+  asesorReconexionSeg: number;
+
+  @Column({ name: 'asesor_reconexion_msg', type: 'text' })
+  asesorReconexionMsg: string;
+
   // ── Inactividad cliente ───────────────────────────────────────────────────
   @Column({ name: 'cliente_inactividad_seg', type: 'int', default: 180 })
   clienteInactividadSeg: number;

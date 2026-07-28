@@ -713,6 +713,26 @@ export class SessionsService {
     return { ok: true };
   }
 
+  async importColegios(data: { nombre: string; link: string; email?: string }[]): Promise<Colegio[]> {
+    const created: Colegio[] = [];
+    for (const item of data) {
+      const existing = await this.colegioRepo.findOne({ where: { nombre: item.nombre } });
+      if (existing) continue;
+      const colegio = this.colegioRepo.create({
+        nombre: item.nombre,
+        link: item.link,
+        email: item.email ?? '',
+      });
+      created.push(await this.colegioRepo.save(colegio));
+    }
+    try { await this.cache.del(`${this.CACHE_PREFIX}colegios`); } catch {}
+    return created;
+  }
+
+  async exportColegios(): Promise<Colegio[]> {
+    return this.colegioRepo.find({ order: { nombre: 'ASC' } });
+  }
+
   async getRankingAsesores() {
     const cacheKey = `${this.CACHE_PREFIX}ranking`;
     try {

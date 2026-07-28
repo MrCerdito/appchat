@@ -65,6 +65,10 @@ export class ChatComponent implements OnInit, OnDestroy {
   aiTyping  = false;
   mostrarConfirmCierre    = false;
   mostrarAsesoresOcupados = false;
+  reconexionActiva = false;
+  reconexionMensaje = '';
+  reconexionSegundos = 0;
+  private reconexionInterval: any = null;
   Math = Math;
   
   marcaChat = 'Soporte en línea';
@@ -784,6 +788,44 @@ get rolLabel(): string {
         this.notification.error('Error', data?.reason ?? 'No se pudo unir a la sesión');
         this.clearSession();
       });
+
+    this.socket.on<{ sessionId: string; tiempoLimiteSeg: number; mensaje: string }>('session_interrupted')
+      .pipe(takeUntil(this.socketDestroy$))
+      .subscribe((data) => {
+        if (data.sessionId !== this.session?.id) return;
+        this.reconexionActiva = true;
+        this.reconexionMensaje = data.mensaje || 'El asesor se desconectó. Esperando reconexión...';
+        this.reconexionSegundos = data.tiempoLimiteSeg;
+        clearInterval(this.reconexionInterval);
+        this.reconexionInterval = setInterval(() => {
+          this.reconexionSegundos = Math.max(0, this.reconexionSegundos - 1);
+          this.cdr.detectChanges();
+          if (this.reconexionSegundos <= 0) {
+            clearInterval(this.reconexionInterval);
+            this.reconexionInterval = null;
+          }
+        }, 1000);
+        this.cdr.detectChanges();
+      });
+
+    this.socket.on<{ sessionId: string }>('reconnection_ok')
+      .pipe(takeUntil(this.socketDestroy$))
+      .subscribe((data) => {
+        if (data.sessionId !== this.session?.id) return;
+        this.reconexionActiva = false;
+        this.reconexionSegundos = 0;
+        clearInterval(this.reconexionInterval);
+        this.reconexionInterval = null;
+        this.cdr.detectChanges();
+      });
+
+    this.socket.on<{ sessionId: string; mensaje: string }>('redirect_to_new_chat')
+      .pipe(takeUntil(this.socketDestroy$))
+      .subscribe((data) => {
+        if (data.sessionId !== this.session?.id) return;
+        this.notification.info('Sesión cerrada', data.mensaje || 'Por favor inicia una nueva conversación.');
+        this.clearSession();
+      });
   }
 
   private handleVisibilityChange(): void {
@@ -1312,6 +1354,9 @@ private escapeHtml(value: string): string {
   // ══════════════════════════════════════════════════════════════════════════
 
   private clearSession(): void {
+    clearInterval(this.reconexionInterval);
+    this.reconexionInterval = null;
+    this.reconexionActiva = false;
     this.clearWaitingTimer();
     this.cancelarTimerInactividadIa();
     this.socketDestroy$.next();
@@ -1383,6 +1428,8 @@ private escapeHtml(value: string): string {
   
 
   ngOnDestroy(): void {
+    clearInterval(this.reconexionInterval);
+    this.reconexionInterval = null;
     window.removeEventListener('online',  this.onlineHandler);
     window.removeEventListener('offline', this.offlineHandler);
     document.removeEventListener('visibilitychange', this.visibilityHandler);

@@ -7,9 +7,14 @@ import {
   HttpStatus,
   Post,
   Request,
+  Res,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
   Header,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles, RolesGuard } from '../auth/roles.guard';
 import { Public } from '../auth/public.decorator';
@@ -73,6 +78,28 @@ export class ConfiguracionController {
   @HttpCode(HttpStatus.OK)
   resetear(@Request() req: any) {
     return this.svc.resetearOverride(req.user.id);
+  }
+
+  @Get('quick-replies/export')
+  @UseGuards(RolesGuard)
+  @Roles('admin')
+  async exportQuickRepliesCsv(@Res() res: Response) {
+    const csv = await this.svc.exportQuickRepliesCsv();
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="respuestas-rapidas.csv"');
+    res.send(csv);
+  }
+
+  @Post('quick-replies/import')
+  @HttpCode(HttpStatus.CREATED)
+  @UseGuards(RolesGuard)
+  @Roles('admin')
+  @UseInterceptors(FileInterceptor('file'))
+  async importQuickRepliesCsv(@UploadedFile() file: Express.Multer.File) {
+    if (!file) throw new Error('Archivo no proporcionado');
+    const csv = file.buffer.toString('utf-8');
+    const count = await this.svc.importQuickRepliesCsv(csv);
+    return { imported: count };
   }
 
   @Get('ticket-categories')

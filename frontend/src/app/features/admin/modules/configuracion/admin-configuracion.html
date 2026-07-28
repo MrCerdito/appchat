@@ -103,6 +103,12 @@
         </svg>
         Colegios
       </button>
+      <button class="tab" [class.active]="tab === 'reconexion'" (click)="tab = 'reconexion'">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+        </svg>
+        Reconexión
+      </button>
     </div>
 
     <!-- ══════════════════════════════════════════════════════════
@@ -279,14 +285,24 @@
              Cada asesor puede personalizarlo en su propia configuración.
              Usa <code [innerHTML]="'{{' + 'asesor' + '}}'"></code> para el nombre.</p>
         </div>
-        <div class="field">
-          <label>Mensaje</label>
-          <textarea [(ngModel)]="config.mensajeBienvenida" rows="4"
-            [attr.placeholder]="placeholderBienvenida"></textarea>
+        <div class="field-card">
+          <div class="field-card-header">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            <span>Mensaje de bienvenida</span>
+          </div>
+          <div class="field-card-body">
+            <div class="field">
+              <label>Texto del mensaje</label>
+              <textarea [(ngModel)]="config.mensajeBienvenida" rows="4"
+                [attr.placeholder]="placeholderBienvenida"></textarea>
+            </div>
+          </div>
         </div>
         <div class="preview-box">
           <span class="preview-label">Vista previa</span>
-          <div class="preview-bubble">{{ config.mensajeBienvenida || '(vacío)' }}</div>
+          <div class="preview-bubble">{{ config.mensajeBienvenida || placeholderBienvenida }}</div>
         </div>
       </div>
 
@@ -296,84 +312,95 @@
           <h3>Sonido de notificaciones</h3>
           <p>Controla los sonidos que se reproducen al recibir nuevos mensajes y notificaciones en la plataforma</p>
         </div>
-        <div class="toggle-row">
-          <div class="toggle-row-info">
-            <span class="toggle-label">Activar sonidos</span>
-            <span class="toggle-sub">Reproduce un sonido al recibir nuevos mensajes, asignaciones o notificaciones</span>
+        <div class="field-card">
+          <div class="field-card-header">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+            </svg>
+            <span>Configuración de sonidos</span>
           </div>
-          <label class="toggle">
-            <input type="checkbox" [(ngModel)]="config.sonidoActivado"/>
-            <span class="toggle-slider"></span>
-          </label>
+          <div class="field-card-body">
+            <div class="toggle-row">
+              <div class="toggle-row-info">
+                <span class="toggle-label">Activar sonidos</span>
+                <span class="toggle-sub">Reproduce un sonido al recibir nuevos mensajes, asignaciones o notificaciones</span>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" [(ngModel)]="config.sonidoActivado"/>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            @if (config.sonidoActivado) {
+            <div class="sound-grid">
+              <div class="sound-category">
+                <label>Sonido WhatsApp <span class="field-tip" title="Sonido para mensajes de WhatsApp">ⓘ</span></label>
+                <div class="sound-select-row">
+                  <select [(ngModel)]="config.sonidoWhatsapp">
+                    @for (opt of sonidoWhatsappOptions; track trackByIndex($index)) {
+                    <option [value]="opt.value">{{ opt.label }}</option>
+                    }
+                  </select>
+                  <button class="btn-test" (click)="testSound('whatsapp', config.sonidoWhatsapp)" title="Probar sonido">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                      <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div class="sound-category">
+                <label>Sonido Asesor <span class="field-tip" title="Sonido cuando un asesor escribe">ⓘ</span></label>
+                <div class="sound-select-row">
+                  <select [(ngModel)]="config.sonidoAsesor">
+                    @for (opt of sonidoAsesorOptions; track trackByIndex($index)) {
+                    <option [value]="opt.value">{{ opt.label }}</option>
+                    }
+                  </select>
+                  <button class="btn-test" (click)="testSound('asesor', config.sonidoAsesor)" title="Probar sonido">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                      <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div class="sound-category">
+                <label>Sonido Cliente <span class="field-tip" title="Sonido cuando un cliente escribe">ⓘ</span></label>
+                <div class="sound-select-row">
+                  <select [(ngModel)]="config.sonidoCliente">
+                    @for (opt of sonidoClienteOptions; track trackByIndex($index)) {
+                    <option [value]="opt.value">{{ opt.label }}</option>
+                    }
+                  </select>
+                  <button class="btn-test" (click)="testSound('cliente', config.sonidoCliente)" title="Probar sonido">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                      <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div class="sound-category">
+                <label>Sonido Asignación <span class="field-tip" title="Sonido cuando se asigna un nuevo chat">ⓘ</span></label>
+                <div class="sound-select-row">
+                  <select [(ngModel)]="config.sonidoAsignacion">
+                    @for (opt of sonidoAsignacionOptions; track trackByIndex($index)) {
+                    <option [value]="opt.value">{{ opt.label }}</option>
+                    }
+                  </select>
+                  <button class="btn-test" (click)="testSound('asignacion', config.sonidoAsignacion)" title="Probar sonido">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                      <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+            }
+          </div>
         </div>
-        @if (config.sonidoActivado) {
-        <div class="sound-grid">
-          <div class="sound-category">
-            <label>Sonido WhatsApp</label>
-            <div class="sound-select-row">
-              <select [(ngModel)]="config.sonidoWhatsapp">
-                @for (opt of sonidoWhatsappOptions; track trackByIndex($index)) {
-                <option [value]="opt.value">{{ opt.label }}</option>
-                }
-              </select>
-              <button class="btn-test" (click)="testSound('whatsapp', config.sonidoWhatsapp)" title="Probar sonido">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
-                </svg>
-              </button>
-            </div>
-          </div>
-          <div class="sound-category">
-            <label>Sonido Asesor</label>
-            <div class="sound-select-row">
-              <select [(ngModel)]="config.sonidoAsesor">
-                @for (opt of sonidoAsesorOptions; track trackByIndex($index)) {
-                <option [value]="opt.value">{{ opt.label }}</option>
-                }
-              </select>
-              <button class="btn-test" (click)="testSound('asesor', config.sonidoAsesor)" title="Probar sonido">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
-                </svg>
-              </button>
-            </div>
-          </div>
-          <div class="sound-category">
-            <label>Sonido Cliente</label>
-            <div class="sound-select-row">
-              <select [(ngModel)]="config.sonidoCliente">
-                @for (opt of sonidoClienteOptions; track trackByIndex($index)) {
-                <option [value]="opt.value">{{ opt.label }}</option>
-                }
-              </select>
-              <button class="btn-test" (click)="testSound('cliente', config.sonidoCliente)" title="Probar sonido">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
-                </svg>
-              </button>
-            </div>
-          </div>
-          <div class="sound-category">
-            <label>Sonido Asignación</label>
-            <div class="sound-select-row">
-              <select [(ngModel)]="config.sonidoAsignacion">
-                @for (opt of sonidoAsignacionOptions; track trackByIndex($index)) {
-                <option [value]="opt.value">{{ opt.label }}</option>
-                }
-              </select>
-              <button class="btn-test" (click)="testSound('asignacion', config.sonidoAsignacion)" title="Probar sonido">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
-        }
       </div>
     </div>
     }
@@ -453,86 +480,108 @@
              en su propia configuración.</p>
         </div>
 
-        <!-- Inactividad asesor -->
-        <div class="inac-block">
-          <div class="inac-block-title">
-            <div class="inac-icon inac-icon--amber">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="8" r="4"/>
-                <path d="M6 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
-              </svg>
-            </div>
-            <div>
-              <span class="inac-title">Inactividad del asesor</span>
-              <span class="inac-sub">Si el asesor no responde en este tiempo, se envía un mensaje automático al cliente</span>
-            </div>
+        <div class="field-card">
+          <div class="field-card-header field-card-header--amber">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+              <circle cx="12" cy="8" r="4"/>
+              <path d="M6 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
+            </svg>
+            <span>Inactividad del asesor</span>
           </div>
-          <div class="fields-row">
-            <div class="field">
-              <label>Tiempo de espera</label>
-              <div class="time-input">
-                <input type="number" min="1" max="60"
-                  [ngModel]="segsToMins(config.asesorInactividadSeg)"
-                  (ngModelChange)="setAsesorMins($event)"/>
-                <span class="time-unit">minutos</span>
+          <div class="field-card-body">
+            <div class="inac-block">
+              <div class="inac-block-title">
+                <div class="inac-icon inac-icon--amber">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="8" r="4"/>
+                    <path d="M6 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
+                  </svg>
+                </div>
+                <div>
+                  <span class="inac-title">Inactividad del asesor</span>
+                  <span class="inac-sub">Si el asesor no responde en este tiempo, se envía un mensaje automático al cliente</span>
+                </div>
               </div>
-              <span class="field-hint">Recomendado: 2–5 min</span>
+              <div class="fields-row">
+                <div class="field">
+                  <label>Tiempo de espera <span class="field-tip" title="Minutos sin respuesta antes de enviar aviso">ⓘ</span></label>
+                  <div class="time-input">
+                    <input type="number" min="1" max="60"
+                      [ngModel]="segsToMins(config.asesorInactividadSeg)"
+                      (ngModelChange)="setAsesorMins($event)"/>
+                    <span class="time-unit">minutos</span>
+                  </div>
+                  <span class="field-hint">Recomendado: 2–5 min</span>
+                </div>
+              </div>
+              <div class="field">
+                <label>Mensaje automático al cliente</label>
+                <textarea [(ngModel)]="config.asesorInactividadMsg" rows="2"
+                  placeholder="Estamos trabajando en tu solicitud..."></textarea>
+              </div>
             </div>
-          </div>
-          <div class="field">
-            <label>Mensaje automático al cliente</label>
-            <textarea [(ngModel)]="config.asesorInactividadMsg" rows="2"
-              placeholder="Estamos trabajando en tu solicitud..."></textarea>
           </div>
         </div>
 
         <div class="inac-divider"></div>
 
-        <!-- Inactividad cliente -->
-        <div class="inac-block">
-          <div class="inac-block-title">
-            <div class="inac-icon inac-icon--blue">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="8" r="4"/>
-                <path d="M6 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
-              </svg>
-            </div>
-            <div>
-              <span class="inac-title">Inactividad del cliente</span>
-              <span class="inac-sub">Si el cliente no responde, se envían avisos periódicos y al agotar los intentos se cierra la sesión</span>
-            </div>
+        <div class="field-card">
+          <div class="field-card-header field-card-header--blue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+              <circle cx="12" cy="8" r="4"/>
+              <path d="M6 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
+            </svg>
+            <span>Inactividad del cliente</span>
           </div>
-          <div class="fields-row">
-            <div class="field">
-              <label>Tiempo entre avisos</label>
-              <div class="time-input">
-                <input type="number" min="1" max="60"
-                  [ngModel]="segsToMins(config.clienteInactividadSeg)"
-                  (ngModelChange)="setClienteMins($event)"/>
-                <span class="time-unit">minutos</span>
+          <div class="field-card-body">
+            <div class="inac-block">
+              <div class="inac-block-title">
+                <div class="inac-icon inac-icon--blue">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="8" r="4"/>
+                    <path d="M6 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
+                  </svg>
+                </div>
+                <div>
+                  <span class="inac-title">Inactividad del cliente</span>
+                  <span class="inac-sub">Si el cliente no responde, se envían avisos periódicos y al agotar los intentos se cierra la sesión</span>
+                </div>
+              </div>
+              <div class="fields-row">
+                <div class="field">
+                  <label>Tiempo entre avisos <span class="field-tip" title="Tiempo de espera entre cada aviso al cliente">ⓘ</span></label>
+                  <div class="time-input">
+                    <input type="number" min="1" max="60"
+                      [ngModel]="segsToMins(config.clienteInactividadSeg)"
+                      (ngModelChange)="setClienteMins($event)"/>
+                    <span class="time-unit">minutos</span>
+                  </div>
+                </div>
+                <div class="field">
+                  <label>Avisos antes de cerrar <span class="field-tip" title="Número de avisos antes de cerrar la sesión automáticamente">ⓘ</span></label>
+                  <div class="time-input">
+                    <input type="number" min="1" max="5" [(ngModel)]="config.clienteInactividadIters"/>
+                    <span class="time-unit">avisos</span>
+                  </div>
+                </div>
+              </div>
+              <div class="field">
+                <label>Mensaje de aviso</label>
+                <textarea [(ngModel)]="config.clienteInactividadMsg" rows="2"
+                  placeholder="¿Sigues en línea? Tu sesión se cerrará pronto..."></textarea>
+              </div>
+              <div class="field">
+                <label>Mensaje de cierre</label>
+                <textarea [(ngModel)]="config.clienteCierreMsg" rows="2"
+                  placeholder="La sesión ha sido cerrada por inactividad."></textarea>
               </div>
             </div>
-            <div class="field">
-              <label>Avisos antes de cerrar</label>
-              <div class="time-input">
-                <input type="number" min="1" max="5" [(ngModel)]="config.clienteInactividadIters"/>
-                <span class="time-unit">avisos</span>
-              </div>
-            </div>
           </div>
-          <div class="field">
-            <label>Mensaje de aviso</label>
-            <textarea [(ngModel)]="config.clienteInactividadMsg" rows="2"
-              placeholder="¿Sigues en línea? Tu sesión se cerrará pronto..."></textarea>
-          </div>
-        <div class="field">
-          <label>Mensaje de cierre</label>
-          <textarea [(ngModel)]="config.clienteCierreMsg" rows="2"
-            placeholder="La sesión ha sido cerrada por inactividad."></textarea>
         </div>
-      </div>
 
         <!-- Flujo visual -->
         <div class="flow-preview">
@@ -566,6 +615,31 @@
           <p>Define las respuestas que los asesores pueden usar escribiendo <code>/</code> en el chat.
              Cada respuesta tiene un nombre para identificarla y el contenido que se enviara.
              Soporta <code>**negrita**</code> y <code>[texto](url)</code> para links.</p>
+        </div>
+
+        <!-- Barra de herramientas CSV -->
+        <div class="qr-toolbar-row">
+          <div class="qr-progress">
+            <div class="qr-progress-bar">
+              <div class="qr-progress-fill" [style.width.%]="(quickReplies.length / 20) * 100"></div>
+            </div>
+            <span class="qr-progress-text">{{ quickReplies.length }} / 20</span>
+          </div>
+          <div class="qr-csv-actions">
+            <button type="button" class="qr-csv-btn" (click)="exportarQuickRepliesCsv()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              Exportar CSV
+            </button>
+            <button type="button" class="qr-csv-btn qr-csv-btn--import" (click)="qrFileInput.click()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              Importar CSV
+            </button>
+            <input #qrFileInput type="file" accept=".csv" hidden (change)="importarQuickRepliesCsv($event)" />
+          </div>
         </div>
 
         <div class="qr-list">
@@ -922,6 +996,61 @@
     <!-- ══════════════════════════════════════════════════════════
          TAB — COLEGIOS
     ══════════════════════════════════════════════════════════ -->
+    <!-- ══════════════════════════════════════════════════════════
+         TAB — RECONEXIÓN
+    ══════════════════════════════════════════════════════════ -->
+    @if (tab === 'reconexion') {
+    <div class="tab-panel">
+      <div class="panel-section">
+        <div class="section-info">
+          <h3>Reconexión de asesores</h3>
+          <p>Cuando un asesor se desconecta inesperadamente, el sistema esperará este tiempo antes de cerrar la sesión y ofrecer al cliente iniciar una nueva.</p>
+        </div>
+
+        <div class="field-card">
+          <div class="field-card-header">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+            <span>Configuración de reconexión</span>
+          </div>
+          <div class="field-card-body">
+            <div class="fields-row">
+              <div class="field">
+                <label>
+                  Tiempo de espera
+                  <span class="field-tip" title="Segundos que el sistema esperará antes de cerrar la sesión">ⓘ</span>
+                </label>
+                <div class="time-input">
+                  <input type="number" [(ngModel)]="config.asesorReconexionSeg" min="30" max="600" />
+                  <span class="time-unit">segundos</span>
+                </div>
+                <span class="field-hint">Recomendado: 120–300 segundos (2–5 min)</span>
+              </div>
+              <div class="field">
+                <label>Vista previa del tiempo</label>
+                <div class="preview-chip">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  <span>{{ config.asesorReconexionSeg }}s — El cliente esperará {{ config.asesorReconexionSeg >= 60 ? (config.asesorReconexionSeg / 60 | number:'1.0-0') + ' min' : config.asesorReconexionSeg + ' seg' }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="field">
+              <label>Mensaje de reconexión</label>
+              <textarea [(ngModel)]="config.asesorReconexionMsg" rows="3" maxlength="500"></textarea>
+              <span class="field-hint">Mensaje que se muestra al cliente mientras espera la reconexión del asesor. Máximo 500 caracteres.</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="preview-box">
+          <span class="preview-label">Vista previa del mensaje</span>
+          <div class="preview-bubble">{{ config.asesorReconexionMsg || '(sin mensaje definido)' }}</div>
+        </div>
+      </div>
+    </div>
+    }
+
     @if (tab === 'colegios') {
     <div class="tab-panel">
       <div class="panel-section">
@@ -932,7 +1061,7 @@
              del formulario de registro del chat.</p>
         </div>
 
-        <!-- Barra de búsqueda + botón agregar -->
+        <!-- Barra de búsqueda + botones -->
         <div class="colegios-toolbar">
           <div class="colegios-search">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -940,12 +1069,21 @@
             </svg>
             <input type="text" [(ngModel)]="colegioSearch" placeholder="Buscar colegio..."/>
           </div>
-          <button class="btn-add-colegio" (click)="openColegioForm()" [disabled]="colegioFormVisible">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-            Agregar colegio
-          </button>
+          <div class="colegios-toolbar-actions">
+            <button class="btn-add-colegio" (click)="exportarColegiosCsv()">
+              Exportar CSV
+            </button>
+            <button class="btn-add-colegio" (click)="colegioFileInput.click()">
+              Importar CSV
+            </button>
+            <input #colegioFileInput type="file" accept=".csv" hidden (change)="importarColegiosCsv($event)" />
+            <button class="btn-add-colegio" (click)="openColegioForm()" [disabled]="colegioFormVisible">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              Agregar colegio
+            </button>
+          </div>
         </div>
 
         <!-- Formulario crear/editar -->

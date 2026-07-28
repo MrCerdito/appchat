@@ -40,6 +40,8 @@ export interface ConfiguracionData {
   sonidoCliente: string;
   sonidoAsignacion: string;
   aiPromptConfig: Record<string, any> | null;
+  asesorReconexionSeg: number;
+  asesorReconexionMsg: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -70,6 +72,16 @@ export class ConfiguracionFrontendService {
 
   guardarQuickReplies(data: { whatsappQuickReplies: any[] }): Observable<any> {
     return this.http.post(`${this.url}/quick-replies`, data);
+  }
+
+  exportQuickRepliesCsv(): Observable<Blob> {
+    return this.http.get(`${this.url}/quick-replies/export`, { responseType: 'blob' });
+  }
+
+  importQuickRepliesCsv(file: File): Observable<{ imported: number }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<{ imported: number }>(`${this.url}/quick-replies/import`, formData);
   }
 
   resetear(): Observable<{ ok: boolean }> {

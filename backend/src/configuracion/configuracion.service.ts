@@ -1,4 +1,4 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
@@ -76,6 +76,15 @@ export class ConfiguracionService implements OnModuleInit {
       ALTER TABLE IF EXISTS public.configuracion
       ADD COLUMN IF NOT EXISTS ai_prompt_config jsonb DEFAULT NULL
     `);
+    await this.repo.query(`
+      ALTER TABLE IF EXISTS public.configuracion
+      ADD COLUMN IF NOT EXISTS asesor_reconexion_seg int NOT NULL DEFAULT 120
+    `);
+    await this.repo.query(`
+      ALTER TABLE IF EXISTS public.configuracion
+      ADD COLUMN IF NOT EXISTS asesor_reconexion_msg text NOT NULL
+      DEFAULT 'El asesor se ha desconectado. Por favor inicia una nueva conversacion.'
+    `);
 
     const count = await this.repo.count({ where: { advisorId: null as any } });
     if (count === 0) {
@@ -99,6 +108,56 @@ export class ConfiguracionService implements OnModuleInit {
     try {
       await this.cache.set(key, data, this.CACHE_TTL_MS);
     } catch {}
+  }
+
+  async exportQuickRepliesCsv(): Promise<string> {
+    const config = await this.getGlobal();
+    const replies = config.whatsappQuickReplies ?? [];
+    const header = '"name";"content"';
+    const esc = (s: string) => `"${(s ?? '').replace(/"/g, '""')}"`;
+    const rows = replies.map((r: any) => [esc(r.name), esc(r.content)].join(';'));
+    return [header, ...rows].join('\n');
+  }
+
+  async importQuickRepliesCsv(csv: string): Promise<number> {
+    const lines = csv.split('\n').filter((l) => l.trim());
+    if (lines.length < 2) return 0;
+
+    const header = lines[0].toLowerCase();
+    const cols = header.split(';').map((c: string) => c.trim().replace(/"/g, ''));
+    const nIdx = cols.indexOf('name');
+    const cIdx = cols.indexOf('content');
+
+    if (nIdx === -1 || cIdx === -1)
+      throw new BadRequestException('CSV debe tener columnas "name" y "content"');
+
+    const replies: any[] = [];
+    for (let i = 1; i < lines.length; i++) {
+      const vals = this.parseQuickReplyCsvLine(lines[i]);
+      const name = vals[nIdx]?.trim();
+      const content = vals[cIdx]?.trim();
+      if (name && content) {
+        replies.push({ name: name.slice(0, 60), content: content.slice(0, 500) });
+      }
+    }
+
+    if (!replies.length) return 0;
+
+    await this.guardar({ whatsappQuickReplies: replies.slice(0, 20) }, undefined);
+    return Math.min(replies.length, 20);
+  }
+
+  private parseQuickReplyCsvLine(line: string): string[] {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    for (const ch of line) {
+      if (ch === '"') { inQuotes = !inQuotes; continue; }
+      if (ch === ';' && !inQuotes) { result.push(current); current = ''; continue; }
+      current += ch;
+    }
+    result.push(current);
+    return result;
   }
 
   private async invalidateCache(advisorId?: string): Promise<void> {
@@ -132,6 +191,9 @@ export class ConfiguracionService implements OnModuleInit {
       mensajeBienvenida: '¡Bienvenido! ¿En qué puedo ayudarte?',
       asesorInactividadMsg:
         'El asesor se ha desconectado. En breve lo atenderá otro.',
+      asesorReconexionSeg: 120,
+      asesorReconexionMsg:
+        'El asesor se ha desconectado. Por favor inicia una nueva conversacion.',
       clienteInactividadMsg: '¿Sigues ahí? Escribe algo para continuar.',
       clienteCierreMsg: 'Gracias por contactarnos. Que tengas un buen día.',
       horarioFueraMsg:
@@ -272,6 +334,7 @@ export class ConfiguracionService implements OnModuleInit {
     const textKeys: (keyof Configuracion)[] = [
       'mensajeBienvenida',
       'asesorInactividadMsg',
+      'asesorReconexionMsg',
       'clienteInactividadMsg',
       'clienteCierreMsg',
       'horarioFueraMsg',

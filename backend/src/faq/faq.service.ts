@@ -106,6 +106,66 @@ export class FaqService {
     await this.invalidateCache();
   }
 
+  async importCsv(csv: string): Promise<Faq[]> {
+    const lines = csv.split('\n').filter((l) => l.trim());
+    if (lines.length < 2) return [];
+
+    const header = lines[0].toLowerCase();
+    const cols = header.split(';').map((c) => c.trim().replace(/"/g, ''));
+    const pIdx = cols.indexOf('pregunta');
+    const rIdx = cols.indexOf('respuesta');
+    const cIdx = cols.indexOf('categoria');
+    const oIdx = cols.indexOf('orden');
+    const aIdx = cols.indexOf('activo');
+
+    if (pIdx === -1 || rIdx === -1)
+      throw new Error('CSV debe tener columnas "pregunta" y "respuesta"');
+
+    const created: Faq[] = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const vals = this.parseCsvLine(lines[i]);
+      const dto: any = {
+        pregunta: vals[pIdx]?.trim(),
+        respuesta: vals[rIdx]?.trim(),
+        categoria: cIdx !== -1 ? vals[cIdx]?.trim() || null : null,
+        orden: oIdx !== -1 ? Number(vals[oIdx]) || 0 : 0,
+        activo: aIdx !== -1 ? vals[aIdx]?.trim().toLowerCase() !== 'false' : true,
+      };
+      if (dto.pregunta && dto.respuesta) {
+        const faq = this.faqRepo.create(dto as Faq);
+        await this.faqRepo.save(faq);
+        created.push(faq);
+      }
+    }
+
+    if (created.length) await this.invalidateCache();
+    return created;
+  }
+
+  async exportCsv(): Promise<string> {
+    const faqs = await this.faqRepo.find({ order: { orden: 'ASC', id: 'DESC' } });
+    const header = '"pregunta";"respuesta";"categoria";"orden";"activo"';
+    const rows = faqs.map((f) => {
+      const esc = (s: string) => `"${(s ?? '').replace(/"/g, '""')}"`;
+      return [esc(f.pregunta), esc(f.respuesta), esc(f.categoria ?? ''), f.orden, f.activo].join(';');
+    });
+    return [header, ...rows].join('\n');
+  }
+
+  private parseCsvLine(line: string): string[] {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    for (const ch of line) {
+      if (ch === '"') { inQuotes = !inQuotes; continue; }
+      if (ch === ';' && !inQuotes) { result.push(current); current = ''; continue; }
+      current += ch;
+    }
+    result.push(current);
+    return result;
+  }
+
   private async invalidateCache(): Promise<void> {
     try {
       await this.cache.del('faq:list:all:');

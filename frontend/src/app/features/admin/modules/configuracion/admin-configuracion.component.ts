@@ -1,5 +1,5 @@
 import { ChangeDetectorRef, Component, OnDestroy, OnInit, ChangeDetectionStrategy } from '@angular/core';
-import { SlicePipe } from '@angular/common';
+import { DecimalPipe, SlicePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
@@ -15,12 +15,12 @@ import { WaConnectionStatus } from '../../../../core/models/whatsapp.models';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
 import { Colegio, SessionService } from '../../../../core/services/session.service';
 
-type ConfigTab = 'jornada' | 'whatsapp' | 'mensajes' | 'inactividad' | 'respuestas' | 'ia' | 'colegios';
+type ConfigTab = 'jornada' | 'whatsapp' | 'mensajes' | 'inactividad' | 'respuestas' | 'ia' | 'colegios' | 'reconexion';
 
 @Component({
   selector: 'app-admin-configuracion',
   standalone: true,
-  imports: [FormsModule, SlicePipe],
+  imports: [FormsModule, SlicePipe, DecimalPipe],
   templateUrl: './admin-configuracion.html',
   styleUrl: './admin-configuracion.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -338,6 +338,8 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
       sonidoAsesor: config.sonidoAsesor ?? 'asesor1',
       sonidoCliente: config.sonidoCliente ?? 'cliente1',
       sonidoAsignacion: config.sonidoAsignacion ?? 'asignacion1',
+      asesorReconexionSeg: config.asesorReconexionSeg ?? 120,
+      asesorReconexionMsg: config.asesorReconexionMsg || 'El asesor se desconectó. Esperando reconexión...',
       whatsappQuickReplies: this.normalizeQuickReplies(config.whatsappQuickReplies),
     };
   }
@@ -463,6 +465,41 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
     if (this.config) {
       this.quickReplies = this.normalizeQuickReplies(this.config.whatsappQuickReplies);
     }
+  }
+
+  exportarQuickRepliesCsv(): void {
+    this.svc.exportQuickRepliesCsv().pipe(takeUntil(this.destroy$)).subscribe({
+      next: (blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'respuestas-rapidas.csv';
+        a.click();
+        window.URL.revokeObjectURL(url);
+      },
+      error: () => this.notification.error('Error', 'No se pudo exportar las respuestas rápidas'),
+    });
+  }
+
+  importarQuickRepliesCsv(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files?.length) return;
+    const file = input.files[0];
+    this.svc.importQuickRepliesCsv(file).pipe(takeUntil(this.destroy$)).subscribe({
+      next: (res) => {
+        this.notification.success('Importación completa', `${res.imported} respuestas importadas`);
+        input.value = '';
+        this.svc.getGlobal().pipe(takeUntil(this.destroy$)).subscribe((config) => {
+          this.config = this.normalize(config);
+          this.quickReplies = this.normalizeQuickReplies(this.config.whatsappQuickReplies);
+          this.cdr.detectChanges();
+        });
+      },
+      error: (err) => {
+        this.notification.error('Error', err.error?.message || 'No se pudo importar el archivo');
+        input.value = '';
+      },
+    });
   }
 
   // ── IA Prompt methods ──────────────────────────────────────────────────────
@@ -670,6 +707,97 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
         this.cdr.detectChanges();
       },
     });
+  }
+
+  exportarColegiosCsv(): void {
+    this.sessionService.exportColegios().subscribe({
+      next: (res: any) => {
+        const csv = res.csv;
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'colegios.csv';
+        a.click();
+        window.URL.revokeObjectURL(url);
+      },
+      error: () => this.notification.error('Error', 'No se pudo exportar los colegios'),
+    });
+  }
+
+  importarColegiosCsv(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files?.length) return;
+    const file = input.files[0];
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const csv = reader.result as string;
+      const lines = csv.split('\n').filter(l => l.trim());
+      if (lines.length < 2) {
+        this.notification.error('Error', 'El CSV está vacío');
+        input.value = '';
+        return;
+      }
+
+      const header = lines[0].toLowerCase();
+      const cols = header.split(';').map((c: string) => c.trim().replace(/"/g, ''));
+      const nIdx = cols.indexOf('nombre');
+      const lIdx = cols.indexOf('link');
+      const eIdx = cols.indexOf('email');
+
+      if (nIdx === -1 || lIdx === -1) {
+        this.notification.error('Error', 'El CSV debe tener columnas "nombre" y "link"');
+        input.value = '';
+        return;
+      }
+
+      const colegios: any[] = [];
+      for (let i = 1; i < lines.length; i++) {
+        const vals = this.parseCsvLine(lines[i]);
+        const nombre = vals[nIdx]?.trim();
+        const link = vals[lIdx]?.trim();
+        if (nombre && link) {
+          colegios.push({
+            nombre,
+            link,
+            email: eIdx !== -1 ? vals[eIdx]?.trim() || undefined : undefined,
+          });
+        }
+      }
+
+      if (!colegios.length) {
+        this.notification.error('Error', 'No se encontraron datos válidos en el CSV');
+        input.value = '';
+        return;
+      }
+
+      this.sessionService.importColegios(colegios).subscribe({
+        next: (res: any) => {
+          this.notification.success('Importación completa', `${res.imported} colegios importados`);
+          input.value = '';
+          this.loadColegios();
+        },
+        error: (err) => {
+          this.notification.error('Error', err.error?.message || 'No se pudo importar');
+          input.value = '';
+        },
+      });
+    };
+    reader.readAsText(file);
+  }
+
+  private parseCsvLine(line: string): string[] {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    for (const ch of line) {
+      if (ch === '"') { inQuotes = !inQuotes; continue; }
+      if (ch === ';' && !inQuotes) { result.push(current); current = ''; continue; }
+      current += ch;
+    }
+    result.push(current);
+    return result;
   }
 
   ngOnDestroy(): void {
