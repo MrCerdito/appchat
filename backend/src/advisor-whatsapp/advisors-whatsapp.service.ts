@@ -256,6 +256,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
   private connectionSequence = 0;
   private qrReceivedInSession = false;
   private reconnectAttempts = 0;
+  private static readonly MAX_RECONNECT_ATTEMPTS = 5;
 
   readonly connectionUpdates$ = new Subject<WhatsappConnectionDto>();
   readonly incomingResults$ = new Subject<IncomingHandlingResult>();
@@ -322,11 +323,9 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleInit(): Promise<void> {
     await this.ensureWhatsappSchema();
-    this.ensureBaileysConnection().catch((err) => {
-      this.logger.warn(
-        `No se pudo iniciar Baileys automaticamente: ${err?.message ?? err}`,
-      );
-    });
+    this.logger.log(
+      'WhatsApp Baileys diferido — se conectara al primer request o QR.',
+    );
   }
 
   async onModuleDestroy(): Promise<void> {
@@ -346,10 +345,6 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
   }
 
   async getConnectionStatus(): Promise<WhatsappConnectionDto> {
-    await this.ensureBaileysConnection().catch((err) => {
-      this.lastConnectionError = err?.message ?? String(err);
-      this.setConnectionState('disconnected', this.lastConnectionError);
-    });
     return this.getConnectionDto();
   }
 
@@ -534,6 +529,13 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
 
   private scheduleReconnect(): void {
     if (this.reconnectTimer) return;
+    if (this.reconnectAttempts >= AdvisorsWhatsappService.MAX_RECONNECT_ATTEMPTS) {
+      this.logger.warn(
+        `Baileys: maximo ${AdvisorsWhatsappService.MAX_RECONNECT_ATTEMPTS} intentos de reconexión alcanzados. Conecte manualmente desde el panel.`,
+      );
+      this.setConnectionState('disconnected', 'Maximos intentos alcanzados. Conecte manualmente.');
+      return;
+    }
     const delay = Math.min(3_000 * 2 ** this.reconnectAttempts, 60_000);
     this.reconnectAttempts++;
     this.logger.log(`Reconexion programada en ${delay / 1000}s (intento #${this.reconnectAttempts})`);
@@ -596,6 +598,10 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     await this.messageRepo.query(`
       ALTER TABLE IF EXISTS public.whatsapp_messages
         ADD COLUMN IF NOT EXISTS participant_jid varchar(100) NULL
+    `);
+    await this.messageRepo.query(`
+      ALTER TABLE IF EXISTS public.whatsapp_messages
+        ADD COLUMN IF NOT EXISTS reply_to_message_id varchar(255) NULL
     `);
     await this.chatRepo.query(`
       ALTER TABLE IF EXISTS public.whatsapp_chats
@@ -3735,11 +3741,10 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
 
   private formatTime(date?: Date | null): string {
     if (!date) return '';
-    return new Intl.DateTimeFormat('es-CO', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-      timeZone: 'America/Bogota',
-    }).format(new Date(date));
+    const d = new Date(date);
+    const bogota = new Date(d.getTime() - 5 * 3600000);
+    const hh = String(bogota.getUTCHours()).padStart(2, '0');
+    const mm = String(bogota.getUTCMinutes()).padStart(2, '0');
+    return `${hh}:${mm}`;
   }
 }

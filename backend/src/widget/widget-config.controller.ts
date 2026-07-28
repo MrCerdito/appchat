@@ -12,6 +12,7 @@ import {
 import { WidgetConfigService } from './widget-config.service';
 import { WidgetConfig } from './entities/widget-config.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Roles, RolesGuard } from '../auth/roles.guard';
 import { SaveWidgetConfigDto } from './dto/save-widget-config.dto';
 
 @Controller('widget-config')
@@ -29,7 +30,8 @@ export class WidgetConfigController {
 
   // ── POST /widget-config — solo admin ─────────────────────────────────────
   @Post()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
   @HttpCode(HttpStatus.OK)
   save(@Body() body: SaveWidgetConfigDto): Promise<WidgetConfig> {
     return this.svc.save(body);
@@ -37,7 +39,8 @@ export class WidgetConfigController {
 
   // ── DELETE /widget-config — reset a defaults ──────────────────────────────
   @Delete()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
   @HttpCode(HttpStatus.OK)
   reset(): Promise<WidgetConfig> {
     return this.svc.reset();

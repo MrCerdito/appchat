@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS public.whatsapp_messages (
   file_name varchar(255) NULL,
   file_size integer NULL,
   edited_at timestamp NULL,
+  reply_to_message_id varchar(255) NULL,
   created_at timestamp NOT NULL DEFAULT now()
 );
 
@@ -100,7 +101,8 @@ ALTER TABLE IF EXISTS public.whatsapp_messages
   ADD COLUMN IF NOT EXISTS mime_type varchar(120) NULL,
   ADD COLUMN IF NOT EXISTS file_name varchar(255) NULL,
   ADD COLUMN IF NOT EXISTS file_size integer NULL,
-  ADD COLUMN IF NOT EXISTS edited_at timestamp NULL;
+  ADD COLUMN IF NOT EXISTS edited_at timestamp NULL,
+  ADD COLUMN IF NOT EXISTS reply_to_message_id varchar(255) NULL;
 
 ALTER TABLE IF EXISTS public.configuracion
   ADD COLUMN IF NOT EXISTS whatsapp_assignment_msg text NOT NULL DEFAULT 'Hola, soy {{asesor}}. Ya fui asignado a tu conversacion y revisare tu caso.',

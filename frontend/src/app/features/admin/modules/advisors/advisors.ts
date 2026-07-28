@@ -307,7 +307,11 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
   formatDate(date?: string): string {
     if (!date) return '-';
     const d = new Date(date);
-    return d.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'America/Bogota' });
+    const bogota = new Date(d.getTime() - 5 * 3600000);
+    const dd = String(bogota.getUTCDate()).padStart(2, '0');
+    const mm = String(bogota.getUTCMonth() + 1).padStart(2, '0');
+    const yyyy = bogota.getUTCFullYear();
+    return `${dd}/${mm}/${yyyy}`;
   }
 
   private showSuccess(msg: string): void {

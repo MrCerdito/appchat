@@ -76,7 +76,26 @@
   ══════════════════════════════════════════════════════════════════ -->
   @if (step === 'faq') {
   <div class="screen-faq">
-    <app-faq (iniciarChat)="irAFormulario()"></app-faq>
+    <app-faq (iniciarChat)="irAFormulario()" (abrirPqrs)="irAPqrs()"></app-faq>
+
+    @if (showPqrsSuccess) {
+    <div class="pqrs-success-banner">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+        <polyline points="22 4 12 14.01 9 11.01"/>
+      </svg>
+      <span>Solicitud <strong>{{ pqrsCodigo }}</strong> enviada correctamente</span>
+    </div>
+    }
+  </div>
+  }
+
+  <!-- ══════════════════════════════════════════════════════════════
+       PQRS — FORMULARIO
+  ════════════════════════════════════════════════════════════════ -->
+  @if (step === 'pqrs') {
+  <div class="screen-pqrs">
+    <app-pqrs (volver)="irAFaq()" (enviado)="onPqrsEnviado($event)"></app-pqrs>
   </div>
   }
 
@@ -106,8 +125,11 @@
       <div class="card-body">
         <div class="field" [class.error]="submitted && !identificacion.trim()">
           <label>Identificación <span class="req">*</span></label>
-          <input type="text" [(ngModel)]="identificacion" placeholder="Ej: 1234567890" maxlength="20"/>
-          <span class="err-msg">Campo requerido</span>
+          <input type="tel" inputmode="numeric" pattern="[0-9]*"
+            [(ngModel)]="identificacion" placeholder="Ej: 1234567890"
+            (input)="onIdentificacionInput($event)"
+            maxlength="20"/>
+          <span class="err-msg">Solo se permiten números</span>
         </div>
 
         <div class="field-row">
@@ -151,7 +173,7 @@
               </svg>
             </span>
             <input type="text" [(ngModel)]="colegioQuery" (ngModelChange)="onColegioInput()"
-              (blur)="showDropdown = false" placeholder="Busca tu colegio..."
+              (blur)="onColegioBlur()" placeholder="Busca o escribe tu colegio..."
               [class.selected]="colegioSeleccionado" autocomplete="off"/>
             @if (colegioSeleccionado) {
             <span class="clear-colegio" (click)="clearColegio()">✕</span>
@@ -162,6 +184,14 @@
             @for (c of colegiosFiltrados; track trackById($index, c)) {
             <div class="colegio-option" (mousedown)="selectColegio(c)">
               {{ c.nombre }}
+            </div>
+            }
+            @if (colegiosFiltrados.length === 0 && colegioQuery.trim()) {
+            <div class="colegio-option coleccion-option" (mousedown)="selectCustomColegio()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              Usar "<strong>{{ colegioQuery.trim() }}</strong>"
             </div>
             }
           </div>
@@ -304,46 +334,36 @@
        [class.is-ai-mode]="aiMode"
        [class.is-advisor-mode]="!aiMode">
 
-    <div class="chat-header">
-      <div class="advisor-info">
-        <div class="avatar" [class.ai-avatar]="aiMode">
+    <header class="chat-header">
+      <div class="header-left">
+        <div class="header-avatar" [class.ai-avatar]="aiMode">
           @if (aiMode) {
-          <ng-container>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H1a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73A2 2 0 0 1 10 4a2 2 0 0 1 2-2z"/>
-            </svg>
-          </ng-container>
-          }
-          @if (!aiMode) {
-          <ng-container>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H1a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73A2 2 0 0 1 10 4a2 2 0 0 1 2-2z"/>
+          </svg>
+          } @else {
             @if (advisorPhotoUrl) {
-            <img [src]="advisorPhotoUrl"
-                 [alt]="advisorName"
-                 class="advisor-avatar-img" />
+            <img [src]="advisorPhotoUrl" [alt]="advisorName" class="advisor-avatar-img" />
             } @else {
-            <ng-template #headerFallback>{{ advisorName.charAt(0) }}</ng-template>
             {{ advisorName.charAt(0) }}
             }
-          </ng-container>
           }
         </div>
-        <div class="advisor-meta">
-          <span class="advisor-name">{{ aiMode ? (marcaChat || 'Asistente Virtual') : advisorName }}</span>
-          <span class="status-line">
-            <span class="status-dot"></span>
-            {{ aiMode ? 'IA activa' : 'En línea' }}
+        <div class="header-meta">
+          <span class="header-name">{{ aiMode ? (marcaChat || 'Asistente Virtual') : advisorName }}</span>
+          <span class="client-presence-pill presence-active">
+            {{ aiMode ? 'IA activa' : 'En linea' }}
           </span>
         </div>
       </div>
       <div class="header-actions">
-        <button class="close-btn" (click)="mostrarConfirmCierre = true">
+        <button class="icon-btn" type="button" title="Cerrar" (click)="mostrarConfirmCierre = true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
           </svg>
-          Cerrar
         </button>
       </div>
-    </div>
+    </header>
 
     <!-- ══ BANNER CÓDIGO DE CASO ══ -->
     @if (codigoSesion) {
@@ -366,91 +386,118 @@
     }
 
     <!-- ══ MENSAJES ══ -->
-    <div class="messages" #messagesContainer>
+    <div class="chat-messages" #messagesContainer>
       @for (msg of messages; let i = $index; track trackById($index, msg)) {
 
+        <!-- Mensaje del sistema (centrado) -->
+        @if (msg.senderName === 'Sistema') {
+        <div class="msg msg--system">
+          <div class="sys-inner">
+            <span class="sys-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="10" rx="2"></rect>
+                <circle cx="12" cy="5" r="2"></circle>
+                <path d="M12 7v4"></path>
+              </svg>
+            </span>
+            <span>{{ msg.content }}</span>
+            <span class="sys-label">Automático</span>
+          </div>
+          <span class="msg-time">{{ formatMessageTime(msg.createdAt) }}</span>
+        </div>
+        } @else {
         <!-- Burbuja de mensaje -->
-        <div class="message"
-             [class.mine]="msg.senderType === 'client'"
-             [class.theirs]="msg.senderType === 'advisor' && !aiMode"
-             [class.ai-msg]="msg.senderType === 'advisor' && aiMode"
+        <div class="msg"
+             [class.msg--advisor]="msg.senderType === 'client'"
+             [class.msg--client]="msg.senderType === 'advisor' && !aiMode"
+             [class.msg--ai]="msg.senderType === 'advisor' && aiMode"
              [class.streaming]="isStreaming && msg.content === streamingText">
 
-          <!-- Avatar del asesor en sus mensajes -->
-          @if (msg.senderType === 'advisor') {
-          <div class="msg-avatar">
-            @if (advisorPhotoUrl) {
-            <img [src]="advisorPhotoUrl"
-                 [alt]="advisorName"
-                 class="msg-avatar-img" />
+          <div class="bubble">
+            @if (msg.senderType === 'advisor') {
+            <span [innerHTML]="formatMessage(msg.content)"></span>
+            }
+            @if (msg.senderType === 'client') {
+            <span [innerHTML]="formatMessage(msg.content)"></span>
+            }
+          </div>
+
+          <!-- Archivos adjuntos del mensaje -->
+          @if (msg.attachments && msg.attachments.length > 0) {
+          <div class="msg-attachments">
+            @for (att of msg.attachments; track att.id) {
+            @if (att.mimeType.startsWith('image/')) {
+            <button type="button" class="att-image-link" (click)="openImagePreview(att.url, att.originalName)">
+              <img [src]="att.url" [alt]="att.originalName" class="att-image" loading="lazy" />
+            </button>
+            } @else if (att.mimeType.startsWith('video/')) {
+            <video class="att-video" controls preload="metadata">
+              <source [src]="att.url" [type]="att.mimeType" />
+            </video>
             } @else {
-            {{ advisorName.charAt(0) }}
+            <a class="att-document" [href]="att.url" target="_blank" rel="noopener noreferrer">
+              <div class="att-doc-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                </svg>
+              </div>
+              <div class="att-doc-info">
+                <span class="att-doc-name">{{ att.originalName }}</span>
+                <span class="att-doc-size">{{ att.size < 1024 * 1024 ? ((att.size / 1024) | number:'1.0-0') + ' KB' : ((att.size / (1024 * 1024)) | number:'1.1-1') + ' MB' }}</span>
+              </div>
+              <svg class="att-doc-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+            </a>
+            }
             }
           </div>
           }
 
-          <div class="msg-content">
-            <!-- Contenido del bubble según el remitente -->
-            <div class="bubble">
-              <!-- Mensajes del asesor/IA: renderizar Markdown -->
-              @if (msg.senderType === 'advisor') {
-              <span [innerHTML]="formatMessage(msg.content)">
-              </span>
-              }
-              <!-- Mensajes del cliente: texto plano -->
-              @if (msg.senderType === 'client') {
-              <span>
-                {{ msg.content }}
-                <span class="read-status">{{ msg.readAt ? '✓✓' : '✓' }}</span>
-              </span>
-              }
-            </div>
-            <div class="message-footer">
-              <span class="time">{{ formatTiempoRelativo(msg.createdAt) }}</span>
-              @if (msg.senderType === 'advisor' && msg.content && !isStreaming) {
-              <button class="copy-msg-btn"
-                (click)="copiarTexto(msg.content)" title="Copiar respuesta">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                </svg>
-              </button>
-              }
-            </div>
-          </div>
-        </div>
-
-        <!-- Documentos adjuntos (RAG) — PRIMERO -->
-        @if (aiMode && msg.senderType === 'advisor' && msg.documentos && msg.documentos.length > 0) {
-        <div class="doc-adjuntos">
-          <div class="doc-adjuntos-label">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-            </svg>
-            Documentos relacionados
-          </div>
-          @for (doc of msg.documentos; track trackById($index, doc)) {
-          <a class="doc-adjunto-item"
-             [href]="doc.pdfUrl" target="_blank" rel="noopener noreferrer">
-            <div class="doc-adjunto-icon">
+          <!-- Documentos adjuntos (RAG) -->
+          @if (aiMode && msg.senderType === 'advisor' && msg.documentos && msg.documentos.length > 0) {
+          <div class="doc-adjuntos">
+            <div class="doc-adjuntos-label">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                 <polyline points="14 2 14 8 20 8"/>
               </svg>
+              Documentos relacionados
             </div>
-            <div class="doc-adjunto-info">
-              <span class="doc-adjunto-nombre">{{ doc.nombre }}</span>
-              @if (doc.categoria) {
-              <span class="doc-adjunto-cat">{{ doc.categoria }}</span>
-              }
-            </div>
-            <svg class="doc-adjunto-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="17 8 12 3 7 8"/>
-              <line x1="12" y1="3" x2="12" y2="15"/>
-            </svg>
-          </a>
+            @for (doc of msg.documentos; track trackById($index, doc)) {
+            <a class="doc-adjunto-item"
+               [href]="doc.pdfUrl" target="_blank" rel="noopener noreferrer">
+              <div class="doc-adjunto-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                </svg>
+              </div>
+              <div class="doc-adjunto-info">
+                <span class="doc-adjunto-nombre">{{ doc.nombre }}</span>
+                @if (doc.categoria) {
+                <span class="doc-adjunto-cat">{{ doc.categoria }}</span>
+                }
+              </div>
+              <svg class="doc-adjunto-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+            </a>
+            }
+          </div>
           }
+
+          <span class="msg-time">
+            {{ formatMessageTime(msg.createdAt) }}
+            @if (msg.senderType === 'client') {
+            <span class="read-mark">{{ msg.readAt ? '\u2713\u2713' : '\u2713' }}</span>
+            }
+          </span>
         </div>
         }
 
@@ -495,9 +542,11 @@
     <!-- Typing indicator -->
     @if (aiTyping || otherTyping) {
     <div class="typing-indicator">
-      <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+      <div class="dot">
+        <span></span><span></span><span></span>
+      </div>
       <span class="typing-name">
-        {{ aiTyping ? 'Asistente escribiendo' : typingName + ' está escribiendo' }}
+        {{ aiTyping ? 'Asistente escribiendo' : typingName + ' esta escribiendo' }}
       </span>
     </div>
     }
@@ -551,13 +600,55 @@
     }
 
     <!-- Input -->
-    <div class="input-area">
-      <input type="text" [(ngModel)]="newMessage"
-        placeholder="Escribe un mensaje..."
-        (keyup.enter)="send()"
-        (input)="onTyping()"
-        maxlength="1000"/>
-      <button class="send-btn" (click)="send()" [disabled]="!newMessage.trim()">
+    <div class="chat-input">
+      @if (!aiMode) {
+      <input #fileInput type="file" hidden multiple
+        accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/ogg,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
+        (change)="onFilesSelected($event)" />
+
+      @if (previewFiles.length > 0) {
+      <div class="preview-bar">
+        @for (p of previewFiles; track $index) {
+        <div class="preview-item" [class.uploading]="p.uploading" [class.error]="p.error">
+          @if (p.preview) {
+          <img [src]="p.preview" class="preview-img" />
+          } @else {
+          <div class="preview-doc">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+            </svg>
+            <span class="preview-doc-name">{{ p.file.name }}</span>
+          </div>
+          }
+          @if (p.uploading) {
+          <div class="preview-spinner"></div>
+          }
+          @if (!p.uploading) {
+          <button class="preview-remove" (click)="removePreview($index)" type="button">✕</button>
+          }
+          @if (p.error) {
+          <span class="preview-error">{{ p.error }}</span>
+          }
+        </div>
+        }
+      </div>
+      }
+
+      <button class="input-icon-btn" (click)="triggerFileInput()" type="button" title="Adjuntar archivo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
+        </svg>
+      </button>
+      }
+      <div class="input-field">
+        <textarea rows="1" placeholder="Escribe un mensaje..."
+          [(ngModel)]="newMessage"
+          (keyup)="handleKey($event)"
+          (input)="autoResize($event)"
+          maxlength="1000"></textarea>
+      </div>
+      <button class="send-btn" (click)="send()" [disabled]="!newMessage.trim() && previewFiles.length === 0">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <line x1="22" y1="2" x2="11" y2="13"/>
           <polygon points="22 2 15 22 11 13 2 9 22 2"/>
@@ -692,6 +783,22 @@
       }
 
     </div>
+  </div>
+  }
+
+  <!-- ═══ IMAGE LIGHTBOX ══════════════════════════════════════════════════ -->
+  @if (imagePreview) {
+  <div class="image-backdrop" (click)="closeImagePreview()">
+    <figure class="image-viewer" (click)="$event.stopPropagation()">
+      <img [src]="imagePreview.src" [alt]="imagePreview.name" />
+      <figcaption>{{ imagePreview.name }}</figcaption>
+      <button type="button" class="image-close" (click)="closeImagePreview()" title="Cerrar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </figure>
   </div>
   }
 

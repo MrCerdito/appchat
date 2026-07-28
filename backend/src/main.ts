@@ -1,7 +1,9 @@
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe, Logger } from '@nestjs/common';
+import { DataSource } from 'typeorm';
 import { AppModule } from './app.module';
+import { warmupEncryptedCache } from './common/security/encrypted-text.transformer';
 import { join } from 'path';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -10,6 +12,11 @@ const logger = new Logger('Bootstrap');
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // ── Warmup: pre-compute all encrypted column decryptions ───────────────
+  // Fires immediately in background; completes ~1-2s before the 10s interval
+  const dataSource = app.get(DataSource);
+  warmupEncryptedCache(dataSource).catch(() => {});
 
   app.disable('x-powered-by');
 
@@ -154,16 +161,31 @@ async function bootstrap() {
 
   logger.log(`Backend corriendo en puerto ${port} (${NODE_ENV})`);
 
-  // ── Graceful Shutdown ──────────────────────────────────────────────
+  // ── Graceful Shutdown (supports PM2 cluster) ──────────────────────
+  const gracefulShutdown = async (signal: string) => {
+    logger.log(`Señal ${signal} recibida — cerrando servidor (PID: ${process.pid})...`);
+    try {
+      await app.close();
+      logger.log(`Servidor cerrado correctamente (PID: ${process.pid})`);
+    } catch (err) {
+      logger.error(`Error cerrando servidor: ${(err as Error).message}`);
+    }
+    process.exit(0);
+  };
+
   const signals = ['SIGTERM', 'SIGINT'];
   signals.forEach((signal) => {
-    process.on(signal, async () => {
-      logger.log(`Señal ${signal} recibida — cerrando servidor...`);
-      await app.close();
-      logger.log('Servidor cerrado correctamente');
-      process.exit(0);
-    });
+    process.on(signal, () => gracefulShutdown(signal));
   });
+
+  // PM2 graceful shutdown
+  if (process.env.pm_id !== undefined) {
+    process.on('message', (msg) => {
+      if (msg === 'shutdown') {
+        gracefulShutdown('PM2 shutdown');
+      }
+    });
+  }
 }
 
 bootstrap();

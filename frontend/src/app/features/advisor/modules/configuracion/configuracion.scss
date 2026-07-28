@@ -421,3 +421,66 @@ input[type="time"] {
   .preview-bubble { font-size: 0.82rem; padding: 0.55rem 0.8rem; }
   .btn-save { padding: 0.5rem 1rem; font-size: 0.82rem; }
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// TAB — COLEGIOS (read-only)
+// ══════════════════════════════════════════════════════════════════════════════
+.colegios-toolbar {
+  display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;
+}
+.colegios-search {
+  display: flex; align-items: center; gap: 0.5rem;
+  flex: 1; padding: 0.55rem 0.85rem; border-radius: 10px;
+  border: 1px solid var(--border-strong); background: var(--surface);
+  transition: border-color 0.15s;
+  &:focus-within { border-color: #2563eb; }
+  svg { width: 16px; height: 16px; color: var(--text-muted); flex-shrink: 0; }
+  input {
+    flex: 1; border: none; outline: none; background: transparent;
+    font-family: var(--font); font-size: 0.85rem; color: var(--text);
+    &::placeholder { color: var(--text-muted); }
+  }
+}
+
+// ── Loading / Empty ───────────────────────────────────────────────────────────
+.colegios-loading {
+  display: flex; align-items: center; gap: 0.75rem; padding: 2rem;
+  justify-content: center; color: var(--text-muted);
+}
+.colegios-empty {
+  display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
+  padding: 2.5rem 1rem; text-align: center;
+  svg { width: 36px; height: 36px; color: var(--border-strong); }
+  p { margin: 0; font-size: 0.9rem; font-weight: 600; color: var(--text); }
+  span { font-size: 0.8rem; color: var(--text-muted); }
+}
+
+// ── Tabla colegios ────────────────────────────────────────────────────────────
+.colegios-table-wrap { overflow-x: auto; }
+.colegios-table {
+  width: 100%; border-collapse: collapse; font-size: 0.84rem;
+  thead {
+    th {
+      text-align: left; padding: 0.6rem 0.85rem; font-weight: 600;
+      color: var(--text-muted); border-bottom: 2px solid var(--border-strong);
+      font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em;
+    }
+  }
+  tbody {
+    tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+    tr:hover { background: var(--bg); }
+    td { padding: 0.7rem 0.85rem; vertical-align: middle; }
+  }
+}
+.td-name { font-weight: 600; color: var(--text); }
+.td-link {
+  a { color: #2563eb; text-decoration: none; word-break: break-all;
+    &:hover { text-decoration: underline; }
+  }
+}
+.td-email { color: var(--text-muted); }
+
+.colegios-count {
+  padding: 0.6rem 0.85rem; font-size: 0.78rem; color: var(--text-muted);
+  border-top: 1px solid var(--border); text-align: right;
+}

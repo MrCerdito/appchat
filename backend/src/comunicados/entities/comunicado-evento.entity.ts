@@ -5,10 +5,12 @@ import {
   CreateDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { Comunicado } from './comunicado.entity';
 
 @Entity('comunicado_eventos')
+@Index('idx_comunicado_eventos_comunicado_id', ['comunicado'])
 export class ComunicadoEvento {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -32,6 +34,6 @@ export class ComunicadoEvento {
   @Column({ type: 'varchar', length: 50, nullable: true })
   ip: string | null;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 }

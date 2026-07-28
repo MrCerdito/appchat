@@ -220,16 +220,19 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
   private tz = 'America/Bogota';
 
   private formatTime(date: Date): string {
-    return new Intl.DateTimeFormat('es-CO', {
-      hour: '2-digit', minute: '2-digit', hour12: true,
-      timeZone: this.tz,
-    }).format(date);
+    const b = new Date(date.getTime() - 5 * 3600000);
+    const hh = String(b.getUTCHours()).padStart(2, '0');
+    const mm = String(b.getUTCMinutes()).padStart(2, '0');
+    return `${hh}:${mm}`;
   }
 
   private formatDate(date: Date): string {
-    const fmt = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: this.tz });
-    const today = fmt(new Date());
-    const msg = fmt(date);
+    const bogoKey = (d: Date) => {
+      const b = new Date(d.getTime() - 5 * 3600000);
+      return `${b.getUTCFullYear()}-${String(b.getUTCMonth() + 1).padStart(2, '0')}-${String(b.getUTCDate()).padStart(2, '0')}`;
+    };
+    const today = bogoKey(new Date());
+    const msg = bogoKey(date);
     if (msg === today) return 'Hoy';
 
     const [y, m, d] = today.split('-').map(Number);
@@ -242,7 +245,9 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
     const yesterday = `${yy}-${String(ym).padStart(2, '0')}-${String(yd).padStart(2, '0')}`;
     if (msg === yesterday) return 'Ayer';
 
-    return new Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'short', timeZone: this.tz }).format(date);
+    const months = ['ene.', 'feb.', 'mar.', 'abr.', 'may.', 'jun.', 'jul.', 'ago.', 'sep.', 'oct.', 'nov.', 'dic.'];
+    const b = new Date(date.getTime() - 5 * 3600000);
+    return `${b.getUTCDate()} ${months[b.getUTCMonth()]}`;
   }
 
   seleccionarChat(id: string): void {

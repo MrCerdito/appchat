@@ -1,6 +1,8 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import {
   Configuracion,
   HorarioAlmuerzo,
@@ -29,15 +31,14 @@ export class ConfiguracionService implements OnModuleInit {
     'sabado',
   ];
 
-  private configCache = new Map<
-    string,
-    { data: Configuracion; expiresAt: number }
-  >();
+  private readonly CACHE_PREFIX = 'config:';
   private readonly CACHE_TTL_MS = 30_000;
 
   constructor(
     @InjectRepository(Configuracion)
     private readonly repo: Repository<Configuracion>,
+    @Inject(CACHE_MANAGER)
+    private readonly cache: Cache,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -83,39 +84,38 @@ export class ConfiguracionService implements OnModuleInit {
   }
 
   private cacheKey(advisorId?: string): string {
-    return advisorId ? `advisor:${advisorId}` : 'global';
+    return advisorId ? `${this.CACHE_PREFIX}advisor:${advisorId}` : `${this.CACHE_PREFIX}global`;
   }
 
-  private getFromCache(key: string): Configuracion | null {
-    const entry = this.configCache.get(key);
-    if (!entry) return null;
-    if (Date.now() > entry.expiresAt) {
-      this.configCache.delete(key);
+  private async getFromCache(key: string): Promise<Configuracion | null> {
+    try {
+      return (await this.cache.get<Configuracion>(key)) ?? null;
+    } catch {
       return null;
     }
-    return entry.data;
   }
 
-  private setCache(key: string, data: Configuracion): void {
-    this.configCache.set(key, {
-      data,
-      expiresAt: Date.now() + this.CACHE_TTL_MS,
-    });
+  private async setCache(key: string, data: Configuracion): Promise<void> {
+    try {
+      await this.cache.set(key, data, this.CACHE_TTL_MS);
+    } catch {}
   }
 
-  private invalidateCache(advisorId?: string): void {
-    this.configCache.delete(this.cacheKey(advisorId));
+  private async invalidateCache(advisorId?: string): Promise<void> {
+    try {
+      await this.cache.del(this.cacheKey(advisorId));
+    } catch {}
   }
 
   async getEfectiva(advisorId?: string): Promise<Configuracion> {
     const key = this.cacheKey(advisorId);
-    const cached = this.getFromCache(key);
+    const cached = await this.getFromCache(key);
     if (cached) return cached;
 
     if (advisorId) {
       const override = await this.repo.findOne({ where: { advisorId } });
       if (override) {
-        this.setCache(key, override);
+        await this.setCache(key, override);
         return override;
       }
     }
@@ -124,7 +124,7 @@ export class ConfiguracionService implements OnModuleInit {
       where: { advisorId: null as any },
     });
     if (global) {
-      this.setCache('global', global);
+      await this.setCache(this.cacheKey(), global);
       return global;
     }
 
@@ -159,7 +159,7 @@ export class ConfiguracionService implements OnModuleInit {
     };
     const nueva = this.repo.create({ ...defaults, advisorId: null });
     const saved = await this.repo.save(nueva);
-    this.setCache('global', saved);
+    await this.setCache(this.cacheKey(), saved);
     return saved;
   }
 
@@ -167,11 +167,11 @@ export class ConfiguracionService implements OnModuleInit {
     const result = new Map<string, Configuracion>();
     const missingIds: string[] = [];
 
-    const globalCached = this.getFromCache('global');
+    const globalCached = await this.getFromCache(this.cacheKey());
     let globalConfig: Configuracion | null = globalCached;
 
     for (const id of advisorIds) {
-      const cached = this.getFromCache(this.cacheKey(id));
+      const cached = await this.getFromCache(this.cacheKey(id));
       if (cached) {
         result.set(id, cached);
       } else {
@@ -189,12 +189,12 @@ export class ConfiguracionService implements OnModuleInit {
       for (const id of missingIds) {
         const override = overrideMap.get(id);
         if (override) {
-          this.setCache(this.cacheKey(id), override);
+          await this.setCache(this.cacheKey(id), override);
           result.set(id, override);
         } else {
           if (!globalConfig) {
             globalConfig = await this.repo.findOne({ where: { advisorId: null as any } });
-            if (globalConfig) this.setCache('global', globalConfig);
+            if (globalConfig) await this.setCache(this.cacheKey(), globalConfig);
           }
           if (globalConfig) result.set(id, globalConfig);
         }
@@ -262,7 +262,7 @@ export class ConfiguracionService implements OnModuleInit {
 
     this.invalidateCache(advisorId);
     if (!advisorId) {
-      this.invalidateCache(undefined);
+      this.invalidateCache();
     }
 
     return saved;

@@ -16,6 +16,7 @@ export type WhatsappMessageStatus = 'sent' | 'delivered' | 'read' | 'failed';
 @Entity('whatsapp_messages')
 @Index('idx_whatsapp_messages_chat_id', ['chat'])
 @Index('idx_whatsapp_messages_chat_id_created_at', ['chat', 'createdAt'])
+@Index('idx_wa_messages_advisor_id', ['advisor'])
 export class WhatsappMessage {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -80,12 +81,12 @@ export class WhatsappMessage {
   @Column({ name: 'file_size', type: 'int', nullable: true })
   fileSize: number | null;
 
-  @Column({ name: 'edited_at', type: 'timestamp', nullable: true })
+  @Column({ name: 'edited_at', type: 'timestamptz', nullable: true })
   editedAt: Date | null;
 
   @Column({ name: 'reply_to_message_id', type: 'varchar', length: 255, nullable: true })
   replyToMessageId: string | null;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 }

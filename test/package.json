@@ -1,0 +1,16 @@
+{
+  "name": "load-tests",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "seed": "node seed-test-advisors.js",
+    "test": "node load-test-full.js",
+    "monitor": "bash monitor.sh"
+  },
+  "dependencies": {
+    "axios": "^1.16.1",
+    "jsonwebtoken": "^9.0.3",
+    "socket.io-client": "^4.8.3"
+  }
+}

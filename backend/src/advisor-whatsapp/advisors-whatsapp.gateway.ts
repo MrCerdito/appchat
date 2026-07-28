@@ -103,19 +103,35 @@ export class AdvisorsWhatsappGateway
       );
 
       client.emit('aw_connected', { advisorId: payload.sub });
-      client.emit(
-        'aw_connection_update',
-        await this.whatsappService.getConnectionStatus(),
-      );
+
+      this.logger.log(`Asesor WhatsApp conectado: ${payload.name}`);
+
       this.server.emit('aw_advisors_online', {
         advisorIds: this.getConnectedAdvisorIds(),
       });
 
-      this.logger.log(`Asesor WhatsApp conectado: ${payload.name}`);
-      const assignments = await this.whatsappService.assignWaitingChats(
-        this.getConnectedAdvisorIds(),
-      );
-      this.emitAssignments(assignments);
+      try {
+        client.emit(
+          'aw_connection_update',
+          await this.whatsappService.getConnectionStatus(),
+        );
+      } catch (err) {
+        this.logger.warn(
+          `Error obteniendo estado WhatsApp para ${payload.name}: ${err?.message ?? err}`,
+        );
+        client.emit('aw_connection_update', { status: 'disconnected' });
+      }
+
+      try {
+        const assignments = await this.whatsappService.assignWaitingChats(
+          this.getConnectedAdvisorIds(),
+        );
+        this.emitAssignments(assignments);
+      } catch (err) {
+        this.logger.warn(
+          `Error asignando chats en espera para ${payload.name}: ${err?.message ?? err}`,
+        );
+      }
     } catch {
       client.disconnect(true);
     }

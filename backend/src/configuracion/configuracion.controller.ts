@@ -63,6 +63,8 @@ export class ConfiguracionController {
 
   @Post('quick-replies')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(RolesGuard)
+  @Roles('admin')
   guardarQuickReplies(@Body() body: { whatsappQuickReplies: any[] }) {
     return this.svc.guardar({ whatsappQuickReplies: body.whatsappQuickReplies }, undefined);
   }

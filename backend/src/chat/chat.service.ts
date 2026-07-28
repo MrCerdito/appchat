@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Message } from './entities/message.entity';
+import { Message, Attachment } from './entities/message.entity';
 import { Session } from '../sessions/entities/session.entity';
 import {
   sanitizeMessage,
@@ -20,14 +20,18 @@ export class ChatService {
     content: string,
     senderType: 'client' | 'advisor',
     senderName: string,
+    attachments?: Attachment[] | null,
   ): Promise<Message> {
     const safeContent = sanitizeMessage(content);
-    if (!safeContent) throw new BadRequestException('Mensaje vacio');
+    if (!safeContent && (!attachments || attachments.length === 0)) {
+      throw new BadRequestException('Mensaje vacio');
+    }
     const safeSenderName = sanitizeSenderName(senderName);
     const message = this.messageRepo.create({
-      content: safeContent,
+      content: safeContent || '',
       senderType,
       senderName: safeSenderName,
+      attachments: attachments && attachments.length > 0 ? attachments : null,
       session: { id: sessionId } as Session,
     });
     return this.messageRepo.save(message);

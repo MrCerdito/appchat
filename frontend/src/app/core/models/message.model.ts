@@ -1,3 +1,12 @@
+export interface Attachment {
+  id          : string;
+  fileName    : string;
+  originalName: string;
+  mimeType    : string;
+  size        : number;
+  url         : string;
+}
+
 export interface Message {
   id        : string;
   content   : string;
@@ -5,5 +14,6 @@ export interface Message {
   senderName?: string;
   createdAt : string;
   readAt    : string | null;
+  attachments?: Attachment[];
   documentos?: { nombre: string; pdfUrl: string | null; categoria: string | null }[];
 }

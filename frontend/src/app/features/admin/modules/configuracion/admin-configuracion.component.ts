@@ -13,8 +13,9 @@ import { SoundService } from '../../../../core/services/sound.service';
 import { WhatsappChatService } from '../../../../core/services/whatsapp-chat.service';
 import { WaConnectionStatus } from '../../../../core/models/whatsapp.models';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
+import { Colegio, SessionService } from '../../../../core/services/session.service';
 
-type ConfigTab = 'jornada' | 'whatsapp' | 'mensajes' | 'inactividad' | 'respuestas' | 'ia';
+type ConfigTab = 'jornada' | 'whatsapp' | 'mensajes' | 'inactividad' | 'respuestas' | 'ia' | 'colegios';
 
 @Component({
   selector: 'app-admin-configuracion',
@@ -54,6 +55,16 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
   selectedRole: string = 'estudiante';
   newRestrictedTopic = '';
   iaSectionOpen = { identidad: true, instrucciones: true, roles: true, transferencia: false, feedback: false, avanzado: false };
+
+  // ── Colegios ─────────────────────────────────────────────────────────────
+  colegios: Colegio[] = [];
+  colegiosLoading = false;
+  colegioSearch = '';
+  colegioEditando: Colegio | null = null;
+  colegioFormVisible = false;
+  colegioForm = { nombre: '', link: '', email: '' };
+  colegioSaving = false;
+  colegioDeletingId: string | null = null;
 
   readonly aiRoles = [
     { key: 'administrador', label: 'Administrador', icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' },
@@ -145,6 +156,7 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
     private readonly notification: NotificationService,
     private readonly sound: SoundService,
     private readonly cdr: ChangeDetectorRef,
+    private readonly sessionService: SessionService,
   ) {}
 
   ngOnInit(): void {
@@ -561,6 +573,103 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
     if (this.config) {
       this.config.aiPromptConfig = null;
     }
+  }
+
+  // ── Colegios CRUD ──────────────────────────────────────────────────────────
+
+  loadColegios(): void {
+    this.colegiosLoading = true;
+    this.sessionService.getColegios().subscribe({
+      next: (c) => { this.colegios = c; this.colegiosLoading = false; this.cdr.detectChanges(); },
+      error: () => { this.colegiosLoading = false; this.cdr.detectChanges(); },
+    });
+  }
+
+  get colegiosFiltrados(): Colegio[] {
+    const q = this.colegioSearch.trim().toLowerCase();
+    if (!q) return this.colegios;
+    return this.colegios.filter(c =>
+      c.nombre.toLowerCase().includes(q) ||
+      (c.email ?? '').toLowerCase().includes(q)
+    );
+  }
+
+  openColegioForm(colegio?: Colegio): void {
+    if (colegio) {
+      this.colegioEditando = colegio;
+      this.colegioForm = { nombre: colegio.nombre, link: colegio.link, email: colegio.email ?? '' };
+    } else {
+      this.colegioEditando = null;
+      this.colegioForm = { nombre: '', link: '', email: '' };
+    }
+    this.colegioFormVisible = true;
+    this.cdr.detectChanges();
+  }
+
+  closeColegioForm(): void {
+    this.colegioFormVisible = false;
+    this.colegioEditando = null;
+    this.colegioForm = { nombre: '', link: '', email: '' };
+    this.cdr.detectChanges();
+  }
+
+  saveColegio(): void {
+    if (!this.colegioForm.nombre.trim() || !this.colegioForm.link.trim()) return;
+    this.colegioSaving = true;
+
+    const payload = {
+      nombre: this.colegioForm.nombre.trim(),
+      link: this.colegioForm.link.trim(),
+      email: this.colegioForm.email.trim() || undefined,
+    };
+
+    const obs = this.colegioEditando
+      ? this.sessionService.updateColegio(this.colegioEditando.id, payload)
+      : this.sessionService.createColegio(payload);
+
+    obs.subscribe({
+      next: () => {
+        this.colegioSaving = false;
+        this.closeColegioForm();
+        this.loadColegios();
+        this.notification.success(
+          this.colegioEditando ? 'Colegio actualizado' : 'Colegio creado',
+          'Los cambios se guardaron correctamente.',
+        );
+      },
+      error: (err) => {
+        this.colegioSaving = false;
+        const msg = err.error?.message || 'Error al guardar el colegio.';
+        this.notification.error('Error', Array.isArray(msg) ? msg.join('. ') : msg);
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  confirmDeleteColegio(colegio: Colegio): void {
+    this.colegioDeletingId = colegio.id;
+    this.cdr.detectChanges();
+  }
+
+  cancelDeleteColegio(): void {
+    this.colegioDeletingId = null;
+    this.cdr.detectChanges();
+  }
+
+  deleteColegio(id: string): void {
+    this.sessionService.deleteColegio(id).subscribe({
+      next: () => {
+        this.colegioDeletingId = null;
+        this.loadColegios();
+        this.notification.success('Colegio eliminado', 'El colegio fue eliminado correctamente.');
+      },
+      error: (err) => {
+        this.colegioDeletingId = null;
+        const msg = err.error?.message || 'Error al eliminar el colegio.';
+        this.notification.error('Error', Array.isArray(msg) ? msg.join('. ') : msg);
+        this.cdr.detectChanges();
+      },
+    });
   }
 
   ngOnDestroy(): void {

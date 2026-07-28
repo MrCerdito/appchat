@@ -462,3 +462,160 @@ input[type="time"] {
   .preview-bubble { font-size: 0.82rem; padding: 0.55rem 0.8rem; }
   .btn-save { padding: 0.5rem 1rem; font-size: 0.82rem; }
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// TAB — COLEGIOS
+// ══════════════════════════════════════════════════════════════════════════════
+.colegios-toolbar {
+  display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;
+}
+.colegios-search {
+  display: flex; align-items: center; gap: 0.5rem;
+  flex: 1; padding: 0.55rem 0.85rem; border-radius: 10px;
+  border: 1px solid var(--border); background: var(--surface);
+  transition: border-color 0.15s;
+  &:focus-within { border-color: #7c3aed; }
+  svg { width: 16px; height: 16px; color: var(--text-muted); flex-shrink: 0; }
+  input {
+    flex: 1; border: none; outline: none; background: transparent;
+    font-family: var(--font); font-size: 0.85rem; color: var(--text);
+    &::placeholder { color: var(--text-muted); }
+  }
+}
+.btn-add-colegio {
+  display: flex; align-items: center; gap: 0.4rem;
+  padding: 0.55rem 1rem; border: none; border-radius: 10px;
+  background: #7c3aed; color: white; font-family: var(--font);
+  font-size: 0.84rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+  transition: background 0.15s;
+  svg { width: 14px; height: 14px; }
+  &:hover:not(:disabled) { background: #6d28d9; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+// ── Formulario colegio ────────────────────────────────────────────────────────
+.colegio-form-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  margin-bottom: 1rem; overflow: hidden;
+  animation: slideDown 0.2s ease;
+}
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.colegio-form-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.85rem 1.15rem; border-bottom: 1px solid var(--border);
+  h4 { margin: 0; font-size: 0.9rem; font-weight: 600; color: var(--text); }
+}
+.btn-close-form {
+  background: transparent; border: none; cursor: pointer; color: var(--text-muted);
+  padding: 4px; border-radius: 6px; display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+  svg { width: 16px; height: 16px; }
+  &:hover { background: var(--bg); color: var(--text); }
+}
+.colegio-form-body {
+  padding: 1rem 1.15rem; display: flex; flex-direction: column; gap: 0.75rem;
+}
+.colegio-form-actions {
+  display: flex; justify-content: flex-end; gap: 0.5rem;
+  padding: 0.75rem 1.15rem; border-top: 1px solid var(--border);
+  background: var(--bg);
+}
+.btn-cancel {
+  padding: 0.5rem 1rem; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface); font-family: var(--font); font-size: 0.82rem;
+  font-weight: 500; color: var(--text-muted); cursor: pointer; transition: all 0.15s;
+  &:hover { background: var(--bg); color: var(--text); }
+}
+.btn-save-colegio {
+  display: flex; align-items: center; gap: 0.4rem;
+  padding: 0.5rem 1rem; border: none; border-radius: 8px;
+  background: #7c3aed; color: white; font-family: var(--font);
+  font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: background 0.15s;
+  &:hover:not(:disabled) { background: #6d28d9; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-spinner {
+    width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite;
+  }
+}
+
+// ── Loading / Empty ───────────────────────────────────────────────────────────
+.colegios-loading {
+  display: flex; align-items: center; gap: 0.75rem; padding: 2rem;
+  justify-content: center; color: var(--text-muted);
+}
+.colegios-empty {
+  display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
+  padding: 2.5rem 1rem; text-align: center;
+  svg { width: 36px; height: 36px; color: var(--border); }
+  p { margin: 0; font-size: 0.9rem; font-weight: 600; color: var(--text); }
+  span { font-size: 0.8rem; color: var(--text-muted); }
+}
+
+// ── Tabla colegios ────────────────────────────────────────────────────────────
+.colegios-table-wrap { overflow-x: auto; }
+.colegios-table {
+  width: 100%; border-collapse: collapse; font-size: 0.84rem;
+  thead {
+    th {
+      text-align: left; padding: 0.6rem 0.85rem; font-weight: 600;
+      color: var(--text-muted); border-bottom: 2px solid var(--border);
+      font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em;
+      &.th-actions { text-align: right; width: 120px; }
+    }
+  }
+  tbody {
+    tr { border-bottom: 1px solid var(--border-light); transition: background 0.1s; }
+    tr:hover { background: var(--bg); }
+    td { padding: 0.7rem 0.85rem; vertical-align: middle; }
+  }
+}
+.td-name { font-weight: 600; color: var(--text); }
+.td-link {
+  a { color: #7c3aed; text-decoration: none; word-break: break-all;
+    &:hover { text-decoration: underline; }
+  }
+}
+.td-email { color: var(--text-muted); }
+.td-actions { text-align: right; white-space: nowrap; }
+
+.btn-icon-edit, .btn-icon-delete {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border: none; border-radius: 8px;
+  cursor: pointer; transition: all 0.15s;
+  svg { width: 14px; height: 14px; }
+}
+.btn-icon-edit {
+  background: transparent; color: var(--text-muted);
+  &:hover { background: #f5f3ff; color: #7c3aed; }
+}
+.btn-icon-delete {
+  background: transparent; color: var(--text-muted);
+  &:hover { background: #fef2f2; color: #ef4444; }
+}
+
+.delete-confirm {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  font-size: 0.78rem; color: var(--text-muted);
+}
+.btn-confirm-yes, .btn-confirm-no {
+  padding: 3px 8px; border: none; border-radius: 6px;
+  font-family: var(--font); font-size: 0.75rem; font-weight: 600;
+  cursor: pointer; transition: all 0.15s;
+}
+.btn-confirm-yes {
+  background: #fef2f2; color: #ef4444;
+  &:hover { background: #ef4444; color: white; }
+}
+.btn-confirm-no {
+  background: var(--bg); color: var(--text-muted);
+  &:hover { background: var(--border); }
+}
+
+.colegios-count {
+  padding: 0.6rem 0.85rem; font-size: 0.78rem; color: var(--text-muted);
+  border-top: 1px solid var(--border-light); text-align: right;
+}

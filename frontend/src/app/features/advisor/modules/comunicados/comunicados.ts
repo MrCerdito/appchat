@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy, ViewChild, ElementRef } from '@angular/core';
-import { DatePipe, SlicePipe } from '@angular/common';
+import { SlicePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
@@ -7,13 +7,14 @@ import { ComunicadosService, Colegio } from '../../../../core/services/comunicad
 import { Comunicado, Destinatario } from '../../../../core/models/comunicado.model';
 import { NotificationService } from '../../../../core/services/notification.service';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
+import { fmtDateFull, fmtDateTimeFull } from '../../../../shared/utils/date';
 
 type View = 'inbox' | 'sent' | 'drafts' | 'compose';
 
 @Component({
   selector: 'app-comunicados',
   standalone: true,
-  imports: [FormsModule, DatePipe, SlicePipe],
+  imports: [FormsModule, SlicePipe],
   templateUrl: './comunicados.html',
   styleUrl: './comunicados.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -21,6 +22,8 @@ type View = 'inbox' | 'sent' | 'drafts' | 'compose';
 export class ComunicadosComponent implements OnInit, OnDestroy {
   protected readonly trackByIndex = trackByIndex;
   protected readonly trackById = trackById;
+  protected readonly fmtDateFull = fmtDateFull;
+  protected readonly fmtDateTimeFull = fmtDateTimeFull;
   view: View = 'inbox';
   comunicados: Comunicado[] = [];
   colegios: Colegio[] = [];

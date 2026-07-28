@@ -39,10 +39,13 @@ export class AuthService {
     return { access_token, refresh_token };
   }
 
+  private readonly MAX_FAILED_ATTEMPTS = 5;
+  private readonly LOCKOUT_MINUTES = 15;
+
   async login(email: string, password: string) {
     const user = await this.userRepo.findOne({ where: { email } });
 
-    if (!user || !(await bcrypt.compare(password, user.password))) {
+    if (!user) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
@@ -50,9 +53,39 @@ export class AuthService {
       throw new UnauthorizedException('Usuario desactivado');
     }
 
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      const mins = Math.ceil(
+        (user.lockedUntil.getTime() - Date.now()) / 60000,
+      );
+      throw new UnauthorizedException(
+        `Cuenta bloqueada. Intenta de nuevo en ${mins} minuto(s)`,
+      );
+    }
+
+    if (!(await bcrypt.compare(password, user.password))) {
+      const attempts = (user.failedLoginAttempts ?? 0) + 1;
+      const update: Partial<typeof user> = {
+        failedLoginAttempts: attempts,
+      };
+      if (attempts >= this.MAX_FAILED_ATTEMPTS) {
+        update.lockedUntil = new Date(
+          Date.now() + this.LOCKOUT_MINUTES * 60_000,
+        );
+        update.failedLoginAttempts = 0;
+      }
+      await this.userRepo.update(user.id, update);
+      throw new UnauthorizedException('Credenciales inválidas');
+    }
+
+    if (user.failedLoginAttempts > 0 || user.lockedUntil) {
+      await this.userRepo.update(user.id, {
+        failedLoginAttempts: 0,
+        lockedUntil: null,
+      });
+    }
+
     const { access_token, refresh_token } = this.generateTokens(user);
 
-    // Guardar refresh token hasheado
     user.refreshToken = await bcrypt.hash(refresh_token, 8);
     await this.userRepo.save(user);
 

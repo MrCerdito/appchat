@@ -83,10 +83,10 @@ export class Session {
   @JoinColumn({ name: 'advisor_id' })
   advisor: User | null;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
-  @Column({ name: 'closed_at', nullable: true, type: 'timestamp' })
+  @Column({ name: 'closed_at', nullable: true, type: 'timestamptz' })
   closedAt: Date | null;
 
   @OneToMany(() => Message, (message) => message.session)

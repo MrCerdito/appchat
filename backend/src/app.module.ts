@@ -1,9 +1,13 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { CacheModule } from '@nestjs/cache-manager';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import * as Joi from 'joi';
+import { RedisThrottlerStorage } from './common/throttler/redis-throttler.storage';
+import { UserThrottlerGuard } from './common/throttler/user-throttler.guard';
+import { AuditInterceptor } from './common/interceptors/audit.interceptor';
 import { AuthModule } from './auth/auth.module';
 import { SessionsModule } from './sessions/sessions.module';
 import { ChatModule } from './chat/chat.module';
@@ -33,18 +37,37 @@ import { FaqModule } from './faq/faq.module';
 import { Faq } from './faq/entities/faq.entity';
 import { TicketsModule } from './tickets/tickets.module';
 import { Ticket } from './tickets/ticket.entity';
+import { PqrsModule } from './pqrs/pqrs.module';
+import { Pqrs } from './pqrs/entities/pqrs.entity';
 import { SeedModule } from './seed/seed.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
 @Module({
   imports: [
-    ThrottlerModule.forRoot([
-      {
-        ttl: 60000,
-        limit: 60,
+    ThrottlerModule.forRoot({
+      throttlers: [
+        {
+          ttl: 60000,
+          limit: 500,
+          blockDuration: 120000,
+        },
+      ],
+      storage: new RedisThrottlerStorage(),
+    }),
+    CacheModule.registerAsync({
+      isGlobal: true,
+      inject: [ConfigService],
+      useFactory: async (config: ConfigService) => {
+        const { createKeyv } = await import('@keyv/redis');
+        return {
+          stores: [
+            createKeyv(config.get<string>('REDIS_URL') || 'redis://localhost:6379'),
+          ],
+          ttl: 10_000,
+        };
       },
-    ]),
+    }),
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
@@ -73,6 +96,7 @@ import { AppService } from './app.service';
           .default('development'),
         CORS_ORIGINS: Joi.string().optional(),
         APP_URL: Joi.string().uri().optional(),
+        REDIS_URL: Joi.string().uri().default('redis://localhost:6379'),
       }),
       validationOptions: {
         abortEarly: true,
@@ -91,6 +115,7 @@ import { AppService } from './app.service';
         timezone: 'UTC',
         extra: {
           max: 20,
+          min: 3,
           idleTimeoutMillis: 30000,
           connectionTimeoutMillis: 5000,
         },
@@ -111,6 +136,7 @@ import { AppService } from './app.service';
           WhatsappMessage,
           Faq,
           Ticket,
+          Pqrs,
         ],
         synchronize: config.get<string>('NODE_ENV') !== 'production',
         logging: false,
@@ -129,6 +155,7 @@ import { AppService } from './app.service';
     AdvisorsWhatsappModule,
     FaqModule,
     TicketsModule,
+    PqrsModule,
     SeedModule,
   ],
   controllers: [AppController],
@@ -136,7 +163,11 @@ import { AppService } from './app.service';
     AppService,
     {
       provide: APP_GUARD,
-      useClass: ThrottlerGuard,
+      useClass: UserThrottlerGuard,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: AuditInterceptor,
     },
   ],
 })

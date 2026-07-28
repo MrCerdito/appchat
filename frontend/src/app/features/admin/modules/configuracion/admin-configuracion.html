@@ -97,6 +97,12 @@
         </svg>
         Prompt IA
       </button>
+      <button class="tab" [class.active]="tab === 'colegios'" (click)="tab = 'colegios'; loadColegios()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/>
+        </svg>
+        Colegios
+      </button>
     </div>
 
     <!-- ══════════════════════════════════════════════════════════
@@ -908,6 +914,150 @@
             Restablecer predeterminado
           </button>
         </div>
+
+      </div>
+    </div>
+    }
+
+    <!-- ══════════════════════════════════════════════════════════
+         TAB — COLEGIOS
+    ══════════════════════════════════════════════════════════ -->
+    @if (tab === 'colegios') {
+    <div class="tab-panel">
+      <div class="panel-section">
+
+        <div class="section-info">
+          <h3>Gestión de colegios</h3>
+          <p>Administra los colegios disponibles en el sistema. Estos aparecen en el autocomplete
+             del formulario de registro del chat.</p>
+        </div>
+
+        <!-- Barra de búsqueda + botón agregar -->
+        <div class="colegios-toolbar">
+          <div class="colegios-search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" [(ngModel)]="colegioSearch" placeholder="Buscar colegio..."/>
+          </div>
+          <button class="btn-add-colegio" (click)="openColegioForm()" [disabled]="colegioFormVisible">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Agregar colegio
+          </button>
+        </div>
+
+        <!-- Formulario crear/editar -->
+        @if (colegioFormVisible) {
+        <div class="colegio-form-card">
+          <div class="colegio-form-header">
+            <h4>{{ colegioEditando ? 'Editar colegio' : 'Nuevo colegio' }}</h4>
+            <button class="btn-close-form" (click)="closeColegioForm()" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+          <div class="colegio-form-body">
+            <div class="field">
+              <label>Nombre <span class="req">*</span></label>
+              <input type="text" [(ngModel)]="colegioForm.nombre" placeholder="Ej: Colegio San José" maxlength="200"/>
+            </div>
+            <div class="field">
+              <label>Link <span class="req">*</span></label>
+              <input type="url" [(ngModel)]="colegioForm.link" placeholder="https://ejemplo.com" maxlength="500"/>
+            </div>
+            <div class="field">
+              <label>Correo electrónico</label>
+              <input type="email" [(ngModel)]="colegioForm.email" placeholder="contacto@colegio.com" maxlength="255"/>
+            </div>
+          </div>
+          <div class="colegio-form-actions">
+            <button class="btn-cancel" (click)="closeColegioForm()" type="button">Cancelar</button>
+            <button class="btn-save-colegio" (click)="saveColegio()" [disabled]="colegioSaving || !colegioForm.nombre.trim() || !colegioForm.link.trim()">
+              @if (colegioSaving) {
+              <div class="btn-spinner"></div>
+              Guardando...
+              } @else {
+              {{ colegioEditando ? 'Actualizar' : 'Crear colegio' }}
+              }
+            </button>
+          </div>
+        </div>
+        }
+
+        <!-- Loading -->
+        @if (colegiosLoading) {
+        <div class="colegios-loading">
+          <div class="spinner"></div>
+          <span>Cargando colegios...</span>
+        </div>
+        }
+
+        <!-- Lista de colegios -->
+        @if (!colegiosLoading) {
+        @if (colegiosFiltrados.length === 0) {
+        <div class="colegios-empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/>
+          </svg>
+          <p>{{ colegioSearch ? 'No se encontraron colegios' : 'No hay colegios registrados' }}</p>
+          <span>{{ colegioSearch ? 'Intenta con otro término de búsqueda' : 'Haz clic en "Agregar colegio" para comenzar' }}</span>
+        </div>
+        } @else {
+        <div class="colegios-table-wrap">
+          <table class="colegios-table">
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Link</th>
+                <th>Correo</th>
+                <th class="th-actions">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (c of colegiosFiltrados; track c.id) {
+              <tr>
+                <td class="td-name">{{ c.nombre }}</td>
+                <td class="td-link">
+                  <a [href]="c.link" target="_blank" rel="noopener noreferrer">{{ c.link }}</a>
+                </td>
+                <td class="td-email">{{ c.email || '—' }}</td>
+                <td class="td-actions">
+                  @if (colegioDeletingId === c.id) {
+                  <span class="delete-confirm">
+                    <span>¿Eliminar?</span>
+                    <button class="btn-confirm-yes" (click)="deleteColegio(c.id)">Sí</button>
+                    <button class="btn-confirm-no" (click)="cancelDeleteColegio()">No</button>
+                  </span>
+                  } @else {
+                  <button class="btn-icon-edit" (click)="openColegioForm(c)" title="Editar">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                      <path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                  </button>
+                  <button class="btn-icon-delete" (click)="confirmDeleteColegio(c)" title="Eliminar">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="3 6 5 6 21 6"/>
+                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                      <path d="M10 11v6"/><path d="M14 11v6"/>
+                      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                    </svg>
+                  </button>
+                  }
+                </td>
+              </tr>
+              }
+            </tbody>
+          </table>
+          <div class="colegios-count">
+            {{ colegiosFiltrados.length }} colegio{{ colegiosFiltrados.length === 1 ? '' : 's' }}
+          </div>
+        </div>
+        }
+        }
 
       </div>
     </div>

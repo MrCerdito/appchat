@@ -1,0 +1,30 @@
+{
+  "api": {
+    "totalRequests": 0,
+    "errors": 0,
+    "latencies": [],
+    "byEndpoint": {}
+  },
+  "ws": {
+    "totalConnections": 0,
+    "disconnections": 0,
+    "connectErrors": 0,
+    "messageLatencies": [],
+    "assignLatencies": [],
+    "messagesSent": 0,
+    "messagesReceived": 0
+  },
+  "whatsapp": {
+    "totalConnections": 0,
+    "disconnections": 0,
+    "connectErrors": 0
+  },
+  "sessions": {
+    "created": 0,
+    "closed": 0,
+    "active": 0
+  },
+  "memory": [],
+  "errors": [],
+  "startTime": 1784898329408
+}

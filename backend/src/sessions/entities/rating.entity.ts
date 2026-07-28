@@ -31,6 +31,6 @@ export class Rating {
   @Column({ type: 'jsonb', default: [] })
   etiquetas: string[]; // ['Rápido', 'Amable', 'Claro']
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 }

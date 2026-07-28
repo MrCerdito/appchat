@@ -20,6 +20,7 @@ export class FaqComponent implements OnInit, OnDestroy {
   protected readonly trackByIndex = trackByIndex;
 
   @Output() iniciarChat = new EventEmitter<void>();
+  @Output() abrirPqrs   = new EventEmitter<void>();
 
   faqs: Faq[] = [];
   categorias: string[] = [];
@@ -91,5 +92,9 @@ export class FaqComponent implements OnInit, OnDestroy {
 
   irAlChat(): void {
     this.iniciarChat.emit();
+  }
+
+  irAPqrs(): void {
+    this.abrirPqrs.emit();
   }
 }

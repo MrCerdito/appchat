@@ -10,6 +10,7 @@ export interface Colegio {
   id: string;
   nombre: string;
   link: string;
+  email?: string;
 }
 
 export interface RankingAsesor {
@@ -109,6 +110,18 @@ export class SessionService {
     return this.http.get<Colegio[]>(`${environment.apiUrl}/sessions/colegios/list`);
   }
 
+  createColegio(data: { nombre: string; link: string; email?: string }): Observable<Colegio> {
+    return this.http.post<Colegio>(`${environment.apiUrl}/sessions/colegios`, data);
+  }
+
+  updateColegio(id: string, data: { nombre?: string; link?: string; email?: string }): Observable<Colegio> {
+    return this.http.patch<Colegio>(`${environment.apiUrl}/sessions/colegios/${id}`, data);
+  }
+
+  deleteColegio(id: string): Observable<{ ok: boolean }> {
+    return this.http.delete<{ ok: boolean }>(`${environment.apiUrl}/sessions/colegios/${id}`);
+  }
+
   getMetricsByAdvisor(advisorId: string): Observable<AdvisorMetrics> {
     return this.http.get<AdvisorMetrics>(
       `${environment.apiUrl}/sessions/metrics/asesor/${advisorId}`
@@ -173,7 +186,18 @@ closeAnonymous(sessionId: string): Observable<any> {
   return this.http.post(`${environment.apiUrl}/sessions/${sessionId}/close-anonymous`, {});
 }
 
-getCodigo(sessionId: string): Observable<{ codigo: string }> {
-  return this.http.get<{ codigo: string }>(`${environment.apiUrl}/sessions/${sessionId}/codigo`);
-}
+  findPublic(id: string): Observable<{
+    id: string;
+    status: string;
+    advisor?: { name: string; profilePhotoUrl?: string } | null;
+    colegio: string;
+    tipoSolicitud: string;
+    clientName: string;
+  }> {
+    return this.http.get<any>(`${environment.apiUrl}/sessions/public/${id}`);
+  }
+
+  getCodigo(sessionId: string): Observable<{ codigo: string }> {
+    return this.http.get<{ codigo: string }>(`${environment.apiUrl}/sessions/${sessionId}/codigo`);
+  }
 }

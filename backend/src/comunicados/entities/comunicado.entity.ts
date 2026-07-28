@@ -44,10 +44,10 @@ export class Comunicado {
   @Column({ type: 'jsonb', default: [] })
   destinatarios: Destinatario[];
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
-  @Column({ name: 'sent_at', nullable: true, type: 'timestamp' })
+  @Column({ name: 'sent_at', nullable: true, type: 'timestamptz' })
   sentAt: Date | null;
 
   @Column({ name: 'total_enviados', default: 0 })

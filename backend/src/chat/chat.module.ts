@@ -3,11 +3,13 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { ChatService } from './chat.service';
 import { ChatGateway } from './chat.gateway';
+import { ChatMediaController } from './chat-media.controller';
 import { Message } from './entities/message.entity';
 import { AiModule } from '../ai/ai.module'; // ← línea nueva
 import { SessionsModule } from '../sessions/sessions.module'; // ← línea nueva
 import { ConfiguracionModule } from 'src/configuracion/configuracion.module';
 import { AdvisorsWhatsappModule } from '../advisor-whatsapp/advisors-whatsapp.module';
+import { RedisStateService } from '../common/redis/redis-state.service';
 
 @Module({
   imports: [
@@ -18,7 +20,8 @@ import { AdvisorsWhatsappModule } from '../advisor-whatsapp/advisors-whatsapp.mo
     ConfiguracionModule,
     AdvisorsWhatsappModule,
   ],
-  providers: [ChatService, ChatGateway],
-  exports: [ChatService, ChatGateway],
+  controllers: [ChatMediaController],
+  providers: [ChatService, ChatGateway, RedisStateService],
+  exports: [ChatService, ChatGateway, RedisStateService],
 })
 export class ChatModule {}

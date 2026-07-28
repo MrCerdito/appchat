@@ -1,0 +1,133 @@
+<div class="pqrs-screen">
+  <div class="pqrs-header">
+    <button class="btn-back" (click)="volver.emit()" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+      </svg>
+    </button>
+    <div class="pqrs-header-text">
+      <h2>Formulario PQRS</h2>
+      <p>Peticiones, Quejas, Reclamos y Sugerencias</p>
+    </div>
+  </div>
+
+  <div class="pqrs-body">
+
+    <!-- Tipo -->
+    <div class="field" [class.error]="submitted && !tipo">
+      <label>Tipo de solicitud <span class="req">*</span></label>
+      <div class="tipo-grid">
+        @for (t of tipos; track t.value) {
+        <button class="tipo-card"
+          [class.active]="tipo === t.value"
+          (click)="tipo = t.value" type="button">
+          @if (t.icon === 'petition') {
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+          }
+          @if (t.icon === 'complaint') {
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          }
+          @if (t.icon === 'claim') {
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          }
+          @if (t.icon === 'suggestion') {
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="16" x2="12" y2="12"/>
+            <line x1="12" y1="8" x2="12.01" y2="8"/>
+          </svg>
+          }
+          <span>{{ t.label }}</span>
+        </button>
+        }
+      </div>
+      <span class="err-msg">Selecciona un tipo</span>
+    </div>
+
+    <!-- Asunto -->
+    <div class="field" [class.error]="submitted && !asunto.trim()">
+      <label>Asunto <span class="req">*</span></label>
+      <input type="text" [(ngModel)]="asunto" placeholder="Breve resumen de tu solicitud" maxlength="255"/>
+      <span class="err-msg">Campo requerido</span>
+    </div>
+
+    <!-- Descripción -->
+    <div class="field" [class.error]="submitted && !descripcion.trim()">
+      <label>Descripción <span class="req">*</span></label>
+      <textarea rows="4" [(ngModel)]="descripcion" placeholder="Describe tu solicitud con detalle..." maxlength="2000"></textarea>
+      <span class="err-msg">Campo requerido</span>
+    </div>
+
+    <!-- Datos personales -->
+    <div class="section-label">Datos de contacto</div>
+
+    <div class="field-row">
+      <div class="field" [class.error]="submitted && !nombre.trim()">
+        <label>Nombre <span class="req">*</span></label>
+        <input type="text" [(ngModel)]="nombre" placeholder="Tu nombre" maxlength="100"/>
+        <span class="err-msg">Campo requerido</span>
+      </div>
+      <div class="field">
+        <label>Apellido</label>
+        <input type="text" [(ngModel)]="apellido" placeholder="Tu apellido" maxlength="100"/>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Identificación</label>
+      <input type="tel" inputmode="numeric" pattern="[0-9]*"
+        [(ngModel)]="identificacion" placeholder="Solo números"
+        (input)="onIdentificacionInput($event)" maxlength="20"/>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label>Correo electrónico</label>
+        <input type="email" [(ngModel)]="email" placeholder="correo@ejemplo.com" maxlength="255"/>
+      </div>
+      <div class="field">
+        <label>Teléfono</label>
+        <input type="tel" [(ngModel)]="telefono" placeholder="300 123 4567" maxlength="20"/>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Colegio</label>
+      <input type="text" [(ngModel)]="colegio" placeholder="Nombre de tu colegio" maxlength="150"/>
+    </div>
+
+    @if (errorMsg) {
+    <div class="error-banner">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      {{ errorMsg }}
+    </div>
+    }
+
+    <button class="btn-submit" (click)="enviar()" [disabled]="enviando">
+      @if (enviando) {
+      <div class="btn-spinner"></div>
+      Enviando...
+      } @else {
+      Enviar solicitud
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+      </svg>
+      }
+    </button>
+  </div>
+</div>

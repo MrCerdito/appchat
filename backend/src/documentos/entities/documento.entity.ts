@@ -49,6 +49,6 @@ export class Documento {
   @Column({ default: true })
   activo: boolean;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 }

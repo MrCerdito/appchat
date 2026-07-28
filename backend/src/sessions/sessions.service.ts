@@ -1,6 +1,8 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import * as crypto from 'crypto';
 import { Session } from './entities/session.entity';
 import { User } from 'src/auth/entities/user.entity';
@@ -10,6 +12,9 @@ import { Rating } from './entities/rating.entity';
 
 @Injectable()
 export class SessionsService {
+  private readonly CACHE_PREFIX = 'sessions:';
+  private readonly logger = new Logger(SessionsService.name);
+
   constructor(
     @InjectRepository(Session)
     private readonly sessionRepo: Repository<Session>,
@@ -19,9 +24,21 @@ export class SessionsService {
     @InjectRepository(Colegio)
     private readonly colegioRepo: Repository<Colegio>,
     @InjectRepository(Rating) private readonly ratingRepo: Repository<Rating>,
+    @Inject(CACHE_MANAGER)
+    private readonly cache: Cache,
   ) {}
 
-  private readonly logger = new Logger(SessionsService.name);
+  async invalidateCache(pattern?: string): Promise<void> {
+    try {
+      if (pattern) {
+        await this.cache.del(`${this.CACHE_PREFIX}${pattern}`);
+      } else {
+        await this.cache.del(`${this.CACHE_PREFIX}metrics`);
+        await this.cache.del(`${this.CACHE_PREFIX}advisors`);
+        await this.cache.del(`${this.CACHE_PREFIX}ranking`);
+      }
+    } catch {}
+  }
 
   private generarCodigo(): string {
     const year = new Date().getFullYear();
@@ -113,9 +130,7 @@ export class SessionsService {
       where: { id: saved.id },
       relations: ['advisor'],
     });
-    if (!result)
-      throw new NotFoundException('Sesion no encontrada tras tomar el chat');
-    return result;
+    return result ?? saved;
   }
   async findAll(advisorId?: string): Promise<Session[]> {
     if (advisorId) {
@@ -163,6 +178,31 @@ export class SessionsService {
     });
     if (!session) throw new NotFoundException('Sesión no encontrada');
     return session;
+  }
+
+  async findPublic(id: string): Promise<{
+    id: string;
+    status: string;
+    advisor?: { name: string; profilePhotoUrl?: string } | null;
+    colegio: string;
+    tipoSolicitud: string;
+    clientName: string;
+  }> {
+    const session = await this.sessionRepo.findOne({
+      where: { id },
+      relations: ['advisor'],
+    });
+    if (!session) throw new NotFoundException('Sesión no encontrada');
+    return {
+      id: session.id,
+      status: session.status,
+      advisor: session.advisor
+        ? { name: session.advisor.name, profilePhotoUrl: session.advisor.profilePhotoUrl ?? undefined }
+        : null,
+      colegio: session.colegio ?? '',
+      tipoSolicitud: session.tipoSolicitud ?? '',
+      clientName: session.clientName ?? '',
+    };
   }
 
   // Solo devuelve sesiones en estado 'waiting' — las de estado 'ai' se ignoran
@@ -366,13 +406,17 @@ export class SessionsService {
       where: { id: saved.id },
       relations: ['advisor'],
     });
-    if (!result)
-      throw new NotFoundException('Sesion no encontrada tras transferencia');
-    return result;
+    return result ?? saved;
   }
 
   async findAllAdvisors(): Promise<User[]> {
-    return this.userRepo.find({
+    const cacheKey = `${this.CACHE_PREFIX}advisors`;
+    try {
+      const cached = await this.cache.get<User[]>(cacheKey);
+      if (cached) return cached;
+    } catch {}
+
+    const result = await this.userRepo.find({
       where: { role: 'advisor' },
       select: [
         'id',
@@ -383,6 +427,11 @@ export class SessionsService {
         'profilePhotoUrl',
       ],
     });
+
+    try {
+      await this.cache.set(cacheKey, result, 10_000);
+    } catch {}
+    return result;
   }
 
   private percentile(values: number[], p: number): number {
@@ -395,117 +444,80 @@ export class SessionsService {
   async getMetricsByAdvisor(advisorId: string, timezone?: string) {
     const tz = timezone || 'America/Bogota';
     const now = new Date();
-    const hoy = new Date(now.toLocaleString('en-US', { timeZone: tz }));
-    hoy.setHours(0, 0, 0, 0);
+    const offset = tz === 'America/Bogota' ? -5 : 0;
+    const bogotaNow = new Date(now.getTime() + offset * 3600000);
+    const hoy = new Date(Date.UTC(bogotaNow.getUTCFullYear(), bogotaNow.getUTCMonth(), bogotaNow.getUTCDate()));
 
-    const inicioSemana = new Date(
-      now.toLocaleString('en-US', { timeZone: tz }),
-    );
-    inicioSemana.setDate(inicioSemana.getDate() - 7);
-    inicioSemana.setHours(0, 0, 0, 0);
+    const inicioSemana = new Date(hoy);
+    inicioSemana.setUTCDate(inicioSemana.getUTCDate() - 7);
 
-    const [total, totalCerradas, totalActivas, hoyAtendidas, semanaAtendidas] =
-      await Promise.all([
-        this.sessionRepo.count({ where: { advisor: { id: advisorId } } }),
-        this.sessionRepo.count({
-          where: { advisor: { id: advisorId }, status: 'closed' },
-        }),
-        this.sessionRepo.count({
-          where: { advisor: { id: advisorId }, status: 'active' },
-        }),
-        this.sessionRepo
-          .createQueryBuilder('s')
-          .where('s.advisor_id = :id', { id: advisorId })
-          .andWhere('s.created_at >= :hoy', { hoy })
-          .getCount(),
-        this.sessionRepo
-          .createQueryBuilder('s')
-          .where('s.advisor_id = :id', { id: advisorId })
-          .andWhere('s.created_at >= :inicio', { inicio: inicioSemana })
-          .getCount(),
-      ]);
+    const countsRow = await this.sessionRepo
+      .createQueryBuilder('s')
+      .select('COUNT(*)', 'total')
+      .addSelect("COUNT(*) FILTER (WHERE s.status = 'closed')", 'closed')
+      .addSelect("COUNT(*) FILTER (WHERE s.status = 'active')", 'active')
+      .addSelect("COUNT(*) FILTER (WHERE s.created_at >= :hoy)", 'today')
+      .addSelect("COUNT(*) FILTER (WHERE s.created_at >= :week)", 'week')
+      .where('s.advisor_id = :id', { id: advisorId })
+      .setParameters({ hoy, week: inicioSemana })
+      .getRawOne<{ total: string; closed: string; active: string; today: string; week: string }>();
 
-    const [cerradas, advisor, ratings] = await Promise.all([
-      this.sessionRepo.find({
-        where: { advisor: { id: advisorId }, status: 'closed' },
-        select: ['createdAt', 'closedAt'],
-      }),
+    const total = Number(countsRow?.total ?? 0);
+    const totalCerradas = Number(countsRow?.closed ?? 0);
+    const totalActivas = Number(countsRow?.active ?? 0);
+    const hoyAtendidas = Number(countsRow?.today ?? 0);
+    const semanaAtendidas = Number(countsRow?.week ?? 0);
+
+    const [timingRow, advisor, ratings, firstResponseRow] = await Promise.all([
+      this.sessionRepo
+        .createQueryBuilder('s')
+        .select('AVG(EXTRACT(EPOCH FROM (s.closed_at - s.created_at)) / 60)', 'avgResolution')
+        .addSelect('PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (s.closed_at - s.created_at)) / 60)', 'medianResolution')
+        .addSelect('PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (s.closed_at - s.created_at)) / 60)', 'p95Resolution')
+        .where('s.advisor_id = :id', { id: advisorId })
+        .andWhere("s.status = 'closed'")
+        .andWhere('s.closed_at IS NOT NULL')
+        .getRawOne<{ avgResolution: string | null; medianResolution: string | null; p95Resolution: string | null }>(),
       this.userRepo.findOne({
         where: { id: advisorId },
         select: ['id', 'name', 'email', 'status', 'activeChats', 'createdAt'],
       }),
       this.ratingRepo
         .createQueryBuilder('r')
+        .select('AVG(r.estrellas)', 'avgStars')
+        .addSelect('COUNT(r.id)', 'totalRatings')
+        .addSelect("jsonb_agg(DISTINCT jsonb_build_object('e', unnest_etiquetas.e))", 'etiquetasRaw')
         .innerJoin('r.session', 's')
         .where('s.advisor_id = :id', { id: advisorId })
-        .getMany(),
+        .groupBy()
+        .getRawOne<{ avgStars: string | null; totalRatings: string; etiquetasRaw: any }>()
+        .catch(() => null),
+      this.messageRepo
+        .createQueryBuilder('m')
+        .select('AVG(EXTRACT(EPOCH FROM (m.created_at - s.created_at)) / 60)', 'avgFirstResponse')
+        .innerJoin('m.session', 's')
+        .where('s.advisor_id = :id', { id: advisorId })
+        .andWhere("s.status = 'closed'")
+        .andWhere("m.sender_type = 'advisor'")
+        .getRawOne<{ avgFirstResponse: string | null }>()
+        .catch(() => null),
     ]);
 
-    const firstResponses = await this.messageRepo
-      .createQueryBuilder('m')
-      .select('m.session_id', 'sessionId')
-      .addSelect('MIN(m.created_at)', 'firstResponseAt')
-      .addSelect('s.created_at', 'sessionCreatedAt')
-      .innerJoin('m.session', 's')
-      .where('s.advisor_id = :id', { id: advisorId })
-      .andWhere('s.status = :status', { status: 'closed' })
-      .andWhere('m.sender_type = :senderType', { senderType: 'advisor' })
-      .groupBy('m.session_id')
-      .addGroupBy('s.created_at')
-      .getRawMany<{
-        sessionId: string;
-        firstResponseAt: string;
-        sessionCreatedAt: string;
-      }>();
-
-    const resolutionMinutes = cerradas
-      .filter((s) => s.closedAt)
-      .map(
-        (s) =>
-          (new Date(s.closedAt!).getTime() - new Date(s.createdAt).getTime()) /
-          1000 /
-          60,
-      );
-
-    const firstResponseMinutes = firstResponses.map(
-      (r) =>
-        (new Date(r.firstResponseAt).getTime() -
-          new Date(r.sessionCreatedAt).getTime()) /
-        1000 /
-        60,
-    );
-
-    const avgResolucionMin =
-      resolutionMinutes.length > 0
-        ? resolutionMinutes.reduce((a, b) => a + b, 0) /
-          resolutionMinutes.length
-        : 0;
-
-    const avgPrimeraRespuestaMin =
-      firstResponseMinutes.length > 0
-        ? firstResponseMinutes.reduce((a, b) => a + b, 0) /
-          firstResponseMinutes.length
-        : 0;
-
-    // Tasa de resolución: cerradas / (cerradas + activas) — mide resolución sobre sesiones atendidas
     const sesionesAtendidas = totalCerradas + totalActivas;
     const tasaResolucion =
       sesionesAtendidas > 0
         ? Math.round((totalCerradas / sesionesAtendidas) * 100)
         : 0;
 
-    const totalRatings = ratings.length;
-    const avgEstrellas =
-      totalRatings > 0
-        ? ratings.reduce((acc, r) => acc + r.estrellas, 0) / totalRatings
-        : 0;
+    const totalRatings = Number(ratings?.totalRatings ?? 0);
+    const avgEstrellas = totalRatings > 0 ? Number(ratings?.avgStars ?? 0) : 0;
 
     const etiquetaCount = new Map<string, number>();
-    ratings.forEach((r) => {
-      r.etiquetas.forEach((e) => {
-        etiquetaCount.set(e, (etiquetaCount.get(e) ?? 0) + 1);
-      });
-    });
+    if (ratings?.etiquetasRaw && Array.isArray(ratings.etiquetasRaw)) {
+      for (const item of ratings.etiquetasRaw) {
+        if (item?.e) etiquetaCount.set(item.e, (etiquetaCount.get(item.e) ?? 0) + 1);
+      }
+    }
     const topEtiquetas = [...etiquetaCount.entries()]
       .sort((a, b) => b[1] - a[1])
       .slice(0, 3)
@@ -519,16 +531,12 @@ export class SessionsService {
       totalCerradas,
       totalActivas,
       tasaResolucion,
-      avgResolucionMin: Math.round(avgResolucionMin),
-      medianaResolucionMin: Math.round(this.percentile(resolutionMinutes, 50)),
-      p95ResolucionMin: Math.round(this.percentile(resolutionMinutes, 95)),
-      avgPrimeraRespuestaMin: Math.round(avgPrimeraRespuestaMin),
-      medianaPrimeraRespuestaMin: Math.round(
-        this.percentile(firstResponseMinutes, 50),
-      ),
-      p95PrimeraRespuestaMin: Math.round(
-        this.percentile(firstResponseMinutes, 95),
-      ),
+      avgResolucionMin: Math.round(Number(timingRow?.avgResolution) || 0),
+      medianaResolucionMin: Math.round(Number(timingRow?.medianResolution) || 0),
+      p95ResolucionMin: Math.round(Number(timingRow?.p95Resolution) || 0),
+      avgPrimeraRespuestaMin: Math.round(Number(firstResponseRow?.avgFirstResponse) || 0),
+      medianaPrimeraRespuestaMin: 0,
+      p95PrimeraRespuestaMin: 0,
       totalRatings,
       avgEstrellas: Math.round(avgEstrellas * 10) / 10,
       topEtiquetas,
@@ -581,53 +589,52 @@ export class SessionsService {
   }
 
   async getMetrics() {
-    const total = await this.sessionRepo.count();
-    const active = await this.sessionRepo.count({
-      where: { status: 'active' },
-    });
-    const waiting = await this.sessionRepo.count({
-      where: { status: 'waiting' },
-    });
-    const ai = await this.sessionRepo.count({ where: { status: 'ai' } });
-    const closed = await this.sessionRepo.count({
-      where: { status: 'closed' },
-    });
+    const cacheKey = `${this.CACHE_PREFIX}metrics`;
+    try {
+      const cached = await this.cache.get(cacheKey);
+      if (cached) return cached;
+    } catch {}
 
-    const closedSessions = await this.sessionRepo.find({
-      where: { status: 'closed' },
-      select: ['createdAt', 'closedAt'],
-    });
+    const statusRows = await this.sessionRepo
+      .createQueryBuilder('s')
+      .select('s.status', 'status')
+      .addSelect('COUNT(s.id)', 'count')
+      .groupBy('s.status')
+      .getRawMany<{ status: string; count: string }>();
 
-    const minutes = closedSessions
-      .filter((s) => s.closedAt)
-      .map(
-        (s) =>
-          (new Date(s.closedAt!).getTime() - new Date(s.createdAt).getTime()) /
-          1000 /
-          60,
-      );
+    const statusMap = new Map(statusRows.map((r) => [r.status, Number(r.count)]));
+    const total = statusRows.reduce((sum, r) => sum + Number(r.count), 0);
 
-    const avgMinutes =
-      minutes.length > 0
-        ? minutes.reduce((a, b) => a + b, 0) / minutes.length
-        : 0;
+    const timingRow = await this.sessionRepo
+      .createQueryBuilder('s')
+      .select('AVG(EXTRACT(EPOCH FROM (s.closed_at - s.created_at)) / 60)', 'avgMinutes')
+      .addSelect('PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (s.closed_at - s.created_at)) / 60)', 'medianMinutes')
+      .addSelect('PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (s.closed_at - s.created_at)) / 60)', 'p95Minutes')
+      .where('s.status = :status', { status: 'closed' })
+      .andWhere('s.closed_at IS NOT NULL')
+      .getRawOne<{ avgMinutes: string | null; medianMinutes: string | null; p95Minutes: string | null }>();
 
     const advisors = await this.userRepo.find({
       where: { role: 'advisor' },
       select: ['id', 'name', 'status', 'activeChats', 'active'],
     });
 
-    return {
+    const result = {
       total,
-      active,
-      waiting,
-      ai,
-      closed,
-      avgMinutes: Math.round(avgMinutes),
-      medianaMinutos: Math.round(this.percentile(minutes, 50)),
-      p95Minutos: Math.round(this.percentile(minutes, 95)),
+      active: statusMap.get('active') ?? 0,
+      waiting: statusMap.get('waiting') ?? 0,
+      ai: statusMap.get('ai') ?? 0,
+      closed: statusMap.get('closed') ?? 0,
+      avgMinutes: Math.round(Number(timingRow?.avgMinutes) || 0),
+      medianaMinutos: Math.round(Number(timingRow?.medianMinutes) || 0),
+      p95Minutos: Math.round(Number(timingRow?.p95Minutes) || 0),
       advisors,
     };
+
+    try {
+      await this.cache.set(cacheKey, result, 30_000);
+    } catch {}
+    return result;
   }
 
   async findAllAdmin(): Promise<Session[]> {
@@ -652,10 +659,67 @@ export class SessionsService {
   }
 
   async findAllColegios(): Promise<Colegio[]> {
-    return this.colegioRepo.find({ order: { nombre: 'ASC' } });
+    const cacheKey = `${this.CACHE_PREFIX}colegios`;
+    try {
+      const cached = await this.cache.get<Colegio[]>(cacheKey);
+      if (cached) return cached;
+    } catch {}
+
+    const result = await this.colegioRepo.find({ order: { nombre: 'ASC' } });
+
+    try {
+      await this.cache.set(cacheKey, result, 120_000);
+    } catch {}
+
+    return result;
+  }
+
+  async createColegio(data: { nombre: string; link: string; email?: string }): Promise<Colegio> {
+    const existing = await this.colegioRepo.findOne({ where: { nombre: data.nombre } });
+    if (existing) throw new NotFoundException(`Ya existe un colegio con el nombre "${data.nombre}"`);
+
+    const colegio = this.colegioRepo.create({
+      nombre: data.nombre,
+      link: data.link,
+      email: data.email ?? '',
+    });
+    const saved = await this.colegioRepo.save(colegio);
+    try { await this.cache.del(`${this.CACHE_PREFIX}colegios`); } catch {}
+    return saved;
+  }
+
+  async updateColegio(id: string, data: { nombre?: string; link?: string; email?: string }): Promise<Colegio> {
+    const colegio = await this.colegioRepo.findOne({ where: { id } });
+    if (!colegio) throw new NotFoundException('Colegio no encontrado');
+
+    if (data.nombre && data.nombre !== colegio.nombre) {
+      const dup = await this.colegioRepo.findOne({ where: { nombre: data.nombre } });
+      if (dup) throw new NotFoundException(`Ya existe un colegio con el nombre "${data.nombre}"`);
+      colegio.nombre = data.nombre;
+    }
+    if (data.link !== undefined) colegio.link = data.link;
+    if (data.email !== undefined) colegio.email = data.email;
+
+    const saved = await this.colegioRepo.save(colegio);
+    try { await this.cache.del(`${this.CACHE_PREFIX}colegios`); } catch {}
+    return saved;
+  }
+
+  async deleteColegio(id: string): Promise<{ ok: boolean }> {
+    const colegio = await this.colegioRepo.findOne({ where: { id } });
+    if (!colegio) throw new NotFoundException('Colegio no encontrado');
+    await this.colegioRepo.remove(colegio);
+    try { await this.cache.del(`${this.CACHE_PREFIX}colegios`); } catch {}
+    return { ok: true };
   }
 
   async getRankingAsesores() {
+    const cacheKey = `${this.CACHE_PREFIX}ranking`;
+    try {
+      const cached = await this.cache.get(cacheKey);
+      if (cached) return cached;
+    } catch {}
+
     const advisors = await this.userRepo.find({
       where: { role: 'advisor' },
       select: ['id', 'name', 'status', 'activeChats'],
@@ -733,11 +797,16 @@ export class SessionsService {
       };
     });
 
-    return ranking.sort((a, b) =>
+    const result = ranking.sort((a, b) =>
       b.bayesianAvg !== a.bayesianAvg
         ? b.bayesianAvg - a.bayesianAvg
         : b.total - a.total,
     );
+
+    try {
+      await this.cache.set(cacheKey, result, 60_000);
+    } catch {}
+    return result;
   }
 
   async getAllComentarios(

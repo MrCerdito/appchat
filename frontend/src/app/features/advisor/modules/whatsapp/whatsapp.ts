@@ -957,22 +957,21 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   }
 
   private formatDateLabel(date: Date): string {
-    const fmt = new Intl.DateTimeFormat('es-CO', {
-      timeZone: 'America/Bogota',
-      year: 'numeric', month: '2-digit', day: '2-digit',
-    });
-    const dateKey = fmt.format(date);
-    const todayKey = fmt.format(new Date());
+    const bogoKey = (d: Date) => {
+      const b = new Date(d.getTime() - 5 * 3600000);
+      return `${b.getUTCFullYear()}-${String(b.getUTCMonth() + 1).padStart(2, '0')}-${String(b.getUTCDate()).padStart(2, '0')}`;
+    };
+    const dateKey = bogoKey(date);
+    const todayKey = bogoKey(new Date());
     if (dateKey === todayKey) return 'Hoy';
     const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    if (fmt.format(yesterday) === dateKey) return 'Ayer';
-    return new Intl.DateTimeFormat('es-CO', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      timeZone: 'America/Bogota',
-    }).format(date);
+    const bYesterday = new Date(yesterday.getTime() - 5 * 3600000);
+    bYesterday.setUTCDate(bYesterday.getUTCDate() - 1);
+    const yKey = `${bYesterday.getUTCFullYear()}-${String(bYesterday.getUTCMonth() + 1).padStart(2, '0')}-${String(bYesterday.getUTCDate()).padStart(2, '0')}`;
+    if (dateKey === yKey) return 'Ayer';
+    const months = ['ene.', 'feb.', 'mar.', 'abr.', 'may.', 'jun.', 'jul.', 'ago.', 'sep.', 'oct.', 'nov.', 'dic.'];
+    const bd = new Date(date.getTime() - 5 * 3600000);
+    return `${bd.getUTCDate()} ${months[bd.getUTCMonth()]} ${bd.getUTCFullYear()}`;
   }
 
   toggleReactionPopover(event: MouseEvent, msgId: string): void {
@@ -2505,8 +2504,13 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
   }
 
   private toDateTimeLocalValue(date: Date): string {
-    const bogotaStr = date.toLocaleString('sv-SE', { timeZone: 'America/Bogota' });
-    return bogotaStr.slice(0, 16);
+    const b = new Date(date.getTime() - 5 * 3600000);
+    const y = b.getUTCFullYear();
+    const m = String(b.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(b.getUTCDate()).padStart(2, '0');
+    const hh = String(b.getUTCHours()).padStart(2, '0');
+    const mm = String(b.getUTCMinutes()).padStart(2, '0');
+    return `${y}-${m}-${d}T${hh}:${mm}`;
   }
 
   private errorText(err: any, fallback: string): string {

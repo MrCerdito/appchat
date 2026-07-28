@@ -10,7 +10,8 @@ import { SocketService } from '../../../core/services/socket.service';
 import { SessionService, Colegio } from '../../../core/services/session.service';
 import { SoundService } from '../../../core/services/sound.service';
 import { NotificationService } from '../../../core/services/notification.service';
-import { Message } from '../../../core/models/message.model';
+import { ChatMediaService } from '../../../core/services/chat-media.service';
+import { Message, Attachment } from '../../../core/models/message.model';
 import { Session } from '../../../core/models/session.model';
 import { AiService, AiMessage, AiResponse } from '../../../core/services/ai.service';
 import { environment } from '../../../../environments/environment';
@@ -18,6 +19,7 @@ import { HttpClient } from '@angular/common/http';
 import { trackByIndex, trackById } from '../../../shared/utils/track-by';
 import { scrollToBottom } from '../../../shared/utils/scroll';
 import { FaqComponent } from '../faq/faq.component';
+import { PqrsComponent } from '../pqrs/pqrs.component';
 import { ToastContainerComponent } from '../../../shared/components/toast-container.component';
 
 
@@ -42,7 +44,7 @@ interface TimerUpdatePayload {
 @Component({
   selector   : 'app-chat',
   standalone : true,
-  imports    : [CommonModule, FormsModule, FaqComponent, ToastContainerComponent],
+  imports    : [CommonModule, FormsModule, FaqComponent, PqrsComponent, ToastContainerComponent],
   templateUrl: './chat.component.html',
   styleUrl   : './chat.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -57,7 +59,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   // ESTADO GENERAL
   // ══════════════════════════════════════════════════════════════════════════
 
-  step: 'faq' | 'name' | 'waiting' | 'chat' | 'rating' = 'faq';
+  step: 'faq' | 'name' | 'pqrs' | 'waiting' | 'chat' | 'rating' = 'faq';
   aiMode    = true;
   aiHistory : AiMessage[] = [];
   aiTyping  = false;
@@ -66,6 +68,9 @@ export class ChatComponent implements OnInit, OnDestroy {
   Math = Math;
   
   marcaChat = 'Soporte en línea';
+
+  pqrsCodigo = '';
+  showPqrsSuccess = false;
 
 
   // ── SSE Streaming ──────────────────────────────────────────────────────────
@@ -134,6 +139,17 @@ get rolLabel(): string {
   typingName  = '';
   private typingTimer : any;
   private isTyping    = false;
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // ARCHIVOS ADJUNTOS
+  // ══════════════════════════════════════════════════════════════════════════
+
+  previewFiles: { file: File; preview: string | null; uploading: boolean; error: string | null }[] = [];
+  pendingAttachments: Attachment[] = [];
+  @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
+
+  // Image lightbox
+  imagePreview: { src: string; name: string } | null = null;
 
   // ══════════════════════════════════════════════════════════════════════════
   // RATING
@@ -222,8 +238,9 @@ get rolLabel(): string {
     private cdr           : ChangeDetectorRef,
     private sound         : SoundService,
     private aiService     : AiService,
-    private http          : HttpClient,   // ← agregar esta línea
+    private http          : HttpClient,
     private notification  : NotificationService,
+    private chatMedia     : ChatMediaService,
   ) {}
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -256,12 +273,12 @@ get rolLabel(): string {
       const savedData = JSON.parse(savedSession) as Session & { aiMode?: boolean };
       this.clientName = savedName;
 
-      this.sessionService.findOne(savedData.id).subscribe({
+      this.sessionService.findPublic(savedData.id).subscribe({
         next: (s) => {
           if (s.status === 'closed') { this.clearSession(); return; }
 
           const advisor = s.advisor ?? savedData.advisor;
-          this.session  = { ...s, advisor };
+          this.session  = { ...savedData, ...s, advisor };
 
           if (savedData.aiMode === true) {
             this.aiMode = true;
@@ -444,9 +461,29 @@ get rolLabel(): string {
 
   onColegioInput(): void {
     const q = this.colegioQuery.trim().toLowerCase();
-    if (!q) { this.colegiosFiltrados = []; this.showDropdown = false; return; }
+    if (!q) { this.colegiosFiltrados = []; this.showDropdown = false; this.colegioSeleccionado = null; return; }
     this.colegiosFiltrados = this.colegios.filter(c => c.nombre.toLowerCase().includes(q)).slice(0, 8);
-    this.showDropdown = this.colegiosFiltrados.length > 0;
+    this.showDropdown = true;
+    const exactMatch = this.colegios.some(c => c.nombre.toLowerCase() === q);
+    if (exactMatch) {
+      const match = this.colegios.find(c => c.nombre.toLowerCase() === q)!;
+      this.colegioSeleccionado = match;
+      this.colegio = match.nombre;
+      this.colegioLink = match.link;
+    } else {
+      this.colegioSeleccionado = null;
+      this.colegio = this.colegioQuery.trim();
+      this.colegioLink = '';
+    }
+  }
+
+  onColegioBlur(): void {
+    this.showDropdown = false;
+    const q = this.colegioQuery.trim();
+    if (q && !this.colegioSeleccionado) {
+      this.colegio = q;
+      this.colegioLink = '';
+    }
   }
 
   selectColegio(c: Colegio): void {
@@ -454,6 +491,14 @@ get rolLabel(): string {
     this.colegioQuery = c.nombre;
     this.colegio      = c.nombre;
     this.colegioLink  = c.link;
+    this.showDropdown = false;
+    this.cdr.detectChanges();
+  }
+
+  selectCustomColegio(): void {
+    this.colegioSeleccionado = null;
+    this.colegio = this.colegioQuery.trim();
+    this.colegioLink = '';
     this.showDropdown = false;
     this.cdr.detectChanges();
   }
@@ -466,6 +511,15 @@ get rolLabel(): string {
     this.showDropdown = false;
   }
 
+  onIdentificacionInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const cleaned = input.value.replace(/[^0-9]/g, '');
+    if (input.value !== cleaned) {
+      input.value = cleaned;
+      this.identificacion = cleaned;
+    }
+  }
+
   // ══════════════════════════════════════════════════════════════════════════
   // INICIO DEL CHAT
   // ══════════════════════════════════════════════════════════════════════════
@@ -476,6 +530,18 @@ get rolLabel(): string {
 
   irAFaq(): void {
     this.step = 'faq';
+  }
+
+  irAPqrs(): void {
+    this.step = 'pqrs';
+  }
+
+  onPqrsEnviado(codigo: string): void {
+    this.step = 'faq';
+    this.pqrsCodigo = codigo;
+    this.showPqrsSuccess = true;
+    setTimeout(() => { this.showPqrsSuccess = false; this.cdr.detectChanges(); }, 5000);
+    this.cdr.detectChanges();
   }
 
   startChat(): void {
@@ -711,6 +777,13 @@ get rolLabel(): string {
         this.clientTimer = this.buildClientTimer(payload);
         this.cdr.detectChanges();
       });
+
+    this.socket.on<{ reason: string }>('join_error')
+      .pipe(takeUntil(this.socketDestroy$))
+      .subscribe((data) => {
+        this.notification.error('Error', data?.reason ?? 'No se pudo unir a la sesión');
+        this.clearSession();
+      });
   }
 
   private handleVisibilityChange(): void {
@@ -725,27 +798,132 @@ get rolLabel(): string {
   // ENVÍO DE MENSAJES
   // ══════════════════════════════════════════════════════════════════════════
 
+  triggerFileInput(): void {
+    this.fileInput?.nativeElement?.click();
+  }
+
+  autoResize(event: Event): void {
+    const ta = event.target as HTMLTextAreaElement;
+    ta.style.height = 'auto';
+    ta.style.height = `${Math.min(ta.scrollHeight, 120)}px`;
+    this.onTyping();
+  }
+
+  handleKey(event: KeyboardEvent): void {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      this.send();
+    }
+  }
+
+  onFilesSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files?.length) return;
+
+    for (const file of Array.from(input.files)) {
+      const error = this.chatMedia.validate(file);
+      if (error) {
+        this.notification.error('Archivo no permitido', error);
+        continue;
+      }
+
+      const entry: typeof this.previewFiles[0] = {
+        file,
+        preview: null,
+        uploading: false,
+        error: null,
+      };
+
+      if (this.chatMedia.isImage(file.type)) {
+        const reader = new FileReader();
+        reader.onload = () => { entry.preview = reader.result as string; this.cdr.detectChanges(); };
+        reader.readAsDataURL(file);
+      }
+
+      this.previewFiles.push(entry);
+    }
+
+    input.value = '';
+    this.cdr.detectChanges();
+  }
+
+  removePreview(index: number): void {
+    this.previewFiles.splice(index, 1);
+    this.cdr.detectChanges();
+  }
+
+  openImagePreview(src: string, name: string): void {
+    this.imagePreview = { src, name };
+  }
+
+  closeImagePreview(): void {
+    this.imagePreview = null;
+  }
+
+  private async uploadPendingFiles(): Promise<Attachment[]> {
+    if (this.previewFiles.length === 0) return [];
+
+    const uploads = this.previewFiles.map(async (entry) => {
+      entry.uploading = true;
+      entry.error = null;
+      this.cdr.detectChanges();
+
+      try {
+        const att = await new Promise<Attachment>((resolve, reject) => {
+          this.chatMedia.upload(entry.file).subscribe({
+            next: resolve,
+            error: (err) => reject(err),
+          });
+        });
+        return att;
+      } catch (err: any) {
+        entry.error = err?.error?.message || 'Error al subir archivo';
+        entry.uploading = false;
+        this.cdr.detectChanges();
+        return null;
+      }
+    });
+
+    const results = await Promise.all(uploads);
+    this.previewFiles = this.previewFiles.filter(e => e.error);
+    this.cdr.detectChanges();
+
+    return results.filter((a): a is Attachment => a !== null);
+  }
+
   /**
    * Al enviar en modo IA: cancela el timer actual y lo reinicia desde cero.
    * Esto garantiza que el timer de inactividad se resetea con cada mensaje.
    */
-  send(): void {
-    if (!this.newMessage.trim()) return;
+  async send(): Promise<void> {
+    const hasText = this.newMessage.trim().length > 0;
+    const hasFiles = this.previewFiles.length > 0;
+    if (!hasText && !hasFiles) return;
 
     if (this.aiMode) {
-      this.cancelarTimerInactividadIa(); // oculta overlay si estaba visible
-      this.iniciarTimerInactividadIa();  // reinicia desde 3 minutos
-      this.sendToAi();
-    } else {
-      if (!this.session) return;
-      this.socket.emit('send_message', {
-        sessionId  : this.session.id,
-        content    : this.newMessage.trim(),
-        senderName : this.clientName,
-      });
-      this.clientTimer = null;
-      this.newMessage = '';
+      this.cancelarTimerInactividadIa();
+      this.iniciarTimerInactividadIa();
+      if (hasText) {
+        this.sendToAi();
+      }
+      return;
     }
+
+    if (!this.session) return;
+
+    let attachments: Attachment[] = [];
+    if (hasFiles) {
+      attachments = await this.uploadPendingFiles();
+    }
+
+    this.socket.emit('send_message', {
+      sessionId  : this.session.id,
+      content    : this.newMessage.trim(),
+      senderName : this.clientName,
+      attachments: attachments.length > 0 ? attachments : undefined,
+    });
+    this.clientTimer = null;
+    this.newMessage = '';
   }
 
   private buildClientTimer(payload: TimerUpdatePayload) {
@@ -1034,14 +1212,30 @@ private escapeHtml(value: string): string {
 
   formatTiempoRelativo(iso: string): string {
     if (!iso) return '';
-    const diff = Date.now() - new Date(iso).getTime();
+    const d = new Date(iso);
+    const b = new Date(d.getTime() - 5 * 3600000);
+    const n = new Date(new Date().getTime() - 5 * 3600000);
+    const diff = n.getTime() - b.getTime();
     const seg = Math.floor(diff / 1000);
     if (seg < 60) return 'ahora';
     const min = Math.floor(seg / 60);
     if (min < 60) return `hace ${min} min`;
     const horas = Math.floor(min / 60);
     if (horas < 24) return `hace ${horas}h`;
-    return new Date(iso).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' });
+    const months = ['ene.', 'feb.', 'mar.', 'abr.', 'may.', 'jun.', 'jul.', 'ago.', 'sep.', 'oct.', 'nov.', 'dic.'];
+    return `${b.getUTCDate()} ${months[b.getUTCMonth()]}, ${b.getUTCHours()}:${String(b.getUTCMinutes()).padStart(2, '0')}`;
+  }
+
+  formatMessageTime(iso: string): string {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const bogota = new Date(d.getTime() - 5 * 3600000);
+    const h = bogota.getUTCHours();
+    const m = bogota.getUTCMinutes();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const h12 = h % 12 || 12;
+    const ampm = h < 12 ? 'a. m.' : 'p. m.';
+    return `${h12}:${pad(m)} ${ampm}`;
   }
 
   copiarTexto(texto: string): void {

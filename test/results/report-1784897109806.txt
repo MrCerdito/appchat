@@ -1,0 +1,50 @@
+
+═══════════════════════════════════════════════════════════════════
+  REPORTE DE PRUEBA DE CARGA
+  Fecha: 2026-07-24T12:45:09.805Z
+  Duración: 44.4s
+  Backend: http://localhost:3001
+═══════════════════════════════════════════════════════════════════
+
+── API REST ──────────────────────────────────────────────────────
+  Total requests:     0
+  Errores:            0 (0%)
+  Latencia avg:       0ms
+  Latencia p50:       0ms
+  Latencia p95:       0ms
+  Latencia p99:       0ms
+  Latencia max:       0ms
+
+  Por endpoint:
+
+
+── WebSocket Chat ────────────────────────────────────────────────
+  Conexiones totales:  0
+  Desconexiones:       0
+  Conexiones con error:0
+  Mensajes enviados:   0
+  Mensajes recibidos:  0
+  Latencia msg avg:    0.0ms
+  Latencia msg p95:    0ms
+  Latencia asignación avg: 0ms
+  Latencia asignación p95: 0ms
+
+── WhatsApp Namespace ────────────────────────────────────────────
+  Conexiones totales:  0
+  Desconexiones:       0
+  Conexiones con error:0
+
+── Sesiones ──────────────────────────────────────────────────────
+  Creadas:             0
+  Cerradas:            0
+
+── Errores ───────────────────────────────────────────────────────
+  Total errores:       0
+
+
+── Evaluación ────────────────────────────────────────────────────
+  ✅ Error rate API: 0.0% (objetivo <5%)
+  ✅ Latencia API p95: 0ms (objetivo <2000ms)
+  ⚠ WS connect errors: 0 (objetivo <10%)
+  ✅ Backend sobrevive desconexión masiva
+═══════════════════════════════════════════════════════════════════

@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Param,
   Body,
   UseGuards,
@@ -14,6 +15,7 @@ import {
   Inject,
   forwardRef,
   ForbiddenException,
+  ValidationPipe,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -21,7 +23,8 @@ import { SessionsService } from './sessions.service';
 import { TicketsService } from '../tickets/tickets.service';
 import { Message } from '../chat/entities/message.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { IsString, IsNotEmpty, Length, IsOptional } from 'class-validator';
+import { RolesGuard, Roles } from '../auth/roles.guard';
+import { IsString, IsNotEmpty, Length, IsOptional, IsEmail } from 'class-validator';
 import { ChatGateway } from '../chat/chat.gateway';
 
 export class CreateSessionDto {
@@ -58,6 +61,38 @@ export class CreateSessionDto {
   @IsNotEmpty()
   @Length(1, 100)
   tipoSolicitud: string;
+}
+
+export class CreateColegioDto {
+  @IsString()
+  @IsNotEmpty()
+  @Length(1, 200)
+  nombre: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @Length(1, 500)
+  link: string;
+
+  @IsEmail()
+  @IsOptional()
+  email?: string;
+}
+
+export class UpdateColegioDto {
+  @IsString()
+  @IsOptional()
+  @Length(1, 200)
+  nombre?: string;
+
+  @IsString()
+  @IsOptional()
+  @Length(1, 500)
+  link?: string;
+
+  @IsEmail()
+  @IsOptional()
+  email?: string;
 }
 
 @Controller('sessions')
@@ -101,11 +136,10 @@ export class SessionsController {
   @UseGuards(JwtAuthGuard)
   async findAdvisors() {
     const advisors = await this.sessionsService.findAllAdvisors();
+    const statuses = await this.chatGateway.getAdvisorStatuses();
     return advisors.map((a) => ({
       ...a,
-      status: (this.chatGateway.advisorStatuses.has(a.id)
-        ? this.chatGateway.advisorStatuses.get(a.id)
-        : a.status) as 'online' | 'busy' | 'offline',
+      status: (statuses[a.id] ?? a.status) as 'online' | 'busy' | 'offline',
     }));
   }
 
@@ -198,6 +232,12 @@ export class SessionsController {
   }
 
   // ── Rutas dinámicas AL FINAL ──────────────────────────────
+
+  // ★ RUTAS FIJAS ANTES DE :id — el segmento fijo "public" evita conflictos
+  @Get('public/:id')
+  findPublic(@Param('id') id: string) {
+    return this.sessionsService.findPublic(id);
+  }
 
   @Get(':id')
   @UseGuards(JwtAuthGuard)
@@ -325,5 +365,36 @@ export class SessionsController {
       conversation,
     };
     return this.ticketsService.create(dto, req.user.id);
+  }
+
+  // ── CRUD Colegios ──────────────────────────────────────────
+
+  @Post('colegios')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('administrador')
+  @HttpCode(HttpStatus.CREATED)
+  createColegio(
+    @Body(new ValidationPipe({ whitelist: true })) dto: CreateColegioDto,
+  ) {
+    return this.sessionsService.createColegio(dto);
+  }
+
+  @Patch('colegios/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('administrador')
+  @HttpCode(HttpStatus.OK)
+  updateColegio(
+    @Param('id') id: string,
+    @Body(new ValidationPipe({ whitelist: true })) dto: UpdateColegioDto,
+  ) {
+    return this.sessionsService.updateColegio(id, dto);
+  }
+
+  @Delete('colegios/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('administrador')
+  @HttpCode(HttpStatus.OK)
+  deleteColegio(@Param('id') id: string) {
+    return this.sessionsService.deleteColegio(id);
   }
 }

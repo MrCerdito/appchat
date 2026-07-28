@@ -35,6 +35,9 @@ export type WhatsappAssignmentMode =
   'assignedAdvisor',
   'status',
 ])
+@Index('idx_wa_chats_status_is_group', ['status', 'isGroup'])
+@Index('idx_wa_chats_last_message_at', ['lastMessageAt'])
+@Index('idx_wa_chats_status_opstatus', ['status', 'operationalStatus'])
 export class WhatsappChat {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -99,7 +102,7 @@ export class WhatsappChat {
   @Column({
     name: 'operational_status_updated_at',
     nullable: true,
-    type: 'timestamp',
+    type: 'timestamptz',
   })
   operationalStatusUpdatedAt: Date | null;
 
@@ -116,13 +119,13 @@ export class WhatsappChat {
   @Column({ type: 'jsonb', default: () => "'[]'::jsonb" })
   tags: string[];
 
-  @Column({ name: 'last_message_at', nullable: true, type: 'timestamp' })
+  @Column({ name: 'last_message_at', nullable: true, type: 'timestamptz' })
   lastMessageAt: Date | null;
 
-  @Column({ name: 'last_client_message_at', nullable: true, type: 'timestamp' })
+  @Column({ name: 'last_client_message_at', nullable: true, type: 'timestamptz' })
   lastClientMessageAt: Date | null;
 
-  @Column({ name: 'assigned_at', nullable: true, type: 'timestamp' })
+  @Column({ name: 'assigned_at', nullable: true, type: 'timestamptz' })
   assignedAt: Date | null;
 
   @Column({
@@ -149,9 +152,9 @@ export class WhatsappChat {
   @OneToMany(() => WhatsappMessage, (message) => message.chat)
   messages: WhatsappMessage[];
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
-  @UpdateDateColumn({ name: 'updated_at' })
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;
 }

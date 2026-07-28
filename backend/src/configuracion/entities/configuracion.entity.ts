@@ -135,9 +135,9 @@ export class Configuracion {
   @Column({ name: 'ai_prompt_config', type: 'jsonb', nullable: true })
   aiPromptConfig: Record<string, any> | null;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
-  @UpdateDateColumn({ name: 'updated_at' })
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;
 }

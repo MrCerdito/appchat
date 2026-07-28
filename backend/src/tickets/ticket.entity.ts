@@ -70,13 +70,13 @@ export class Ticket {
   @JoinColumn({ name: 'created_by_id' })
   createdBy: User | null;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
-  @UpdateDateColumn({ name: 'updated_at' })
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;
 
-  @Column({ name: 'closed_at', nullable: true, type: 'timestamp' })
+  @Column({ name: 'closed_at', nullable: true, type: 'timestamptz' })
   closedAt: Date | null;
 
   @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })

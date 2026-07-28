@@ -6,6 +6,7 @@ import { SessionService, AdvisorMetrics, RankingAsesor } from '../../../../core/
 import { AuthService } from '../../../../core/services/auth.service';
 import { SocketService } from '../../../../core/services/socket.service';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
+import { fmtTimeSec, fmtMonthYear, fmtDateMedium } from '../../../../shared/utils/date';
 
 @Component({
   selector: 'app-advisor-metrics',
@@ -18,6 +19,9 @@ import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
 export class AdvisorMetricsComponent implements OnInit, OnDestroy {
   protected readonly trackByIndex = trackByIndex;
   protected readonly trackById = trackById;
+  protected readonly fmtTimeSec = fmtTimeSec;
+  protected readonly fmtMonthYear = fmtMonthYear;
+  protected readonly fmtDateMedium = fmtDateMedium;
   metrics: AdvisorMetrics | null = null;
   ranking: RankingAsesor[]       = [];
   loading  = true;

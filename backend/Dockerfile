@@ -30,8 +30,5 @@ RUN chmod +x /entrypoint.sh
 RUN mkdir -p /app/uploads/documentos /app/uploads/baileys-auth /app/uploads/whatsapp \
     && chown -R node:node /app
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD curl -f http://localhost:3001/health || exit 1
-
 EXPOSE 3001
 ENTRYPOINT ["/entrypoint.sh"]

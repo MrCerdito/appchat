@@ -16,6 +16,7 @@ import {
   TICKET_PRIORITIES, TICKET_STATUSES, DEFAULT_TICKET_CATEGORIES,
 } from '../utils/ticket-categories';
 import { trackByIndex, trackById } from '../utils/track-by';
+import { fmtDateShort, fmtMedium, fmtDateTime } from '../utils/date';
 
 @Component({
   selector: 'app-tickets',
@@ -29,6 +30,9 @@ export class TicketsComponent implements OnInit, OnDestroy {
   protected readonly trackByIndex = trackByIndex;
   protected readonly trackById = trackById;
   protected readonly priorityLabel = priorityLabel;
+  protected readonly fmtDateShort = fmtDateShort;
+  protected readonly fmtMedium = fmtMedium;
+  protected readonly fmtDateTime = fmtDateTime;
   protected readonly priorityColor = priorityColor;
   protected readonly statusLabel = statusLabel;
   protected readonly statusColor = statusColor;

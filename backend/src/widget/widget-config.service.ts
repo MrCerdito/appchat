@@ -1,56 +1,70 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { WidgetConfig } from './entities/widget-config.entity';
 
 @Injectable()
 export class WidgetConfigService {
+  private readonly CACHE_KEY = 'widget:config';
+  private readonly CACHE_TTL = 60_000;
+
   constructor(
     @InjectRepository(WidgetConfig)
     private readonly repo: Repository<WidgetConfig>,
+    @Inject(CACHE_MANAGER)
+    private readonly cache: Cache,
   ) {}
 
-  // ── Obtener config activa ─────────────────────────────────────────────────
-  // Siempre hay una sola fila — si no existe, la crea con defaults.
   async get(): Promise<WidgetConfig> {
+    const cached = await this.cache.get<WidgetConfig>(this.CACHE_KEY);
+    if (cached) return cached;
+
     let existing = await this.repo.findOne({ where: {} });
     if (existing) {
       if (existing.chatUrl === '/') {
         existing.chatUrl = 'https://ia.innovacloud.co';
         existing = await this.repo.save(existing);
       }
+      await this.cache.set(this.CACHE_KEY, existing, this.CACHE_TTL);
       return existing;
     }
 
     const nueva = this.repo.create();
-    return this.repo.save(nueva);
+    const saved = await this.repo.save(nueva);
+    await this.cache.set(this.CACHE_KEY, saved, this.CACHE_TTL);
+    return saved;
   }
 
-  // ── Guardar/actualizar config ─────────────────────────────────────────────
   async save(data: Partial<WidgetConfig>): Promise<WidgetConfig> {
-    // Sanitizar datos existentes de BD que tengan valores inválidos
     if (data.chatUrl === '/') {
       data.chatUrl = 'https://ia.innovacloud.co';
     }
 
     const existing = await this.repo.findOne({ where: {} });
 
+    let saved: WidgetConfig;
     if (existing) {
       Object.assign(existing, data);
-      return this.repo.save(existing);
+      saved = await this.repo.save(existing);
+    } else {
+      const nueva = this.repo.create(data);
+      saved = await this.repo.save(nueva);
     }
 
-    const nueva = this.repo.create(data);
-    return this.repo.save(nueva);
+    await this.cache.set(this.CACHE_KEY, saved, this.CACHE_TTL);
+    return saved;
   }
 
-  // ── Reset a defaults ──────────────────────────────────────────────────────
   async reset(): Promise<WidgetConfig> {
     const existing = await this.repo.findOne({ where: {} });
     if (existing) {
       await this.repo.remove(existing);
     }
     const nueva = this.repo.create();
-    return this.repo.save(nueva);
+    const saved = await this.repo.save(nueva);
+    await this.cache.set(this.CACHE_KEY, saved, this.CACHE_TTL);
+    return saved;
   }
 }

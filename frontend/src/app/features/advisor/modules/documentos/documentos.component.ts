@@ -6,6 +6,7 @@ import { takeUntil } from 'rxjs/operators';
 import { DocumentosService, DocumentoItem } from '../../../../core/services/documentos.service';
 import { NotificationService } from '../../../../core/services/notification.service';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
+import { fmtDateFull, fmtDateShort } from '../../../../shared/utils/date';
 
 @Component({
   selector   : 'app-documentos',
@@ -18,6 +19,8 @@ import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
 export class DocumentosComponent implements OnInit, OnDestroy {
   protected readonly trackByIndex = trackByIndex;
   protected readonly trackById = trackById;
+  protected readonly fmtDateFull = fmtDateFull;
+  protected readonly fmtDateShort = fmtDateShort;
   documentos   : DocumentoItem[] = [];
   loading      = true;
   uploading    = false;

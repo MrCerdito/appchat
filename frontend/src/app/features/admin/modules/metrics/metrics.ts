@@ -9,6 +9,7 @@ import { AdminService, Metrics } from '../../../../core/services/admin.service';
 import { SessionService, RankingAsesor } from '../../../../core/services/session.service';
 import { SocketService } from '../../../../core/services/socket.service';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
+import { fmtDateMedium } from '../../../../shared/utils/date';
 
 @Component({
   selector: 'app-metrics',
@@ -21,6 +22,7 @@ import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
 export class MetricsComponent implements OnInit, OnDestroy {
   protected readonly trackByIndex = trackByIndex;
   protected readonly trackById = trackById;
+  protected readonly fmtDateMedium = fmtDateMedium;
   metrics : Metrics | null   = null;
   ranking : RankingAsesor[]  = [];
   loading = true;

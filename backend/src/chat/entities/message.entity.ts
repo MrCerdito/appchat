@@ -10,9 +10,19 @@ import {
 import { Session } from '../../sessions/entities/session.entity';
 import { encryptedTextTransformer } from '../../common/security/encrypted-text.transformer';
 
+export interface Attachment {
+  id: string;
+  fileName: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  url: string;
+}
+
 @Entity('messages')
 @Index('idx_messages_session_id', ['session'])
 @Index('idx_messages_session_id_created_at', ['session', 'createdAt'])
+@Index('idx_messages_sender_type', ['senderType'])
 export class Message {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -30,11 +40,14 @@ export class Message {
   })
   senderName: string;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
-  @Column({ name: 'read_at', nullable: true, type: 'timestamp' })
+  @Column({ name: 'read_at', nullable: true, type: 'timestamptz' })
   readAt: Date | null;
+
+  @Column({ type: 'jsonb', nullable: true })
+  attachments: Attachment[] | null;
 
   @ManyToOne(() => Session, (session) => session.messages, {
     onDelete: 'CASCADE',

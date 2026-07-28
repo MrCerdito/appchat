@@ -58,13 +58,12 @@ export class SeedService implements OnApplicationBootstrap {
   }
 
   private async seedUsers() {
-    const passwordHashAdmin = await bcrypt.hash('Admin@123456', 10);
-    const passwordHashAsesor = await bcrypt.hash('Asesor@123456', 10);
+    const hash = (pw: string) => bcrypt.hash(pw, 10);
 
     const admin = this.userRepo.create({
       name: 'Administrador',
       email: 'admin@innovacloud.co',
-      password: passwordHashAdmin,
+      password: await hash('admin123'),
       role: 'admin',
       active: true,
       status: 'offline',
@@ -72,16 +71,22 @@ export class SeedService implements OnApplicationBootstrap {
     });
     await this.userRepo.save(admin);
 
-    const advisor = this.userRepo.create({
-      name: 'Andres Sapta',
-      email: 'asesor@innovacloud.com',
-      password: passwordHashAsesor,
-      role: 'advisor',
-      active: true,
-      status: 'offline',
-      activeChats: 0,
-    });
-    await this.userRepo.save(advisor);
+    const advisors = [
+      { name: 'Asesor 1', email: 'asesor1@innovacloud.co', password: 'asesor1' },
+      { name: 'Asesor 2', email: 'asesor2@innovacloud.co', password: 'asesor2' },
+      { name: 'Asesor 3', email: 'asesor3@innovacloud.co', password: 'asesor3' },
+    ];
+    for (const a of advisors) {
+      await this.userRepo.save(this.userRepo.create({
+        name: a.name,
+        email: a.email,
+        password: await hash(a.password),
+        role: 'advisor',
+        active: true,
+        status: 'offline',
+        activeChats: 0,
+      }));
+    }
 
     this.logger.log('Usuarios creados exitosamente');
   }

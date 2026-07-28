@@ -12,7 +12,8 @@ import { ChatStateService } from '../../../../core/services/chat-state.service';
 import { TicketService } from '../../../../core/services/ticket.service';
 import { SoundService } from '../../../../core/services/sound.service';
 import { NotificationService } from '../../../../core/services/notification.service';
-import { Message } from '../../../../core/models/message.model';
+import { ChatMediaService } from '../../../../core/services/chat-media.service';
+import { Message, Attachment } from '../../../../core/models/message.model';
 import { Session } from '../../../../core/models/session.model';
 import { User } from '../../../../core/models/user.model';
 import { Subject, firstValueFrom } from 'rxjs';
@@ -23,7 +24,7 @@ import { ConfiguracionFrontendService } from '../../../../core/services/configur
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
 import { priorityLabel } from '../../../../shared/utils/ticket-categories';
 import { scrollToBottom } from '../../../../shared/utils/scroll';
-import { relativeTime } from '../../../../shared/utils/date';
+import { relativeTime, fmtTime, fmtMedium, sameBogotaDay, isTodayBogota, isYesterdayBogota } from '../../../../shared/utils/date';
 import { Ticket } from '../../../../core/models/ticket.model';
 
 // ── Payload exacto que emite el backend ──────────────────────────────────────
@@ -63,6 +64,11 @@ const AVATAR_COLORS = ['ava-blue', 'ava-green', 'ava-amber', 'ava-purple'];
 export class ChatAdvisorComponent implements OnInit, OnDestroy {
   protected readonly trackByIndex = trackByIndex;
   protected readonly trackById = trackById;
+  protected readonly fmtTime = fmtTime;
+  protected readonly fmtMedium = fmtMedium;
+  protected readonly sameBogotaDay = sameBogotaDay;
+  protected readonly isTodayBogota = isTodayBogota;
+  protected readonly isYesterdayBogota = isYesterdayBogota;
 
   @ViewChild('messagesContainer') messagesContainer!: ElementRef;
   @ViewChild('msgInput') msgInput!: ElementRef<HTMLTextAreaElement>;
@@ -78,6 +84,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   newMessage       = '';
   typingMap        = new Map<string, string>();
   compactList      = false;
+  showRecent       = false;
 
   remitLoading  = false;
   remitFeedback : { type: 'ok' | 'error'; text: string } | null = null;
@@ -93,12 +100,19 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   slashHighlight = 0;
   ghostSuggestion = '';
 
+  // ── File attachments ───────────────────────────────────────────────────────
+  previewFiles: { file: File; preview: string | null; uploading: boolean; error: string | null }[] = [];
+  pendingAttachments: Attachment[] = [];
+
   // Ticket modal
   showTicketModal = false;
   ticketDto = { titulo: '', descripcion: '', priority: 'medium' as const, category: '' };
   ticketCategories: string[] = [];
   creatingTicket = false;
   ticketFeedback: { type: 'ok' | 'error'; text: string } | null = null;
+
+  // Image lightbox
+  imagePreview: { src: string; name: string } | null = null;
 
   // ★ Timer persistente por sessionId
   private timerMap = new Map<string, TimerPanelState>();
@@ -127,6 +141,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     private route       : ActivatedRoute,
     private router      : Router,
     private cdr         : ChangeDetectorRef,
+    private chatMedia   : ChatMediaService,
   ) {}
 
   // ── Getters ───────────────────────────────────────────────────────────────
@@ -614,6 +629,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     this.showInfoPanel    = false;
     this.remitFeedback    = null;
     this.aiModeActive     = false;
+    this.imagePreview     = null;
     this.state.setActiveSession(session.id);
     this.state.setUnread(session.id, 0);
 
@@ -636,6 +652,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     }
     this.activeSession = null;
     this.showInfoPanel = false;
+    this.imagePreview  = null;
     this.state.setActiveSession(null);
     this.cdr.detectChanges();
   }
@@ -799,9 +816,74 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
       .slice(0, 20);
   }
 
+  // ── File handling ──────────────────────────────────────────────────────────
+  triggerFileInput(): void {
+    document.getElementById('advisor-file-input')?.click();
+  }
+
+  onFilesSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files?.length) return;
+
+    for (const file of Array.from(input.files)) {
+      const error = this.chatMedia.validate(file);
+      if (error) {
+        this.notification.error('Archivo no permitido', error);
+        continue;
+      }
+
+      const entry: typeof this.previewFiles[0] = { file, preview: null, uploading: false, error: null };
+
+      if (this.chatMedia.isImage(file.type)) {
+        const reader = new FileReader();
+        reader.onload = () => { entry.preview = reader.result as string; this.cdr.detectChanges(); };
+        reader.readAsDataURL(file);
+      }
+
+      this.previewFiles.push(entry);
+    }
+
+    input.value = '';
+    this.cdr.detectChanges();
+  }
+
+  removePreview(index: number): void {
+    this.previewFiles.splice(index, 1);
+    this.cdr.detectChanges();
+  }
+
+  private async uploadPendingFiles(): Promise<Attachment[]> {
+    if (this.previewFiles.length === 0) return [];
+
+    const uploads = this.previewFiles.map(async (entry) => {
+      entry.uploading = true;
+      entry.error = null;
+      this.cdr.detectChanges();
+
+      try {
+        return await new Promise<Attachment>((resolve, reject) => {
+          this.chatMedia.upload(entry.file).subscribe({ next: resolve, error: reject });
+        });
+      } catch (err: any) {
+        entry.error = err?.error?.message || 'Error al subir';
+        entry.uploading = false;
+        this.cdr.detectChanges();
+        return null;
+      }
+    });
+
+    const results = await Promise.all(uploads);
+    this.previewFiles = this.previewFiles.filter(e => e.error);
+    this.cdr.detectChanges();
+    return results.filter((a): a is Attachment => a !== null);
+  }
+
   // ── Enviar mensaje ────────────────────────────────────────────────────────
-  send(): void {
-    if (!this.newMessage.trim() || !this.activeSession || !this.canSendMessage) return;
+  async send(): Promise<void> {
+    const hasText = this.newMessage.trim().length > 0;
+    const hasFiles = this.previewFiles.length > 0;
+    if ((!hasText && !hasFiles) || !this.activeSession || !this.canSendMessage) return;
+
     const sessionId = this.activeSession.id;
     if (this.typingTimeouts.has(sessionId)) {
       clearTimeout(this.typingTimeouts.get(sessionId));
@@ -811,9 +893,20 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
       this.isTyping = false;
       this.socket.emit('typing_stop', sessionId);
     }
+
+    let attachments: Attachment[] = [];
+    if (hasFiles) {
+      attachments = await this.uploadPendingFiles();
+    }
+
     const formatted = this.newMessage.trim()
       .replace(/\*\*(.+?)\*\*/g, '*$1*');
-    this.socket.emit('send_message', { sessionId, content: formatted });
+
+    this.socket.emit('send_message', {
+      sessionId,
+      content: formatted,
+      attachments: attachments.length > 0 ? attachments : undefined,
+    });
     this.newMessage = '';
     this.resizeInput();
     this.showSlashMenu = false;
@@ -855,6 +948,14 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
 
   closeAiInsightModal(): void {
     this.showAiInsightModal = false;
+  }
+
+  openImagePreview(src: string, name: string): void {
+    this.imagePreview = { src, name };
+  }
+
+  closeImagePreview(): void {
+    this.imagePreview = null;
   }
 
   formatMessage(text: string): SafeHtml {
@@ -1017,21 +1118,21 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   // ── Date separators ─────────────────────────────────────────────────────
   showDateSeparator(index: number): boolean {
     if (index === 0) return true;
-    const current = new Date(this.messages[index].createdAt).toDateString();
-    const prev    = new Date(this.messages[index - 1].createdAt).toDateString();
-    return current !== prev;
+    return !sameBogotaDay(
+      this.messages[index].createdAt,
+      this.messages[index - 1].createdAt,
+    );
   }
 
   dateSeparatorLabel(dateStr: string): string {
-    const d   = new Date(dateStr);
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    const diffDays = Math.round((today.getTime() - target.getTime()) / 86400000);
-
-    if (diffDays === 0) return 'Hoy';
-    if (diffDays === 1) return 'Ayer';
-    return d.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'short' });
+    if (isTodayBogota(dateStr)) return 'Hoy';
+    if (isYesterdayBogota(dateStr)) return 'Ayer';
+    const d = new Date(dateStr);
+    const b = d.getTime() - 5 * 3600000;
+    const bogota = new Date(b);
+    const days = ['Domingo', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado'];
+    const months = ['ene.', 'feb.', 'mar.', 'abr.', 'may.', 'jun.', 'jul.', 'ago.', 'sep.', 'oct.', 'nov.', 'dic.'];
+    return `${days[bogota.getUTCDay()]} ${bogota.getUTCDate()} ${months[bogota.getUTCMonth()]}`;
   }
 
   // ── Navigate to history ─────────────────────────────────────────────────

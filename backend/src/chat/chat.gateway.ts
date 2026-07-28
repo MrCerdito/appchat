@@ -17,6 +17,8 @@ import { AiService } from '../ai/ai.service';
 import { ConfiguracionService } from '../configuracion/configuracion.service';
 import { AdvisorsWhatsappService } from '../advisor-whatsapp/advisors-whatsapp.service';
 import { Logger } from '@nestjs/common';
+import { RedisStateService } from '../common/redis/redis-state.service';
+import { Attachment } from './entities/message.entity';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tipos internos
@@ -36,7 +38,7 @@ interface TimerEntry {
 }
 
 @WebSocketGateway({
-  maxHttpBufferSize: 1_000_000,
+  maxHttpBufferSize: 2_000_000,
   cors: {
     origin: process.env.CORS_ORIGINS
       ? process.env.CORS_ORIGINS.split(',')
@@ -49,46 +51,23 @@ export class ChatGateway
 {
   @WebSocketServer() server!: Server;
 
-  // ── Maps internos ─────────────────────────────────────────────────────────
-  private connectedAdvisors = new Map<string, Socket>();
-  public advisorStatuses = new Map<string, string>(); // live status keyed by advisorId
-  private waitingQueue: string[] = [];
-  private sessionToSocket = new Map<string, string>();
-  private clientPresence = new Map<
-    string,
-    {
-      online: boolean;
-      active: boolean;
-      socketId: string | null;
-      lastSeen: number;
-    }
-  >();
+  // ── Local-only state (timers hold NodeJS.Timeout objects) ────────────────
   private pollingInterval!: NodeJS.Timeout;
   private lunchInterval!: NodeJS.Timeout;
-  private aiActiveSessions = new Set<string>();
   private timers = new Map<string, TimerEntry>();
-  private messageRateLimit = new Map<
-    string,
-    { count: number; resetAt: number }
-  >();
   private readonly MAX_MSG_PER_SEC = 10;
 
-  /** Asesores en almuerzo activo — advisorId → finHora "HH:MM" */
-  private advisorsOnLunch = new Map<string, string>();
-
-  /** Asesores con almuerzo pendiente (tienen chats activos) */
-  private advisorsPendingLunch = new Map<
-    string,
-    {
-      inicioOriginal: string;
-      finOriginal: string;
-      duracionMs: number;
-      inicioReal: Date;
-    }
-  >();
-
-  /** Asesores que ya recibieron notificación de almuerzo próximo */
-  private advisorsLunchNotified = new Set<string>();
+  // ── Distributed state via Redis ──────────────────────────────────────────
+  // connectedAdvisors → Redis SET + advisor:{id} rooms
+  // advisorStatuses → Redis HASH
+  // waitingQueue → Redis LIST
+  // sessionToSocket → Redis HASH
+  // clientPresence → Redis HASH (JSON)
+  // messageRateLimit → Redis HASH (JSON)
+  // aiActiveSessions → Redis SET
+  // advisorsOnLunch → Redis HASH
+  // advisorsPendingLunch → Redis HASH (JSON)
+  // advisorsLunchNotified → Redis SET
 
   private readonly logger = new Logger(ChatGateway.name);
 
@@ -100,13 +79,50 @@ export class ChatGateway
     private readonly configService: ConfigService,
     private readonly configuracionService: ConfiguracionService,
     private readonly advisorsWhatsappService: AdvisorsWhatsappService,
+    private readonly redisState: RedisStateService,
   ) {}
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // PUBLIC API (used by other modules)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  async getAdvisorStatus(advisorId: string): Promise<string | null> {
+    return this.redisState.getAdvisorStatus(advisorId);
+  }
+
+  async getAdvisorStatuses(): Promise<Record<string, string>> {
+    return this.redisState.getAdvisorStatuses();
+  }
 
   // ══════════════════════════════════════════════════════════════════════════
   // LIFECYCLE
   // ══════════════════════════════════════════════════════════════════════════
 
-  afterInit() {
+  async afterInit() {
+    // ── Socket.IO Redis Adapter for cross-instance broadcasting ─────────
+    try {
+      const { createAdapter } = await import('@socket.io/redis-adapter');
+      const { default: Redis } = await import('ioredis');
+      const redisUrl = this.configService.get<string>('REDIS_URL') || 'redis://localhost:6379';
+
+      const pubClient = new Redis(redisUrl, {
+        maxRetriesPerRequest: 3,
+        enableReadyCheck: true,
+      });
+      const subClient = pubClient.duplicate();
+
+      await Promise.all([
+        new Promise<void>((resolve) => pubClient.once('ready', resolve)),
+        new Promise<void>((resolve) => subClient.once('ready', resolve)),
+      ]);
+
+      this.server.adapter(createAdapter(pubClient, subClient));
+      this.logger.log('[Redis Adapter] Socket.IO cross-instance adapter activado');
+    } catch (err) {
+      this.logger.error(`[Redis Adapter] Error al configurar adapter: ${(err as Error).message}`);
+      this.logger.warn('[Redis Adapter] Funcionando en modo single-instance');
+    }
+
     this.pollingInterval = setInterval(
       () => this.assignPendingSessions(),
       10_000,
@@ -132,8 +148,12 @@ export class ChatGateway
           profilePhotoUrl: fullUser?.profilePhotoUrl ?? null,
         };
         client.data.role = 'advisor';
-        this.connectedAdvisors.set(payload.sub, client);
-        this.logger.log(`[WS] Asesor conectado: ${payload.name}`);
+
+        // Store in Redis + join advisor room for cross-instance messaging
+        await this.redisState.addConnectedAdvisor(payload.sub);
+        client.join(`advisor:${payload.sub}`);
+
+        this.logger.log(`[WS] Asesor conectado: ${payload.name} (PID: ${process.pid})`);
         setTimeout(() => {
           this.checkLunchBreaks();
           this.assignPendingSessions();
@@ -147,14 +167,12 @@ export class ChatGateway
   }
 
   // ── Desconexión ───────────────────────────────────────────────────────────
-  handleDisconnect(client: Socket) {
+  async handleDisconnect(client: Socket) {
     if (client.data.role === 'advisor') {
       const advisorId = client.data.user?.id;
-      this.connectedAdvisors.delete(advisorId);
-      this.advisorsOnLunch.delete(advisorId);
-      this.advisorsPendingLunch.delete(advisorId);
-      this.sessionsService.setAdvisorStatus(advisorId, 'offline');
-      this.advisorStatuses.set(advisorId, 'offline');
+      // Remove from Redis + local state
+      await this.redisState.cleanupAdvisor(advisorId);
+      await this.sessionsService.setAdvisorStatus(advisorId, 'offline');
       this.server.emit('advisor_status_changed', {
         advisorId,
         name: client.data.user.name,
@@ -165,10 +183,10 @@ export class ChatGateway
 
     const sessionId = client.data.sessionId;
     if (sessionId && client.data.role === 'client') {
-      this.removeFromQueue(sessionId);
-      this.broadcastQueuePositions();
-      this.sessionToSocket.delete(sessionId);
-      this.clientPresence.set(sessionId, {
+      await this.redisState.removeFromQueue(sessionId);
+      await this.broadcastQueuePositions();
+      await this.redisState.deleteSessionSocket(sessionId);
+      await this.redisState.setClientPresence(sessionId, {
         online: false,
         active: false,
         socketId: null,
@@ -182,7 +200,7 @@ export class ChatGateway
       });
     }
     if (sessionId) {
-      this.messageRateLimit.delete(sessionId);
+      await this.redisState.deleteRateLimit(sessionId);
       this.server
         .to(sessionId)
         .emit('user_disconnected', { role: client.data.role });
@@ -200,7 +218,7 @@ export class ChatGateway
       client.data.user.id,
     );
     const status = advisor?.status ?? 'online';
-    this.advisorStatuses.set(client.data.user.id, status);
+    await this.redisState.setAdvisorStatus(client.data.user.id, status);
     this.server.emit('advisor_status_changed', {
       advisorId: client.data.user.id,
       name: advisor?.name ?? client.data.user.name,
@@ -219,8 +237,8 @@ export class ChatGateway
     if (client.data.role !== 'advisor') return;
 
     if (status === 'online') {
-      if (this.estaEnAlmuerzo(client.data.user.id)) {
-        const finHora = this.advisorsOnLunch.get(client.data.user.id);
+      if (await this.estaEnAlmuerzo(client.data.user.id)) {
+        const finHora = await this.redisState.getOnLunch(client.data.user.id);
         client.emit('lunch_started', {
           fin: finHora ?? '',
           restante: '',
@@ -229,7 +247,7 @@ export class ChatGateway
         });
         return;
       }
-      if (this.tieneAlmuerzoPendiente(client.data.user.id)) {
+      if (await this.tieneAlmuerzoPendiente(client.data.user.id)) {
         client.emit('lunch_pending', {
           mensaje: '',
           chats: 0,
@@ -244,7 +262,7 @@ export class ChatGateway
       client.data.user.id,
       status,
     );
-    this.advisorStatuses.set(client.data.user.id, status);
+    await this.redisState.setAdvisorStatus(client.data.user.id, status);
     this.server.emit('advisor_status_changed', {
       advisorId: client.data.user.id,
       name: advisor?.name ?? client.data.user.name,
@@ -258,12 +276,11 @@ export class ChatGateway
   @SubscribeMessage('get_all_advisors')
   async handleGetAllAdvisors(@ConnectedSocket() client: Socket) {
     const advisors = await this.sessionsService.findAllAdvisors();
+    const statuses = await this.redisState.getAdvisorStatuses();
     const list = advisors.map((a) => ({
       advisorId: a.id,
       name: a.name,
-      status: (this.advisorStatuses.has(a.id)
-        ? this.advisorStatuses.get(a.id)
-        : a.status) as 'online' | 'busy' | 'offline',
+      status: (statuses[a.id] ?? a.status) as 'online' | 'busy' | 'offline',
       profilePhotoUrl: a.profilePhotoUrl ?? null,
     }));
     client.emit('all_advisors_list', list);
@@ -305,6 +322,21 @@ export class ChatGateway
       }
     }
 
+    if (client.data.role === 'advisor') {
+      try {
+        const session = await this.sessionsService.findOne(data.sessionId);
+        if (!session || session.status === 'closed') {
+          client.emit('join_error', {
+            reason: 'Sesión no encontrada o cerrada',
+          });
+          return;
+        }
+      } catch {
+        client.emit('join_error', { reason: 'Sesión no encontrada' });
+        return;
+      }
+    }
+
     client.join(data.sessionId);
     client.data.sessionId = data.sessionId;
 
@@ -317,7 +349,7 @@ export class ChatGateway
     });
 
     if (client.data.role === 'advisor') {
-      const presence = this.clientPresence.get(data.sessionId);
+      const presence = await this.redisState.getClientPresence(data.sessionId);
       client.emit('client_presence', {
         sessionId: data.sessionId,
         online: presence?.online ?? false,
@@ -329,7 +361,7 @@ export class ChatGateway
     }
 
     if (client.data.role === 'client') {
-      this.clientPresence.set(data.sessionId, {
+      await this.redisState.setClientPresence(data.sessionId, {
         online: true,
         active: client.data.isActive === true,
         socketId: client.id,
@@ -344,14 +376,14 @@ export class ChatGateway
 
       const session = await this.sessionsService.findOne(data.sessionId);
       if (session.status === 'waiting') {
-        this.sessionToSocket.set(data.sessionId, client.id);
+        await this.redisState.setSessionSocket(data.sessionId, client.id);
         const assigned = await this.autoAssignAdvisor(
           data.sessionId,
           session.clientName,
         );
         if (!assigned) {
-          this.addToQueue(data.sessionId);
-          this.emitQueuePosition(data.sessionId);
+          await this.redisState.addToQueue(data.sessionId);
+          await this.emitQueuePosition(data.sessionId);
         }
       }
     }
@@ -371,14 +403,14 @@ export class ChatGateway
       sessionId,
       status: 'waiting',
     });
-    this.sessionToSocket.set(sessionId, client.id);
+    await this.redisState.setSessionSocket(sessionId, client.id);
     const assigned = await this.autoAssignAdvisor(
       sessionId,
       session.clientName,
     );
     if (!assigned) {
-      this.addToQueue(sessionId);
-      this.emitQueuePosition(sessionId);
+      await this.redisState.addToQueue(sessionId);
+      await this.emitQueuePosition(sessionId);
     }
   }
 
@@ -406,7 +438,7 @@ export class ChatGateway
     const advisorId = client.data.user.id;
     const advisorName = client.data.user.name;
 
-    if (this.estaEnAlmuerzo(advisorId)) {
+    if (await this.estaEnAlmuerzo(advisorId)) {
       client.emit('join_chat_error', { reason: 'Estás en pausa de almuerzo.' });
       return;
     }
@@ -524,7 +556,7 @@ export class ChatGateway
     const newAdvisorId = client.data.user.id;
     const newAdvisorName = client.data.user.name;
 
-    if (this.estaEnAlmuerzo(newAdvisorId)) {
+    if (await this.estaEnAlmuerzo(newAdvisorId)) {
       client.emit('takeover_error', { reason: 'Estas en pausa de almuerzo.' });
       return;
     }
@@ -548,12 +580,12 @@ export class ChatGateway
       newAdvisorId,
     );
 
-    const oldSocket = oldAdvisorId
-      ? this.connectedAdvisors.get(oldAdvisorId)
-      : null;
-    oldSocket?.leave(sessionId);
-    if (oldSocket && oldAdvisorId !== newAdvisorId) {
-      oldSocket.emit('session_taken', { sessionId, takenBy: newAdvisorName });
+    // Notify old advisor via Redis adapter (cross-instance safe)
+    if (oldAdvisorId && oldAdvisorId !== newAdvisorId) {
+      this.server.to(`advisor:${oldAdvisorId}`).emit('session_taken', {
+        sessionId,
+        takenBy: newAdvisorName,
+      });
     }
 
     client.join(sessionId);
@@ -578,7 +610,7 @@ export class ChatGateway
 
     const msg = await this.chatService.saveMessage(
       sessionId,
-      `${newAdvisorName} tomo el chat para continuar la atencion`,
+      `Has sido asignado al asesor ${newAdvisorName}`,
       'advisor',
       'Sistema',
     );
@@ -595,7 +627,7 @@ export class ChatGateway
     ) as string[]) {
       const advisor = await this.sessionsService.findAdvisorById(advisorId);
       if (advisor) {
-        this.advisorStatuses.set(advisor.id, advisor.status);
+        await this.redisState.setAdvisorStatus(advisor.id, advisor.status);
         this.server.emit('advisor_status_changed', {
           advisorId: advisor.id,
           name: advisor.name,
@@ -607,19 +639,19 @@ export class ChatGateway
     }
 
     if (oldAdvisorId) await this.activarLunchPendiente(oldAdvisorId);
-    this.removeFromQueue(sessionId);
-    this.broadcastQueuePositions();
+    await this.redisState.removeFromQueue(sessionId);
+    await this.broadcastQueuePositions();
   }
 
   @SubscribeMessage('send_message')
   async handleMessage(
     @MessageBody()
-    data: { sessionId: string; content: string; senderName?: string },
+    data: { sessionId: string; content: string; senderName?: string; attachments?: Attachment[] },
     @ConnectedSocket() client: Socket,
   ) {
     const sessionId = data.sessionId;
     const now = Date.now();
-    const rateEntry = this.messageRateLimit.get(sessionId);
+    const rateEntry = await this.redisState.getRateLimit(sessionId);
     if (rateEntry && now < rateEntry.resetAt) {
       rateEntry.count++;
       if (rateEntry.count > this.MAX_MSG_PER_SEC) {
@@ -628,8 +660,9 @@ export class ChatGateway
         });
         return;
       }
+      await this.redisState.setRateLimit(sessionId, rateEntry);
     } else {
-      this.messageRateLimit.set(sessionId, { count: 1, resetAt: now + 1000 });
+      await this.redisState.setRateLimit(sessionId, { count: 1, resetAt: now + 1000 });
     }
 
     const senderType = client.data.role as 'client' | 'advisor';
@@ -639,7 +672,7 @@ export class ChatGateway
         : (data.senderName ?? 'Cliente');
 
     const message = await this.chatService
-      .saveMessage(data.sessionId, data.content, senderType, senderName)
+      .saveMessage(data.sessionId, data.content, senderType, senderName, data.attachments)
       .catch((error) => {
         client.emit('message_error', {
           reason: error?.message ?? 'Mensaje invalido',
@@ -650,7 +683,7 @@ export class ChatGateway
     this.server.to(data.sessionId).emit('new_message', message);
 
     if (senderType === 'client') {
-      this.clientPresence.set(data.sessionId, {
+      await this.redisState.setClientPresence(data.sessionId, {
         online: true,
         active: true,
         socketId: client.id,
@@ -667,13 +700,14 @@ export class ChatGateway
       await this.cambiarTurno(data.sessionId, 'client', false);
     }
 
-    if (senderType === 'client' && this.aiActiveSessions.has(data.sessionId)) {
+    const isAiActive = await this.redisState.isAiActive(data.sessionId);
+    if (senderType === 'client' && isAiActive) {
       this.respondWithAi(data.sessionId, data.content).catch((err) =>
         this.logger.error('[AutoIA]', err.message),
       );
     }
-    if (senderType === 'advisor' && this.aiActiveSessions.has(data.sessionId)) {
-      this.aiActiveSessions.delete(data.sessionId);
+    if (senderType === 'advisor' && isAiActive) {
+      await this.redisState.removeAiActive(data.sessionId);
       this.server.to(data.sessionId).emit('ai_mode_changed', { active: false });
     }
   }
@@ -689,7 +723,7 @@ export class ChatGateway
   ) {
     if (client.data.role !== 'advisor') return;
 
-    if (this.estaEnAlmuerzo(data.newAdvisorId)) {
+    if (await this.estaEnAlmuerzo(data.newAdvisorId)) {
       client.emit('transfer_error', {
         reason: 'El asesor está en pausa de almuerzo.',
       });
@@ -700,7 +734,6 @@ export class ChatGateway
       data.sessionId,
       data.newAdvisorId,
     );
-    const newSocket = this.connectedAdvisors.get(data.newAdvisorId);
 
     this.cancelarTimerActivo(data.sessionId);
     this.timers.set(data.sessionId, {
@@ -716,13 +749,12 @@ export class ChatGateway
     });
     await this.iniciarTimers(data.sessionId, data.newAdvisorId);
 
-    if (newSocket) {
-      newSocket.join(data.sessionId);
-      newSocket.emit('session_assigned', {
-        sessionId: data.sessionId,
-        clientName: session.clientName,
-      });
-    }
+    // Notify new advisor via Redis adapter room
+    this.server.to(`advisor:${data.newAdvisorId}`).emit('session_assigned', {
+      sessionId: data.sessionId,
+      clientName: session.clientName,
+    });
+
     this.server.to(data.sessionId).emit('advisor_joined', {
       name: session.advisor?.name ?? 'Nuevo asesor',
       profilePhotoUrl: session.advisor?.profilePhotoUrl ?? null,
@@ -731,7 +763,7 @@ export class ChatGateway
 
     const msg = await this.chatService.saveMessage(
       data.sessionId,
-      `Chat transferido a ${session.advisor?.name ?? 'otro asesor'}`,
+      `Has sido asignado al asesor ${session.advisor?.name ?? 'otro asesor'}`,
       'advisor',
       'Sistema',
     );
@@ -771,7 +803,7 @@ export class ChatGateway
     if (advisorId) {
       const a = await this.sessionsService.findAdvisorById(advisorId);
       if (a) {
-        this.advisorStatuses.set(a.id, a.status);
+        await this.redisState.setAdvisorStatus(a.id, a.status);
         this.server.emit('advisor_status_changed', {
           advisorId: a.id,
           name: a.name,
@@ -782,10 +814,10 @@ export class ChatGateway
       }
       await this.activarLunchPendiente(advisorId);
     }
-    this.removeFromQueue(sessionId);
-    this.messageRateLimit.delete(sessionId);
-    this.sessionToSocket.delete(sessionId);
-    this.broadcastQueuePositions();
+    await this.redisState.removeFromQueue(sessionId);
+    await this.redisState.deleteRateLimit(sessionId);
+    await this.redisState.deleteSessionSocket(sessionId);
+    await this.broadcastQueuePositions();
     await this.assignPendingSessions();
   }
 
@@ -818,7 +850,7 @@ export class ChatGateway
     if (advisorId) {
       const a = await this.sessionsService.findAdvisorById(advisorId);
       if (a) {
-        this.advisorStatuses.set(a.id, a.status);
+        await this.redisState.setAdvisorStatus(a.id, a.status);
         this.server.emit('advisor_status_changed', {
           advisorId: a.id,
           name: a.name,
@@ -829,10 +861,10 @@ export class ChatGateway
       }
       await this.activarLunchPendiente(advisorId);
     }
-    this.removeFromQueue(sessionId);
-    this.messageRateLimit.delete(sessionId);
-    this.sessionToSocket.delete(sessionId);
-    this.broadcastQueuePositions();
+    await this.redisState.removeFromQueue(sessionId);
+    await this.redisState.deleteRateLimit(sessionId);
+    await this.redisState.deleteSessionSocket(sessionId);
+    await this.broadcastQueuePositions();
     await this.assignPendingSessions();
   }
 
@@ -873,13 +905,13 @@ export class ChatGateway
   }
 
   @SubscribeMessage('set_active')
-  handleSetActive(
+  async handleSetActive(
     @MessageBody() data: { sessionId: string; active: boolean },
     @ConnectedSocket() client: Socket,
   ) {
     client.data.isActive = data.active;
     if (client.data.role === 'client') {
-      this.clientPresence.set(data.sessionId, {
+      await this.redisState.setClientPresence(data.sessionId, {
         online: true,
         active: data.active,
         socketId: client.id,
@@ -920,7 +952,7 @@ export class ChatGateway
       return;
     }
 
-    this.aiActiveSessions.add(sessionId);
+    await this.redisState.addAiActive(sessionId);
     this.server.to(sessionId).emit('ai_mode_changed', { active: true });
     client.emit('remit_ai_ok', { sessionId });
 
@@ -932,7 +964,7 @@ export class ChatGateway
   }
 
   @SubscribeMessage('deactivate_ai_mode')
-  handleDeactivateAi(
+  async handleDeactivateAi(
     @MessageBody() payload: string | { sessionId: string },
     @ConnectedSocket() client: Socket,
   ) {
@@ -940,7 +972,7 @@ export class ChatGateway
     const sessionId =
       typeof payload === 'string' ? payload : payload?.sessionId;
     if (!sessionId) return;
-    this.aiActiveSessions.delete(sessionId);
+    await this.redisState.removeAiActive(sessionId);
     this.server.to(sessionId).emit('ai_mode_changed', { active: false });
   }
 
@@ -976,7 +1008,7 @@ export class ChatGateway
       this.server.to(sessionId).emit('typing_stop', { sessionId });
 
       if (result.transfer) {
-        this.aiActiveSessions.delete(sessionId);
+        await this.redisState.removeAiActive(sessionId);
         this.server.to(sessionId).emit('ai_mode_changed', { active: false });
         return;
       }
@@ -1269,23 +1301,21 @@ export class ChatGateway
   // ASIGNACIÓN AUTOMÁTICA
   // ══════════════════════════════════════════════════════════════════════════
 
-  private isAssigning = false;
-
   private async assignPendingSessions(): Promise<void> {
-    if (this.isAssigning) return;
-    this.isAssigning = true;
+    // Distributed lock: only one instance runs this at a time
+    const locked = await this.redisState.acquireAssignLock(8000);
+    if (!locked) return;
     try {
       const waiting = await this.sessionsService.findWaitingSessions();
       for (const session of waiting) {
+        const connectedIds = await this.redisState.getConnectedAdvisorIds();
         const hasAvailable =
-          await this.sessionsService.findAvailableAdvisorFromList([
-            ...this.connectedAdvisors.keys(),
-          ]);
+          await this.sessionsService.findAvailableAdvisorFromList(connectedIds);
         if (!hasAvailable) break;
         await this.autoAssignAdvisor(session.id, session.clientName);
       }
     } finally {
-      this.isAssigning = false;
+      await this.redisState.releaseAssignLock();
     }
   }
 
@@ -1296,12 +1326,15 @@ export class ChatGateway
     const session = await this.sessionsService.findOne(sessionId);
     if (session.status !== 'waiting') return false;
 
-    const connectedIds = [...this.connectedAdvisors.keys()];
+    const connectedIds = await this.redisState.getConnectedAdvisorIds();
     if (!connectedIds.length) return false;
 
-    const disponiblesIds = connectedIds.filter(
-      (id) => !this.estaEnAlmuerzo(id),
-    );
+    const disponiblesIds: string[] = [];
+    for (const id of connectedIds) {
+      if (!(await this.estaEnAlmuerzo(id))) {
+        disponiblesIds.push(id);
+      }
+    }
     if (!disponiblesIds.length) {
       this.logger.log(
         '[Assign] Todos los asesores conectados están en almuerzo.',
@@ -1313,16 +1346,16 @@ export class ChatGateway
       await this.sessionsService.findAvailableAdvisorFromList(disponiblesIds);
     if (!advisor) return false;
 
-    if (this.estaEnAlmuerzo(advisor.id)) {
+    if (await this.estaEnAlmuerzo(advisor.id)) {
       this.logger.log(
         `[Assign] Asesor ${advisor.name} está en almuerzo, salteando.`,
       );
       return false;
     }
 
-    const advisorSocket = this.connectedAdvisors.get(advisor.id);
-    if (!advisorSocket) {
-      this.connectedAdvisors.delete(advisor.id);
+    // Verify advisor is still connected
+    const stillConnected = await this.redisState.getConnectedAdvisorIds();
+    if (!stillConnected.includes(advisor.id)) {
       return false;
     }
 
@@ -1332,12 +1365,19 @@ export class ChatGateway
     );
     if (assigned.status !== 'active') return false;
 
-    advisorSocket.join(sessionId);
+    // Use Redis adapter room for cross-instance delivery
+    this.server.to(`advisor:${advisor.id}`).emit('join_session', {
+      sessionId,
+      clientName,
+    });
     this.server.to(sessionId).emit('advisor_joined', {
       name: advisor.name,
       profilePhotoUrl: advisor.profilePhotoUrl ?? null,
     });
-    advisorSocket.emit('session_assigned', { sessionId, clientName });
+    this.server.to(`advisor:${advisor.id}`).emit('session_assigned', {
+      sessionId,
+      clientName,
+    });
     this.server.emit('session_updated', { sessionId, status: 'active' });
     this.server.emit('metrics_updated', {
       type: 'session_status',
@@ -1348,7 +1388,10 @@ export class ChatGateway
       advisor.id,
     );
     if (refreshedAdvisor) {
-      this.advisorStatuses.set(refreshedAdvisor.id, refreshedAdvisor.status);
+      await this.redisState.setAdvisorStatus(
+        refreshedAdvisor.id,
+        refreshedAdvisor.status,
+      );
       this.server.emit('advisor_status_changed', {
         advisorId: refreshedAdvisor.id,
         name: refreshedAdvisor.name,
@@ -1358,9 +1401,9 @@ export class ChatGateway
       });
     }
 
-    this.removeFromQueue(sessionId);
-    this.sessionToSocket.delete(sessionId);
-    this.broadcastQueuePositions();
+    await this.redisState.removeFromQueue(sessionId);
+    await this.redisState.deleteSessionSocket(sessionId);
+    await this.broadcastQueuePositions();
 
     this.timers.set(sessionId, {
       tipo: 'none',
@@ -1377,7 +1420,7 @@ export class ChatGateway
     await this.enviarBienvenidaAsesor(sessionId, advisor.name, advisor.id);
     await this.iniciarTimers(sessionId, advisor.id);
 
-    this.logger.log(`[Assign] ✓ ${sessionId} → ${advisor.name}`);
+    this.logger.log(`[Assign] ✓ ${sessionId} → ${advisor.name} (PID: ${process.pid})`);
     return true;
   }
 
@@ -1429,14 +1472,13 @@ export class ChatGateway
     const diaSem = ahora.getDay();
     const hhmm = `${String(ahora.getHours()).padStart(2, '0')}:${String(ahora.getMinutes()).padStart(2, '0')}`;
 
-    const entries = [...this.connectedAdvisors];
-    const advisorIds = entries.map(([id]) => id);
+    const advisorIds = await this.redisState.getConnectedAdvisorIds();
     const configMap = await this.configuracionService
       .getEfectivaBatch(advisorIds)
       .catch(() => new Map());
 
     await Promise.all(
-      entries.map(async ([advisorId, socket]) => {
+      advisorIds.map(async (advisorId) => {
         try {
           const config = configMap.get(advisorId);
           if (!config) return;
@@ -1449,8 +1491,8 @@ export class ChatGateway
             ? hhmm >= almuerzoHoy.inicio && hhmm < almuerzoHoy.fin
             : false;
 
-          const enAlmuerzoActivo = this.advisorsOnLunch.has(advisorId);
-          const pendiente = this.advisorsPendingLunch.has(advisorId);
+          const enAlmuerzoActivo = await this.estaEnAlmuerzo(advisorId);
+          const pendiente = await this.tieneAlmuerzoPendiente(advisorId);
 
           // ALMUERZO PRÓXIMO: faltan 5 min o menos
           if (!enAlmuerzoActivo && !pendiente && almuerzoHoy) {
@@ -1464,32 +1506,31 @@ export class ChatGateway
             if (
               diffToStart > 0 &&
               diffToStart <= cincoMinMs &&
-              !this.advisorsLunchNotified.has(advisorId)
+              !(await this.redisState.isLunchNotified(advisorId))
             ) {
-              this.advisorsLunchNotified.add(advisorId);
+              await this.redisState.addLunchNotified(advisorId);
               const minsRest = Math.ceil(diffToStart / 60000);
-              socket.emit('lunch_approaching', {
+              this.server.to(`advisor:${advisorId}`).emit('lunch_approaching', {
                 mensaje: `Tu hora de almuerzo (${almuerzoHoy.inicio}) se acerca. Faltan ${minsRest} minuto(s).`,
                 minutos: minsRest,
                 inicio: almuerzoHoy.inicio,
               });
             } else if (diffToStart > cincoMinMs || diffToStart <= 0) {
-              this.advisorsLunchNotified.delete(advisorId);
+              await this.redisState.removeLunchNotified(advisorId);
             }
           }
 
           // ENTRÓ al horario de almuerzo
           if (enHorario && !enAlmuerzoActivo && !pendiente) {
-            this.advisorsLunchNotified.delete(advisorId);
+            await this.redisState.removeLunchNotified(advisorId);
             await this.sessionsService
               .setAdvisorStatus(advisorId, 'busy')
               .catch(() => null);
-            this.advisorStatuses.set(advisorId, 'busy');
+            await this.redisState.setAdvisorStatus(advisorId, 'busy');
             this.server.emit('advisor_status_changed', {
               advisorId,
-              name: socket.data.user?.name,
+              name: config.mensajeBienvenida, // will be overridden by advisor name from DB
               status: 'busy',
-              profilePhotoUrl: socket.data.user?.profilePhotoUrl ?? null,
             });
 
             const [ih, im] = almuerzoHoy!.inicio.split(':').map(Number);
@@ -1500,14 +1541,14 @@ export class ChatGateway
               await this.countChatsActivosAlmuerzo(advisorId);
 
             if (chatsActivos.total > 0) {
-              this.advisorsLunchNotified.delete(advisorId);
-              this.advisorsPendingLunch.set(advisorId, {
+              await this.redisState.removeLunchNotified(advisorId);
+              await this.redisState.setPendingLunch(advisorId, {
                 inicioOriginal: almuerzoHoy!.inicio,
                 finOriginal: almuerzoHoy!.fin,
                 duracionMs,
-                inicioReal: ahora,
+                inicioReal: ahora.toISOString(),
               });
-              socket.emit('lunch_pending', {
+              this.server.to(`advisor:${advisorId}`).emit('lunch_pending', {
                 mensaje: `Tienes ${chatsActivos.total} chat(s) activo(s). Termínalos para iniciar tu pausa de almuerzo.`,
                 chats: chatsActivos.total,
                 chatsWeb: chatsActivos.web,
@@ -1516,10 +1557,9 @@ export class ChatGateway
                 finOriginal: almuerzoHoy!.fin,
               });
             } else {
-              this.advisorsLunchNotified.delete(advisorId);
+              await this.redisState.removeLunchNotified(advisorId);
               await this.iniciarAlmuerzoAhora(
                 advisorId,
-                socket,
                 almuerzoHoy!.inicio,
                 almuerzoHoy!.fin,
                 duracionMs,
@@ -1530,33 +1570,33 @@ export class ChatGateway
 
           // SALIÓ del horario (fin natural)
           else if (!enHorario && enAlmuerzoActivo) {
-            const finAjustado = this.advisorsOnLunch.get(advisorId)!;
-            const [h, m] = finAjustado.split(':').map(Number);
-            const finAjMs = new Date(ahora).setHours(h, m, 0, 0);
+            const finAjustado = await this.redisState.getOnLunch(advisorId);
+            if (finAjustado) {
+              const [h, m] = finAjustado.split(':').map(Number);
+              const finAjMs = new Date(ahora).setHours(h, m, 0, 0);
 
-            if (ahora.getTime() >= finAjMs) {
-              await this.terminarAlmuerzo(advisorId, socket);
+              if (ahora.getTime() >= finAjMs) {
+                await this.terminarAlmuerzo(advisorId);
+              }
             }
           }
 
           // Salió del horario antes de aprobar pendiente
           else if (pendiente && !enHorario) {
-            const pendData = this.advisorsPendingLunch.get(advisorId);
+            const pendData = await this.redisState.getPendingLunch(advisorId);
             if (pendData && hhmm >= pendData.finOriginal) {
-              this.advisorsPendingLunch.delete(advisorId);
+              await this.redisState.removePendingLunch(advisorId);
               await this.sessionsService
                 .setAdvisorStatus(advisorId, 'online')
                 .catch(() => null);
-              this.advisorStatuses.set(advisorId, 'online');
+              await this.redisState.setAdvisorStatus(advisorId, 'online');
               this.server.emit('advisor_status_changed', {
                 advisorId,
-                name: socket.data.user?.name,
                 status: 'online',
-                profilePhotoUrl: socket.data.user?.profilePhotoUrl ?? null,
               });
-              socket.emit('lunch_pending_cancelled');
+              this.server.to(`advisor:${advisorId}`).emit('lunch_pending_cancelled');
               this.logger.log(
-                `[Almuerzo] ❌ ${socket.data.user?.name} horario de almuerzo expiró (tenía chats activos)`,
+                `[Almuerzo] ❌ ${advisorId} horario de almuerzo expiró (tenía chats activos)`,
               );
               return;
             }
@@ -1578,7 +1618,6 @@ export class ChatGateway
 
   private async iniciarAlmuerzoAhora(
     advisorId: string,
-    socket: Socket,
     inicioOriginal: string,
     finOriginal: string,
     duracionMs: number,
@@ -1588,8 +1627,8 @@ export class ChatGateway
     const finAjDate = new Date(finAjMs);
     const finAjHora = `${String(finAjDate.getHours()).padStart(2, '0')}:${String(finAjDate.getMinutes()).padStart(2, '0')}`;
 
-    this.advisorsOnLunch.set(advisorId, finAjHora);
-    this.advisorsPendingLunch.delete(advisorId);
+    await this.redisState.setOnLunch(advisorId, finAjHora);
+    await this.redisState.removePendingLunch(advisorId);
 
     const ahora = new Date();
     const diffMs = Math.max(0, finAjMs - ahora.getTime());
@@ -1597,7 +1636,7 @@ export class ChatGateway
     const restSegs = Math.floor((diffMs % 60000) / 1000);
     const restante = `${String(restMins).padStart(2, '0')}:${String(restSegs).padStart(2, '0')}`;
 
-    socket.emit('lunch_started', {
+    this.server.to(`advisor:${advisorId}`).emit('lunch_started', {
       fin: finAjHora,
       restante,
       inicio: inicioOriginal,
@@ -1609,28 +1648,25 @@ export class ChatGateway
         ? ` (ajustado de ${finOriginal} a ${finAjHora})`
         : '';
     this.logger.log(
-      `[Almuerzo] 🍽️  ${socket.data.user?.name} almuerzo hasta ${finAjHora}${ajuste}`,
+      `[Almuerzo] 🍽️  ${advisorId} almuerzo hasta ${finAjHora}${ajuste} (PID: ${process.pid})`,
     );
   }
 
   private async terminarAlmuerzo(
     advisorId: string,
-    socket: Socket,
   ): Promise<void> {
-    this.advisorsOnLunch.delete(advisorId);
+    await this.redisState.removeOnLunch(advisorId);
     await this.sessionsService
       .setAdvisorStatus(advisorId, 'online')
       .catch(() => null);
-    this.advisorStatuses.set(advisorId, 'online');
+    await this.redisState.setAdvisorStatus(advisorId, 'online');
     this.server.emit('advisor_status_changed', {
       advisorId,
-      name: socket.data.user?.name,
       status: 'online',
-      profilePhotoUrl: socket.data.user?.profilePhotoUrl ?? null,
     });
-    socket.emit('lunch_ended');
+    this.server.to(`advisor:${advisorId}`).emit('lunch_ended');
     this.logger.log(
-      `[Almuerzo] ✅ ${socket.data.user?.name} volvió del almuerzo`,
+      `[Almuerzo] ✅ ${advisorId} volvió del almuerzo (PID: ${process.pid})`,
     );
     await this.assignPendingSessions();
   }
@@ -1651,23 +1687,22 @@ export class ChatGateway
   }
 
   private async activarLunchPendiente(advisorId: string): Promise<void> {
-    const pendiente = this.advisorsPendingLunch.get(advisorId);
+    const pendiente = await this.redisState.getPendingLunch(advisorId);
     if (!pendiente) return;
 
     const chatsActivos = await this.countChatsActivosAlmuerzo(advisorId);
-
     if (chatsActivos.total > 0) return;
 
-    const socket = this.connectedAdvisors.get(advisorId);
-    if (!socket) {
-      this.advisorsPendingLunch.delete(advisorId);
+    // Check if advisor is still connected
+    const connected = await this.redisState.getConnectedAdvisorIds();
+    if (!connected.includes(advisorId)) {
+      await this.redisState.removePendingLunch(advisorId);
       return;
     }
 
     const ahora = new Date();
     await this.iniciarAlmuerzoAhora(
       advisorId,
-      socket,
       pendiente.inicioOriginal,
       pendiente.finOriginal,
       pendiente.duracionMs,
@@ -1675,49 +1710,47 @@ export class ChatGateway
     );
   }
 
-  private estaEnAlmuerzo(advisorId: string): boolean {
-    return this.advisorsOnLunch.has(advisorId);
+  private async estaEnAlmuerzo(advisorId: string): Promise<boolean> {
+    return this.redisState.isOnLunch(advisorId);
   }
 
-  private tieneAlmuerzoPendiente(advisorId: string): boolean {
-    return this.advisorsPendingLunch.has(advisorId);
+  private async tieneAlmuerzoPendiente(advisorId: string): Promise<boolean> {
+    return this.redisState.isPendingLunch(advisorId);
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // COLA DE ESPERA
+  // COLA DE ESPERA (Redis-backed)
   // ══════════════════════════════════════════════════════════════════════════
 
-  private addToQueue(sessionId: string): void {
-    if (!this.waitingQueue.includes(sessionId))
-      this.waitingQueue.push(sessionId);
-  }
-
-  private removeFromQueue(sessionId: string): void {
-    const idx = this.waitingQueue.indexOf(sessionId);
-    if (idx !== -1) this.waitingQueue.splice(idx, 1);
-  }
-
-  private emitQueuePosition(sessionId: string): void {
-    const pos = this.waitingQueue.indexOf(sessionId);
+  private async emitQueuePosition(sessionId: string): Promise<void> {
+    const pos = await this.redisState.getQueuePosition(sessionId);
     if (pos === -1) return;
-    const socketId = this.sessionToSocket.get(sessionId);
+    const socketId = await this.redisState.getSessionSocket(sessionId);
     if (!socketId) return;
     const socket = this.server.sockets.sockets.get(socketId);
-    socket?.emit('queue_position', {
-      position: pos,
-      total: this.waitingQueue.length,
-    });
+    if (socket) {
+      socket.emit('queue_position', {
+        position: pos,
+        total: await this.redisState.getQueueLength(),
+      });
+    }
   }
 
-  private broadcastQueuePositions(): void {
-    this.waitingQueue.forEach((sessionId, index) => {
-      const socketId = this.sessionToSocket.get(sessionId);
-      if (!socketId) return;
-      const socket = this.server.sockets.sockets.get(socketId);
-      socket?.emit('queue_position', {
-        position: index,
-        total: this.waitingQueue.length,
-      });
-    });
+  private async broadcastQueuePositions(): Promise<void> {
+    const queue = await this.redisState.getQueue();
+    const total = queue.length;
+    await Promise.all(
+      queue.map(async (sessionId, index) => {
+        const socketId = await this.redisState.getSessionSocket(sessionId);
+        if (!socketId) return;
+        const socket = this.server.sockets.sockets.get(socketId);
+        if (socket) {
+          socket.emit('queue_position', {
+            position: index,
+            total,
+          });
+        }
+      }),
+    );
   }
 }

@@ -10,6 +10,7 @@ import {
 } from '../../../../core/services/configuracion.service';
 import { NotificationService } from '../../../../core/services/notification.service';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
+import { Colegio, SessionService } from '../../../../core/services/session.service';
 
 @Component({
   selector: 'app-configuracion',
@@ -29,7 +30,7 @@ export class ConfiguracionComponent implements OnInit, OnDestroy {
   error = '';
   almuerzoActivo = false;
   almuerzoRestante = '';
-  tab: 'bienvenida' | 'asesor' | 'cliente' | 'almuerzo' | 'respuestas' = 'bienvenida';
+  tab: 'bienvenida' | 'asesor' | 'cliente' | 'almuerzo' | 'respuestas' | 'colegios' = 'bienvenida';
   diaSeleccionado: number | null = null;
 
   quickReplies: Array<{ name: string; content: string }> = [];
@@ -38,6 +39,11 @@ export class ConfiguracionComponent implements OnInit, OnDestroy {
   showLinkModal = false;
   linkName = '';
   linkUrl = '';
+
+  // ── Colegios (read-only) ──────────────────────────────────────────────────
+  colegios: Colegio[] = [];
+  colegiosLoading = false;
+  colegioSearch = '';
 
   readonly placeholderBienvenida = 'Hola, soy {{asesor}}, en que puedo ayudarte?';
 
@@ -57,6 +63,7 @@ export class ConfiguracionComponent implements OnInit, OnDestroy {
     private readonly svc: ConfiguracionFrontendService,
     private readonly notification: NotificationService,
     private readonly cdr: ChangeDetectorRef,
+    private readonly sessionService: SessionService,
   ) {}
 
   ngOnInit(): void {
@@ -346,5 +353,24 @@ export class ConfiguracionComponent implements OnInit, OnDestroy {
       textarea.focus();
       textarea.setSelectionRange(start + link.length, start + link.length);
     });
+  }
+
+  // ── Colegios (read-only) ──────────────────────────────────────────────────
+
+  loadColegios(): void {
+    this.colegiosLoading = true;
+    this.sessionService.getColegios().subscribe({
+      next: (c) => { this.colegios = c; this.colegiosLoading = false; this.cdr.detectChanges(); },
+      error: () => { this.colegiosLoading = false; this.cdr.detectChanges(); },
+    });
+  }
+
+  get colegiosFiltrados(): Colegio[] {
+    const q = this.colegioSearch.trim().toLowerCase();
+    if (!q) return this.colegios;
+    return this.colegios.filter(c =>
+      c.nombre.toLowerCase().includes(q) ||
+      (c.email ?? '').toLowerCase().includes(q)
+    );
   }
 }

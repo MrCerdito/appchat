@@ -30,7 +30,7 @@ export class User {
   @Column({ default: true })
   active: boolean;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
   @Column({ length: 20, default: 'offline' })
@@ -57,4 +57,10 @@ export class User {
     length: 500,
   })
   refreshToken: string | null;
+
+  @Column({ name: 'failed_login_attempts', type: 'int', default: 0 })
+  failedLoginAttempts: number;
+
+  @Column({ name: 'locked_until', type: 'timestamptz', nullable: true })
+  lockedUntil: Date | null;
 }

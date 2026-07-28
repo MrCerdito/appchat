@@ -703,11 +703,15 @@ export class AdvisorsWhatsappController {
     startDateTime: string,
     joinUrl: string,
   ): string {
-    const formatted = new Intl.DateTimeFormat('es-CO', {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-      timeZone: 'America/Bogota',
-    }).format(new Date(startDateTime));
+    const d = new Date(startDateTime);
+    const bogota = new Date(d.getTime() - 5 * 3600000);
+    const months = ['ene.', 'feb.', 'mar.', 'abr.', 'may.', 'jun.', 'jul.', 'ago.', 'sep.', 'oct.', 'nov.', 'dic.'];
+    const hh = String(bogota.getUTCHours()).padStart(2, '0');
+    const mm = String(bogota.getUTCMinutes()).padStart(2, '0');
+    const day = bogota.getUTCDate();
+    const month = months[bogota.getUTCMonth()];
+    const year = bogota.getUTCFullYear();
+    const formatted = `${day} ${month} ${year}, ${hh}:${mm}`;
     return `Hola, te comparto el enlace para nuestra reunion en Microsoft Teams.\n\nReunion: ${subject}\nHora: ${formatted}\nLink: ${joinUrl}`;
   }
 

@@ -1,0 +1,60 @@
+
+═══════════════════════════════════════════════════════════════════
+  REPORTE DE PRUEBA DE CARGA
+  Fecha: 2026-07-24T12:41:10.426Z
+  Duración: 269.5s
+  Backend: http://localhost:3001
+═══════════════════════════════════════════════════════════════════
+
+── API REST ──────────────────────────────────────────────────────
+  Total requests:     9434
+  Errores:            9320 (98.8%)
+  Latencia avg:       16ms
+  Latencia p50:       1ms
+  Latencia p95:       4ms
+  Latencia p99:       401ms
+  Latencia max:       5355ms
+
+  Por endpoint:
+    GET /health                      4691 req  4632 err  p95=4ms
+    POST /sessions                   4743 req  4683 err  p95=4ms
+
+── WebSocket Chat ────────────────────────────────────────────────
+  Conexiones totales:  29
+  Desconexiones:       31
+  Conexiones con error:13
+  Mensajes enviados:   55
+  Mensajes recibidos:  34
+  Latencia msg avg:    0.3ms
+  Latencia msg p95:    1ms
+  Latencia asignación avg: 0ms
+  Latencia asignación p95: 0ms
+
+── WhatsApp Namespace ────────────────────────────────────────────
+  Conexiones totales:  8
+  Desconexiones:       8
+  Conexiones con error:0
+
+── Sesiones ──────────────────────────────────────────────────────
+  Creadas:             96
+  Cerradas:            0
+
+── Errores ───────────────────────────────────────────────────────
+  Total errores:       22
+  [client] websocket error
+  [client] websocket error
+  [client] websocket error
+  [client] websocket error
+  [client] websocket error
+  [client] websocket error
+  [client] websocket error
+  [client] websocket error
+  [client] websocket error
+  [client] websocket error
+
+── Evaluación ────────────────────────────────────────────────────
+  ⚠ Error rate API: 98.8% (objetivo <5%)
+  ✅ Latencia API p95: 4ms (objetivo <2000ms)
+  ⚠ WS connect errors: 13 (objetivo <10%)
+  ✅ Backend sobrevive desconexión masiva
+═══════════════════════════════════════════════════════════════════

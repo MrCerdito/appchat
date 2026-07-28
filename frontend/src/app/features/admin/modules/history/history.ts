@@ -10,6 +10,7 @@ import { Message } from '../../../../core/models/message.model';
 import { Session } from '../../../../core/models/session.model';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
 import { scrollToBottom } from '../../../../shared/utils/scroll';
+import { fmtDateTimeShort, fmtDateTimeFull, fmtTime } from '../../../../shared/utils/date';
 
 @Component({
   selector: 'app-history-global',
@@ -22,6 +23,9 @@ import { scrollToBottom } from '../../../../shared/utils/scroll';
 export class HistoryGlobalComponent implements OnInit, OnDestroy {
   protected readonly trackByIndex = trackByIndex;
   protected readonly trackById = trackById;
+  protected readonly fmtDateTimeShort = fmtDateTimeShort;
+  protected readonly fmtDateTimeFull = fmtDateTimeFull;
+  protected readonly fmtTime = fmtTime;
 
   @ViewChild('messagesContainer') messagesContainer!: ElementRef;
   @ViewChild(CdkVirtualScrollViewport) viewport?: CdkVirtualScrollViewport;
