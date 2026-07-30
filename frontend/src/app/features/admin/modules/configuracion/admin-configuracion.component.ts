@@ -67,6 +67,9 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
   colegioDeletingId: string | null = null;
   colegioSelectedIds: Set<string> = new Set();
   colegioDeletingBulk = false;
+  colegioPage = 1;
+  colegioPageSize = 10;
+  pageSizeOptions = [10, 25, 50, 100];
 
   readonly aiRoles = [
     { key: 'administrador', label: 'Administrador', icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' },
@@ -617,6 +620,7 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
   // ── Colegios CRUD ──────────────────────────────────────────────────────────
 
   loadColegios(): void {
+    this.colegioPage = 1;
     this.colegiosLoading = true;
     this.sessionService.getColegios().subscribe({
       next: (c) => { this.colegios = c; this.colegiosLoading = false; this.cdr.detectChanges(); },
@@ -631,6 +635,41 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
       c.nombre.toLowerCase().includes(q) ||
       (c.email ?? '').toLowerCase().includes(q)
     );
+  }
+
+  get paginatedColegios(): Colegio[] {
+    const start = (this.colegioPage - 1) * this.colegioPageSize;
+    return this.colegiosFiltrados.slice(start, start + this.colegioPageSize);
+  }
+
+  get totalColegioPages(): number {
+    return Math.ceil(this.colegiosFiltrados.length / this.colegioPageSize);
+  }
+
+  colegioPageRange(): number[] {
+    const total = this.totalColegioPages;
+    const current = this.colegioPage;
+    const range: number[] = [];
+    let start = Math.max(1, current - 2);
+    let end = Math.min(total, current + 2);
+    if (end - start < 4) {
+      if (start === 1) end = Math.min(total, start + 4);
+      else start = Math.max(1, end - 4);
+    }
+    for (let i = start; i <= end; i++) range.push(i);
+    return range;
+  }
+
+  setColegioPage(page: number): void {
+    if (page < 1 || page > this.totalColegioPages) return;
+    this.colegioPage = page;
+    this.cdr.detectChanges();
+  }
+
+  onColegioPageSizeChange(size: number): void {
+    this.colegioPageSize = size;
+    this.colegioPage = 1;
+    this.cdr.detectChanges();
   }
 
   openColegioForm(colegio?: Colegio): void {
@@ -705,10 +744,12 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
   }
 
   toggleAllColegios(): void {
-    if (this.colegioSelectedIds.size === this.colegiosFiltrados.length) {
-      this.colegioSelectedIds.clear();
+    const currentIds = this.paginatedColegios.map(c => c.id);
+    const allSelected = currentIds.every(id => this.colegioSelectedIds.has(id));
+    if (allSelected) {
+      for (const id of currentIds) this.colegioSelectedIds.delete(id);
     } else {
-      this.colegioSelectedIds = new Set(this.colegiosFiltrados.map(c => c.id));
+      for (const id of currentIds) this.colegioSelectedIds.add(id);
     }
     this.cdr.detectChanges();
   }

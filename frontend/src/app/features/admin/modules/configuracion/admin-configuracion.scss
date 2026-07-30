@@ -693,11 +693,35 @@ input[type="time"] {
   &:hover { background: var(--border); }
 }
 
-.colegios-count {
-  padding: 0.6rem 0.85rem; font-size: 0.78rem; color: var(--text-muted);
-  border-top: 1px solid var(--border-light); text-align: right;
+.colegios-footer {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;
+  padding: 0.6rem 0.85rem; border-top: 1px solid var(--border-light);
 }
+.colegios-count { font-size: 0.78rem; color: var(--text-muted); }
 .colegios-count-selected { margin-left: 0.4rem; color: #7c3aed; font-weight: 600; }
+
+.colegios-paginator {
+  display: flex; align-items: center; gap: 3px;
+}
+.pag-btn {
+  display: grid; place-items: center;
+  min-width: 30px; height: 30px; padding: 0 6px;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); color: var(--text-muted);
+  font-family: var(--font); font-size: 0.75rem; font-weight: 600;
+  cursor: pointer; transition: all 0.12s;
+  &:hover:not(:disabled) { border-color: #7c3aed; color: #7c3aed; }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+  &.active { background: #7c3aed; border-color: #7c3aed; color: #fff; }
+}
+.pag-size {
+  margin-left: 0.5rem; padding: 0.3rem 0.5rem;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); font-family: var(--font);
+  font-size: 0.75rem; color: var(--text-muted); cursor: pointer;
+  outline: none; transition: border-color 0.15s;
+  &:focus { border-color: #7c3aed; }
+}
 
 .th-check, .td-check { width: 36px; text-align: center; padding: 0; }
 .th-check input, .td-check input { width: 15px; height: 15px; cursor: pointer; accent-color: #7c3aed; }
