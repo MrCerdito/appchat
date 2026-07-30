@@ -14,6 +14,7 @@ import {
   Header,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles, RolesGuard } from '../auth/roles.guard';
@@ -94,7 +95,7 @@ export class ConfiguracionController {
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(RolesGuard)
   @Roles('admin')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
   async importQuickRepliesCsv(@UploadedFile() file: Express.Multer.File) {
     if (!file) throw new Error('Archivo no proporcionado');
     const csv = file.buffer.toString('utf-8');

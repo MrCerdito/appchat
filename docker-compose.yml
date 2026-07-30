@@ -34,6 +34,27 @@ services:
     networks:
       - chat-net
 
+  # ── Redis ──────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: chat-redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: "0.3"
+          memory: 128M
+    logging: *default-logging
+    networks:
+      - chat-net
+
   # ── Backend (NestJS) ─────────────────────────────────────────────────
   backend:
     build:
@@ -50,14 +71,16 @@ services:
       DB_HOST: postgres
       DB_PORT: 5432
       TZ: America/Bogota
-      NODE_ENV: production
-      CORS_ORIGINS: ${CORS_ORIGINS:-https://reportacasos.innovacloud.co}
-      APP_URL: ${APP_URL:-https://reportacasos.innovacloud.co}
+      NODE_ENV: development
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://innoovacloud.co}
+      APP_URL: ${APP_URL:-https://innoovacloud.co}
       WHATSAPP_PROXY_URL: socks5://127.0.0.1:40000
     volumes:
       - uploads_data:/app/uploads
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     deploy:
       resources:

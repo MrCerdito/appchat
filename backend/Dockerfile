@@ -27,8 +27,8 @@ COPY --from=builder /app/backend/dist ./dist
 COPY backend/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-RUN mkdir -p /app/uploads/documentos /app/uploads/baileys-auth /app/uploads/whatsapp \
-    && chown -R node:node /app
+RUN mkdir -p /app/uploads/documentos /app/uploads/baileys-auth /app/uploads/whatsapp
+RUN chown -R node:node /app/uploads && chown node:node /app
 
 EXPOSE 3001
 ENTRYPOINT ["/entrypoint.sh"]
