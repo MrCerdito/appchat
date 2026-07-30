@@ -61,10 +61,9 @@ export class WhatsappChatService implements OnDestroy {
     updatedAt: new Date().toISOString(),
   });
   private lastConnectionSequence = 0;
+  private connectionLoaded = false;
 
-  constructor(private http: HttpClient) {
-    this.connectSocket();
-  }
+  constructor(private http: HttpClient) {}
 
   private connectSocket(): void {
     this.socket = io(`${this.wsUrl}/advisors-whatsapp`, {
@@ -79,15 +78,23 @@ export class WhatsappChatService implements OnDestroy {
     });
 
     this.socket.on('connect', () => {
-      // NO actualizar connection$ aquí — solo aw_connection_update define el estado real de WhatsApp
+      this.connectionLoaded = false;
+      this.loadConnection().subscribe();
     });
 
     this.socket.on('disconnect', (reason) => {
-      // NO actualizar connection$ aquí — solo aw_connection_update define el estado real de WhatsApp
+      this.connection$.next({
+        status: 'disconnected',
+        lastError:
+          reason === 'io server disconnect'
+            ? 'Servidor desconectado'
+            : 'Conexion perdida. Reintentando...',
+        updatedAt: new Date().toISOString(),
+      });
     });
 
     this.socket.on('connect_error', (err) => {
-      this.connection$.next({ status: 'error', updatedAt: new Date().toISOString() });
+      this.connection$.next({ status: 'error', lastError: err?.message ?? 'Error de conexion', updatedAt: new Date().toISOString() });
     });
 
     this.socket.on('aw_new_message', (data: AwNewMessage) => {
@@ -130,8 +137,10 @@ export class WhatsappChatService implements OnDestroy {
   }
 
   joinAsAdvisor(advisorId: string): void {
-    if (!this.socket?.connected) {
-      this.socket?.disconnect();
+    if (!this.socket) {
+      this.connectSocket();
+    } else if (!this.socket.connected) {
+      this.socket.disconnect();
       this.connectSocket();
     }
     this.socket.emit('aw_join', advisorId);
@@ -178,9 +187,16 @@ export class WhatsappChatService implements OnDestroy {
   }
 
   loadConnection(): Observable<WaConnectionStatus> {
+    if (this.connectionLoaded) {
+      return of(this.connection$.getValue());
+    }
     return this.http.get<WaConnectionStatus>(`${this.apiUrl}/connection`, { headers: this.headers() }).pipe(
-      tap(status => this.connection$.next(status)),
+      tap(status => {
+        this.connectionLoaded = true;
+        this.connection$.next(status);
+      }),
       catchError(() => {
+        this.connectionLoaded = true;
         const status: WaConnectionStatus = {
           status: 'disconnected',
           lastError: 'No se pudo consultar la conexion de WhatsApp.',
@@ -193,6 +209,7 @@ export class WhatsappChatService implements OnDestroy {
   }
 
   restartConnection(): Observable<WaConnectionStatus> {
+    this.connectionLoaded = false;
     return this.http.post<WaConnectionStatus>(
       `${this.apiUrl}/connection/restart`,
       {},
@@ -201,6 +218,7 @@ export class WhatsappChatService implements OnDestroy {
   }
 
   logoutConnection(): Observable<WaConnectionStatus> {
+    this.connectionLoaded = false;
     return this.http.post<WaConnectionStatus>(
       `${this.apiUrl}/connection/logout`,
       {},

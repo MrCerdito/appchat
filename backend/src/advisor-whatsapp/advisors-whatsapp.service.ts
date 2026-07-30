@@ -21,6 +21,7 @@ import makeWASocket, {
   useMultiFileAuthState,
 } from '@whiskeysockets/baileys';
 import { ConfigService } from '@nestjs/config';
+import pino from 'pino';
 import { InjectRepository } from '@nestjs/typeorm';
 import QRCode from 'qrcode';
 import { mkdir, rm, writeFile } from 'fs/promises';
@@ -218,7 +219,7 @@ export interface IncomingHandlingResult {
 }
 
 export type WhatsappConnectionStatus =
-  'disconnected' | 'connecting' | 'qr' | 'connected';
+  'disconnected' | 'connecting' | 'qr' | 'connected' | 'error';
 
 export interface WhatsappConnectionDto {
   status: WhatsappConnectionStatus;
@@ -256,6 +257,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
   private connectionSequence = 0;
   private qrReceivedInSession = false;
   private reconnectAttempts = 0;
+  private qrExpiryTimer: ReturnType<typeof setTimeout> | null = null;
   private static readonly MAX_RECONNECT_ATTEMPTS = 5;
 
   readonly connectionUpdates$ = new Subject<WhatsappConnectionDto>();
@@ -276,7 +278,10 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     'Actualmente no estamos disponibles para llamadas. Por favor escribenos por este chat y un asesor te atendera.';
   readonly defaultQuickReplies = [
     { name: 'Saludo', content: 'Hola, con gusto reviso tu caso.' },
-    { name: 'Espera', content: 'Dame un momento mientras valido la informacion.' },
+    {
+      name: 'Espera',
+      content: 'Dame un momento mientras valido la informacion.',
+    },
     { name: 'Despedida', content: 'Quedo atento si necesitas algo mas.' },
   ];
   private readonly maxTextLength = 4096;
@@ -344,13 +349,26 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  getConnectedAdvisorIds(): string[] {
+    return [...this.connectedAdvisorIds];
+  }
+
   async getConnectionStatus(): Promise<WhatsappConnectionDto> {
+    if (
+      this.connectionStatus === 'disconnected' ||
+      this.connectionStatus === 'error'
+    ) {
+      this.setConnectionState('connecting');
+      return this.ensureBaileysConnection();
+    }
     return this.getConnectionDto();
   }
 
   async restartConnection(): Promise<WhatsappConnectionDto> {
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.reconnectTimer = null;
+    this.clearQrExpiryTimer();
+    this.connectingPromise = null;
     await this.sock
       ?.end(new Error('Reinicio manual de Baileys'))
       .catch(() => undefined);
@@ -359,6 +377,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     this.currentQrDataUrl = null;
     this.qrReceivedInSession = false;
     this.reconnectAttempts = 0;
+    this.setConnectionState('connecting');
     return this.ensureBaileysConnection();
   }
 
@@ -388,11 +407,24 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async ensureBaileysConnection(): Promise<WhatsappConnectionDto> {
-    if (this.sock && this.connectionStatus !== 'disconnected') {
+    if (
+      this.sock &&
+      this.connectionStatus !== 'disconnected' &&
+      this.connectionStatus !== 'error'
+    ) {
       return this.getConnectionDto();
     }
+
+    if (this.sock) {
+      await this.sock
+        .end(new Error('Reconectando Baileys'))
+        .catch(() => undefined);
+      this.sock = null;
+    }
+
     if (this.connectingPromise) return this.connectingPromise;
 
+    this.setConnectionState('connecting');
     this.connectingPromise = this.createBaileysSocket().finally(() => {
       this.connectingPromise = null;
     });
@@ -409,22 +441,31 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       this.baileysAuthDir(),
     );
     const currentSocketId = ++this.socketId;
-    const sock = makeWASocket({
+    const proxyUrl = this.config.get<string>('WHATSAPP_PROXY_URL');
+    const socketOptions: any = {
       auth: state,
       printQRInTerminal: false,
       syncFullHistory: false,
       markOnlineOnConnect: true,
       generateHighQualityLinkPreview: false,
-    });
+      logger: pino({ level: 'info', name: 'baileys' }),
+    };
+    if (proxyUrl) {
+      socketOptions.proxy = { url: proxyUrl };
+      this.logger.log(`Baileys usando proxy: ${proxyUrl}`);
+    }
+    const sock = makeWASocket(socketOptions);
 
     this.sock = sock;
     sock.ev.on('creds.update', saveCreds);
     sock.ev.on('connection.update', (update) => {
-      this.handleBaileysConnectionUpdate(update, currentSocketId).catch((err) => {
-        this.logger.warn(
-          `Error procesando estado de Baileys: ${err?.message ?? err}`,
-        );
-      });
+      this.handleBaileysConnectionUpdate(update, currentSocketId).catch(
+        (err) => {
+          this.logger.warn(
+            `Error procesando estado de Baileys: ${err?.message ?? err}`,
+          );
+        },
+      );
     });
     sock.ev.on('messages.upsert', ({ messages, type }) => {
       this.handleBaileysMessages(messages, type).catch((err) => {
@@ -483,21 +524,45 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     const { connection, lastDisconnect, qr } = update;
 
     if (qr) {
+      if (qr === this.currentQr) return;
+      this.clearQrExpiryTimer();
       this.qrReceivedInSession = true;
       this.currentQr = qr;
       this.currentQrDataUrl = await QRCode.toDataURL(qr, {
         margin: 1,
-        width: 280,
+        width: 500,
         color: { dark: '#0b1219', light: '#ffffff' },
       });
       this.setConnectionState('qr');
+      this.qrExpiryTimer = setTimeout(() => {
+        if (
+          this.connectionStatus === 'qr' ||
+          this.connectionStatus === 'connecting'
+        ) {
+          this.currentQr = null;
+          this.currentQrDataUrl = null;
+          this.logger.log('QR expirado. Solicitando nuevo codigo...');
+          this.connectingPromise = null;
+          this.sock?.end(new Error('QR expirado')).catch(() => undefined);
+          this.sock = null;
+          this.qrReceivedInSession = false;
+          this.reconnectAttempts = 0;
+          this.ensureBaileysConnection().catch((err) => {
+            this.logger.warn(`Error al regenerar QR: ${err?.message ?? err}`);
+          });
+        }
+      }, 55_000);
     }
 
+    if (connection === 'connecting' && this.connectionStatus === 'connecting') {
+      return;
+    }
     if (connection === 'connecting') {
       this.setConnectionState('connecting');
     }
 
     if (connection === 'open') {
+      this.clearQrExpiryTimer();
       this.currentQr = null;
       this.currentQrDataUrl = null;
       this.reconnectAttempts = 0;
@@ -515,6 +580,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     }
 
     if (connection === 'close') {
+      this.clearQrExpiryTimer();
       const statusCode = lastDisconnect?.error?.output?.statusCode;
       const reason = lastDisconnect?.error?.message ?? 'Conexion cerrada';
       const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
@@ -529,16 +595,23 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
 
   private scheduleReconnect(): void {
     if (this.reconnectTimer) return;
-    if (this.reconnectAttempts >= AdvisorsWhatsappService.MAX_RECONNECT_ATTEMPTS) {
+    if (
+      this.reconnectAttempts >= AdvisorsWhatsappService.MAX_RECONNECT_ATTEMPTS
+    ) {
       this.logger.warn(
         `Baileys: maximo ${AdvisorsWhatsappService.MAX_RECONNECT_ATTEMPTS} intentos de reconexión alcanzados. Conecte manualmente desde el panel.`,
       );
-      this.setConnectionState('disconnected', 'Maximos intentos alcanzados. Conecte manualmente.');
+      this.setConnectionState(
+        'error',
+        'Maximos intentos de reconexion alcanzados. Conecte manualmente.',
+      );
       return;
     }
     const delay = Math.min(3_000 * 2 ** this.reconnectAttempts, 60_000);
     this.reconnectAttempts++;
-    this.logger.log(`Reconexion programada en ${delay / 1000}s (intento #${this.reconnectAttempts})`);
+    this.logger.log(
+      `Reconexion programada en ${delay / 1000}s (intento #${this.reconnectAttempts})`,
+    );
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
       this.ensureBaileysConnection().catch((err) => {
@@ -546,6 +619,13 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
         this.scheduleReconnect();
       });
     }, delay);
+  }
+
+  private clearQrExpiryTimer(): void {
+    if (this.qrExpiryTimer) {
+      clearTimeout(this.qrExpiryTimer);
+      this.qrExpiryTimer = null;
+    }
   }
 
   private setConnectionState(
@@ -840,10 +920,37 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
   }
 
   async reassignChatsForDisconnectedAdvisor(
-    _advisorId: string,
-    _connectedAdvisorIds: string[],
+    advisorId: string,
+    connectedAdvisorIds: string[],
   ): Promise<AssignmentResult[]> {
-    return [];
+    const activeChats = await this.chatRepo.find({
+      where: {
+        status: 'active',
+        assignedAdvisor: { id: advisorId },
+        isGroup: false,
+      },
+      relations: ['assignedAdvisor'],
+    });
+
+    const results: AssignmentResult[] = [];
+    for (const chat of activeChats) {
+      chat.status = 'waiting';
+      chat.operationalStatus = 'queued';
+      chat.assignedAdvisor = null;
+      chat.assignedAt = null;
+      chat.assignmentMode = null;
+      chat.queueNoticeSent = false;
+      chat.outOfHoursNoticeSent = false;
+      await this.chatRepo.save(chat);
+
+      const assignment = await this.assignChatIfPossible(
+        chat.id,
+        connectedAdvisorIds,
+      );
+      if (assignment) results.push(assignment);
+    }
+
+    return results;
   }
 
   async getChatById(id: string): Promise<WhatsappChat> {
@@ -857,7 +964,9 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     _role: string,
     page?: number,
     limit?: number,
-  ): Promise<WaChatDto[] | { chats: WaChatDto[]; total: number; hasMore: boolean }> {
+  ): Promise<
+    WaChatDto[] | { chats: WaChatDto[]; total: number; hasMore: boolean }
+  > {
     const qb = this.chatRepo
       .createQueryBuilder('chat')
       .leftJoinAndSelect('chat.assignedAdvisor', 'advisor')
@@ -869,8 +978,8 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     if (isPaginated) {
       const total = await qb.getCount();
       const chats = await qb
-        .skip((page! - 1) * limit!)
-        .take(limit!)
+        .skip((page - 1) * limit)
+        .take(limit)
         .getMany();
 
       if (!chats.length) {
@@ -905,7 +1014,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       return {
         chats: dtos,
         total,
-        hasMore: page! * limit! < total,
+        hasMore: page * limit < total,
       };
     }
 
@@ -1184,20 +1293,26 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       take: limit,
     });
 
-    const replyIds = [...new Set(
-      messages
-        .map(m => m.replyToMessageId)
-        .filter((id): id is string => !!id),
-    )];
+    const replyIds = [
+      ...new Set(
+        messages
+          .map((m) => m.replyToMessageId)
+          .filter((id): id is string => !!id),
+      ),
+    ];
 
     const quotedMap = new Map<string, { body: string; senderName: string }>();
     if (replyIds.length) {
       const quotedMsgs = await this.messageRepo.find({
-        where: replyIds.map(id => ({ metaMessageId: id })),
+        where: replyIds.map((id) => ({ metaMessageId: id })),
         select: ['metaMessageId', 'body', 'senderName'],
       });
       for (const q of quotedMsgs) {
-        if (q.metaMessageId) quotedMap.set(q.metaMessageId, { body: q.body, senderName: q.senderName });
+        if (q.metaMessageId)
+          quotedMap.set(q.metaMessageId, {
+            body: q.body,
+            senderName: q.senderName,
+          });
       }
     }
 
@@ -1383,7 +1498,9 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       } else if (t === 'audio') {
         contextInfo.quotedMessage = { audioMessage: {} };
       } else if (t === 'document') {
-        contextInfo.quotedMessage = { documentMessage: { fileName: target.fileName || 'archivo' } };
+        contextInfo.quotedMessage = {
+          documentMessage: { fileName: target.fileName || 'archivo' },
+        };
       } else {
         contextInfo.quotedMessage = { conversation: body };
       }
@@ -1422,9 +1539,15 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
 
     return {
       chat: await this.toChatDto(chat, true),
-      message: this.toMessageDto(message, new Map([
-        [message.replyToMessageId!, { body: target.body, senderName: target.senderName }],
-      ])),
+      message: this.toMessageDto(
+        message,
+        new Map([
+          [
+            message.replyToMessageId!,
+            { body: target.body, senderName: target.senderName },
+          ],
+        ]),
+      ),
     };
   }
 
@@ -1458,7 +1581,9 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       role !== 'admin' &&
       targetChat.assignedAdvisor?.id !== advisorId
     ) {
-      throw new ForbiddenException('El chat destino esta asignado a otro asesor');
+      throw new ForbiddenException(
+        'El chat destino esta asignado a otro asesor',
+      );
     }
 
     const advisor = await this.userRepo.findOne({ where: { id: advisorId } });
@@ -1468,13 +1593,25 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     let sent: any;
 
     if (sourceMsg.mediaUrl && sourceMsg.type !== 'text') {
-      const mediaBuffer = await this.downloadMediaFromUrl(sourceMsg.mediaUrl).catch(() => null);
+      const mediaBuffer = await this.downloadMediaFromUrl(
+        sourceMsg.mediaUrl,
+      ).catch(() => null);
       if (mediaBuffer) {
         const payload: any = {};
-        if (sourceMsg.type === 'image') { payload.image = mediaBuffer; if (sourceMsg.mimeType) payload.mimetype = sourceMsg.mimeType; }
-        else if (sourceMsg.type === 'video') { payload.video = mediaBuffer; if (sourceMsg.mimeType) payload.mimetype = sourceMsg.mimeType; }
-        else if (sourceMsg.type === 'audio') { payload.audio = mediaBuffer; payload.mimetype = sourceMsg.mimeType || 'audio/ogg'; }
-        else { payload.document = mediaBuffer; payload.mimetype = sourceMsg.mimeType || 'application/octet-stream'; payload.fileName = sourceMsg.fileName || `archivo-${Date.now()}`; }
+        if (sourceMsg.type === 'image') {
+          payload.image = mediaBuffer;
+          if (sourceMsg.mimeType) payload.mimetype = sourceMsg.mimeType;
+        } else if (sourceMsg.type === 'video') {
+          payload.video = mediaBuffer;
+          if (sourceMsg.mimeType) payload.mimetype = sourceMsg.mimeType;
+        } else if (sourceMsg.type === 'audio') {
+          payload.audio = mediaBuffer;
+          payload.mimetype = sourceMsg.mimeType || 'audio/ogg';
+        } else {
+          payload.document = mediaBuffer;
+          payload.mimetype = sourceMsg.mimeType || 'application/octet-stream';
+          payload.fileName = sourceMsg.fileName || `archivo-${Date.now()}`;
+        }
         payload.contextInfo = { forwardingScore: 1, isForwarded: true };
         sent = await sock.sendMessage(jid, payload);
       }
@@ -1526,7 +1663,9 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       if (!resp.ok) return null;
       const arrayBuf = await resp.arrayBuffer();
       return Buffer.from(arrayBuf);
-    } catch { return null; }
+    } catch {
+      return null;
+    }
   }
 
   async sendAdvisorMedia(
@@ -3277,9 +3416,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
   ): WaChatDto {
     const dtos = messages.map((m) => this.toMessageDto(m));
     const last =
-      [...dtos]
-        .reverse()
-        .find((message) => message.type !== 'reaction') ??
+      [...dtos].reverse().find((message) => message.type !== 'reaction') ??
       dtos[dtos.length - 1];
     const lastPreview = last ? this.messagePreview(last) : '';
     const preview =
@@ -3331,8 +3468,13 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  private toMessageDto(message: WhatsappMessage, quotedMap?: Map<string, { body: string; senderName: string }>): WaMessageDto {
-    const quoted = message.replyToMessageId ? quotedMap?.get(message.replyToMessageId) : undefined;
+  private toMessageDto(
+    message: WhatsappMessage,
+    quotedMap?: Map<string, { body: string; senderName: string }>,
+  ): WaMessageDto {
+    const quoted = message.replyToMessageId
+      ? quotedMap?.get(message.replyToMessageId)
+      : undefined;
     return {
       id: message.id,
       chatId: message.chat?.id,
@@ -3477,12 +3619,19 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     return body;
   }
 
-  private async getQuickReplyTexts(): Promise<Array<{ name: string; content: string }>> {
+  private async getQuickReplyTexts(): Promise<
+    Array<{ name: string; content: string }>
+  > {
     const replies = await this.getQuickReplies();
-    return replies.map((reply) => ({ name: reply.name, content: reply.content }));
+    return replies.map((reply) => ({
+      name: reply.name,
+      content: reply.content,
+    }));
   }
 
-  private normalizeQuickReplies(value: unknown): Array<{ name: string; content: string }> {
+  private normalizeQuickReplies(
+    value: unknown,
+  ): Array<{ name: string; content: string }> {
     if (!Array.isArray(value) || !value.length) return this.defaultQuickReplies;
 
     const first = value[0];

@@ -103,7 +103,8 @@ export class ChatGateway
     try {
       const { createAdapter } = await import('@socket.io/redis-adapter');
       const { default: Redis } = await import('ioredis');
-      const redisUrl = this.configService.get<string>('REDIS_URL') || 'redis://localhost:6379';
+      const redisUrl =
+        this.configService.get<string>('REDIS_URL') || 'redis://localhost:6379';
 
       const pubClient = new Redis(redisUrl, {
         maxRetriesPerRequest: 3,
@@ -117,9 +118,13 @@ export class ChatGateway
       ]);
 
       this.server.adapter(createAdapter(pubClient, subClient));
-      this.logger.log('[Redis Adapter] Socket.IO cross-instance adapter activado');
+      this.logger.log(
+        '[Redis Adapter] Socket.IO cross-instance adapter activado',
+      );
     } catch (err) {
-      this.logger.error(`[Redis Adapter] Error al configurar adapter: ${(err as Error).message}`);
+      this.logger.error(
+        `[Redis Adapter] Error al configurar adapter: ${(err as Error).message}`,
+      );
       this.logger.warn('[Redis Adapter] Funcionando en modo single-instance');
     }
 
@@ -153,10 +158,31 @@ export class ChatGateway
         await this.redisState.addConnectedAdvisor(payload.sub);
         client.join(`advisor:${payload.sub}`);
 
-        this.logger.log(`[WS] Asesor conectado: ${payload.name} (PID: ${process.pid})`);
+        this.logger.log(
+          `[WS] Asesor conectado: ${payload.name} (PID: ${process.pid})`,
+        );
+
+        // Cancel reconnection timers — advisor is back
+        try {
+          const activeSessions =
+            await this.sessionsService.findActiveSessionsByAdvisor(payload.sub);
+          for (const session of activeSessions) {
+            const entry = this.timers.get(session.id);
+            if (entry && entry.tipo === 'reconnection') {
+              this.cancelarTimerActivo(session.id);
+              this.server.to(session.id).emit('reconnection_ok', {
+                sessionId: session.id,
+              });
+            }
+          }
+        } catch {}
+
         setTimeout(() => {
           this.checkLunchBreaks();
           this.assignPendingSessions();
+          this.assignWaitingWhatsappChats().catch((err) =>
+            this.logger.warn(`[WA Assign] Error en conexión: ${err.message}`),
+          );
         }, 300);
       } catch {
         client.data.role = 'client';
@@ -178,7 +204,11 @@ export class ChatGateway
           .findActiveSessionsByAdvisor(advisorId)
           .catch(() => []);
         for (const session of activeSessions) {
-          await this.arrancarTimerReconexion(session.id, advisorId, advisorName);
+          await this.arrancarTimerReconexion(
+            session.id,
+            advisorId,
+            advisorName,
+          );
         }
       }
 
@@ -239,6 +269,7 @@ export class ChatGateway
         advisor?.profilePhotoUrl ?? client.data.user?.profilePhotoUrl ?? null,
     });
     await this.assignPendingSessions();
+    await this.assignWaitingWhatsappChats();
   }
 
   @SubscribeMessage('set_advisor_status')
@@ -282,7 +313,10 @@ export class ChatGateway
       profilePhotoUrl:
         advisor?.profilePhotoUrl ?? client.data.user?.profilePhotoUrl ?? null,
     });
-    if (status === 'online') await this.assignPendingSessions();
+    if (status === 'online') {
+      await this.assignPendingSessions();
+      await this.assignWaitingWhatsappChats();
+    }
   }
 
   @SubscribeMessage('get_all_advisors')
@@ -378,7 +412,9 @@ export class ChatGateway
         this.server.to(data.sessionId).emit('reconnection_ok', {
           sessionId: data.sessionId,
         });
-        this.logger.log(`[Reconexion] Asesor reconectado a sesión ${data.sessionId}`);
+        this.logger.log(
+          `[Reconexion] Asesor reconectado a sesión ${data.sessionId}`,
+        );
       }
     }
 
@@ -668,7 +704,12 @@ export class ChatGateway
   @SubscribeMessage('send_message')
   async handleMessage(
     @MessageBody()
-    data: { sessionId: string; content: string; senderName?: string; attachments?: Attachment[] },
+    data: {
+      sessionId: string;
+      content: string;
+      senderName?: string;
+      attachments?: Attachment[];
+    },
     @ConnectedSocket() client: Socket,
   ) {
     const sessionId = data.sessionId;
@@ -684,7 +725,10 @@ export class ChatGateway
       }
       await this.redisState.setRateLimit(sessionId, rateEntry);
     } else {
-      await this.redisState.setRateLimit(sessionId, { count: 1, resetAt: now + 1000 });
+      await this.redisState.setRateLimit(sessionId, {
+        count: 1,
+        resetAt: now + 1000,
+      });
     }
 
     const senderType = client.data.role as 'client' | 'advisor';
@@ -694,7 +738,13 @@ export class ChatGateway
         : (data.senderName ?? 'Cliente');
 
     const message = await this.chatService
-      .saveMessage(data.sessionId, data.content, senderType, senderName, data.attachments)
+      .saveMessage(
+        data.sessionId,
+        data.content,
+        senderType,
+        senderName,
+        data.attachments,
+      )
       .catch((error) => {
         client.emit('message_error', {
           reason: error?.message ?? 'Mensaje invalido',
@@ -1329,12 +1379,13 @@ export class ChatGateway
     const remainingMs = total * 1000 - (Date.now() - entry.startTime);
     entry.timeout = setTimeout(
       async () => {
-        this.cancelarTimerActivo(sessionId);
         const session = await this.sessionsService
           .findOne(sessionId)
           .catch(() => null);
         if (!session || session.status !== 'active') return;
         if (entry.tipo !== 'reconnection') return;
+
+        this.cancelarTimerActivo(sessionId);
 
         // Send disconnect message
         const msg = await this.chatService.saveMessage(
@@ -1345,21 +1396,68 @@ export class ChatGateway
         );
         this.server.to(sessionId).emit('new_message', msg);
 
-        // Close session
-        await this.sessionsService.close(sessionId);
-        this.eliminarTimer(sessionId);
-
-        this.server.to(sessionId).emit('session_closed', { sessionId });
-        this.server.to(sessionId).emit('redirect_to_new_chat', {
-          sessionId,
-          mensaje:
-            'Hubo problemas de conexión. Por favor inicia una nueva conversación.',
-        });
+        // Reassign to another available advisor
+        await this.sessionsService.unassignAdvisor(sessionId);
         this.server.emit('session_updated', {
           sessionId,
-          status: 'closed',
+          status: 'waiting',
+        });
+        this.server.to(sessionId).emit('session_interrupted', {
+          sessionId,
+          tiempoLimiteSeg: 0,
+          mensaje:
+            'El asesor se desconectó. Buscando otro asesor disponible...',
         });
 
+        // Try immediate assignment
+        await this.assignPendingSessions();
+
+        const updated = await this.sessionsService
+          .findOne(sessionId)
+          .catch(() => null);
+
+        if (updated && updated.status === 'active' && updated.advisor) {
+          const msg2 = await this.chatService.saveMessage(
+            sessionId,
+            `Fuiste asignado al asesor ${updated.advisor.name}`,
+            'advisor',
+            'Sistema',
+          );
+          this.server.to(sessionId).emit('new_message', msg2);
+        } else {
+          // No advisor available — send waiting message and retry every 5s
+          this.server.to(sessionId).emit('session_interrupted', {
+            sessionId,
+            tiempoLimiteSeg: 30,
+            mensaje:
+              'Todos los asesores están ocupados. Te asignaremos uno en cuanto esté disponible.',
+          });
+
+          let retries = 0;
+          const retryInterval = setInterval(async () => {
+            retries++;
+            if (retries > 6) {
+              clearInterval(retryInterval);
+              return;
+            }
+            await this.assignPendingSessions();
+            const updated2 = await this.sessionsService
+              .findOne(sessionId)
+              .catch(() => null);
+            if (updated2?.status === 'active' && updated2.advisor) {
+              clearInterval(retryInterval);
+              const msg3 = await this.chatService.saveMessage(
+                sessionId,
+                `Fuiste asignado al asesor ${updated2.advisor.name}`,
+                'advisor',
+                'Sistema',
+              );
+              this.server.to(sessionId).emit('new_message', msg3);
+            }
+          }, 5000);
+        }
+
+        // Cleanup
         if (advisorId) {
           const a = await this.sessionsService
             .findAdvisorById(advisorId)
@@ -1383,7 +1481,7 @@ export class ChatGateway
         await this.assignPendingSessions();
 
         this.logger.log(
-          `[Reconexion] Sesión ${sessionId} cerrada por reconexión fallida del asesor`,
+          `[Reconexion] Sesión ${sessionId} reasignada por reconexión fallida del asesor`,
         );
       },
       Math.max(0, remainingMs),
@@ -1432,6 +1530,12 @@ export class ChatGateway
   // ══════════════════════════════════════════════════════════════════════════
   // ASIGNACIÓN AUTOMÁTICA
   // ══════════════════════════════════════════════════════════════════════════
+
+  private async assignWaitingWhatsappChats(): Promise<void> {
+    const waIds = this.advisorsWhatsappService.getConnectedAdvisorIds();
+    if (!waIds.length) return;
+    await this.advisorsWhatsappService.assignWaitingChats(waIds);
+  }
 
   private async assignPendingSessions(): Promise<void> {
     // Distributed lock: only one instance runs this at a time
@@ -1552,7 +1656,9 @@ export class ChatGateway
     await this.enviarBienvenidaAsesor(sessionId, advisor.name, advisor.id);
     await this.iniciarTimers(sessionId, advisor.id);
 
-    this.logger.log(`[Assign] ✓ ${sessionId} → ${advisor.name} (PID: ${process.pid})`);
+    this.logger.log(
+      `[Assign] ✓ ${sessionId} → ${advisor.name} (PID: ${process.pid})`,
+    );
     return true;
   }
 
@@ -1616,7 +1722,7 @@ export class ChatGateway
           if (!config) return;
 
           const almuerzos: Array<{ dia: number; inicio: string; fin: string }> =
-            (config as any).almuerzos ?? [];
+            config.almuerzos ?? [];
 
           const almuerzoHoy = almuerzos.find((a) => a.dia === diaSem);
           const enHorario = almuerzoHoy
@@ -1726,7 +1832,9 @@ export class ChatGateway
                 advisorId,
                 status: 'online',
               });
-              this.server.to(`advisor:${advisorId}`).emit('lunch_pending_cancelled');
+              this.server
+                .to(`advisor:${advisorId}`)
+                .emit('lunch_pending_cancelled');
               this.logger.log(
                 `[Almuerzo] ❌ ${advisorId} horario de almuerzo expiró (tenía chats activos)`,
               );
@@ -1784,9 +1892,7 @@ export class ChatGateway
     );
   }
 
-  private async terminarAlmuerzo(
-    advisorId: string,
-  ): Promise<void> {
+  private async terminarAlmuerzo(advisorId: string): Promise<void> {
     await this.redisState.removeOnLunch(advisorId);
     await this.sessionsService
       .setAdvisorStatus(advisorId, 'online')

@@ -119,7 +119,6 @@ export class AdvisorsWhatsappGateway
         this.logger.warn(
           `Error obteniendo estado WhatsApp para ${payload.name}: ${err?.message ?? err}`,
         );
-        client.emit('aw_connection_update', { status: 'disconnected' });
       }
 
       try {
@@ -155,7 +154,7 @@ export class AdvisorsWhatsappGateway
   }
 
   @SubscribeMessage('aw_join')
-  handleJoin(
+  async handleJoin(
     @MessageBody() advisorId: string,
     @ConnectedSocket() client: Socket,
   ) {
@@ -165,6 +164,17 @@ export class AdvisorsWhatsappGateway
     )
       return;
     client.join(this.advisorRoom(advisorId));
+
+    try {
+      const assignments = await this.whatsappService.assignWaitingChats(
+        this.getConnectedAdvisorIds(),
+      );
+      this.emitAssignments(assignments);
+    } catch (err) {
+      this.logger.warn(
+        `Error asignando chats en espera en aw_join: ${err?.message ?? err}`,
+      );
+    }
   }
 
   getConnectedAdvisorIds(): string[] {
