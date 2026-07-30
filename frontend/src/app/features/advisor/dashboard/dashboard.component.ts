@@ -46,10 +46,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
   sidebarOpen = false;
   appearanceOpen = false;
   compactShellMode = false;
-  activeChatsCount = 0;
-  chatUnreadCount = 0;
+  misChatsNoLeidos = 0;
   whatsappUnreadCount = 0;
   totalUnreadCount = 0;
+  topbarTitle = 'CHAT EN LINEA';
 
   allAdvisors: ConnectedAdvisor[] = [];
   allAdvisorsOpen = false;
@@ -304,7 +304,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
       )
       .subscribe(event => {
         this.syncShellMode(event.urlAfterRedirects);
-        if (!event.urlAfterRedirects.includes('/dashboard/chats')) {
+        const url = event.urlAfterRedirects;
+        if (url.includes('/dashboard/chats')) {
+          this.topbarTitle = 'CHAT EN LINEA';
+          this.loadActiveCount();
+        } else if (url.includes('/dashboard/whatsapp')) {
+          this.topbarTitle = 'CHAT WHATSAPP';
+          this.chatState.setActiveSession(null);
+        } else {
+          this.topbarTitle = 'CHAT EN LINEA';
           this.chatState.setActiveSession(null);
         }
       });
@@ -313,15 +321,30 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private syncUnreadIndicators(): void {
     this.chatState.unreadTotal$
       .pipe(takeUntil(this.destroy$))
-      .subscribe(count => {
-        this.chatUnreadCount = count;
+      .subscribe(() => {
+        const sessions = this.chatState.sessions$.getValue();
+        const myId = this.currentAdvisor?.id;
+        const mySessions = myId
+          ? sessions.filter(s => s.advisor?.id === myId && (s.status === 'waiting' || s.status === 'active'))
+          : sessions.filter(s => s.status === 'waiting' || s.status === 'active');
+        this.misChatsNoLeidos = mySessions.reduce(
+          (sum, s) => sum + this.chatState.getUnread(s.id), 0,
+        );
         this.refreshGlobalBadge();
+        this.cdr.detectChanges();
       });
 
     this.whatsapp.getChatsStream()
       .pipe(takeUntil(this.destroy$))
       .subscribe(chats => {
-        this.whatsappUnreadCount = this.countWhatsappUnread(chats);
+        const myId = this.currentAdvisor?.id;
+        const myChats = myId ? chats.filter(c =>
+          c.assignedTo === myId ||
+          c.fixedAdvisorId === myId ||
+          c.tag === 'pendiente' ||
+          c.assignmentStatus === 'waiting'
+        ) : chats;
+        this.whatsappUnreadCount = this.countWhatsappUnread(myChats);
         this.refreshGlobalBadge();
       });
 
@@ -369,7 +392,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   private refreshGlobalBadge(): void {
-    this.totalUnreadCount = this.chatUnreadCount + this.whatsappUnreadCount;
+    this.totalUnreadCount = this.misChatsNoLeidos + this.whatsappUnreadCount;
     this.sound.setUnreadBadge(this.totalUnreadCount);
     if (document.hidden && this.totalUnreadCount > 0) {
       this.sound.startTitleBlink(this.totalUnreadCount);
@@ -414,9 +437,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
       next: (sessions) => {
         this.chatState.reconcileSessions(sessions);
         this.chatState.sessions$.next(sessions);
-        this.activeChatsCount = sessions.filter(
-          s => s.status === 'waiting' || s.status === 'active',
-        ).length;
+        const myId = this.currentAdvisor?.id;
+        const mySessions = myId
+          ? sessions.filter(s => s.advisor?.id === myId && (s.status === 'waiting' || s.status === 'active'))
+          : sessions.filter(s => s.status === 'waiting' || s.status === 'active');
+        this.misChatsNoLeidos = mySessions.reduce(
+          (sum, s) => sum + this.chatState.getUnread(s.id), 0,
+        );
+        this.refreshGlobalBadge();
         this.cdr.detectChanges();
       },
       error: (err) => console.error('HTTP Error:', err),

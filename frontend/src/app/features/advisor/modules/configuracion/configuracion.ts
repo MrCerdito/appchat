@@ -242,17 +242,14 @@ export class ConfiguracionComponent implements OnInit, OnDestroy {
     if (typeof value[0] === 'string') {
       return value
         .map((text: string) => ({ name: text.trim().slice(0, 60), content: text.trim() }))
-        .filter(r => r.content)
-        .slice(0, 20);
+        .filter(r => r.content);
     }
     return value
       .filter((r: any) => r?.name && r?.content)
-      .map((r: any) => ({ name: String(r.name).slice(0, 60), content: String(r.content).slice(0, 500) }))
-      .slice(0, 20);
+      .map((r: any) => ({ name: String(r.name).slice(0, 60), content: String(r.content).slice(0, 500) }));
   }
 
   addQuickReply(): void {
-    if (this.quickReplies.length >= 20) return;
     this.quickReplies.push({ name: '', content: '' });
     this.editingReplyIdx = this.quickReplies.length - 1;
   }

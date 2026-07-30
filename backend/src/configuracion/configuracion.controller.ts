@@ -98,9 +98,30 @@ export class ConfiguracionController {
   @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
   async importQuickRepliesCsv(@UploadedFile() file: Express.Multer.File) {
     if (!file) throw new Error('Archivo no proporcionado');
-    const csv = file.buffer.toString('utf-8');
-    const count = await this.svc.importQuickRepliesCsv(csv);
-    return { imported: count };
+    let csv: string;
+    try {
+      csv = new TextDecoder('utf-8', { fatal: true }).decode(file.buffer);
+    } catch {
+      csv = new TextDecoder('latin1').decode(file.buffer);
+    }
+    csv = csv.replace(/^\uFEFF/, '');
+    return this.svc.importQuickRepliesCsv(csv);
+  }
+
+  @Post('quick-replies/import-bulk')
+  @HttpCode(HttpStatus.CREATED)
+  @UseGuards(RolesGuard)
+  @Roles('admin')
+  async importBulkQuickReplies(@Body() items: { name: string; content: string }[]) {
+    return this.svc.importBulkQuickReplies(items);
+  }
+
+  @Post('quick-replies/delete-bulk')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(RolesGuard)
+  @Roles('admin')
+  async deleteBulkQuickReplies(@Body() ids: string[]) {
+    return this.svc.deleteBulkQuickReplies(ids);
   }
 
   @Get('ticket-categories')

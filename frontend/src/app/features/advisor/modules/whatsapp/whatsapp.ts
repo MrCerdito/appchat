@@ -2588,22 +2588,19 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     if (typeof value[0] === 'string') {
       return value
         .map((text: string) => ({ name: text.trim().slice(0, 60), content: text.trim() }))
-        .filter(r => r.content)
-        .slice(0, 20);
+        .filter(r => r.content);
     }
 
     return value
       .filter((r: any) => r?.name && r?.content)
-      .map((r: any) => ({ name: String(r.name).slice(0, 60), content: String(r.content).slice(0, 500) }))
-      .slice(0, 20);
+      .map((r: any) => ({ name: String(r.name).slice(0, 60), content: String(r.content).slice(0, 500) }));
   }
 
   private quickRepliesFromSettingsText(value: string): Array<{ name: string; content: string }> {
     const replies = value
       .split(/\r?\n/)
       .map(reply => reply.trim())
-      .filter(Boolean)
-      .slice(0, 20);
+      .filter(Boolean);
     return replies.length
       ? replies.map(text => ({ name: text.slice(0, 60), content: text }))
       : [...this.defaultQuickReplies];

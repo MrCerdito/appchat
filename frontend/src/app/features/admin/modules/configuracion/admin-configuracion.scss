@@ -290,25 +290,25 @@ input[type="time"] {
   svg { width: 14px; height: 14px; stroke: #7c3aed; flex-shrink: 0; }
 }
 
-// ── QR Toolbar / CSV ──────────────────────────────────────────────────────────
-.qr-toolbar-row {
-  display: flex; align-items: center; gap: 1rem;
-  flex-wrap: wrap;
+// ── QR Toolbar ───────────────────────────────────────────────────────────────
+.qr-toolbar {
+  display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
 }
-.qr-progress {
-  display: flex; align-items: center; gap: 0.6rem; flex: 1; min-width: 140px;
+.qr-search {
+  display: flex; align-items: center; gap: 0.5rem;
+  flex: 1; min-width: 180px;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface);
+  svg { width: 16px; height: 16px; stroke: var(--text-muted); flex-shrink: 0; }
+  input {
+    border: none; outline: none; background: transparent;
+    font-family: var(--font); font-size: 0.82rem; color: var(--text); width: 100%;
+    &::placeholder { color: var(--text-muted); }
+  }
+  &:focus-within { border-color: #7c3aed; }
 }
-.qr-progress-bar {
-  flex: 1; height: 6px; background: var(--border); border-radius: 10px; overflow: hidden;
-}
-.qr-progress-fill {
-  height: 100%; background: linear-gradient(90deg, #7c3aed, #a78bfa); border-radius: 10px;
-  transition: width 0.3s ease;
-}
-.qr-progress-text {
-  font-size: 0.72rem; font-weight: 700; color: var(--text-muted); white-space: nowrap;
-}
-.qr-csv-actions {
+.qr-toolbar-actions {
   display: flex; align-items: center; gap: 0.5rem;
 }
 .qr-csv-btn {
@@ -323,17 +323,49 @@ input[type="time"] {
 }
 
 // ── Quick Replies (Respuestas Rapidas) ───────────────────────────────────────
+.qr-empty {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 2.5rem 1rem; text-align: center;
+  p { margin: 0; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); }
+  span { font-size: 0.78rem; color: var(--text-muted); opacity: 0.7; }
+}
+.qr-bulk-bar {
+  display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 1rem;
+  margin-bottom: 8px; border-radius: 10px; background: #fef2f2;
+  opacity: 0; height: 0; overflow: hidden; transition: all 0.2s;
+  &.visible { opacity: 1; height: auto; }
+  span { font-size: 0.82rem; font-weight: 600; color: #dc2626; }
+}
+.qr-select-all-link {
+  font-size: 0.78rem; color: #7c3aed; cursor: pointer; text-decoration: underline; text-underline-offset: 2px;
+  &:hover { color: #6d28d9; }
+}
+.qr-list-header {
+  display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 1rem;
+  background: var(--surface-alt, #f9fafb); border-radius: 10px;
+}
+.qr-list-check {
+  display: flex; align-items: center; flex-shrink: 0;
+  input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: #7c3aed; }
+}
+.qr-list-header-label { font-size: 0.78rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px; }
 .qr-list { display: flex; flex-direction: column; gap: 8px; }
 .qr-item {
   border: 1px solid var(--border); border-radius: 12px; overflow: hidden; transition: border-color 0.15s;
   &:hover { border-color: #c4b5fd; }
+  &.selected { border-color: #7c3aed; background: #faf5ff; }
 }
 .qr-item-header {
-  display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
-  padding: 0.85rem 1rem; cursor: pointer; transition: background 0.12s;
-  &:hover { background: #f9fafb; }
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.85rem 1rem; transition: background 0.12s;
 }
-.qr-item-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.qr-item-check {
+  display: flex; align-items: center; flex-shrink: 0;
+  input[type="checkbox"] {
+    width: 16px; height: 16px; cursor: pointer; accent-color: #7c3aed;
+  }
+}
+.qr-item-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; cursor: pointer; }
 .qr-item-name { font-size: 0.85rem; font-weight: 600; color: var(--text); }
 .qr-item-preview { font-size: 0.78rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .qr-item-actions { display: flex; gap: 4px; flex-shrink: 0; }
@@ -362,10 +394,25 @@ input[type="time"] {
   display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1rem;
   border: 1px dashed var(--border); border-radius: 10px; background: transparent;
   font-family: var(--font); font-size: 0.82rem; font-weight: 500; color: #7c3aed;
-  cursor: pointer; transition: all 0.15s; justify-content: center;
+  cursor: pointer; transition: all 0.15s; justify-content: center; margin-top: 8px;
   &:hover:not(:disabled) { background: #f5f3ff; border-color: #7c3aed; }
   &:disabled { opacity: 0.5; cursor: not-allowed; }
 }
+// ── QR Footer / Paginator ─────────────────────────────────────────────────────
+.qr-footer {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+  padding: 0.75rem 0; flex-wrap: wrap;
+}
+.qr-count {
+  display: flex; align-items: center; gap: 0.4rem;
+  font-size: 0.78rem; color: var(--text-muted);
+}
+.qr-count-total { font-weight: 600; color: var(--text); }
+.qr-count-selected { color: #7c3aed; font-weight: 600; }
+.qr-paginator {
+  display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+}
+
 .qr-link-modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex;
   align-items: center; justify-content: center; z-index: 1000; animation: fadeIn 0.15s;
@@ -388,6 +435,17 @@ input[type="time"] {
   color: #fff; cursor: pointer;
   &:hover:not(:disabled) { background: #6d28d9; }
   &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+// ── QR Responsive ────────────────────────────────────────────────────────────
+@media (max-width: 720px) {
+  .qr-toolbar { flex-direction: column; align-items: stretch; }
+  .qr-toolbar-actions { justify-content: center; }
+  .qr-paginator .pag-nav-extreme { display: none; }
+  .qr-item-header { flex-wrap: wrap; }
+}
+@media (max-width: 480px) {
+  .qr-paginator .pag-btn { min-width: 30px; height: 30px; font-size: 0.75rem; }
 }
 
 // ── IA Prompt Sections ──────────────────────────────────────────────────────

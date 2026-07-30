@@ -72,9 +72,12 @@ export class SeedService implements OnApplicationBootstrap {
     await this.userRepo.save(admin);
 
     const advisors = [
-      { name: 'Asesor 1', email: 'asesor1@innovacloud.co', password: 'asesor1' },
-      { name: 'Asesor 2', email: 'asesor2@innovacloud.co', password: 'asesor2' },
-      { name: 'Asesor 3', email: 'asesor3@innovacloud.co', password: 'asesor3' },
+      { name: 'Asesor 1', email: 'asesor1@innovacloud.co', password: 'Asesor@123' },
+      { name: 'Asesor 2', email: 'asesor2@innovacloud.co', password: 'Asesor@123' },
+      { name: 'Asesor 3', email: 'asesor3@innovacloud.co', password: 'Asesor@123' },
+      { name: 'Asesor 4', email: 'asesor4@innovacloud.co', password: 'Asesor@123' },
+      { name: 'Asesor 5', email: 'asesor5@innovacloud.co', password: 'Asesor@123' },
+      { name: 'Asesor 6', email: 'asesor6@innovacloud.co', password: 'Asesor@123' },
     ];
     for (const a of advisors) {
       await this.userRepo.save(this.userRepo.create({

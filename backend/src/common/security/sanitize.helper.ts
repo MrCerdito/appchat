@@ -40,7 +40,7 @@ export function cleanText(value: unknown, maxLength = 4096): string {
     .replace(CONTROL_CHARS, ' ')
     .replace(/\r\n/g, '\n')
     .replace(/\n{4,}/g, '\n\n\n')
-    .replace(/\s+/g, ' ')
+    .replace(/[ \t]+/g, ' ')
     .trim()
     .slice(0, maxLength);
 }
@@ -51,6 +51,14 @@ export function sanitizeOutboundText(
 ): string {
   if (typeof value !== 'string') return '';
   return cleanText(value, maxLength);
+}
+
+export function normalizeText(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/ñ/g, 'n')
+    .replace(/Ñ/g, 'N');
 }
 
 export function sanitizeFileName(value: unknown, mimeType = ''): string {

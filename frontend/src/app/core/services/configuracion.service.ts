@@ -78,10 +78,18 @@ export class ConfiguracionFrontendService {
     return this.http.get(`${this.url}/quick-replies/export`, { responseType: 'blob' });
   }
 
-  importQuickRepliesCsv(file: File): Observable<{ imported: number }> {
+  importQuickRepliesCsv(file: File): Observable<{ imported: number; skipped: number }> {
     const formData = new FormData();
     formData.append('file', file);
-    return this.http.post<{ imported: number }>(`${this.url}/quick-replies/import`, formData);
+    return this.http.post<{ imported: number; skipped: number }>(`${this.url}/quick-replies/import`, formData);
+  }
+
+  importBulkQuickReplies(data: { name: string; content: string }[]): Observable<{ imported: number; skipped: number }> {
+    return this.http.post<{ imported: number; skipped: number }>(`${this.url}/quick-replies/import-bulk`, data);
+  }
+
+  deleteBulkQuickReplies(ids: string[]): Observable<{ deleted: number }> {
+    return this.http.post<{ deleted: number }>(`${this.url}/quick-replies/delete-bulk`, ids);
   }
 
   resetear(): Observable<{ ok: boolean }> {

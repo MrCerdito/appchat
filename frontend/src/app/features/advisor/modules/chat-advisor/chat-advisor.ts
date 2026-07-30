@@ -550,10 +550,10 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
 
   // ── Rooms ─────────────────────────────────────────────────────────────────
   private joinRoom(sessionId: string): void {
+    this.socket.emit('join_session', { sessionId });
     if (this.state.isJoined(sessionId)) return;
     this.state.markJoined(sessionId);
     this.state.setMessages(sessionId, []);
-    this.socket.emit('join_session', { sessionId });
   }
 
   // ── IA ────────────────────────────────────────────────────────────────────
@@ -634,11 +634,6 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     this.state.setUnread(session.id, 0);
 
     this.joinRoom(session.id);
-
-    const cached = this.state.getMessages(session.id);
-    if (cached.length === 0) {
-      this.socket.emit('join_session', { sessionId: session.id });
-    }
 
     this.socket.emit('set_active', { sessionId: session.id, active: true });
     this.socket.emit('mark_read', session.id);
@@ -806,14 +801,12 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     if (typeof value[0] === 'string') {
       return value
         .map((text: string) => ({ name: text.trim().slice(0, 60), content: text.trim() }))
-        .filter(r => r.content)
-        .slice(0, 20);
+        .filter(r => r.content);
     }
 
     return value
       .filter((r: any) => r?.name && r?.content)
-      .map((r: any) => ({ name: String(r.name).slice(0, 60), content: String(r.content).slice(0, 500) }))
-      .slice(0, 20);
+      .map((r: any) => ({ name: String(r.name).slice(0, 60), content: String(r.content).slice(0, 500) }));
   }
 
   // ── File handling ──────────────────────────────────────────────────────────

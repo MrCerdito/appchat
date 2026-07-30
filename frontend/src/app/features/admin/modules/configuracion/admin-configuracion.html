@@ -617,53 +617,84 @@
              Soporta <code>**negrita**</code> y <code>[texto](url)</code> para links.</p>
         </div>
 
-        <!-- Barra de herramientas CSV -->
-        <div class="qr-toolbar-row">
-          <div class="qr-progress">
-            <div class="qr-progress-bar">
-              <div class="qr-progress-fill" [style.width.%]="(quickReplies.length / 20) * 100"></div>
-            </div>
-            <span class="qr-progress-text">{{ quickReplies.length }} / 20</span>
+        <div class="qr-toolbar">
+          <div class="qr-search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" [(ngModel)]="qrSearch" placeholder="Buscar respuesta..."/>
           </div>
-          <div class="qr-csv-actions">
+          <div class="qr-toolbar-actions">
             <button type="button" class="qr-csv-btn" (click)="exportarQuickRepliesCsv()">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-              </svg>
               Exportar CSV
             </button>
             <button type="button" class="qr-csv-btn qr-csv-btn--import" (click)="qrFileInput.click()">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-              </svg>
               Importar CSV
             </button>
             <input #qrFileInput type="file" accept=".csv" hidden (change)="importarQuickRepliesCsv($event)" />
           </div>
         </div>
 
+        @if (quickRepliesFiltrados.length === 0) {
+        <div class="qr-empty">
+          <p>{{ qrSearch ? 'No se encontraron respuestas' : 'No hay respuestas rapidas' }}</p>
+          <span>{{ qrSearch ? 'Intenta con otro término de búsqueda' : 'Haz clic en "Nueva respuesta rápida" para comenzar' }}</span>
+        </div>
+        } @else {
+
+        <!-- Bulk bar -->
+        <div class="qr-bulk-bar" [class.visible]="qrSelectedIds.size > 0">
+          <span>{{ qrSelectedIds.size }} seleccionada{{ qrSelectedIds.size === 1 ? '' : 's' }}</span>
+          @if (qrSelectedIds.size < quickRepliesFiltrados.length) {
+          <a class="qr-select-all-link" (click)="selectAllQr()">Seleccionar todas ({{ quickRepliesFiltrados.length }})</a>
+          }
+          <button class="btn-bulk-delete" (click)="deleteQrSeleccionadas()" [disabled]="qrDeletingBulk">
+            @if (qrDeletingBulk) {
+            <div class="btn-spinner"></div>
+            Eliminando...
+            } @else {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+              <path d="M10 11v6"/><path d="M14 11v6"/>
+              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+            </svg>
+            Eliminar seleccionadas
+            }
+          </button>
+        </div>
+
         <div class="qr-list">
-          @for (reply of quickReplies; track trackByIndex($index); let i = $index) {
-          <div class="qr-item">
-            <div class="qr-item-header" (click)="startEditReply(i)">
-              <div class="qr-item-info">
+          <div class="qr-list-header">
+            <div class="qr-list-check">
+              <input type="checkbox" [checked]="paginatedQuickReplies.length > 0 && paginatedQuickReplies.every(r => qrSelectedIds.has(r.id))" (change)="toggleAllQr()" />
+            </div>
+            <span class="qr-list-header-label">Nombre / Contenido</span>
+          </div>
+          @for (reply of paginatedQuickReplies; track reply.id; let i = $index) {
+          <div class="qr-item" [class.selected]="qrSelectedIds.has(reply.id)">
+            <div class="qr-item-header">
+              <div class="qr-item-check" (click)="$event.stopPropagation()">
+                <input type="checkbox" [checked]="qrSelectedIds.has(reply.id)" (change)="toggleQrSelection(reply.id)" />
+              </div>
+              <div class="qr-item-info" (click)="startEditReply(quickReplies.indexOf(reply))">
                 <span class="qr-item-name">{{ reply.name || '(sin nombre)' }}</span>
                 <span class="qr-item-preview">{{ formatPreview(reply.content) }}</span>
               </div>
               <div class="qr-item-actions">
-                <button type="button" class="qr-btn-icon" (click)="$event.stopPropagation(); moveQuickReply(i, -1)" [disabled]="i === 0" title="Mover arriba">
+                <button type="button" class="qr-btn-icon" (click)="$event.stopPropagation(); moveQuickReply(quickReplies.indexOf(reply), -1)" [disabled]="quickReplies.indexOf(reply) === 0" title="Mover arriba">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 15l-6-6-6 6"/></svg>
                 </button>
-                <button type="button" class="qr-btn-icon" (click)="$event.stopPropagation(); moveQuickReply(i, 1)" [disabled]="i === quickReplies.length - 1" title="Mover abajo">
+                <button type="button" class="qr-btn-icon" (click)="$event.stopPropagation(); moveQuickReply(quickReplies.indexOf(reply), 1)" [disabled]="quickReplies.indexOf(reply) === quickReplies.length - 1" title="Mover abajo">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
                 </button>
-                <button type="button" class="qr-btn-icon qr-btn-danger" (click)="$event.stopPropagation(); removeQuickReply(i)" title="Eliminar">
+                <button type="button" class="qr-btn-icon qr-btn-danger" (click)="$event.stopPropagation(); removeQuickReply(quickReplies.indexOf(reply))" title="Eliminar">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
                 </button>
               </div>
             </div>
 
-            @if (editingReplyIdx === i) {
+            @if (editingReplyIdx === quickReplies.indexOf(reply)) {
             <div class="qr-item-editor">
               <div class="qr-editor-fields">
                 <div class="field">
@@ -694,13 +725,37 @@
           }
         </div>
 
-        <button type="button" class="qr-add-btn" (click)="addQuickReply()" [disabled]="quickReplies.length >= 20">
+        <!-- Footer con contador y paginador -->
+        <div class="qr-footer">
+          <div class="qr-count">
+            <span class="qr-count-total">{{ quickRepliesFiltrados.length }} respuesta{{ quickRepliesFiltrados.length === 1 ? '' : 's' }}</span>
+            @if (qrSelectedIds.size > 0) {
+            <span class="qr-count-selected">({{ qrSelectedIds.size }} seleccionada{{ qrSelectedIds.size === 1 ? '' : 's' }})</span>
+            }
+          </div>
+          @if (totalQrPages > 1) {
+          <div class="qr-paginator">
+            <button class="pag-btn pag-nav-extreme" (click)="setQrPage(1)" [disabled]="qrPage === 1" title="Primera">&laquo;</button>
+            <button class="pag-btn" (click)="setQrPage(qrPage - 1)" [disabled]="qrPage === 1" title="Anterior">&lsaquo;</button>
+            @for (p of qrPageRange(); track p) {
+            <button class="pag-btn" [class.active]="p === qrPage" (click)="setQrPage(p)">{{ p }}</button>
+            }
+            <button class="pag-btn" (click)="setQrPage(qrPage + 1)" [disabled]="qrPage === totalQrPages" title="Siguiente">&rsaquo;</button>
+            <button class="pag-btn pag-nav-extreme" (click)="setQrPage(totalQrPages)" [disabled]="qrPage === totalQrPages" title="Última">&raquo;</button>
+            <select class="pag-size" [ngModel]="qrPageSize" (ngModelChange)="onQrPageSizeChange($event)">
+              @for (s of pageSizeOptions; track s) {
+              <option [value]="s">{{ s }} por pág.</option>
+              }
+            </select>
+          </div>
+          }
+        </div>
+        }
+
+        <button type="button" class="qr-add-btn" (click)="addQuickReply()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
           Nueva respuesta rapida
         </button>
-        @if (quickReplies.length >= 20) {
-        <span class="field-hint">Maximo 20 respuestas rapidas.</span>
-        }
 
         <!-- Modal insertar link -->
         @if (showLinkModal) {

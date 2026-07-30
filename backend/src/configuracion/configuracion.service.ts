@@ -8,7 +8,7 @@ import {
   HorarioAlmuerzo,
   HorarioSlot,
 } from './entities/configuracion.entity';
-import { cleanText } from '../common/security/sanitize.helper';
+import { cleanText, normalizeText } from '../common/security/sanitize.helper';
 
 export interface HorarioEstado {
   enJornada: boolean;
@@ -119,9 +119,9 @@ export class ConfiguracionService implements OnModuleInit {
     return [header, ...rows].join('\n');
   }
 
-  async importQuickRepliesCsv(csv: string): Promise<number> {
+  async importQuickRepliesCsv(csv: string): Promise<{ imported: number; skipped: number }> {
     const lines = csv.split('\n').filter((l) => l.trim());
-    if (lines.length < 2) return 0;
+    if (lines.length < 2) return { imported: 0, skipped: 0 };
 
     const header = lines[0].toLowerCase();
     const cols = header.split(';').map((c: string) => c.trim().replace(/"/g, ''));
@@ -131,20 +131,73 @@ export class ConfiguracionService implements OnModuleInit {
     if (nIdx === -1 || cIdx === -1)
       throw new BadRequestException('CSV debe tener columnas "name" y "content"');
 
-    const replies: any[] = [];
+    const parsed: any[] = [];
     for (let i = 1; i < lines.length; i++) {
       const vals = this.parseQuickReplyCsvLine(lines[i]);
       const name = vals[nIdx]?.trim();
       const content = vals[cIdx]?.trim();
       if (name && content) {
-        replies.push({ name: name.slice(0, 60), content: content.slice(0, 500) });
+        parsed.push({ name: name.slice(0, 60), content: content.slice(0, 500) });
       }
     }
 
-    if (!replies.length) return 0;
+    if (!parsed.length) return { imported: 0, skipped: 0 };
 
-    await this.guardar({ whatsappQuickReplies: replies.slice(0, 20) }, undefined);
-    return Math.min(replies.length, 20);
+    return this.importBulkQuickReplies(parsed);
+  }
+
+  async importBulkQuickReplies(items: { name: string; content: string }[]): Promise<{ imported: number; skipped: number }> {
+    const config = await this.getGlobal();
+    const existing = Array.isArray(config.whatsappQuickReplies) ? config.whatsappQuickReplies : [];
+
+    let nextId = 1;
+    for (const r of existing) {
+      if (r.id && /^qr_\d+$/.test(String(r.id))) {
+        const num = parseInt(String(r.id).slice(3), 10);
+        if (num >= nextId) nextId = num + 1;
+      }
+    }
+
+    const existingNames = new Set<string>();
+    for (const r of existing) {
+      if (r.name) existingNames.add(normalizeText(String(r.name)).toLowerCase().trim());
+    }
+
+    const imported: any[] = [];
+    let skipped = 0;
+
+    for (const item of items) {
+      const name = String(item.name).trim().slice(0, 60);
+      if (!name) { skipped++; continue; }
+      const normalizedName = normalizeText(name).toLowerCase();
+      if (existingNames.has(normalizedName)) { skipped++; continue; }
+      existingNames.add(normalizedName);
+
+      imported.push({
+        id: `qr_${nextId++}`,
+        name,
+        content: String(item.content).trim().slice(0, 500),
+      });
+    }
+
+    if (!imported.length) return { imported: 0, skipped };
+
+    const merged = [...existing, ...imported];
+    await this.guardar({ whatsappQuickReplies: merged }, undefined);
+    return { imported: imported.length, skipped };
+  }
+
+  async deleteBulkQuickReplies(ids: string[]): Promise<{ deleted: number }> {
+    const config = await this.getGlobal();
+    const existing = Array.isArray(config.whatsappQuickReplies) ? config.whatsappQuickReplies : [];
+    const idSet = new Set(ids);
+    const before = existing.length;
+    const remaining = existing.filter((r: any) => !idSet.has(String(r.id)));
+    const deleted = before - remaining.length;
+    if (deleted > 0) {
+      await this.guardar({ whatsappQuickReplies: remaining }, undefined);
+    }
+    return { deleted };
   }
 
   private parseQuickReplyCsvLine(line: string): string[] {
@@ -279,24 +332,31 @@ export class ConfiguracionService implements OnModuleInit {
     if (Array.isArray(data.whatsappQuickReplies)) {
       const first = data.whatsappQuickReplies[0];
 
+      let nextId = 1;
+      for (const r of data.whatsappQuickReplies) {
+        if (r.id && /^qr_\d+$/.test(String(r.id))) {
+          const num = parseInt(String(r.id).slice(3), 10);
+          if (num >= nextId) nextId = num + 1;
+        }
+      }
+
       if (typeof first === 'string') {
         data.whatsappQuickReplies = (data.whatsappQuickReplies as string[])
-          .map((text) => {
+          .map((text, i) => {
             const clean = cleanText(text, 500);
             if (!clean) return null;
-            return { name: clean.slice(0, 60), content: clean };
+            return { id: `qr_${i + 1}`, name: clean.slice(0, 60), content: clean };
           })
-          .filter(Boolean)
-          .slice(0, 20) as any;
+          .filter(Boolean) as any;
       } else {
         data.whatsappQuickReplies = (data.whatsappQuickReplies as any[])
           .filter((r) => r?.name && r?.content)
           .map((r) => ({
+            id: r.id || `qr_${nextId++}`,
             name: String(r.name).slice(0, 60),
             content: cleanText(String(r.content), 500) || '',
           }))
-          .filter((r) => r.content)
-          .slice(0, 20);
+          .filter((r) => r.content);
       }
     }
 

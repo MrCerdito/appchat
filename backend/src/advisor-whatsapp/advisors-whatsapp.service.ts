@@ -3708,8 +3708,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
           if (!text) return null;
           return { name: text.slice(0, 60), content: text };
         })
-        .filter(Boolean)
-        .slice(0, 20) as Array<{ name: string; content: string }>;
+        .filter(Boolean) as Array<{ name: string; content: string }>;
     }
 
     const replies = value
@@ -3717,8 +3716,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       .map((r: any) => ({
         name: String(r.name).slice(0, 60),
         content: String(r.content).slice(0, 500),
-      }))
-      .slice(0, 20);
+      }));
 
     return replies.length ? replies : this.defaultQuickReplies;
   }

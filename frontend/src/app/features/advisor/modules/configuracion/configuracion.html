@@ -431,13 +431,10 @@
           }
         </div>
 
-        <button type="button" class="qr-add-btn" (click)="addQuickReply()" [disabled]="quickReplies.length >= 20">
+        <button type="button" class="qr-add-btn" (click)="addQuickReply()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
           Nueva respuesta rapida
         </button>
-        @if (quickReplies.length >= 20) {
-        <span class="field-hint">Maximo 20 respuestas rapidas.</span>
-        }
 
         <!-- Modal insertar link -->
         @if (showLinkModal) {
