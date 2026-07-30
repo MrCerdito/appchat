@@ -27,7 +27,7 @@ import QRCode from 'qrcode';
 import { mkdir, rm, writeFile } from 'fs/promises';
 import { extname, join } from 'path';
 import { Subject } from 'rxjs';
-import { In, IsNull, Repository } from 'typeorm';
+import { In, IsNull, Not, Repository } from 'typeorm';
 import { User } from '../auth/entities/user.entity';
 import {
   ConfiguracionService,
@@ -842,6 +842,27 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
 
     await this.releaseExpiredActiveChats();
 
+    // 1. Asignar primero los chats con advisor fijo (solo su advisor puede tomarlos)
+    const fixedChats = await this.chatRepo.find({
+      where: {
+        status: 'waiting',
+        isGroup: false,
+        operationalStatus: In(['new', 'queued']) as any,
+        fixedAdvisor: Not(IsNull()),
+      },
+      order: { lastMessageAt: 'ASC' },
+      relations: ['assignedAdvisor', 'fixedAdvisor'],
+    });
+
+    for (const chat of fixedChats) {
+      const assignment = await this.assignChatIfPossible(
+        chat.id,
+        connectedAdvisorIds,
+      );
+      if (assignment) assignments.push(assignment);
+    }
+
+    // 2. Asignar el resto de chats en espera (sin advisor fijo) por orden FIFO
     while (true) {
       const advisor = await this.findAvailableAdvisor(connectedAdvisorIds);
       if (!advisor) break;
@@ -851,6 +872,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
           status: 'waiting',
           isGroup: false,
           operationalStatus: In(['new', 'queued']) as any,
+          fixedAdvisor: IsNull(),
         },
         order: { lastMessageAt: 'ASC' },
         relations: ['assignedAdvisor'],
@@ -887,6 +909,18 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       if (enAlmuerzo) {
         throw new ForbiddenException(
           'No puedes tomar chats mientras estas en almuerzo',
+        );
+      }
+    }
+
+    if (role !== 'admin') {
+      const chatCheck = await this.chatRepo.findOne({
+        where: { id: chatId },
+        relations: ['fixedAdvisor'],
+      });
+      if (chatCheck?.fixedAdvisor) {
+        throw new ForbiddenException(
+          'Este chat tiene un asesor fijo asignado. Solo un administrador puede reasignarlo.',
         );
       }
     }
@@ -1919,6 +1953,12 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     }
     if (role !== 'admin' && chat.assignedAdvisor?.id !== advisorId) {
       throw new ForbiddenException('Este chat esta asignado a otro asesor');
+    }
+
+    if (role !== 'admin' && chat.fixedAdvisor) {
+      throw new ForbiddenException(
+        'Este chat tiene un asesor fijo. Solo un administrador puede cerrarlo.',
+      );
     }
 
     chat.status = 'closed';

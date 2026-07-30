@@ -622,7 +622,10 @@ a{text-decoration:none;color:inherit}
   background:rgba(var(--wa-amber-rgb),.12); color:rgb(var(--wa-amber-rgb));
   &.mine{background:rgba(59,130,246,.12); color:#3b82f6}
   &.closed{background:rgba(239,68,68,.12); color:#ef4444}
+  &.fixed{background:rgba(139,92,246,.12); color:#8b5cf6}
 }
+.fixed-icon{color:#8b5cf6; font-size:12px; margin-left:4px; flex-shrink:0}
+.fixed-badge{gap:3px; background:rgba(139,92,246,.1); color:#8b5cf6; font-weight:500}
 .op-status{
   background:rgba(16,185,129,.1); color:#10b981;
   &.waiting{background:rgba(139,92,246,.1); color:#8b5cf6}

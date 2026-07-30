@@ -405,6 +405,9 @@
         <div class="chat-info">
           <div class="chat-top">
             <span class="chat-name" [class.has-unread]="c.unread > 0">{{ c.name }}</span>
+            @if (c.fixedAdvisorId) {
+            <wa-icon name="lock" class="fixed-icon" title="Cliente fijado"></wa-icon>
+            }
             <span class="chat-time">{{ c.time }}</span>
           </div>
           @if (c.isGroup) {
@@ -428,9 +431,16 @@
               class="meta-badge tag"
               [class.mine]="c.assignedTo === currentUserId"
               [class.closed]="isChatClosed(c)"
+              [class.fixed]="!!c.fixedAdvisorId"
             >
               {{ getAssignmentLabel(c) }}
             </span>
+            @if (c.fixedAdvisorId && c.fixedAdvisorName) {
+            <span class="meta-badge fixed-badge" title="Asesor fijo">
+              <wa-icon name="lock"></wa-icon>
+              {{ c.fixedAdvisorName }}
+            </span>
+            }
             @if (!c.isGroup && c.operationalStatusLabel && c.operationalStatusLabel !== 'Nuevo' && c.operationalStatusLabel !== 'En cola') {
             <span
               class="meta-badge op-status"
@@ -511,8 +521,8 @@
           class="close-header-btn"
           type="button"
           (click)="closeActiveChat()"
-          [disabled]="isClosingChat"
-          title="Cerrar atencion"
+          [disabled]="isClosingChat || contact.fixedAdvisorId"
+          [title]="contact.fixedAdvisorId ? 'No puedes cerrar un cliente fijado' : 'Cerrar atencion'"
         >
           <wa-icon name="x"></wa-icon>
         </button>
@@ -981,7 +991,8 @@
           class="close-chat-btn"
           type="button"
           (click)="closeActiveChat()"
-          [disabled]="isClosingChat || activeContact.assignedTo !== currentUserId"
+          [disabled]="isClosingChat || activeContact.assignedTo !== currentUserId || isFixedToOther()"
+          [title]="isFixedToOther() ? 'No puedes cerrar un cliente fijado' : 'Cerrar chat'"
         >
           <wa-icon name="x-circle"></wa-icon>
           Cerrar chat

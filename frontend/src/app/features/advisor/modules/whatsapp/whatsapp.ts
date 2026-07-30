@@ -2026,9 +2026,16 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     return `${h}h ${m}m`;
   }
 
+  isFixedToOther(): boolean {
+    if (!this.activeContact?.fixedAdvisorId) return false;
+    if (this.currentUserRole === 'admin') return false;
+    return true;
+  }
+
   getAssignmentLabel(contact?: WaChat): string {
     if (contact?.isGroup) return 'Grupo compartido';
     if (this.isChatClosed(contact)) return 'Atencion cerrada';
+    if (contact?.fixedAdvisorId) return 'Fijado';
     if (!contact?.assignedTo) return 'En cola';
     if (contact.assignedTo === this.currentUserId) return 'Mi chat';
     return contact.assignedToName ? `Asignado a ${contact.assignedToName}` : 'Asignado';
