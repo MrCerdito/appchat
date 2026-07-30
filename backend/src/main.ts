@@ -18,6 +18,31 @@ async function bootstrap() {
   const dataSource = app.get(DataSource);
   warmupEncryptedCache(dataSource).catch(() => {});
 
+  // ── Validate encryption key can decrypt existing data ──────────────────
+  try {
+    const rows: any[] = await dataSource.query(
+      `SELECT content FROM messages WHERE content LIKE 'enc:v2:%' LIMIT 1`,
+    );
+    if (rows.length > 0) {
+      const { encryptedTextTransformer } = await import(
+        './common/security/encrypted-text.transformer'
+      );
+      const result = encryptedTextTransformer.from(rows[0].content);
+      if (result === '[Mensaje no disponible]') {
+        logger.warn(
+          '═══════════════════════════════════════════════════════════\n' +
+            '  CHAT_ENCRYPTION_KEY no coincide con mensajes existentes.\n' +
+            '  Los mensajes se mostrarán como "[Mensaje no disponible]".\n' +
+            '  Si cambiaste la key, configura CHAT_ENCRYPTION_KEY_FALLBACK\n' +
+            '  con la key anterior o usa el endpoint de re-encrypt.\n' +
+            '═══════════════════════════════════════════════════════════',
+        );
+      }
+    }
+  } catch {
+    // tabla vacía o no existe — ignorar
+  }
+
   app.disable('x-powered-by');
 
   // =========================

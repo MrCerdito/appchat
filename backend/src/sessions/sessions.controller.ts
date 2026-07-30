@@ -15,6 +15,7 @@ import {
   Inject,
   forwardRef,
   ForbiddenException,
+  BadRequestException,
   ValidationPipe,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -432,5 +433,16 @@ export class SessionsController {
       return { csv: header + rows, data: colegios };
     }
     return colegios;
+  }
+
+  @Post('admin/reencrypt')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @HttpCode(HttpStatus.OK)
+  async reencryptAll(@Body('oldKey') oldKey: string) {
+    if (!oldKey || oldKey.length !== 64) {
+      throw new BadRequestException('oldKey debe ser un hex string de 64 caracteres');
+    }
+    return this.sessionsService.reencryptAll(oldKey);
   }
 }

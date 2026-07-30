@@ -1,6 +1,6 @@
 import { Inject, Injectable, NotFoundException, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
+import { Repository, In, DataSource } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import * as crypto from 'crypto';
@@ -26,6 +26,7 @@ export class SessionsService {
     @InjectRepository(Rating) private readonly ratingRepo: Repository<Rating>,
     @Inject(CACHE_MANAGER)
     private readonly cache: Cache,
+    @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
 
   async invalidateCache(pattern?: string): Promise<void> {
@@ -938,5 +939,102 @@ export class SessionsService {
       where: { advisor: { id: advisorId }, status: 'active' },
       relations: ['advisor'],
     });
+  }
+
+  async reencryptAll(oldKey: string): Promise<{ processed: number }> {
+    const {
+      createCipheriv,
+      createDecipheriv,
+      pbkdf2Sync,
+      randomBytes,
+      createHash,
+    } = await import('crypto');
+
+    const PREFIX_V2 = 'enc:v2:';
+    const PREFIX_V1 = 'enc:v1:';
+    const PBKDF2_ITERATIONS = 100000;
+    const PBKDF2_KEYLEN = 32;
+    const PBKDF2_DIGEST = 'sha256';
+    const IV_LENGTH = 12;
+    const SALT_LENGTH = 32;
+
+    const currentKey = process.env.CHAT_ENCRYPTION_KEY?.trim();
+    if (!currentKey) throw new NotFoundException('CHAT_ENCRYPTION_KEY no configurada');
+
+    const entries: { table: string; column: string }[] = [
+      { table: 'messages', column: 'content' },
+      { table: 'messages', column: 'sender_name' },
+      { table: 'sessions', column: 'client_name' },
+      { table: 'sessions', column: 'identificacion' },
+      { table: 'sessions', column: 'apellido' },
+      { table: 'whatsapp_messages', column: 'body' },
+      { table: 'teams_tokens', column: 'access_token' },
+      { table: 'teams_tokens', column: 'refresh_token' },
+    ];
+
+    let processed = 0;
+
+    for (const { table, column } of entries) {
+      try {
+        const rows: any[] = await this.dataSource.query(
+          `SELECT id, "${column}" FROM "${table}" WHERE "${column}"::text LIKE 'enc:v2:%' OR "${column}"::text LIKE 'enc:v1:%'`,
+        );
+
+        for (const row of rows) {
+          const encrypted = row[column];
+          if (!encrypted) continue;
+
+          let decrypted: string;
+
+          try {
+            if (encrypted.startsWith(PREFIX_V2)) {
+              const payload = encrypted.slice(PREFIX_V2.length);
+              const [saltB64, ivB64, tagB64, encryptedB64] = payload.split(':');
+              const salt = Buffer.from(saltB64, 'base64');
+              const iv = Buffer.from(ivB64, 'base64');
+              const tag = Buffer.from(tagB64, 'base64');
+              const encData = Buffer.from(encryptedB64, 'base64');
+              const oldDerived = pbkdf2Sync(oldKey, salt, PBKDF2_ITERATIONS, PBKDF2_KEYLEN, PBKDF2_DIGEST);
+              const decipher = createDecipheriv('aes-256-gcm', oldDerived, iv);
+              decipher.setAuthTag(tag);
+              decrypted = Buffer.concat([decipher.update(encData), decipher.final()]).toString('utf8');
+            } else if (encrypted.startsWith(PREFIX_V1)) {
+              const payload = encrypted.slice(PREFIX_V1.length);
+              const [ivB64, tagB64, encryptedB64] = payload.split(':');
+              const oldDerived = createHash('sha256').update(oldKey).digest();
+              const decipher = createDecipheriv('aes-256-gcm', oldDerived, Buffer.from(ivB64, 'base64'));
+              decipher.setAuthTag(Buffer.from(tagB64, 'base64'));
+              decrypted = Buffer.concat([
+                decipher.update(Buffer.from(encryptedB64, 'base64')),
+                decipher.final(),
+              ]).toString('utf8');
+            } else {
+              continue;
+            }
+          } catch {
+            continue;
+          }
+
+          const newSalt = randomBytes(SALT_LENGTH);
+          const newDerived = pbkdf2Sync(currentKey, newSalt, PBKDF2_ITERATIONS, PBKDF2_KEYLEN, PBKDF2_DIGEST);
+          const newIv = randomBytes(IV_LENGTH);
+          const cipher = createCipheriv('aes-256-gcm', newDerived, newIv);
+          const newEncrypted = Buffer.concat([cipher.update(decrypted, 'utf8'), cipher.final()]);
+          const newTag = cipher.getAuthTag();
+
+          const newValue = `${PREFIX_V2}${newSalt.toString('base64')}:${newIv.toString('base64')}:${newTag.toString('base64')}:${newEncrypted.toString('base64')}`;
+
+          await this.dataSource.query(
+            `UPDATE "${table}" SET "${column}" = $1 WHERE id = $2`,
+            [newValue, row.id],
+          );
+          processed++;
+        }
+      } catch {
+        // table might not exist
+      }
+    }
+
+    return { processed };
   }
 }

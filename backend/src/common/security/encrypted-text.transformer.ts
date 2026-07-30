@@ -52,12 +52,20 @@ function deriveKeyV2Sync(raw: string, salt: Buffer): Buffer {
   return cached;
 }
 
+const UNAVAILABLE = '[Mensaje no disponible]';
+
 function getKey(): Buffer | null {
   const raw = process.env.CHAT_ENCRYPTION_KEY?.trim();
   if (!raw) {
     logKeyWarning();
     return null;
   }
+  return deriveKeyV1(raw);
+}
+
+function getFallbackKey(): Buffer | null {
+  const raw = process.env.CHAT_ENCRYPTION_KEY_FALLBACK?.trim();
+  if (!raw) return null;
   return deriveKeyV1(raw);
 }
 
@@ -113,37 +121,37 @@ export const encryptedTextTransformer: ValueTransformer = {
     if (value == null) return null;
 
     const raw = process.env.CHAT_ENCRYPTION_KEY?.trim();
+    const isEnc = value.startsWith(PREFIX_V1) || value.startsWith(PREFIX_V2);
+
     if (!raw) {
-      if (value.startsWith(PREFIX_V1) || value.startsWith(PREFIX_V2)) {
+      if (isEnc) {
         logKeyWarning();
-      }
-      if (!value.startsWith(PREFIX_V1) && !value.startsWith(PREFIX_V2)) {
-        return value;
+        return UNAVAILABLE;
       }
       return value;
     }
 
-    try {
+    const doDecrypt = (key: string): string | null => {
       if (value.startsWith(PREFIX_V2)) {
         const cached = decryptCache.get(value);
         if (cached !== undefined) return cached;
 
         const parsed = parseV2(value);
-        if (!parsed) return value;
-        const decrypted = decryptV2(raw, parsed);
+        if (!parsed) return null;
+        const decrypted = decryptV2(key, parsed);
         decryptCache.set(value, decrypted);
         return decrypted;
       }
 
       if (value.startsWith(PREFIX_V1)) {
-        const key = deriveKeyV1(raw);
+        const derivedKey = deriveKeyV1(key);
         const payload = value.slice(PREFIX_V1.length);
         const [ivB64, tagB64, encryptedB64] = payload.split(':');
-        if (!ivB64 || !tagB64 || !encryptedB64) return value;
+        if (!ivB64 || !tagB64 || !encryptedB64) return null;
 
         const decipher = createDecipheriv(
           'aes-256-gcm',
-          key,
+          derivedKey,
           Buffer.from(ivB64, 'base64'),
         );
         decipher.setAuthTag(Buffer.from(tagB64, 'base64'));
@@ -153,10 +161,28 @@ export const encryptedTextTransformer: ValueTransformer = {
         ]).toString('utf8');
       }
 
-      return value;
-    } catch {
-      return value;
-    }
+      return null;
+    };
+
+    if (!isEnc) return value;
+
+    try {
+      const result = doDecrypt(raw);
+      if (result !== null) return result;
+    } catch {}
+
+    try {
+      const fallback = process.env.CHAT_ENCRYPTION_KEY_FALLBACK?.trim();
+      if (fallback) {
+        const result = doDecrypt(fallback);
+        if (result !== null) return result;
+      }
+    } catch {}
+
+    logger.error(
+      `No se pudo desencriptar valor (intentadas key primaria y fallback): ${value.slice(0, 40)}...`,
+    );
+    return UNAVAILABLE;
   },
 };
 
