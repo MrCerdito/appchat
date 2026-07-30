@@ -718,9 +718,13 @@
   color: var(--sidebar-text-muted, #94a3b8);
   white-space: nowrap;
   flex-shrink: 0;
+  cursor: pointer;
+  transition: color 0.15s;
+  &:hover, &.open { color: var(--sidebar-text); }
 }
 
 // ── Team panel dropdown ────────────────────────────────────────
+// Consistente con profile-dropdown
 .team-panel-wrap {
   position: relative;
 }
@@ -730,13 +734,13 @@
   top: calc(100% + 10px);
   left: 50%;
   transform: translateX(-50%);
-  width: 260px;
+  width: 280px;
   background: var(--sidebar-bg);
   border: 1px solid var(--sidebar-border);
-  border-radius: 14px;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.15);
+  border-radius: 16px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.2);
   z-index: 210;
-  animation: pd-enter 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: pd-enter 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   overflow: hidden;
 
   &::before {
@@ -760,7 +764,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.85rem 1rem 0.6rem;
+  padding: 0.9rem 1.1rem 0.6rem;
 }
 
 .team-panel-title {
@@ -778,28 +782,51 @@
 }
 
 .team-panel-list {
-  padding: 0 0.5rem 0.75rem;
+  padding: 0.25rem 0.5rem 0.75rem;
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
+// ── Fila del panel ──────────────────────────────────────────
 .team-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0.5rem 0.5rem;
+  padding: 0.5rem 0.6rem;
   border-radius: 10px;
-  transition: background 0.12s;
   cursor: default;
+  animation: team-row-in 0.35s ease both;
+  transition: background 0.15s, transform 0.15s;
 
-  &:hover { background: var(--sidebar-hover); }
+  &:hover {
+    background: var(--sidebar-hover);
+    transform: translateX(3px);
+  }
+}
+
+// Stagger — nth-child aplica delay creciente
+.team-panel-list {
+  > .team-row:nth-child(1) { animation-delay: 0.02s; }
+  > .team-row:nth-child(2) { animation-delay: 0.05s; }
+  > .team-row:nth-child(3) { animation-delay: 0.08s; }
+  > .team-row:nth-child(4) { animation-delay: 0.11s; }
+  > .team-row:nth-child(5) { animation-delay: 0.14s; }
+  > .team-row:nth-child(6) { animation-delay: 0.17s; }
+  > .team-row:nth-child(7) { animation-delay: 0.20s; }
+  > .team-row:nth-child(8) { animation-delay: 0.23s; }
+}
+
+@keyframes team-row-in {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 
 .team-row-self {
   .team-name { font-weight: 700; }
 }
 
+// ── Avatar en fila ──────────────────────────────────────────
 .team-avatar {
   width: 32px;
   height: 32px;
@@ -833,6 +860,7 @@
   text-transform: uppercase;
 }
 
+// ── Info de la fila ─────────────────────────────────────────
 .team-info {
   display: flex;
   flex-direction: column;
@@ -855,6 +883,7 @@
   margin-top: 1px;
 }
 
+// ── Dot de estado ───────────────────────────────────────────
 .team-dot {
   width: 8px;
   height: 8px;
@@ -866,6 +895,7 @@
   &.offline { background: #64748b; }
 }
 
+// ── Badge "Tú" ──────────────────────────────────────────────
 .team-badge {
   font-size: 0.6rem;
   font-weight: 700;
@@ -878,11 +908,20 @@
   letter-spacing: 0.04em;
 }
 
+// ── Overlay (backdrop) ──────────────────────────────────────
 .team-overlay {
   position: fixed;
   inset: 0;
   z-index: 209;
-  background: transparent;
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  animation: overlay-fade-in 0.2s ease;
+}
+
+@keyframes overlay-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 .capsule-self {
@@ -963,7 +1002,7 @@
 // Sincronizado con breakpoints del sidebar de chats/WhatsApp
 // 1024px → chat narrows panel
 // 900px  → chat + WA off-canvas overlay
-// 700px  → chat + WA full-width
+// 800px  → equipo compacto, chat + WA full-width
 // 480px  → chat + WA compact máximo
 
 @media (max-width: 1024px) {
@@ -996,7 +1035,7 @@
   .metric-label { font-size: 0.65rem; }
 }
 
-@media (max-width: 700px) {
+@media (max-width: 800px) {
   .capsule-tag { display: none; }
 
   .advisor-capsules { display: none; }
@@ -1010,6 +1049,15 @@
   }
 
   .metric-value { font-size: 0.85rem; }
+
+  // Team panel responsive: más ancho y ajustado
+  .team-panel {
+    width: min(calc(100vw - 32px), 360px);
+    left: 50%;
+    transform: translateX(-50%);
+
+    &::before { left: 50%; margin-left: -6px; }
+  }
 }
 
 @media (max-width: 480px) {
@@ -1044,7 +1092,10 @@
 
   .topbar-center { gap: 10px; }
 
-  .capsule-compact { display: none; }
+  .capsule-compact {
+    font-size: 0.65rem;
+    gap: 2px;
+  }
 
   .topbar-metrics { gap: 8px; }
 
@@ -1059,6 +1110,23 @@
     top: calc(100% + 10px);
 
     &::before { right: 26px; }
+  }
+
+  // Team panel compacto
+  .team-panel {
+    width: min(calc(100vw - 24px), 320px);
+    border-radius: 14px;
+
+    .team-panel-header { padding: 0.7rem 0.85rem 0.5rem; }
+    .team-panel-title { font-size: 0.7rem; }
+    .team-panel-count { font-size: 0.62rem; }
+    .team-panel-list { padding: 0.15rem 0.4rem 0.6rem; }
+    .team-row { padding: 0.4rem 0.5rem; gap: 8px; }
+    .team-name { font-size: 0.75rem; }
+    .team-status { font-size: 0.6rem; }
+    .team-avatar { width: 28px; height: 28px; font-size: 0.7rem; border-width: 2px; }
+    .team-dot { width: 6px; height: 6px; }
+    .team-badge { font-size: 0.55rem; padding: 1px 5px; }
   }
 }
 

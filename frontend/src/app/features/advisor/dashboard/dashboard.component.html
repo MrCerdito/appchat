@@ -257,7 +257,9 @@
               </button>
               }
             </div>
-            <span class="capsule-compact">👥 {{ allAdvisors.length }}</span>
+            <span class="capsule-compact"
+                  [class.open]="teamPanelOpen"
+                  (click)="toggleTeamPanel(); $event.stopPropagation()">👥 {{ allAdvisors.length }}</span>
           </div>
 
           @if (teamPanelOpen) {
