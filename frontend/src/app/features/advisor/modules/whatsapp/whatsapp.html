@@ -1008,6 +1008,19 @@
       </button>
     </section>
 
+    @if (contact.fixedAdvisorId && contact.fixedAdvisorName) {
+    <section class="panel-section fixed-info-section">
+      <div class="section-title">
+        <wa-icon name="lock"></wa-icon>
+        Asesor fijado
+      </div>
+      <div class="fixed-advisor-display">
+        <wa-icon name="user"></wa-icon>
+        <span>{{ contact.fixedAdvisorName }}</span>
+      </div>
+    </section>
+    }
+
     @if (isEditingContact) {
     <section class="panel-section contact-editor">
       <div class="section-title">

@@ -300,13 +300,14 @@ export class AdvisorsWhatsappController {
     @Req() req: Request & { user: any },
     @Body('advisorId') advisorId: string,
   ) {
-    const chat = await this.whatsappService.setFixedAdvisor(
+    const assignment = await this.whatsappService.setFixedAdvisor(
       chatId,
       advisorId,
       req.user.role,
     );
-    this.whatsappGateway.emitChatUpdated(chat);
-    return chat;
+    this.whatsappGateway.emitChatUpdated(assignment.chat);
+    this.whatsappGateway.emitAssignments([assignment]);
+    return assignment.chat;
   }
 
   @Post('chats/:chatId/fixed-advisor/delete')

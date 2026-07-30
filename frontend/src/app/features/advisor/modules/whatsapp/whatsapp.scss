@@ -1189,6 +1189,16 @@ a{text-decoration:none;color:inherit}
   .date-sep span { font-size: 10px; padding: 4px 10px; }
 }
 
+// ── Fixed advisor panel ────────────────────────────────────
+.fixed-info-section {
+  .fixed-advisor-display {
+    display:flex; align-items:center; gap:8px; padding:8px 12px;
+    background:rgba(139,92,246,.08); border-radius:8px;
+    color:#8b5cf6; font-weight:600; font-size:13px;
+    wa-icon{font-size:16px}
+  }
+}
+
 // ── ≤620px: hide brand text ──────────────────────────────
 @media (max-width: 620px) {
   .sidebar-header { padding: 8px 10px; }

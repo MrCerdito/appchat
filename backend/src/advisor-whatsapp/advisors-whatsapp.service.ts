@@ -1213,7 +1213,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     chatId: string,
     advisorId: string,
     role: string,
-  ): Promise<WaChatDto> {
+  ): Promise<AssignmentResult> {
     this.assertAdminRole(role);
     const advisor = await this.userRepo.findOne({
       where: { id: advisorId, role: 'advisor', active: true },
@@ -1223,16 +1223,41 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     const chat = await this.findChatOrFail(chatId);
     if (chat.isGroup)
       throw new BadRequestException('No se fijan asesores para grupos');
+
     chat.fixedAdvisor = advisor;
+    chat.status = 'active';
+    chat.operationalStatus = 'assigned';
+    chat.assignedAdvisor = advisor;
+    chat.assignedAt = new Date();
+    chat.assignmentMode = 'fixed';
+    chat.queueNoticeSent = false;
+    chat.outOfHoursNoticeSent = false;
     await this.chatRepo.save(chat);
-    return this.toChatDto(await this.findChatOrFail(chatId), true);
+
+    const dto = await this.toChatDto(await this.findChatOrFail(chatId), true);
+    return {
+      advisorId: advisor.id,
+      advisorName: advisor.name,
+      chat: dto,
+      autoMessage: null,
+    };
   }
 
   async clearFixedAdvisor(chatId: string, role: string): Promise<WaChatDto> {
     this.assertAdminRole(role);
     const chat = await this.findChatOrFail(chatId);
+
     chat.fixedAdvisor = null;
+    chat.status = 'closed';
+    chat.operationalStatus = 'closed';
+    chat.assignedAdvisor = null;
+    chat.assignedAt = null;
+    chat.assignmentMode = null;
+    chat.unreadCount = 0;
+    chat.queueNoticeSent = false;
+    chat.outOfHoursNoticeSent = false;
     await this.chatRepo.save(chat);
+
     return this.toChatDto(await this.findChatOrFail(chatId), true);
   }
 
