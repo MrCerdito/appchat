@@ -697,7 +697,15 @@ export class SessionsService {
       link,
       email: data.email ? truncate(data.email, 200) : '',
     });
-    const saved = await this.colegioRepo.save(colegio);
+    let saved: Colegio;
+    try {
+      saved = await this.colegioRepo.save(colegio);
+    } catch (err: any) {
+      if (err?.code === '23505') {
+        throw new NotFoundException(`Ya existe un colegio con el nombre "${nombre}"`);
+      }
+      throw err;
+    }
     try { await this.cache.del(`${this.CACHE_PREFIX}colegios`); } catch {}
     return saved;
   }
@@ -718,7 +726,15 @@ export class SessionsService {
     if (data.link !== undefined) colegio.link = truncate(data.link, 500);
     if (data.email !== undefined) colegio.email = data.email ? truncate(data.email, 200) : '';
 
-    const saved = await this.colegioRepo.save(colegio);
+    let saved: Colegio;
+    try {
+      saved = await this.colegioRepo.save(colegio);
+    } catch (err: any) {
+      if (err?.code === '23505') {
+        throw new NotFoundException(`Ya existe un colegio con el nombre "${colegio.nombre}"`);
+      }
+      throw err;
+    }
     try { await this.cache.del(`${this.CACHE_PREFIX}colegios`); } catch {}
     return saved;
   }
@@ -733,26 +749,41 @@ export class SessionsService {
 
   async importColegios(data: { nombre: string; link: string; email?: string }[]): Promise<{ created: Colegio[]; skipped: number }> {
     const truncate = (s: string, max: number) => s.length > max ? s.slice(0, max) : s;
-    const nombres = data.map((d) => d.nombre);
+    const truncateItem = (d: { nombre: string; link: string; email?: string }) => ({
+      nombre: truncate(d.nombre, 200),
+      link: truncate(d.link, 500),
+      email: d.email ? truncate(d.email, 200) : '',
+    });
+
+    const truncated = data.map(truncateItem);
+    const seen = new Set<string>();
+    const unique = truncated.filter((d) => {
+      const key = d.nombre.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
     const existing = await this.colegioRepo.find({
-      where: { nombre: In(nombres) },
+      where: { nombre: In(unique.map((d) => d.nombre)) },
       select: ['nombre'],
     });
-    const existingSet = new Set(existing.map((c) => c.nombre));
+    const existingSet = new Set(existing.map((c) => c.nombre.toLowerCase()));
 
-    const toCreate = data
-      .filter((d) => !existingSet.has(d.nombre))
-      .map((d) =>
-        this.colegioRepo.create({
-          nombre: truncate(d.nombre, 200),
-          link: truncate(d.link, 500),
-          email: d.email ? truncate(d.email, 200) : '',
-        }),
-      );
+    const toCreate = unique
+      .filter((d) => !existingSet.has(d.nombre.toLowerCase()))
+      .map((d) => this.colegioRepo.create(d));
 
     let created: Colegio[] = [];
     if (toCreate.length) {
-      created = await this.colegioRepo.save(toCreate);
+      try {
+        created = await this.colegioRepo.save(toCreate);
+      } catch (err: any) {
+        if (err?.code === '23505') {
+          throw new NotFoundException('Uno o más colegios ya existen (nombre duplicado)');
+        }
+        throw err;
+      }
     }
     try { await this.cache.del(`${this.CACHE_PREFIX}colegios`); } catch {}
     return { created, skipped: data.length - created.length };
