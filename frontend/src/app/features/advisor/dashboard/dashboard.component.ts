@@ -52,7 +52,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
   topbarTitle = 'CHAT EN LINEA';
 
   allAdvisors: ConnectedAdvisor[] = [];
-  allAdvisorsOpen = false;
+  teamPanelOpen = false;
+
+  get maxVisibleCapsules(): number { return 2; }
+
+  get hiddenAdvisorNames(): string {
+    return this.allAdvisors.slice(this.maxVisibleCapsules).map(a => a.name).join(', ');
+  }
 
   get otherAdvisors(): ConnectedAdvisor[] {
     return this.allAdvisors.filter(a => a.advisorId !== this.currentAdvisor?.id);
@@ -589,16 +595,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent): void {
-    if (!this.allAdvisorsOpen) return;
-    const clickedInside = this.elementRef.nativeElement.querySelector('.topbar-adv')?.contains(event.target as Node);
+    if (!this.teamPanelOpen) return;
+    const clickedInside = this.elementRef.nativeElement.querySelector('.team-panel-wrap')?.contains(event.target as Node);
     if (!clickedInside) {
-      this.allAdvisorsOpen = false;
+      this.teamPanelOpen = false;
       this.cdr.detectChanges();
     }
   }
 
-  toggleAllAdvisors(): void {
-    this.allAdvisorsOpen = !this.allAdvisorsOpen;
+  toggleTeamPanel(): void {
+    this.teamPanelOpen = !this.teamPanelOpen;
   }
 
   ngOnDestroy(): void {

@@ -226,25 +226,76 @@
 
       <!-- ── Centro: cápsulas + contadores ────────────────────────────────── -->
       <div class="topbar-center">
-        <div class="topbar-capsules">
-          <span class="capsule-tag">Equipo</span>
-          <div class="advisor-capsules">
-            @for (adv of allAdvisors; track adv.advisorId) {
-            <div class="capsule" [class.capsule-self]="adv.advisorId === currentAdvisor?.id"
-                 [title]="adv.name + ' — ' + (adv.status === 'online' ? 'Disponible' : adv.status === 'busy' ? 'Ocupado' : 'Inactivo')">
-              <div class="capsule-ring"
-                   [ngClass]="'ring-' + (adv.advisorId === currentAdvisor?.id && enAlmuerzo ? 'lunch' : adv.status)">
-                <div class="capsule-avatar">
+        <div class="team-panel-wrap">
+          <div class="topbar-capsules">
+            <span class="capsule-tag">Equipo</span>
+            <div class="advisor-capsules">
+              @for (adv of allAdvisors; track adv.advisorId; let i = $index) {
+                @if (i < maxVisibleCapsules) {
+                <div class="capsule" [class.capsule-self]="adv.advisorId === currentAdvisor?.id"
+                     [style.z-index]="maxVisibleCapsules - i"
+                     [title]="adv.name + ' — ' + (adv.status === 'online' ? 'Disponible' : adv.status === 'busy' ? 'Ocupado' : 'Inactivo')">
+                  <div class="capsule-ring"
+                       [ngClass]="'ring-' + (adv.advisorId === currentAdvisor?.id && enAlmuerzo ? 'lunch' : adv.status)">
+                    <div class="capsule-avatar">
+                      @if (adv.profilePhotoUrl) {
+                      <img [src]="adv.profilePhotoUrl" [alt]="adv.name" class="capsule-img" />
+                      } @else {
+                      <span class="capsule-initial">{{ adv.name.charAt(0) }}</span>
+                      }
+                    </div>
+                  </div>
+                </div>
+                }
+              }
+              @if (allAdvisors.length > maxVisibleCapsules) {
+              <button class="capsule capsule-overflow"
+                      [class.open]="teamPanelOpen"
+                      (click)="toggleTeamPanel(); $event.stopPropagation()"
+                      [title]="hiddenAdvisorNames">
+                +{{ allAdvisors.length - maxVisibleCapsules }}
+              </button>
+              }
+            </div>
+            <span class="capsule-compact">👥 {{ allAdvisors.length }}</span>
+          </div>
+
+          @if (teamPanelOpen) {
+          <div class="team-panel" (click)="$event.stopPropagation()">
+            <div class="team-panel-header">
+              <span class="team-panel-title">Equipo</span>
+              <span class="team-panel-count">{{ allAdvisors.length }} asesores</span>
+            </div>
+            <div class="team-panel-list">
+              @for (adv of allAdvisors; track adv.advisorId) {
+              <div class="team-row" [class.team-row-self]="adv.advisorId === currentAdvisor?.id">
+                <div class="team-avatar"
+                     [ngClass]="'ring-' + (adv.advisorId === currentAdvisor?.id && enAlmuerzo ? 'lunch' : adv.status)">
                   @if (adv.profilePhotoUrl) {
-                  <img [src]="adv.profilePhotoUrl" [alt]="adv.name" class="capsule-img" />
+                  <img [src]="adv.profilePhotoUrl" [alt]="adv.name" class="team-avatar-img" />
                   } @else {
-                  <span class="capsule-initial">{{ adv.name.charAt(0) }}</span>
+                  <span class="team-avatar-initial">{{ adv.name.charAt(0) }}</span>
                   }
                 </div>
+                <div class="team-info">
+                  <span class="team-name">{{ adv.name }}</span>
+                  <span class="team-status">{{ adv.status === 'online' ? 'Disponible' : adv.status === 'busy' ? 'Ocupado' : 'Inactivo' }}</span>
+                </div>
+                <span class="team-dot" [class.online]="adv.status === 'online'"
+                      [class.busy]="adv.status === 'busy'"
+                      [class.offline]="adv.status === 'offline'"></span>
+                @if (adv.advisorId === currentAdvisor?.id) {
+                <span class="team-badge">Tú</span>
+                }
               </div>
+              }
             </div>
-            }
           </div>
+          }
+
+          @if (teamPanelOpen) {
+          <div class="team-overlay" (click)="teamPanelOpen = false"></div>
+          }
         </div>
 
         <div class="topbar-divider"></div>

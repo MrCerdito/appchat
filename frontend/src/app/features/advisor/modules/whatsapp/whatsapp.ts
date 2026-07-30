@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { CommonModule, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { WaIconComponent } from '../../../../shared/components/wa-icon/wa-icon.component';
 import { firstValueFrom, interval, Subscription, switchMap, timeout } from 'rxjs';
 
@@ -284,6 +285,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     private readonly sound: SoundService,
     private readonly aiService: AiService,
     private readonly themeService: ThemeService,
+    private readonly sanitizer: DomSanitizer,
     private readonly cdr: ChangeDetectorRef,
   ) {}
 
@@ -2216,6 +2218,33 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
       return '';
     }
     return body;
+  }
+
+  formatWaMessage(message: WaMessage): SafeHtml {
+    const body = this.displayMessageBody(message);
+    if (!body) return '';
+    const html = body
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(
+        /\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g,
+        '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
+      )
+      .replace(
+        /link:((https?:\/\/|www\.)[^\s<]+)/gi,
+        '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+      )
+      .replace(
+        /(?<!href="|src=")((https?:\/\/|www\.)[^\s<]+)/g,
+        (match) => {
+          const url = match.startsWith('www.') ? `https://${match}` : match;
+          return `<a href="${url}" target="_blank" rel="noopener noreferrer">${match}</a>`;
+        }
+      )
+      .replace(/\n/g, '<br>');
+    return this.sanitizer.bypassSecurityTrustHtml(html);
   }
 
   mediaUrlFor(message: WaMessage): string {

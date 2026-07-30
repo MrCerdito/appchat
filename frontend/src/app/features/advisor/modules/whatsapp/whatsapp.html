@@ -624,7 +624,7 @@
             </div>
             }
             @if (shouldShowMessageBody(msg)) {
-            <p>{{ displayMessageBody(msg) }}</p>
+            <p [innerHTML]="formatWaMessage(msg)"></p>
             }
           }
           <div class="bubble-meta">
