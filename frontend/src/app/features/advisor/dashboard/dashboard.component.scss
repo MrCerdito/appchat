@@ -709,20 +709,6 @@
   &:hover, &.open { background: var(--sidebar-hover); color: var(--sidebar-text); }
 }
 
-.capsule-compact {
-  display: none;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--sidebar-text-muted, #94a3b8);
-  white-space: nowrap;
-  flex-shrink: 0;
-  cursor: pointer;
-  transition: color 0.15s;
-  &:hover, &.open { color: var(--sidebar-text); }
-}
-
 // ── Team panel dropdown ────────────────────────────────────────
 // Consistente con profile-dropdown
 .team-panel-wrap {
@@ -1038,9 +1024,27 @@
 @media (max-width: 800px) {
   .capsule-tag { display: none; }
 
-  .advisor-capsules { display: none; }
-
-  .capsule-compact { display: flex; }
+  .capsule-ring {
+    width: 24px;
+    height: 24px;
+    border-width: 2px;
+  }
+  .capsule-avatar {
+    width: 18px;
+    height: 18px;
+    font-size: 8px;
+    font-weight: 700;
+  }
+  .capsule-overflow {
+    width: 24px;
+    height: 24px;
+    font-size: 0.55rem;
+  }
+  .capsule-self {
+    margin-left: -6px;
+    .capsule-ring { width: 28px; height: 28px; }
+    .capsule-avatar { width: 22px; height: 22px; font-size: 10px; }
+  }
 
   .topbar-divider { height: 24px; }
 
@@ -1050,7 +1054,7 @@
 
   .metric-value { font-size: 0.85rem; }
 
-  // Team panel responsive: más ancho y ajustado
+  // Team panel responsive: más ancho
   .team-panel {
     width: min(calc(100vw - 32px), 360px);
     left: 50%;
@@ -1092,9 +1096,26 @@
 
   .topbar-center { gap: 10px; }
 
-  .capsule-compact {
-    font-size: 0.65rem;
-    gap: 2px;
+  .capsule-ring {
+    width: 20px;
+    height: 20px;
+    border-width: 2px;
+  }
+  .capsule-avatar {
+    width: 14px;
+    height: 14px;
+    font-size: 6px;
+  }
+  .capsule-overflow {
+    width: 20px;
+    height: 20px;
+    font-size: 0.5rem;
+    border-width: 1.5px;
+  }
+  .capsule-self {
+    margin-left: -4px;
+    .capsule-ring { width: 24px; height: 24px; }
+    .capsule-avatar { width: 18px; height: 18px; font-size: 8px; }
   }
 
   .topbar-metrics { gap: 8px; }
