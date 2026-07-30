@@ -22,6 +22,7 @@ import { fmtDateTimeShort, fmtDateTimeFull, fmtTime } from '../../../../shared/u
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class HistoryGlobalComponent implements OnInit, OnDestroy {
+  private readonly STORAGE_KEY = 'advisor_history_active_session';
   protected readonly trackByIndex = trackByIndex;
   protected readonly trackById = trackById;
   protected readonly fmtDateTimeShort = fmtDateTimeShort;
@@ -52,6 +53,9 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
 
   // ── Mobile ──
   mobileView: 'list' | 'chat' = 'list';
+
+  // ── Preview de imagen ──
+  imagePreview: { src: string; name: string } | null = null;
 
   // ── Takeover ──
   takeoverLoading  = false;
@@ -124,6 +128,9 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    if (this.activeSession) {
+      this.socket.emit('set_active', { sessionId: this.activeSession.id, active: false });
+    }
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -192,6 +199,21 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
         this.cdr.detectChanges();
       });
 
+    // Mensaje en tiempo real
+    this.socket.on<any>('new_message')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((msg) => {
+        const sessionId = msg.session?.id ?? msg.sessionId;
+        if (!sessionId) return;
+        if (this.activeSession && sessionId === this.activeSession.id) {
+          if (!this.messages.some(m => m.id === msg.id)) {
+            this.messages = [...this.messages, msg];
+            this.cdr.detectChanges();
+            this.scrollToBottom();
+          }
+        }
+      });
+
     // Actualización en tiempo real si una sesión cambia de estado
     this.socket.on<{ sessionId: string }>('session_updated')
       .pipe(takeUntil(this.destroy$))
@@ -208,6 +230,7 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
         );
         if (this.activeSession?.id === data.sessionId) {
           this.activeSession = { ...this.activeSession, status: 'closed' };
+          sessionStorage.removeItem(this.STORAGE_KEY);
         }
         this.cdr.detectChanges();
       });
@@ -228,6 +251,7 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
       next: (s) => {
         this.sessions = s;
         this.buildFilterOptions();
+        this.restoreActiveSession();
         this.cdr.detectChanges();
       },
       error: (err) => console.error('HTTP Error:', err),
@@ -258,13 +282,16 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
   }
 
   selectSession(session: Session): void {
+    sessionStorage.setItem(this.STORAGE_KEY, session.id);
     this.activeSession    = session;
     this.messages         = [];
     this.loading          = true;
     this.takeoverFeedback = null;
     this.mobileView       = 'chat';
 
-    this.sessionService.getMessages(session.id).subscribe({
+    this.socket.emit('join_session', { sessionId: session.id });
+
+    this.sessionService.getMessages(session.id, 100).subscribe({
       next: (msgs) => {
         this.messages = msgs;
         this.loading  = false;
@@ -282,12 +309,29 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
     return map[status] ?? status;
   }
 
+  private restoreActiveSession(): void {
+    const savedId = sessionStorage.getItem(this.STORAGE_KEY);
+    if (!savedId || this.activeSession) return;
+    const session = this.sessions.find(s => s.id === savedId);
+    if (session) {
+      this.selectSession(session);
+    }
+  }
+
   private scrollToBottom(): void {
     setTimeout(() => {
       if (this.messagesContainer) {
         scrollToBottom(this.messagesContainer.nativeElement);
       }
     }, 50);
+  }
+
+  openImagePreview(src: string, name: string): void {
+    this.imagePreview = { src, name };
+  }
+
+  closeImagePreview(): void {
+    this.imagePreview = null;
   }
 
   private showFeedback(type: 'ok' | 'error', text: string): void {

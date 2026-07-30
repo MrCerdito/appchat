@@ -21,6 +21,7 @@ import { fmtDateTimeShort, fmtDateTimeFull, fmtTime } from '../../../../shared/u
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class HistoryGlobalComponent implements OnInit, OnDestroy {
+  private readonly STORAGE_KEY = 'admin_history_active_session';
   protected readonly trackByIndex = trackByIndex;
   protected readonly trackById = trackById;
   protected readonly fmtDateTimeShort = fmtDateTimeShort;
@@ -43,6 +44,8 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
   pageSize = 20;
 
   unreadCounts = new Map<string, number>();
+
+  imagePreview: { src: string; name: string } | null = null;
 
   private destroy$ = new Subject<void>();
   private sessionUpdatedTrigger = new Subject<void>();
@@ -90,6 +93,9 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    if (this.activeSession) {
+      this.socket.emit('set_active', { sessionId: this.activeSession.id, active: false });
+    }
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -102,16 +108,18 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
     this.socket.on<any>('new_message')
       .pipe(takeUntil(this.destroy$))
       .subscribe((msg) => {
-        if (this.activeSession && msg.sessionId === this.activeSession.id) {
+        const sessionId = msg.session?.id ?? msg.sessionId;
+        if (!sessionId) return;
+        if (this.activeSession && sessionId === this.activeSession.id) {
           if (!this.messages.some(m => m.id === msg.id)) {
             this.messages = [...this.messages, msg];
             this.cdr.detectChanges();
             this.scrollToBottom();
           }
         }
-        if (!this.activeSession || msg.sessionId !== this.activeSession.id) {
-          const current = this.unreadCounts.get(msg.sessionId) ?? 0;
-          this.unreadCounts.set(msg.sessionId, current + 1);
+        if (!this.activeSession || sessionId !== this.activeSession.id) {
+          const current = this.unreadCounts.get(sessionId) ?? 0;
+          this.unreadCounts.set(sessionId, current + 1);
           this.cdr.detectChanges();
         }
       });
@@ -127,6 +135,7 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
           const existingIds = new Set(res.data.map(s => s.id));
           const olderSessions = this.sessions.filter(s => !existingIds.has(s.id));
           this.sessions = [...res.data, ...olderSessions];
+          this.restoreActiveSession();
         } else {
           const existingIds = new Set(this.sessions.map(s => s.id));
           const newSessions = res.data.filter(s => !existingIds.has(s.id));
@@ -153,13 +162,14 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
   }
 
   selectSession(session: Session): void {
+    sessionStorage.setItem(this.STORAGE_KEY, session.id);
     this.activeSession = session;
     this.messages = [];
     this.loading = true;
     this.unreadCounts.set(session.id, 0);
     this.socket.emit('join_session', { sessionId: session.id });
 
-    this.sessionService.getMessages(session.id).subscribe({
+    this.sessionService.getMessages(session.id, 100).subscribe({
       next: (msgs) => {
         this.messages = msgs;
         this.loading = false;
@@ -181,6 +191,23 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
 
   trackSession(_: number, session: Session): string {
     return session.id;
+  }
+
+  openImagePreview(src: string, name: string): void {
+    this.imagePreview = { src, name };
+  }
+
+  closeImagePreview(): void {
+    this.imagePreview = null;
+  }
+
+  private restoreActiveSession(): void {
+    const savedId = sessionStorage.getItem(this.STORAGE_KEY);
+    if (!savedId || this.activeSession) return;
+    const session = this.sessions.find(s => s.id === savedId);
+    if (session) {
+      this.selectSession(session);
+    }
   }
 
   private scrollToBottom(): void {

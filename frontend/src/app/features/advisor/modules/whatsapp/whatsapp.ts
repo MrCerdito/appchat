@@ -12,7 +12,7 @@ import {
 import { CommonModule, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { WaIconComponent } from '../../../../shared/components/wa-icon/wa-icon.component';
-import { firstValueFrom, Subscription, timeout } from 'rxjs';
+import { firstValueFrom, interval, Subscription, switchMap, timeout } from 'rxjs';
 
 import { AiService } from '../../../../core/services/ai.service';
 import { AuthService } from '../../../../core/services/auth.service';
@@ -233,6 +233,8 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     updatedAt: new Date().toISOString(),
   };
   isRestartingConnection = false;
+  qrExpiresIn = 0;
+  private qrCountdownTimer: ReturnType<typeof setInterval> | null = null;
   floatingNotificationsEnabled = true;
   readonly allowedUploadTypes = [
     'image/jpeg',
@@ -306,11 +308,22 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     this.subs.add(
       this.waService.getConnectionStream().subscribe(status => {
         this.connectionStatus = status;
+        if (status.status === 'qr') {
+          this.startQrCountdown();
+        } else {
+          this.stopQrCountdown();
+        }
         this.cdr.detectChanges();
       }),
     );
 
     this.subs.add(this.waService.loadConnection().subscribe());
+
+    this.subs.add(
+      interval(30_000).pipe(
+        switchMap(() => this.waService.loadConnection()),
+      ).subscribe(),
+    );
 
     this.subs.add(
       this.configService.getGlobal().subscribe(config => {
@@ -521,6 +534,49 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     if (this.isAttentionClosed) return false;
     if (this.currentUserRole === 'admin') return true;
     return this.activeContact.assignedTo === this.currentUserId;
+  }
+
+  restartWaConnection(): void {
+    if (this.isRestartingConnection) return;
+    this.isRestartingConnection = true;
+    this.subs.add(
+      this.waService.restartConnection().subscribe({
+        next: () => { this.isRestartingConnection = false; this.cdr.detectChanges(); },
+        error: () => { this.isRestartingConnection = false; this.cdr.detectChanges(); },
+      }),
+    );
+  }
+
+  logoutWaSession(): void {
+    if (this.isRestartingConnection) return;
+    this.isRestartingConnection = true;
+    this.subs.add(
+      this.waService.logoutConnection().subscribe({
+        next: () => {
+          this.isRestartingConnection = false;
+          setTimeout(() => this.restartWaConnection(), 500);
+          this.cdr.detectChanges();
+        },
+        error: () => { this.isRestartingConnection = false; this.cdr.detectChanges(); },
+      }),
+    );
+  }
+
+  private startQrCountdown(): void {
+    this.stopQrCountdown();
+    this.qrExpiresIn = 55;
+    this.qrCountdownTimer = setInterval(() => {
+      this.qrExpiresIn = Math.max(0, this.qrExpiresIn - 1);
+      this.cdr.detectChanges();
+      if (this.qrExpiresIn <= 0) this.stopQrCountdown();
+    }, 1000);
+  }
+
+  private stopQrCountdown(): void {
+    if (this.qrCountdownTimer) {
+      clearInterval(this.qrCountdownTimer);
+      this.qrCountdownTimer = null;
+    }
   }
 
   get canImproveDraft(): boolean {

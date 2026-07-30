@@ -529,6 +529,11 @@
     max-width: 85%;
     .bubble { font-size: 12.5px; }
   }
+
+  &.media-only {
+    max-width: 60%;
+    .msg-attachments { padding: 0; }
+  }
 }
 
 // ── Sistema ───────────────────────────────────────────────────────────────────
@@ -561,6 +566,208 @@
   flex-shrink: 0; font-weight: 500;
 
   svg { width: 12px; height: 12px; stroke: var(--text-faint); flex-shrink: 0; }
+}
+
+// ── Attachments ──────────────────────────────────────────────────────────────
+.msg-attachments {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.25rem 0 0.15rem;
+  max-width: 80%;
+}
+
+.att-image-link {
+  display: block;
+  border-radius: 10px;
+  overflow: hidden;
+  max-width: 320px;
+  cursor: zoom-in;
+  border: 0;
+  padding: 0;
+  background: none;
+
+  &:hover { opacity: 0.92; }
+}
+
+.att-image {
+  width: 100%;
+  height: auto;
+  display: block;
+  max-height: 350px;
+  object-fit: contain;
+}
+
+.att-video {
+  width: 100%;
+  max-width: 320px;
+  max-height: 350px;
+  border-radius: 10px;
+  display: block;
+}
+
+.att-document {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.7rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.15s;
+
+  &:hover { background: #f1f5f9; }
+}
+
+.att-doc-icon {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  svg { width: 16px; height: 16px; color: var(--text-faint); }
+}
+
+.att-doc-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.att-doc-name {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.att-doc-size {
+  font-size: 0.68rem;
+  color: var(--text-faint);
+}
+
+.att-doc-arrow {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--text-faint);
+}
+
+.doc-adjuntos {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.doc-adjuntos-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.doc-adjunto-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  background: #edf2ff;
+  border-radius: 6px;
+  text-decoration: none;
+  font-size: 12px;
+  transition: background 0.12s ease;
+
+  .doc-adjunto-nombre { color: #2455d4; font-weight: 500; }
+  .doc-adjunto-cat {
+    color: var(--text-faint);
+    font-size: 10px;
+    background: var(--surface-hover);
+    padding: 1px 6px;
+    border-radius: 6px;
+  }
+
+  &:hover { background: #dbe7ff; }
+}
+
+// ── Image Lightbox ───────────────────────────────────────────────────────────
+.image-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.15s ease;
+}
+
+.image-viewer {
+  position: relative;
+  margin: 0;
+  text-align: center;
+  color: #fff;
+  max-width: 92vw;
+  max-height: 88vh;
+
+  img {
+    max-width: 92vw;
+    max-height: 80vh;
+    border-radius: 8px;
+    object-fit: contain;
+    display: block;
+  }
+
+  figcaption {
+    margin-top: 10px;
+    font-size: 12px;
+    font-weight: 500;
+    opacity: 0.8;
+    max-width: 80%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+.image-close {
+  position: absolute;
+  top: -12px;
+  right: -12px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border: 0;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: background 0.12s ease;
+
+  svg { width: 16px; height: 16px; }
+
+  &:hover { background: rgba(255, 255, 255, 0.25); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 // ── Animaciones ───────────────────────────────────────────────────────────────

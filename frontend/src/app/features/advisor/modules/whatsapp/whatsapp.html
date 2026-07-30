@@ -233,11 +233,49 @@
   <section class="waiting-admin">
     <div class="waiting-admin-card">
       <div class="waiting-admin-icon">
+        @if (connectionStatus.status === 'qr' || connectionStatus.status === 'connecting') {
         <wa-icon name="loader-2"></wa-icon>
+        } @else {
+        <wa-icon name="plug-connected-x"></wa-icon>
+        }
       </div>
+
+      @if (connectionStatus.status === 'qr' && connectionStatus.qrDataUrl && currentUserRole === 'admin') {
+      <div class="op-splash-qr-wrap">
+        <img class="op-splash-qr-img" [src]="connectionStatus.qrDataUrl" alt="Código QR de WhatsApp" />
+        <div class="op-splash-qr-timer">
+          <div class="op-splash-qr-timer-bar" [style.width.%]="(qrExpiresIn / 55) * 100"></div>
+        </div>
+        <p class="op-splash-qr-hint">Abre WhatsApp → Dispositivos vinculados → Vincular dispositivo</p>
+        <p class="waiting-admin-status">Expira en {{ qrExpiresIn }}s</p>
+      </div>
+      } @else if (connectionStatus.status === 'qr' && connectionStatus.qrDataUrl) {
       <h2>Esperando escaneo del admin</h2>
       <p>El administrador debe escanear el código QR de WhatsApp para conectar el sistema.</p>
-      @if (connectionStatus.lastError) {
+      } @else if (connectionStatus.status === 'qr' && !connectionStatus.qrDataUrl) {
+      <h2>Generando código QR</h2>
+      <p>Preparando código para escanear...</p>
+      } @else if (connectionStatus.status === 'error' || connectionStatus.status === 'disconnected') {
+      <h2>WhatsApp desconectado</h2>
+      <p>{{ connectionStatus.lastError || 'La conexión con WhatsApp se ha perdido.' }}</p>
+      <div class="waiting-admin-actions">
+        <button class="wa-retry-btn" type="button" (click)="restartWaConnection()" [disabled]="isRestartingConnection">
+          <wa-icon [name]="isRestartingConnection ? 'loader-2' : 'refresh'"></wa-icon>
+          {{ isRestartingConnection ? 'Reconectando...' : 'Reconectar' }}
+        </button>
+        @if (currentUserRole === 'admin') {
+        <button class="wa-logout-btn" type="button" (click)="logoutWaSession()">
+          <wa-icon name="x"></wa-icon>
+          Cerrar sesión WhatsApp
+        </button>
+        }
+      </div>
+      } @else {
+      <h2>Conectando...</h2>
+      <p>Iniciando sesión de WhatsApp...</p>
+      }
+
+      @if (connectionStatus.lastError && connectionStatus.status !== 'error' && connectionStatus.status !== 'disconnected') {
       <p class="waiting-admin-status">
         {{ connectionStatus.lastError }}
       </p>

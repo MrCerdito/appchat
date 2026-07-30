@@ -132,6 +132,16 @@ export class SessionsService {
     });
     return result ?? saved;
   }
+  async unassignAdvisor(sessionId: string): Promise<Session> {
+    const session = await this.findOne(sessionId);
+    const oldAdvisorId = session.advisor?.id ?? null;
+    session.status = 'waiting';
+    session.advisor = null;
+    const saved = await this.sessionRepo.save(session);
+    if (oldAdvisorId) await this.syncAdvisorActiveChats(oldAdvisorId);
+    return saved;
+  }
+
   async findAll(advisorId?: string): Promise<Session[]> {
     if (advisorId) {
       return this.sessionRepo.find({
@@ -581,11 +591,12 @@ export class SessionsService {
     return { data, total, page, pages: Math.ceil(total / limit) };
   }
 
-  async getMessages(sessionId: string): Promise<Message[]> {
+  async getMessages(sessionId: string, limit = 100): Promise<Message[]> {
     return this.messageRepo.find({
       where: { session: { id: sessionId } },
-      order: { createdAt: 'ASC' },
-    });
+      order: { createdAt: 'DESC' },
+      take: limit,
+    }).then(msgs => msgs.reverse());
   }
 
   async getMetrics() {

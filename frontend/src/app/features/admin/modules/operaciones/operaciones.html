@@ -27,6 +27,9 @@
     @if (splashShowQr) {
     <div class="op-splash-qr-wrap">
       <img class="op-splash-qr-img" [src]="waConnection.qrDataUrl" alt="Código QR de WhatsApp" />
+      <div class="op-splash-qr-timer">
+        <div class="op-splash-qr-timer-bar" [style.width.%]="(qrExpiresIn / 55) * 100"></div>
+      </div>
       <p class="op-splash-qr-hint">Abre WhatsApp → Dispositivos vinculados → Vincular dispositivo</p>
     </div>
     }

@@ -16,23 +16,22 @@ export class AuditLog {
   @Column({ name: 'user_id', type: 'uuid', nullable: true })
   userId: string | null;
 
-  @Column({ length: 100 })
+  @Column({ type: 'varchar', length: 100 })
   action: string;
 
-  @Column({ length: 100, nullable: true })
+  @Column({ type: 'varchar', length: 100, nullable: true })
   entity: string | null;
 
-  @Column({ name: 'entity_id', length: 255, nullable: true })
+  @Column({ type: 'varchar', name: 'entity_id', length: 255, nullable: true })
   entityId: string | null;
 
   @Column({ type: 'jsonb', nullable: true })
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  detail: any;
+  detail: Record<string, any>;
 
-  @Column({ length: 50, nullable: true })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   ip: string | null;
 
-  @Column({ name: 'user_agent', length: 500, nullable: true })
+  @Column({ type: 'varchar', name: 'user_agent', length: 500, nullable: true })
   userAgent: string | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })

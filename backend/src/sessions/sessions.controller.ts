@@ -261,8 +261,8 @@ export class SessionsController {
 
   @Get(':id/messages')
   @UseGuards(JwtAuthGuard)
-  getMessages(@Param('id') id: string) {
-    return this.sessionsService.getMessages(id);
+  getMessages(@Param('id') id: string, @Query('limit') limit?: string) {
+    return this.sessionsService.getMessages(id, limit ? +limit : undefined);
   }
 
   @Post(':id/close')

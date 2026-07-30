@@ -8,6 +8,7 @@ import * as Joi from 'joi';
 import { RedisThrottlerStorage } from './common/throttler/redis-throttler.storage';
 import { UserThrottlerGuard } from './common/throttler/user-throttler.guard';
 import { AuditInterceptor } from './common/interceptors/audit.interceptor';
+import { AuditLog } from './common/entities/audit-log.entity';
 import { AuthModule } from './auth/auth.module';
 import { SessionsModule } from './sessions/sessions.module';
 import { ChatModule } from './chat/chat.module';
@@ -137,6 +138,7 @@ import { AppService } from './app.service';
           Faq,
           Ticket,
           Pqrs,
+          AuditLog,
         ],
         synchronize: config.get<string>('NODE_ENV') !== 'production',
         logging: false,

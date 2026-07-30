@@ -1566,6 +1566,22 @@
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
 }
 
+.op-splash-qr-timer {
+  width: 220px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  margin-top: -6px;
+}
+
+.op-splash-qr-timer-bar {
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #10B981, #34D399);
+  transition: width 1s linear;
+}
+
 .op-splash-qr-hint {
   font-size: 12px;
   color: #94A3B8;

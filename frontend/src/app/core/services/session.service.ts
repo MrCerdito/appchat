@@ -81,8 +81,9 @@ export class SessionService {
     return this.http.get<Session>(`${environment.apiUrl}/sessions/${id}`);
   }
 
-  getMessages(sessionId: string): Observable<Message[]> {
-    return this.http.get<Message[]>(`${environment.apiUrl}/sessions/${sessionId}/messages`);
+  getMessages(sessionId: string, limit?: number): Observable<Message[]> {
+    const params = limit ? { params: { limit: limit.toString() } } : {};
+    return this.http.get<Message[]>(`${environment.apiUrl}/sessions/${sessionId}/messages`, params);
   }
 
   findAdvisors(): Observable<User[]> {

@@ -8,6 +8,7 @@ dist/
 !.env.example
 backend/uploads/baileys-auth/
 backend/uploads/whatsapp/
+backend/uploads/chat-media/
 BD.csv
 Backup/backend.env
 backend/.env.save

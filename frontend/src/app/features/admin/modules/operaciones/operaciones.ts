@@ -2,7 +2,7 @@ import { Component, ChangeDetectionStrategy, ChangeDetectorRef, OnDestroy, OnIni
 import { DecimalPipe, TitleCasePipe } from '@angular/common';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { Subscription, interval } from 'rxjs';
+import { Subscription, interval, switchMap } from 'rxjs';
 import { WhatsappChatService } from '../../../../core/services/whatsapp-chat.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { LayoutService } from '../../../../core/services/layout.service';
@@ -47,6 +47,8 @@ export class OperacionesComponent implements OnInit, OnDestroy {
   splashMode: 'connecting' | 'loading' = 'connecting';
   loadingProgress = 0;
   waConnection: WaConnectionStatus = { status: 'connecting', updatedAt: new Date().toISOString() };
+  qrExpiresIn = 0;
+  private qrCountdownTimer: ReturnType<typeof setInterval> | null = null;
 
   filterEstado = 'todos';
   filterAsesor = 'todos';
@@ -99,6 +101,13 @@ export class OperacionesComponent implements OnInit, OnDestroy {
       error: (err) => console.error('HTTP Error:', err),
     });
 
+    // ── 3b. Polling fallback each 30s ────────────────────
+    this.subs.push(
+      interval(30_000).pipe(
+        switchMap(() => this.whatsappChat.loadConnection()),
+      ).subscribe(),
+    );
+
     // ── 4. Real-time subscriptions ───────────────────────
     this.subs.push(
       this.whatsappChat.getChatsStream().subscribe(chats => {
@@ -112,6 +121,12 @@ export class OperacionesComponent implements OnInit, OnDestroy {
       this.whatsappChat.getConnectionStream().subscribe(status => {
         this.wsConnected = status.status === 'connected';
         this.waConnection = status;
+
+        if (status.status === 'qr') {
+          this.startQrCountdown();
+        } else {
+          this.stopQrCountdown();
+        }
 
         if (this.showSplash) {
           this.layoutService.setSidebarForcedVisible(true);
@@ -345,11 +360,30 @@ export class OperacionesComponent implements OnInit, OnDestroy {
   get splashStatusText(): string {
     switch (this.waConnection.status) {
       case 'connecting':   return 'Preparando sesión segura...';
-      case 'qr':           return this.waConnection.qrDataUrl ? 'Escanea el código con WhatsApp' : 'Generando código QR...';
+      case 'qr':           return this.waConnection.qrDataUrl
+        ? `Escanea el código con WhatsApp — Expira en ${this.qrExpiresIn}s`
+        : 'Generando código QR...';
       case 'connected':    return 'Conectado';
       case 'error':        return this.waConnection.lastError || 'Error de conexión';
       case 'disconnected': return 'Desconectado';
       default:             return 'Conectando...';
+    }
+  }
+
+  private startQrCountdown(): void {
+    this.stopQrCountdown();
+    this.qrExpiresIn = 55;
+    this.qrCountdownTimer = setInterval(() => {
+      this.qrExpiresIn = Math.max(0, this.qrExpiresIn - 1);
+      this.cdr.markForCheck();
+      if (this.qrExpiresIn <= 0) this.stopQrCountdown();
+    }, 1000);
+  }
+
+  private stopQrCountdown(): void {
+    if (this.qrCountdownTimer) {
+      clearInterval(this.qrCountdownTimer);
+      this.qrCountdownTimer = null;
     }
   }
 

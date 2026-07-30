@@ -99,6 +99,9 @@ export class SeedService implements OnApplicationBootstrap {
       asesorInactividadSeg: 120,
       asesorInactividadMsg:
         'Estamos trabajando en tu solicitud, en breve te atendemos.',
+      asesorReconexionSeg: 120,
+      asesorReconexionMsg:
+        'Reconectando... Un asesor estará contigo en breve.',
       clienteInactividadSeg: 180,
       clienteInactividadMsg:
         '¿Sigues en línea? Tu sesión se cerrará pronto si no hay respuesta.',

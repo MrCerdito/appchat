@@ -36,7 +36,7 @@
     "@nestjs/throttler": "^6.5.0",
     "@nestjs/typeorm": "^11.0.0",
     "@nestjs/websockets": "^11.1.17",
-    "@whiskeysockets/baileys": "^7.0.0-rc11",
+    "@whiskeysockets/baileys": "7.0.0-rc14",
     "axios": "^1.16.1",
     "bcrypt": "^6.0.0",
     "@keyv/redis": "^4.0.1",
