@@ -1180,11 +1180,11 @@
                 <td class="td-check">
                   <input type="checkbox" [checked]="colegioSelectedIds.has(c.id)" (change)="toggleColegioSelection(c.id)" />
                 </td>
-                <td class="td-name">{{ c.nombre }}</td>
+                <td class="td-name">{{ sanitizeText(c.nombre) }}</td>
                 <td class="td-link">
-                  <a [href]="c.link" target="_blank" rel="noopener noreferrer">{{ c.link }}</a>
+                  <a [href]="c.link" target="_blank" rel="noopener noreferrer">{{ sanitizeText(c.link) }}</a>
                 </td>
-                <td class="td-email">{{ c.email || '—' }}</td>
+                <td class="td-email">{{ sanitizeText(c.email || '') || '—' }}</td>
                 <td class="td-actions">
                   @if (colegioDeletingId === c.id) {
                   <span class="delete-confirm">
@@ -1222,13 +1222,13 @@
             </div>
             @if (totalColegioPages > 1) {
             <div class="colegios-paginator">
-              <button class="pag-btn" (click)="setColegioPage(1)" [disabled]="colegioPage === 1" title="Primera">&laquo;</button>
+              <button class="pag-btn pag-nav-extreme" (click)="setColegioPage(1)" [disabled]="colegioPage === 1" title="Primera">&laquo;</button>
               <button class="pag-btn" (click)="setColegioPage(colegioPage - 1)" [disabled]="colegioPage === 1" title="Anterior">&lsaquo;</button>
               @for (p of colegioPageRange(); track p) {
               <button class="pag-btn" [class.active]="p === colegioPage" (click)="setColegioPage(p)">{{ p }}</button>
               }
               <button class="pag-btn" (click)="setColegioPage(colegioPage + 1)" [disabled]="colegioPage === totalColegioPages" title="Siguiente">&rsaquo;</button>
-              <button class="pag-btn" (click)="setColegioPage(totalColegioPages)" [disabled]="colegioPage === totalColegioPages" title="Última">&raquo;</button>
+              <button class="pag-btn pag-nav-extreme" (click)="setColegioPage(totalColegioPages)" [disabled]="colegioPage === totalColegioPages" title="Última">&raquo;</button>
               <select class="pag-size" [ngModel]="colegioPageSize" (ngModelChange)="onColegioPageSizeChange($event)">
                 @for (s of pageSizeOptions; track s) {
                 <option [value]="s">{{ s }} por pág.</option>

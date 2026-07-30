@@ -264,7 +264,7 @@ get rolLabel(): string {
 
     this.sessionService.getColegios().subscribe({
       next: (c) => {
-        this.colegios = c;
+        this.colegios = c.map(co => ({ ...co, nombre: this.sanitizeText(co.nombre), link: this.sanitizeText(co.link) }));
         this.cdr.detectChanges();
       },
       error: (err) => console.error('HTTP Error:', err),
@@ -513,6 +513,13 @@ get rolLabel(): string {
     this.colegio      = '';
     this.colegioLink  = '';
     this.showDropdown = false;
+  }
+
+  sanitizeText(str: string): string {
+    if (!str) return '';
+    const el = document.createElement('textarea');
+    el.innerHTML = str;
+    return el.textContent || '';
   }
 
   onIdentificacionInput(event: Event): void {

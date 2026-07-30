@@ -623,7 +623,11 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
     this.colegioPage = 1;
     this.colegiosLoading = true;
     this.sessionService.getColegios().subscribe({
-      next: (c) => { this.colegios = c; this.colegiosLoading = false; this.cdr.detectChanges(); },
+      next: (c) => {
+        this.colegios = c.map(co => ({ ...co, nombre: this.sanitizeText(co.nombre), link: this.sanitizeText(co.link) }));
+        this.colegiosLoading = false;
+        this.cdr.detectChanges();
+      },
       error: () => { this.colegiosLoading = false; this.cdr.detectChanges(); },
     });
   }
@@ -670,6 +674,13 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
     this.colegioPageSize = size;
     this.colegioPage = 1;
     this.cdr.detectChanges();
+  }
+
+  sanitizeText(str: string): string {
+    if (!str) return '';
+    const el = document.createElement('textarea');
+    el.innerHTML = str;
+    return el.textContent || '';
   }
 
   openColegioForm(colegio?: Colegio): void {

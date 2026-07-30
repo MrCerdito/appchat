@@ -183,7 +183,7 @@
           <div class="colegio-dropdown">
             @for (c of colegiosFiltrados; track trackById($index, c)) {
             <div class="colegio-option" (mousedown)="selectColegio(c)">
-              {{ c.nombre }}
+              {{ sanitizeText(c.nombre) }}
             </div>
             }
             @if (colegiosFiltrados.length === 0 && colegioQuery.trim()) {
