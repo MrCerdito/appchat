@@ -202,9 +202,11 @@
           @if (msg.senderType === 'advisor' && msg.senderName !== currentAdvisor?.name) {
           <span class="msg-sender">{{ msg.senderName }}</span>
           }
+          @if (msg.content) {
           <div class="bubble">
             <span [innerHTML]="formatMessage(msg.content)"></span>
           </div>
+          }
 
           <!-- Archivos adjuntos del mensaje -->
           @if (msg.attachments && msg.attachments.length > 0) {

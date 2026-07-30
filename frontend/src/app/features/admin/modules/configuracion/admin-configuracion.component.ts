@@ -65,6 +65,8 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
   colegioForm = { nombre: '', link: '', email: '' };
   colegioSaving = false;
   colegioDeletingId: string | null = null;
+  colegioSelectedIds: Set<string> = new Set();
+  colegioDeletingBulk = false;
 
   readonly aiRoles = [
     { key: 'administrador', label: 'Administrador', icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' },
@@ -693,6 +695,43 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
     this.cdr.detectChanges();
   }
 
+  toggleColegioSelection(id: string): void {
+    if (this.colegioSelectedIds.has(id)) {
+      this.colegioSelectedIds.delete(id);
+    } else {
+      this.colegioSelectedIds.add(id);
+    }
+    this.cdr.detectChanges();
+  }
+
+  toggleAllColegios(): void {
+    if (this.colegioSelectedIds.size === this.colegiosFiltrados.length) {
+      this.colegioSelectedIds.clear();
+    } else {
+      this.colegioSelectedIds = new Set(this.colegiosFiltrados.map(c => c.id));
+    }
+    this.cdr.detectChanges();
+  }
+
+  deleteColegiosSeleccionados(): void {
+    const ids = Array.from(this.colegioSelectedIds);
+    if (!ids.length) return;
+    this.colegioDeletingBulk = true;
+    this.sessionService.deleteColegiosBulk(ids).subscribe({
+      next: (res) => {
+        this.colegioDeletingBulk = false;
+        this.colegioSelectedIds.clear();
+        this.loadColegios();
+        this.notification.success('Eliminados', `${res.deleted} colegio${res.deleted === 1 ? '' : 's'} eliminado${res.deleted === 1 ? '' : 's'}.`);
+      },
+      error: (err) => {
+        this.colegioDeletingBulk = false;
+        this.notification.error('Error', err.error?.message || 'Error al eliminar colegios.');
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
   deleteColegio(id: string): void {
     this.sessionService.deleteColegio(id).subscribe({
       next: () => {
@@ -752,11 +791,12 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
         return;
       }
 
+      const trunc = (s: string, max: number) => s.length > max ? s.slice(0, max) : s;
       const colegios: any[] = [];
       for (let i = 1; i < lines.length; i++) {
         const vals = this.parseCsvLine(lines[i]);
-        const nombre = vals[nIdx]?.trim();
-        const link = vals[lIdx]?.trim();
+        const nombre = trunc(vals[nIdx]?.trim() || '', 200);
+        const link = trunc(vals[lIdx]?.trim() || '', 500);
         if (nombre && link) {
           colegios.push({
             nombre,
@@ -774,7 +814,8 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
 
       this.sessionService.importColegios(colegios).subscribe({
         next: (res: any) => {
-          this.notification.success('Importación completa', `${res.imported} colegios importados`);
+          const msg = `${res.imported} colegio${res.imported === 1 ? '' : 's'} importado${res.imported === 1 ? '' : 's'}${res.skipped ? ` (${res.skipped} omitido${res.skipped === 1 ? '' : 's'} por duplicado)` : ''}`;
+          this.notification.success('Importación completa', msg);
           input.value = '';
           this.loadColegios();
         },

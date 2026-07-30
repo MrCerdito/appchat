@@ -428,6 +428,7 @@
              [class.msg--ai]="msg.senderType === 'advisor' && aiMode"
              [class.streaming]="isStreaming && msg.content === streamingText">
 
+          @if (msg.content) {
           <div class="bubble">
             @if (msg.senderType === 'advisor') {
             <span [innerHTML]="formatMessage(msg.content)"></span>
@@ -436,6 +437,7 @@
             <span [innerHTML]="formatMessage(msg.content)"></span>
             }
           </div>
+          }
 
           <!-- Archivos adjuntos del mensaje -->
           @if (msg.attachments && msg.attachments.length > 0) {

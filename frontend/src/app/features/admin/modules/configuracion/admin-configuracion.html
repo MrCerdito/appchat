@@ -1145,9 +1145,29 @@
         </div>
         } @else {
         <div class="colegios-table-wrap">
+          <div class="colegios-bulk-bar" [class.visible]="colegioSelectedIds.size > 0">
+            <span>{{ colegioSelectedIds.size }} seleccionado{{ colegioSelectedIds.size === 1 ? '' : 's' }}</span>
+            <button class="btn-bulk-delete" (click)="deleteColegiosSeleccionados()" [disabled]="colegioDeletingBulk">
+              @if (colegioDeletingBulk) {
+              <div class="btn-spinner"></div>
+              Eliminando...
+              } @else {
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                <path d="M10 11v6"/><path d="M14 11v6"/>
+                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+              </svg>
+              Eliminar seleccionados
+              }
+            </button>
+          </div>
           <table class="colegios-table">
             <thead>
               <tr>
+                <th class="th-check">
+                  <input type="checkbox" [checked]="colegiosFiltrados.length > 0 && colegioSelectedIds.size === colegiosFiltrados.length" (change)="toggleAllColegios()" />
+                </th>
                 <th>Nombre</th>
                 <th>Link</th>
                 <th>Correo</th>
@@ -1156,7 +1176,10 @@
             </thead>
             <tbody>
               @for (c of colegiosFiltrados; track c.id) {
-              <tr>
+              <tr [class.selected]="colegioSelectedIds.has(c.id)">
+                <td class="td-check">
+                  <input type="checkbox" [checked]="colegioSelectedIds.has(c.id)" (change)="toggleColegioSelection(c.id)" />
+                </td>
                 <td class="td-name">{{ c.nombre }}</td>
                 <td class="td-link">
                   <a [href]="c.link" target="_blank" rel="noopener noreferrer">{{ c.link }}</a>
@@ -1192,6 +1215,9 @@
           </table>
           <div class="colegios-count">
             {{ colegiosFiltrados.length }} colegio{{ colegiosFiltrados.length === 1 ? '' : 's' }}
+            @if (colegioSelectedIds.size > 0) {
+            <span class="colegios-count-selected">({{ colegioSelectedIds.size }} seleccionado{{ colegioSelectedIds.size === 1 ? '' : 's' }})</span>
+            }
           </div>
         </div>
         }

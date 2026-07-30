@@ -127,8 +127,12 @@ export class SessionService {
     return this.http.get(`${environment.apiUrl}/sessions/colegios/export?format=csv`);
   }
 
-  importColegios(data: any[]): Observable<{ imported: number }> {
-    return this.http.post<{ imported: number }>(`${environment.apiUrl}/sessions/colegios/import`, data);
+  importColegios(data: any[]): Observable<{ imported: number; skipped: number }> {
+    return this.http.post<{ imported: number; skipped: number }>(`${environment.apiUrl}/sessions/colegios/import`, data);
+  }
+
+  deleteColegiosBulk(ids: string[]): Observable<{ deleted: number }> {
+    return this.http.post<{ deleted: number }>(`${environment.apiUrl}/sessions/colegios/delete-bulk`, ids);
   }
 
   getMetricsByAdvisor(advisorId: string): Observable<AdvisorMetrics> {

@@ -697,3 +697,33 @@ input[type="time"] {
   padding: 0.6rem 0.85rem; font-size: 0.78rem; color: var(--text-muted);
   border-top: 1px solid var(--border-light); text-align: right;
 }
+.colegios-count-selected { margin-left: 0.4rem; color: #7c3aed; font-weight: 600; }
+
+.th-check, .td-check { width: 36px; text-align: center; padding: 0; }
+.th-check input, .td-check input { width: 15px; height: 15px; cursor: pointer; accent-color: #7c3aed; }
+.colegios-table tbody tr.selected { background: #f5f3ff; }
+
+.colegios-bulk-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.5rem 0.85rem; margin-bottom: 0.5rem;
+  background: #f5f3ff; border: 1px solid #e0d4fc; border-radius: 8px;
+  font-size: 0.82rem; font-weight: 600; color: #7c3aed;
+  opacity: 0; transition: opacity 0.2s; pointer-events: none;
+}
+.colegios-bulk-bar.visible { opacity: 1; pointer-events: auto; }
+
+.btn-bulk-delete {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.4rem 0.85rem; border: none; border-radius: 8px;
+  font-family: var(--font); font-size: 0.78rem; font-weight: 600;
+  cursor: pointer; transition: all 0.15s;
+  background: #fef2f2; color: #ef4444;
+  svg { width: 14px; height: 14px; }
+  &:hover:not(:disabled) { background: #ef4444; color: white; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-spinner {
+    width: 14px; height: 14px; border: 2px solid #ef4444;
+    border-top-color: transparent; border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+}

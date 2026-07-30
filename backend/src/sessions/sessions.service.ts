@@ -1,6 +1,6 @@
 import { Inject, Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import * as crypto from 'crypto';
@@ -686,12 +686,15 @@ export class SessionsService {
   }
 
   async createColegio(data: { nombre: string; link: string; email?: string }): Promise<Colegio> {
-    const existing = await this.colegioRepo.findOne({ where: { nombre: data.nombre } });
-    if (existing) throw new NotFoundException(`Ya existe un colegio con el nombre "${data.nombre}"`);
+    const truncate = (s: string, max: number) => s.length > max ? s.slice(0, max) : s;
+    const nombre = truncate(data.nombre, 200);
+    const link = truncate(data.link, 500);
+    const existing = await this.colegioRepo.findOne({ where: { nombre } });
+    if (existing) throw new NotFoundException(`Ya existe un colegio con el nombre "${nombre}"`);
 
     const colegio = this.colegioRepo.create({
-      nombre: data.nombre,
-      link: data.link,
+      nombre,
+      link,
       email: data.email ?? '',
     });
     const saved = await this.colegioRepo.save(colegio);
@@ -700,15 +703,19 @@ export class SessionsService {
   }
 
   async updateColegio(id: string, data: { nombre?: string; link?: string; email?: string }): Promise<Colegio> {
+    const truncate = (s: string, max: number) => s.length > max ? s.slice(0, max) : s;
     const colegio = await this.colegioRepo.findOne({ where: { id } });
     if (!colegio) throw new NotFoundException('Colegio no encontrado');
 
-    if (data.nombre && data.nombre !== colegio.nombre) {
-      const dup = await this.colegioRepo.findOne({ where: { nombre: data.nombre } });
-      if (dup) throw new NotFoundException(`Ya existe un colegio con el nombre "${data.nombre}"`);
-      colegio.nombre = data.nombre;
+    if (data.nombre) {
+      const nombre = truncate(data.nombre, 200);
+      if (nombre !== colegio.nombre) {
+        const dup = await this.colegioRepo.findOne({ where: { nombre } });
+        if (dup) throw new NotFoundException(`Ya existe un colegio con el nombre "${nombre}"`);
+        colegio.nombre = nombre;
+      }
     }
-    if (data.link !== undefined) colegio.link = data.link;
+    if (data.link !== undefined) colegio.link = truncate(data.link, 500);
     if (data.email !== undefined) colegio.email = data.email;
 
     const saved = await this.colegioRepo.save(colegio);
@@ -724,20 +731,37 @@ export class SessionsService {
     return { ok: true };
   }
 
-  async importColegios(data: { nombre: string; link: string; email?: string }[]): Promise<Colegio[]> {
-    const created: Colegio[] = [];
-    for (const item of data) {
-      const existing = await this.colegioRepo.findOne({ where: { nombre: item.nombre } });
-      if (existing) continue;
-      const colegio = this.colegioRepo.create({
-        nombre: item.nombre,
-        link: item.link,
-        email: item.email ?? '',
-      });
-      created.push(await this.colegioRepo.save(colegio));
+  async importColegios(data: { nombre: string; link: string; email?: string }[]): Promise<{ created: Colegio[]; skipped: number }> {
+    const truncate = (s: string, max: number) => s.length > max ? s.slice(0, max) : s;
+    const nombres = data.map((d) => d.nombre);
+    const existing = await this.colegioRepo.find({
+      where: { nombre: In(nombres) },
+      select: ['nombre'],
+    });
+    const existingSet = new Set(existing.map((c) => c.nombre));
+
+    const toCreate = data
+      .filter((d) => !existingSet.has(d.nombre))
+      .map((d) =>
+        this.colegioRepo.create({
+          nombre: truncate(d.nombre, 200),
+          link: truncate(d.link, 500),
+          email: d.email ?? '',
+        }),
+      );
+
+    let created: Colegio[] = [];
+    if (toCreate.length) {
+      created = await this.colegioRepo.save(toCreate);
     }
     try { await this.cache.del(`${this.CACHE_PREFIX}colegios`); } catch {}
-    return created;
+    return { created, skipped: data.length - created.length };
+  }
+
+  async deleteColegiosBulk(ids: string[]): Promise<{ deleted: number }> {
+    const result = await this.colegioRepo.delete({ id: In(ids) });
+    try { await this.cache.del(`${this.CACHE_PREFIX}colegios`); } catch {}
+    return { deleted: result.affected ?? 0 };
   }
 
   async exportColegios(): Promise<Colegio[]> {

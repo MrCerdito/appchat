@@ -404,9 +404,17 @@ export class SessionsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
   @HttpCode(HttpStatus.CREATED)
-  async importColegios(@Body() data: CreateColegioDto[]) {
+  async importColegios(@Body(new ValidationPipe({ whitelist: true, transform: false })) data: CreateColegioDto[]) {
     const results = await this.sessionsService.importColegios(data);
-    return { imported: results.length };
+    return { imported: results.created.length, skipped: results.skipped };
+  }
+
+  @Post('colegios/delete-bulk')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @HttpCode(HttpStatus.OK)
+  async deleteColegiosBulk(@Body() ids: string[]) {
+    return this.sessionsService.deleteColegiosBulk(ids);
   }
 
   @Get('colegios/export')
