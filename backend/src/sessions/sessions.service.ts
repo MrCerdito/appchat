@@ -695,7 +695,7 @@ export class SessionsService {
     const colegio = this.colegioRepo.create({
       nombre,
       link,
-      email: data.email ?? '',
+      email: data.email ? truncate(data.email, 200) : '',
     });
     const saved = await this.colegioRepo.save(colegio);
     try { await this.cache.del(`${this.CACHE_PREFIX}colegios`); } catch {}
@@ -716,7 +716,7 @@ export class SessionsService {
       }
     }
     if (data.link !== undefined) colegio.link = truncate(data.link, 500);
-    if (data.email !== undefined) colegio.email = data.email;
+    if (data.email !== undefined) colegio.email = data.email ? truncate(data.email, 200) : '';
 
     const saved = await this.colegioRepo.save(colegio);
     try { await this.cache.del(`${this.CACHE_PREFIX}colegios`); } catch {}
@@ -746,7 +746,7 @@ export class SessionsService {
         this.colegioRepo.create({
           nombre: truncate(d.nombre, 200),
           link: truncate(d.link, 500),
-          email: d.email ?? '',
+          email: d.email ? truncate(d.email, 200) : '',
         }),
       );
 

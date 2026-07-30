@@ -797,11 +797,12 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
         const vals = this.parseCsvLine(lines[i]);
         const nombre = trunc(vals[nIdx]?.trim() || '', 200);
         const link = trunc(vals[lIdx]?.trim() || '', 500);
+        const email = eIdx !== -1 ? vals[eIdx]?.trim() || undefined : undefined;
         if (nombre && link) {
           colegios.push({
             nombre,
             link,
-            email: eIdx !== -1 ? vals[eIdx]?.trim() || undefined : undefined,
+            email: email ? trunc(email, 200) : undefined,
           });
         }
       }

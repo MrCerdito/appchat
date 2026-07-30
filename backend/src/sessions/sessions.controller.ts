@@ -24,7 +24,7 @@ import { TicketsService } from '../tickets/tickets.service';
 import { Message } from '../chat/entities/message.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard, Roles } from '../auth/roles.guard';
-import { IsString, IsNotEmpty, Length, IsOptional, IsEmail } from 'class-validator';
+import { IsString, IsNotEmpty, Length, IsOptional, IsEmail, MaxLength } from 'class-validator';
 import { ChatGateway } from '../chat/chat.gateway';
 
 export class CreateSessionDto {
@@ -76,6 +76,7 @@ export class CreateColegioDto {
 
   @IsEmail()
   @IsOptional()
+  @MaxLength(200)
   email?: string;
 }
 
@@ -92,6 +93,7 @@ export class UpdateColegioDto {
 
   @IsEmail()
   @IsOptional()
+  @MaxLength(200)
   email?: string;
 }
 
