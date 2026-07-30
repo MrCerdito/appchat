@@ -129,8 +129,8 @@ export interface WaChatDto {
   assignmentMode?: WhatsappAssignmentMode;
   assignedTo?: string;
   assignedToName?: string;
-  fixedAdvisorId?: string;
-  fixedAdvisorName?: string;
+  fixedAdvisorId?: string | null;
+  fixedAdvisorName?: string | null;
   unread: number;
   preview: string;
   time: string;
@@ -3460,15 +3460,15 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       assignmentMode: chat.assignmentMode ?? undefined,
       assignedTo: assigned?.id,
       assignedToName: assigned?.name,
-      fixedAdvisorId: chat.fixedAdvisor?.id,
-      fixedAdvisorName: chat.fixedAdvisor?.name,
+      fixedAdvisorId: chat.fixedAdvisor?.id ?? null,
+      fixedAdvisorName: chat.fixedAdvisor?.name ?? null,
       unread: chat.unreadCount ?? 0,
       preview,
       time: this.formatTime(chat.lastMessageAt ?? chat.updatedAt),
       status: isClosed ? 'offline' : isWaiting ? 'away' : 'online',
       notes: chat.notes ?? [],
       quickReplies: await this.getQuickReplyTexts(),
-      lastClientMsg: chat.lastClientMessageAt ?? chat.updatedAt,
+      lastClientMsg: chat.lastMessageAt ?? chat.updatedAt,
       messages,
       priority: chat.priority ?? 'normal',
     };
@@ -3519,8 +3519,8 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       assignmentMode: chat.assignmentMode ?? undefined,
       assignedTo: assigned?.id,
       assignedToName: assigned?.name,
-      fixedAdvisorId: chat.fixedAdvisor?.id,
-      fixedAdvisorName: chat.fixedAdvisor?.name,
+      fixedAdvisorId: chat.fixedAdvisor?.id ?? null,
+      fixedAdvisorName: chat.fixedAdvisor?.name ?? null,
       unread: chat.unreadCount ?? 0,
       preview,
       time: this.formatTime(chat.lastMessageAt ?? chat.updatedAt),

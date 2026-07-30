@@ -49,8 +49,8 @@ export interface WaChat {
   assignmentMode?: 'auto' | 'manual' | 'admin' | 'fixed' | 'temporary';
   assignedTo?: string;
   assignedToName?: string;
-  fixedAdvisorId?: string;
-  fixedAdvisorName?: string;
+  fixedAdvisorId?: string | null;
+  fixedAdvisorName?: string | null;
   unread: number;
   preview: string;
   time: string;

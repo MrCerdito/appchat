@@ -73,6 +73,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private lunchInterval: ReturnType<typeof setInterval> | null = null;
   private destroy$ = new Subject<void>();
   private readonly STATUS_KEY = 'advisor_status';
+  private fixedAdvisorCache = new Map<string, string | null | undefined>();
 
   constructor(
     private socket: SocketService,
@@ -271,6 +272,29 @@ export class DashboardComponent implements OnInit, OnDestroy {
           `${event.chat?.name || 'Nuevo contacto'}\nEspera atencion en cola`,
           `wa-queue-${event.chat?.id || Date.now()}`,
         );
+      });
+
+    this.whatsapp.onChatUpdated()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(chat => {
+        if (chat.fixedAdvisorId === undefined) return;
+        const prev = this.fixedAdvisorCache.get(chat.id);
+        if (prev === chat.fixedAdvisorId) return;
+        this.fixedAdvisorCache.set(chat.id, chat.fixedAdvisorId);
+        if (chat.fixedAdvisorId === this.currentAdvisor?.id) {
+          this.sound.playWhatsappAssignment();
+          this.sound.notify(
+            'WHATSAPP',
+            `${chat.name}\nTe han fijado como asesor`,
+            `wa-fixed-${chat.id}`,
+          );
+        } else if (prev === this.currentAdvisor?.id && !chat.fixedAdvisorId) {
+          this.sound.notify(
+            'WHATSAPP',
+            `${chat.name}\nSe quito la fijacion de asesor`,
+            `wa-unfixed-${chat.id}`,
+          );
+        }
       });
 
     this.router.events
