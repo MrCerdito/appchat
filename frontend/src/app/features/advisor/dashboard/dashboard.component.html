@@ -233,8 +233,10 @@
                  [class.open]="teamPanelOpen"
                  (click)="toggleTeamPanel(); $event.stopPropagation()"
                  [title]="'Equipo — ' + allAdvisors.length + ' asesores'">
-              @for (adv of allAdvisors; track adv.advisorId) {
+              @for (adv of allAdvisors; track adv.advisorId; let i = $index) {
+                @if (i < maxVisibleCapsules) {
                 <div class="capsule" [class.capsule-self]="adv.advisorId === currentAdvisor?.id"
+                     [style.z-index]="maxVisibleCapsules - i"
                      [title]="adv.name + ' — ' + (adv.status === 'online' ? 'Disponible' : adv.status === 'busy' ? 'Ocupado' : 'Inactivo')">
                   <div class="capsule-ring"
                        [ngClass]="'ring-' + (adv.advisorId === currentAdvisor?.id && enAlmuerzo ? 'lunch' : adv.status)">
@@ -247,6 +249,15 @@
                     </div>
                   </div>
                 </div>
+                }
+              }
+              @if (allAdvisors.length > maxVisibleCapsules) {
+              <button class="capsule-badge"
+                      [class.open]="teamPanelOpen"
+                      (click)="toggleTeamPanel(); $event.stopPropagation()"
+                      [title]="hiddenAdvisorNames">
+                +{{ allAdvisors.length - maxVisibleCapsules }}<span class="capsule-badge-text"> asesores</span>
+              </button>
               }
             </div>
           </div>

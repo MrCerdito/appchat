@@ -668,8 +668,8 @@
 }
 
 .capsule-avatar {
-  width: 24px;
-  height: 24px;
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -686,12 +686,40 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
   display: block;
 }
 
 .capsule-initial {
   line-height: 1;
   text-transform: uppercase;
+}
+
+// ── Badge "+N asesores" (modo compacto <900px) ───────────────
+.capsule-badge {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 4px;
+  padding: 0 9px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1.5px solid var(--sidebar-border);
+  background: var(--sidebar-accent);
+  color: var(--sidebar-text);
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  &:hover, &.open { background: var(--sidebar-hover); color: var(--sidebar-text); }
+}
+
+.capsule-badge-text {
+  font-weight: 500;
+  opacity: 0.85;
 }
 
 // ── Team panel dropdown ────────────────────────────────────────
@@ -1003,10 +1031,13 @@
     border-width: 2px;
   }
   .capsule-avatar {
-    width: 18px;
-    height: 18px;
     font-size: 8px;
     font-weight: 700;
+  }
+  .capsule-badge {
+    height: 20px;
+    padding: 0 7px;
+    font-size: 0.55rem;
   }
 
   .topbar-divider { height: 24px; }
@@ -1065,10 +1096,15 @@
     border-width: 2px;
   }
   .capsule-avatar {
-    width: 14px;
-    height: 14px;
     font-size: 6px;
   }
+  .capsule-badge {
+    height: 18px;
+    padding: 0 6px;
+    font-size: 0.5rem;
+    margin-left: 3px;
+  }
+  .capsule-badge-text { display: none; }
 
   .topbar-metrics { gap: 8px; }
 

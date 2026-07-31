@@ -53,6 +53,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   allAdvisors: ConnectedAdvisor[] = [];
   teamPanelOpen = false;
+  compactTeamView = window.matchMedia('(max-width: 900px)').matches;
+
+  get maxVisibleCapsules(): number {
+    return this.compactTeamView ? 2 : this.allAdvisors.length;
+  }
+
+  get hiddenAdvisorNames(): string {
+    return this.allAdvisors.slice(2).map(a => a.name).join(', ');
+  }
 
   get otherAdvisors(): ConnectedAdvisor[] {
     return this.allAdvisors.filter(a => a.advisorId !== this.currentAdvisor?.id);
@@ -74,6 +83,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
   private readonly STATUS_KEY = 'advisor_status';
   private fixedAdvisorCache = new Map<string, string | null | undefined>();
+  private readonly teamBreakpoint = window.matchMedia('(max-width: 900px)');
+
+  private onTeamBreakpoint = (e: MediaQueryListEvent): void => {
+    this.compactTeamView = e.matches;
+    this.cdr.detectChanges();
+  };
 
   constructor(
     private socket: SocketService,
@@ -107,6 +122,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.registerSocketListeners();
     this.registerGlobalNotificationListeners();
     this.syncUnreadIndicators();
+    this.teamBreakpoint.addEventListener('change', this.onTeamBreakpoint);
     this.sessionService.findAdvisors().subscribe({
       next: (users) => {
         this.allAdvisors = users.map(u => ({
@@ -605,6 +621,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.destroy$.next();
     this.destroy$.complete();
     this.stopLunchCountdown();
+    this.teamBreakpoint.removeEventListener('change', this.onTeamBreakpoint);
     document.removeEventListener('visibilitychange', this.handleVisibilityChange);
   }
 }
