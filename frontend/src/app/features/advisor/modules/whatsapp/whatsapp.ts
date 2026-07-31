@@ -13,6 +13,11 @@ import { CommonModule, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { WaIconComponent } from '../../../../shared/components/wa-icon/wa-icon.component';
+import { VoicePlayerComponent } from '../../../../shared/components/voice-player/voice-player.component';
+import {
+  VoiceRecorderComponent,
+  VoiceRecordingResult,
+} from '../../../../shared/components/voice-recorder/voice-recorder.component';
 import { firstValueFrom, interval, Subscription, switchMap, timeout } from 'rxjs';
 
 import { AiService } from '../../../../core/services/ai.service';
@@ -95,7 +100,7 @@ interface MessageReactionGroup {
 @Component({
   selector: 'app-whatsapp-chat',
   standalone: true,
-  imports: [CommonModule, FormsModule, WaIconComponent, DecimalPipe, InternalChatPanelComponent],
+  imports: [CommonModule, FormsModule, WaIconComponent, DecimalPipe, InternalChatPanelComponent, VoicePlayerComponent, VoiceRecorderComponent],
   templateUrl: './whatsapp.html',
   styleUrl: './whatsapp.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -167,7 +172,6 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   selectedAudioDuration = 0;
   theme: WaTheme = 'dark';
   isRecordingAudio = false;
-  recordingSeconds = 0;
   sendError = '';
   newNote = '';
   aiInsightText = 'Analisis pendiente.';
@@ -269,6 +273,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   currentUserId = '';
   currentUserName = '';
   currentUserRole = '';
+  advisorPhotoUrl = '';
 
   chatMode: 'clients' | 'advisors' = 'clients';
   internalUnreadTotal = 0;
@@ -276,9 +281,6 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
 
   private shouldScroll = false;
   private toastTimer?: ReturnType<typeof setTimeout>;
-  private mediaRecorder?: MediaRecorder;
-  private recordingChunks: Blob[] = [];
-  private recordingTimer?: ReturnType<typeof setInterval>;
   private subs = new Subscription();
   private progressTimer: ReturnType<typeof setInterval> | null = null;
   private resizeObserver: ResizeObserver | null = null;
@@ -301,6 +303,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     this.currentUserId = user?.id || '';
     this.currentUserName = user?.name || '';
     this.currentUserRole = user?.role || '';
+    this.advisorPhotoUrl = user?.profilePhotoUrl || '';
     this.theme = this.themeService.currentTheme;
 
     this.subs.add(
@@ -443,8 +446,6 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     if (this.toastTimer) clearTimeout(this.toastTimer);
     if (this.closeReactionTimer) clearTimeout(this.closeReactionTimer);
     if (this.longPressTimer) clearTimeout(this.longPressTimer);
-    this.stopRecordingTimer();
-    this.mediaRecorder?.stream.getTracks().forEach(track => track.stop());
     this.clearSelectedFile();
   }
 
@@ -1349,7 +1350,7 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     this.resizeMessageInput();
 
     this.subs.add(
-      this.waService.sendMedia(this.addressForContact(contact), file, caption).subscribe({
+      this.waService.sendMedia(this.addressForContact(contact), file, caption, this.selectedAudioDuration).subscribe({
         next: (res) => {
           this.isSending = false;
           if (res.ok && res.chat) {
@@ -1452,76 +1453,25 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     return `${min}:${sec}`;
   }
 
-  async toggleAudioRecording(): Promise<void> {
-    if (this.isRecordingAudio) {
-      this.mediaRecorder?.stop();
-      return;
-    }
-    if (!this.canReply || this.isSending) return;
-
-    if (!navigator.mediaDevices?.getUserMedia) {
-      this.sendError = 'Este navegador no permite grabar audio.';
-      return;
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mimeType = this.pickRecordingMimeType();
-      this.mediaRecorder = new MediaRecorder(
-        stream,
-        mimeType ? { mimeType } : undefined,
-      );
-      this.recordingChunks = [];
-      this.recordingSeconds = 0;
-
-      this.mediaRecorder.ondataavailable = event => {
-        if (event.data.size > 0) this.recordingChunks.push(event.data);
-      };
-
-      this.mediaRecorder.onstop = () => {
-        const type = this.normalizeMimeType(this.mediaRecorder?.mimeType || mimeType || 'audio/webm');
-        const blob = new Blob(this.recordingChunks, { type });
-        const duration = this.recordingSeconds;
-        stream.getTracks().forEach(track => track.stop());
-        this.stopRecordingTimer();
-        this.isRecordingAudio = false;
-
-        if (!blob.size) {
-          this.sendError = 'No se pudo capturar audio.';
-          this.cdr.detectChanges();
-          return;
-        }
-
-        const file = new File(
-          [blob],
-          `nota-voz-${Date.now()}${this.extensionForMime(type)}`,
-          { type },
-        );
-        this.clearSelectedFile(false);
-        this.selectedFile = file;
-        this.selectedFileKind = 'audio';
-        this.selectedFilePreviewUrl = URL.createObjectURL(file);
-        this.selectedAudioDuration = duration;
-        this.sendError = '';
-        this.cdr.detectChanges();
-      };
-
-      this.mediaRecorder.start(250);
-      this.isRecordingAudio = true;
-      this.recordingTimer = setInterval(() => {
-        this.recordingSeconds += 1;
-        this.cdr.detectChanges();
-      }, 1000);
-    } catch {
-      this.sendError = 'No se pudo acceder al microfono.';
-      this.isRecordingAudio = false;
-      this.stopRecordingTimer();
-    }
+  onVoiceFileReady(result: VoiceRecordingResult): void {
+    if (!this.activeContact || !this.canReply || this.isSending) return;
+    this.clearSelectedFile(false);
+    this.selectedFile = result.file;
+    this.selectedFileKind = 'audio';
+    this.selectedFilePreviewUrl = URL.createObjectURL(result.file);
+    this.selectedAudioDuration = result.duration;
+    this.sendError = '';
+    this.sendMediaMessage();
   }
 
-  private stopRecordingTimer(): void {
-    if (this.recordingTimer) clearInterval(this.recordingTimer);
-    this.recordingTimer = undefined;
+  onVoiceRecordingChange(recording: boolean): void {
+    this.isRecordingAudio = recording;
+    this.cdr.detectChanges();
+  }
+
+  onVoiceError(message: string): void {
+    this.sendError = message;
+    this.cdr.detectChanges();
   }
 
   addNote(): void {
@@ -2233,6 +2183,11 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     return contact?.avatar || this.fallbackAvatar(contact?.name || contact?.phone || 'WhatsApp');
   }
 
+  voiceAvatar(contact?: WaChat, fromMe?: boolean): string {
+    if (fromMe) return this.advisorPhotoUrl || this.avatarSrc(contact);
+    return this.avatarSrc(contact);
+  }
+
   useFallbackAvatar(event: Event, contact?: WaChat): void {
     const img = event.target as HTMLImageElement;
     img.src = this.fallbackAvatar(contact?.name || contact?.phone || 'WhatsApp');
@@ -2311,17 +2266,6 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     const ext = this.extensionFromName(file.name);
     const expected = this.extensionForMime(mimeType);
     return !expected || !ext || ext === expected || this.isCompatibleExtension(mimeType, ext);
-  }
-
-  private pickRecordingMimeType(): string {
-    const options = [
-      'audio/ogg;codecs=opus',
-      'audio/webm;codecs=opus',
-      'audio/ogg',
-      'audio/webm',
-      'audio/mp4',
-    ];
-    return options.find(type => MediaRecorder.isTypeSupported(type)) ?? '';
   }
 
   private normalizeMimeType(value = ''): string {

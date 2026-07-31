@@ -431,7 +431,7 @@ export class InternalChatService implements OnModuleInit {
       .createQueryBuilder('m')
       .leftJoinAndSelect('m.sender', 'sender')
       .where('m.conversation_id = :conversationId', { conversationId })
-      .orderBy('m.created_at', 'DESC')
+      .orderBy('m.createdAt', 'DESC')
       .take(take);
     if (before) {
       qb.andWhere('m.created_at < :before', { before });

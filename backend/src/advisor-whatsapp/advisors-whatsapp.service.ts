@@ -1733,6 +1733,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     to: string,
     file: Express.Multer.File,
     caption = '',
+    seconds = 0,
   ): Promise<{ chat: WaChatDto; message: WaMessageDto }> {
     this.assertWhatsappUserRole(role);
     if (!file?.buffer?.length)
@@ -1761,6 +1762,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       cleanCaption,
       safeFileName,
       mimeType,
+      seconds,
     );
     const metaMessageId = result.messages?.[0]?.id ?? null;
     const mediaUrl = await this.saveLocalMedia(file);
@@ -2154,6 +2156,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     caption = '',
     fileName = '',
     mimeType = '',
+    seconds = 0,
   ) {
     const sock = await this.getReadySocket();
     const jid = this.normalizeTargetJid(to);
@@ -2173,6 +2176,9 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       payload.audio = buffer;
       payload.mimetype = mimeType || 'audio/ogg';
       payload.ptt = this.isVoiceNoteMime(payload.mimetype);
+      if (Number.isFinite(seconds) && seconds > 0) {
+        payload.seconds = Math.round(seconds);
+      }
     } else {
       payload.document = buffer;
       payload.mimetype = mimeType || 'application/octet-stream';

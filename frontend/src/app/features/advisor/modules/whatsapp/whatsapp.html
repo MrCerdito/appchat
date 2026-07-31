@@ -568,6 +568,7 @@
         }
         <div
           class="msg-bubble"
+          [class.voice-bubble]="msg.type === 'audio'"
           [class.ai-bubble]="msg.isAuto"
           [class.failed]="msg.status === 'failed'"
           [class.editing]="editingMessageId === msg.id"
@@ -605,10 +606,7 @@
                 <video class="media-video" [src]="mediaUrlFor(msg)" controls playsinline></video>
               }
               @case ('audio') {
-                <div class="voice-note" [class.out]="msg.fromMe">
-                  <wa-icon name="microphone"></wa-icon>
-                  <audio class="media-audio" [src]="mediaUrlFor(msg)" controls preload="metadata"></audio>
-                </div>
+                <wa-voice-player [src]="mediaUrlFor(msg)" [out]="msg.fromMe" [avatar]="voiceAvatar(contact, msg.fromMe)"></wa-voice-player>
               }
               @default {
                 <a
@@ -789,8 +787,7 @@
             }
             @case ('audio') {
               <div class="attachment-voice">
-                <wa-icon name="microphone"></wa-icon>
-                <audio [src]="selectedFilePreviewUrl" controls preload="metadata"></audio>
+                <wa-voice-player [src]="selectedFilePreviewUrl" [compact]="true"></wa-voice-player>
               </div>
             }
             @default {
@@ -807,13 +804,6 @@
         <button type="button" class="attachment-remove" (click)="clearSelectedFile()" title="Quitar archivo">
           <wa-icon name="x"></wa-icon>
         </button>
-      </div>
-      }
-
-      @if (isRecordingAudio) {
-      <div class="recording-strip">
-        <span></span>
-        Grabando audio {{ formatRecordingTime(recordingSeconds) }}
       </div>
       }
 
@@ -938,16 +928,12 @@
           >
             <wa-icon name="file-text"></wa-icon>
           </button>
-          <button
-            class="record-btn"
-            type="button"
-            (click)="toggleAudioRecording()"
-            [class.recording]="isRecordingAudio"
+          <wa-voice-recorder
             [disabled]="!canReply || isSending"
-            [title]="isRecordingAudio ? 'Detener grabacion' : 'Grabar audio'"
-          >
-            <wa-icon [name]="isRecordingAudio ? 'player-stop-filled' : 'microphone'"></wa-icon>
-          </button>
+            (fileReady)="onVoiceFileReady($event)"
+            (recordingChange)="onVoiceRecordingChange($event)"
+            (error)="onVoiceError($event)"
+          ></wa-voice-recorder>
         </div>
 
         <div class="input-box">

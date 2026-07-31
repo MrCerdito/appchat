@@ -1,0 +1,163 @@
+:host {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  color: inherit;
+}
+
+.vp {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+
+  .vp-avatar {
+    flex: 0 0 auto;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: var(--wa-surface-2, #e9edef);
+  }
+
+  .vp-btn {
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.55);
+    color: #111;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+    transition: transform 0.12s ease, background 0.12s ease;
+
+    svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    &:hover { background: rgba(255, 255, 255, 0.8); }
+    &:active { transform: scale(0.92); }
+    &:focus-visible { outline: 2px solid var(--wa-blue, #3b82f6); outline-offset: 2px; }
+  }
+
+  .vp-main {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .vp-track {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+    height: 30px;
+    touch-action: none;
+    cursor: pointer;
+    user-select: none;
+
+    &.dragging {
+      cursor: grabbing;
+
+      .vp-progress,
+      .vp-playhead {
+        transition: none;
+      }
+    }
+  }
+
+  .vp-wave {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+
+    .vp-bar {
+      flex: 1 1 0;
+      min-width: 2px;
+      border-radius: 1px;
+      background: #8696a0;
+      opacity: 0.85;
+    }
+  }
+
+  .vp-rail {
+    position: absolute;
+    left: 5px;
+    right: 5px;
+    top: 0;
+    bottom: 0;
+    pointer-events: none;
+  }
+
+  .vp-progress {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    height: 12px;
+    transform: translateY(-50%);
+    z-index: 1;
+    background-image: radial-gradient(circle, #a8b2ba 2px, transparent 2.4px);
+    background-size: 6px 6px;
+    background-position: 0 4px;
+    background-repeat: repeat-x;
+    transition: width 0.15s linear;
+  }
+
+  .vp-playhead {
+    position: absolute;
+    top: 50%;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--wa-blue, #3b82f6);
+    border: 2px solid #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    transform: translate(-50%, -50%);
+    z-index: 2;
+    transition: left 0.15s linear;
+  }
+
+  .vp-time {
+    font-size: 11px;
+    line-height: 1;
+    color: var(--wa-muted, #667781);
+    font-variant-numeric: tabular-nums;
+    padding-left: 2px;
+  }
+
+  &.compact {
+    gap: 6px;
+
+    .vp-avatar {
+      width: 30px;
+      height: 30px;
+    }
+
+    .vp-btn {
+      width: 30px;
+      height: 30px;
+
+      svg {
+        width: 17px;
+        height: 17px;
+      }
+    }
+
+    .vp-track {
+      height: 24px;
+    }
+
+    .vp-time { font-size: 10px; }
+  }
+}

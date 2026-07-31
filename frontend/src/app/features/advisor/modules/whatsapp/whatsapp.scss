@@ -795,6 +795,10 @@ a{text-decoration:none;color:inherit}
   p{margin:0; white-space:pre-wrap; overflow-wrap:anywhere; font-size:13.5px; line-height:1.5; color:inherit}
 }
 
+.msg-bubble.voice-bubble{
+  width:min(340px,100%); max-width:100%; min-width:0;
+}
+
 .ai-badge{display:inline-flex; gap:5px; margin-bottom:5px; color:var(--wa-purple); font-size:10px; font-weight:700}
 
 .bubble-meta{
@@ -817,13 +821,6 @@ a{text-decoration:none;color:inherit}
 .media-message{display:block; max-width:100%; margin-bottom:6px; overflow:hidden}
 .media-image{display:block; max-width:min(360px,100%); max-height:300px; width:auto; height:auto; border-radius:8px; object-fit:contain; background:var(--wa-bg); cursor:zoom-in}
 .media-video{display:block; max-width:min(360px,100%); max-height:280px; border-radius:8px; object-fit:contain; background:#000}
-.media-audio{width:min(300px,100%); min-width:210px}
-.voice-note{
-  display:flex; align-items:center; gap:10px; min-width:min(340px,100%); padding:9px 10px;
-  border:1px solid var(--wa-line); border-radius:8px; background:rgba(var(--wa-green-rgb),.08);
-  i{display:grid; place-items:center; width:32px; height:32px; flex:0 0 32px; border-radius:50%; background:rgba(var(--wa-green-rgb),.15); color:var(--wa-green)}
-  audio{flex:1}
-}
 .media-document,.media-placeholder{
   display:flex; align-items:center; gap:9px; min-width:min(300px,100%); padding:10px;
   border:1px solid var(--wa-line); border-radius:8px; background:rgba(var(--wa-blue-rgb),.08); color:var(--wa-text); text-decoration:none;
@@ -881,12 +878,11 @@ a{text-decoration:none;color:inherit}
 .composer-row{position:relative; display:flex; align-items:flex-end; gap:6px; padding:10px 14px 12px; min-width:0}
 .file-input{display:none}
 .attach-group{display:flex; align-items:flex-end; gap:4px}
-.attach-btn,.record-btn{
+.attach-btn{
   display:grid; place-items:center; width:36px; height:36px; flex:0 0 36px;
   border:1px solid var(--wa-line); border-radius:6px; background:var(--wa-input-bg); color:var(--wa-muted); cursor:pointer; font-size:16px;
   &:hover{color:var(--wa-green); border-color:rgba(var(--wa-green-rgb),.35); background:rgba(var(--wa-green-rgb),.08)}
   &:disabled{opacity:.4}
-  &.recording{border-color:rgba(var(--wa-red-rgb),.42); background:rgba(var(--wa-red-rgb),.12); color:var(--wa-red)}
 }
 .input-box{
   position:relative; flex:1; min-height:40px; padding:8px 12px;
@@ -919,15 +915,13 @@ a{text-decoration:none;color:inherit}
 .attachment-preview{
   display:grid; grid-template-columns:54px minmax(0,1fr) 32px; gap:10px; align-items:center;
   margin:8px 14px 0; padding:8px; border:1px solid var(--wa-line); border-radius:8px; background:var(--wa-input-bg);
-  &.audio-preview{grid-template-columns:minmax(210px,320px) minmax(0,1fr) 32px}
+  &.audio-preview{grid-template-columns:minmax(0,320px) minmax(0,1fr) 32px}
 }
 .attachment-media{display:grid; place-items:center; width:54px; height:44px; overflow:hidden; border-radius:6px; background:var(--wa-surface-3); color:var(--wa-blue); img,video{width:100%; height:100%; object-fit:cover}audio{width:50px}i{font-size:22px}}
 .attachment-preview.audio-preview .attachment-media{width:100%; height:auto; min-height:44px}
-.attachment-voice{display:flex; align-items:center; gap:8px; width:100%; i{color:var(--wa-green); font-size:18px}audio{width:100%}}
+.attachment-voice{display:flex; align-items:center; justify-content:center; gap:8px; width:100%}
 .attachment-info{min-width:0; strong,span{display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}strong{font-size:12px}span{margin-top:2px; color:var(--wa-faint); font:10px $mono}}
 .attachment-remove{display:grid; place-items:center; width:32px; height:32px; border-radius:6px; background:transparent; color:var(--wa-faint); cursor:pointer; border:0}
-
-.recording-strip{display:flex; align-items:center; gap:8px; margin:8px 14px 0; color:var(--wa-red); font-size:12px; font-weight:600; span{width:8px; height:8px; border-radius:50%; background:var(--wa-red); animation:waPulse 1s infinite}}
 
 .ai-suggestion-popup{margin:8px 14px 0; overflow:hidden; border:1px solid var(--wa-line); border-radius:8px; background:var(--wa-surface-3); box-shadow:0 8px 24px var(--wa-shadow);
   .ai-suggestion-header{display:flex; align-items:center; gap:8px; padding:10px 12px; border-bottom:1px solid var(--wa-line); i{color:var(--wa-purple); font-size:16px}span{flex:1; font-weight:600; font-size:12px}}

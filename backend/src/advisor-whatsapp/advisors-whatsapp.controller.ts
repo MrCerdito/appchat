@@ -632,7 +632,7 @@ export class AdvisorsWhatsappController {
   async sendMedia(
     @Req() req: Request & { user: any },
     @UploadedFile() file: Express.Multer.File,
-    @Body() body: { to: string; caption?: string },
+    @Body() body: { to: string; caption?: string; duration?: string },
   ) {
     if (!body.to || !file) {
       return { ok: false, error: 'Los campos "to" y "file" son obligatorios.' };
@@ -644,6 +644,7 @@ export class AdvisorsWhatsappController {
       body.to,
       file,
       body.caption ?? '',
+      Number(body.duration) || 0,
     );
     this.whatsappGateway.emitIncoming({
       chat: result.chat,

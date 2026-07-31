@@ -138,6 +138,36 @@ export class InternalChatService implements OnDestroy {
     this.markRead(conversationId).subscribe();
   }
 
+  pushOptimistic(conversationId: string, message: InternalMessage): void {
+    const existing = this.messagesByConversation.get(conversationId) ?? [];
+    if (existing.some(m => m.id === message.id)) return;
+    const updated = [...existing, { ...message, pending: true }];
+    this.messagesByConversation.set(conversationId, updated);
+    if (this.activeConversationId === conversationId) {
+      this.messages$.next(updated);
+    }
+  }
+
+  replaceOptimistic(conversationId: string, tempId: string, realMessage: InternalMessage): void {
+    const existing = this.messagesByConversation.get(conversationId) ?? [];
+    if (existing.some(m => m.id === realMessage.id)) {
+      const updated = existing.filter(m => m.id !== tempId);
+      this.messagesByConversation.set(conversationId, updated);
+      if (this.activeConversationId === conversationId) this.messages$.next(updated);
+      return;
+    }
+    const updated = existing.map(m => (m.id === tempId ? this.normalizeMessage(realMessage) : m));
+    this.messagesByConversation.set(conversationId, updated);
+    if (this.activeConversationId === conversationId) this.messages$.next(updated);
+  }
+
+  removeOptimistic(conversationId: string, tempId: string): void {
+    const existing = this.messagesByConversation.get(conversationId) ?? [];
+    const updated = existing.filter(m => m.id !== tempId);
+    this.messagesByConversation.set(conversationId, updated);
+    if (this.activeConversationId === conversationId) this.messages$.next(updated);
+  }
+
   loadConversations(): Observable<InternalConversation[]> {
     return this.http.get<InternalConversation[]>(`${this.apiUrl}/conversations`, { headers: this.headers() }).pipe(
       tap(list => this.applyConversations(list)),
@@ -197,7 +227,6 @@ export class InternalChatService implements OnDestroy {
       { body, ...(replyToMessageId ? { replyToMessageId } : {}) },
       { headers: this.headers() },
     ).pipe(
-      tap(message => this.appendMessage(conversationId, this.normalizeMessage(message))),
       catchError(() => of(null as unknown as InternalMessage)),
     );
   }
@@ -212,7 +241,6 @@ export class InternalChatService implements OnDestroy {
       form,
       { headers: this.headers() },
     ).pipe(
-      tap(message => this.appendMessage(conversationId, this.normalizeMessage(message))),
       catchError(() => of(null as unknown as InternalMessage)),
     );
   }

@@ -31,6 +31,7 @@ export interface InternalMessage {
   reactionEmoji: string | null;
   reactions: { userId: string; name: string; emoji: string }[];
   createdAt: Date;
+  pending?: boolean;
 }
 
 export interface InternalConversation {

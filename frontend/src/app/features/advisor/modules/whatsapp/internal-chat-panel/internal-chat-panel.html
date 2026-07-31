@@ -1,4 +1,4 @@
-<div class="ic-layout">
+<div class="ic-layout" [class.has-chat]="!!activeConversation">
 
   <aside class="ic-sidebar">
     <header class="ic-sidebar-header">
@@ -17,6 +17,16 @@
     </div>
 
     <div class="ic-list">
+      @if (isLoadingConversations && !conversations.length) {
+      <div class="ic-list-skeleton">
+        @for (i of [0, 1, 2, 3]; track i) {
+        <div class="ic-skeleton-item">
+          <span class="sk-avatar shimmer"></span>
+          <span class="sk-lines shimmer"></span>
+        </div>
+        }
+      </div>
+      } @else {
       @for (conv of filteredConversations; track conv.id) {
       <button type="button" class="ic-item" [class.active]="activeConversation?.id === conv.id" (click)="selectConversation(conv)">
         <div class="ic-avatar" [class.is-group]="conv.type === 'group'">
@@ -40,6 +50,7 @@
       }
       @if (!filteredConversations.length) {
       <div class="ic-empty-list">Sin conversaciones. Crea una para empezar.</div>
+      }
       }
     </div>
   </aside>
@@ -77,7 +88,16 @@
     </header>
 
     <section class="ic-messages" #icMessages>
-      @for (msg of messages; track msg.id) {
+      @if (isLoadingMessages && !messages.length) {
+      <div class="ic-msgs-skeleton">
+        @for (i of [0, 1, 2, 3, 4]; track i) {
+        <div class="sk-bubble shimmer" [class.out]="i % 2 === 1"></div>
+        }
+      </div>
+      } @else {
+      @for (group of groupedMessages(messages); track trackByIndex($index)) {
+      <div class="ic-date-sep"><span>{{ group.label }}</span></div>
+      @for (msg of group.messages; track msg.id) {
       <div class="ic-msg-row" [ngClass]="messageOwn(msg) ? 'out' : 'in'">
         @if (msg.type === 'system') {
         <div class="ic-system-line">{{ msg.body }}</div>
@@ -91,6 +111,8 @@
         } @else {
         <div
           class="ic-bubble"
+          [class.voice-bubble]="msg.type === 'audio'"
+          [class.pending]="!!msg.pending"
           [class.context-active]="contextMenu?.message?.id === msg.id"
           (contextmenu)="onContextMenu($event, msg)"
         >
@@ -113,10 +135,21 @@
 
           @if (msg.type === 'image' && msg.mediaUrl) {
           <img class="ic-media-image" [src]="msg.mediaUrl" [alt]="msg.mediaName || 'Imagen'" (click)="openImage(msg)" />
+          } @else if (msg.type === 'image') {
+          <div class="ic-media-image pending-img">
+            <wa-icon name="photo"></wa-icon>
+          </div>
           }
+
           @if (msg.type === 'audio' && msg.mediaUrl) {
-          <audio class="ic-media-audio" [src]="msg.mediaUrl" controls preload="metadata"></audio>
+          <wa-voice-player [src]="msg.mediaUrl" [out]="messageOwn(msg)" [avatar]="messageOwn(msg) ? advisorPhotoUrl : senderAvatar(msg)"></wa-voice-player>
+          } @else if (msg.type === 'audio') {
+          <div class="ic-file-voice">
+            <wa-icon name="microphone"></wa-icon>
+            <span>Nota de voz</span>
+          </div>
           }
+
           @if (msg.type === 'file' && msg.mediaUrl) {
           <a class="ic-media-file" [href]="msg.mediaUrl" target="_blank" rel="noopener noreferrer">
             <wa-icon name="file-text"></wa-icon>
@@ -125,6 +158,14 @@
             <em>{{ formatFileSize(msg.mediaSize) }}</em>
             }
           </a>
+          } @else if (msg.type === 'file') {
+          <div class="ic-media-file">
+            <wa-icon name="file-text"></wa-icon>
+            <span>{{ msg.mediaName || 'Archivo' }}</span>
+            @if (msg.mediaSize) {
+            <em>{{ formatFileSize(msg.mediaSize) }}</em>
+            }
+          </div>
           }
 
           @if (msg.body) {
@@ -132,7 +173,11 @@
           }
 
           <div class="ic-bubble-meta">
+            @if (msg.pending) {
+            <span class="ic-pending-label">Enviando...</span>
+            } @else {
             <span>{{ messageTime(msg) }}</span>
+            }
             @if (msg.editedAt) {
             <em>editado</em>
             }
@@ -161,7 +206,9 @@
         }
       </div>
       }
-      @if (!messages.length) {
+      }
+      }
+      @if (!messages.length && !isLoadingMessages) {
       <div class="ic-empty-msgs">Sin mensajes todavía. ¡Saluda!</div>
       }
     </section>
@@ -196,8 +243,12 @@
       }
       @if (selectedFileKind === 'audio') {
       <div class="ic-file-voice">
+        @if (selectedFilePreviewUrl) {
+        <wa-voice-player [src]="selectedFilePreviewUrl" [compact]="true"></wa-voice-player>
+        } @else {
         <wa-icon name="microphone"></wa-icon>
         <span>Nota de voz · {{ formatRecordingTime(selectedAudioDuration) }}</span>
+        }
       </div>
       }
       @if (selectedFileKind === 'file') {
@@ -214,12 +265,6 @@
     }
 
     <footer class="ic-input">
-      @if (isRecordingAudio) {
-      <div class="ic-recording-strip"><span></span> Grabando audio {{ formatRecordingTime(recordingSeconds) }}</div>
-      <button type="button" class="ic-mic-btn recording" (click)="toggleAudioRecording()" title="Detener">
-        <wa-icon name="player-stop-filled"></wa-icon>
-      </button>
-      } @else {
       <input #fileInput type="file" hidden (change)="onFileSelected($event, 'file')" />
       <input #imageInput type="file" accept="image/*" hidden (change)="onFileSelected($event, 'image')" />
       <button type="button" class="ic-attach-btn" (click)="fileInput.click()" title="Adjuntar archivo">
@@ -229,10 +274,12 @@
         <wa-icon name="photo"></wa-icon>
       </button>
       <textarea
+        #draftArea
         rows="1"
         placeholder="Escribe un mensaje"
         [(ngModel)]="draft"
         (keydown.enter)="onEnter($event)"
+        (input)="onTextInput($event)"
       ></textarea>
       @if (selectedFile) {
       <button type="button" class="ic-send-btn" (click)="confirmSendFile()" [disabled]="isSending">
@@ -243,10 +290,12 @@
         <wa-icon [name]="isSending ? 'loader-2' : 'send-2'"></wa-icon>
       </button>
       } @else {
-      <button type="button" class="ic-mic-btn" (click)="toggleAudioRecording()" title="Grabar nota de voz">
-        <wa-icon name="microphone"></wa-icon>
-      </button>
-      }
+      <wa-voice-recorder
+        [disabled]="isSending"
+        (fileReady)="onVoiceFileReady($event)"
+        (recordingChange)="isRecordingAudio = $event"
+        (error)="onVoiceError($event)"
+      ></wa-voice-recorder>
       }
     </footer>
     }
@@ -327,7 +376,7 @@
   }
 
   @if (contextMenu) {
-  <div class="ic-context" [style.left.px]="contextMenu.x" [style.top.px]="contextMenu.y">
+  <div class="ic-context" #icContext [style.left.px]="contextMenu.x" [style.top.px]="contextMenu.y">
     @if (!messageOwn(contextMenu.message)) {
     <button type="button" (click)="replyTo(contextMenu.message)">Responder</button>
     }

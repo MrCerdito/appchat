@@ -409,7 +409,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   private handleGlobalWhatsappMessage(message: AwNewMessage): void {
     if (message.fromMe) return;
-    this.sound.playCriticalMessage();
+    this.sound.playWhatsappAssignedMessage();
     const chat = this.whatsapp.getChatsSnapshot().find(item => item.id === message.chatId);
     this.sound.notify(
       'WHATSAPP',

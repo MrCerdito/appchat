@@ -15,6 +15,11 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { WaIconComponent } from '../../../../../shared/components/wa-icon/wa-icon.component';
+import { VoicePlayerComponent } from '../../../../../shared/components/voice-player/voice-player.component';
+import {
+  VoiceRecorderComponent,
+  VoiceRecordingResult,
+} from '../../../../../shared/components/voice-recorder/voice-recorder.component';
 import { AuthService } from '../../../../../core/services/auth.service';
 import { ThemeService } from '../../../../../core/services/theme.service';
 import { InternalChatService } from '../../../../../core/services/internal-chat.service';
@@ -22,10 +27,16 @@ import {
   InternalChatUser,
   InternalConversation,
   InternalMessage,
+  InternalMessageType,
 } from '../../../../../core/models/internal-chat.models';
 import { trackByIndex } from '../../../../../shared/utils/track-by';
 import { scrollToBottom as scrollToBottomEl } from '../../../../../shared/utils/scroll';
-import { formatBogotaTime } from '../../../../../shared/utils/date';
+import {
+  formatBogotaTime,
+  fmtDateMedium,
+  isTodayBogota,
+  isYesterdayBogota,
+} from '../../../../../shared/utils/date';
 
 type SelectedFileKind = 'image' | 'audio' | 'file' | null;
 
@@ -38,7 +49,7 @@ interface ContextMenuState {
 @Component({
   selector: 'app-internal-chat-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule, WaIconComponent],
+  imports: [CommonModule, FormsModule, WaIconComponent, VoicePlayerComponent, VoiceRecorderComponent],
   templateUrl: './internal-chat-panel.html',
   styleUrl: './internal-chat-panel.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -50,13 +61,20 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
   @Output() activeChange = new EventEmitter<boolean>();
 
   @ViewChild('icMessages') messagesContainer!: ElementRef;
+  @ViewChild('draftArea') draftArea?: ElementRef<HTMLTextAreaElement>;
+  @ViewChild('icContext') icContext?: ElementRef<HTMLDivElement>;
 
   conversations: InternalConversation[] = [];
   activeConversation: InternalConversation | null = null;
   messages: InternalMessage[] = [];
   advisors: InternalChatUser[] = [];
   currentUserId = '';
+  currentUserName = '';
   currentUserRole = '';
+  advisorPhotoUrl = '';
+
+  isLoadingConversations = true;
+  isLoadingMessages = false;
 
   searchQuery = '';
   showNewChat = false;
@@ -75,10 +93,6 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
   selectedAudioDuration = 0;
 
   isRecordingAudio = false;
-  recordingSeconds = 0;
-  private mediaRecorder?: MediaRecorder;
-  private recordingChunks: Blob[] = [];
-  private recordingTimer?: ReturnType<typeof setInterval>;
 
   contextMenu: ContextMenuState | null = null;
   showReactionsForId: string | null = null;
@@ -94,6 +108,8 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
 
   private subs = new Subscription();
   private shouldScroll = false;
+  private forceScrollToBottom = false;
+  private lastMsgId = '';
 
   constructor(
     private readonly internalChat: InternalChatService,
@@ -105,7 +121,9 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
   ngOnInit(): void {
     const user = this.authService.getUser();
     this.currentUserId = user?.id || '';
+    this.currentUserName = user?.name || '';
     this.currentUserRole = user?.role || '';
+    this.advisorPhotoUrl = user?.profilePhotoUrl || '';
 
     this.internalChat.connect();
 
@@ -118,7 +136,10 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
     this.subs.add(
       this.internalChat.getMessagesStream().subscribe(list => {
         this.messages = list;
-        this.shouldScroll = true;
+        if (list.length) this.isLoadingMessages = false;
+        const last = list.length ? list[list.length - 1] : null;
+        if (last && last.id !== this.lastMsgId) this.shouldScroll = true;
+        this.lastMsgId = last?.id ?? '';
         this.cdr.detectChanges();
       }),
     );
@@ -135,13 +156,37 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
     );
 
     this.internalChat.loadAdvisors().subscribe();
-    this.internalChat.loadConversations().subscribe();
+    this.internalChat.loadConversations().subscribe({
+      complete: () => {
+        this.isLoadingConversations = false;
+        this.cdr.detectChanges();
+      },
+    });
   }
 
   ngAfterViewChecked(): void {
-    if (!this.shouldScroll || !this.messagesContainer) return;
+    if (!this.messagesContainer) return;
+    const list = this.messages;
+    const last = list.length ? list[list.length - 1] : null;
+    if (!last) return;
+    if (this.forceScrollToBottom) {
+      this.forceScrollToBottom = false;
+      this.shouldScroll = false;
+      scrollToBottomEl(this.messagesContainer.nativeElement, { smooth: true });
+      return;
+    }
+    if (!this.shouldScroll) return;
     this.shouldScroll = false;
-    scrollToBottomEl(this.messagesContainer.nativeElement);
+    const isOwn = last.pending || last.senderId === this.currentUserId;
+    if (isOwn || this.isNearBottom()) {
+      scrollToBottomEl(this.messagesContainer.nativeElement, { smooth: true });
+    }
+  }
+
+  private isNearBottom(): boolean {
+    const el = this.messagesContainer?.nativeElement;
+    if (!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 160;
   }
 
   get filteredConversations(): InternalConversation[] {
@@ -205,9 +250,17 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
     this.editingMessage = null;
     this.errorMessage = '';
     this.activeChange.emit(true);
+    this.forceScrollToBottom = true;
     this.internalChat.setActiveConversation(conv.id);
-    this.internalChat.loadMessages(conv.id).subscribe();
+    this.isLoadingMessages = true;
+    this.messages = [];
     this.cdr.detectChanges();
+    this.internalChat.loadMessages(conv.id).subscribe({
+      complete: () => {
+        this.isLoadingMessages = false;
+        this.cdr.detectChanges();
+      },
+    });
   }
 
   backToList(): void {
@@ -268,11 +321,21 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
     const text = this.draft.trim();
     if (!text) return;
     this.isSending = true;
-    this.internalChat.sendText(this.activeConversation.id, text, this.replyToMessage?.id).subscribe(() => {
+    const convId = this.activeConversation.id;
+    const replyId = this.replyToMessage?.id ?? null;
+    const temp = this.buildTempMessage(convId, text, 'text', replyId);
+    this.internalChat.pushOptimistic(convId, temp);
+    this.draft = '';
+    this.replyToMessage = null;
+    this.resetDraftHeight();
+    this.internalChat.sendText(convId, text, replyId).subscribe(res => {
       this.isSending = false;
-      this.draft = '';
-      this.replyToMessage = null;
-      this.shouldScroll = true;
+      if (res?.id) {
+        this.internalChat.replaceOptimistic(convId, temp.id, res);
+      } else {
+        this.internalChat.removeOptimistic(convId, temp.id);
+        this.errorMessage = 'No se pudo enviar el mensaje.';
+      }
       this.cdr.detectChanges();
     });
   }
@@ -288,7 +351,7 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
   private setSelectedFile(file: File, kind: 'image' | 'audio' | 'file'): void {
     this.selectedFile = file;
     this.selectedFileKind = kind;
-    this.selectedFilePreviewUrl = kind === 'image' ? URL.createObjectURL(file) : '';
+    this.selectedFilePreviewUrl = kind === 'image' || kind === 'audio' ? URL.createObjectURL(file) : '';
     this.errorMessage = '';
     this.cdr.detectChanges();
   }
@@ -296,111 +359,52 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
   confirmSendFile(): void {
     if (!this.activeConversation || !this.selectedFile || this.isSending) return;
     this.isSending = true;
-    this.internalChat.sendMedia(
-      this.activeConversation.id,
-      this.selectedFile,
-      '',
-      this.replyToMessage?.id,
-    ).subscribe(() => {
+    const convId = this.activeConversation.id;
+    const replyId = this.replyToMessage?.id ?? null;
+    const file = this.selectedFile;
+    const previewUrl = this.selectedFilePreviewUrl;
+    const kind = this.selectedFileKind ?? 'file';
+    const type: InternalMessageType = kind === 'image' ? 'image' : kind === 'audio' ? 'audio' : 'file';
+    const temp = this.buildTempMessage(convId, '', type, replyId);
+    temp.mediaName = file.name;
+    temp.mediaSize = file.size;
+    if (kind === 'image') temp.mediaUrl = previewUrl || null;
+    this.internalChat.pushOptimistic(convId, temp);
+    this.clearSelectedFile();
+    this.replyToMessage = null;
+    this.internalChat.sendMedia(convId, file, '', replyId).subscribe(res => {
       this.isSending = false;
-      this.clearSelectedFile();
-      this.replyToMessage = null;
-      this.shouldScroll = true;
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      if (res?.id) {
+        this.internalChat.replaceOptimistic(convId, temp.id, res);
+      } else {
+        this.internalChat.removeOptimistic(convId, temp.id);
+        this.errorMessage = 'No se pudo enviar el archivo.';
+      }
       this.cdr.detectChanges();
     });
   }
 
   clearSelectedFile(): void {
+    if (this.selectedFilePreviewUrl) {
+      URL.revokeObjectURL(this.selectedFilePreviewUrl);
+    }
     this.selectedFile = null;
     this.selectedFileKind = null;
     this.selectedFilePreviewUrl = '';
     this.selectedAudioDuration = 0;
   }
 
-  async toggleAudioRecording(): Promise<void> {
-    if (this.isRecordingAudio) {
-      this.mediaRecorder?.stop();
-      return;
-    }
+  onVoiceFileReady(result: VoiceRecordingResult): void {
     if (this.isSending) return;
-    if (!navigator.mediaDevices?.getUserMedia) {
-      this.errorMessage = 'Este navegador no permite grabar audio.';
-      this.cdr.detectChanges();
-      return;
-    }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mimeType = this.pickRecordingMimeType();
-      this.mediaRecorder = new MediaRecorder(
-        stream,
-        mimeType ? { mimeType } : undefined,
-      );
-      this.recordingChunks = [];
-      this.recordingSeconds = 0;
-
-      this.mediaRecorder.ondataavailable = event => {
-        if (event.data.size > 0) this.recordingChunks.push(event.data);
-      };
-
-      this.mediaRecorder.onstop = () => {
-        const type = this.normalizeMimeType(this.mediaRecorder?.mimeType || mimeType || 'audio/webm');
-        const blob = new Blob(this.recordingChunks, { type });
-        const duration = this.recordingSeconds;
-        stream.getTracks().forEach(track => track.stop());
-        this.stopRecordingTimer();
-        this.isRecordingAudio = false;
-        if (!blob.size) {
-          this.errorMessage = 'No se pudo capturar audio.';
-          this.cdr.detectChanges();
-          return;
-        }
-        const file = new File(
-          [blob],
-          `nota-voz-${Date.now()}${this.extensionForMime(type)}`,
-          { type },
-        );
-        this.selectedAudioDuration = duration;
-        this.setSelectedFile(file, 'audio');
-      };
-
-      this.mediaRecorder.start(250);
-      this.isRecordingAudio = true;
-      this.recordingTimer = setInterval(() => {
-        this.recordingSeconds += 1;
-        this.cdr.detectChanges();
-      }, 1000);
-    } catch {
-      this.errorMessage = 'No se pudo acceder al microfono.';
-      this.isRecordingAudio = false;
-      this.stopRecordingTimer();
-      this.cdr.detectChanges();
-    }
+    this.setSelectedFile(result.file, 'audio');
+    this.selectedAudioDuration = result.duration;
+    this.confirmSendFile();
   }
 
-  private pickRecordingMimeType(): string {
-    const options = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
-    return options.find(t => MediaRecorder.isTypeSupported(t)) ?? '';
-  }
-
-  private normalizeMimeType(mimeType = ''): string {
-    return mimeType.toLowerCase().split(';')[0].trim();
-  }
-
-  private extensionForMime(mimeType: string): string {
-    const map: Record<string, string> = {
-      'audio/webm': '.webm',
-      'audio/ogg': '.ogg',
-      'audio/opus': '.ogg',
-      'audio/mp4': '.m4a',
-      'audio/mpeg': '.mp3',
-      'audio/aac': '.aac',
-    };
-    return map[this.normalizeMimeType(mimeType)] || '.webm';
-  }
-
-  private stopRecordingTimer(): void {
-    if (this.recordingTimer) clearInterval(this.recordingTimer);
-    this.recordingTimer = undefined;
+  onVoiceError(message: string): void {
+    this.errorMessage = message;
+    this.cdr.detectChanges();
   }
 
   formatRecordingTime(seconds: number): string {
@@ -411,6 +415,11 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
 
   messageOwn(msg: InternalMessage): boolean {
     return msg.senderId === this.currentUserId;
+  }
+
+  senderAvatar(msg: InternalMessage): string {
+    const member = this.activeConversation?.members.find(m => m.id === msg.senderId);
+    return member?.profilePhotoUrl || '';
   }
 
   messageTime(msg: InternalMessage): string {
@@ -428,6 +437,73 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
     if (!size) return '';
     if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`;
     return `${(size / 1024 / 1024).toFixed(1)} MB`;
+  }
+
+  groupedMessages(list: InternalMessage[]): { label: string; messages: InternalMessage[] }[] {
+    const groups: { label: string; messages: InternalMessage[] }[] = [];
+    let currentLabel = '';
+    let current: InternalMessage[] = [];
+    for (const msg of list) {
+      const label = this.dateLabel(new Date(msg.createdAt));
+      if (label !== currentLabel) {
+        if (current.length) groups.push({ label: currentLabel, messages: current });
+        currentLabel = label;
+        current = [];
+      }
+      current.push(msg);
+    }
+    if (current.length) groups.push({ label: currentLabel, messages: current });
+    return groups;
+  }
+
+  private dateLabel(date: Date): string {
+    const iso = date.toISOString();
+    if (isTodayBogota(iso)) return 'Hoy';
+    if (isYesterdayBogota(iso)) return 'Ayer';
+    return fmtDateMedium(date);
+  }
+
+  private resetDraftHeight(): void {
+    if (this.draftArea) this.draftArea.nativeElement.style.height = 'auto';
+  }
+
+  private buildTempMessage(
+    conversationId: string,
+    body: string,
+    type: InternalMessageType,
+    replyId: string | null,
+  ): InternalMessage {
+    return {
+      id: `pending-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      conversationId,
+      senderId: this.currentUserId,
+      senderName: this.currentUserName || 'Tú',
+      senderRole: this.currentUserRole,
+      body,
+      type,
+      mediaUrl: null,
+      mediaMimeType: null,
+      mediaName: null,
+      mediaSize: null,
+      durationMs: null,
+      mediaWidth: null,
+      mediaHeight: null,
+      editedAt: null,
+      deletedAt: null,
+      replyToMessageId: replyId,
+      isForwarded: false,
+      reactionToMessageId: null,
+      reactionEmoji: null,
+      reactions: [],
+      createdAt: new Date(),
+      pending: true,
+    };
+  }
+
+  onTextInput(event: Event): void {
+    const el = event.target as HTMLTextAreaElement;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 132)}px`;
   }
 
   quotePreview(msg: InternalMessage): string {
@@ -551,6 +627,23 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
     if (msg.type === 'system' || msg.deletedAt) return;
     this.contextMenu = { message: msg, x: event.clientX, y: event.clientY };
     this.cdr.detectChanges();
+    requestAnimationFrame(() => this.clampContextMenu());
+  }
+
+  private clampContextMenu(): void {
+    const menu = this.icContext?.nativeElement;
+    if (!menu || !this.contextMenu) return;
+    const rect = menu.getBoundingClientRect();
+    const margin = 8;
+    let { x, y } = this.contextMenu;
+    if (rect.right > window.innerWidth - margin) x -= rect.right - window.innerWidth + margin;
+    if (rect.bottom > window.innerHeight - margin) y -= rect.bottom - window.innerHeight + margin;
+    x = Math.max(margin, x);
+    y = Math.max(margin, y);
+    if (x !== this.contextMenu.x || y !== this.contextMenu.y) {
+      this.contextMenu = { ...this.contextMenu, x, y };
+      this.cdr.detectChanges();
+    }
   }
 
   closeContextMenu(): void {
@@ -576,9 +669,5 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
 
   ngOnDestroy(): void {
     this.subs.unsubscribe();
-    this.stopRecordingTimer();
-    if (this.mediaRecorder?.state === 'recording') {
-      this.mediaRecorder.stop();
-    }
   }
 }

@@ -95,9 +95,6 @@
           <path d="M16.02 3C9.39 3 4 8.39 4 15.02c0 2.63.86 5.07 2.32 7.05L5 29l7.12-1.87c1.92 1.05 4.1 1.64 6.42 1.64 6.63 0 12.02-5.39 12.02-12.02C30.56 8.39 25.65 3 19.02 3h-3z"/>
         </svg>
         <span>Whatsapp</span>
-        @if (whatsappUnreadCount > 0) {
-        <span class="nav-badge">{{ whatsappUnreadCount }}</span>
-        }
       </a>
 
       <!-- Gestión -->
@@ -314,7 +311,8 @@
               stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
             </svg>
-            <span class="metric-value" [class.metric-zero]="whatsappUnreadCount === 0">{{ whatsappUnreadCount }}</span>
+            <span class="metric-value" [class.metric-zero]="whatsappUnreadCount === 0"
+              [class.whatsapp-has-unread]="whatsappUnreadCount > 0">{{ whatsappUnreadCount }}</span>
             <span class="metric-label">WhatsApp</span>
           </div>
         </div>

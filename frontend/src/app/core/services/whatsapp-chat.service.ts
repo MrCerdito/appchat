@@ -308,11 +308,13 @@ export class WhatsappChatService implements OnDestroy {
     to: string,
     file: File,
     caption = '',
+    duration?: number,
   ): Observable<{ ok: boolean; messageId?: string; chat?: WaChat }> {
     const form = new FormData();
     form.append('to', to);
     form.append('file', file);
     if (caption.trim()) form.append('caption', caption.trim());
+    if (duration && duration > 0) form.append('duration', String(duration));
 
     return this.http.post<{ ok: boolean; messageId?: string; chat?: WaChat }>(
       `${this.apiUrl}/send-media`,

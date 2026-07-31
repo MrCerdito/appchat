@@ -1,0 +1,67 @@
+@if (recording) {
+<div class="vr-bar" [class.paused]="paused">
+  <span class="vr-dot" [class.paused]="paused"></span>
+  <span class="vr-time">{{ formatTime(seconds) }}</span>
+  <button
+    type="button"
+    class="vr-cancel"
+    (click)="cancel()"
+    [attr.aria-label]="'Cancelar grabación'"
+    title="Eliminar"
+  >
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M9 3v1H4a1 1 0 0 0 0 2h1v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6h1a1 1 0 1 0 0-2h-5V3a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1zm2 1h2v1h-2V4zM7 6h10v13H7V6zm2 2v9h2V8H9zm4 0v9h2V8h-2z" />
+    </svg>
+  </button>
+  <span class="vr-wave">
+    @for (bar of bars; track $index) {
+    <span class="vr-wave-bar" [style.height.%]="bar * 100"></span>
+    }
+  </span>
+  @if (canPause) {
+  <button
+    type="button"
+    class="vr-pause"
+    (click)="togglePause()"
+    [attr.aria-label]="paused ? 'Reanudar grabación' : 'Pausar grabación'"
+    [title]="paused ? 'Reanudar' : 'Pausar'"
+  >
+    @if (paused) {
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86a1 1 0 0 0-1.5.86z" />
+    </svg>
+    } @else {
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <rect x="6" y="5" width="4" height="14" rx="1.2" />
+      <rect x="14" y="5" width="4" height="14" rx="1.2" />
+    </svg>
+    }
+  </button>
+  }
+  <button
+    type="button"
+    class="vr-send"
+    (click)="sendNow()"
+    [attr.aria-label]="'Enviar nota de voz'"
+    title="Enviar"
+  >
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M3.4 20.4l17.45-7.48a1 1 0 0 0 0-1.84L3.4 3.6a.993.993 0 0 0-1.39.91L2 9.12c0 .5.37.93.87.99L17 12 2.87 13.88c-.5.07-.87.5-.87 1l.01 4.61c0 .71.73 1.2 1.39.91z" />
+    </svg>
+  </button>
+</div>
+} @else {
+<button
+  type="button"
+  class="vr-mic"
+  (click)="start()"
+  [disabled]="disabled"
+  [attr.aria-label]="'Grabar nota de voz'"
+  title="Grabar nota de voz"
+>
+  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3z" />
+    <path d="M17 11a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z" />
+  </svg>
+</button>
+}

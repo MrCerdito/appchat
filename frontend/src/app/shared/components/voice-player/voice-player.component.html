@@ -1,0 +1,60 @@
+<div class="vp" [class.out]="out" [class.compact]="compact" [class.playing]="playing">
+  @if (avatar && !avatarFailed) {
+  <img class="vp-avatar" [src]="avatar" [alt]="''" (error)="onAvatarError()" />
+  }
+
+  <button
+    type="button"
+    class="vp-btn"
+    (click)="toggle()"
+    [attr.aria-label]="playing ? 'Pausar nota de voz' : 'Reproducir nota de voz'"
+    [title]="playing ? 'Pausar' : 'Reproducir'"
+  >
+    @if (playing) {
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <rect x="6" y="5" width="4" height="14" rx="1.2" />
+      <rect x="14" y="5" width="4" height="14" rx="1.2" />
+    </svg>
+    } @else {
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86a1 1 0 0 0-1.5.86z" />
+    </svg>
+    }
+  </button>
+
+  <div class="vp-main">
+    <div
+      #track
+      class="vp-track"
+      [class.dragging]="dragging"
+      (pointerdown)="onSeekStart($event)"
+      (pointermove)="onSeekMove($event)"
+      (pointerup)="onSeekEnd($event)"
+      (pointercancel)="onSeekEnd($event)"
+    >
+      <div class="vp-wave">
+        @for (peak of peaks; track $index) {
+        <span
+          class="vp-bar"
+          [style.height.%]="peak * 100"
+        ></span>
+        }
+      </div>
+      <div class="vp-rail">
+        <div class="vp-progress" [style.width.%]="progress * 100"></div>
+        <span class="vp-playhead" [style.left.%]="progress * 100"></span>
+      </div>
+    </div>
+    <span class="vp-time">{{ formatTime(elapsed) }}</span>
+  </div>
+
+  <audio
+    #audio
+    hidden
+    [src]="src"
+    preload="metadata"
+    (loadedmetadata)="onLoadedMetadata()"
+    (timeupdate)="onTimeUpdate()"
+    (ended)="onEnded()"
+  ></audio>
+</div>

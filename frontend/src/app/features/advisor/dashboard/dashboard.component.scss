@@ -982,6 +982,17 @@
   font-weight: 500;
 }
 
+.metric-value.whatsapp-has-unread {
+  color: #25d366;
+  text-shadow: 0 0 14px rgba(37, 211, 102, 0.45);
+  animation: whatsapp-unread-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes whatsapp-unread-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.18); opacity: 0.75; }
+}
+
 // ── Responsive: degradación gradual del topbar ────────────────
 // Sincronizado con breakpoints del sidebar de chats/WhatsApp
 // 1024px → chat narrows panel
@@ -1105,7 +1116,7 @@
 
   .topbar-metrics { gap: 8px; }
 
-  .metric-item:last-child { display: none; }
+  .metric-item:first-child { display: none; }
 
   .metric-icon { width: 15px; height: 15px; }
   .metric-value { font-size: 0.78rem; min-width: 10px; }
