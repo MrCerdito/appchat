@@ -1,6 +1,5 @@
 ARG API_URL=/agora
 ARG WS_URL=
-ARG API_KEY=token2025
 
 FROM node:20-alpine AS builder
 RUN corepack enable && corepack prepare pnpm@9.15.9 --activate

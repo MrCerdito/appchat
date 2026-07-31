@@ -7,7 +7,7 @@ cat > "$CONFIG_FILE" <<EOF
 window.__ENV__ = {
   apiUrl: '${API_URL:-/agora}',
   wsUrl: '${WS_URL:-}',
-  apiKey: '${API_KEY:-token2025}',
+  apiKey: '${API_KEY:-}',
 };
 EOF
 
