@@ -32,12 +32,18 @@ export class ConfiguracionComponent implements OnInit, OnDestroy {
   tab: 'bienvenida' | 'asesor' | 'cliente' | 'almuerzo' | 'respuestas' = 'bienvenida';
   diaSeleccionado: number | null = null;
 
-  quickReplies: Array<{ name: string; content: string }> = [];
+  quickReplies: Array<{ id: string; name: string; content: string }> = [];
   editingReplyIdx: number | null = null;
   activeTextarea: HTMLTextAreaElement | null = null;
   showLinkModal = false;
   linkName = '';
   linkUrl = '';
+  qrSearch = '';
+  qrPage = 1;
+  qrPageSize = 10;
+  qrSelectedIds: Set<string> = new Set();
+  qrDeletingBulk = false;
+  pageSizeOptions = [10, 25, 50, 100];
 
   readonly placeholderBienvenida = 'Hola, soy {{asesor}}, en que puedo ayudarte?';
 
@@ -223,39 +229,251 @@ export class ConfiguracionComponent implements OnInit, OnDestroy {
   }
 
   initQuickRepliesFromConfig(): void {
-    this.svc.getQuickRepliesConfig().subscribe({
+    this.refreshQuickReplies();
+  }
+
+  private refreshQuickReplies(): void {
+    this.svc.getQuickRepliesConfig().pipe(takeUntil(this.destroy$)).subscribe({
       next: (quickReplies) => {
         this.quickReplies = this.normalizeQuickReplies(quickReplies);
+        this.qrSelectedIds.clear();
+        this.qrPage = 1;
+        this.cdr.detectChanges();
+      },
+      error: () => this.cdr.detectChanges(),
+    });
+  }
+
+  exportarQuickRepliesCsv(): void {
+    this.svc.exportQuickRepliesCsv().pipe(takeUntil(this.destroy$)).subscribe({
+      next: (blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'respuestas-rapidas.csv';
+        a.click();
+        window.URL.revokeObjectURL(url);
+      },
+      error: () => this.notification.error('Error', 'No se pudo exportar las respuestas rápidas'),
+    });
+  }
+
+  importarQuickRepliesCsv(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files?.length) return;
+    const file = input.files[0];
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const buf = reader.result as ArrayBuffer;
+      let csv: string;
+      try {
+        csv = new TextDecoder('utf-8', { fatal: true }).decode(buf);
+      } catch {
+        csv = new TextDecoder('windows-1252').decode(buf);
+      }
+      csv = csv.replace(/^\uFEFF/, '');
+      const lines = csv.split('\n').filter(l => l.trim());
+      if (lines.length < 2) {
+        this.notification.error('Error', 'El CSV está vacío');
+        input.value = '';
+        return;
+      }
+
+      const header = lines[0].toLowerCase();
+      const cols = header.split(';').map((c: string) => c.trim().replace(/"/g, ''));
+      const nIdx = cols.indexOf('name');
+      const cIdx = cols.indexOf('content');
+
+      if (nIdx === -1 || cIdx === -1) {
+        this.notification.error('Error', 'El CSV debe tener columnas "name" y "content"');
+        input.value = '';
+        return;
+      }
+
+      const items: { name: string; content: string }[] = [];
+      for (let i = 1; i < lines.length; i++) {
+        const vals = this.parseCsvLine(lines[i]);
+        const name = vals[nIdx]?.trim().slice(0, 60);
+        const content = vals[cIdx]?.trim().slice(0, 500);
+        if (name && content) {
+          items.push({ name, content });
+        }
+      }
+
+      if (!items.length) {
+        this.notification.error('Error', 'No se encontraron datos válidos en el CSV');
+        input.value = '';
+        return;
+      }
+
+      this.svc.importBulkQuickReplies(items).pipe(takeUntil(this.destroy$)).subscribe({
+        next: (res) => {
+          const msg = `${res.imported} respuesta${res.imported === 1 ? '' : 's'} importada${res.imported === 1 ? '' : 's'}${res.skipped ? ` (${res.skipped} omitida${res.skipped === 1 ? '' : 's'} por duplicado)` : ''}`;
+          this.notification.success('Importación completa', msg);
+          input.value = '';
+          this.refreshQuickReplies();
+        },
+        error: (err) => {
+          this.notification.error('Error', err.error?.message || 'No se pudo importar');
+          input.value = '';
+        },
+      });
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  private parseCsvLine(line: string): string[] {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    for (const ch of line) {
+      if (ch === '"') { inQuotes = !inQuotes; continue; }
+      if (ch === ';' && !inQuotes) { result.push(current); current = ''; continue; }
+      current += ch;
+    }
+    result.push(current);
+    return result;
+  }
+
+  get quickRepliesFiltrados(): Array<{ id: string; name: string; content: string }> {
+    const q = this.qrSearch.trim().toLowerCase();
+    if (!q) return this.quickReplies;
+    return this.quickReplies.filter(r =>
+      r.name.toLowerCase().includes(q) || r.content.toLowerCase().includes(q)
+    );
+  }
+
+  get paginatedQuickReplies(): Array<{ id: string; name: string; content: string }> {
+    const start = (this.qrPage - 1) * this.qrPageSize;
+    return this.quickRepliesFiltrados.slice(start, start + this.qrPageSize);
+  }
+
+  get totalQrPages(): number {
+    return Math.ceil(this.quickRepliesFiltrados.length / this.qrPageSize);
+  }
+
+  qrPageRange(): number[] {
+    const total = this.totalQrPages;
+    const current = this.qrPage;
+    const range: number[] = [];
+    let start = Math.max(1, current - 2);
+    let end = Math.min(total, current + 2);
+    if (end - start < 4) {
+      if (start === 1) end = Math.min(total, start + 4);
+      else start = Math.max(1, end - 4);
+    }
+    for (let i = start; i <= end; i++) range.push(i);
+    return range;
+  }
+
+  setQrPage(page: number): void {
+    if (page < 1 || page > this.totalQrPages) return;
+    this.qrPage = page;
+    this.cdr.detectChanges();
+  }
+
+  onQrPageSizeChange(size: number): void {
+    this.qrPageSize = size;
+    this.qrPage = 1;
+    this.cdr.detectChanges();
+  }
+
+  toggleQrSelection(id: string): void {
+    if (this.qrSelectedIds.has(id)) {
+      this.qrSelectedIds.delete(id);
+    } else {
+      this.qrSelectedIds.add(id);
+    }
+    this.cdr.detectChanges();
+  }
+
+  toggleAllQr(): void {
+    const currentIds = this.paginatedQuickReplies.map(r => r.id);
+    const allSelected = currentIds.every(id => this.qrSelectedIds.has(id));
+    if (allSelected) {
+      for (const id of currentIds) this.qrSelectedIds.delete(id);
+    } else {
+      for (const id of currentIds) this.qrSelectedIds.add(id);
+    }
+    this.cdr.detectChanges();
+  }
+
+  selectAllQr(): void {
+    for (const r of this.quickRepliesFiltrados) {
+      this.qrSelectedIds.add(r.id);
+    }
+    this.cdr.detectChanges();
+  }
+
+  deleteQrSeleccionadas(): void {
+    const ids = Array.from(this.qrSelectedIds);
+    if (!ids.length) return;
+    this.qrDeletingBulk = true;
+    this.svc.deleteBulkQuickReplies(ids).pipe(takeUntil(this.destroy$)).subscribe({
+      next: (res) => {
+        this.qrDeletingBulk = false;
+        this.qrSelectedIds.clear();
+        this.refreshQuickReplies();
+        this.notification.success('Eliminadas', `${res.deleted} respuesta${res.deleted === 1 ? '' : 's'} eliminada${res.deleted === 1 ? '' : 's'}.`);
+      },
+      error: (err) => {
+        this.qrDeletingBulk = false;
+        this.notification.error('Error', err.error?.message || 'Error al eliminar respuestas.');
         this.cdr.detectChanges();
       },
     });
   }
 
-  private normalizeQuickReplies(value: any[]): Array<{ name: string; content: string }> {
+  private normalizeQuickReplies(value: any[]): Array<{ id: string; name: string; content: string }> {
     if (!Array.isArray(value) || !value.length) {
       return [
-        { name: 'Saludo', content: 'Hola, con gusto reviso tu caso.' },
-        { name: 'Espera', content: 'Dame un momento mientras valido la informacion.' },
-        { name: 'Despedida', content: 'Quedo atento si necesitas algo mas.' },
+        { id: 'qr_1', name: 'Saludo', content: 'Hola, con gusto reviso tu caso.' },
+        { id: 'qr_2', name: 'Espera', content: 'Dame un momento mientras valido la informacion.' },
+        { id: 'qr_3', name: 'Despedida', content: 'Quedo atento si necesitas algo mas.' },
       ];
+    }
+    let nextId = 1;
+    for (const r of value) {
+      if (r.id && /^qr_\d+$/.test(String(r.id))) {
+        const num = parseInt(String(r.id).slice(3), 10);
+        if (num >= nextId) nextId = num + 1;
+      }
     }
     if (typeof value[0] === 'string') {
       return value
-        .map((text: string) => ({ name: text.trim().slice(0, 60), content: text.trim() }))
-        .filter(r => r.content);
+        .map((text: string) => {
+          const clean = text.trim();
+          if (!clean) return null;
+          return { id: `qr_${nextId++}`, name: clean.slice(0, 60), content: clean };
+        })
+        .filter(Boolean) as any;
     }
     return value
       .filter((r: any) => r?.name && r?.content)
-      .map((r: any) => ({ name: String(r.name).slice(0, 60), content: String(r.content).slice(0, 500) }));
+      .map((r: any) => ({
+        id: r.id || `qr_${nextId++}`,
+        name: String(r.name).slice(0, 60),
+        content: String(r.content).slice(0, 500),
+      }));
   }
 
   addQuickReply(): void {
-    this.quickReplies.push({ name: '', content: '' });
+    let nextId = 1;
+    for (const r of this.quickReplies) {
+      if (r.id && /^qr_\d+$/.test(String(r.id))) {
+        const num = parseInt(String(r.id).slice(3), 10);
+        if (num >= nextId) nextId = num + 1;
+      }
+    }
+    this.quickReplies.push({ id: `qr_${nextId}`, name: '', content: '' });
     this.editingReplyIdx = this.quickReplies.length - 1;
   }
 
   removeQuickReply(idx: number): void {
+    const removed = this.quickReplies[idx];
     this.quickReplies.splice(idx, 1);
+    if (removed) this.qrSelectedIds.delete(removed.id);
     if (this.editingReplyIdx === idx) this.editingReplyIdx = null;
     else if (this.editingReplyIdx !== null && this.editingReplyIdx > idx) this.editingReplyIdx--;
   }

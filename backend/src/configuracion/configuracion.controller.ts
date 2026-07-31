@@ -70,7 +70,7 @@ export class ConfiguracionController {
   @Post('quick-replies')
   @HttpCode(HttpStatus.OK)
   @UseGuards(RolesGuard)
-  @Roles('admin')
+  @Roles('admin', 'advisor')
   guardarQuickReplies(@Body() body: { whatsappQuickReplies: any[] }) {
     return this.svc.guardar({ whatsappQuickReplies: body.whatsappQuickReplies }, undefined);
   }
@@ -83,7 +83,7 @@ export class ConfiguracionController {
 
   @Get('quick-replies/export')
   @UseGuards(RolesGuard)
-  @Roles('admin')
+  @Roles('admin', 'advisor')
   async exportQuickRepliesCsv(@Res() res: Response) {
     const csv = await this.svc.exportQuickRepliesCsv();
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -94,7 +94,7 @@ export class ConfiguracionController {
   @Post('quick-replies/import')
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(RolesGuard)
-  @Roles('admin')
+  @Roles('admin', 'advisor')
   @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
   async importQuickRepliesCsv(@UploadedFile() file: Express.Multer.File) {
     if (!file) throw new Error('Archivo no proporcionado');
@@ -111,7 +111,7 @@ export class ConfiguracionController {
   @Post('quick-replies/import-bulk')
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(RolesGuard)
-  @Roles('admin')
+  @Roles('admin', 'advisor')
   async importBulkQuickReplies(@Body() items: { name: string; content: string }[]) {
     return this.svc.importBulkQuickReplies(items);
   }
@@ -119,7 +119,7 @@ export class ConfiguracionController {
   @Post('quick-replies/delete-bulk')
   @HttpCode(HttpStatus.OK)
   @UseGuards(RolesGuard)
-  @Roles('admin')
+  @Roles('admin', 'advisor')
   async deleteBulkQuickReplies(@Body() ids: string[]) {
     return this.svc.deleteBulkQuickReplies(ids);
   }
