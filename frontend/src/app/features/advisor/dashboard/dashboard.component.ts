@@ -54,12 +54,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
   allAdvisors: ConnectedAdvisor[] = [];
   teamPanelOpen = false;
 
-  get maxVisibleCapsules(): number { return 2; }
-
-  get hiddenAdvisorNames(): string {
-    return this.allAdvisors.slice(this.maxVisibleCapsules).map(a => a.name).join(', ');
-  }
-
   get otherAdvisors(): ConnectedAdvisor[] {
     return this.allAdvisors.filter(a => a.advisorId !== this.currentAdvisor?.id);
   }

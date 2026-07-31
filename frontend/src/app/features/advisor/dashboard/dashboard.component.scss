@@ -628,10 +628,16 @@
 .advisor-capsules {
   display: flex;
   align-items: center;
+  gap: 6px;
   min-width: 0;
   overflow-x: auto;
   scrollbar-width: none;
+  cursor: pointer;
   &::-webkit-scrollbar { display: none; }
+  padding: 2px 3px;
+  border-radius: 999px;
+  transition: background 0.15s;
+  &:hover, &.open { background: var(--sidebar-hover); }
 }
 
 .capsule {
@@ -640,11 +646,9 @@
   justify-content: center;
   flex-shrink: 0;
   cursor: default;
-  margin-left: -6px;
-  transition: margin 0.2s, opacity 0.2s;
-  &:first-child { margin-left: 0; }
-  &:not(.capsule-self):not(.capsule-overflow) { opacity: 0.5; }
-  &:not(.capsule-self):not(.capsule-overflow):hover { opacity: 0.8; }
+  transition: opacity 0.2s;
+  &:not(.capsule-self) { opacity: 0.6; }
+  &:not(.capsule-self):hover { opacity: 0.9; }
 }
 
 .capsule-ring {
@@ -688,25 +692,6 @@
 .capsule-initial {
   line-height: 1;
   text-transform: uppercase;
-}
-
-.capsule-overflow {
-  margin-left: -4px;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: var(--sidebar-accent);
-  color: var(--sidebar-text-muted);
-  font-size: 0.65rem;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  cursor: pointer;
-  border: 2px solid var(--sidebar-bg);
-  transition: background 0.15s, color 0.15s;
-  &:hover, &.open { background: var(--sidebar-hover); color: var(--sidebar-text); }
 }
 
 // ── Team panel dropdown ────────────────────────────────────────
@@ -912,18 +897,6 @@
 
 .capsule-self {
   opacity: 1 !important;
-  margin-left: -10px;
-  .capsule-ring {
-    width: 38px;
-    height: 38px;
-    border-width: 3px;
-  }
-  .capsule-avatar {
-    width: 28px;
-    height: 28px;
-    font-size: 12px;
-    font-weight: 700;
-  }
 }
 
 // ── Divider vertical ─────────────────────────────────────────
@@ -1035,16 +1008,6 @@
     font-size: 8px;
     font-weight: 700;
   }
-  .capsule-overflow {
-    width: 24px;
-    height: 24px;
-    font-size: 0.55rem;
-  }
-  .capsule-self {
-    margin-left: -6px;
-    .capsule-ring { width: 28px; height: 28px; }
-    .capsule-avatar { width: 22px; height: 22px; font-size: 10px; }
-  }
 
   .topbar-divider { height: 24px; }
 
@@ -1105,17 +1068,6 @@
     width: 14px;
     height: 14px;
     font-size: 6px;
-  }
-  .capsule-overflow {
-    width: 20px;
-    height: 20px;
-    font-size: 0.5rem;
-    border-width: 1.5px;
-  }
-  .capsule-self {
-    margin-left: -4px;
-    .capsule-ring { width: 24px; height: 24px; }
-    .capsule-avatar { width: 18px; height: 18px; font-size: 8px; }
   }
 
   .topbar-metrics { gap: 8px; }
