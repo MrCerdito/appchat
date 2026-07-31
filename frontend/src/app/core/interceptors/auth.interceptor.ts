@@ -32,6 +32,14 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     if (error.status === 401 && !isPublic) {
       return handle401(req, next, authService, router);
     }
+    if (error.status === 403 && !isPublic) {
+      const storedRole = authService.getUser()?.role;
+      const tokenRole = authService.tokenRole();
+      if (storedRole && tokenRole && storedRole !== tokenRole) {
+        authService.logout();
+        router.navigate(['/login']);
+      }
+    }
     return throwError(() => error);
   })
   );

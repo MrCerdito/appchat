@@ -73,7 +73,7 @@ function getFallbackKey(): Buffer | null {
 function parseV2(value: string): { salt: Buffer; iv: Buffer; tag: Buffer; encrypted: Buffer } | null {
   const payload = value.slice(PREFIX_V2.length);
   const [saltB64, ivB64, tagB64, encryptedB64] = payload.split(':');
-  if (!saltB64 || !ivB64 || !tagB64 || !encryptedB64) return null;
+  if (!saltB64 || !ivB64 || !tagB64) return null;
   return {
     salt: Buffer.from(saltB64, 'base64'),
     iv: Buffer.from(ivB64, 'base64'),
@@ -147,7 +147,7 @@ export const encryptedTextTransformer: ValueTransformer = {
         const derivedKey = deriveKeyV1(key);
         const payload = value.slice(PREFIX_V1.length);
         const [ivB64, tagB64, encryptedB64] = payload.split(':');
-        if (!ivB64 || !tagB64 || !encryptedB64) return null;
+        if (!ivB64 || !tagB64) return null;
 
         const decipher = createDecipheriv(
           'aes-256-gcm',

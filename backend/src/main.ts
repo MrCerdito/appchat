@@ -11,7 +11,9 @@ import compression from 'compression';
 const logger = new Logger('Bootstrap');
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    rawBody: true,
+  });
 
   // ── Warmup: pre-compute all encrypted column decryptions ───────────────
   // Fires immediately in background; completes ~1-2s before the 10s interval

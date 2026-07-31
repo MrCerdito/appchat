@@ -3,6 +3,7 @@ dist/
 .pnpm-store
 *.tar.gz
 *.zip
+*.dump
 .env
 .env.*
 !.env.example
@@ -10,7 +11,8 @@ backend/uploads/baileys-auth/
 backend/uploads/whatsapp/
 backend/uploads/chat-media/
 BD.csv
-Backup/backend.env
+Backup/
 backend/.env.save
 backend/BD/bd_plain.sql
+test/test-tokens.json
 backups/

@@ -45,8 +45,44 @@ export class AuthService {
         tap((res) => {
           localStorage.setItem(this.tokenKey, res.access_token);
           localStorage.setItem(this.refreshKey, res.refresh_token);
+          this.syncUserFromToken();
         }),
       );
+  }
+
+  private decodeToken(token: string): User | null {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return {
+        id: payload.sub ?? payload.id,
+        name: payload.name ?? '',
+        email: payload.email ?? '',
+        role: payload.role ?? 'advisor',
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  tokenRole(): string | null {
+    const token = this.getToken();
+    return token ? (this.decodeToken(token)?.role ?? null) : null;
+  }
+
+  syncUserFromToken(): void {
+    const payload = this.getToken() ? this.decodeToken(this.getToken()!) : null;
+    if (!payload) return;
+    const current = this.getUser();
+    localStorage.setItem(
+      this.userKey,
+      JSON.stringify({
+        ...(current ?? {}),
+        id: payload.id ?? current?.id,
+        name: payload.name ?? current?.name ?? '',
+        email: payload.email ?? current?.email ?? '',
+        role: payload.role ?? current?.role ?? 'advisor',
+      } as User),
+    );
   }
 
   logout(): void {

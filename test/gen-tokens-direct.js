@@ -2,7 +2,17 @@
 import jwt from 'jsonwebtoken';
 import fs from 'fs';
 
-const JWT_SECRET = 'c8a79c0efe4098de603eb97a59df2799c50da782a530f1482d077b343037f6bd1a0e24382cadf6de6f4b5b5184fff30648b0cee3034d9f75ad7f6a66c834cde6';
+function loadSecret() {
+  if (process.env.JWT_SECRET) return process.env.JWT_SECRET;
+  try {
+    const envFile = fs.readFileSync(new URL('../backend/.env', import.meta.url), 'utf8');
+    const m = envFile.split('\n').find((l) => l.startsWith('JWT_SECRET='));
+    if (m) return m.split('=').slice(1).join('=').trim();
+  } catch {}
+  console.error('JWT_SECRET no encontrado. Pasa JWT_SECRET=... por env o configura backend/.env');
+  process.exit(1);
+}
+const JWT_SECRET = loadSecret();
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3001';
 
 const USERS = [

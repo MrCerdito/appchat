@@ -5,6 +5,7 @@ import {
   UseInterceptors,
   BadRequestException,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
@@ -34,6 +35,7 @@ const MAX_SIZE = 5 * 1024 * 1024;
 @Controller('chat-media')
 export class ChatMediaController {
   @Post('upload')
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({

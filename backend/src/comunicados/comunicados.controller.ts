@@ -6,6 +6,7 @@ import {
   Delete,
   Param,
   Body,
+  Req,
   UseGuards,
   Request,
   HttpCode,
@@ -13,6 +14,7 @@ import {
   InternalServerErrorException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { createHmac, timingSafeEqual } from 'crypto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles, RolesGuard } from '../auth/roles.guard';
 import { ComunicadosService } from './comunicados.service';
@@ -94,7 +96,19 @@ export class ComunicadosController {
   }
   @Public()
   @Post('webhook/resend')
-  async resendWebhook(@Body() body: any) {
+  async resendWebhook(@Body() body: any, @Req() req: any) {
+    const secret = process.env.RESEND_WEBHOOK_SECRET?.trim();
+    if (secret && !this.isValidResendSignature(req, secret)) {
+      throw new UnauthorizedException('Firma de webhook inválida');
+    }
+    if (!secret) {
+      // Fail-open solo si el operador no configuró el secreto; se registra para auditoría.
+      // eslint-disable-next-line no-console
+      console.warn(
+        '[Comunicados] RESEND_WEBHOOK_SECRET no configurado: el webhook se acepta sin verificar firma.',
+      );
+    }
+
     const { type, data } = body;
 
     // Bounce o fallo de entrega
@@ -106,5 +120,40 @@ export class ComunicadosController {
       }
     }
     return { ok: true };
+  }
+
+  private isValidResendSignature(req: any, secret: string): boolean {
+    const rawBody = Buffer.isBuffer(req.rawBody) ? req.rawBody : Buffer.from(JSON.stringify(req.body ?? {}));
+
+    // Legacy: X-Resend-Signature = hex(HMAC-SHA256(rawBody, secret))
+    const legacy = req.headers['x-resend-signature'];
+    if (legacy) {
+      const expected = createHmac('sha256', secret).update(rawBody).digest('hex');
+      try {
+        const a = Buffer.from(expected, 'utf8');
+        const b = Buffer.from(String(legacy).trim(), 'utf8');
+        if (a.length === b.length && timingSafeEqual(a, b)) return true;
+      } catch {}
+    }
+
+    // Svix (Resend moderno): svix-id, svix-timestamp, svix-signature "v1,base64"
+    const svixId = req.headers['svix-id'];
+    const svixTs = req.headers['svix-timestamp'];
+    const svixSig = req.headers['svix-signature'];
+    if (svixId && svixTs && svixSig) {
+      const signedContent = `${svixId}.${svixTs}.${rawBody.toString('utf8')}`;
+      const expected = createHmac('sha256', secret).update(signedContent).digest('base64');
+      const provided = String(svixSig).split(' ').map((p) => p.split(',')[1]);
+      for (const sig of provided) {
+        if (!sig) continue;
+        try {
+          const a = Buffer.from(expected, 'utf8');
+          const b = Buffer.from(sig, 'utf8');
+          if (a.length === b.length && timingSafeEqual(a, b)) return true;
+        } catch {}
+      }
+    }
+
+    return false;
   }
 }
