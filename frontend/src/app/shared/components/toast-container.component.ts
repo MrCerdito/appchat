@@ -7,6 +7,88 @@ import { NotificationService } from '../../core/services/notification.service';
   standalone: true,
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  styles: [
+    `
+    :host { display: block; }
+    .toast-container {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 99999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+      max-width: 380px;
+      width: 100%;
+    }
+    .toast {
+      pointer-events: auto;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 14px 16px;
+      border-radius: var(--radius-md, 8px);
+      background: var(--surface, #ffffff);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0, 0, 0, 0.08);
+      border-left: 4px solid var(--text-muted, #6b6560);
+      cursor: pointer;
+      animation: toast-in 0.3s ease;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+    .toast:hover {
+      opacity: 0.9;
+      transform: translateX(-2px);
+    }
+    .toast-success { border-left-color: var(--success, #10b981); }
+    .toast-error   { border-left-color: var(--danger, #ef4444); }
+    .toast-warning { border-left-color: var(--warning, #f59e0b); }
+    .toast-info    { border-left-color: var(--info, #3b82f6); }
+    .toast-icon {
+      flex-shrink: 0;
+      width: 22px;
+      height: 22px;
+      margin-top: 1px;
+    }
+    .toast-icon svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    .toast-success .toast-icon { color: var(--success, #10b981); }
+    .toast-error   .toast-icon { color: var(--danger, #ef4444); }
+    .toast-warning .toast-icon { color: var(--warning, #f59e0b); }
+    .toast-info    .toast-icon { color: var(--info, #3b82f6); }
+    .toast-body { flex: 1; min-width: 0; }
+    .toast-title {
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--text, #181614);
+      line-height: 1.3;
+    }
+    .toast-message {
+      font-size: 0.8rem;
+      color: var(--text-muted, #6b6560);
+      margin-top: 2px;
+      line-height: 1.4;
+    }
+    .toast-close {
+      flex-shrink: 0;
+      background: none;
+      border: none;
+      font-size: 1.2rem;
+      color: var(--text-faint, #9e9890);
+      cursor: pointer;
+      padding: 0 2px;
+      line-height: 1;
+    }
+    .toast-close:hover { color: var(--text, #181614); }
+    @keyframes toast-in {
+      from { opacity: 0; transform: translateX(40px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+    `,
+  ],
   template: `
     <div class="toast-container" aria-live="polite">
       @for (toast of notification.toasts(); track toast.id) {
