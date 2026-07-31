@@ -230,8 +230,6 @@
           <div class="topbar-capsules">
             <span class="capsule-tag">Equipo</span>
             <div class="advisor-capsules"
-                 [class.open]="teamPanelOpen"
-                 (click)="toggleTeamPanel(); $event.stopPropagation()"
                  [title]="'Equipo — ' + allAdvisors.length + ' asesores'">
               @for (adv of allAdvisors; track adv.advisorId; let i = $index) {
                 @if (i < maxVisibleCapsules) {
