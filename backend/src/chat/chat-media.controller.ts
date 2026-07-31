@@ -3,6 +3,7 @@ import {
   Post,
   UploadedFile,
   UseInterceptors,
+  UseGuards,
   BadRequestException,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
@@ -12,6 +13,7 @@ import { extname, join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
 import { randomUUID } from 'crypto';
 import { Attachment } from './entities/message.entity';
+import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 
 const UPLOADS_DIR = join(process.cwd(), 'uploads', 'chat-media');
 
@@ -35,6 +37,7 @@ const MAX_SIZE = 5 * 1024 * 1024;
 @Controller('chat-media')
 export class ChatMediaController {
   @Post('upload')
+  @UseGuards(OptionalJwtAuthGuard)
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @UseInterceptors(
     FileInterceptor('file', {

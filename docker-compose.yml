@@ -70,6 +70,7 @@ services:
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
+      REDIS_URL: redis://redis:6379
       TZ: America/Bogota
       NODE_ENV: production
       CORS_ORIGINS: ${CORS_ORIGINS:-https://innoovacloud.co}
@@ -107,12 +108,18 @@ services:
     environment:
       API_URL: /agora
       WS_URL: ""
-      API_KEY: ${API_KEY:-token2025}
+      API_KEY: ${API_KEY:-}
     ports:
-      - "${FRONTEND_PORT:-8095}:80"
+      - "127.0.0.1:${FRONTEND_PORT:-8095}:80"
     depends_on:
       backend:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost/agora/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     deploy:
       resources:
         limits:

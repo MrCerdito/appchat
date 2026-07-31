@@ -98,15 +98,20 @@ export class ComunicadosController {
   @Post('webhook/resend')
   async resendWebhook(@Body() body: any, @Req() req: any) {
     const secret = process.env.RESEND_WEBHOOK_SECRET?.trim();
-    if (secret && !this.isValidResendSignature(req, secret)) {
-      throw new UnauthorizedException('Firma de webhook inválida');
-    }
+    const isProd = process.env.NODE_ENV === 'production';
     if (!secret) {
-      // Fail-open solo si el operador no configuró el secreto; se registra para auditoría.
+      if (isProd) {
+        throw new UnauthorizedException(
+          'RESEND_WEBHOOK_SECRET no configurado',
+        );
+      }
+      // Fail-open solo en development si el operador no configuró el secreto.
       // eslint-disable-next-line no-console
       console.warn(
         '[Comunicados] RESEND_WEBHOOK_SECRET no configurado: el webhook se acepta sin verificar firma.',
       );
+    } else if (!this.isValidResendSignature(req, secret)) {
+      throw new UnauthorizedException('Firma de webhook inválida');
     }
 
     const { type, data } = body;

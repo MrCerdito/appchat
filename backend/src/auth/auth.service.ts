@@ -1,8 +1,6 @@
 import {
   Injectable,
   UnauthorizedException,
-  ConflictException,
-  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -137,36 +135,5 @@ export class AuthService {
   async logout(userId: string) {
     await this.userRepo.update(userId, { refreshToken: null });
     return { message: 'Sesión cerrada' };
-  }
-
-  async register(name: string, email: string, password: string) {
-    if (password.length < 8) {
-      throw new BadRequestException(
-        'La contraseña debe tener al menos 8 caracteres',
-      );
-    }
-    if (
-      !/[A-Z]/.test(password) ||
-      !/[a-z]/.test(password) ||
-      !/[0-9]/.test(password) ||
-      !/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(password)
-    ) {
-      throw new BadRequestException(
-        'La contraseña debe incluir mayúscula, minúscula, número y carácter especial',
-      );
-    }
-
-    const exists = await this.userRepo.findOne({ where: { email } });
-    if (exists) throw new ConflictException('El email ya está registrado');
-
-    const hash = await bcrypt.hash(password, 10);
-    const user = this.userRepo.create({ name, email, password: hash });
-    const saved = await this.userRepo.save(user);
-
-    return { id: saved.id, name: saved.name, email: saved.email };
-  }
-
-  async validateToken(userId: string): Promise<User | null> {
-    return this.userRepo.findOne({ where: { id: userId } });
   }
 }

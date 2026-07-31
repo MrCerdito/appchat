@@ -52,17 +52,6 @@ async function bootstrap() {
   // =========================
   const NODE_ENV = process.env.NODE_ENV ?? 'development';
   const APP_URL = process.env.APP_URL || 'http://localhost:3001';
-  const CSP_DIRECTIVES =
-    process.env.CSP_DIRECTIVES ||
-    [
-      "default-src 'self'",
-      "img-src 'self' data: blob: https:",
-      "media-src 'self' blob:",
-      "connect-src 'self' " + APP_URL + ' ws:',
-      "frame-ancestors 'none'",
-      "base-uri 'self'",
-      "form-action 'self'",
-    ].join('; ');
 
   app.use(
     compression({
@@ -73,19 +62,7 @@ async function bootstrap() {
 
   app.use(
     helmet({
-      contentSecurityPolicy: {
-        directives: {
-          'default-src': ["'self'"],
-          'script-src': ["'self'", "'unsafe-inline'"],
-          'style-src': ["'self'", "'unsafe-inline'"],
-          'img-src': ["'self'", 'data:', 'blob:', 'https:'],
-          'media-src': ["'self'", 'blob:'],
-          'connect-src': ["'self'", APP_URL, 'ws:', 'wss:'],
-          'frame-ancestors': ["'none'"],
-          'base-uri': ["'self'"],
-          'form-action': ["'self'"],
-        },
-      },
+      contentSecurityPolicy: false,
       crossOriginEmbedderPolicy: false,
       crossOriginResourcePolicy: { policy: 'cross-origin' },
       strictTransportSecurity:

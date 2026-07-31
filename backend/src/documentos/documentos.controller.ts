@@ -19,6 +19,7 @@ import { extname, join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
 import { DocumentosService } from './documentos.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Roles, RolesGuard } from '../auth/roles.guard';
 
 // Directorio donde se guardan los PDFs subidos
 const UPLOADS_DIR = join(process.cwd(), 'uploads', 'documentos');
@@ -38,7 +39,8 @@ export class DocumentosController {
   // POST /documentos/upload
   // Form-data: file (PDF), nombre, descripcion, categoria, colegio (opcional)
   @Post('upload')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({
@@ -125,7 +127,8 @@ export class DocumentosController {
 
   // ── Actualizar roles y metadatos de un documento ─────────────────────────
   @Patch(':nombre/roles')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
   @HttpCode(HttpStatus.OK)
   actualizarRoles(
     @Param('nombre') nombre: string,
@@ -142,7 +145,8 @@ export class DocumentosController {
 
   // ── Eliminar documento ────────────────────────────────────────────────────
   @Delete(':nombre')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
   @HttpCode(HttpStatus.OK)
   eliminar(@Param('nombre') nombre: string) {
     return this.docService.eliminar(decodeURIComponent(nombre));

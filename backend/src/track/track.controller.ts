@@ -1,10 +1,14 @@
 import { Controller, Get, Param, Query, Req, Res } from '@nestjs/common';
 import type { Response, Request } from 'express';
 import { ComunicadosService } from '../comunicados/comunicados.service';
+import { TrackDedupService } from './track-dedup.service';
 
 @Controller('track')
 export class TrackController {
-  constructor(private readonly comunicadosService: ComunicadosService) {}
+  constructor(
+    private readonly comunicadosService: ComunicadosService,
+    private readonly dedup: TrackDedupService,
+  ) {}
 
   @Get('open/:id/:email')
   async trackOpen(
@@ -17,9 +21,12 @@ export class TrackController {
       (req.headers['x-forwarded-for'] as string)?.split(',')[0] ?? req.ip;
     const ua = req.headers['user-agent'] ?? '';
 
-    await this.comunicadosService
-      .registrarApertura(id, decodeURIComponent(email), ua, ip)
-      .catch(() => {});
+    const esNuevo = await this.dedup.registrarSiNuevo('open', id, email);
+    if (esNuevo) {
+      await this.comunicadosService
+        .registrarApertura(id, decodeURIComponent(email), ua, ip)
+        .catch(() => {});
+    }
 
     // Devolver pixel 1x1 transparente
     const pixel = Buffer.from(
@@ -43,19 +50,18 @@ export class TrackController {
       (req.headers['x-forwarded-for'] as string)?.split(',')[0] ?? req.ip;
     const ua = req.headers['user-agent'] ?? '';
 
-    const destino = await this.comunicadosService
-      .registrarClic(
-        id,
-        decodeURIComponent(email),
-        decodeURIComponent(url),
-        ua,
-        ip,
-      )
-      .catch(() => decodeURIComponent(url));
+    const decodedUrl = decodeURIComponent(url);
+
+    const esNuevo = await this.dedup.registrarSiNuevo('click', id, email);
+    if (esNuevo) {
+      await this.comunicadosService
+        .registrarClic(id, decodeURIComponent(email), decodedUrl, ua, ip)
+        .catch(() => {});
+    }
 
     const safeUrl =
-      destino?.startsWith('http://') || destino?.startsWith('https://')
-        ? destino
+      decodedUrl?.startsWith('http://') || decodedUrl?.startsWith('https://')
+        ? decodedUrl
         : '/';
     res.redirect(safeUrl);
   }

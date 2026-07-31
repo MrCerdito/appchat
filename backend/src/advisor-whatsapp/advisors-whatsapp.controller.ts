@@ -53,8 +53,13 @@ export class AdvisorsWhatsappController {
     @Query('hub.verify_token') token: string,
     @Query('hub.challenge') challenge: string,
   ) {
-    const verifyToken =
-      this.config.get<string>('WHATSAPP_VERIFY_TOKEN') ?? 'token2025';
+    const verifyToken = this.config.get<string>('WHATSAPP_VERIFY_TOKEN');
+    if (!verifyToken) {
+      this.logger.warn(
+        'WHATSAPP_VERIFY_TOKEN no configurado — verificación de webhook rechazada.',
+      );
+      return 'Error validating webhook';
+    }
 
     if (mode === 'subscribe' && token === verifyToken) {
       this.logger.log('Webhook de asesores verificado por Meta.');

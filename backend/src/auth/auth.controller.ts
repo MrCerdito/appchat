@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
-import { IsEmail, IsString, MinLength, Matches } from 'class-validator';
+import { IsEmail, IsString, MinLength } from 'class-validator';
 import { JwtAuthGuard } from './jwt-auth.guard';
 
 export class LoginDto {
@@ -18,26 +18,6 @@ export class LoginDto {
 
   @IsString()
   @MinLength(8, { message: 'La contraseña debe tener mínimo 8 caracteres' })
-  password!: string;
-}
-
-export class RegisterDto {
-  @IsString()
-  @MinLength(2)
-  name!: string;
-
-  @IsEmail()
-  email!: string;
-
-  @IsString()
-  @MinLength(8, { message: 'La contraseña debe tener mínimo 8 caracteres' })
-  @Matches(
-    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]).{8,}$/,
-    {
-      message:
-        'La contraseña debe contener mayúscula, minúscula, número y carácter especial',
-    },
-  )
   password!: string;
 }
 
@@ -68,12 +48,5 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   logout(@Request() req: any) {
     return this.authService.logout(req.user.id);
-  }
-
-  @Throttle({ default: { limit: 10, ttl: 60000 } })
-  @Post('register')
-  @HttpCode(HttpStatus.CREATED)
-  register(@Body() body: RegisterDto) {
-    return this.authService.register(body.name, body.email, body.password);
   }
 }

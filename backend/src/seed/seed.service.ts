@@ -2,6 +2,7 @@ import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import { randomBytes } from 'crypto';
 import { User } from '../auth/entities/user.entity';
 import { Configuracion } from '../configuracion/entities/configuracion.entity';
 import { WidgetConfig } from '../widget/entities/widget-config.entity';
@@ -57,13 +58,37 @@ export class SeedService implements OnApplicationBootstrap {
     }
   }
 
+  private generateStrongPassword(): string {
+    const chars =
+      'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%^&*';
+    const bytes = randomBytes(16);
+    let pw = '';
+    for (let i = 0; i < bytes.length; i++) {
+      pw += chars[bytes[i] % chars.length];
+    }
+    return pw;
+  }
+
   private async seedUsers() {
     const hash = (pw: string) => bcrypt.hash(pw, 10);
+
+    const adminPassword =
+      process.env.SEED_ADMIN_PASSWORD || this.generateStrongPassword();
+    const advisorPassword =
+      process.env.SEED_ADVISOR_PASSWORD || this.generateStrongPassword();
+
+    if (!process.env.SEED_ADMIN_PASSWORD || !process.env.SEED_ADVISOR_PASSWORD) {
+      this.logger.warn(
+        'SEED_ADMIN_PASSWORD/SEED_ADVISOR_PASSWORD no definidos: se generaron passwords aleatorios (se muestran una sola vez):',
+      );
+      this.logger.warn(`  admin@innovacloud.co → ${adminPassword}`);
+      this.logger.warn(`  asesor1..6@innovacloud.co → ${advisorPassword}`);
+    }
 
     const admin = this.userRepo.create({
       name: 'Administrador',
       email: 'admin@innovacloud.co',
-      password: await hash('admin123'),
+      password: await hash(adminPassword),
       role: 'admin',
       active: true,
       status: 'offline',
@@ -72,18 +97,18 @@ export class SeedService implements OnApplicationBootstrap {
     await this.userRepo.save(admin);
 
     const advisors = [
-      { name: 'Asesor 1', email: 'asesor1@innovacloud.co', password: 'Asesor@123' },
-      { name: 'Asesor 2', email: 'asesor2@innovacloud.co', password: 'Asesor@123' },
-      { name: 'Asesor 3', email: 'asesor3@innovacloud.co', password: 'Asesor@123' },
-      { name: 'Asesor 4', email: 'asesor4@innovacloud.co', password: 'Asesor@123' },
-      { name: 'Asesor 5', email: 'asesor5@innovacloud.co', password: 'Asesor@123' },
-      { name: 'Asesor 6', email: 'asesor6@innovacloud.co', password: 'Asesor@123' },
+      { name: 'Asesor 1', email: 'asesor1@innovacloud.co' },
+      { name: 'Asesor 2', email: 'asesor2@innovacloud.co' },
+      { name: 'Asesor 3', email: 'asesor3@innovacloud.co' },
+      { name: 'Asesor 4', email: 'asesor4@innovacloud.co' },
+      { name: 'Asesor 5', email: 'asesor5@innovacloud.co' },
+      { name: 'Asesor 6', email: 'asesor6@innovacloud.co' },
     ];
     for (const a of advisors) {
       await this.userRepo.save(this.userRepo.create({
         name: a.name,
         email: a.email,
-        password: await hash(a.password),
+        password: await hash(advisorPassword),
         role: 'advisor',
         active: true,
         status: 'offline',
