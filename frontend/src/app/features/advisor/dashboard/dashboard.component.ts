@@ -14,6 +14,7 @@ import { TicketService } from '../../../core/services/ticket.service';
 import { AdminService } from '../../../core/services/admin.service';
 import { WhatsappChatService } from '../../../core/services/whatsapp-chat.service';
 import { ChatStateService } from '../../../core/services/chat-state.service';
+import { InternalChatService } from '../../../core/services/internal-chat.service';
 import { ThemeService } from '../../../core/services/theme.service';
 import { User } from '../../../core/models/user.model';
 import { Session } from '../../../core/models/session.model';
@@ -48,6 +49,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   compactShellMode = false;
   misChatsNoLeidos = 0;
   whatsappUnreadCount = 0;
+  internalUnreadCount = 0;
   totalUnreadCount = 0;
   topbarTitle = 'CHAT EN LINEA';
 
@@ -97,6 +99,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private sound: SoundService,
     private ticketService: TicketService,
     private whatsapp: WhatsappChatService,
+    private internalChat: InternalChatService,
     private chatState: ChatStateService,
     private router: Router,
     private cdr: ChangeDetectorRef,
@@ -113,6 +116,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (this.currentAdvisor?.id) {
       this.whatsapp.joinAsAdvisor(this.currentAdvisor.id);
     }
+    this.internalChat.connect();
 
     const saved = localStorage.getItem(this.STATUS_KEY) as 'online' | 'busy' | 'offline';
     this.advisorStatus = saved ?? 'online';
@@ -364,6 +368,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.refreshGlobalBadge();
       });
 
+    this.internalChat.getUnreadTotalStream()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(total => {
+        this.internalUnreadCount = total;
+        this.refreshGlobalBadge();
+      });
+
     this.whatsapp.loadChats().subscribe({
       error: (err) => console.error('HTTP Error:', err),
     });
@@ -408,7 +419,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   private refreshGlobalBadge(): void {
-    this.totalUnreadCount = this.misChatsNoLeidos + this.whatsappUnreadCount;
+    this.totalUnreadCount = this.misChatsNoLeidos + this.whatsappUnreadCount + this.internalUnreadCount;
     this.sound.setUnreadBadge(this.totalUnreadCount);
     if (document.hidden && this.totalUnreadCount > 0) {
       this.sound.startTitleBlink(this.totalUnreadCount);
@@ -520,6 +531,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     setTimeout(() => {
       this.socket.disconnect();
       this.whatsapp.disconnect();
+      this.internalChat.disconnect();
       this.auth.logout();
       this.router.navigate(['/login']);
     }, 300);
@@ -623,5 +635,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.stopLunchCountdown();
     this.teamBreakpoint.removeEventListener('change', this.onTeamBreakpoint);
     document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+    this.internalChat.disconnect();
   }
 }

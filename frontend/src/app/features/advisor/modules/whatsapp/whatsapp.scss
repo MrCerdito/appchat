@@ -99,8 +99,12 @@ a{text-decoration:none;color:inherit}
 
 // -- Layout
 .layout {
-  position:relative; display:flex; width:100%; height:100%; overflow:hidden;
+  position:relative; display:flex; flex-direction:column; width:100%; height:100%; overflow:hidden;
   box-shadow:0 0 10px rgba(0,0,0,.08);
+}
+
+.layout-body {
+  position:relative; display:flex; flex:1; min-height:0; overflow:hidden;
 }
 
 // -- Backdrops
@@ -510,6 +514,26 @@ a{text-decoration:none;color:inherit}
   color:var(--wa-amber); font-size:11px; font-weight:600;
   &.connected{color:var(--wa-green)}
   span{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+}
+
+// Mode tabs (clientes / asesores)
+.mode-tabs {
+  display:flex; gap:6px; align-items:stretch; padding:8px 12px;
+  background:var(--wa-surface); border-bottom:1px solid var(--wa-line); flex-shrink:0;
+}
+
+.mode-tab {
+  position:relative; display:flex; gap:6px; align-items:center; justify-content:center;
+  flex:1; min-height:34px; padding:0 10px; border-radius:8px; cursor:pointer;
+  background:var(--wa-surface-2); color:var(--wa-muted); font-size:12.5px; font-weight:700;
+  transition:color .12s ease, background .12s ease;
+  &.active{color:var(--wa-green); background:rgba(var(--wa-green-rgb),.1)}
+}
+
+.mode-badge {
+  display:inline-flex; align-items:center; justify-content:center;
+  min-width:18px; height:18px; padding:0 5px; border-radius:9px;
+  background:var(--wa-green); color:#fff; font:normal 11px $mono;
 }
 
 // Search bar (admin style)
@@ -1148,7 +1172,7 @@ a{text-decoration:none;color:inherit}
 
 // ── ≤760px: stack to column (solo si no compact) ─────────
 @media (max-width: 760px) {
-  .layout:not(.compact-layout) { flex-direction: column; }
+  .layout:not(.compact-layout) .layout-body { flex-direction: column; }
   .sidebar:not(.compact) { width: 100%; min-width: 0; max-height: 40%; }
 }
 

@@ -1,5 +1,28 @@
-<div class="layout" [class.chat-open]="!!activeContact" [class.compact-layout]="compactList">
-  
+<div class="layout" [class.chat-open]="!!activeContact || internalChatOpen" [class.compact-layout]="compactList">
+
+  <div class="mode-tabs">
+    <button
+      type="button"
+      class="mode-tab"
+      [class.active]="chatMode === 'clients'"
+      (click)="setChatMode('clients')"
+    >
+      Chat clientes
+    </button>
+    <button
+      type="button"
+      class="mode-tab"
+      [class.active]="chatMode === 'advisors'"
+      (click)="setChatMode('advisors')"
+    >
+      Chat asesores
+      @if (internalUnreadTotal > 0) {
+      <em class="mode-badge">{{ internalUnreadTotal }}</em>
+      }
+    </button>
+  </div>
+
+  <div class="layout-body">
 
   @if (showWhatsappSettings) {
   <div class="settings-backdrop" (click)="closeWhatsappSettings()"></div>
@@ -229,6 +252,7 @@
   </section>
   }
 
+  @if (chatMode === 'clients') {
   @if (connectionStatus.status !== 'connected') {
   <section class="waiting-admin">
     <div class="waiting-admin-card">
@@ -283,7 +307,9 @@
     </div>
   </section>
   }
+  }
 
+  @if (chatMode === 'clients') {
   @if (connectionStatus.status === 'connected' && loadingProgress < 100) {
   <section class="loading-chats">
     <div class="loading-chats-card">
@@ -299,7 +325,9 @@
     </div>
   </section>
   }
+  }
 
+  @if (chatMode === 'clients') {
   <aside class="sidebar" [class.compact]="compactList">
 
     @if (compactList) {
@@ -319,11 +347,6 @@
       </button>
     </div>
     }
-
-    <div class="connection-strip" [ngClass]="connectionStatus.status">
-      <wa-icon [name]="connectionStatus.status === 'connected' ? 'plug-connected' : 'plug-connected-x'"></wa-icon>
-      <span>{{ connectionStatus.status === 'connected' ? (connectionStatus.connectedName || 'ASESOR conectado') : 'ASESOR sin conectar' }}</span>
-    </div>
 
     <div class="search-bar">
       <wa-icon name="search"></wa-icon>
@@ -976,6 +999,9 @@
       }
     </main>
   }
+  } @else {
+  <app-internal-chat-panel (activeChange)="onInternalActiveChange($event)"></app-internal-chat-panel>
+  }
 
   @if (showInfoPanel) {
   <div class="info-backdrop" (click)="showInfoPanel = false"></div>
@@ -1386,4 +1412,6 @@
     }
   </div>
   }
+
+  </div>
 </div>

@@ -1,0 +1,360 @@
+<div class="ic-layout">
+
+  <aside class="ic-sidebar">
+    <header class="ic-sidebar-header">
+      <div class="ic-sidebar-title">
+        <strong>Chat asesores</strong>
+        <span>{{ conversations.length }} conversacion{{ conversations.length === 1 ? '' : 'es' }}</span>
+      </div>
+      <button type="button" class="ic-new-btn" title="Nuevo chat" (click)="openNewChat()">
+        <wa-icon name="user-plus"></wa-icon>
+      </button>
+    </header>
+
+    <div class="ic-search">
+      <wa-icon name="search"></wa-icon>
+      <input type="text" placeholder="Buscar asesor o grupo" [(ngModel)]="searchQuery" />
+    </div>
+
+    <div class="ic-list">
+      @for (conv of filteredConversations; track conv.id) {
+      <button type="button" class="ic-item" [class.active]="activeConversation?.id === conv.id" (click)="selectConversation(conv)">
+        <div class="ic-avatar" [class.is-group]="conv.type === 'group'">
+          @if (conv.type === 'group') {
+          <wa-icon name="users-group"></wa-icon>
+          } @else {
+          {{ conversationAvatar(conv) }}
+          }
+        </div>
+        <div class="ic-item-info">
+          <div class="ic-item-top">
+            <span class="ic-item-name" [class.has-unread]="conv.unreadCount > 0">{{ conversationName(conv) }}</span>
+            <span class="ic-item-time">{{ convTime(conv) }}</span>
+          </div>
+          <div class="ic-item-preview" [class.has-unread]="conv.unreadCount > 0">{{ previewText(conv) }}</div>
+        </div>
+        @if (conv.unreadCount > 0) {
+        <span class="ic-badge">{{ conv.unreadCount }}</span>
+        }
+      </button>
+      }
+      @if (!filteredConversations.length) {
+      <div class="ic-empty-list">Sin conversaciones. Crea una para empezar.</div>
+      }
+    </div>
+  </aside>
+
+  <main class="ic-main">
+    @if (!activeConversation) {
+    <div class="ic-welcome">
+      <div class="ic-welcome-icon"><wa-icon name="users-group"></wa-icon></div>
+      <h3>Chat asesores</h3>
+      <p>Conversaciones internas entre asesores y el grupo de soporte.</p>
+      <button type="button" class="ic-primary-btn" (click)="openNewChat()">
+        <wa-icon name="user-plus"></wa-icon>
+        Nuevo chat
+      </button>
+    </div>
+    } @else {
+    <header class="ic-chat-header">
+      <button type="button" class="ic-back-btn" (click)="backToList()" title="Volver">
+        <wa-icon name="chevron-left"></wa-icon>
+      </button>
+      <div class="ic-avatar" [class.is-group]="activeConversation.type === 'group'">
+        @if (activeConversation.type === 'group') {
+        <wa-icon name="users-group"></wa-icon>
+        } @else {
+        {{ conversationAvatar(activeConversation) }}
+        }
+      </div>
+      <div class="ic-chat-info">
+        <strong>{{ conversationName(activeConversation) }}</strong>
+        <span>{{ activeConversation.type === 'group' ? activeConversation.members.length + ' participantes' : 'Chat directo' }}</span>
+      </div>
+      <button type="button" class="ic-new-btn" title="Nuevo chat" (click)="openNewChat()">
+        <wa-icon name="user-plus"></wa-icon>
+      </button>
+    </header>
+
+    <section class="ic-messages" #icMessages>
+      @for (msg of messages; track msg.id) {
+      <div class="ic-msg-row" [ngClass]="messageOwn(msg) ? 'out' : 'in'">
+        @if (msg.type === 'system') {
+        <div class="ic-system-line">{{ msg.body }}</div>
+        } @else if (msg.deletedAt) {
+        <div class="ic-bubble deleted" (contextmenu)="onContextMenu($event, msg)">
+          <p>Mensaje eliminado</p>
+          <div class="ic-bubble-meta">
+            <span>{{ messageTime(msg) }}</span>
+          </div>
+        </div>
+        } @else {
+        <div
+          class="ic-bubble"
+          [class.context-active]="contextMenu?.message?.id === msg.id"
+          (contextmenu)="onContextMenu($event, msg)"
+        >
+          @if (!messageOwn(msg) && activeConversation.type === 'group') {
+          <span class="ic-sender-tag">{{ msg.senderName }}</span>
+          }
+
+          @if (msg.replyToMessageId) {
+          <div class="ic-quote">
+            <div class="ic-quote-bar"></div>
+            <div class="ic-quote-content">
+              <strong>{{ quotePreview(msg) }}</strong>
+            </div>
+          </div>
+          }
+
+          @if (msg.isForwarded) {
+          <span class="ic-forwarded-tag">Reenviado</span>
+          }
+
+          @if (msg.type === 'image' && msg.mediaUrl) {
+          <img class="ic-media-image" [src]="msg.mediaUrl" [alt]="msg.mediaName || 'Imagen'" (click)="openImage(msg)" />
+          }
+          @if (msg.type === 'audio' && msg.mediaUrl) {
+          <audio class="ic-media-audio" [src]="msg.mediaUrl" controls preload="metadata"></audio>
+          }
+          @if (msg.type === 'file' && msg.mediaUrl) {
+          <a class="ic-media-file" [href]="msg.mediaUrl" target="_blank" rel="noopener noreferrer">
+            <wa-icon name="file-text"></wa-icon>
+            <span>{{ msg.mediaName || 'Abrir archivo' }}</span>
+            @if (msg.mediaSize) {
+            <em>{{ formatFileSize(msg.mediaSize) }}</em>
+            }
+          </a>
+          }
+
+          @if (msg.body) {
+          <p class="ic-body">{{ msg.body }}</p>
+          }
+
+          <div class="ic-bubble-meta">
+            <span>{{ messageTime(msg) }}</span>
+            @if (msg.editedAt) {
+            <em>editado</em>
+            }
+            @if (msg.isForwarded) {
+            <em>reenviado</em>
+            }
+          </div>
+
+          @if (msg.reactions.length > 0) {
+          <div class="ic-reactions">
+            <button type="button" class="ic-reactions-pill" [class.mine]="!!myReaction(msg)" (click)="toggleReactions(msg)">
+              {{ msg.reactions[0].emoji }}<b>{{ msg.reactions.length > 1 ? '+' + (msg.reactions.length - 1) : '' }}</b>
+            </button>
+            <span class="ic-reactions-names">{{ reactionNames(msg) }}</span>
+          </div>
+          }
+
+          @if (showReactionsForId === msg.id) {
+          <div class="ic-reaction-picker" (click)="$event.stopPropagation()">
+            @for (emoji of reactionEmojis; track emoji) {
+            <button type="button" [class.active]="myReaction(msg) === emoji" (click)="reactToMessage(msg, emoji)">{{ emoji }}</button>
+            }
+          </div>
+          }
+        </div>
+        }
+      </div>
+      }
+      @if (!messages.length) {
+      <div class="ic-empty-msgs">Sin mensajes todavía. ¡Saluda!</div>
+      }
+    </section>
+
+    @if (replyToMessage) {
+    <div class="ic-reply-bar">
+      <div class="ic-reply-info">
+        <span>Respondiendo a <strong>{{ replyToMessage.senderName }}</strong></span>
+        <p>{{ replyToMessage.body || mediaLabel(replyToMessage) }}</p>
+      </div>
+      <button type="button" (click)="cancelReply()" title="Cancelar">
+        <wa-icon name="x"></wa-icon>
+      </button>
+    </div>
+    }
+    @if (editingMessage) {
+    <div class="ic-reply-bar editing">
+      <div class="ic-reply-info">
+        <span>Editando mensaje</span>
+        <p>{{ editingText }}</p>
+      </div>
+      <button type="button" (click)="cancelEdit()" title="Cancelar">
+        <wa-icon name="x"></wa-icon>
+      </button>
+    </div>
+    }
+
+    @if (selectedFile) {
+    <div class="ic-file-preview">
+      @if (selectedFileKind === 'image' && selectedFilePreviewUrl) {
+      <img [src]="selectedFilePreviewUrl" [alt]="selectedFile.name" />
+      }
+      @if (selectedFileKind === 'audio') {
+      <div class="ic-file-voice">
+        <wa-icon name="microphone"></wa-icon>
+        <span>Nota de voz · {{ formatRecordingTime(selectedAudioDuration) }}</span>
+      </div>
+      }
+      @if (selectedFileKind === 'file') {
+      <div class="ic-file-name">
+        <wa-icon name="file-text"></wa-icon>
+        <span>{{ selectedFile.name }}</span>
+        <em>{{ formatFileSize(selectedFile.size) }}</em>
+      </div>
+      }
+      <button type="button" (click)="clearSelectedFile()" title="Quitar">
+        <wa-icon name="x"></wa-icon>
+      </button>
+    </div>
+    }
+
+    <footer class="ic-input">
+      @if (isRecordingAudio) {
+      <div class="ic-recording-strip"><span></span> Grabando audio {{ formatRecordingTime(recordingSeconds) }}</div>
+      <button type="button" class="ic-mic-btn recording" (click)="toggleAudioRecording()" title="Detener">
+        <wa-icon name="player-stop-filled"></wa-icon>
+      </button>
+      } @else {
+      <input #fileInput type="file" hidden (change)="onFileSelected($event, 'file')" />
+      <input #imageInput type="file" accept="image/*" hidden (change)="onFileSelected($event, 'image')" />
+      <button type="button" class="ic-attach-btn" (click)="fileInput.click()" title="Adjuntar archivo">
+        <wa-icon name="paperclip"></wa-icon>
+      </button>
+      <button type="button" class="ic-attach-btn" (click)="imageInput.click()" title="Enviar imagen">
+        <wa-icon name="photo"></wa-icon>
+      </button>
+      <textarea
+        rows="1"
+        placeholder="Escribe un mensaje"
+        [(ngModel)]="draft"
+        (keydown.enter)="onEnter($event)"
+      ></textarea>
+      @if (selectedFile) {
+      <button type="button" class="ic-send-btn" (click)="confirmSendFile()" [disabled]="isSending">
+        <wa-icon [name]="isSending ? 'loader-2' : 'send-2'"></wa-icon>
+      </button>
+      } @else if (draft.trim()) {
+      <button type="button" class="ic-send-btn" (click)="sendMessage()" [disabled]="isSending">
+        <wa-icon [name]="isSending ? 'loader-2' : 'send-2'"></wa-icon>
+      </button>
+      } @else {
+      <button type="button" class="ic-mic-btn" (click)="toggleAudioRecording()" title="Grabar nota de voz">
+        <wa-icon name="microphone"></wa-icon>
+      </button>
+      }
+      }
+    </footer>
+    }
+  </main>
+
+  @if (showNewChat) {
+  <div class="ic-backdrop" (click)="closeNewChat()"></div>
+  <section class="ic-modal">
+    <header>
+      <strong>Nuevo chat</strong>
+      <button type="button" class="ic-modal-close" (click)="closeNewChat()" title="Cerrar">
+        <wa-icon name="x"></wa-icon>
+      </button>
+    </header>
+    <div class="ic-modal-search">
+      <wa-icon name="search"></wa-icon>
+      <input type="text" placeholder="Buscar asesor" [(ngModel)]="newChatSearch" />
+    </div>
+    <div class="ic-advisor-list">
+      @for (advisor of filteredAdvisors; track advisor.id) {
+      <button
+        type="button"
+        class="ic-advisor-item"
+        [class.existing]="existingDirectIds.has(advisor.id)"
+        (click)="startDirect(advisor)"
+      >
+        <div class="ic-avatar">{{ advisor.name.charAt(0).toUpperCase() }}</div>
+        <div class="ic-advisor-info">
+          <strong>{{ advisor.name }}</strong>
+          <span>{{ advisor.role === 'admin' ? 'Administrador' : 'Asesor' }}</span>
+        </div>
+        @if (existingDirectIds.has(advisor.id)) {
+        <em>Ya existe</em>
+        }
+      </button>
+      }
+      @if (!filteredAdvisors.length) {
+      <div class="ic-empty-list">Sin asesores disponibles.</div>
+      }
+    </div>
+  </section>
+  }
+
+  @if (showForwardPicker && activeConversation) {
+  <div class="ic-backdrop" (click)="closeForward()"></div>
+  <section class="ic-modal">
+    <header>
+      <strong>Reenviar mensaje</strong>
+      <button type="button" class="ic-modal-close" (click)="closeForward()" title="Cerrar">
+        <wa-icon name="x"></wa-icon>
+      </button>
+    </header>
+    <div class="ic-forward-list">
+      @for (conv of conversations; track conv.id) {
+      <button
+        type="button"
+        class="ic-forward-item"
+        [class.selected]="forwardTargetId === conv.id"
+        [disabled]="conv.id === activeConversation.id"
+        (click)="forwardTargetId = conv.id"
+      >
+        <div class="ic-avatar" [class.is-group]="conv.type === 'group'">
+          @if (conv.type === 'group') {
+          <wa-icon name="users-group"></wa-icon>
+          } @else {
+          {{ conversationAvatar(conv) }}
+          }
+        </div>
+        <span>{{ conversationName(conv) }}</span>
+      </button>
+      }
+    </div>
+    <div class="ic-modal-actions">
+      <button type="button" class="ic-ghost-btn" (click)="closeForward()">Cancelar</button>
+      <button type="button" class="ic-primary-btn" [disabled]="!forwardTargetId" (click)="confirmForward()">Reenviar</button>
+    </div>
+  </section>
+  }
+
+  @if (contextMenu) {
+  <div class="ic-context" [style.left.px]="contextMenu.x" [style.top.px]="contextMenu.y">
+    @if (!messageOwn(contextMenu.message)) {
+    <button type="button" (click)="replyTo(contextMenu.message)">Responder</button>
+    }
+    @if (messageOwn(contextMenu.message)) {
+    <button type="button" [disabled]="!canEdit(contextMenu.message)" (click)="startEdit(contextMenu.message)">Editar</button>
+    }
+    <button type="button" (click)="openForward(contextMenu.message)">Reenviar</button>
+    <button type="button" (click)="toggleReactions(contextMenu.message)">Reaccionar</button>
+    @if (canDelete(contextMenu.message)) {
+    <button type="button" class="danger" (click)="deleteMessage(contextMenu.message)">Eliminar</button>
+    }
+  </div>
+  }
+
+  @if (imagePreviewUrl) {
+  <div class="ic-backdrop viewer" (click)="closeImage()">
+    <figure class="ic-viewer" (click)="$event.stopPropagation()">
+      <img [src]="imagePreviewUrl" [alt]="imagePreviewName" />
+      <figcaption>{{ imagePreviewName }}</figcaption>
+      <button type="button" class="ic-modal-close" (click)="closeImage()" title="Cerrar">
+        <wa-icon name="x"></wa-icon>
+      </button>
+    </figure>
+  </div>
+  }
+
+  @if (errorMessage) {
+  <div class="ic-error-toast">{{ errorMessage }}</div>
+  }
+</div>

@@ -22,6 +22,8 @@ import { TicketService } from '../../../../core/services/ticket.service';
 import { SoundService } from '../../../../core/services/sound.service';
 import { ThemeService } from '../../../../core/services/theme.service';
 import { WhatsappChatService } from '../../../../core/services/whatsapp-chat.service';
+import { InternalChatService } from '../../../../core/services/internal-chat.service';
+import { InternalChatPanelComponent } from './internal-chat-panel/internal-chat-panel';
 import {
   AwChatAssigned,
   AwNewMessage,
@@ -93,7 +95,7 @@ interface MessageReactionGroup {
 @Component({
   selector: 'app-whatsapp-chat',
   standalone: true,
-  imports: [CommonModule, FormsModule, WaIconComponent, DecimalPipe],
+  imports: [CommonModule, FormsModule, WaIconComponent, DecimalPipe, InternalChatPanelComponent],
   templateUrl: './whatsapp.html',
   styleUrl: './whatsapp.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -268,6 +270,10 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   currentUserName = '';
   currentUserRole = '';
 
+  chatMode: 'clients' | 'advisors' = 'clients';
+  internalUnreadTotal = 0;
+  internalChatOpen = false;
+
   private shouldScroll = false;
   private toastTimer?: ReturnType<typeof setTimeout>;
   private mediaRecorder?: MediaRecorder;
@@ -279,6 +285,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
 
   constructor(
     private readonly waService: WhatsappChatService,
+    private readonly internalChat: InternalChatService,
     private readonly authService: AuthService,
     private readonly configService: ConfiguracionFrontendService,
     private readonly ticketService: TicketService,
@@ -306,6 +313,19 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     if (this.currentUserId) {
       this.waService.joinAsAdvisor(this.currentUserId);
     }
+
+    this.internalChat.connect();
+    this.subs.add(
+      this.internalChat.getUnreadTotalStream().subscribe(total => {
+        this.internalUnreadTotal = total;
+        this.cdr.detectChanges();
+      }),
+    );
+    this.subs.add(
+      this.internalChat.getConversationsStream().subscribe(() => {
+        this.cdr.detectChanges();
+      }),
+    );
 
     this.subs.add(
       this.waService.getConnectionStream().subscribe(status => {
@@ -388,6 +408,21 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     if (!this.shouldScroll) return;
     this.scrollToBottom();
     this.shouldScroll = false;
+  }
+
+  setChatMode(mode: 'clients' | 'advisors'): void {
+    if (this.chatMode === mode) return;
+    this.chatMode = mode;
+    if (mode === 'advisors') {
+      this.activeContact = undefined;
+      this.showInfoPanel = false;
+    }
+    this.cdr.detectChanges();
+  }
+
+  onInternalActiveChange(open: boolean): void {
+    this.internalChatOpen = open;
+    this.cdr.detectChanges();
   }
 
   // ── Compact mode check ───────────────────────────────────────────────────

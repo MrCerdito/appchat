@@ -40,6 +40,10 @@ import { TicketsModule } from './tickets/tickets.module';
 import { Ticket } from './tickets/ticket.entity';
 import { PqrsModule } from './pqrs/pqrs.module';
 import { Pqrs } from './pqrs/entities/pqrs.entity';
+import { InternalChatModule } from './internal-chat/internal-chat.module';
+import { InternalConversation } from './internal-chat/entities/internal-conversation.entity';
+import { InternalConversationMember } from './internal-chat/entities/internal-conversation-member.entity';
+import { InternalMessage } from './internal-chat/entities/internal-message.entity';
 import { SeedModule } from './seed/seed.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -139,6 +143,9 @@ import { AppService } from './app.service';
           Ticket,
           Pqrs,
           AuditLog,
+          InternalConversation,
+          InternalConversationMember,
+          InternalMessage,
         ],
         synchronize: config.get<string>('NODE_ENV') !== 'production',
         logging: false,
@@ -158,6 +165,7 @@ import { AppService } from './app.service';
     FaqModule,
     TicketsModule,
     PqrsModule,
+    InternalChatModule,
     SeedModule,
   ],
   controllers: [AppController],
