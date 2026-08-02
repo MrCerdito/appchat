@@ -63,6 +63,9 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
   @ViewChild('icMessages') messagesContainer!: ElementRef;
   @ViewChild('draftArea') draftArea?: ElementRef<HTMLTextAreaElement>;
   @ViewChild('icContext') icContext?: ElementRef<HTMLDivElement>;
+  @ViewChild('fileInput') fileInput?: ElementRef<HTMLInputElement>;
+  @ViewChild('imageInput') imageInput?: ElementRef<HTMLInputElement>;
+  @ViewChild('videoInput') videoInput?: ElementRef<HTMLInputElement>;
 
   conversations: InternalConversation[] = [];
   activeConversation: InternalConversation | null = null;
@@ -85,7 +88,6 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
 
   replyToMessage: InternalMessage | null = null;
   editingMessage: InternalMessage | null = null;
-  editingText = '';
 
   selectedFile: File | null = null;
   selectedFileKind: SelectedFileKind = null;
@@ -99,12 +101,27 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
 
   showForwardPicker = false;
   forwardSource: InternalMessage | null = null;
-  forwardTargetId: string | null = null;
+  forwardTargetIds = new Set<string>();
+  forwardSearch = '';
 
   imagePreviewUrl: string | null = null;
   imagePreviewName = '';
 
   errorMessage = '';
+  showAttachMenu = false;
+  successMessage = '';
+
+  private successTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly senderPalette = [
+    '#3B82F6',
+    '#8B5CF6',
+    '#EC4899',
+    '#F59E0B',
+    '#10B981',
+    '#F97316',
+    '#06B6D4',
+    '#E11D48',
+  ];
 
   private subs = new Subscription();
   private shouldScroll = false;
@@ -125,6 +142,7 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
     this.currentUserRole = user?.role || '';
     this.advisorPhotoUrl = user?.profilePhotoUrl || '';
 
+    this.internalChat.setCurrentUser(this.currentUserId);
     this.internalChat.connect();
 
     this.subs.add(
@@ -232,11 +250,56 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
     const last = conv.lastMessage;
     if (!last) return 'Sin mensajes todavía';
     if (last.deleted) return 'Mensaje eliminado';
-    if (last.type === 'image') return 'Imagen';
-    if (last.type === 'audio') return 'Audio';
-    if (last.type === 'file') return 'Archivo';
-    const body = (last.body || '').trim();
-    return body || 'Mensaje';
+    let preview = '';
+    if (last.type === 'image') preview = 'Imagen';
+    else if (last.type === 'audio') preview = 'Audio';
+    else if (last.type === 'file') preview = 'Archivo';
+    else preview = (last.body || '').trim() || 'Mensaje';
+    if (last.senderName === this.currentUserName) return `Tú: ${preview}`;
+    return preview;
+  }
+
+  chatSubtitle(): string {
+    const c = this.activeConversation;
+    if (!c) return '';
+    if (c.type === 'group') return `${c.members.length} participantes`;
+    const other = c.members.find(m => m.id !== this.currentUserId);
+    if (other) return other.role === 'admin' ? 'Administrador' : 'Asesor';
+    return 'Chat directo';
+  }
+
+  replyPreview(msg: InternalMessage): string {
+    if (msg.deletedAt) return 'Mensaje eliminado';
+    if (msg.type === 'text') return msg.body;
+    if (msg.type === 'image') return 'Imagen';
+    if (msg.type === 'audio') return 'Audio';
+    if (msg.type === 'file') return this.isVideoMessage(msg) ? 'Video' : (msg.mediaName || 'Archivo');
+    return msg.body;
+  }
+
+  quotedThumb(msg: InternalMessage): string | null {
+    return msg.type === 'image' && msg.mediaUrl ? msg.mediaUrl : null;
+  }
+
+  forwardSourceIcon(msg: InternalMessage): string {
+    if (msg.type === 'image') return 'photo';
+    if (msg.type === 'audio') return 'microphone';
+    if (msg.type === 'file') return this.isVideoMessage(msg) ? 'video' : 'file-text';
+    return 'message-circle';
+  }
+
+  editedLabel(msg: InternalMessage): string {
+    return msg.editedAt
+      ? `Editado ${formatBogotaTime(new Date(msg.editedAt))}`
+      : 'Editado';
+  }
+
+  senderColor(name: string): string {
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+    }
+    return this.senderPalette[hash % this.senderPalette.length];
   }
 
   convTime(conv: InternalConversation): string {
@@ -312,6 +375,42 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
     this.sendMessage();
   }
 
+  onEscape(): void {
+    if (this.editingMessage) {
+      this.cancelEdit();
+    } else if (this.replyToMessage) {
+      this.cancelReply();
+    }
+    this.cdr.detectChanges();
+  }
+
+  quickReply(msg: InternalMessage): void {
+    if (msg.type === 'system' || msg.deletedAt || msg.type !== 'text') return;
+    this.replyTo(msg);
+  }
+
+  toggleAttachMenu(): void {
+    this.showAttachMenu = !this.showAttachMenu;
+    this.cdr.detectChanges();
+  }
+
+  selectAttach(kind: 'image' | 'file' | 'video'): void {
+    this.showAttachMenu = false;
+    if (kind === 'image') this.imageInput?.nativeElement.click();
+    else if (kind === 'video') this.videoInput?.nativeElement.click();
+    else this.fileInput?.nativeElement.click();
+    this.cdr.detectChanges();
+  }
+
+  showSuccess(message: string): void {
+    this.successMessage = message;
+    if (this.successTimer) clearTimeout(this.successTimer);
+    this.successTimer = setTimeout(() => {
+      this.successMessage = '';
+      this.cdr.detectChanges();
+    }, 2600);
+  }
+
   sendMessage(): void {
     if (!this.activeConversation || this.isSending) return;
     if (this.editingMessage) {
@@ -340,7 +439,7 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
     });
   }
 
-  onFileSelected(event: Event, kind: 'image' | 'file'): void {
+  onFileSelected(event: Event, kind: 'image' | 'file' | 'video'): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     input.value = '';
@@ -348,9 +447,9 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
     this.setSelectedFile(file, kind);
   }
 
-  private setSelectedFile(file: File, kind: 'image' | 'audio' | 'file'): void {
+  private setSelectedFile(file: File, kind: 'image' | 'audio' | 'file' | 'video'): void {
     this.selectedFile = file;
-    this.selectedFileKind = kind;
+    this.selectedFileKind = kind === 'video' ? 'file' : kind;
     this.selectedFilePreviewUrl = kind === 'image' || kind === 'audio' ? URL.createObjectURL(file) : '';
     this.errorMessage = '';
     this.cdr.detectChanges();
@@ -514,7 +613,8 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
   quotePreview(msg: InternalMessage): string {
     const target = this.messages.find(m => m.id === msg.replyToMessageId);
     if (!target) return 'Mensaje original';
-    return `${target.senderName}: ${target.body || this.mediaLabel(target)}`;
+    if (target.deletedAt) return 'Mensaje eliminado';
+    return `${target.senderName}: ${this.replyPreview(target)}`;
   }
 
   scrollToMessage(messageId: string): void {
@@ -547,6 +647,16 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
     return Date.now() - new Date(msg.createdAt).getTime() < 15 * 60 * 1000;
   }
 
+  editDisabledReason(msg: InternalMessage): string {
+    if (msg.type === 'system') return 'Los mensajes del sistema no se pueden editar';
+    if (msg.deletedAt) return 'Los mensajes eliminados no se pueden editar';
+    if (!this.messageOwn(msg)) return 'Solo puedes editar tus mensajes';
+    const remaining = 15 * 60 * 1000 - (Date.now() - new Date(msg.createdAt).getTime());
+    if (remaining <= 0) return 'Solo puedes editar dentro de los primeros 15 minutos';
+    const mins = Math.max(1, Math.round(remaining / 60000));
+    return `Editable por ${mins} min más`;
+  }
+
   canDelete(msg: InternalMessage): boolean {
     if (msg.type === 'system' || msg.deletedAt) return false;
     return this.messageOwn(msg) || this.currentUserRole === 'admin';
@@ -566,26 +676,32 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
   startEdit(msg: InternalMessage): void {
     if (!this.canEdit(msg)) return;
     this.editingMessage = msg;
-    this.editingText = msg.body || '';
+    this.draft = msg.body || '';
     this.replyToMessage = null;
     this.closeContextMenu();
+    this.cdr.detectChanges();
   }
 
   cancelEdit(): void {
     this.editingMessage = null;
-    this.editingText = '';
+    this.draft = '';
   }
 
   saveEdit(): void {
-    if (!this.activeConversation || !this.editingMessage) return;
-    const text = this.editingText.trim();
+    if (!this.activeConversation || !this.editingMessage || this.isSending) return;
+    const text = this.draft.trim();
     if (!text) return;
-    this.internalChat.editMessage(
-      this.activeConversation.id,
-      this.editingMessage.id,
-      text,
-    ).subscribe(() => {
-      this.cancelEdit();
+    const convId = this.activeConversation.id;
+    const editingId = this.editingMessage.id;
+    this.isSending = true;
+    this.internalChat.editMessage(convId, editingId, text).subscribe(res => {
+      this.isSending = false;
+      if (res?.id) {
+        this.cancelEdit();
+        setTimeout(() => this.scrollToMessage(editingId), 50);
+      } else {
+        this.errorMessage = 'No se pudo editar el mensaje.';
+      }
       this.cdr.detectChanges();
     });
   }
@@ -599,33 +715,51 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
   openForward(msg: InternalMessage): void {
     if (msg.type === 'system' || msg.deletedAt) return;
     this.forwardSource = msg;
+    this.forwardTargetIds = new Set();
+    this.forwardSearch = '';
     this.showForwardPicker = true;
-    this.forwardTargetId = null;
     this.closeContextMenu();
   }
 
   closeForward(): void {
     this.showForwardPicker = false;
     this.forwardSource = null;
-    this.forwardTargetId = null;
+    this.forwardTargetIds = new Set();
+    this.forwardSearch = '';
+  }
+
+  get filteredForwardConversations(): InternalConversation[] {
+    const q = this.forwardSearch.trim().toLowerCase();
+    const list = this.conversations.filter(c => c.id !== this.activeConversation?.id);
+    if (!q) return list;
+    return list.filter(c => this.conversationName(c).toLowerCase().includes(q));
+  }
+
+  toggleForwardTarget(conversationId: string): void {
+    if (conversationId === this.activeConversation?.id) return;
+    const next = new Set(this.forwardTargetIds);
+    if (next.has(conversationId)) next.delete(conversationId);
+    else next.add(conversationId);
+    this.forwardTargetIds = next;
+    this.cdr.detectChanges();
   }
 
   confirmForward(): void {
-    if (!this.activeConversation || !this.forwardSource || !this.forwardTargetId) return;
-    const target = this.conversations.find(c => c.id === this.forwardTargetId);
-    if (target && target.id === this.activeConversation.id) {
-      this.errorMessage = 'Elige una conversación diferente para reenviar.';
-      this.cdr.detectChanges();
-      return;
+    if (!this.activeConversation || !this.forwardSource || this.forwardTargetIds.size === 0) return;
+    const sourceId = this.activeConversation.id;
+    const messageId = this.forwardSource.id;
+    const ids = [...this.forwardTargetIds];
+    let completed = 0;
+    for (const targetId of ids) {
+      this.internalChat.forwardMessage(sourceId, messageId, targetId).subscribe(() => {
+        completed += 1;
+        if (completed === ids.length) {
+          this.closeForward();
+          this.showSuccess(`Reenviado a ${ids.length} chat${ids.length === 1 ? '' : 's'}`);
+          this.cdr.detectChanges();
+        }
+      });
     }
-    this.internalChat.forwardMessage(
-      this.activeConversation.id,
-      this.forwardSource.id,
-      this.forwardTargetId,
-    ).subscribe(() => {
-      this.closeForward();
-      this.cdr.detectChanges();
-    });
   }
 
   reactToMessage(msg: InternalMessage, emoji: string): void {
@@ -683,9 +817,11 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
   @HostListener('window:click')
   onWindowClick(): void {
     if (this.contextMenu) this.closeContextMenu();
+    if (this.showAttachMenu) this.showAttachMenu = false;
   }
 
   ngOnDestroy(): void {
     this.subs.unsubscribe();
+    this.internalChat.setActiveConversation(null);
   }
 }

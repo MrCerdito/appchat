@@ -80,11 +80,8 @@
       </div>
       <div class="ic-chat-info">
         <strong>{{ conversationName(activeConversation) }}</strong>
-        <span>{{ activeConversation.type === 'group' ? activeConversation.members.length + ' participantes' : 'Chat directo' }}</span>
+        <span>{{ chatSubtitle() }}</span>
       </div>
-      <button type="button" class="ic-new-btn" title="Nuevo chat" (click)="openNewChat()">
-        <wa-icon name="user-plus"></wa-icon>
-      </button>
     </header>
 
     <section class="ic-messages" #icMessages>
@@ -114,11 +111,13 @@
           [class.voice-bubble]="msg.type === 'audio'"
           [class.video-bubble]="msg.type === 'file' && isVideoMessage(msg)"
           [class.pending]="!!msg.pending"
+          [class.ic-editing]="editingMessage?.id === msg.id"
           [class.context-active]="contextMenu?.message?.id === msg.id"
           (contextmenu)="onContextMenu($event, msg)"
+          (dblclick)="quickReply(msg)"
         >
           @if (!messageOwn(msg) && activeConversation.type === 'group') {
-          <span class="ic-sender-tag">{{ msg.senderName }}</span>
+          <span class="ic-sender-tag" [style.color]="senderColor(msg.senderName)">{{ msg.senderName }}</span>
           }
 
           @if (msg.replyToMessageId) {
@@ -181,16 +180,12 @@
           }
 
           <div class="ic-bubble-meta">
-            @if (msg.pending) {
-            <span class="ic-pending-label">Enviando...</span>
-            } @else {
-            <span>{{ messageTime(msg) }}</span>
-            }
             @if (msg.editedAt) {
-            <em>editado</em>
+            <em [title]="editedLabel(msg)">Editado</em>
             }
-            @if (msg.isForwarded) {
-            <em>reenviado</em>
+            <span [title]="msg.editedAt ? editedLabel(msg) : ''">{{ messageTime(msg) }}</span>
+            @if (messageOwn(msg)) {
+            <wa-icon class="ic-meta-tick" [name]="msg.pending ? 'loader-2' : 'checks'" [class.is-pending]="!!msg.pending"></wa-icon>
             }
           </div>
 
@@ -222,12 +217,21 @@
     </section>
 
     @if (replyToMessage) {
-    <div class="ic-reply-bar">
+    <div class="ic-reply-bar ic-quoted" [class.mine]="messageOwn(replyToMessage)" (click)="scrollToMessage(replyToMessage.id)">
+      @if (quotedThumb(replyToMessage)) {
+      <div class="ic-reply-thumb"><img [src]="quotedThumb(replyToMessage)" alt="" /></div>
+      } @else if (replyToMessage.type === 'audio') {
+      <div class="ic-reply-thumb audio"><wa-icon name="microphone"></wa-icon></div>
+      } @else if (replyToMessage.type === 'file' && isVideoMessage(replyToMessage)) {
+      <div class="ic-reply-thumb audio"><wa-icon name="video"></wa-icon></div>
+      } @else if (replyToMessage.type === 'file') {
+      <div class="ic-reply-thumb audio"><wa-icon name="file-text"></wa-icon></div>
+      }
       <div class="ic-reply-info">
         <span>Respondiendo a <strong>{{ replyToMessage.senderName }}</strong></span>
-        <p>{{ replyToMessage.body || mediaLabel(replyToMessage) }}</p>
+        <p>{{ replyPreview(replyToMessage) }}</p>
       </div>
-      <button type="button" (click)="cancelReply()" title="Cancelar">
+      <button type="button" class="ic-reply-close" (click)="$event.stopPropagation(); cancelReply()" title="Cancelar">
         <wa-icon name="x"></wa-icon>
       </button>
     </div>
@@ -236,9 +240,13 @@
     <div class="ic-reply-bar editing">
       <div class="ic-reply-info">
         <span>Editando mensaje</span>
-        <p>{{ editingText }}</p>
+        <p>{{ editingMessage.body }}</p>
       </div>
-      <button type="button" (click)="cancelEdit()" title="Cancelar">
+      <button type="button" class="ic-edit-save" (click)="saveEdit()" [disabled]="isSending" title="Guardar cambios">
+        <wa-icon [name]="isSending ? 'loader-2' : 'device-floppy'"></wa-icon>
+        Guardar
+      </button>
+      <button type="button" class="ic-reply-close" (click)="cancelEdit()" title="Cancelar">
         <wa-icon name="x"></wa-icon>
       </button>
     </div>
@@ -275,18 +283,35 @@
     <footer class="ic-input">
       <input #fileInput type="file" hidden (change)="onFileSelected($event, 'file')" />
       <input #imageInput type="file" accept="image/*" hidden (change)="onFileSelected($event, 'image')" />
-      <button type="button" class="ic-attach-btn" (click)="fileInput.click()" title="Adjuntar archivo">
-        <wa-icon name="paperclip"></wa-icon>
-      </button>
-      <button type="button" class="ic-attach-btn" (click)="imageInput.click()" title="Enviar imagen">
-        <wa-icon name="photo"></wa-icon>
-      </button>
+      <input #videoInput type="file" accept="video/*" hidden (change)="onFileSelected($event, 'video')" />
+      <div class="ic-attach-wrap">
+        <button type="button" class="ic-attach-btn" (click)="$event.stopPropagation(); toggleAttachMenu()" title="Adjuntar">
+          <wa-icon name="paperclip"></wa-icon>
+        </button>
+        @if (showAttachMenu) {
+        <div class="ic-attach-menu" (click)="$event.stopPropagation()">
+          <button type="button" (click)="selectAttach('image')">
+            <span class="ic-attach-icon photo"><wa-icon name="photo"></wa-icon></span>
+            <span>Imagen</span>
+          </button>
+          <button type="button" (click)="selectAttach('file')">
+            <span class="ic-attach-icon doc"><wa-icon name="file-text"></wa-icon></span>
+            <span>Documento</span>
+          </button>
+          <button type="button" (click)="selectAttach('video')">
+            <span class="ic-attach-icon video"><wa-icon name="video"></wa-icon></span>
+            <span>Video</span>
+          </button>
+        </div>
+        }
+      </div>
       <textarea
         #draftArea
         rows="1"
         placeholder="Escribe un mensaje"
         [(ngModel)]="draft"
         (keydown.enter)="onEnter($event)"
+        (keydown.escape)="onEscape()"
         (input)="onTextInput($event)"
       ></textarea>
       @if (selectedFile) {
@@ -356,15 +381,31 @@
         <wa-icon name="x"></wa-icon>
       </button>
     </header>
+    @if (forwardSource) {
+    <div class="ic-forward-preview" [class.mine]="messageOwn(forwardSource)">
+      <div class="ic-forward-preview-icon"><wa-icon [name]="forwardSourceIcon(forwardSource)"></wa-icon></div>
+      <div class="ic-forward-preview-body">
+        <strong>{{ conversationName(activeConversation) }}</strong>
+        <p>{{ forwardSource.body || replyPreview(forwardSource) }}</p>
+      </div>
+    </div>
+    }
+    <div class="ic-modal-search">
+      <wa-icon name="search"></wa-icon>
+      <input type="text" placeholder="Buscar chat" [(ngModel)]="forwardSearch" />
+    </div>
     <div class="ic-forward-list">
-      @for (conv of conversations; track conv.id) {
+      @for (conv of filteredForwardConversations; track conv.id) {
       <button
         type="button"
         class="ic-forward-item"
-        [class.selected]="forwardTargetId === conv.id"
+        [class.selected]="forwardTargetIds.has(conv.id)"
         [disabled]="conv.id === activeConversation.id"
-        (click)="forwardTargetId = conv.id"
+        (click)="toggleForwardTarget(conv.id)"
       >
+        <div class="ic-forward-check" [class.checked]="forwardTargetIds.has(conv.id)">
+          <wa-icon name="checks"></wa-icon>
+        </div>
         <div class="ic-avatar" [class.is-group]="conv.type === 'group'">
           @if (conv.type === 'group') {
           <wa-icon name="users-group"></wa-icon>
@@ -375,10 +416,15 @@
         <span>{{ conversationName(conv) }}</span>
       </button>
       }
+      @if (!filteredForwardConversations.length) {
+      <div class="ic-empty-list">Sin conversaciones disponibles.</div>
+      }
     </div>
     <div class="ic-modal-actions">
       <button type="button" class="ic-ghost-btn" (click)="closeForward()">Cancelar</button>
-      <button type="button" class="ic-primary-btn" [disabled]="!forwardTargetId" (click)="confirmForward()">Reenviar</button>
+      <button type="button" class="ic-primary-btn" [disabled]="!forwardTargetIds.size" (click)="confirmForward()">
+        Reenviar a {{ forwardTargetIds.size }}
+      </button>
     </div>
   </section>
   }
@@ -386,15 +432,15 @@
   @if (contextMenu) {
   <div class="ic-context" #icContext [style.left.px]="contextMenu.x" [style.top.px]="contextMenu.y">
     @if (!messageOwn(contextMenu.message)) {
-    <button type="button" (click)="replyTo(contextMenu.message)">Responder</button>
+    <button type="button" (click)="replyTo(contextMenu.message)"><wa-icon name="corner-up-left"></wa-icon>Responder</button>
     }
     @if (messageOwn(contextMenu.message)) {
-    <button type="button" [disabled]="!canEdit(contextMenu.message)" (click)="startEdit(contextMenu.message)">Editar</button>
+    <button type="button" [disabled]="!canEdit(contextMenu.message)" [title]="canEdit(contextMenu.message) ? '' : editDisabledReason(contextMenu.message)" (click)="startEdit(contextMenu.message)"><wa-icon name="pencil"></wa-icon>Editar</button>
     }
-    <button type="button" (click)="openForward(contextMenu.message)">Reenviar</button>
-    <button type="button" (click)="toggleReactions(contextMenu.message)">Reaccionar</button>
+    <button type="button" (click)="openForward(contextMenu.message)"><wa-icon name="corner-up-right"></wa-icon>Reenviar</button>
+    <button type="button" (click)="toggleReactions(contextMenu.message)"><wa-icon name="sparkles"></wa-icon>Reaccionar</button>
     @if (canDelete(contextMenu.message)) {
-    <button type="button" class="danger" (click)="deleteMessage(contextMenu.message)">Eliminar</button>
+    <button type="button" class="danger" (click)="deleteMessage(contextMenu.message)"><wa-icon name="trash"></wa-icon>Eliminar</button>
     }
   </div>
   }
@@ -413,5 +459,11 @@
 
   @if (errorMessage) {
   <div class="ic-error-toast">{{ errorMessage }}</div>
+  }
+  @if (successMessage) {
+  <div class="ic-success-toast">
+    <wa-icon name="circle-check"></wa-icon>
+    {{ successMessage }}
+  </div>
   }
 </div>

@@ -418,8 +418,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
     );
   }
 
+  get whatsappTotalUnread(): number {
+    return this.whatsappUnreadCount + this.internalUnreadCount;
+  }
+
+  get whatsappUnreadTitle(): string {
+    return `Mensajes sin leer de WhatsApp — Clientes: ${this.whatsappUnreadCount} · Internos: ${this.internalUnreadCount}`;
+  }
+
   private refreshGlobalBadge(): void {
-    this.totalUnreadCount = this.misChatsNoLeidos + this.whatsappUnreadCount + this.internalUnreadCount;
+    this.totalUnreadCount = this.misChatsNoLeidos + this.whatsappUnreadCount;
     this.sound.setUnreadBadge(this.totalUnreadCount);
     if (document.hidden && this.totalUnreadCount > 0) {
       this.sound.startTitleBlink(this.totalUnreadCount);

@@ -26,6 +26,7 @@ export class InternalChatService implements OnDestroy {
 
   private messagesByConversation = new Map<string, InternalMessage[]>();
   private activeConversationId: string | null = null;
+  private currentUserId = '';
 
   private newMessageEvent$ = new Subject<InternalMessage>();
   private reactions$ = new Subject<InternalReaction>();
@@ -88,6 +89,10 @@ export class InternalChatService implements OnDestroy {
 
   connect(): void {
     this.connectSocket();
+  }
+
+  setCurrentUser(userId: string): void {
+    this.currentUserId = userId;
   }
 
   disconnect(): void {
@@ -305,7 +310,9 @@ export class InternalChatService implements OnDestroy {
   private handleNewMessage(data: { conversationId: string; message: InternalMessage }): void {
     const message = this.normalizeMessage(data.message);
     const isActive = this.activeConversationId === data.conversationId;
-    this.appendMessage(data.conversationId, message, { skipEmit: true });
+    if (!this.resolvePendingOwn(data.conversationId, message)) {
+      this.appendMessage(data.conversationId, message, { skipEmit: true });
+    }
     if (isActive) {
       this.markRead(data.conversationId).subscribe();
     }
@@ -338,6 +345,25 @@ export class InternalChatService implements OnDestroy {
         });
       }
     }
+  }
+
+  /**
+   * Si el mensaje recibido por socket es el echo de uno propio aún pendiente
+   * (todavía esperando la respuesta HTTP), lo reemplaza en vez de duplicarlo,
+   * evitando el parpadeo del tick (loader → checks).
+   */
+  private resolvePendingOwn(conversationId: string, message: InternalMessage): boolean {
+    if (message.senderId !== this.currentUserId) return false;
+    const list = this.messagesByConversation.get(conversationId);
+    if (!list) return false;
+    const idx = list.findIndex(m => m.pending && m.senderId === message.senderId);
+    if (idx === -1) return false;
+    const updated = list.map((m, i) => (i === idx ? message : m));
+    this.messagesByConversation.set(conversationId, updated);
+    if (this.activeConversationId === conversationId) {
+      this.messages$.next(updated);
+    }
+    return true;
   }
 
   private applyEdit(conversationId: string, message: InternalMessage): void {
