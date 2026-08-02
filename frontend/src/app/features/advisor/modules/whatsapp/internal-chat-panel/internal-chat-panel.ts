@@ -429,8 +429,13 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
   mediaLabel(msg: InternalMessage): string {
     if (msg.type === 'image') return 'Imagen';
     if (msg.type === 'audio') return 'Audio';
+    if (msg.type === 'file' && this.isVideoMessage(msg)) return 'Video';
     if (msg.type === 'file') return 'Archivo';
     return msg.body || 'Mensaje';
+  }
+
+  isVideoMessage(msg: InternalMessage): boolean {
+    return (msg.mediaMimeType || '').toLowerCase().startsWith('video/');
   }
 
   formatFileSize(size: number | null): string {
@@ -510,6 +515,19 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
     const target = this.messages.find(m => m.id === msg.replyToMessageId);
     if (!target) return 'Mensaje original';
     return `${target.senderName}: ${target.body || this.mediaLabel(target)}`;
+  }
+
+  scrollToMessage(messageId: string): void {
+    if (!messageId) return;
+    const container = this.messagesContainer?.nativeElement as HTMLElement | undefined;
+    if (!container) return;
+    const el = container.querySelector<HTMLElement>(`[data-msg-id="${messageId}"]`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.remove('ic-highlight');
+    void el.offsetWidth;
+    el.classList.add('ic-highlight');
+    setTimeout(() => el.classList.remove('ic-highlight'), 1800);
   }
 
   reactionNames(msg: InternalMessage): string {
