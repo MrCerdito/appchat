@@ -15,6 +15,22 @@
     <h2>Fuera de horario</h2>
     <p class="fh-sub">En este momento no estamos disponibles.</p>
 
+    @if (textoProximaApertura) {
+    <div class="fh-proxima">
+      <div class="fh-proxima-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+      </div>
+      <div class="fh-proxima-texto">
+        <span class="fh-proxima-label">Volvemos</span>
+        <strong class="fh-proxima-valor">{{ textoProximaApertura }}</strong>
+      </div>
+    </div>
+    }
+
     @if (horarioHoySlots.length > 0) {
     <div class="fh-horarios">
       <span class="fh-horarios-lbl">Horario de atención</span>
@@ -27,7 +43,7 @@
           <span class="fh-badge-hoy">hoy</span>
           }
         </span>
-        <span class="fh-hora">{{ s.inicio }} – {{ s.fin }}</span>
+        <span class="fh-hora">{{ formatoHora12(s.inicio) }} – {{ formatoHora12(s.fin) }}</span>
       </div>
       }
     </div>

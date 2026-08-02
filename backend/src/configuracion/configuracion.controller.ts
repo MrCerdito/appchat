@@ -29,7 +29,7 @@ export class ConfiguracionController {
   constructor(private readonly svc: ConfiguracionService) {}
 
   @Public()
-  @Header('Cache-Control', 'public, max-age=60')
+  @Header('Cache-Control', 'no-store')
   @Get('horario-hoy')
   horarioHoy() {
     return this.svc.getHorarioEstado();

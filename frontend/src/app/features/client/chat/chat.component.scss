@@ -1101,6 +1101,20 @@ textarea {
 .fh-icon-wrap { width: 60px; height: 60px; border-radius: 50%; background: #fef3c7; display: flex; align-items: center; justify-content: center; svg { width: 28px; height: 28px; stroke: #d97706; } }
 .fh-sub { font-size: 0.82rem; color: var(--text-muted); margin: 0; }
 
+.fh-proxima {
+  width: 100%; display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.85rem 1rem; background: linear-gradient(135deg, #fef3c7, #fffbeb);
+  border: 1px solid #fde68a; border-radius: 14px; text-align: left;
+}
+.fh-proxima-icon {
+  flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%;
+  background: #f59e0b; display: flex; align-items: center; justify-content: center;
+  svg { width: 20px; height: 20px; stroke: #fff; }
+}
+.fh-proxima-texto { display: flex; flex-direction: column; gap: 0.05rem; min-width: 0; }
+.fh-proxima-label { font-size: 0.68rem; font-weight: 700; color: #b45309; text-transform: uppercase; letter-spacing: 0.06em; }
+.fh-proxima-valor { font-size: 1rem; font-weight: 700; color: #92400e; line-height: 1.25; text-transform: capitalize; }
+
 .fh-horarios { width: 100%; display: flex; flex-direction: column; gap: 0.4rem; }
 .fh-horarios-lbl { font-size: 0.7rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.2rem; }
 
