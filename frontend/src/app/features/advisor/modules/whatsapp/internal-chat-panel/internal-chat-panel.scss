@@ -363,6 +363,16 @@ a { text-decoration: none; color: inherit; }
   &.context-active { outline: 2px solid var(--wa-green, #00A884); }
 }
 
+.ic-msg-row.ic-highlight .ic-bubble {
+  animation: icMsgHighlight 1.6s ease;
+}
+
+@keyframes icMsgHighlight {
+  0%   { box-shadow: 0 0 0 3px var(--wa-green, #00A884); background-color: var(--wa-highlight-bg, #E8FFF5); }
+  60%  { box-shadow: 0 0 0 3px var(--wa-green, #00A884); background-color: var(--wa-highlight-bg, #E8FFF5); }
+  100% { box-shadow: 0 1px 2px var(--wa-shadow, rgba(0, 0, 0, .06)); }
+}
+
 .ic-body {
   margin: 0;
   font-size: 14px;
@@ -378,6 +388,10 @@ a { text-decoration: none; color: inherit; }
   padding: 6px 8px;
   border-radius: 6px;
   background: var(--wa-surface-3, #F0F2F5);
+  cursor: pointer;
+  transition: background .15s ease;
+
+  &:hover { background: var(--wa-surface-2, #E4E6EB); }
 
   .ic-quote-bar { width: 4px; border-radius: 2px; background: var(--wa-green, #00A884); }
   .ic-quote-content {
@@ -424,6 +438,65 @@ a { text-decoration: none; color: inherit; }
   cursor: default;
 
   wa-icon { font-size: 34px; color: var(--wa-faint, #94A3B8); }
+}
+
+.ic-bubble.video-bubble {
+  width: min(340px, 100%);
+  max-width: 100%;
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+
+  > .ic-sender-tag,
+  > .ic-forwarded-tag,
+  > .ic-quote,
+  > .ic-body,
+  > .ic-reactions {
+    margin-left: 10px;
+    margin-right: 10px;
+  }
+
+  > .ic-sender-tag { margin-top: 6px; }
+  > .ic-forwarded-tag { margin-top: 6px; }
+  > .ic-quote { margin-top: 8px; }
+  > .ic-body { padding-bottom: 6px; }
+
+  .ic-media-video {
+    display: block;
+    width: 100%;
+    max-height: 340px;
+    margin: 0;
+    border-radius: 0;
+    background: #000;
+  }
+
+  .ic-media-video.pending-video {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    height: 200px;
+    background: var(--wa-surface-3, #F0F2F5);
+    color: var(--wa-muted, #667781);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: default;
+
+    wa-icon { font-size: 30px; color: var(--wa-faint, #94A3B8); }
+  }
+
+  .ic-bubble-meta {
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
+    margin: 0;
+    padding: 2px 6px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, .38);
+    color: #fff;
+    backdrop-filter: blur(2px);
+  }
 }
 
 .ic-media-file {

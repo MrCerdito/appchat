@@ -98,7 +98,7 @@
       @for (group of groupedMessages(messages); track trackByIndex($index)) {
       <div class="ic-date-sep"><span>{{ group.label }}</span></div>
       @for (msg of group.messages; track msg.id) {
-      <div class="ic-msg-row" [ngClass]="messageOwn(msg) ? 'out' : 'in'">
+      <div class="ic-msg-row" [ngClass]="messageOwn(msg) ? 'out' : 'in'" [attr.data-msg-id]="msg.id">
         @if (msg.type === 'system') {
         <div class="ic-system-line">{{ msg.body }}</div>
         } @else if (msg.deletedAt) {
@@ -112,6 +112,7 @@
         <div
           class="ic-bubble"
           [class.voice-bubble]="msg.type === 'audio'"
+          [class.video-bubble]="msg.type === 'file' && isVideoMessage(msg)"
           [class.pending]="!!msg.pending"
           [class.context-active]="contextMenu?.message?.id === msg.id"
           (contextmenu)="onContextMenu($event, msg)"
@@ -121,7 +122,7 @@
           }
 
           @if (msg.replyToMessageId) {
-          <div class="ic-quote">
+          <div class="ic-quote" title="Ver mensaje original" (click)="$event.stopPropagation(); scrollToMessage(msg.replyToMessageId)">
             <div class="ic-quote-bar"></div>
             <div class="ic-quote-content">
               <strong>{{ quotePreview(msg) }}</strong>
@@ -150,7 +151,14 @@
           </div>
           }
 
-          @if (msg.type === 'file' && msg.mediaUrl) {
+          @if (msg.type === 'file' && isVideoMessage(msg) && msg.mediaUrl) {
+          <video class="ic-media-video" [src]="msg.mediaUrl" controls playsinline></video>
+          } @else if (msg.type === 'file' && isVideoMessage(msg)) {
+          <div class="ic-media-video pending-video">
+            <wa-icon name="video"></wa-icon>
+            <span>Video</span>
+          </div>
+          } @else if (msg.type === 'file' && msg.mediaUrl) {
           <a class="ic-media-file" [href]="msg.mediaUrl" target="_blank" rel="noopener noreferrer">
             <wa-icon name="file-text"></wa-icon>
             <span>{{ msg.mediaName || 'Abrir archivo' }}</span>

@@ -320,7 +320,9 @@ export class InternalChatService implements OnDestroy {
             : message.type === 'audio'
               ? 'Audio'
               : message.type === 'file'
-                ? 'Archivo'
+                ? (message.mediaMimeType || '').startsWith('video/')
+                  ? 'Video'
+                  : 'Archivo'
                 : message.body || '';
         this.upsertConversation({
           ...conversation,
