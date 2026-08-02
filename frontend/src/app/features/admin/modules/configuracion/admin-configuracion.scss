@@ -176,6 +176,11 @@
 .time-field  { display: flex; flex-direction: column; gap: 4px; }
 .time-field-label { font-size: 0.68rem; font-weight: 500; color: var(--text-muted); }
 .time-arrow  { padding-bottom: 8px; svg { width: 16px; height: 16px; stroke: var(--border); } }
+.time-error {
+  display: flex; align-items: center; gap: 0.4rem;
+  font-size: 0.74rem; font-weight: 600; color: #dc2626;
+  svg { width: 14px; height: 14px; flex-shrink: 0; }
+}
 
 input[type="time"] {
   padding: 0.55rem 0.75rem; border: 1px solid var(--border); border-radius: 8px;
@@ -205,6 +210,51 @@ input[type="time"] {
   .chip-dia  { font-size: 0.78rem; font-weight: 700; color: #7c3aed; }
   .chip-hora { font-size: 0.74rem; color: #6d28d9; }
 }
+.jornada-error { font-size: 0.76rem; font-weight: 600; color: #dc2626; background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; padding: 0.5rem 0.8rem; }
+
+// ── Vista previa fuera de horario ─────────────────────────────────────────────
+.fh-preview {
+  display: flex; flex-direction: column; gap: 0.6rem;
+  &.disabled { opacity: 0.55; }
+}
+.fh-preview-header {
+  display: flex; align-items: center; gap: 0.45rem;
+  font-size: 0.7rem; font-weight: 700; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.05em;
+  svg { width: 13px; height: 13px; flex-shrink: 0; }
+}
+.fh-preview-badge {
+  font-size: 0.62rem; font-weight: 700; color: #b45309;
+  background: #fef3c7; border: 1px solid #fde68a;
+  padding: 2px 8px; border-radius: 20px; text-transform: none; letter-spacing: 0;
+}
+.fh-preview-card {
+  max-width: 340px; padding: 1.4rem 1.2rem;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  display: flex; flex-direction: column; align-items: center; gap: 0.7rem; text-align: center;
+  h4 { font-size: 0.95rem; font-weight: 600; color: var(--text); margin: 0; }
+}
+.fh-preview-icon {
+  width: 44px; height: 44px; border-radius: 50%;
+  background: #fef3c7; display: flex; align-items: center; justify-content: center;
+  svg { width: 22px; height: 22px; stroke: #d97706; }
+}
+.fh-preview-sub { font-size: 0.78rem; color: var(--text-muted); margin: 0; }
+.fh-preview-proxima {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.55rem 0.8rem; background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px;
+  font-size: 0.82rem; color: #92400e;
+  svg { width: 15px; height: 15px; stroke: #f59e0b; flex-shrink: 0; }
+  strong { text-transform: capitalize; }
+}
+.fh-preview-horarios { width: 100%; display: flex; flex-direction: column; gap: 0.3rem; }
+.fh-preview-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.4rem 0.7rem; background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  font-size: 0.76rem; color: var(--text-muted);
+  &.invalid { border-color: #fecaca; color: #dc2626; }
+}
+.fh-preview-msg { font-size: 0.72rem; color: var(--text-muted); line-height: 1.5; margin: 0; padding-top: 0.4rem; border-top: 1px solid var(--border); width: 100%; }
 
 // ── Bloques de inactividad ────────────────────────────────────────────────────
 .inac-block { display: flex; flex-direction: column; gap: 0.9rem; }

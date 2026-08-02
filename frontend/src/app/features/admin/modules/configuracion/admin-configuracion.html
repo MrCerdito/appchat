@@ -209,6 +209,17 @@
                   [disabled]="!config.horariosActivos"/>
               </div>
             </div>
+            @if (!horarioValido(getHorario(diaSeleccionado))) {
+            <div class="time-error">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              <span>El cierre debe ser posterior a la apertura</span>
+            </div>
+            }
           </div>
 
           <!-- Barra visual -->
@@ -256,8 +267,65 @@
             </div>
             }
           </div>
+          @if (errorHorarioVisible) {
+          <div class="jornada-error">
+            Hay horarios con el cierre menor o igual a la apertura. Corrígelos antes de guardar.
+          </div>
+          }
         </div>
         }
+
+        <!-- Vista previa para el cliente -->
+        <div class="fh-preview" [class.disabled]="!config.horariosActivos">
+          <div class="fh-preview-header">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+            <span>Vista previa para el cliente</span>
+            @if (!config.horariosActivos) {
+            <span class="fh-preview-badge">horarios desactivados</span>
+            }
+          </div>
+          <div class="fh-preview-card">
+            <div class="fh-preview-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </div>
+            <h4>Fuera de horario</h4>
+            <p class="fh-preview-sub">En este momento no estamos disponibles.</p>
+
+            @if (config.horariosActivos && previewProxima().texto) {
+            <div class="fh-preview-proxima">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+              <span>Volvemos <strong>{{ previewProxima().texto }}</strong></span>
+            </div>
+            }
+
+            @if (config.horarios.length > 0) {
+            <div class="fh-preview-horarios">
+              @for (h of config.horarios; track trackByIndex($index)) {
+              <div class="fh-preview-row" [class.invalid]="!horarioValido(h)">
+                <span>{{ getDiaNombre(h.dia) }}</span>
+                <span>{{ h.inicio }} – {{ h.fin }}</span>
+              </div>
+              }
+            </div>
+            }
+
+            @if (config.horarioFueraMsg) {
+            <p class="fh-preview-msg">{{ config.horarioFueraMsg }}</p>
+            }
+          </div>
+        </div>
 
         <!-- Mensaje fuera de horario -->
         <div class="field">

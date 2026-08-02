@@ -17,6 +17,9 @@ export interface HorarioEstado {
   mensaje: string;
   proximaApertura: string;
   horaApertura: string;
+  proximaTipo: 'hoy' | 'manana' | 'fecha' | '';
+  proximaDia: number;
+  proximaInicio: string;
 }
 
 @Injectable()
@@ -482,7 +485,9 @@ export class ConfiguracionService implements OnModuleInit {
 
   async getHorarioEstado(): Promise<HorarioEstado> {
     const config = await this.getGlobal();
-    const horarios = config.horarios ?? [];
+    const horarios = [...(config.horarios ?? [])].sort(
+      (a, b) => a.dia - b.dia,
+    );
     const ahora = new Date();
     const diaHoy = ahora.getDay();
     const hhmm = this.hhmm(ahora);
@@ -495,13 +500,16 @@ export class ConfiguracionService implements OnModuleInit {
         mensaje: '',
         proximaApertura: '',
         horaApertura: '',
+        proximaTipo: '',
+        proximaDia: -1,
+        proximaInicio: '',
       };
     }
 
-    const slotHoy = horarios.find((h) => h.dia === diaHoy);
-    const enJornada = slotHoy
-      ? hhmm >= slotHoy.inicio && hhmm < slotHoy.fin
-      : false;
+    const slotsHoy = horarios.filter((h) => h.dia === diaHoy);
+    const enJornada = slotsHoy.some(
+      (slot) => hhmm >= slot.inicio && hhmm < slot.fin,
+    );
     const proxima = this.getProximaApertura(horarios, ahora);
 
     return {
@@ -511,6 +519,9 @@ export class ConfiguracionService implements OnModuleInit {
       mensaje: config.horarioFueraMsg,
       proximaApertura: proxima.label,
       horaApertura: proxima.hora,
+      proximaTipo: proxima.tipo,
+      proximaDia: proxima.dia,
+      proximaInicio: proxima.hora,
     };
   }
 
@@ -530,9 +541,9 @@ export class ConfiguracionService implements OnModuleInit {
   private getProximaApertura(
     horarios: HorarioSlot[],
     ahora: Date,
-  ): { label: string; hora: string } {
+  ): { label: string; hora: string; tipo: HorarioEstado['proximaTipo']; dia: number } {
     if (!horarios.length)
-      return { label: 'en nuestro proximo horario', hora: '' };
+      return { label: 'en nuestro proximo horario', hora: '', tipo: '', dia: -1 };
 
     const minutosAhora = ahora.getHours() * 60 + ahora.getMinutes();
     const diaHoy = ahora.getDay();
@@ -547,17 +558,19 @@ export class ConfiguracionService implements OnModuleInit {
         if (offset === 0 && this.toMinutes(slot.inicio) <= minutosAhora)
           continue;
         if (offset === 0)
-          return { label: `hoy a las ${slot.inicio}`, hora: slot.inicio };
+          return { label: `hoy a las ${slot.inicio}`, hora: slot.inicio, tipo: 'hoy', dia };
         if (offset === 1)
-          return { label: `manana a las ${slot.inicio}`, hora: slot.inicio };
+          return { label: `manana a las ${slot.inicio}`, hora: slot.inicio, tipo: 'manana', dia };
         return {
           label: `el ${this.dias[dia]} a las ${slot.inicio}`,
           hora: slot.inicio,
+          tipo: 'fecha',
+          dia,
         };
       }
     }
 
-    return { label: 'en nuestro proximo horario', hora: '' };
+    return { label: 'en nuestro proximo horario', hora: '', tipo: '', dia: -1 };
   }
 
   private hhmm(date: Date): string {

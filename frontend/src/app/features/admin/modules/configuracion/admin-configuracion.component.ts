@@ -191,6 +191,14 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
 
   guardar(): void {
     if (!this.config) return;
+
+    if (this.errorHorarioVisible) {
+      this.error = 'Corrige los horarios donde el cierre no es mayor que la apertura antes de guardar.';
+      this.notification.error('Horarios inválidos', 'El cierre debe ser posterior a la apertura.');
+      this.cdr.detectChanges();
+      return;
+    }
+
     this.saving = true;
     this.error = '';
 
@@ -268,6 +276,51 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
     if (!hora) return 0;
     const [h, m] = hora.split(':').map(Number);
     return Math.min(100, Math.max(0, ((h * 60 + m - 420) / 720) * 100));
+  }
+
+  // ── Validación y vista previa de la jornada ────────────────────────────────
+
+  horarioValido(slot: HorarioSlot): boolean {
+    if (!slot?.inicio || !slot?.fin) return false;
+    return this.toMin(slot.inicio) < this.toMin(slot.fin);
+  }
+
+  get horariosInvalidos(): number[] {
+    return (this.config?.horarios ?? [])
+      .filter(h => !this.horarioValido(h))
+      .map(h => h.dia);
+  }
+
+  get errorHorarioVisible(): boolean {
+    return this.horariosInvalidos.length > 0;
+  }
+
+  previewProxima(): { texto: string; hora: string } {
+    const horarios = this.config?.horarios ?? [];
+    if (!horarios.length) return { texto: '', hora: '' };
+
+    const ahora = new Date();
+    const minutosAhora = ahora.getHours() * 60 + ahora.getMinutes();
+    const diaHoy = ahora.getDay();
+
+    for (let offset = 0; offset <= 7; offset++) {
+      const dia = (diaHoy + offset) % 7;
+      const slotsDia = horarios
+        .filter(s => s.dia === dia)
+        .sort((a, b) => this.toMin(a.inicio) - this.toMin(b.inicio));
+
+      for (const slot of slotsDia) {
+        if (offset === 0 && this.toMin(slot.inicio) <= minutosAhora) continue;
+        const prefijo = offset === 0 ? 'hoy' : offset === 1 ? 'mañana' : `el ${this.getDiaNombre(dia)}`;
+        return { texto: `${prefijo} a las ${slot.inicio}`, hora: slot.inicio };
+      }
+    }
+    return { texto: '', hora: '' };
+  }
+
+  private toMin(hora: string): number {
+    const [h = 0, m = 0] = hora.split(':').map(Number);
+    return h * 60 + m;
   }
 
   segsToMins(segs: number): number {

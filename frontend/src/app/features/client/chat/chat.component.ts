@@ -106,6 +106,12 @@ private streamSub: any;
   horarioHoySlots     : { dia: number; inicio: string; fin: string }[] = [];
   diaHoy              = 0;
   mensajeFueraHorario = '';
+  proximaApertura     = '';
+  horaApertura        = '';
+  proximaTipo         : 'hoy' | 'manana' | 'fecha' | '' = '';
+  proximaDia          = -1;
+  proximaInicio       = '';
+  private horarioPollInterval: any = null;
   readonly nombresDias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
   readonly rolesLabels: Record<string, string> = {
   estudiante: 'Estudiante',
@@ -262,6 +268,10 @@ get rolLabel(): string {
 
     this.verificarJornada();
 
+    // Re-chequea el horario periódicamente para que el widget se
+    // actualice solo cuando el admin guarda cambios o inicia la jornada.
+    this.horarioPollInterval = setInterval(() => this.verificarJornada(), 30_000);
+
     this.sessionService.getColegios().subscribe({
       next: (c) => {
         this.colegios = c.map(co => ({ ...co, nombre: this.sanitizeText(co.nombre), link: this.sanitizeText(co.link) }));
@@ -286,6 +296,7 @@ get rolLabel(): string {
 
           if (savedData.aiMode === true) {
             this.aiMode = true;
+            this.fueraDeHorario = false;
             const savedHistory  = localStorage.getItem(AI_HISTORY_KEY);
             const savedMessages = localStorage.getItem(AI_MESSAGES_KEY);
             this.aiHistory  = savedHistory  ? JSON.parse(savedHistory)  : [];
@@ -306,6 +317,7 @@ get rolLabel(): string {
 
           if (s.status === 'active' && advisor) {
             this.advisorName = (advisor as any).name;
+            this.fueraDeHorario = false;
             this.step = 'chat';
           } else {
             this.step = 'waiting';
@@ -330,18 +342,46 @@ get rolLabel(): string {
   private verificarJornada(): void {
     this.sessionService.getHorarioHoy().subscribe({
       next: (res) => {
-        this.diaHoy          = res.diaHoy;
-        this.horarioHoySlots = res.horarios ?? [];
-        if (!res.enJornada) {
-          this.fueraDeHorario      = true;
-          this.mensajeFueraHorario = res.mensaje;
-          this.cdr.detectChanges();
+        this.diaHoy              = res.diaHoy;
+        this.horarioHoySlots     = res.horarios ?? [];
+        this.mensajeFueraHorario = res.mensaje ?? '';
+        this.proximaApertura     = res.proximaApertura ?? '';
+        this.horaApertura        = res.horaApertura ?? '';
+        this.proximaTipo         = res.proximaTipo ?? '';
+        this.proximaDia          = res.proximaDia ?? -1;
+        this.proximaInicio       = res.proximaInicio ?? '';
+        // No interrumpir una conversación activa: el overlay solo aplica si no hay sesión.
+        if (!this.session) {
+          this.fueraDeHorario = !res.enJornada;
         }
+        this.cdr.detectChanges();
       },
       error: () => {
         this.notification.error('Error', 'No se pudo verificar el horario de atención');
       },
     });
+  }
+
+  get textoProximaApertura(): string {
+    if (this.proximaTipo === 'hoy') {
+      return `hoy a las ${this.formatoHora12(this.proximaInicio)}`;
+    }
+    if (this.proximaTipo === 'manana') {
+      return `mañana a las ${this.formatoHora12(this.proximaInicio)}`;
+    }
+    if (this.proximaTipo === 'fecha' && this.proximaDia >= 0) {
+      return `el ${this.nombresDias[this.proximaDia]} a las ${this.formatoHora12(this.proximaInicio)}`;
+    }
+    return '';
+  }
+
+  formatoHora12(hora: string): string {
+    if (!hora) return '';
+    const [h, m] = hora.split(':').map(Number);
+    if (Number.isNaN(h)) return hora;
+    const h12 = h % 12 || 12;
+    const ampm = h < 12 ? 'a. m.' : 'p. m.';
+    return `${h12}:${String(m ?? 0).padStart(2, '0')} ${ampm}`;
   }
 
   get mensajeFueraHorarioParts(): { intro: string; items: string[] } {
@@ -573,6 +613,7 @@ get rolLabel(): string {
       next: (session) => {
   this.session = session;
   this.aiMode  = true;
+  this.fueraDeHorario = false;
   this.step    = 'chat';
 
   this.sessionService.getCodigo(session.id).subscribe({
@@ -740,6 +781,7 @@ get rolLabel(): string {
         this.mostrarAsesoresOcupados = false;
         this.queuePosition = -1;
         this.queueTotal    = null;
+        this.fueraDeHorario = false;
         this.step = 'chat';
         this.socket.emit('set_active', { sessionId: this.session!.id, active: true });
         if (this.session) {
@@ -836,6 +878,10 @@ get rolLabel(): string {
   }
 
   private handleVisibilityChange(): void {
+    // Al volver a la pestaña, refresca el estado de jornada al instante.
+    if (document.visibilityState === 'visible') {
+      this.verificarJornada();
+    }
     if (!this.session || this.aiMode || this.step !== 'chat') return;
     this.socket.emit('set_active', {
       sessionId: this.session.id,
@@ -1435,6 +1481,8 @@ private escapeHtml(value: string): string {
   
 
   ngOnDestroy(): void {
+    clearInterval(this.horarioPollInterval);
+    this.horarioPollInterval = null;
     clearInterval(this.reconexionInterval);
     this.reconexionInterval = null;
     window.removeEventListener('online',  this.onlineHandler);

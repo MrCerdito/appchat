@@ -186,10 +186,21 @@ export class SessionService {
   }
 
   getHorarioHoy(): Observable<{
-    diaHoy: number; enJornada: boolean; horarios: any[]; mensaje: string 
-}> {
-  return this.http.get<any>(`${environment.apiUrl}/configuracion/horario-hoy`);
-}
+    diaHoy: number;
+    enJornada: boolean;
+    horarios: { dia: number; inicio: string; fin: string }[];
+    mensaje: string;
+    proximaApertura: string;
+    horaApertura: string;
+    proximaTipo: 'hoy' | 'manana' | 'fecha' | '';
+    proximaDia: number;
+    proximaInicio: string;
+  }> {
+    // Cache-bust: evita que el navegador sirva horarios viejos tras guardar.
+    return this.http.get<any>(
+      `${environment.apiUrl}/configuracion/horario-hoy?_t=${Date.now()}`,
+    );
+  }
 
 close(sessionId: string): Observable<any> {
   return this.http.post(`${environment.apiUrl}/sessions/${sessionId}/close`, {});
