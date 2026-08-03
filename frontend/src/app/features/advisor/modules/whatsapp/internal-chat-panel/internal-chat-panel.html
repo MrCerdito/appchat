@@ -1,5 +1,6 @@
 <div class="ic-layout" [class.has-chat]="!!activeConversation">
 
+  @if (!embedded) {
   <aside class="ic-sidebar">
     <header class="ic-sidebar-header">
       <div class="ic-sidebar-title">
@@ -54,6 +55,7 @@
       }
     </div>
   </aside>
+  }
 
   <main class="ic-main">
     @if (!activeConversation) {

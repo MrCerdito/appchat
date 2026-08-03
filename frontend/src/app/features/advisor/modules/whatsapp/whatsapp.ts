@@ -38,6 +38,7 @@ import {
   WaContactUpdate,
   WaMessage,
 } from '../../../../core/models/whatsapp.models';
+import { InternalConversation } from '../../../../core/models/internal-chat.models';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
 import { priorityLabel, priorityColor } from '../../../../shared/utils/ticket-categories';
 import { scrollToBottom as scrollToBottomEl } from '../../../../shared/utils/scroll';
@@ -278,6 +279,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   chatMode: 'clients' | 'advisors' = 'clients';
   internalUnreadTotal = 0;
   internalChatOpen = false;
+  @ViewChild(InternalChatPanelComponent) internalPanel?: InternalChatPanelComponent;
 
   private shouldScroll = false;
   private toastTimer?: ReturnType<typeof setTimeout>;
@@ -426,6 +428,55 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   onInternalActiveChange(open: boolean): void {
     this.internalChatOpen = open;
     this.cdr.detectChanges();
+  }
+
+  // ── Internal chat (advisors) delegates ─────────────────────────────────
+  get internalConversations(): InternalConversation[] {
+    return this.internalPanel?.conversations ?? [];
+  }
+
+  get internalFilteredConversations(): InternalConversation[] {
+    return this.internalPanel?.filteredConversations ?? [];
+  }
+
+  get internalIsLoadingConversations(): boolean {
+    return this.internalPanel?.isLoadingConversations ?? true;
+  }
+
+  get internalActiveConversationId(): string | null {
+    return this.internalPanel?.activeConversation?.id ?? null;
+  }
+
+  get internalSearchQuery(): string {
+    return this.internalPanel?.searchQuery ?? '';
+  }
+
+  set internalSearchQuery(v: string) {
+    if (this.internalPanel) this.internalPanel.searchQuery = v;
+  }
+
+  internalConversationName(conv: InternalConversation): string {
+    return this.internalPanel?.conversationName(conv) ?? '';
+  }
+
+  internalConversationAvatar(conv: InternalConversation): string {
+    return this.internalPanel?.conversationAvatar(conv) ?? '';
+  }
+
+  internalConversationTime(conv: InternalConversation): string {
+    return this.internalPanel?.convTime(conv) ?? '';
+  }
+
+  internalPreviewText(conv: InternalConversation): string {
+    return this.internalPanel?.previewText(conv) ?? '';
+  }
+
+  selectInternalConversation(conv: InternalConversation): void {
+    this.internalPanel?.selectConversation(conv);
+  }
+
+  openInternalNewChat(): void {
+    this.internalPanel?.openNewChat();
   }
 
   // ── Compact mode check ───────────────────────────────────────────────────
