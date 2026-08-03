@@ -637,6 +637,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.teamPanelOpen = !this.teamPanelOpen;
   }
 
+  openWhatsapp(mode: 'clients' | 'advisors' = 'clients', event?: Event): void {
+    event?.stopPropagation();
+    this.router.navigate(['/dashboard/whatsapp'], {
+      queryParams: { modo: mode },
+      queryParamsHandling: 'merge',
+    });
+  }
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();

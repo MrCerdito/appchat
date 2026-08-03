@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { CommonModule, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { WaIconComponent } from '../../../../shared/components/wa-icon/wa-icon.component';
 import { VoicePlayerComponent } from '../../../../shared/components/voice-player/voice-player.component';
@@ -173,6 +174,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   selectedAudioDuration = 0;
   theme: WaTheme = 'dark';
   isRecordingAudio = false;
+  showAttachMenu = false;
   sendError = '';
   newNote = '';
   aiInsightText = 'Analisis pendiente.';
@@ -297,6 +299,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     private readonly aiService: AiService,
     private readonly themeService: ThemeService,
     private readonly sanitizer: DomSanitizer,
+    private readonly route: ActivatedRoute,
     private readonly cdr: ChangeDetectorRef,
   ) {}
 
@@ -307,6 +310,9 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     this.currentUserRole = user?.role || '';
     this.advisorPhotoUrl = user?.profilePhotoUrl || '';
     this.theme = this.themeService.currentTheme;
+
+    const modo = this.route.snapshot.queryParamMap.get('modo');
+    if (modo === 'advisors') this.chatMode = 'advisors';
 
     this.subs.add(
       this.themeService.currentTheme$.subscribe(t => {
@@ -418,10 +424,13 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   setChatMode(mode: 'clients' | 'advisors'): void {
     if (this.chatMode === mode) return;
     this.chatMode = mode;
+    this.showWhatsappSettings = false;
+    this.showCompactFilter = false;
+    this.showInfoPanel = false;
     if (mode === 'advisors') {
       this.activeContact = undefined;
-      this.showInfoPanel = false;
     }
+    this.cdr.markForCheck();
     this.cdr.detectChanges();
   }
 
@@ -1286,6 +1295,10 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     this.messageMenu = undefined;
     this.cdr.detectChanges();
   }
+  if (this.showAttachMenu) {
+    this.showAttachMenu = false;
+    this.cdr.detectChanges();
+  }
   this.dismissReactionPopover();
 };
 
@@ -1451,6 +1464,20 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
   pickDocument(): void {
     if (!this.canReply || this.isSending) return;
     this.docInput?.nativeElement?.click();
+  }
+
+  toggleAttachMenu(): void {
+    if (!this.canReply || this.isSending || this.isRecordingAudio) return;
+    this.showAttachMenu = !this.showAttachMenu;
+    this.cdr.detectChanges();
+  }
+
+  selectAttach(kind: 'image' | 'file' | 'video'): void {
+    this.showAttachMenu = false;
+    if (kind === 'image') this.pickImage();
+    else if (kind === 'video') this.pickVideo();
+    else this.pickDocument();
+    this.cdr.detectChanges();
   }
 
   onFileSelected(event: Event): void {

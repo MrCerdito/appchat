@@ -996,12 +996,13 @@
   border-radius: 14px;
   background: rgba(37, 211, 102, 0.06);
   border: 1px solid rgba(37, 211, 102, 0.16);
-  cursor: default;
+  cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 
   &:hover {
     background: rgba(37, 211, 102, 0.12);
     border-color: rgba(37, 211, 102, 0.35);
+    box-shadow: 0 0 0 3px rgba(37, 211, 102, 0.08);
   }
 
   &.has-unread {
@@ -1099,6 +1100,11 @@
 
   &.wa-b-internal.has-count { color: #25d366; }
   &.wa-b-external.has-count { color: #3b82f6; }
+
+  &:hover {
+    text-decoration: underline;
+    cursor: pointer;
+  }
 }
 
 @keyframes whatsapp-unread-pulse {
