@@ -1,19 +1,33 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, map } from 'rxjs';
+import { Observable } from 'rxjs';
 import { Attachment } from '../models/message.model';
 import { environment } from '../../../environments/environment';
 
-const MAX_SIZE = 5 * 1024 * 1024;
+const MAX_SIZE = 64 * 1024 * 1024;
 
 const ALLOWED_TYPES = new Set([
   'image/jpeg',
   'image/png',
   'image/gif',
   'image/webp',
+  'image/heic',
+  'image/heif',
+  'image/avif',
+  'image/bmp',
   'video/mp4',
   'video/webm',
   'video/ogg',
+  'video/3gpp',
+  'video/quicktime',
+  'audio/aac',
+  'audio/mp4',
+  'audio/mpeg',
+  'audio/ogg',
+  'audio/opus',
+  'audio/amr',
+  'audio/webm',
+  'audio/wav',
   'application/pdf',
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -22,19 +36,26 @@ const ALLOWED_TYPES = new Set([
   'application/vnd.ms-powerpoint',
   'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   'text/plain',
+  'text/csv',
+  'application/csv',
 ]);
+
+function normalizeMimeType(value = ''): string {
+  return value.toLowerCase().split(';')[0].trim();
+}
 
 @Injectable({ providedIn: 'root' })
 export class ChatMediaService {
   constructor(private http: HttpClient) {}
 
   validate(file: File): string | null {
-    if (!ALLOWED_TYPES.has(file.type)) {
-      return `Tipo de archivo no permitido: ${file.type || 'desconocido'}`;
+    const mimeType = normalizeMimeType(file.type);
+    if (!ALLOWED_TYPES.has(mimeType)) {
+      return `Tipo de archivo no permitido: ${mimeType || 'desconocido'}`;
     }
     if (file.size > MAX_SIZE) {
       const mb = (file.size / (1024 * 1024)).toFixed(1);
-      return `El archivo pesa ${mb} MB. El limite es 5 MB.`;
+      return `El archivo pesa ${mb} MB. El limite es 64 MB.`;
     }
     return null;
   }
@@ -46,15 +67,20 @@ export class ChatMediaService {
   }
 
   isImage(mimeType: string): boolean {
-    return mimeType.startsWith('image/');
+    return normalizeMimeType(mimeType).startsWith('image/');
   }
 
   isVideo(mimeType: string): boolean {
-    return mimeType.startsWith('video/');
+    return normalizeMimeType(mimeType).startsWith('video/');
+  }
+
+  isAudio(mimeType: string): boolean {
+    return normalizeMimeType(mimeType).startsWith('audio/');
   }
 
   isDocument(mimeType: string): boolean {
-    return !mimeType.startsWith('image/') && !mimeType.startsWith('video/');
+    const m = normalizeMimeType(mimeType);
+    return !m.startsWith('image/') && !m.startsWith('video/') && !m.startsWith('audio/');
   }
 
   formatSize(bytes: number): string {

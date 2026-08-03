@@ -73,8 +73,8 @@ services:
       REDIS_URL: redis://redis:6379
       TZ: America/Bogota
       NODE_ENV: production
-      CORS_ORIGINS: ${CORS_ORIGINS:-https://innoovacloud.co}
-      APP_URL: ${APP_URL:-https://innoovacloud.co}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://innoovacloud.com}
+      APP_URL: ${APP_URL:-https://innoovacloud.com}
       WHATSAPP_PROXY_URL: socks5://127.0.0.1:40000
     volumes:
       - uploads_data:/app/uploads

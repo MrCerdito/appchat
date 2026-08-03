@@ -220,6 +220,10 @@
             <video class="att-video" controls preload="metadata">
               <source [src]="att.url" [type]="att.mimeType" />
             </video>
+            } @else if (att.mimeType.startsWith('audio/')) {
+            <div class="att-audio">
+              <wa-voice-player [src]="att.url" [out]="msg.senderType === 'advisor'"></wa-voice-player>
+            </div>
             } @else {
             <a class="att-document" [href]="att.url" target="_blank" rel="noopener noreferrer">
               <div class="att-doc-icon">
@@ -283,8 +287,8 @@
 
     <!-- Input bar -->
     <footer class="chat-input">
-      <input id="advisor-file-input" type="file" hidden multiple
-        accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/ogg,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
+      <input #advisorFileInput type="file" hidden multiple
+        accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,image/avif,image/bmp,video/mp4,video/webm,video/ogg,video/3gpp,video/quicktime,audio/aac,audio/mp4,audio/mpeg,audio/ogg,audio/opus,audio/amr,audio/webm,audio/wav,audio/x-m4a,.m4a,.mp3,.wav,.ogg,.opus,.mp4,.mov,.heic,.heif,.avif,.bmp,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
         (change)="onFilesSelected($event)" />
 
       @if (previewFiles.length > 0) {
@@ -310,11 +314,19 @@
       </div>
       }
 
-      <button class="input-icon-btn" type="button" title="Adjuntar archivo" (click)="triggerFileInput()">
+      <button class="input-icon-btn" type="button" title="Adjuntar archivo" (click)="triggerFileInput()" [disabled]="isRecordingAudio">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"></path>
         </svg>
       </button>
+
+      <wa-voice-recorder
+        [disabled]="isRecordingAudio || !canSendMessage"
+        (fileReady)="onVoiceFileReady($event)"
+        (recordingChange)="onVoiceRecordingChange($event)"
+        (error)="onVoiceError($event)"
+      ></wa-voice-recorder>
+
       <div class="input-field">
         <textarea
           #msgInput
@@ -354,7 +366,7 @@
         </div>
         }
       </div>
-      <button class="send-btn" type="button" (click)="send()" [disabled]="(!newMessage.trim() && previewFiles.length === 0) || !canSendMessage">
+      <button class="send-btn" type="button" (click)="send()" [disabled]="(!newMessage.trim() && previewFiles.length === 0) || !canSendMessage || isRecordingAudio">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <line x1="22" y1="2" x2="11" y2="13"></line>
           <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>

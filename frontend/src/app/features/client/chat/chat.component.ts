@@ -21,6 +21,11 @@ import { scrollToBottom } from '../../../shared/utils/scroll';
 import { FaqComponent } from '../faq/faq.component';
 import { PqrsComponent } from '../pqrs/pqrs.component';
 import { ToastContainerComponent } from '../../../shared/components/toast-container.component';
+import {
+  VoiceRecorderComponent,
+  VoiceRecordingResult,
+} from '../../../shared/components/voice-recorder/voice-recorder.component';
+import { VoicePlayerComponent } from '../../../shared/components/voice-player/voice-player.component';
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -44,7 +49,10 @@ interface TimerUpdatePayload {
 @Component({
   selector   : 'app-chat',
   standalone : true,
-  imports    : [CommonModule, FormsModule, FaqComponent, PqrsComponent, ToastContainerComponent],
+  imports    : [
+    CommonModule, FormsModule, FaqComponent, PqrsComponent, ToastContainerComponent,
+    VoiceRecorderComponent, VoicePlayerComponent,
+  ],
   templateUrl: './chat.component.html',
   styleUrl   : './chat.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -156,6 +164,8 @@ get rolLabel(): string {
 
   previewFiles: { file: File; preview: string | null; uploading: boolean; error: string | null }[] = [];
   pendingAttachments: Attachment[] = [];
+  pendingTransferText = '';
+  isRecordingAudio = false;
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
 
   // Image lightbox
@@ -784,6 +794,23 @@ get rolLabel(): string {
         this.fueraDeHorario = false;
         this.step = 'chat';
         this.socket.emit('set_active', { sessionId: this.session!.id, active: true });
+
+        if (this.pendingAttachments.length > 0) {
+          const attachments = [...this.pendingAttachments];
+          const content = this.pendingTransferText ||
+            (attachments.length === 1 ? 'Adjunté un archivo' : `Adjunté ${attachments.length} archivos`);
+          this.pendingAttachments = [];
+          this.pendingTransferText = '';
+          setTimeout(() => {
+            this.socket.emit('send_message', {
+              sessionId: this.session!.id,
+              content,
+              senderName: this.clientName,
+              attachments,
+            });
+          }, 300);
+        }
+
         if (this.session) {
           const updated = { ...this.session, status: 'active', advisor: { name: data.name }, aiMode: false };
           localStorage.setItem(SESSION_KEY, JSON.stringify(updated));
@@ -947,6 +974,25 @@ get rolLabel(): string {
     this.cdr.detectChanges();
   }
 
+  onVoiceFileReady(result: VoiceRecordingResult): void {
+    this.previewFiles.push({
+      file: result.file,
+      preview: null,
+      uploading: false,
+      error: null,
+    });
+    this.cdr.detectChanges();
+  }
+
+  onVoiceRecordingChange(recording: boolean): void {
+    this.isRecordingAudio = recording;
+    this.cdr.detectChanges();
+  }
+
+  onVoiceError(message: string): void {
+    this.notification.error('Nota de voz', message);
+  }
+
   openImagePreview(src: string, name: string): void {
     this.imagePreview = { src, name };
   }
@@ -996,6 +1042,15 @@ get rolLabel(): string {
     if (!hasText && !hasFiles) return;
 
     if (this.aiMode) {
+      if (hasFiles) {
+        const attachments = await this.uploadPendingFiles();
+        if (attachments.length > 0) {
+          this.pendingAttachments = attachments;
+          this.pendingTransferText = this.newMessage.trim();
+          this.transferToAdvisor();
+        }
+        return;
+      }
       this.cancelarTimerInactividadIa();
       this.iniciarTimerInactividadIa();
       if (hasText) {

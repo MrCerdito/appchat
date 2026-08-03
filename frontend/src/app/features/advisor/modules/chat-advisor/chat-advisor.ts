@@ -26,6 +26,11 @@ import { priorityLabel } from '../../../../shared/utils/ticket-categories';
 import { scrollToBottom } from '../../../../shared/utils/scroll';
 import { relativeTime, fmtTime, fmtMedium, sameBogotaDay, isTodayBogota, isYesterdayBogota } from '../../../../shared/utils/date';
 import { Ticket } from '../../../../core/models/ticket.model';
+import {
+  VoiceRecorderComponent,
+  VoiceRecordingResult,
+} from '../../../../shared/components/voice-recorder/voice-recorder.component';
+import { VoicePlayerComponent } from '../../../../shared/components/voice-player/voice-player.component';
 
 // ── Payload exacto que emite el backend ──────────────────────────────────────
 export interface TimerUpdatePayload {
@@ -56,7 +61,7 @@ const AVATAR_COLORS = ['ava-blue', 'ava-green', 'ava-amber', 'ava-purple'];
 @Component({
   selector   : 'app-chat-advisor',
   standalone : true,
-  imports    : [CommonModule, FormsModule],
+  imports    : [CommonModule, FormsModule, VoiceRecorderComponent, VoicePlayerComponent],
   templateUrl: './chat-advisor.html',
   styleUrl   : './chat-advisor.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -103,6 +108,8 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   // ── File attachments ───────────────────────────────────────────────────────
   previewFiles: { file: File; preview: string | null; uploading: boolean; error: string | null }[] = [];
   pendingAttachments: Attachment[] = [];
+  isRecordingAudio = false;
+  @ViewChild('advisorFileInput') advisorFileInput!: ElementRef<HTMLInputElement>;
 
   // Ticket modal
   showTicketModal = false;
@@ -811,7 +818,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
 
   // ── File handling ──────────────────────────────────────────────────────────
   triggerFileInput(): void {
-    document.getElementById('advisor-file-input')?.click();
+    this.advisorFileInput?.nativeElement?.click();
   }
 
   onFilesSelected(event: Event): void {
@@ -838,6 +845,20 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
 
     input.value = '';
     this.cdr.detectChanges();
+  }
+
+  onVoiceFileReady(result: VoiceRecordingResult): void {
+    this.previewFiles.push({ file: result.file, preview: null, uploading: false, error: null });
+    this.cdr.detectChanges();
+  }
+
+  onVoiceRecordingChange(recording: boolean): void {
+    this.isRecordingAudio = recording;
+    this.cdr.detectChanges();
+  }
+
+  onVoiceError(message: string): void {
+    this.notification.error('Nota de voz', message);
   }
 
   removePreview(index: number): void {

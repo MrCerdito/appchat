@@ -22,6 +22,23 @@ const ALLOWED_MIMES = new Set([
   'image/png',
   'image/gif',
   'image/webp',
+  'image/heic',
+  'image/heif',
+  'image/avif',
+  'image/bmp',
+  'video/mp4',
+  'video/webm',
+  'video/ogg',
+  'video/3gpp',
+  'video/quicktime',
+  'audio/aac',
+  'audio/mp4',
+  'audio/mpeg',
+  'audio/ogg',
+  'audio/opus',
+  'audio/amr',
+  'audio/webm',
+  'audio/wav',
   'application/pdf',
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -30,9 +47,15 @@ const ALLOWED_MIMES = new Set([
   'application/vnd.ms-powerpoint',
   'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   'text/plain',
+  'text/csv',
+  'application/csv',
 ]);
 
-const MAX_SIZE = 5 * 1024 * 1024;
+const MAX_SIZE = 64 * 1024 * 1024;
+
+function normalizeMimeType(value = ''): string {
+  return value.toLowerCase().split(';')[0].trim();
+}
 
 @Controller('chat-media')
 export class ChatMediaController {
@@ -55,10 +78,11 @@ export class ChatMediaController {
       }),
       limits: { fileSize: MAX_SIZE },
       fileFilter: (_req, file, cb) => {
-        if (!ALLOWED_MIMES.has(file.mimetype)) {
+        const mimeType = normalizeMimeType(file.mimetype);
+        if (!ALLOWED_MIMES.has(mimeType)) {
           cb(
             new BadRequestException(
-              `Tipo de archivo no permitido: ${file.mimetype}`,
+              `Tipo de archivo no permitido: ${mimeType || 'desconocido'}`,
             ),
             false,
           );
