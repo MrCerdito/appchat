@@ -968,6 +968,12 @@ a{text-decoration:none;color:inherit}
 }
 .fci-avatar{display:grid; place-items:center; width:36px; height:36px; border-radius:50%; background:rgba(var(--wa-blue-rgb),.12); color:var(--wa-blue); font-weight:700; font-size:14px; flex:0 0 36px}
 .fci-info{min-width:0; strong{display:block; font-size:12px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}span{display:block; font-size:11px; color:var(--wa-muted)}}
+.forward-chat-item.selected{background:rgba(var(--wa-green-rgb),.12)}
+.fci-check{
+  display:grid; place-items:center; width:20px; height:20px; flex:0 0 20px; border-radius:50%; border:2px solid var(--wa-line); color:transparent; background:var(--wa-surface-2);
+  svg{width:12px; height:12px}
+  .forward-chat-item.selected &{background:var(--wa-green); border-color:var(--wa-green); color:#fff}
+}
 
 // Input area (keep advisor features)
 .input-area{border-top:1px solid var(--wa-line); background:var(--wa-surface-2); &.blocked{opacity:.65}}

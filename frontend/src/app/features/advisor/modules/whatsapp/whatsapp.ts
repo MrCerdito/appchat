@@ -229,6 +229,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   replyingTo: WaMessage | null = null;
   forwardingMessage: WaMessage | null = null;
   forwardSearchQuery = '';
+  forwardTargetIds = new Set<string>();
   isForwarding = false;
   isTeamsConnected = false;
   isLoadingTeams = false;
@@ -1178,6 +1179,7 @@ cancelReply(): void {
 startForward(message: WaMessage): void {
   this.forwardingMessage = message;
   this.forwardSearchQuery = '';
+  this.forwardTargetIds = new Set();
   this.messageMenu = undefined;
   this.replyingTo = null;
 }
@@ -1185,36 +1187,54 @@ startForward(message: WaMessage): void {
 cancelForward(): void {
   this.forwardingMessage = null;
   this.forwardSearchQuery = '';
+  this.forwardTargetIds = new Set();
 }
 
-confirmForward(targetChatId: string): void {
-  if (!this.forwardingMessage || !this.activeContact || this.isForwarding) return;
+toggleForwardTarget(targetChatId: string): void {
+  const next = new Set(this.forwardTargetIds);
+  if (next.has(targetChatId)) next.delete(targetChatId);
+  else next.add(targetChatId);
+  this.forwardTargetIds = next;
+}
+
+confirmForward(): void {
+  if (!this.forwardingMessage || !this.activeContact || this.isForwarding || this.forwardTargetIds.size === 0) return;
   this.isForwarding = true;
-  this.subs.add(
-    this.waService.forwardMessage(this.activeContact.id, this.forwardingMessage.id, targetChatId).subscribe({
-      next: (res) => {
-        this.isForwarding = false;
-        if (res.ok) {
-          this.cancelForward();
-          this.assignmentToast = 'Mensaje reenviado correctamente';
-          if (this.toastTimer) clearTimeout(this.toastTimer);
-          this.toastTimer = setTimeout(() => this.assignmentToast = '', 3000);
-          const target = this.contacts.find(c => c.id === targetChatId);
-          if (target) {
-            this.selectContact(target);
+  const sourceId = this.activeContact.id;
+  const messageId = this.forwardingMessage.id;
+  const ids = [...this.forwardTargetIds];
+  let completed = 0;
+  for (const targetChatId of ids) {
+    this.subs.add(
+      this.waService.forwardMessage(sourceId, messageId, targetChatId).subscribe({
+        next: () => {
+          completed++;
+          if (completed === ids.length) {
+            this.isForwarding = false;
+            this.cancelForward();
+            this.assignmentToast = `Reenviado a ${ids.length} chat${ids.length === 1 ? '' : 's'}`;
+            if (this.toastTimer) clearTimeout(this.toastTimer);
+            this.toastTimer = setTimeout(() => this.assignmentToast = '', 3000);
+            this.cdr.detectChanges();
           }
-        } else {
-          this.sendError = 'No se pudo reenviar el mensaje.';
-        }
-        this.cdr.detectChanges();
-      },
-      error: () => {
-        this.isForwarding = false;
-        this.sendError = 'No se pudo reenviar el mensaje.';
-        this.cdr.detectChanges();
-      },
-    }),
-  );
+        },
+        error: () => {
+          completed++;
+          if (completed === ids.length) {
+            this.isForwarding = false;
+            this.sendError = 'No se pudo reenviar el mensaje a todos los chats.';
+            this.cdr.detectChanges();
+          }
+        },
+      }),
+    );
+  }
+}
+
+quickReply(message: WaMessage): void {
+  if (!message.body) return;
+  if (this.replyingTo) return;
+  this.startReply(message);
 }
 
 get filteredChats(): WaChat[] {

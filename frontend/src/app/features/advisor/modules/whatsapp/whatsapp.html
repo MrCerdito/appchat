@@ -638,6 +638,7 @@
           (touchstart)="onBubbleTouchStart($event, msg)"
           (touchend)="onBubbleTouchEnd()"
           (touchmove)="onBubbleTouchMove()"
+          (dblclick)="quickReply(msg)"
         >
           @if (msg.isAuto) {
           <div class="ai-badge">
@@ -1358,7 +1359,7 @@
   <div class="wa-ticket-modal" (click)="cancelForward()">
     <div class="wa-ticket-modal-inner" (click)="$event.stopPropagation()">
       <h3>Reenviar mensaje</h3>
-      <p style="font-size:12px; color:var(--wa-muted); margin:0 0 12px">Selecciona el chat destino</p>
+      <p style="font-size:12px; color:var(--wa-muted); margin:0 0 12px">Selecciona uno o más chats destino</p>
       <input
         type="text"
         placeholder="Buscar chat..."
@@ -1371,13 +1372,17 @@
         <button
           type="button"
           class="forward-chat-item"
-          (click)="confirmForward(chat.id)"
+          [class.selected]="forwardTargetIds.has(chat.id)"
+          (click)="toggleForwardTarget(chat.id)"
           [disabled]="isForwarding"
         >
           <div class="fci-avatar">{{ (chat.name || '?').charAt(0) }}</div>
           <div class="fci-info">
             <strong>{{ chat.name || chat.phone || 'Desconocido' }}</strong>
             <span>{{ chat.phone || '' }}</span>
+          </div>
+          <div class="fci-check">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
           </div>
         </button>
         }
@@ -1387,6 +1392,12 @@
       </div>
       <div style="display:flex; justify-content:flex-end; gap:6px; margin-top:12px">
         <button type="button" class="ticket-cancel" (click)="cancelForward()">Cancelar</button>
+        <button
+          type="button"
+          class="ticket-confirm"
+          [disabled]="isForwarding || forwardTargetIds.size === 0"
+          (click)="confirmForward()"
+        >{{ isForwarding ? 'Enviando...' : 'Reenviar a ' + forwardTargetIds.size }}</button>
       </div>
     </div>
   </div>

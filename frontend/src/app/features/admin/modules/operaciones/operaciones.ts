@@ -326,6 +326,7 @@ export class OperacionesComponent implements OnInit, OnDestroy {
   goToAlertas(): void { this.router.navigate(['/admin/operaciones/alertas']); }
   goToAsignar(): void { this.router.navigate(['/admin/operaciones/asignar']); }
   goToFijar(): void { this.router.navigate(['/admin/operaciones/fijar']); }
+  goToChatInterno(): void { this.router.navigate(['/admin/operaciones/chats'], { queryParams: { modo: 'asesores' } }); }
   openChat(chatId: string): void { this.router.navigate(['/admin/operaciones/chats'], { queryParams: { chatId } }); }
 
   openAssignMenu(chatId: string): void {

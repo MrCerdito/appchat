@@ -22,6 +22,37 @@
         </div>
       </header>
 
+      <div class="mode-tabs">
+        <button
+          type="button"
+          class="mode-tab"
+          [class.active]="modo === 'clientes'"
+          (click)="setModo('clientes')"
+          title="Chat clientes"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+          <span>Chat clientes</span>
+        </button>
+        <button
+          type="button"
+          class="mode-tab"
+          [class.active]="modo === 'asesores'"
+          (click)="setModo('asesores')"
+          title="Chat asesores"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+          <span>Chat asesores</span>
+          @if (internalUnreadTotal > 0) {
+          <em class="mode-badge">{{ internalUnreadTotal }}</em>
+          }
+        </button>
+      </div>
+
+      @if (modo === 'clientes') {
       <div class="wa-search">
         <div class="wa-search-inner">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -81,9 +112,68 @@
           }
         }
       </div>
+      } @else {
+      <header class="ic-sidebar-header">
+        <div class="ic-sidebar-title">
+          <strong>Chat asesores</strong>
+          <span>{{ internalConversations.length }} conversacion{{ internalConversations.length === 1 ? '' : 'es' }}</span>
+        </div>
+        <button type="button" class="ic-new-btn" title="Nuevo chat" (click)="openInternalNewChat()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+        </button>
+      </header>
+
+      <div class="ic-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input type="text" placeholder="Buscar asesor o grupo" [(ngModel)]="internalSearchQuery" />
+      </div>
+
+      <div class="ic-list">
+        @if (internalIsLoadingConversations && !internalConversations.length) {
+        <div class="ic-empty-list">Cargando conversaciones...</div>
+        } @else {
+        @for (conv of internalFilteredConversations; track conv.id) {
+        <button
+          type="button"
+          class="ic-item"
+          [class.active]="internalActiveConversationId === conv.id"
+          (click)="selectInternalConversation(conv)"
+        >
+          <div class="ic-avatar" [class.is-group]="conv.type === 'group'">
+            @if (conv.type === 'group') {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+            } @else {
+            {{ internalConversationAvatar(conv) }}
+            }
+          </div>
+          <div class="ic-item-info">
+            <div class="ic-item-top">
+              <span class="ic-item-name" [class.has-unread]="conv.unreadCount > 0">{{ internalConversationName(conv) }}</span>
+              <span class="ic-item-time">{{ internalConversationTime(conv) }}</span>
+            </div>
+            <div class="ic-item-preview" [class.has-unread]="conv.unreadCount > 0">{{ internalPreviewText(conv) }}</div>
+          </div>
+          @if (conv.unreadCount > 0) {
+          <span class="ic-badge">{{ conv.unreadCount }}</span>
+          }
+        </button>
+        }
+        @if (!internalFilteredConversations.length) {
+        <div class="ic-empty-list">Sin conversaciones. Crea una para empezar.</div>
+        }
+        }
+      </div>
+      }
     </aside>
 
     <!-- ==================== MAIN PANEL ==================== -->
+    @if (modo === 'clientes') {
     <main class="wa-main">
       @if (!chatSeleccionado) {
         @if (loadingProgress < 100) {
@@ -157,10 +247,82 @@
               @if (msg.senderName && (chatSeleccionado.isGroup || msg.tipo === 'enviado')) {
               <div class="wa-sender">{{ msg.senderName }}</div>
               }
-              <div class="wa-bubble">
-                <span class="wa-bubble-text">{{ msg.texto }}</span>
+              <div
+                class="wa-bubble"
+                [class.wa-bubble--media]="msg.mediaUrl && msg.type && msg.type !== 'text'"
+                [class.wa-bubble--failed]="msg.failed"
+                [class.wa-bubble--editing]="editingMessageId === msg.id"
+                [class.context-active]="messageMenu?.message?.id === msg.id"
+                [attr.data-msg-id]="msg.id"
+                (contextmenu)="openMessageMenu($event, msg)"
+                (touchstart)="onBubbleTouchStart($event, msg)"
+                (touchend)="onBubbleTouchEnd()"
+                (touchmove)="onBubbleTouchMove()"
+                (dblclick)="quickReply(msg)"
+              >
+                @if (msg.failed) {
+                <div class="wa-bubble-error">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                  </svg>
+                  <span>No enviado</span>
+                </div>
+                }
+                @if (msg.type === 'image' && msg.mediaUrl) {
+                <img class="wa-media-img" [src]="mediaUrlFor(msg)" [alt]="msg.fileName || msg.texto" (click)="openMediaPreview(msg, $event)" />
+                } @else if (msg.type === 'video' && msg.mediaUrl) {
+                <video class="wa-media-video" [src]="mediaUrlFor(msg)" controls playsinline></video>
+                } @else if (msg.type === 'audio' && msg.mediaUrl) {
+                @if (msg.mimeType?.startsWith('audio/')) {
+                <wa-voice-player class="wa-media-voice" [src]="mediaUrlFor(msg)"></wa-voice-player>
+                } @else {
+                <audio class="wa-media-audio" [src]="mediaUrlFor(msg)" controls></audio>
+                }
+                } @else if (msg.mediaUrl && msg.type && msg.type !== 'text') {
+                <a class="wa-media-doc" [href]="mediaUrlFor(msg)" target="_blank" rel="noopener noreferrer">
+                  <span class="wa-media-doc-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+                    </svg>
+                  </span>
+                  <span class="wa-media-doc-info">
+                    <span class="wa-media-doc-name">{{ msg.fileName || 'Documento' }}</span>
+                    @if (msg.fileSize) {
+                    <span class="wa-media-doc-size">{{ formatFileSize(msg.fileSize) }}</span>
+                    }
+                  </span>
+                  <svg class="wa-media-doc-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+                  </svg>
+                </a>
+                }
+                @if (editingMessageId === msg.id) {
+                <div class="wa-message-edit">
+                  <textarea rows="2" [(ngModel)]="editingMessageText"></textarea>
+                  <div class="wa-message-edit-actions">
+                    <button type="button" (click)="cancelEditMessage()">Cancelar</button>
+                    <button type="button" class="wa-save-edit" (click)="saveEditedMessage(msg)">Guardar</button>
+                  </div>
+                </div>
+                } @else {
+                  @if (msg.replyToMessageId) {
+                  <div class="wa-quoted-block" (click)="$event.stopPropagation(); scrollToMessage(msg.replyToMessageId)">
+                    <div class="wa-quoted-bar"></div>
+                    <div class="wa-quoted-content">
+                      <strong>{{ msg.quotedSender || 'Mensaje' }}</strong>
+                      <span>{{ msg.quotedBody }}</span>
+                    </div>
+                  </div>
+                  }
+                  @if (shouldShowMessageBody(msg)) {
+                  <span class="wa-bubble-text">{{ msg.texto }}</span>
+                  }
+                }
                 <div class="wa-bubble-meta">
                   <span class="wa-bubble-time">{{ msg.hora }}</span>
+                  @if (msg.editedAt) {
+                  <em class="wa-bubble-edited">editado</em>
+                  }
                   @if (msg.tipo === 'enviado') {
                   <svg class="wa-bubble-check" viewBox="0 0 16 11" fill="currentColor">
                     <path d="M11.07.65l-5.93 6.2L2.45 4.3l-1.1 1.1 3.08 3.3.7.8.8-.8 6.32-6.6L11.07.65z"/>
@@ -168,6 +330,20 @@
                   }
                 </div>
               </div>
+              @if (messageReactions(msg).length) {
+              <div class="wa-reactions-pill" [class.mine]="ownReactionEmoji(msg) !== ''" (click)="$event.stopPropagation(); toggleReactions(msg)">
+                @for (r of messageReactions(msg); track r.emoji) {
+                <span>{{ r.emoji }}<b>{{ r.count }}</b></span>
+                }
+              </div>
+              @if (showReactionsForId === msg.id) {
+              <div class="wa-reactions-popover" (click)="$event.stopPropagation()">
+                @for (r of messageReactions(msg); track r.emoji) {
+                <span>{{ r.emoji }} {{ r.mine ? 'Tú' : 'Cliente' }}<b>· {{ r.count }}</b></span>
+                }
+              </div>
+              }
+              }
             </div>
             }
           </div>
@@ -175,24 +351,245 @@
         </div>
 
         <div class="wa-input-area">
+          @if (replyingTo) {
+          <div class="wa-reply-bar">
+            <div class="wa-quoted-block">
+              <div class="wa-quoted-bar"></div>
+              <div class="wa-quoted-content">
+                <strong>{{ replyingTo.tipo === 'enviado' ? 'Tú' : (replyingTo.senderName || 'Cliente') }}</strong>
+                <span>{{ replyingTo.texto || replyingTo.fileName || 'Media' }}</span>
+              </div>
+            </div>
+            <button type="button" class="wa-reply-cancel" (click)="cancelReply()" title="Cancelar respuesta">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+          }
+
+          @if (sendError) {
+          <div class="wa-send-error">{{ sendError }}</div>
+          }
+
+          @if (selectedFile) {
+          <div class="wa-attach-preview" [class.wa-attach-preview--audio]="selectedFileKind === 'audio'">
+            <div class="wa-attach-media">
+              @if (selectedFileKind === 'image' && selectedFilePreviewUrl) {
+              <img [src]="selectedFilePreviewUrl" [alt]="selectedFile.name" />
+              } @else if (selectedFileKind === 'video' && selectedFilePreviewUrl) {
+              <video [src]="selectedFilePreviewUrl" muted></video>
+              } @else if (selectedFileKind === 'audio' && selectedFilePreviewUrl) {
+              <wa-voice-player [src]="selectedFilePreviewUrl" [compact]="true"></wa-voice-player>
+              } @else {
+              <div class="wa-attach-doc">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+                </svg>
+              </div>
+              }
+            </div>
+            <div class="wa-attach-info">
+              <strong>{{ selectedFile.name }}</strong>
+              <span>
+                {{ selectedFileKind === 'audio' && selectedAudioDuration ? formatRecordingTime(selectedAudioDuration) + ' - ' : '' }}{{ formatFileSize(selectedFile.size) }}
+              </span>
+            </div>
+            <button type="button" class="wa-attach-remove" (click)="clearSelectedFile()" title="Quitar archivo">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+          }
+
+          <input #imageInput type="file" class="wa-file-input" accept="image/*" (change)="onFileSelected($event, 'image')" />
+          <input #videoInput type="file" class="wa-file-input" accept="video/mp4,video/3gpp" (change)="onFileSelected($event, 'video')" />
+          <input #docInput type="file" class="wa-file-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv" (change)="onFileSelected($event, 'file')" />
+          <input #fileInput type="file" class="wa-file-input" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv" (change)="onFileSelected($event, 'file')" />
+
           <button class="wa-input-btn" title="Emoji">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>
             </svg>
           </button>
-          <button class="wa-input-btn" title="Adjuntar">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
-            </svg>
-          </button>
+
+          <div class="wa-attach-menu-wrap">
+            <button class="wa-input-btn" title="Adjuntar" (click)="toggleAttachMenu()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+              </svg>
+            </button>
+            @if (showAttachMenu) {
+            <div class="wa-attach-menu" (click)="$event.stopPropagation()">
+              <button type="button" (click)="selectAttach('image')">
+                <span class="wa-attach-icon wa-attach-icon--photo">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+                  </svg>
+                </span>
+                <span>Imagen</span>
+              </button>
+              <button type="button" (click)="selectAttach('file')">
+                <span class="wa-attach-icon wa-attach-icon--doc">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+                  </svg>
+                </span>
+                <span>Documento</span>
+              </button>
+              <button type="button" (click)="selectAttach('video')">
+                <span class="wa-attach-icon wa-attach-icon--video">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+                  </svg>
+                </span>
+                <span>Video</span>
+              </button>
+            </div>
+            }
+          </div>
+
           <input class="wa-input-field" type="text" placeholder="Escribe un mensaje aquí" [(ngModel)]="nuevoMensaje" (keydown.enter)="enviarMensaje()" />
-          <button class="wa-send-btn" [class.active]="nuevoMensaje.trim().length > 0" (click)="enviarMensaje()" title="Enviar">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
-            </svg>
-          </button>
+
+          <div class="wa-input-send-wrap">
+            <wa-voice-recorder
+              [disabled]="isSending || !!selectedFile || !chatSeleccionado"
+              (fileReady)="onVoiceFileReady($event)"
+              (recordingChange)="onVoiceRecordingChange($event)"
+              (error)="onVoiceError($event)"
+            ></wa-voice-recorder>
+            <button class="wa-send-btn" [class.active]="nuevoMensaje.trim().length > 0 || !!selectedFile" (click)="enviarMensaje()" title="Enviar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
+            </button>
+          </div>
         </div>
       }
     </main>
+    } @else {
+    <main class="wa-main">
+      <app-internal-chat-panel [embedded]="true"></app-internal-chat-panel>
+    </main>
+    }
   </div>
+
+  @if (mediaPreview) {
+  <div class="wa-media-backdrop" (click)="closeMediaPreview()">
+    <div class="wa-media-viewer" (click)="$event.stopPropagation()">
+      <div class="wa-media-viewer-top">
+        <strong>{{ mediaPreview.name }}</strong>
+        <button type="button" class="wa-media-viewer-close" (click)="closeMediaPreview()" title="Cerrar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <img [src]="mediaPreview.src" [alt]="mediaPreview.name" />
+      <a class="wa-media-viewer-download" [href]="mediaPreview.src" target="_blank" rel="noopener noreferrer">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        <span>Abrir en pestaña nueva</span>
+      </a>
+    </div>
+  </div>
+  }
+
+  @if (messageMenu) {
+  <div
+    class="wa-message-menu"
+    [class.wa-message-menu--right]="messageMenu.side === 'right'"
+    [class.wa-message-menu--left]="messageMenu.side === 'left'"
+    [style.left.px]="messageMenu.x"
+    [style.top.px]="messageMenu.y"
+    (click)="$event.stopPropagation()"
+  >
+    @if (canReactToMessage(messageMenu.message)) {
+    <div class="wa-message-menu-reactions" (click)="$event.stopPropagation()">
+      @for (emoji of reactionEmojis; track emoji) {
+      <button
+        type="button"
+        class="wa-react-emoji"
+        [class.active]="ownReactionEmoji(messageMenu.message) === emoji"
+        (click)="reactToMessage(messageMenu.message, emoji)"
+      >{{ emoji }}</button>
+      }
+    </div>
+    }
+    <button type="button" class="wa-menu-item" (click)="quickReply(messageMenu.message)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+      <span>Responder</span>
+    </button>
+    @if (canReactToMessage(messageMenu.message)) {
+    <button type="button" class="wa-menu-item" (click)="startForward(messageMenu.message)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+      <span>Reenviar</span>
+    </button>
+    }
+    @if (canEditMessage(messageMenu.message)) {
+    <button type="button" class="wa-menu-item" (click)="startEditMessage(messageMenu.message)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+      <span>Editar</span>
+    </button>
+    }
+    <button type="button" class="wa-menu-item" (click)="copyMessageText(messageMenu.message)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      <span>Copiar</span>
+    </button>
+    @if (canManageMessage(messageMenu.message)) {
+    <button type="button" class="wa-menu-item wa-menu-item--danger" (click)="deleteMessage(messageMenu.message)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      <span>Eliminar</span>
+    </button>
+    }
+  </div>
+  }
+
+  @if (showForwardPicker && forwardingMessage) {
+  <div class="wa-forward-backdrop" (click)="closeForward()">
+    <div class="wa-forward-modal" (click)="$event.stopPropagation()">
+      <div class="wa-forward-header">
+        <button type="button" class="wa-forward-close" (click)="closeForward()" title="Cerrar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <strong>Reenviar a</strong>
+        <input class="wa-forward-search" type="text" placeholder="Buscar chat…" [(ngModel)]="forwardSearch" />
+      </div>
+      <div class="wa-forward-list">
+        @for (chat of filteredForwardChats; track chat.id) {
+        <button
+          type="button"
+          class="wa-forward-item"
+          [class.selected]="forwardTargetIds.has(chat.id)"
+          (click)="toggleForwardTarget(chat.id)"
+        >
+          <span class="wa-forward-avatar">{{ chat.nombre.charAt(0).toUpperCase() }}</span>
+          <span class="wa-forward-name">{{ chat.nombre }}</span>
+          <span class="wa-forward-check">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </span>
+        </button>
+        } @empty {
+        <div class="wa-forward-empty">Sin resultados</div>
+        }
+      </div>
+      <div class="wa-forward-footer">
+        <button
+          type="button"
+          class="wa-forward-submit"
+          [class.disabled]="forwardTargetIds.size === 0 || isForwarding"
+          (click)="confirmForward()"
+        >
+          {{ isForwarding ? 'Enviando…' : 'Reenviar a ' + (forwardTargetIds.size || '') }}
+        </button>
+      </div>
+    </div>
+  </div>
+  }
+
+  @if (actionToast) {
+  <div class="wa-toast">{{ actionToast }}</div>
+  }
 </div>

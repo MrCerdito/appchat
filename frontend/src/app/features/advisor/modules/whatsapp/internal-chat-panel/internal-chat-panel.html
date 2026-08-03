@@ -117,6 +117,9 @@
           [class.context-active]="contextMenu?.message?.id === msg.id"
           (contextmenu)="onContextMenu($event, msg)"
           (dblclick)="quickReply(msg)"
+          (touchstart)="onBubbleTouchStart($event, msg)"
+          (touchend)="onBubbleTouchEnd()"
+          (touchmove)="onBubbleTouchMove()"
         >
           @if (!messageOwn(msg) && activeConversation.type === 'group') {
           <span class="ic-sender-tag" [style.color]="senderColor(msg.senderName)">{{ msg.senderName }}</span>
@@ -440,6 +443,7 @@
     <button type="button" [disabled]="!canEdit(contextMenu.message)" [title]="canEdit(contextMenu.message) ? '' : editDisabledReason(contextMenu.message)" (click)="startEdit(contextMenu.message)"><wa-icon name="pencil"></wa-icon>Editar</button>
     }
     <button type="button" (click)="openForward(contextMenu.message)"><wa-icon name="corner-up-right"></wa-icon>Reenviar</button>
+    <button type="button" (click)="copyMessageText(contextMenu.message)"><wa-icon name="copy"></wa-icon>Copiar</button>
     <button type="button" (click)="toggleReactions(contextMenu.message)"><wa-icon name="sparkles"></wa-icon>Reaccionar</button>
     @if (canDelete(contextMenu.message)) {
     <button type="button" class="danger" (click)="deleteMessage(contextMenu.message)"><wa-icon name="trash"></wa-icon>Eliminar</button>

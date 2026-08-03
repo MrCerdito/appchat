@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnDestroy, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { NavigationEnd, Router, RouterModule } from '@angular/router';
 import { ToastContainerComponent } from '../../../shared/components/toast-container.component';
@@ -6,6 +6,7 @@ import { filter, Subscription } from 'rxjs';
 
 import { AuthService } from '../../../core/services/auth.service';
 import { SocketService } from '../../../core/services/socket.service';
+import { InternalChatService } from '../../../core/services/internal-chat.service';
 import { ThemeService } from '../../../core/services/theme.service';
 import { LayoutService } from '../../../core/services/layout.service';
 import { User } from '../../../core/models/user.model';
@@ -27,21 +28,33 @@ export class AdminShellComponent implements OnInit, OnDestroy {
   sidebarOpen = false;
   sidebarCollapsed = false;
   appearanceOpen = false;
+  internalUnread = 0;
 
   private routerSub?: Subscription;
   private layoutSub?: Subscription;
+  private internalUnreadSub?: Subscription;
 
   constructor(
     private auth: AuthService,
     private socket: SocketService,
+    private internalChat: InternalChatService,
     protected themeService: ThemeService,
     private router: Router,
     private layoutService: LayoutService,
+    private cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit(): void {
     this.currentAdmin = this.auth.getUser();
     this.socket.connect(this.auth.getToken() ?? undefined);
+    this.internalChat.connect();
+    this.internalUnreadSub = this.internalChat.getUnreadTotalStream().subscribe({
+      next: total => {
+        this.internalUnread = total;
+        this.cdr.markForCheck();
+      },
+      error: (err) => console.error('HTTP Error:', err),
+    });
     this.syncSidebarMode();
     this.routerSub = this.router.events
       .pipe(filter(event => event instanceof NavigationEnd))
@@ -60,6 +73,8 @@ export class AdminShellComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.routerSub?.unsubscribe();
     this.layoutSub?.unsubscribe();
+    this.internalUnreadSub?.unsubscribe();
+    this.internalChat.disconnect();
   }
 
   get isOperacionesRoute(): boolean {
@@ -89,6 +104,7 @@ export class AdminShellComponent implements OnInit, OnDestroy {
 
   logout(): void {
     this.socket.disconnect();
+    this.internalChat.disconnect();
     this.auth.logout();
     this.router.navigate(['/login']);
   }

@@ -107,6 +107,8 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
   forwardTargetIds = new Set<string>();
   forwardSearch = '';
 
+  longPressMsgId = '';
+
   imagePreviewUrl: string | null = null;
   imagePreviewName = '';
 
@@ -115,6 +117,7 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
   successMessage = '';
 
   private successTimer: ReturnType<typeof setTimeout> | null = null;
+  private longPressTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly senderPalette = [
     '#3B82F6',
     '#8B5CF6',
@@ -792,6 +795,42 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
     requestAnimationFrame(() => this.clampContextMenu());
   }
 
+  copyMessageText(msg: InternalMessage): void {
+    const text = (msg.body || '').trim();
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    this.closeContextMenu();
+    this.showSuccess('Mensaje copiado');
+  }
+
+  onBubbleTouchStart(event: TouchEvent, msg: InternalMessage): void {
+    if (event.touches.length !== 1) return;
+    if (msg.type === 'system' || msg.deletedAt) return;
+    this.longPressMsgId = msg.id;
+    this.longPressTimer = setTimeout(() => {
+      this.longPressTimer = null;
+      const touch = event.touches[0];
+      this.contextMenu = { message: msg, x: touch.clientX, y: touch.clientY };
+      this.cdr.detectChanges();
+      requestAnimationFrame(() => this.clampContextMenu());
+    }, 500);
+  }
+
+  onBubbleTouchEnd(): void {
+    if (this.longPressTimer) {
+      clearTimeout(this.longPressTimer);
+      this.longPressTimer = null;
+    }
+    this.longPressMsgId = '';
+  }
+
+  onBubbleTouchMove(): void {
+    if (this.longPressTimer) {
+      clearTimeout(this.longPressTimer);
+      this.longPressTimer = null;
+    }
+  }
+
   private clampContextMenu(): void {
     const menu = this.icContext?.nativeElement;
     if (!menu || !this.contextMenu) return;
@@ -831,6 +870,7 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
   }
 
   ngOnDestroy(): void {
+    if (this.longPressTimer) clearTimeout(this.longPressTimer);
     this.subs.unsubscribe();
     this.internalChat.setActiveConversation(null);
   }
