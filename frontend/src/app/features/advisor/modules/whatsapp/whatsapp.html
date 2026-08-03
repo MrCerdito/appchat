@@ -1,33 +1,5 @@
 <div class="layout" [class.chat-open]="!!activeContact || internalChatOpen" [class.compact-layout]="compactList">
 
-  <ng-template #modeTabs>
-    <div class="mode-tabs">
-      <button
-        type="button"
-        class="mode-tab"
-        [class.active]="chatMode === 'clients'"
-        (click)="setChatMode('clients')"
-        title="Chat clientes"
-      >
-        <wa-icon name="message-circle"></wa-icon>
-        <span>Chat clientes</span>
-      </button>
-      <button
-        type="button"
-        class="mode-tab"
-        [class.active]="chatMode === 'advisors'"
-        (click)="setChatMode('advisors')"
-        title="Chat asesores"
-      >
-        <wa-icon name="users-group"></wa-icon>
-        <span>Chat asesores</span>
-        @if (internalUnreadTotal > 0) {
-        <em class="mode-badge">{{ internalUnreadTotal }}</em>
-        }
-      </button>
-    </div>
-  </ng-template>
-
   <div class="layout-body">
 
   @if (showWhatsappSettings) {
@@ -335,7 +307,31 @@
 
   <aside class="sidebar advisors-sidebar" [class.compact]="compactList">
 
-    <ng-container *ngTemplateOutlet="modeTabs"></ng-container>
+    <div class="mode-tabs">
+      <button
+        type="button"
+        class="mode-tab"
+        [class.active]="chatMode === 'clients'"
+        (click)="setChatMode('clients')"
+        title="Chat clientes"
+      >
+        <wa-icon name="message-circle"></wa-icon>
+        <span>Chat clientes</span>
+      </button>
+      <button
+        type="button"
+        class="mode-tab"
+        [class.active]="chatMode === 'advisors'"
+        (click)="setChatMode('advisors')"
+        title="Chat asesores"
+      >
+        <wa-icon name="users-group"></wa-icon>
+        <span>Chat asesores</span>
+        @if (internalUnreadTotal > 0) {
+        <em class="mode-badge">{{ internalUnreadTotal }}</em>
+        }
+      </button>
+    </div>
 
     @if (chatMode === 'clients') {
 
@@ -966,33 +962,33 @@
         />
 
         <div class="attach-group">
-          <button
-            class="attach-btn"
-            type="button"
-            (click)="pickImage()"
-            [disabled]="!canReply || isSending || isRecordingAudio"
-            title="Enviar imagen"
-          >
-            <wa-icon name="photo"></wa-icon>
-          </button>
-          <button
-            class="attach-btn"
-            type="button"
-            (click)="pickVideo()"
-            [disabled]="!canReply || isSending || isRecordingAudio"
-            title="Enviar video"
-          >
-            <wa-icon name="video"></wa-icon>
-          </button>
-          <button
-            class="attach-btn"
-            type="button"
-            (click)="pickDocument()"
-            [disabled]="!canReply || isSending || isRecordingAudio"
-            title="Enviar documento"
-          >
-            <wa-icon name="file-text"></wa-icon>
-          </button>
+          <div class="attach-menu-wrap">
+            <button
+              class="attach-btn"
+              type="button"
+              (click)="$event.stopPropagation(); toggleAttachMenu()"
+              [disabled]="!canReply || isSending || isRecordingAudio"
+              title="Adjuntar"
+            >
+              <wa-icon name="paperclip"></wa-icon>
+            </button>
+            @if (showAttachMenu) {
+            <div class="attach-menu" (click)="$event.stopPropagation()">
+              <button type="button" (click)="selectAttach('image')">
+                <span class="attach-icon photo"><wa-icon name="photo"></wa-icon></span>
+                <span>Imagen</span>
+              </button>
+              <button type="button" (click)="selectAttach('file')">
+                <span class="attach-icon doc"><wa-icon name="file-text"></wa-icon></span>
+                <span>Documento</span>
+              </button>
+              <button type="button" (click)="selectAttach('video')">
+                <span class="attach-icon video"><wa-icon name="video"></wa-icon></span>
+                <span>Video</span>
+              </button>
+            </div>
+            }
+          </div>
           <wa-voice-recorder
             [disabled]="!canReply || isSending"
             (fileReady)="onVoiceFileReady($event)"

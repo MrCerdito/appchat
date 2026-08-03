@@ -978,6 +978,34 @@ a{text-decoration:none;color:inherit}
 .composer-row{position:relative; display:flex; align-items:flex-end; gap:6px; padding:10px 14px 12px; min-width:0}
 .file-input{display:none}
 .attach-group{display:flex; align-items:flex-end; gap:4px}
+
+@keyframes attachMenuIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.attach-menu-wrap{position:relative}
+.attach-menu{
+  position:absolute; bottom:calc(100% + 10px); left:0; z-index:20;
+  display:flex; flex-direction:column; gap:2px; min-width:190px; padding:6px;
+  border-radius:10px; background:var(--wa-surface); box-shadow:0 8px 28px var(--wa-shadow);
+  animation:attachMenuIn .14s ease-out;
+  &::after{content:''; position:absolute; top:100%; left:16px; border:7px solid transparent; border-top-color:var(--wa-surface)}
+  button{
+    display:flex; align-items:center; gap:12px; padding:9px 10px;
+    border:0; border-radius:8px; background:transparent; text-align:left;
+    font-size:13px; font-weight:600; cursor:pointer; color:var(--wa-text);
+    &:hover{background:var(--wa-hover)}
+  }
+  .attach-icon{
+    display:flex; align-items:center; justify-content:center;
+    width:34px; height:34px; border-radius:50%; color:#fff;
+    wa-icon{font-size:17px}
+    &.photo{background:#A855F7}
+    &.doc{background:#3B82F6}
+    &.video{background:#EF4444}
+  }
+}
 .attach-btn{
   display:grid; place-items:center; width:36px; height:36px; flex:0 0 36px;
   border:1px solid var(--wa-line); border-radius:6px; background:var(--wa-input-bg); color:var(--wa-muted); cursor:pointer; font-size:16px;

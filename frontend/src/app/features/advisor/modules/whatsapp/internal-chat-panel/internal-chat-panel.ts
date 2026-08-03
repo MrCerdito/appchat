@@ -254,9 +254,9 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
     if (!last) return 'Sin mensajes todavía';
     if (last.deleted) return 'Mensaje eliminado';
     let preview = '';
-    if (last.type === 'image') preview = 'Imagen';
-    else if (last.type === 'audio') preview = 'Audio';
-    else if (last.type === 'file') preview = 'Archivo';
+    if (last.type === 'image') preview = (last.body || '').trim() || 'Imagen';
+    else if (last.type === 'audio') preview = (last.body || '').trim() || 'Audio';
+    else if (last.type === 'file') preview = (last.body || '').trim() || 'Archivo';
     else preview = (last.body || '').trim() || 'Mensaje';
     if (last.senderName === this.currentUserName) return `Tú: ${preview}`;
     return preview;
@@ -416,6 +416,10 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
 
   sendMessage(): void {
     if (!this.activeConversation || this.isSending) return;
+    if (this.selectedFile) {
+      this.confirmSendFile();
+      return;
+    }
     if (this.editingMessage) {
       this.saveEdit();
       return;
@@ -466,15 +470,18 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
     const file = this.selectedFile;
     const previewUrl = this.selectedFilePreviewUrl;
     const kind = this.selectedFileKind ?? 'file';
+    const caption = kind === 'audio' ? '' : this.draft.trim();
     const type: InternalMessageType = kind === 'image' ? 'image' : kind === 'audio' ? 'audio' : 'file';
-    const temp = this.buildTempMessage(convId, '', type, replyId);
+    const temp = this.buildTempMessage(convId, caption, type, replyId);
     temp.mediaName = file.name;
     temp.mediaSize = file.size;
     if (kind === 'image') temp.mediaUrl = previewUrl || null;
     this.internalChat.pushOptimistic(convId, temp);
     this.clearSelectedFile();
+    this.draft = '';
     this.replyToMessage = null;
-    this.internalChat.sendMedia(convId, file, '', replyId).subscribe(res => {
+    this.resetDraftHeight();
+    this.internalChat.sendMedia(convId, file, caption, replyId).subscribe(res => {
       this.isSending = false;
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       if (res?.id) {

@@ -306,7 +306,9 @@
             <span class="metric-value" [class.metric-zero]="misChatsNoLeidos === 0">{{ misChatsNoLeidos }}</span>
             <span class="metric-label">pendientes</span>
           </div>
-          <div class="metric-item wa-metric" [class.has-unread]="whatsappTotalUnread > 0" [title]="whatsappUnreadTitle">
+          <div class="metric-item wa-metric" [class.has-unread]="whatsappTotalUnread > 0" [title]="whatsappUnreadTitle"
+               (click)="openWhatsapp('clients')" role="button" tabindex="0"
+               (keydown.enter)="openWhatsapp('clients')">
             <div class="wa-metric-icon" [class.has-unread]="whatsappTotalUnread > 0">
               <svg class="metric-icon--wa" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                 stroke-linecap="round" stroke-linejoin="round">
@@ -321,11 +323,11 @@
               </div>
               <div class="wa-metric-breakdown">
                 <em class="wa-b wa-b-internal" [class.has-count]="internalUnreadCount > 0"
-                  title="Mensajes sin leer del chat interno de asesores">
+                  title="Mensajes sin leer del chat interno de asesores" (click)="openWhatsapp('advisors', $event)">
                   Internos <b>{{ internalUnreadCount }}</b>
                 </em>
                 <em class="wa-b wa-b-external" [class.has-count]="whatsappUnreadCount > 0"
-                  title="Mensajes sin leer de clientes de WhatsApp">
+                  title="Mensajes sin leer de clientes de WhatsApp" (click)="openWhatsapp('clients', $event)">
                   Clientes <b>{{ whatsappUnreadCount }}</b>
                 </em>
               </div>
