@@ -1,4 +1,4 @@
-ARG API_URL=/agora
+ARG API_URL=/korvix
 ARG WS_URL=
 
 FROM node:20-alpine AS builder

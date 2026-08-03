@@ -5,7 +5,7 @@ CONFIG_FILE=/usr/share/nginx/html/env-config.js
 
 cat > "$CONFIG_FILE" <<EOF
 window.__ENV__ = {
-  apiUrl: '${API_URL:-/agora}',
+  apiUrl: '${API_URL:-/korvix}',
   wsUrl: '${WS_URL:-}',
   apiKey: '${API_KEY:-}',
 };

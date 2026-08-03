@@ -72,7 +72,7 @@ export class WidgetConfig {
     name: 'chat_url',
     type: 'varchar',
     length: 255,
-    default: 'https://ia.innovacloud.co',
+    default: 'https://innoovacloud.com/korvix',
   })
   chatUrl: string;
 

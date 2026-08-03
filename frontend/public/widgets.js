@@ -1,16 +1,16 @@
 /**
- * widgets.js — Sian Widget Web Component v2
+ * widgets.js — Sian Widget Web Component v2.1.0
  *
  * Uso como Web Component:
- *   <sian-widget api-base="/agora" color="#2563eb"></sian-widget>
+ *   <sian-widget api-base="/korvix" color="#2563eb"></sian-widget>
  *
  * Uso como script clásico (auto-init):
- *   <script src="widgets.js" data-api-base="https://ejemplo.com/agora" defer></script>
+ *   <script src="widgets.js" data-api-base="https://ejemplo.com/korvix" defer></script>
  *
  * Uso programático:
  *   <script src="widgets.js"></script>
  *   <script>
- *     const w = new SianWidget({ apiBase: '/agora' });
+ *     const w = new SianWidget({ apiBase: '/korvix' });
  *     w.on('unread', count => console.log(count));
  *   </script>
  *
@@ -20,6 +20,10 @@
  *   - data-api-base para especificar URL del backend
  *   - API programática con eventos
  *   - Sin dependencias externas
+ *
+ * v2.1.0: fix base URL con src absoluto, chatUrl derivado del script,
+ * validación de event.origin, sin secuestro de document.title, match exacto
+ * de nombre de archivo y sanitización de colores.
  */
 (function (global) {
   'use strict';
@@ -72,18 +76,30 @@
   /* ═══════════════════════════════════════════════════════════
      SECCIÓN 2 — HELPERS
   ═══════════════════════════════════════════════════════════ */
+  /** Normaliza un color a #rrggbb (devuelve '' si es inválido). Soporta #rgb. */
+  function sanitizeHex(hex) {
+    if (typeof hex !== 'string') return '';
+    var h = hex.trim();
+    var m = h.match(/^#([0-9a-f]{6})$/i) || h.match(/^#([0-9a-f]{3})$/i);
+    if (!m) return '';
+    if (m[1].length === 3) {
+      return '#' + m[1].split('').map(function (c) { return c + c; }).join('');
+    }
+    return '#' + m[1].toLowerCase();
+  }
+
   function hexToRgb(hex) {
-    hex = (hex || '#2563eb').replace('#', '');
-    return parseInt(hex.slice(0,2),16) + ','
-         + parseInt(hex.slice(2,4),16) + ','
-         + parseInt(hex.slice(4,6),16);
+    hex = sanitizeHex(hex) || '#2563eb';
+    return parseInt(hex.slice(1,3),16) + ','
+         + parseInt(hex.slice(3,5),16) + ','
+         + parseInt(hex.slice(5,7),16);
   }
 
   function contrastColor(hex) {
-    hex = (hex || '#000000').replace('#','');
-    var r = parseInt(hex.slice(0,2),16);
-    var g = parseInt(hex.slice(2,4),16);
-    var b = parseInt(hex.slice(4,6),16);
+    hex = sanitizeHex(hex) || '#000000';
+    var r = parseInt(hex.slice(1,3),16);
+    var g = parseInt(hex.slice(3,5),16);
+    var b = parseInt(hex.slice(5,7),16);
     var lum = (0.299*r + 0.587*g + 0.114*b) / 255;
     return lum > 0.5 ? '#111111' : '#ffffff';
   }
@@ -103,6 +119,75 @@
   }
 
   /* ═══════════════════════════════════════════════════════════
+     SECCIÓN 2b — DETECCIÓN DE BASES DESDE EL SCRIPT
+  ═══════════════════════════════════════════════════════════ */
+  var _scriptTag = null;
+
+  function getScriptTag() {
+    if (_scriptTag) return _scriptTag;
+    // widget.js / widget.min.js / widgets.js (nombre exacto)
+    var re = /\/widgets?(\.min)?\.js$/;
+    var tags = document.querySelectorAll('script[src]');
+    for (var i = 0; i < tags.length; i++) {
+      var s = tags[i].getAttribute('src') || '';
+      if (re.test(s.split(/[?#]/)[0])) {
+        _scriptTag = tags[i];
+        return _scriptTag;
+      }
+    }
+    return null;
+  }
+
+  function getDataAttr(name) {
+    var tag = getScriptTag();
+    return tag ? (tag.getAttribute('data-' + name) || '') : '';
+  }
+
+  /**
+   * Resuelve la base del API (widget-config) y la base del SPA (chat).
+   * Usa el pathname real del script para que funcione también con URL
+   * absoluta (p.ej. https://dominio.com/korvix/widgets.js).
+   */
+  function resolveBases() {
+    var tag = getScriptTag();
+    var origin = location.origin;
+    var dir = '';
+
+    // data-api-base explícito sobreescribe todo
+    if (tag) {
+      var explicit = tag.getAttribute('data-api-base');
+      if (explicit) {
+        var e = explicit.replace(/\/+$/, '');
+        return { apiBase: e, spaBase: e };
+      }
+    }
+
+    var src = tag ? (tag.getAttribute('src') || '') : '';
+    if (src) {
+      try {
+        var u = new URL(src, location.href);
+        var p = u.pathname || '';
+        origin = u.origin;
+        dir = p.substring(0, p.lastIndexOf('/'));
+      } catch (_) {}
+    }
+
+    var spaBase = origin + dir;
+    // Dev local: el backend corre en :3000 mientras el SPA en :4200
+    var apiBase = (origin === 'http://localhost:4200' || origin === 'http://127.0.0.1:4200')
+      ? 'http://localhost:3000'
+      : spaBase;
+
+    return { apiBase: apiBase, spaBase: spaBase };
+  }
+
+  var _SCRIPT_BASES = resolveBases();
+  var _SPA_BASE     = _SCRIPT_BASES.spaBase;
+
+  // Default del chat: mismo origen+dir que el script (el SPA vive al lado)
+  if (_SPA_BASE) DEF.chatUrl = _SPA_BASE;
+
+  /* ═══════════════════════════════════════════════════════════
      SECCIÓN 3 — CLASE SIAN WIDGET
   ═══════════════════════════════════════════════════════════ */
   var _instId = 0;
@@ -116,12 +201,16 @@
     self._uid    = 'sian-w-' + (++_instId);
     self._events = {};
 
-    // ── Resolver apiBase ──
+    // ── Resolver apiBase / spaBase ──
+    var bases;
     if (options.apiBase) {
       self._apiBase = String(options.apiBase).replace(/\/+$/, '');
+      bases = { apiBase: self._apiBase, spaBase: self._apiBase };
     } else {
-      self._apiBase = self._detectApiBase();
+      bases = self._detectBases();
+      self._apiBase = bases.apiBase;
     }
+    self._spaBase = bases.spaBase || DEF.chatUrl;
     self._apiUrl = self._apiBase + API_PATH;
 
     // ── Resolver contenedor ──
@@ -145,8 +234,14 @@
     self._resizeHandler = null;
 
     // Atributos HTML del custom element sobreescriben config
+    self._hasChatUrl = false;
     if (options._attrs) {
       self._applyAttrs(options._attrs);
+    }
+
+    // Si no se especificó chatUrl explícito, usar la base del SPA
+    if (!self._hasChatUrl && !(options.config && options.config.chatUrl)) {
+      self._config.chatUrl = self._spaBase;
     }
 
     self._buildDOM();
@@ -171,7 +266,6 @@
     if (panel)  panel.classList.add('sian-open');
     if (bubble) bubble.style.display = 'none';
     self._updateBadge(0);
-    document.title = (self._config.chatMarca || self._config.tituloPanelChat || 'Chat');
     self._paint(self._config);
     self._emit('open');
   };
@@ -236,28 +330,32 @@
   /* ═══════════════════════════════════════════════════════════
      SECCIÓN 5 — DETECCIÓN DE API BASE
   ═══════════════════════════════════════════════════════════ */
-  SianWidget.prototype._detectApiBase = function () {
-    var tags = document.querySelectorAll('script[src]');
-    for (var i = 0; i < tags.length; i++) {
-      var src = tags[i].getAttribute('src') || '';
-      if (src.indexOf('widgets.js') !== -1 || src.indexOf('widget.js') !== -1) {
-        try {
-          var u = new URL(src, location.href);
-          if (u.hostname === 'localhost' && u.port === '4200') {
-            return 'http://localhost:3000';
-          }
-          var dir = src.substring(0, src.lastIndexOf('/'));
-          if (dir) {
-            var baseUrl = u.origin + (dir.startsWith('/') ? dir : '/' + dir);
-            return baseUrl.replace(/\/+$/, '');
-          }
-          return u.origin;
-        } catch (_) {
-          return location.origin;
-        }
+  SianWidget.prototype._detectBases = function () {
+    var tag = getScriptTag();
+    var origin = location.origin;
+    var dir = '';
+
+    if (tag) {
+      var explicit = tag.getAttribute('data-api-base');
+      if (explicit) {
+        var e = explicit.replace(/\/+$/, '');
+        return { apiBase: e, spaBase: e };
       }
+      var src = tag.getAttribute('src') || '';
+      try {
+        var u = new URL(src, location.href);
+        origin = u.origin;
+        var p = u.pathname || '';
+        dir = p.substring(0, p.lastIndexOf('/'));
+      } catch (_) {}
     }
-    return location.origin;
+
+    var spaBase = origin + dir;
+    var apiBase = (origin === 'http://localhost:4200' || origin === 'http://127.0.0.1:4200')
+      ? 'http://localhost:3000'
+      : spaBase;
+
+    return { apiBase: apiBase, spaBase: spaBase };
   };
 
   SianWidget.prototype._applyAttrs = function (attrs) {
@@ -287,6 +385,7 @@
           self._config[key] = SIZES[val] ? val : 'md';
         } else if (val !== null && val !== undefined && val !== '') {
           self._config[key] = val;
+          if (key === 'chatUrl') self._hasChatUrl = true;
         }
       }
     }
@@ -368,12 +467,20 @@
       badge: badge,
     };
 
-    // ── postMessage listener ──
+    // ── postMessage listener (validado por origin del chat) ──
     self._msgHandler = function (event) {
-      if (event.data && event.data.type === 'unread_count') {
+      if (!event.data || !event.origin) return;
+      var expected;
+      try {
+        expected = new URL(self._config.chatUrl, location.href).origin;
+      } catch (_) {
+        return;
+      }
+      if (event.origin !== expected) return;
+      if (event.data.type === 'unread_count') {
         self._updateBadge(event.data.count);
       }
-      if (event.data && event.data.type === 'sian-close-panel') {
+      if (event.data.type === 'sian-close-panel') {
         self.close();
       }
     };
@@ -384,11 +491,6 @@
       if (self._inited) self._paint(self._config);
     };
     window.addEventListener('resize', self._resizeHandler);
-
-    // ── Focus restore ──
-    window.addEventListener('focus', function () {
-      document.title = (cfg.chatMarca || cfg.tituloPanelChat || 'Chat');
-    });
 
     // Mostrar host
     self._hostEl.style.display = '';
@@ -591,7 +693,7 @@
   ═══════════════════════════════════════════════════════════ */
   function normalizar(res) {
     return {
-      color              : res.color               || DEF.color,
+      color              : sanitizeHex(res.color)              || DEF.color,
       posicion           : res.posicion            || DEF.posicion,
       forma              : res.forma               || DEF.forma,
       tamano             : res.tamano              || DEF.tamano,
@@ -605,10 +707,10 @@
       chatUrl            : res.chatUrl             || DEF.chatUrl,
       tituloPanelChat    : res.tituloPanelChat     || DEF.tituloPanelChat,
       subtituloPanelChat : res.subtituloPanelChat  || DEF.subtituloPanelChat,
-      chatHeaderColor    : res.chatHeaderColor     || DEF.chatHeaderColor,
-      chatBgColor        : res.chatBgColor         || DEF.chatBgColor,
-      chatBubbleColor    : res.chatBubbleColor     || DEF.chatBubbleColor,
-      chatBubbleUserColor: res.chatBubbleUserColor || DEF.chatBubbleUserColor,
+      chatHeaderColor    : sanitizeHex(res.chatHeaderColor)     || DEF.chatHeaderColor,
+      chatBgColor        : sanitizeHex(res.chatBgColor)         || DEF.chatBgColor,
+      chatBubbleColor    : sanitizeHex(res.chatBubbleColor)     || DEF.chatBubbleColor,
+      chatBubbleUserColor: sanitizeHex(res.chatBubbleUserColor) || DEF.chatBubbleUserColor,
       chatMarca          : res.chatMarca           || DEF.chatMarca,
     };
   }

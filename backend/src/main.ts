@@ -91,7 +91,16 @@ async function bootstrap() {
     : ['http://localhost:4200', 'http://192.168.10.26:4200'];
 
   app.enableCors({
-    origin: corsOrigins,
+    // Refleja el Origin de cualquier página: permite que el widget embebido
+    // (chat + config) funcione desde sitios externos sin fricción CORS.
+    origin: (origin, cb) => {
+      // Sin Origin (curl, SSR, extensiones) → se permite.
+      if (!origin) return cb(null, true);
+      // La SPA admin y websockets del mismo dominio siguen siendo válidos.
+      if (corsOrigins.includes(origin)) return cb(null, true);
+      // Cualquier otro origen se refleja (endpoints públicos no autenticados).
+      return cb(null, origin);
+    },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,

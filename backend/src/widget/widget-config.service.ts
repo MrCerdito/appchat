@@ -24,7 +24,7 @@ export class WidgetConfigService {
     let existing = await this.repo.findOne({ where: {} });
     if (existing) {
       if (existing.chatUrl === '/') {
-        existing.chatUrl = 'https://ia.innovacloud.co';
+        existing.chatUrl = 'https://innoovacloud.com/korvix';
         existing = await this.repo.save(existing);
       }
       await this.cache.set(this.CACHE_KEY, existing, this.CACHE_TTL);
@@ -39,7 +39,7 @@ export class WidgetConfigService {
 
   async save(data: Partial<WidgetConfig>): Promise<WidgetConfig> {
     if (data.chatUrl === '/') {
-      data.chatUrl = 'https://ia.innovacloud.co';
+      data.chatUrl = 'https://innoovacloud.com/korvix';
     }
 
     const existing = await this.repo.findOne({ where: {} });

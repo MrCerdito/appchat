@@ -1,7 +1,7 @@
 #=========================================================================#
 # Proxy Template propia - ReportaCasos (innoovacloud.com) - HTTPS         #
 # Basada en default.stpl. El contenedor frontend (127.0.0.1:8095) ya      #
-# resuelve el ruteo a /agora/ y el proxy interno al backend, asi que      #
+# resuelve el ruteo a /korvix/ y el proxy interno al backend, asi que      #
 # aqui solo se reenvia todo y se preservan los headers de upgrade para    #
 # WebSocket (Socket.IO) y SSE (AI stream).                                #
 # Instalar en: /usr/local/hestia/data/templates/web/nginx/                #
@@ -34,8 +34,8 @@ server {
 		return 404;
 	}
 
-	# WebSocket (Socket.IO) -> soporta /socket.io/ y /agora/socket.io/
-	location ~ ^/(agora/)?socket\.io/ {
+	# WebSocket (Socket.IO) -> soporta /socket.io/ y /korvix/socket.io/
+	location ~ ^/(korvix/)?socket\.io/ {
 		proxy_pass http://127.0.0.1:8095;
 		proxy_http_version 1.1;
 		proxy_set_header Upgrade $http_upgrade;
@@ -48,8 +48,8 @@ server {
 		proxy_send_timeout 86400s;
 	}
 
-	# SSE (AI stream) -> soporta /ai/stream y /agora/ai/stream, sin buffer
-	location ~ ^/(agora/)?ai/stream {
+	# SSE (AI stream) -> soporta /ai/stream y /korvix/ai/stream, sin buffer
+	location ~ ^/(korvix/)?ai/stream {
 		proxy_pass http://127.0.0.1:8095;
 		proxy_http_version 1.1;
 		proxy_set_header Connection "";

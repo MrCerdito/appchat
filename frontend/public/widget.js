@@ -1,6 +1,10 @@
 /**
  * widget.js — Widget de chat embebible — Sian365
+ * v2.1.0
  * Versión con soporte completo de todos los campos de configuración.
+ * Cambios: fix base URL con src absoluto, chatUrl derivado del script,
+ * validación de event.origin, sin secuestro de document.title, match exacto
+ * de nombre de archivo, sanitización de colores y loggeo bajo data-debug.
  */
 (function () {
   'use strict';
@@ -44,13 +48,14 @@
   /* ═══════════════════════════════════════════════════════════
      SECCIÓN 3 — LOGGER
   ═══════════════════════════════════════════════════════════ */
+  var DEBUG = false;
   var Log = {
-    ok: function () {},
-    fallback: function () {},
-    httpError: function () {},
-    parseError: function () {},
-    poll: function () {},
-    autoOpen: function () {},
+    ok: function (o) { if (DEBUG) console.debug('[widget] config', o); },
+    fallback: function (msg) { if (DEBUG) console.warn('[widget] usando defaults:', msg); },
+    httpError: function (status, url) { if (DEBUG) console.warn('[widget] HTTP', status, url); },
+    parseError: function (e) { if (DEBUG) console.warn('[widget] JSON inválido', e); },
+    poll: function (changed) { if (DEBUG) console.debug('[widget] poll', changed ? 'cambio' : 'sin cambios'); },
+    autoOpen: function (s) { if (DEBUG) console.debug('[widget] auto-open en', s, 's'); },
   };
 
   /* ═══════════════════════════════════════════════════════════
@@ -97,19 +102,29 @@
   function btnRadius() { return cfg.forma === 'circle' ? '50%' : (RADII[cfg.tamano] || '18px'); }
   function isMobile()  { return window.innerWidth <= 520; }
 
+  /** Normaliza un color a hex de 6 dígitos; devuelve '' si es inválido. */
+  function sanitizeHex(val) {
+    if (typeof val !== 'string') return '';
+    var h = val.trim().replace(/^#/, '');
+    if (/^[0-9a-fA-F]{3}$/.test(h)) {
+      return '#' + h.split('').map(function (c) { return c + c; }).join('');
+    }
+    return /^[0-9a-fA-F]{6}$/.test(h) ? '#' + h : '';
+  }
+
   function hexToRgb(hex) {
-    hex = (hex || '#2563eb').replace('#', '');
-    return parseInt(hex.slice(0,2),16) + ','
-         + parseInt(hex.slice(2,4),16) + ','
-         + parseInt(hex.slice(4,6),16);
+    hex = sanitizeHex(hex) || '#2563eb';
+    return parseInt(hex.slice(1,3),16) + ','
+         + parseInt(hex.slice(3,5),16) + ','
+         + parseInt(hex.slice(5,7),16);
   }
 
   /** Devuelve '#ffffff' o '#111111' según luminosidad del fondo */
   function contrastColor(hex) {
-    hex = (hex || '#000000').replace('#','');
-    var r = parseInt(hex.slice(0,2),16);
-    var g = parseInt(hex.slice(2,4),16);
-    var b = parseInt(hex.slice(4,6),16);
+    hex = sanitizeHex(hex) || '#000000';
+    var r = parseInt(hex.slice(1,3),16);
+    var g = parseInt(hex.slice(3,5),16);
+    var b = parseInt(hex.slice(5,7),16);
     var lum = (0.299*r + 0.587*g + 0.114*b) / 255;
     return lum > 0.5 ? '#111111' : '#ffffff';
   }
@@ -121,10 +136,12 @@
 
   function getScriptTag() {
     if (_scriptTag) return _scriptTag;
+    var re = /\/widget(\.min)?\.js$/;
     var tags = document.querySelectorAll('script[src]');
     for (var i = 0; i < tags.length; i++) {
       var s = tags[i].getAttribute('src') || '';
-      if (s.indexOf('widget.js') !== -1) {
+      // Solo el archivo exacto widget[.min].js (no widgets.js ni otros)
+      if (re.test(s.split(/[?#]/)[0])) {
         _scriptTag = tags[i];
         return _scriptTag;
       }
@@ -132,44 +149,61 @@
     return null;
   }
 
-  function getApiBase() {
-    var tag = getScriptTag();
-    if (!tag) return location.origin;
-
-    // data-api-base explícito sobreescribe todo
-    var explicitBase = tag.getAttribute('data-api-base');
-    if (explicitBase) return explicitBase.replace(/\/+$/, '');
-
-    try {
-      var src = tag.getAttribute('src') || '';
-      var u = new URL(src, location.href);
-      // Dev local
-      if (u.hostname === 'localhost' && u.port === '4200') {
-        return 'http://localhost:3000';
-      }
-      // Incluir el path del directorio del script (para /agora/widget.js)
-      var dir = src.substring(0, src.lastIndexOf('/'));
-      if (dir && dir !== '') {
-        var baseUrl = u.origin + (dir.startsWith('/') ? dir : '/' + dir);
-        return baseUrl.replace(/\/+$/, '');
-      }
-      return u.origin;
-    } catch (_) {
-      return location.origin;
-    }
-  }
-
-  var API_BASE = getApiBase();
-  var API_URL  = API_BASE + API_PATH;
-
-  // ── Data attributes sobreescritura ─────────────────────────────────────────
   function getDataAttr(name) {
     var tag = getScriptTag();
     return tag ? (tag.getAttribute('data-' + name) || '') : '';
   }
 
-  var IS_PREVIEW     = getDataAttr('preview') === 'true';
-  var DATA_CHAT_URL  = getDataAttr('chat-url') || '';
+  /**
+   * Resuelve la base del API (widget-config) y la base del SPA (chat).
+   * Usa el pathname real del script para que funcione también con URL
+   * absoluta (p.ej. https://dominio.com/korvix/widget.js).
+   */
+  function resolveBases() {
+    var tag = getScriptTag();
+    var origin = location.origin;
+    var dir = '';
+
+    // data-api-base explícito sobreescribe todo
+    if (tag) {
+      var explicit = tag.getAttribute('data-api-base');
+      if (explicit) {
+        var e = explicit.replace(/\/+$/, '');
+        return { apiBase: e, spaBase: e };
+      }
+    }
+
+    var src = tag ? (tag.getAttribute('src') || '') : '';
+    if (src) {
+      try {
+        var u = new URL(src, location.href);
+        var p = u.pathname || '';
+        origin = u.origin;
+        dir = p.substring(0, p.lastIndexOf('/'));
+      } catch (_) {}
+    }
+
+    var spaBase = origin + dir;
+    // Dev local: el backend corre en :3000 mientras el SPA en :4200
+    var apiBase = (origin === 'http://localhost:4200' || origin === 'http://127.0.0.1:4200')
+      ? 'http://localhost:3000'
+      : spaBase;
+
+    return { apiBase: apiBase, spaBase: spaBase };
+  }
+
+  var BASES    = resolveBases();
+  var API_BASE = BASES.apiBase;
+  var SPA_BASE = BASES.spaBase;
+  var API_URL  = API_BASE + API_PATH;
+
+  // ── Data attributes sobreescritura ─────────────────────────────────────────
+  var IS_PREVIEW    = getDataAttr('preview') === 'true';
+  var DATA_CHAT_URL = getDataAttr('chat-url') || '';
+  DEBUG             = getDataAttr('debug') === 'true';
+
+  // Default del chat: mismo origen+dir que el script (el SPA vive al lado)
+  if (SPA_BASE) DEF.chatUrl = SPA_BASE;
 
   // Si data-chat-url está presente, sobreescribe el chatUrl de la config
   if (DATA_CHAT_URL) {
@@ -215,7 +249,7 @@
   function normalizar(res) {
     return {
       // Botón flotante
-      color              : res.color               || DEF.color,
+      color              : sanitizeHex(res.color)              || DEF.color,
       posicion           : res.posicion            || DEF.posicion,
       forma              : res.forma               || DEF.forma,
       tamano             : res.tamano              || DEF.tamano,
@@ -232,10 +266,10 @@
       tituloPanelChat    : res.tituloPanelChat     || DEF.tituloPanelChat,
       subtituloPanelChat : res.subtituloPanelChat  || DEF.subtituloPanelChat,
       // Diseño del chat
-      chatHeaderColor    : res.chatHeaderColor     || DEF.chatHeaderColor,
-      chatBgColor        : res.chatBgColor         || DEF.chatBgColor,
-      chatBubbleColor    : res.chatBubbleColor     || DEF.chatBubbleColor,
-      chatBubbleUserColor: res.chatBubbleUserColor || DEF.chatBubbleUserColor,
+      chatHeaderColor    : sanitizeHex(res.chatHeaderColor)     || DEF.chatHeaderColor,
+      chatBgColor        : sanitizeHex(res.chatBgColor)         || DEF.chatBgColor,
+      chatBubbleColor    : sanitizeHex(res.chatBubbleColor)     || DEF.chatBubbleColor,
+      chatBubbleUserColor: sanitizeHex(res.chatBubbleUserColor) || DEF.chatBubbleUserColor,
       chatMarca          : res.chatMarca           || DEF.chatMarca,
     };
   }
@@ -510,17 +544,23 @@
     }
   }
 
-  // ── Restaurar título al hacer foco ────────────────────────────────────────
-  window.addEventListener('focus', function () {
-    document.title = (cfg.chatMarca || cfg.tituloPanelChat || 'Chat');
-  });
-
   // ── Escuchar mensajes del iframe ──────────────────────────────────────────
+  // Solo se procesan mensajes que vienen del origin del chat (no de otras
+  // ventanas/páginas que intenten manipular el widget).
+  function chatOrigin() {
+    try {
+      return new URL(cfg.chatUrl, location.href).origin;
+    } catch (_) {
+      return '';
+    }
+  }
+
   window.addEventListener('message', function (event) {
-    if (event.data && event.data.type === 'unread_count') {
+    if (!event.data || !event.origin || event.origin !== chatOrigin()) return;
+    if (event.data.type === 'unread_count') {
       updateBadge(event.data.count);
     }
-    if (event.data && event.data.type === 'sian-close-panel') {
+    if (event.data.type === 'sian-close-panel') {
       closePanel();
     }
   });
@@ -636,7 +676,6 @@
     if (panel)  panel.classList.add('sian-open');
     if (bubble) bubble.style.display = 'none';
     updateBadge(0);
-    document.title = (cfg.chatMarca || cfg.tituloPanelChat || 'Chat');
     paint(cfg);
   }
 

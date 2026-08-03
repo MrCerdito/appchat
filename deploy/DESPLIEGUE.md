@@ -1,7 +1,7 @@
 # ReportaCasos — Despliegue desde cero (VPS Ubuntu + HestiaCP)
 
 > Última actualización: 2026-07-15
-> Dominio: `reportacasos.innovacloud.co` · Ruta de la app: `/agora/`
+> Dominio: `reportacasos.innovacloud.co` · Ruta de la app: `/korvix/`
 > Arquitectura: Hestia nginx (80/443) → frontend Docker (127.0.0.1:8095) → backend Docker (backend:3001) → Postgres (127.0.0.1:5433)
 
 Esta guía reemplaza a `CONFIGURACION.md` (desactualizado: usaba el dominio
@@ -150,13 +150,13 @@ Notas ya resueltas en el repo (no requieren acción, solo no revertirlas):
 
 ```bash
 curl -f http://127.0.0.1:3001/health          # backend directo
-curl -s http://127.0.0.1:8095/agora/health    # backend vía proxy del frontend
-curl -sI http://127.0.0.1:8095/ | head -1     # 302 → /agora/
+curl -s http://127.0.0.1:8095/korvix/health    # backend vía proxy del frontend
+curl -sI http://127.0.0.1:8095/ | head -1     # 302 → /korvix/
 curl -sI https://reportacasos.innovacloud.co/ | head -1
 ```
 
 En el navegador: `https://reportacasos.innovacloud.co/` → redirige a
-`/agora/` → login → verificar en la consola que no haya errores de CORS y
+`/korvix/` → login → verificar en la consola que no haya errores de CORS y
 que el WebSocket (Socket.IO) conecte.
 
 ## 8. Solución de problemas (lecciones aprendidas)

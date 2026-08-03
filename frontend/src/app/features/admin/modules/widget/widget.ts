@@ -46,7 +46,7 @@ const DEFAULT_CONFIG: WidgetConfig = {
   mostrarBurbuja     : true,
   tituloPanelChat    : 'Soporte en línea',
   subtituloPanelChat : 'Estamos aquí para ayudarte',
-  chatUrl            : 'https://ia.innovacloud.co',
+  chatUrl            : 'https://innoovacloud.com/korvix',
   chatHeaderColor    : '#1a1a1a',
   chatBgColor        : '#f0ede9',
   chatBubbleColor    : '#ffffff',

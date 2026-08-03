@@ -215,7 +215,7 @@ print_summary() {
   echo ""
   echo "========================================"
   echo "  ✅ Listo!"
-  echo "  Accede en: https://$DOMINIO/agora/"
+  echo "  Accede en: https://$DOMINIO/korvix/"
   echo ""
   echo "  Comandos útiles:"
   echo "    docker compose logs -f backend"
