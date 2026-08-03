@@ -6,6 +6,7 @@ import {
   ElementRef,
   EventEmitter,
   HostListener,
+  Input,
   OnDestroy,
   OnInit,
   Output,
@@ -59,6 +60,8 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
   protected readonly reactionEmojis = ['👍', '✅', '❌'];
 
   @Output() activeChange = new EventEmitter<boolean>();
+
+  @Input() embedded = false;
 
   @ViewChild('icMessages') messagesContainer!: ElementRef;
   @ViewChild('draftArea') draftArea?: ElementRef<HTMLTextAreaElement>;

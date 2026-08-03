@@ -1,26 +1,32 @@
 <div class="layout" [class.chat-open]="!!activeContact || internalChatOpen" [class.compact-layout]="compactList">
 
-  <div class="mode-tabs">
-    <button
-      type="button"
-      class="mode-tab"
-      [class.active]="chatMode === 'clients'"
-      (click)="setChatMode('clients')"
-    >
-      Chat clientes
-    </button>
-    <button
-      type="button"
-      class="mode-tab"
-      [class.active]="chatMode === 'advisors'"
-      (click)="setChatMode('advisors')"
-    >
-      Chat asesores
-      @if (internalUnreadTotal > 0) {
-      <em class="mode-badge">{{ internalUnreadTotal }}</em>
-      }
-    </button>
-  </div>
+  <ng-template #modeTabs>
+    <div class="mode-tabs">
+      <button
+        type="button"
+        class="mode-tab"
+        [class.active]="chatMode === 'clients'"
+        (click)="setChatMode('clients')"
+        title="Chat clientes"
+      >
+        <wa-icon name="message-circle"></wa-icon>
+        <span>Chat clientes</span>
+      </button>
+      <button
+        type="button"
+        class="mode-tab"
+        [class.active]="chatMode === 'advisors'"
+        (click)="setChatMode('advisors')"
+        title="Chat asesores"
+      >
+        <wa-icon name="users-group"></wa-icon>
+        <span>Chat asesores</span>
+        @if (internalUnreadTotal > 0) {
+        <em class="mode-badge">{{ internalUnreadTotal }}</em>
+        }
+      </button>
+    </div>
+  </ng-template>
 
   <div class="layout-body">
 
@@ -327,8 +333,11 @@
   }
   }
 
-  @if (chatMode === 'clients') {
-  <aside class="sidebar" [class.compact]="compactList">
+  <aside class="sidebar advisors-sidebar" [class.compact]="compactList">
+
+    <ng-container *ngTemplateOutlet="modeTabs"></ng-container>
+
+    @if (chatMode === 'clients') {
 
     @if (compactList) {
     <div class="compact-filter-wrap">
@@ -497,8 +506,64 @@
       </button>
       }
     </div>
+
+    } @else {
+
+    <header class="ic-sidebar-header">
+      <div class="ic-sidebar-title">
+        <strong>Chat asesores</strong>
+        <span>{{ internalConversations.length }} conversacion{{ internalConversations.length === 1 ? '' : 'es' }}</span>
+      </div>
+      <button type="button" class="ic-new-btn" title="Nuevo chat" (click)="openInternalNewChat()">
+        <wa-icon name="user-plus"></wa-icon>
+      </button>
+    </header>
+
+    <div class="ic-search">
+      <wa-icon name="search"></wa-icon>
+      <input type="text" placeholder="Buscar asesor o grupo" [(ngModel)]="internalSearchQuery" />
+    </div>
+
+    <div class="ic-list">
+      @if (internalIsLoadingConversations && !internalConversations.length) {
+      <div class="ic-empty-list">Cargando conversaciones...</div>
+      } @else {
+      @for (conv of internalFilteredConversations; track conv.id) {
+      <button
+        type="button"
+        class="ic-item"
+        [class.active]="internalActiveConversationId === conv.id"
+        (click)="selectInternalConversation(conv)"
+      >
+        <div class="ic-avatar" [class.is-group]="conv.type === 'group'">
+          @if (conv.type === 'group') {
+          <wa-icon name="users-group"></wa-icon>
+          } @else {
+          {{ internalConversationAvatar(conv) }}
+          }
+        </div>
+        <div class="ic-item-info">
+          <div class="ic-item-top">
+            <span class="ic-item-name" [class.has-unread]="conv.unreadCount > 0">{{ internalConversationName(conv) }}</span>
+            <span class="ic-item-time">{{ internalConversationTime(conv) }}</span>
+          </div>
+          <div class="ic-item-preview" [class.has-unread]="conv.unreadCount > 0">{{ internalPreviewText(conv) }}</div>
+        </div>
+        @if (conv.unreadCount > 0) {
+        <span class="ic-badge">{{ conv.unreadCount }}</span>
+        }
+      </button>
+      }
+      @if (!internalFilteredConversations.length) {
+      <div class="ic-empty-list">Sin conversaciones. Crea una para empezar.</div>
+      }
+      }
+    </div>
+
+    }
   </aside>
 
+  @if (chatMode === 'clients') {
   @if (activeContact; as contact) {
   <main class="main">
     <header class="chat-header">
@@ -986,7 +1051,9 @@
     </main>
   }
   } @else {
-  <app-internal-chat-panel (activeChange)="onInternalActiveChange($event)"></app-internal-chat-panel>
+  <main class="main">
+    <app-internal-chat-panel [embedded]="true"></app-internal-chat-panel>
+  </main>
   }
 
   @if (showInfoPanel) {
