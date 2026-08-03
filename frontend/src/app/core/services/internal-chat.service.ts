@@ -79,7 +79,11 @@ export class InternalChatService implements OnDestroy {
     });
 
     this.socket.on('ic_conversation_updated', (conversation: InternalConversation) => {
-      this.upsertConversation(conversation);
+      const current = this.conversations$.getValue().find(c => c.id === conversation.id);
+      this.upsertConversation({
+        ...conversation,
+        unreadCount: current?.unreadCount ?? conversation.unreadCount,
+      });
     });
 
     this.socket.on('ic_unread', (data: { conversationId: string; unreadCount: number }) => {

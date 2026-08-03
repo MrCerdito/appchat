@@ -771,7 +771,7 @@ export class InternalChatService implements OnModuleInit {
               member.userId,
               await this.getUnread(member.userId, conversationId),
             ),
-            memberIds: members.map((m) => m.userId),
+            memberIds: [member.userId],
           });
         }
       }
