@@ -23,4 +23,12 @@ export class AiChatDto {
   @IsString()
   @IsOptional()
   rol?: string; // ← nuevo campo
+
+  @IsString()
+  @IsOptional()
+  sessionId?: string;
+
+  @IsString()
+  @IsOptional()
+  welcome?: string;
 }

@@ -70,6 +70,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   step: 'faq' | 'name' | 'pqrs' | 'waiting' | 'chat' | 'rating' = 'faq';
   aiMode    = true;
   aiHistory : AiMessage[] = [];
+  private bienvenidaIa = '';
   aiTyping  = false;
   mostrarConfirmCierre    = false;
   mostrarAsesoresOcupados = false;
@@ -649,6 +650,7 @@ get rolLabel(): string {
   }];
 
   const bienvenida = `Hola ${this.clientName}, soy el asistente virtual. Estoy aquí para ayudarte con tu consulta sobre "${this.tipoSolicitud}". ¿En qué puedo ayudarte?`;
+  this.bienvenidaIa = bienvenida;
   this.addAiMessage('model', bienvenida);
   this.iniciarTimerInactividadIa();
   this.cdr.detectChanges();
@@ -1182,7 +1184,7 @@ get rolLabel(): string {
   this.cdr.detectChanges();
 
   this.streamSub = this.aiService
-    .chatStream(userMsg, historySnapshot, this.clientName, this.colegio, this.tipoSolicitud, this.rol)
+    .chatStream(userMsg, historySnapshot, this.clientName, this.colegio, this.tipoSolicitud, this.rol, this.session?.id, this.bienvenidaIa)
     .subscribe({
       next: ({ event, data }) => {
 

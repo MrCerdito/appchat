@@ -414,7 +414,9 @@ ${messages}`;
     tipoSolicitud: string,
     rol: string,
     emit: (event: string, data: object) => void,
-  ): Promise<void> {
+    sessionId?: string,
+    _welcome?: string,
+  ): Promise<string> {
     const rolNormalizado = normalizarRol(rol);
     const configDefault = ROL_CONFIG[rolNormalizado] ?? ROL_CONFIG['estudiante'];
     const msgLower = message.toLowerCase();
@@ -439,6 +441,7 @@ ${messages}`;
     if (esRestringido) {
       const msgRestringido = config.mensajeRestringido;
       this.aiLogs.guardar({
+        sessionId,
         colegio,
         rol: rolNormalizado,
         tipoSolicitud,
@@ -449,7 +452,7 @@ ${messages}`;
         chunksUsados: [],
       });
       emit('chunk', { text: msgRestringido });
-      return;
+      return msgRestringido;
     }
 
     // ── RAG ─────────────────────────────────────────────────────────────────
@@ -518,6 +521,7 @@ ${messages}`;
     if (!response.ok) {
       const err = await response.text();
       this.aiLogs.guardar({
+        sessionId,
         colegio,
         rol: rolNormalizado,
         tipoSolicitud,
@@ -582,6 +586,7 @@ ${messages}`;
 
     // ── Guardar log al finalizar ────────────────────────────────────────────
     this.aiLogs.guardar({
+      sessionId,
       colegio,
       rol: rolNormalizado,
       tipoSolicitud,
@@ -599,6 +604,8 @@ ${messages}`;
       tiempoRespuestaMs: Date.now() - t0,
       tokensEstimados: Math.round((systemPrompt.length + message.length) / 4),
     });
+
+    return textoAcumulado;
   }
 
   // ─────────────────────────────────────────────────────────────────────────

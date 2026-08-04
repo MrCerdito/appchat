@@ -15,7 +15,7 @@ import { RedisStateService } from '../common/redis/redis-state.service';
   imports: [
     TypeOrmModule.forFeature([Message]),
     JwtModule,
-    AiModule, // ← línea nueva
+    forwardRef(() => AiModule), // ← línea nueva
     forwardRef(() => SessionsModule), // ← línea nueva
     ConfiguracionModule,
     AdvisorsWhatsappModule,

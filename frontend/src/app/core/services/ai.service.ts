@@ -75,6 +75,8 @@ export class AiService {
     colegio       : string,
     tipoSolicitud : string,
     rol           : string = 'estudiante',
+    sessionId?    : string,
+    welcome?      : string,
   ): Observable<SseEvent> {
 
     return new Observable(observer => {
@@ -83,7 +85,7 @@ export class AiService {
       fetch(`${this.baseUrl}/ai/stream`, {
         method : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body   : JSON.stringify({ message, history, clientName, colegio, tipoSolicitud, rol }),
+        body   : JSON.stringify({ message, history, clientName, colegio, tipoSolicitud, rol, sessionId, welcome }),
         signal : ctrl.signal,
       })
       .then(async res => {

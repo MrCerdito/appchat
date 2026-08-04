@@ -1,8 +1,9 @@
-import { Controller, Post, Body, Get, Res, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, Get, Res, UseGuards, Logger } from '@nestjs/common';
 import type { Response } from 'express';
 import { AiService } from './ai.service';
 import { AiLogsService } from './ai-logs.service';
 import { AiChatDto } from './dto/ai-chat.dto';
+import { ChatService } from '../chat/chat.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.guard';
@@ -11,9 +12,12 @@ import { Public } from '../auth/public.decorator';
 @Controller('ai')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class AiController {
+  private readonly logger = new Logger(AiController.name);
+
   constructor(
     private readonly aiService: AiService,
     private readonly aiLogs: AiLogsService,
+    private readonly chatService: ChatService,
   ) {}
 
   @Public()
@@ -91,7 +95,39 @@ export class AiController {
 
     try {
       emit('start', { message: 'Procesando...' });
-      await this.aiService.chatStream(
+
+      const sessionId = dto.sessionId?.trim() || undefined;
+
+      if (sessionId) {
+        const history = await this.chatService
+          .getHistory(sessionId, 50)
+          .catch(() => []);
+
+        const yaHayIa = history.some(
+          (m) => m.senderName === 'Asistente Virtual',
+        );
+        if (!yaHayIa && dto.welcome?.trim()) {
+          await this.persist(sessionId, () =>
+            this.chatService.saveMessage(
+              sessionId,
+              dto.welcome!.trim(),
+              'advisor',
+              'Asistente Virtual',
+            ),
+          );
+        }
+
+        await this.persist(sessionId, () =>
+          this.chatService.saveMessage(
+            sessionId,
+            dto.message,
+            'client',
+            dto.clientName || 'Cliente',
+          ),
+        );
+      }
+
+      const reply = await this.aiService.chatStream(
         dto.message,
         dto.history ?? [],
         dto.clientName ?? '',
@@ -99,12 +135,42 @@ export class AiController {
         dto.tipoSolicitud ?? '',
         dto.rol ?? 'estudiante',
         emit,
+        sessionId,
+        dto.welcome,
       );
+
+      if (
+        sessionId &&
+        reply &&
+        !reply.includes('TRANSFER_TO_ADVISOR')
+      ) {
+        const limpio = reply.replace(/\[FEEDBACK:(YES|NO)\]\s*$/, '').trim();
+        if (limpio) {
+          await this.persist(sessionId, () =>
+            this.chatService.saveMessage(
+              sessionId,
+              limpio,
+              'advisor',
+              'Asistente Virtual',
+            ),
+          );
+        }
+      }
     } catch (err: any) {
       emit('error', { message: err?.message ?? 'Error interno' });
     } finally {
       emit('end', { message: 'Listo' });
       res.end();
+    }
+  }
+
+  private async persist(sessionId: string, fn: () => Promise<unknown>) {
+    try {
+      await fn();
+    } catch (err: any) {
+      this.logger.error(
+        `[PersistIA] Sesión ${sessionId}: ${err?.message ?? 'error'}`,
+      );
     }
   }
 
