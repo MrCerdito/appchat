@@ -24,6 +24,7 @@ import { SessionsService } from './sessions.service';
 import { TicketsService } from '../tickets/tickets.service';
 import { Message } from '../chat/entities/message.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { RolesGuard, Roles } from '../auth/roles.guard';
 import { IsString, IsNotEmpty, Length, IsOptional, IsEmail, MaxLength } from 'class-validator';
 import { ChatGateway } from '../chat/chat.gateway';
@@ -165,13 +166,15 @@ export class SessionsController {
   }
 
   @Get('admin/all')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
   findAllAdmin() {
     return this.sessionsService.findAllAdmin();
   }
 
   @Get('admin/all/paginated')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
   findAllAdminPaginated(
     @Query('page') page = '1',
     @Query('limit') limit = '50',
@@ -201,7 +204,8 @@ export class SessionsController {
   }
 
   @Get('admin/comentarios')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
   getAllComentarios(
     @Query('page') page = '1',
     @Query('limit') limit = '10',
@@ -274,7 +278,7 @@ export class SessionsController {
   async close(@Param('id') id: string, @Request() req: any) {
     const session = await this.sessionsService.findOne(id);
     const userRole = req.user.role;
-    if (userRole === 'administrador' || session.advisor?.id === req.user.id) {
+    if (userRole === 'admin' || session.advisor?.id === req.user.id) {
       return this.sessionsService.close(id);
     }
     throw new ForbiddenException(
@@ -289,7 +293,7 @@ export class SessionsController {
   }
 
   @Post(':id/rating')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(OptionalJwtAuthGuard)
   @HttpCode(HttpStatus.CREATED)
   async saveRating(
     @Param('id') id: string,
@@ -298,7 +302,7 @@ export class SessionsController {
     @Request() req: any,
   ) {
     const session = await this.sessionsService.findOne(id);
-    if (req.user.role === 'estudiante' || req.user.role === 'padre') {
+    if (req.user?.role === 'estudiante' || req.user?.role === 'padre') {
       if (session.clientName !== req.user.name) {
         throw new ForbiddenException(
           'Solo el cliente que inició la sesión puede calificar',
@@ -314,7 +318,7 @@ export class SessionsController {
   }
 
   @Get(':id/rating')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(OptionalJwtAuthGuard)
   getRating(@Param('id') id: string) {
     return this.sessionsService.getRating(id);
   }

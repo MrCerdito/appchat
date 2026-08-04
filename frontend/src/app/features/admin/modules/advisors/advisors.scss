@@ -10,6 +10,20 @@
   p  { font-size: 0.85rem; color: var(--text-muted); }
 }
 
+.header-actions {
+  display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; justify-content: flex-end;
+}
+
+.import-result {
+  margin-bottom: 1rem;
+
+  .alert { margin-bottom: 0.5rem; }
+  .import-errors {
+    margin: 0.5rem 0 0; padding-left: 1.2rem;
+    li { font-size: 0.82rem; margin-bottom: 0.2rem; }
+  }
+}
+
 // ── Status Summary ──────────────────────────────────────────
 .status-summary {
   display: flex; gap: 1rem; margin-bottom: 1rem;
@@ -301,6 +315,8 @@ table {
     flex-direction: column; gap: 0.75rem;
     button { align-self: flex-start; }
   }
+
+  .header-actions { justify-content: flex-start; }
 
   .toolbar { flex-direction: column; align-items: stretch; }
   .search-box { max-width: 100%; }

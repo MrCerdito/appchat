@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdminService, PaginatedResponse } from '../../../../core/services/admin.service';
@@ -50,6 +50,17 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
 
   confirmAction: { type: 'delete'; advisor: User } | null = null;
   savingPassword = false;
+
+  importing = false;
+  exporting = false;
+  importResult: {
+    message: string;
+    created: number;
+    updated: number;
+    errors: { row: number; email: string; error: string }[];
+  } | null = null;
+
+  @ViewChild('fileInput') fileInput?: ElementRef<HTMLInputElement>;
 
   private searchSubject = new Subject<string>();
   private destroy$ = new Subject<void>();
@@ -247,6 +258,65 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
     this.loading = false;
     this.showSuccess(this.editingId ? 'Asesor actualizado' : 'Asesor creado');
     this.loadAdvisors();
+  }
+
+  onImportClick(): void {
+    this.fileInput?.nativeElement.click();
+  }
+
+  onFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    if (ext !== 'xlsx' && ext !== 'xls') {
+      this.showError('Formato no válido. Sube un archivo Excel (.xlsx o .xls)');
+      return;
+    }
+
+    this.importing = true;
+    this.importResult = null;
+    this.error = '';
+    this.adminService.importUsers(file).subscribe({
+      next: (res) => {
+        this.importing = false;
+        this.importResult = res;
+        this.notification.success('Importación', res.message);
+        this.loadAdvisors();
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        this.importing = false;
+        this.showError(err.error?.message ?? 'Error al importar asesores');
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  onExportExcel(): void {
+    this.exporting = true;
+    this.error = '';
+    this.adminService.exportUsers().subscribe({
+      next: (blob) => {
+        this.exporting = false;
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `asesores-${new Date().toISOString().slice(0, 10)}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.exporting = false;
+        this.showError('Error al exportar asesores');
+        this.cdr.detectChanges();
+      },
+    });
   }
 
   toggle(advisor: User): void {

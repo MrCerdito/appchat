@@ -13,7 +13,6 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { Throttle } from '@nestjs/throttler';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles, RolesGuard } from '../auth/roles.guard';
@@ -72,7 +71,6 @@ export class InternalChatController {
   }
 
   @Post('conversations/:id/messages')
-  @Throttle({ default: { limit: 30, ttl: 10_000 } })
   sendText(
     @Request() req,
     @Param('id') conversationId: string,
@@ -85,7 +83,6 @@ export class InternalChatController {
   }
 
   @Post('conversations/:id/media')
-  @Throttle({ default: { limit: 20, ttl: 10_000 } })
   @UseInterceptors(FileInterceptor('file'))
   sendMedia(
     @Request() req,
@@ -103,7 +100,6 @@ export class InternalChatController {
   }
 
   @Patch('conversations/:id/messages/:mid')
-  @Throttle({ default: { limit: 30, ttl: 10_000 } })
   editMessage(
     @Request() req,
     @Param('id') conversationId: string,

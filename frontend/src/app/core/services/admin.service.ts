@@ -67,6 +67,19 @@ export class AdminService {
     return this.http.delete<{ ok: boolean }>(`${environment.apiUrl}/advisors/${id}/photo`);
   }
 
+  importUsers(file: File): Observable<{ message: string; created: number; updated: number; errors: { row: number; email: string; error: string }[] }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<{ message: string; created: number; updated: number; errors: { row: number; email: string; error: string }[] }>(
+      `${environment.apiUrl}/advisors/import-excel`,
+      formData,
+    );
+  }
+
+  exportUsers(): Observable<Blob> {
+    return this.http.get(`${environment.apiUrl}/advisors/export-excel`, { responseType: 'blob' });
+  }
+
   getMetrics(): Observable<Metrics> {
     return this.http.get<Metrics>(`${environment.apiUrl}/sessions/metrics`);
   }

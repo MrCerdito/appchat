@@ -72,8 +72,7 @@ export class SeedService implements OnApplicationBootstrap {
   private async seedUsers() {
     const hash = (pw: string) => bcrypt.hash(pw, 10);
 
-    const adminPassword =
-      process.env.SEED_ADMIN_PASSWORD || this.generateStrongPassword();
+    const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'admin123';
     const advisorPassword =
       process.env.SEED_ADVISOR_PASSWORD || this.generateStrongPassword();
 

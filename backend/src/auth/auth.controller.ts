@@ -7,7 +7,6 @@ import {
   Request,
   UseGuards,
 } from '@nestjs/common';
-import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { IsEmail, IsString, MinLength } from 'class-validator';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -30,7 +29,6 @@ export class RefreshDto {
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Throttle({ default: { limit: 20, ttl: 60000 } })
   @Post('login')
   @HttpCode(HttpStatus.OK)
   login(@Body() body: LoginDto) {

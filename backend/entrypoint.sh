@@ -3,6 +3,6 @@ set -e
 
 chown -R node:node /app/uploads 2>/dev/null || true
 
-export NODE_ENV=${NODE_ENV:-production}
+export NODE_ENV=${NODE_ENV:-development}
 
 exec node -r tsconfig-paths/register dist/src/main

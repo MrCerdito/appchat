@@ -16,7 +16,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
-import { existsSync, mkdirSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, unlinkSync } from 'fs'; // Añadir unlinkSync
 import { DocumentosService } from './documentos.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles, RolesGuard } from '../auth/roles.guard';
@@ -40,7 +40,7 @@ export class DocumentosController {
   // Form-data: file (PDF), nombre, descripcion, categoria, colegio (opcional)
   @Post('upload')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @Roles('admin', 'advisor')
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({
@@ -82,7 +82,6 @@ export class DocumentosController {
       throw new BadRequestException('El nombre es requerido');
 
     // Leer el buffer del archivo guardado en disco
-    const { readFileSync } = require('fs');
     const pdfBuffer = readFileSync(file.path);
 
     // URL pública absoluta — debe apuntar al backend, no al frontend
@@ -113,22 +112,28 @@ export class DocumentosController {
           .filter(Boolean)
       : ['administrador', 'docente', 'estudiante', 'padre'];
 
-    return this.docService.procesarPdf({
-      nombre: body.nombre.trim(),
-      descripcion: body.descripcion?.trim() ?? '',
-      categoria: body.categoria?.trim() ?? 'general',
-      colegio: body.colegio?.trim() || undefined,
-      rolesPermitidos,
-      pdfBuffer,
-      pdfPath: file.path,
-      pdfUrl,
-    });
+    try {
+      return await this.docService.procesarPdf({
+        nombre: body.nombre.trim(),
+        descripcion: body.descripcion?.trim() ?? '',
+        categoria: body.categoria?.trim() ?? 'general',
+        colegio: body.colegio?.trim() || undefined,
+        rolesPermitidos,
+        pdfBuffer,
+        pdfPath: file.path,
+        pdfUrl,
+      });
+    } catch (error) {
+      // Si el procesamiento falla, eliminar el archivo físico
+      unlinkSync(file.path);
+      throw error; // Re-lanzar el error para que Nest lo maneje
+    }
   }
 
   // ── Actualizar roles y metadatos de un documento ─────────────────────────
   @Patch(':nombre/roles')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @Roles('admin', 'advisor')
   @HttpCode(HttpStatus.OK)
   actualizarRoles(
     @Param('nombre') nombre: string,
@@ -146,7 +151,7 @@ export class DocumentosController {
   // ── Eliminar documento ────────────────────────────────────────────────────
   @Delete(':nombre')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @Roles('admin', 'advisor')
   @HttpCode(HttpStatus.OK)
   eliminar(@Param('nombre') nombre: string) {
     return this.docService.eliminar(decodeURIComponent(nombre));

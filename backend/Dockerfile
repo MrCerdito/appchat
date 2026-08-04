@@ -5,7 +5,7 @@ WORKDIR /app
 
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
 COPY backend/package.json ./backend/
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --filter backend
 
 COPY backend/ ./backend/
 RUN pnpm --filter backend build
@@ -21,7 +21,7 @@ COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
 COPY backend/package.json ./backend/
 COPY frontend/package.json ./frontend/
 
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --filter backend
 
 COPY --from=builder /app/backend/dist ./dist
 COPY backend/entrypoint.sh /entrypoint.sh

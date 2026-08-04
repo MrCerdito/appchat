@@ -93,10 +93,30 @@ export class DocumentosComponent implements OnInit, OnDestroy {
   onFileChange(event: Event): void {
     const input = event.target as HTMLInputElement;
     if (input.files?.length) {
-      this.archivoSeleccionado = input.files[0];
-      this.archivoNombre       = input.files[0].name;
+      const file = input.files[0];
+
+      // Validación de tamaño (20MB) y tipo (PDF)
+      if (file.size > 20 * 1024 * 1024) {
+        this.notification.error('Archivo demasiado grande', 'El PDF no puede exceder los 20MB.');
+        input.value = ''; // Limpiar el input para permitir seleccionar de nuevo
+        this.archivoSeleccionado = null;
+        this.archivoNombre = '';
+        this.cdr.detectChanges();
+        return;
+      }
+      if (file.type !== 'application/pdf') {
+        this.notification.error('Formato incorrecto', 'Solo se aceptan archivos PDF.');
+        input.value = ''; // Limpiar el input
+        this.archivoSeleccionado = null;
+        this.archivoNombre = '';
+        this.cdr.detectChanges();
+        return;
+      }
+
+      this.archivoSeleccionado = file;
+      this.archivoNombre       = file.name;
       if (!this.form.nombre) {
-        this.form.nombre = input.files[0].name.replace('.pdf', '');
+        this.form.nombre = file.name.replace('.pdf', '');
       }
     }
   }
@@ -196,7 +216,15 @@ export class DocumentosComponent implements OnInit, OnDestroy {
     const nombre = this.docAEliminar.nombre;
     this.docAEliminar = null;
     this.docService.eliminar(nombre).pipe(takeUntil(this.destroy$)).subscribe({
-      next: () => { this.documentos = this.documentos.filter(d => d.nombre !== nombre); this.notification.success('Documento eliminado', ''); this.cdr.detectChanges(); },
+      next: () => {
+        this.documentos = this.documentos.filter(d => d.nombre !== nombre);
+        this.notification.success('Documento eliminado', '');
+        this.cdr.detectChanges();
+      },
+      error: (err: any) => {
+        this.notification.error('Error al eliminar', err.error?.message ?? 'No se pudo eliminar el documento');
+        this.cdr.detectChanges();
+      },
     });
   }
 

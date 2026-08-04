@@ -150,6 +150,7 @@ export class ChatGateway
           id: payload.sub,
           email: payload.email,
           name: payload.name,
+          role: fullUser?.role ?? null,
           profilePhotoUrl: fullUser?.profilePhotoUrl ?? null,
         };
         client.data.role = 'advisor';
@@ -190,6 +191,13 @@ export class ChatGateway
     } else {
       client.data.role = 'client';
     }
+  }
+
+  // ── Helpers de autorización ───────────────────────────────────────────────
+  private isAdvisorAuthorized(session: any, user: any): boolean {
+    if (!user?.id) return false;
+    if (user.role === 'admin') return true;
+    return session?.advisor?.id === user.id;
   }
 
   // ── Desconexión ───────────────────────────────────────────────────────────
@@ -374,6 +382,14 @@ export class ChatGateway
         if (!session || session.status === 'closed') {
           client.emit('join_error', {
             reason: 'Sesión no encontrada o cerrada',
+          });
+          return;
+        }
+        if (
+          !this.isAdvisorAuthorized(session, client.data.user)
+        ) {
+          client.emit('join_error', {
+            reason: 'No tienes permisos para unirte a esta sesión',
           });
           return;
         }
@@ -713,6 +729,38 @@ export class ChatGateway
     @ConnectedSocket() client: Socket,
   ) {
     const sessionId = data.sessionId;
+    if (typeof sessionId !== 'string' || !sessionId) {
+      client.emit('message_error', { reason: 'Sesión inválida' });
+      return;
+    }
+
+    // ── Seguridad: validar pertenencia del socket a la sesión ────────────
+    if (client.data.role === 'client') {
+      // El cliente solo puede escribir en la sesión a la que se unió (join_session)
+      if (client.data.sessionId !== sessionId) {
+        client.emit('message_error', {
+          reason: 'No estás conectado a esta sesión',
+        });
+        return;
+      }
+    } else if (client.data.role === 'advisor') {
+      try {
+        const session = await this.sessionsService.findOne(sessionId);
+        if (!this.isAdvisorAuthorized(session, client.data.user)) {
+          client.emit('message_error', {
+            reason: 'No tienes permisos para enviar en esta sesión',
+          });
+          return;
+        }
+      } catch {
+        client.emit('message_error', { reason: 'Sesión no encontrada' });
+        return;
+      }
+    } else {
+      client.emit('message_error', { reason: 'Rol no válido' });
+      return;
+    }
+
     const now = Date.now();
     const rateEntry = await this.redisState.getRateLimit(sessionId);
     if (rateEntry && now < rateEntry.resetAt) {

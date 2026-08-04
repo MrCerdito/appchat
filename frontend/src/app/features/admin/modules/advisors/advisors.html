@@ -4,7 +4,16 @@
       <h1>Asesores</h1>
       <p>Gestiona el equipo de soporte</p>
     </div>
-    <button class="btn-primary" (click)="openCreate()">+ Nuevo asesor</button>
+    <div class="header-actions">
+      <button class="btn-secondary" (click)="onExportExcel()" [disabled]="exporting" title="Descargar lista de asesores en Excel">
+        {{ exporting ? 'Exportando...' : 'Exportar Excel' }}
+      </button>
+      <button class="btn-secondary" (click)="onImportClick()" [disabled]="importing" title="Cargar asesores desde un archivo Excel">
+        {{ importing ? 'Importando...' : 'Importar Excel' }}
+      </button>
+      <button class="btn-primary" (click)="openCreate()">+ Nuevo asesor</button>
+      <input #fileInput type="file" accept=".xlsx,.xls" hidden (change)="onFileSelected($event)" />
+    </div>
   </div>
 
   <div class="status-summary">
@@ -30,6 +39,26 @@
   }
   @if (error && !showForm) {
   <div class="alert error">{{ error }}</div>
+  }
+
+  <!-- ── Resultado de importación masiva ─────────────────── -->
+  @if (importResult) {
+  <div class="import-result">
+    <div class="alert success">
+      {{ importResult.message }} — {{ importResult.created }} creado(s),
+      {{ importResult.updated }} actualizado(s).
+    </div>
+    @if (importResult.errors.length > 0) {
+    <div class="alert error">
+      <strong>{{ importResult.errors.length }} fila(s) con errores:</strong>
+      <ul class="import-errors">
+        @for (e of importResult.errors; track e.row) {
+        <li>Fila {{ e.row }} ({{ e.email }}): {{ e.error }}</li>
+        }
+      </ul>
+    </div>
+    }
+  </div>
   }
 
   <!-- ── Formulario ─────────────────────────────────────── -->

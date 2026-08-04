@@ -1,4 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnApplicationBootstrap,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Documento } from './entities/documento.entity';
@@ -29,7 +33,7 @@ function resolverAliases(rol?: string): string[] {
 }
 
 @Injectable()
-export class DocumentosService {
+export class DocumentosService implements OnApplicationBootstrap {
   private readonly logger = new Logger(DocumentosService.name);
   private readonly apiKey: string;
   private readonly embedUrl =
@@ -37,6 +41,7 @@ export class DocumentosService {
 
   private readonly CHUNK_SIZE = 1500;
   private readonly CHUNK_OVERLAP = 200;
+  private readonly EMBEDDING_DIM = 768;
 
   constructor(
     @InjectRepository(Documento)
@@ -45,6 +50,21 @@ export class DocumentosService {
     private readonly dataSource: DataSource,
   ) {
     this.apiKey = this.config.get<string>('GEMINI_API_KEY') ?? '';
+  }
+
+  async onApplicationBootstrap(): Promise<void> {
+    try {
+      await this.dataSource.query('CREATE EXTENSION IF NOT EXISTS vector');
+      await this.dataSource.query(
+        `ALTER TABLE documentos ADD COLUMN IF NOT EXISTS embedding_vec vector(${this.EMBEDDING_DIM})`,
+      );
+      this.logger.log('[RAG] pgvector inicializado (extensión + columna embedding_vec)');
+    } catch (error) {
+      this.logger.error(
+        '[RAG] No se pudo inicializar pgvector:',
+        (error as Error).message,
+      );
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -68,42 +88,47 @@ export class DocumentosService {
       `[RAG] "${data.nombre}": ${chunks.length} chunks generados`,
     );
 
-    await this.docRepo.delete({ nombre: data.nombre });
+    await this.dataSource.transaction(async (transactionalEntityManager) => {
+      // Eliminar documentos existentes con el mismo nombre (parte de la transacción)
+      await transactionalEntityManager.delete(Documento, { nombre: data.nombre });
 
-    for (let i = 0; i < chunks.length; i++) {
-      const embedding = await this.generarEmbedding(chunks[i]);
+      for (let i = 0; i < chunks.length; i++) {
+        const embedding = await this.generarEmbedding(chunks[i]);
 
-      const doc = this.docRepo.create({
-        nombre: data.nombre,
-        descripcion: data.descripcion,
-        contenido: chunks[i],
-        chunkIndex: i,
-        totalChunks: chunks.length,
-        embedding: JSON.stringify(embedding),
-        pdfPath: data.pdfPath,
-        pdfUrl: data.pdfUrl,
-        colegio: data.colegio ?? null,
-        categoria: data.categoria,
-        rolesPermitidos: data.rolesPermitidos.join(','),
-        activo: true,
-      });
-
-      const saved = await this.docRepo.save(doc);
-
-      await this.dataSource
-        .query(
-          `UPDATE documentos SET embedding_vec = $1::vector WHERE id = $2`,
-          [`[${embedding.join(',')}]`, saved.id],
-        )
-        .catch((err) => {
-          this.logger.error(
-            `[RAG] Error guardando embedding_vec para chunk ${i}:`,
-            err?.message,
-          );
+        const doc = transactionalEntityManager.create(Documento, {
+          nombre: data.nombre,
+          descripcion: data.descripcion,
+          contenido: chunks[i],
+          chunkIndex: i,
+          totalChunks: chunks.length,
+          embedding: JSON.stringify(embedding),
+          pdfPath: data.pdfPath,
+          pdfUrl: data.pdfUrl,
+          colegio: data.colegio ?? null,
+          categoria: data.categoria,
+          rolesPermitidos: data.rolesPermitidos.join(','),
+          activo: true,
         });
 
-      this.logger.log(`[RAG] Chunk ${i + 1}/${chunks.length} guardado`);
-    }
+        const saved = await transactionalEntityManager.save(Documento, doc);
+
+        await transactionalEntityManager
+          .query(
+            `UPDATE documentos SET embedding_vec = $1::vector WHERE id = $2`,
+            [`[${embedding.join(',')}]`, saved.id],
+          )
+          .catch((err) => {
+            this.logger.error(
+              `[RAG] Error guardando embedding_vec para chunk ${i}:`,
+              err?.message,
+            );
+            // Esto no debería lanzar, pero si ocurre, loguear y seguir o relanzar
+            throw new Error(`Error al guardar embedding para chunk ${i}`);
+          });
+
+        this.logger.log(`[RAG] Chunk ${i + 1}/${chunks.length} guardado`);
+      }
+    }); // Fin de la transacción
 
     return { ok: true, chunks: chunks.length, nombre: data.nombre };
   }
@@ -375,7 +400,7 @@ export class DocumentosService {
       body: JSON.stringify({
         model: 'models/gemini-embedding-001',
         content: { parts: [{ text: texto.slice(0, 2000) }] },
-        outputDimensionality: 768,
+        outputDimensionality: this.EMBEDDING_DIM,
       }),
     });
 

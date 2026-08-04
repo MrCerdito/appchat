@@ -6,7 +6,6 @@ import {
   UseGuards,
   BadRequestException,
 } from '@nestjs/common';
-import { Throttle } from '@nestjs/throttler';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
@@ -61,7 +60,6 @@ function normalizeMimeType(value = ''): string {
 export class ChatMediaController {
   @Post('upload')
   @UseGuards(OptionalJwtAuthGuard)
-  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({

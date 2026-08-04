@@ -1,6 +1,5 @@
 import { Controller, Post, Body, Get, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
-import { Throttle } from '@nestjs/throttler';
 import { AiService } from './ai.service';
 import { AiLogsService } from './ai-logs.service';
 import { AiChatDto } from './dto/ai-chat.dto';
@@ -18,7 +17,6 @@ export class AiController {
   ) {}
 
   @Public()
-  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('chat')
   async chat(@Body() dto: AiChatDto) {
     if (!dto.message?.trim())
@@ -73,7 +71,6 @@ export class AiController {
   }
 
   @Public()
-  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('stream')
   async stream(@Body() dto: AiChatDto, @Res() res: Response) {
     if (!dto.message?.trim()) {
@@ -112,7 +109,6 @@ export class AiController {
   }
 
   @Public()
-  @Throttle({ default: { limit: 60, ttl: 60_000 } })
   @Post('feedback')
   async feedback(
     @Body() body: { sessionId: string; pregunta: string; util: boolean },

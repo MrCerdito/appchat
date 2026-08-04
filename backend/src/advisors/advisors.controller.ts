@@ -15,10 +15,14 @@ import {
   BadRequestException,
   ForbiddenException,
   Request,
+  Res, // Nueva importación
+  StreamableFile, // Nueva importación
+  HttpStatus, // Nueva importación
+  HttpCode, // Nueva importación
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-import { join } from 'path';
+import { extname, join } from 'path'; // Añadir extname
 import {
   existsSync,
   mkdirSync,
@@ -32,8 +36,19 @@ import { CreateAdvisorDto } from './dto/create-advisor.dto';
 import { UpdateAdvisorDto } from './dto/update-advisor.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import { QueryAdvisorDto } from './dto/query-advisor.dto';
+import { ImportUserDto } from './dto/import-user.dto'; // Nueva importación
 import { Roles, RolesGuard } from '../auth/roles.guard';
 import { User } from '../auth/entities/user.entity';
+import { Response } from 'express'; // Nueva importación
+
+// Directorio donde se guardan las fotos de perfil de asesores
+const PROFILE_PHOTOS_DIR = join(process.cwd(), 'uploads', 'profiles');
+
+// Directorio temporal para archivos de importación/exportación
+const TEMP_DIR = join(process.cwd(), 'tmp');
+
+// Asegurarse de que el directorio temporal existe
+if (!existsSync(TEMP_DIR)) mkdirSync(TEMP_DIR, { recursive: true });
 
 @Controller('advisors')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -60,6 +75,64 @@ export class AdvisorsController {
       );
     }
     return this.advisorsService.findAll();
+  }
+
+  // ── Carga masiva de asesores desde Excel ─────────────────────────────
+  @Post('import-excel')
+  @Roles('admin')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: (_req, _file, cb) => {
+          if (!existsSync(TEMP_DIR)) mkdirSync(TEMP_DIR, { recursive: true });
+          cb(null, TEMP_DIR);
+        },
+        filename: (_req, file, cb) => {
+          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+          cb(null, `import-users-${uniqueSuffix}${extname(file.originalname)}`);
+        },
+      }),
+      fileFilter: (_req, file, cb) => {
+        const allowedMimeTypes = [
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'application/vnd.ms-excel',
+        ];
+        if (!allowedMimeTypes.includes(file.mimetype)) {
+          cb(new BadRequestException('Solo se aceptan archivos Excel (.xlsx o .xls)'), false);
+        } else {
+          cb(null, true);
+        }
+      },
+      limits: { fileSize: 5 * 1024 * 1024 }, // Límite de 5MB para el archivo Excel
+    }),
+  )
+  async importAdvisors(
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<{ message: string; created: number; updated: number; errors: any[] }> {
+    if (!file) throw new BadRequestException('Archivo Excel requerido');
+
+    const filePath = file.path;
+    try {
+      const result = await this.advisorsService.importUsers(filePath);
+      unlinkSync(filePath); // Eliminar el archivo temporal después del procesamiento
+      return result;
+    } catch (error) {
+      unlinkSync(filePath); // Asegurarse de eliminar el archivo temporal incluso si falla
+      throw error; // Re-lanzar el error
+    }
+  }
+
+  // ── Exportar asesores a Excel ─────────────────────────────────────────
+  @Get('export-excel')
+  @Roles('admin')
+  @HttpCode(HttpStatus.OK)
+  async exportAdvisors(@Res({ passthrough: true }) res: Response): Promise<StreamableFile> {
+    const file = await this.advisorsService.exportUsers();
+    res.set({
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="asesores-${Date.now()}.xlsx"`,
+    });
+    return new StreamableFile(file);
   }
 
   @Get(':id')

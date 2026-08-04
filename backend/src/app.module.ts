@@ -1,12 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ThrottlerModule } from '@nestjs/throttler';
 import { CacheModule } from '@nestjs/cache-manager';
-import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import * as Joi from 'joi';
-import { RedisThrottlerStorage } from './common/throttler/redis-throttler.storage';
-import { UserThrottlerGuard } from './common/throttler/user-throttler.guard';
 import { AuditInterceptor } from './common/interceptors/audit.interceptor';
 import { AuditLog } from './common/entities/audit-log.entity';
 import { AuthModule } from './auth/auth.module';
@@ -50,16 +47,6 @@ import { AppService } from './app.service';
 
 @Module({
   imports: [
-    ThrottlerModule.forRoot({
-      throttlers: [
-        {
-          ttl: 60000,
-          limit: 500,
-          blockDuration: 120000,
-        },
-      ],
-      storage: new RedisThrottlerStorage(),
-    }),
     CacheModule.registerAsync({
       isGlobal: true,
       inject: [ConfigService],
@@ -148,7 +135,7 @@ import { AppService } from './app.service';
           InternalMessage,
         ],
         synchronize: config.get<string>('NODE_ENV') !== 'production',
-        logging: false,
+        logging: true, // Temporal: activa el log de SQL para depuración
       }),
     }),
     AuthModule,
@@ -171,10 +158,6 @@ import { AppService } from './app.service';
   controllers: [AppController],
   providers: [
     AppService,
-    {
-      provide: APP_GUARD,
-      useClass: UserThrottlerGuard,
-    },
     {
       provide: APP_INTERCEPTOR,
       useClass: AuditInterceptor,
