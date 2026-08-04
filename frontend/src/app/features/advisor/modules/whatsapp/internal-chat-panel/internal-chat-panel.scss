@@ -114,6 +114,14 @@ a { text-decoration: none; color: inherit; }
   color: #fff;
   font-size: 18px;
   font-weight: 700;
+  overflow: hidden;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+  }
 
   &.is-group { background: var(--wa-purple, #8B5CF6); }
   wa-icon { font-size: 22px; }
@@ -294,12 +302,36 @@ a { text-decoration: none; color: inherit; }
 
 .ic-msg-row {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 8px;
 
-  &.out { align-items: flex-end; }
-  &.in { align-items: flex-start; }
+  &.out { justify-content: flex-end; }
+  &.in { justify-content: flex-start; }
 
-  + .ic-msg-row { margin-top: 2px; }
+  + .ic-msg-row { margin-top: 4px; }
+}
+
+.ic-msg-avatar {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  border-radius: 50%;
+  background: var(--wa-green, #00A884);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  margin-bottom: 2px;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
 }
 
 .ic-bubble.voice-bubble {

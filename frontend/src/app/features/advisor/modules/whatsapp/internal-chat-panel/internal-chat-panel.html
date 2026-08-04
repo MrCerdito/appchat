@@ -33,6 +33,8 @@
         <div class="ic-avatar" [class.is-group]="conv.type === 'group'">
           @if (conv.type === 'group') {
           <wa-icon name="users-group"></wa-icon>
+          } @else if (conversationPhotoUrl(conv)) {
+          <img [src]="conversationPhotoUrl(conv)" [alt]="conversationName(conv)" />
           } @else {
           {{ conversationAvatar(conv) }}
           }
@@ -76,6 +78,8 @@
       <div class="ic-avatar" [class.is-group]="activeConversation.type === 'group'">
         @if (activeConversation.type === 'group') {
         <wa-icon name="users-group"></wa-icon>
+        } @else if (conversationPhotoUrl(activeConversation)) {
+        <img [src]="conversationPhotoUrl(activeConversation)" [alt]="conversationName(activeConversation)" />
         } @else {
         {{ conversationAvatar(activeConversation) }}
         }
@@ -98,6 +102,15 @@
       <div class="ic-date-sep"><span>{{ group.label }}</span></div>
       @for (msg of group.messages; track msg.id) {
       <div class="ic-msg-row" [ngClass]="messageOwn(msg) ? 'out' : 'in'" [attr.data-msg-id]="msg.id">
+        @if (!messageOwn(msg) && msg.type !== 'system') {
+        <div class="ic-msg-avatar" [title]="msg.senderName">
+          @if (senderAvatar(msg)) {
+          <img [src]="senderAvatar(msg)" [alt]="msg.senderName" />
+          } @else {
+          {{ senderInitial(msg) }}
+          }
+        </div>
+        }
         @if (msg.type === 'system') {
         <div class="ic-system-line">{{ msg.body }}</div>
         } @else if (msg.deletedAt) {
@@ -360,7 +373,13 @@
         [class.existing]="existingDirectIds.has(advisor.id)"
         (click)="startDirect(advisor)"
       >
-        <div class="ic-avatar">{{ advisor.name.charAt(0).toUpperCase() }}</div>
+        <div class="ic-avatar">
+          @if (advisor.profilePhotoUrl) {
+          <img [src]="advisor.profilePhotoUrl" [alt]="advisor.name" />
+          } @else {
+          {{ advisor.name.charAt(0).toUpperCase() }}
+          }
+        </div>
         <div class="ic-advisor-info">
           <strong>{{ advisor.name }}</strong>
           <span>{{ advisor.role === 'admin' ? 'Administrador' : 'Asesor' }}</span>

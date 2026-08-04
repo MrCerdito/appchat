@@ -249,7 +249,7 @@ export class InternalChatService implements OnModuleInit {
   }
 
   // ── Support group ──────────────────────────────────────────────────────────
-  private async ensureSupportGroup(): Promise<void> {
+  async ensureSupportGroup(): Promise<void> {
     let group = await this.conversationRepo.findOne({
       where: { type: 'group', name: this.supportGroupName },
     });
@@ -263,12 +263,14 @@ export class InternalChatService implements OnModuleInit {
       );
       this.logger.log(`Grupo de soporte creado: ${group.id}`);
     }
-    const advisors = await this.listAdvisors();
+    const allAdvisors = await this.userRepo.find({
+      where: { role: In(['advisor', 'admin']) },
+    });
     const existing = await this.memberRepo.find({
       where: { conversationId: group.id },
     });
     const existingIds = new Set(existing.map((m) => m.userId));
-    const missing = advisors
+    const missing = allAdvisors
       .map((a) => a.id)
       .filter((id) => !existingIds.has(id));
     if (missing.length > 0) {
@@ -286,6 +288,9 @@ export class InternalChatService implements OnModuleInit {
         )
         .orIgnore()
         .execute();
+      this.logger.log(
+        `Añadidos ${missing.length} asesores/admins al grupo de soporte (${this.supportGroupName}).`,
+      );
     }
   }
 

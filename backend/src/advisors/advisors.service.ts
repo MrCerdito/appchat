@@ -4,17 +4,33 @@ import {
   NotFoundException,
   BadRequestException,
   Logger,
+  Inject,
+  Optional,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, ILike, DataSource } from 'typeorm'; // Añadir DataSource
+import { Repository, ILike, DataSource } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User } from '../auth/entities/user.entity';
-import * as ExcelJS from 'exceljs'; // Nueva importación
-import { createReadStream, unlinkSync } from 'fs'; // Nueva importación
-import { PassThrough } from 'stream'; // Nueva importación
-import { validate } from 'class-validator'; // Nueva importación
-import { plainToClass } from 'class-transformer'; // Nueva importación
-import { ImportUserDto } from './dto/import-user.dto'; // Nueva importación
+import * as ExcelJS from 'exceljs';
+import { validate } from 'class-validator';
+import { plainToClass } from 'class-transformer';
+import { ImportUserDto } from './dto/import-user.dto';
+import { InternalChatService } from '../internal-chat/internal-chat.service';
+
+function parseCellString(val: any): string {
+  if (val === null || val === undefined) return '';
+  if (typeof val === 'string') return val.trim();
+  if (typeof val === 'number' || typeof val === 'boolean') return String(val).trim();
+  if (typeof val === 'object') {
+    if (val.text !== undefined) return parseCellString(val.text);
+    if (val.result !== undefined) return parseCellString(val.result);
+    if (Array.isArray(val.richText)) {
+      return val.richText.map((rt: any) => parseCellString(rt?.text)).join('').trim();
+    }
+  }
+  return String(val).trim();
+}
 
 export interface PaginatedResult<T> {
   data: T[];
@@ -34,6 +50,9 @@ export class AdvisorsService {
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
     private readonly dataSource: DataSource,
+    @Inject(forwardRef(() => InternalChatService))
+    @Optional()
+    private readonly internalChatService?: InternalChatService,
   ) {}
 
   async findAll(): Promise<User[]> {
@@ -121,7 +140,9 @@ export class AdvisorsService {
       password: hash,
       role: 'advisor',
     });
-    return this.userRepo.save(user);
+    const saved = await this.userRepo.save(user);
+    await this.internalChatService?.ensureSupportGroup().catch(() => {});
+    return saved;
   }
 
   async update(
@@ -181,15 +202,19 @@ export class AdvisorsService {
 
     if (!worksheet) throw new BadRequestException('El archivo Excel no tiene hojas de trabajo');
 
-    const usersToProcess: ImportUserDto[] = [];
     const errors: any[] = [];
 
-    // Columnas esperadas y sus validaciones
-    const headerRow = worksheet.getRow(1).values as string[];
-    const emailColIndex = headerRow.findIndex(h => h?.toLowerCase() === 'email');
-    const nameColIndex = headerRow.findIndex(h => h?.toLowerCase() === 'nombre');
-    const roleColIndex = headerRow.findIndex(h => h?.toLowerCase() === 'rol');
-    const activeColIndex = headerRow.findIndex(h => h?.toLowerCase() === 'activo');
+    // Columnas esperadas y sus validaciones (usando parseCellString para evitar errores con objetos/formatos)
+    const headerRow = worksheet.getRow(1).values as any[];
+    const idColIndex = headerRow.findIndex(h => parseCellString(h).toLowerCase() === 'id');
+    const emailColIndex = headerRow.findIndex(h => parseCellString(h).toLowerCase() === 'email');
+    const nameColIndex = headerRow.findIndex(h => parseCellString(h).toLowerCase() === 'nombre');
+    const roleColIndex = headerRow.findIndex(h => parseCellString(h).toLowerCase() === 'rol');
+    const activeColIndex = headerRow.findIndex(h => parseCellString(h).toLowerCase() === 'activo');
+    const photoColIndex = headerRow.findIndex(h => {
+      const s = parseCellString(h).toLowerCase();
+      return s.includes('foto') || s.includes('photo') || s.includes('url');
+    });
 
     if (emailColIndex === -1 || nameColIndex === -1 || roleColIndex === -1) {
       throw new BadRequestException('El archivo Excel debe contener las columnas: Email, Nombre, Rol');
@@ -201,55 +226,80 @@ export class AdvisorsService {
 
       for (let i = 2; i <= worksheet.actualRowCount; i++) { // Empezar desde la fila 2 (después del encabezado)
         const row = worksheet.getRow(i);
-        const rowValues = row.values as string[];
+        const rowValues = row.values as any[];
+        if (!rowValues || !rowValues.length) continue;
+
+        const rawId = idColIndex !== -1 ? parseCellString(rowValues[idColIndex]) : '';
+        const rawEmail = parseCellString(rowValues[emailColIndex]);
+        const rawName = parseCellString(rowValues[nameColIndex]);
+        const rawRoleStr = parseCellString(rowValues[roleColIndex]).toLowerCase();
+        const rawActive = activeColIndex !== -1 ? parseCellString(rowValues[activeColIndex]) : '';
+        const rawPhoto = photoColIndex !== -1 ? parseCellString(rowValues[photoColIndex]) : '';
+
+        // Saltar filas totalmente vacías
+        if (!rawEmail && !rawName) continue;
 
         const rawUser = {
-          email: rowValues[emailColIndex]?.trim() ?? '',
-          name: rowValues[nameColIndex]?.trim() ?? '',
-          role: rowValues[roleColIndex]?.trim() ?? '',
-          active: rowValues[activeColIndex]?.trim() ?? undefined,
+          email: rawEmail,
+          name: rawName,
+          role: (rawRoleStr === 'admin' || rawRoleStr === 'administrador') ? 'admin' : 'advisor',
+          active: rawActive ? (rawActive.toLowerCase() === 'true' || rawActive === '1') : undefined,
         };
 
         const importUserDto = plainToClass(ImportUserDto, rawUser);
         const rowErrors = await validate(importUserDto);
 
         if (rowErrors.length > 0) {
-          errors.push({ row: i, email: rawUser.email, error: rowErrors.map(e => Object.values(e.constraints ?? {})).flat().join('; ') });
+          errors.push({ row: i, email: rawEmail, error: rowErrors.map(e => Object.values(e.constraints ?? {})).flat().join('; ') });
           continue;
         }
 
-        let user = await transactionalEntityManager.findOne(User, { where: { email: importUserDto.email } });
+        let user: User | null = null;
+
+        // 1. Si viene ID, buscar primero por ID
+        if (rawId) {
+          user = await transactionalEntityManager.findOne(User, { where: { id: rawId } });
+        }
+
+        // 2. Si no se encontró por ID (o no traía ID), buscar por Email
+        if (!user && rawEmail) {
+          user = await transactionalEntityManager.findOne(User, { where: { email: rawEmail } });
+        }
 
         if (user) {
-          // Actualizar usuario existente — NUNCA se rota la contraseña (evita
-          // que importar/exportar deje cuentas con contraseña desconocida).
-          if (user.name !== importUserDto.name) user.name = importUserDto.name;
-          if (user.role !== importUserDto.role) user.role = importUserDto.role;
+          // Actualizar usuario existente — NUNCA se rota la contraseña
+          if (rawName && user.name !== rawName) user.name = rawName;
+          if (rawEmail && user.email !== rawEmail) user.email = rawEmail;
+          if (importUserDto.role && user.role !== importUserDto.role) user.role = importUserDto.role;
           if (importUserDto.active !== undefined) user.active = importUserDto.active;
+          if (rawPhoto) user.profilePhotoUrl = rawPhoto;
 
           await transactionalEntityManager.save(User, user);
           updatedCount++;
         } else {
-          // Crear nuevo usuario — solo aquí se genera una contraseña segura
+          // Crear nuevo usuario (NO requiere ID)
           const password = this.generateStrongPassword();
           const hashedPassword = await bcrypt.hash(password, 10);
           user = transactionalEntityManager.create(User, {
+            ...(rawId ? { id: rawId } : {}),
             name: importUserDto.name,
             email: importUserDto.email,
             password: hashedPassword,
             role: importUserDto.role,
-            active: importUserDto.active ?? true, // Por defecto activo
-            // Otros campos se inicializarán con sus valores por defecto de la entidad
+            active: importUserDto.active ?? true,
+            ...(rawPhoto ? { profilePhotoUrl: rawPhoto } : {}),
           });
           await transactionalEntityManager.save(User, user);
           createdCount++;
-          // Opcional: enviar la contraseña por email (fuera de este scope).
-          // Por ahora se loguea una sola vez para que el admin pueda entregarla.
           this.logger.warn(`Contraseña generada para ${importUserDto.email}: ${password}`);
         }
       }
       return { message: 'Importación completada', created: createdCount, updated: updatedCount, errors };
     });
+
+    // Auto-ingreso de todos los asesores nuevos/actualizados al grupo de soporte interno
+    await this.internalChatService?.ensureSupportGroup().catch(() => {});
+
     return result;
   }
 

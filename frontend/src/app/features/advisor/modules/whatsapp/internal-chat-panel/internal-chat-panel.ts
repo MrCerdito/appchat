@@ -252,6 +252,12 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
     return name.charAt(0).toUpperCase();
   }
 
+  conversationPhotoUrl(conv: InternalConversation): string | null {
+    if (conv.type === 'group') return null;
+    const other = conv.members.find(m => m.id !== this.currentUserId);
+    return other?.profilePhotoUrl || null;
+  }
+
   previewText(conv: InternalConversation): string {
     const last = conv.lastMessage;
     if (!last) return 'Sin mensajes todavía';
@@ -531,7 +537,14 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
 
   senderAvatar(msg: InternalMessage): string {
     const member = this.activeConversation?.members.find(m => m.id === msg.senderId);
-    return member?.profilePhotoUrl || '';
+    if (member?.profilePhotoUrl) return member.profilePhotoUrl;
+    const advisor = this.advisors.find(a => a.id === msg.senderId);
+    return advisor?.profilePhotoUrl || '';
+  }
+
+  senderInitial(msg: InternalMessage): string {
+    const name = msg.senderName || 'A';
+    return name.charAt(0).toUpperCase();
   }
 
   messageTime(msg: InternalMessage): string {
