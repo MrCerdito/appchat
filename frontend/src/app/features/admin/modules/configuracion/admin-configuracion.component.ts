@@ -59,7 +59,14 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
   newTransferPhrase = '';
   selectedRole: string = 'estudiante';
   newRestrictedTopic = '';
-  iaSectionOpen = { identidad: true, instrucciones: true, roles: true, transferencia: false, feedback: false, avanzado: false };
+  aiPalabrasProhibidas: string[] = ['hijueputa', 'gonorrea', 'malparido', 'marica', 'pendejo', 'idiota', 'estupido', 'imbecil', 'puta', 'mierda'];
+  aiMensajeGroseria = 'Por favor, mantengamos un trato respetuoso. No puedo ayudarte si usas lenguaje ofensivo. ¿En qué más puedo ayudarte?';
+  aiLimiteGroserias = 3;
+  aiMensajeSesionTerminada = 'Esta conversación ha sido finalizada por el uso continuado de lenguaje ofensivo. Si necesitas ayuda, inicia una nueva conversación manteniendo un trato respetuoso.';
+  aiMensajeSinInformacion = 'No tengo información registrada sobre eso por el momento. ¿Necesitas un asesor para una mejor ayuda?';
+  aiSugerirAsesorAutomatico = true;
+  newForbiddenWord = '';
+  iaSectionOpen = { identidad: true, instrucciones: true, roles: true, transferencia: false, conducta: false, feedback: false, avanzado: false };
 
   // ── Colegios ─────────────────────────────────────────────────────────────
   colegios: Colegio[] = [];
@@ -643,6 +650,16 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
       this.aiPromptFeedback = aiCfg['feedbackPositivo'] || '';
       this.aiPromptPersonalizado = aiCfg['promptPersonalizado'] || '';
       this.aiPromptUseCustom = !!aiCfg['promptPersonalizado'];
+
+      this.aiPalabrasProhibidas = Array.isArray(aiCfg['palabrasProhibidas']) && aiCfg['palabrasProhibidas'].length
+        ? aiCfg['palabrasProhibidas']
+        : ['hijueputa', 'gonorrea', 'malparido', 'marica', 'pendejo', 'idiota', 'estupido', 'imbecil', 'puta', 'mierda'];
+      this.aiMensajeGroseria = aiCfg['mensajeGroseria'] || 'Por favor, mantengamos un trato respetuoso. No puedo ayudarte si usas lenguaje ofensivo. ¿En qué más puedo ayudarte?';
+      this.aiLimiteGroserias = Number(aiCfg['limiteGroserias']) || 3;
+      this.aiMensajeSesionTerminada = aiCfg['mensajeSesionTerminada'] || 'Esta conversación ha sido finalizada por el uso continuado de lenguaje ofensivo. Si necesitas ayuda, inicia una nueva conversación manteniendo un trato respetuoso.';
+      this.aiMensajeSinInformacion = aiCfg['mensajeSinInformacion'] || 'No tengo información registrada sobre eso por el momento. ¿Necesitas un asesor para una mejor ayuda?';
+      this.aiSugerirAsesorAutomatico = aiCfg['sugerirAsesorAutomatico'] !== false;
+
       if (aiCfg['roles'] && typeof aiCfg['roles'] === 'object') {
         for (const [key, val] of Object.entries(aiCfg['roles'] as Record<string, any>)) {
           if (this.aiRolesConfig[key]) {
@@ -667,6 +684,12 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
     this.aiPromptFeedback = '';
     this.aiPromptPersonalizado = '';
     this.aiPromptUseCustom = false;
+    this.aiPalabrasProhibidas = ['hijueputa', 'gonorrea', 'malparido', 'marica', 'pendejo', 'idiota', 'estupido', 'imbecil', 'puta', 'mierda'];
+    this.aiMensajeGroseria = 'Por favor, mantengamos un trato respetuoso. No puedo ayudarte si usas lenguaje ofensivo. ¿En qué más puedo ayudarte?';
+    this.aiLimiteGroserias = 3;
+    this.aiMensajeSesionTerminada = 'Esta conversación ha sido finalizada por el uso continuado de lenguaje ofensivo. Si necesitas ayuda, inicia una nueva conversación manteniendo un trato respetuoso.';
+    this.aiMensajeSinInformacion = 'No tengo información registrada sobre eso por el momento. ¿Necesitas un asesor para una mejor ayuda?';
+    this.aiSugerirAsesorAutomatico = true;
     this.aiRolesConfig = {
       administrador: { descripcion: 'Tienes acceso completo a toda la información del sistema.', temasRestringidos: [], mensajeRestringido: '' },
       docente: { descripcion: 'Tienes acceso a información académica y administrativa.', temasRestringidos: [], mensajeRestringido: '' },
@@ -689,9 +712,27 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
         roles: this.aiRolesConfig,
         frasesTransferencia: this.aiPromptFrasesTransferencia,
         feedbackPositivo: this.aiPromptFeedback,
+        palabrasProhibidas: this.aiPalabrasProhibidas,
+        mensajeGroseria: this.aiMensajeGroseria,
+        limiteGroserias: this.aiLimiteGroserias,
+        mensajeSesionTerminada: this.aiMensajeSesionTerminada,
+        mensajeSinInformacion: this.aiMensajeSinInformacion,
+        sugerirAsesorAutomatico: this.aiSugerirAsesorAutomatico,
         promptPersonalizado: null,
       };
     }
+  }
+
+  addForbiddenWord(): void {
+    const w = this.newForbiddenWord.trim().toLowerCase();
+    if (w && !this.aiPalabrasProhibidas.includes(w)) {
+      this.aiPalabrasProhibidas.push(w);
+      this.newForbiddenWord = '';
+    }
+  }
+
+  removeForbiddenWord(w: string): void {
+    this.aiPalabrasProhibidas = this.aiPalabrasProhibidas.filter(p => p !== w);
   }
 
   toggleIaSection(key: keyof typeof this.iaSectionOpen): void {

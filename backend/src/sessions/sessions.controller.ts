@@ -167,14 +167,14 @@ export class SessionsController {
 
   @Get('admin/all')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @Roles('admin', 'advisor')
   findAllAdmin() {
     return this.sessionsService.findAllAdmin();
   }
 
   @Get('admin/all/paginated')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @Roles('admin', 'advisor')
   findAllAdminPaginated(
     @Query('page') page = '1',
     @Query('limit') limit = '50',

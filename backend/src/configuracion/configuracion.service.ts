@@ -444,6 +444,27 @@ export class ConfiguracionService implements OnModuleInit {
       if (typeof aiCfg.promptPersonalizado === 'string') {
         aiCfg.promptPersonalizado = cleanText(aiCfg.promptPersonalizado, 10000);
       }
+      if (Array.isArray(aiCfg.palabrasProhibidas)) {
+        aiCfg.palabrasProhibidas = aiCfg.palabrasProhibidas
+          .map((p: any) => cleanText(String(p), 50))
+          .filter(Boolean)
+          .slice(0, 100);
+      }
+      if (typeof aiCfg.mensajeGroseria === 'string') {
+        aiCfg.mensajeGroseria = cleanText(aiCfg.mensajeGroseria, 500);
+      }
+      if (typeof aiCfg.limiteGroserias !== 'undefined') {
+        aiCfg.limiteGroserias = Math.max(1, Math.min(10, Number(aiCfg.limiteGroserias) || 3));
+      }
+      if (typeof aiCfg.mensajeSesionTerminada === 'string') {
+        aiCfg.mensajeSesionTerminada = cleanText(aiCfg.mensajeSesionTerminada, 500);
+      }
+      if (typeof aiCfg.mensajeSinInformacion === 'string') {
+        aiCfg.mensajeSinInformacion = cleanText(aiCfg.mensajeSinInformacion, 500);
+      }
+      if (typeof aiCfg.sugerirAsesorAutomatico !== 'undefined') {
+        aiCfg.sugerirAsesorAutomatico = Boolean(aiCfg.sugerirAsesorAutomatico);
+      }
       if (aiCfg.roles && typeof aiCfg.roles === 'object') {
         const validKeys = ['administrador', 'docente', 'estudiante', 'padre'];
         for (const key of Object.keys(aiCfg.roles)) {

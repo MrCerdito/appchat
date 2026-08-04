@@ -197,6 +197,9 @@ export class ChatGateway
   private isAdvisorAuthorized(session: any, user: any): boolean {
     if (!user?.id) return false;
     if (user.role === 'admin') return true;
+    if (session?.status === 'ai' || session?.status === 'waiting' || !session?.advisor) {
+      return true;
+    }
     return session?.advisor?.id === user.id;
   }
 
@@ -2038,5 +2041,30 @@ export class ChatGateway
         }
       }),
     );
+  }
+
+  // ── Emisión de eventos para la IA y tiempo real de sesiones ─────────────
+  emitMessageToSession(sessionId: string, msg: any) {
+    if (!sessionId) return;
+    this.server.to(sessionId).emit('new_message', { ...msg, sessionId });
+  }
+
+  emitSessionUpdated(sessionId: string) {
+    if (!sessionId) return;
+    this.server.emit('session_updated', { sessionId });
+  }
+
+  async terminateAiSession(sessionId: string, reason?: string) {
+    if (!sessionId) return;
+    try {
+      await this.sessionsService.close(sessionId);
+      this.server.to(sessionId).emit('session_closed', { sessionId, reason });
+      this.server.emit('session_updated', { sessionId });
+    } catch (e) {
+      this.logger.error(
+        `[terminateAiSession] Error cerrando sesión ${sessionId}:`,
+        e,
+      );
+    }
   }
 }

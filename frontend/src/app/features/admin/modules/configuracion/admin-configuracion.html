@@ -1054,6 +1054,78 @@
           }
         </div>
 
+        <!-- Seccion: Conducta y limites -->
+        <div class="ia-section">
+          <div class="ia-section-header" (click)="toggleIaSection('conducta')">
+            <div class="ia-section-header-left">
+              <div class="ia-section-icon ia-section-icon--red">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                  <line x1="12" y1="8" x2="12" y2="12"/>
+                  <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+              </div>
+              <span class="ia-section-title">Conducta y límites (groserías y sin respuesta)</span>
+            </div>
+            <svg class="ia-chevron" [class.open]="iaSectionOpen.conducta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
+          @if (iaSectionOpen.conducta) {
+          <div class="ia-section-body">
+            <div class="field">
+              <label>Palabras prohibidas (groserías e insultos)</label>
+              <span class="field-hint">Si el mensaje contiene alguna de estas palabras, la IA dará un aviso sin responder y no llamará al modelo.</span>
+              <div class="ia-chips">
+                @for (word of aiPalabrasProhibidas; track word) {
+                <span class="ia-chip">
+                  {{ word }}
+                  <button type="button" (click)="removeForbiddenWord(word)" title="Eliminar">✕</button>
+                </span>
+                }
+              </div>
+              <div class="ia-add-phrase">
+                <input type="text" [(ngModel)]="newForbiddenWord" placeholder="Agregar palabra..." maxlength="50"
+                  (keydown.enter)="addForbiddenWord()"/>
+                <button type="button" class="ia-add-btn" (click)="addForbiddenWord()" [disabled]="!newForbiddenWord.trim()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                  Agregar
+                </button>
+              </div>
+            </div>
+
+            <div class="field-row">
+              <div class="field">
+                <label>Límite de groserías antes de cerrar sesión</label>
+                <input type="number" [(ngModel)]="aiLimiteGroserias" min="1" max="10" placeholder="3"/>
+                <span class="field-hint">A la N-ésima grosería la sesión se finaliza automáticamente</span>
+              </div>
+              <div class="field">
+                <label>Sugerir asesor automáticamente cuando no haya respuesta</label>
+                <div class="toggle-wrap" style="margin-top:0.5rem;">
+                  <input type="checkbox" id="chkSugerirAsesor" [(ngModel)]="aiSugerirAsesorAutomatico"/>
+                  <label for="chkSugerirAsesor" class="toggle-label">Ofrecer transferencia a asesor humano</label>
+                </div>
+              </div>
+            </div>
+
+            <div class="field">
+              <label>Mensaje de aviso por grosería (1ª y 2ª vez)</label>
+              <textarea [(ngModel)]="aiMensajeGroseria" rows="2" placeholder="Por favor, mantengamos un trato respetuoso..."></textarea>
+            </div>
+
+            <div class="field">
+              <label>Mensaje de cierre por groserías (3ª vez)</label>
+              <textarea [(ngModel)]="aiMensajeSesionTerminada" rows="2" placeholder="Esta conversación ha sido finalizada..."></textarea>
+            </div>
+
+            <div class="field">
+              <label>Mensaje cuando la IA no encuentra respuesta en documentos</label>
+              <textarea [(ngModel)]="aiMensajeSinInformacion" rows="2" placeholder="No tengo información registrada sobre eso..."></textarea>
+              <span class="field-hint">Se muestra cuando no existen documentos indexados para el rol y la consulta del usuario</span>
+            </div>
+          </div>
+          }
+        </div>
+
         <!-- Seccion: Editor avanzado -->
         <div class="ia-section">
           <div class="ia-section-header" (click)="toggleIaSection('avanzado')">

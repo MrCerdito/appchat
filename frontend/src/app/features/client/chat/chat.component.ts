@@ -67,11 +67,13 @@ export class ChatComponent implements OnInit, OnDestroy {
   // ESTADO GENERAL
   // ══════════════════════════════════════════════════════════════════════════
 
-  step: 'faq' | 'name' | 'pqrs' | 'waiting' | 'chat' | 'rating' = 'faq';
+  step: 'faq' | 'name' | 'pqrs' | 'waiting' | 'chat' | 'rating' | 'blocked' = 'faq';
   aiMode    = true;
   aiHistory : AiMessage[] = [];
   private bienvenidaIa = '';
   aiTyping  = false;
+  ofertasAsesorPendientes  = new Set<number>();
+  ofertasAsesorRespondidas = new Map<number, boolean>();
   mostrarConfirmCierre    = false;
   mostrarAsesoresOcupados = false;
   reconexionActiva = false;
@@ -1131,24 +1133,43 @@ get rolLabel(): string {
     return this.encuestasPendientes.has(index) && !this.encuestasRespondidas.has(index);
   }
 
-  responderEncuesta(index: number, util: boolean): void {
-  this.encuestasPendientes.delete(index);
-  this.encuestasRespondidas.set(index, util);
-
-  if (this.session?.id) {
-    const preguntaIdx = this.aiHistory.findIndex((h, i) => h.role === 'user' && i === index * 2 - 1);
-    const pregunta    = preguntaIdx >= 0 ? this.aiHistory[preguntaIdx].text : '';
-    this.http.post(`${environment.apiUrl}/ai/feedback`, {
-      sessionId: this.session.id,
-      pregunta,
-      util,
-    }).subscribe({
-      error: (err) => console.error('HTTP Error:', err),
-    });
+  mostrarOfertaAsesorEn(index: number): boolean {
+    return this.ofertasAsesorPendientes.has(index) && !this.ofertasAsesorRespondidas.has(index);
   }
 
-  this.cdr.detectChanges();
-}
+  responderEncuesta(index: number, util: boolean): void {
+    this.encuestasPendientes.delete(index);
+    this.encuestasRespondidas.set(index, util);
+
+    if (!util) {
+      // Si respondió NO a la encuesta de utilidad -> ofrecer la transferencia al asesor
+      this.ofertasAsesorPendientes.add(index);
+    }
+
+    if (this.session?.id) {
+      const preguntaIdx = this.aiHistory.findIndex((h, i) => h.role === 'user' && i === index * 2 - 1);
+      const pregunta    = preguntaIdx >= 0 ? this.aiHistory[preguntaIdx].text : '';
+      this.http.post(`${environment.apiUrl}/ai/feedback`, {
+        sessionId: this.session.id,
+        pregunta,
+        util,
+      }).subscribe({
+        error: (err) => console.error('HTTP Error:', err),
+      });
+    }
+
+    this.cdr.detectChanges();
+  }
+
+  responderOfertaAsesor(index: number, quiereAsesor: boolean): void {
+    this.ofertasAsesorPendientes.delete(index);
+    this.ofertasAsesorRespondidas.set(index, quiereAsesor);
+
+    if (quiereAsesor) {
+      this.transferToAdvisor();
+    }
+    this.cdr.detectChanges();
+  }
 
   sendToAi(): void {
   if (!this.newMessage.trim()) return;
@@ -1180,7 +1201,8 @@ get rolLabel(): string {
   this.streamingText    = '';
   this.streamDocumentos = [];
   this.isStreaming      = true;
-  this.aiTyping         = false; // ya no necesitamos el indicador viejo
+  this.aiTyping         = false;
+  let streamSugerirAsesor = false;
   this.cdr.detectChanges();
 
   this.streamSub = this.aiService
@@ -1188,11 +1210,22 @@ get rolLabel(): string {
     .subscribe({
       next: ({ event, data }) => {
 
-        if (event === 'metadata' && data.documentos) {
-          this.streamDocumentos = data.documentos;
+        if (event === 'metadata') {
+          if (data.documentos) this.streamDocumentos = data.documentos;
+          if (data.sugerirAsesor) streamSugerirAsesor = true;
         }
 
         if (event === 'chunk' && data.text) {
+          // Detectar cierre por groserías dentro del stream
+          if (data.text.includes('SESSION_TERMINATED')) {
+            this.isStreaming = false;
+            this.step = 'blocked';
+            if (this.session?.id) {
+              this.sessionService.closeAnonymous(this.session.id).subscribe();
+            }
+            this.cdr.detectChanges();
+            return;
+          }
           // Detectar transfer dentro del stream
           if (data.text.includes('TRANSFER_TO_ADVISOR')) {
             this.isStreaming = false;
@@ -1208,9 +1241,11 @@ get rolLabel(): string {
 
         if (event === 'end') {
         this.isStreaming = false;
+        if (this.step === 'blocked') return;
 
-        // Limpiar la etiqueta de feedback del texto visible
+        // Limpiar la etiqueta de feedback y marcadores del texto visible
         const textoLimpio = this.streamingText
+          .replace(/SESSION_TERMINATED/g, '')
           .replace(/\[FEEDBACK:(YES|NO)\]\s*$/, '')
           .trim();
 
@@ -1224,6 +1259,8 @@ get rolLabel(): string {
 
         if (mostrarEncuesta) {
           this.encuestasPendientes.add(botMsgIndex);
+        } else if (streamSugerirAsesor) {
+          this.ofertasAsesorPendientes.add(botMsgIndex);
         }
 
         localStorage.setItem(AI_HISTORY_KEY,  JSON.stringify(this.aiHistory));
@@ -1463,7 +1500,7 @@ private escapeHtml(value: string): string {
   // LIMPIEZA
   // ══════════════════════════════════════════════════════════════════════════
 
-  private clearSession(): void {
+  clearSession(): void {
     clearInterval(this.reconexionInterval);
     this.reconexionInterval = null;
     this.reconexionActiva = false;

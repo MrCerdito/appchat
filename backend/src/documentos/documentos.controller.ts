@@ -18,6 +18,7 @@ import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import { existsSync, mkdirSync, readFileSync, unlinkSync } from 'fs'; // Añadir unlinkSync
 import { DocumentosService } from './documentos.service';
+import { MAPA_ROLES, ROLES_DEFAULT } from './roles.util';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles, RolesGuard } from '../auth/roles.guard';
 
@@ -89,28 +90,16 @@ export class DocumentosController {
     const pdfUrl = `${backendUrl}/uploads/documentos/${file.filename}`;
 
     // Parsear roles — vienen como string separado por comas
-    // Normalización de roles (sinónimos)
-    const mapaRoles: Record<string, string> = {
-      admin: 'administrador',
-      administrador: 'administrador',
-      docente: 'docente',
-      profesor: 'docente',
-      estudiante: 'estudiante',
-      alumno: 'estudiante',
-      padre: 'padre',
-      madre: 'padre',
-      acudiente: 'padre',
-    };
-
+    // Normalización de roles (sinónimos) → siempre valores canónicos
     const rolesPermitidos = body.rolesPermitidos
       ? body.rolesPermitidos
           .split(',')
           .map(
             (r: string) =>
-              mapaRoles[r.trim().toLowerCase()] ?? r.trim().toLowerCase(),
+              MAPA_ROLES[r.trim().toLowerCase()] ?? r.trim().toLowerCase(),
           )
           .filter(Boolean)
-      : ['administrador', 'docente', 'estudiante', 'padre'];
+      : ROLES_DEFAULT;
 
     try {
       return await this.docService.procesarPdf({
@@ -160,11 +149,14 @@ export class DocumentosController {
   // ── Buscar documentos relevantes (para testing) ───────────────────────────
   @Post('search')
   @UseGuards(JwtAuthGuard)
-  buscar(@Body() body: { query: string; colegio?: string; topK?: number }) {
+  buscar(
+    @Body()
+    body: { query: string; colegio?: string; rol?: string; topK?: number },
+  ) {
     return this.docService.buscarRelevantes(
       body.query,
       body.colegio,
-      undefined,
+      body.rol || undefined,
       body.topK ? Number(body.topK) : 4,
     );
   }

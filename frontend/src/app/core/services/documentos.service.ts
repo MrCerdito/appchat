@@ -42,8 +42,8 @@ export class DocumentosService {
     );
   }
 
-  buscar(query: string, colegio?: string): Observable<any> {
-    return this.http.post(`${this.url}/search`, { query, colegio, topK: 4 });
+  buscar(query: string, colegio?: string, rol?: string): Observable<any> {
+    return this.http.post(`${this.url}/search`, { query, colegio, rol, topK: 4 });
   }
 
   actualizarRoles(nombre: string, data: {

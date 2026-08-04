@@ -350,8 +350,13 @@
       <span>Probar búsqueda semántica</span>
     </div>
     <div class="test-input">
+      <select [(ngModel)]="testRol" class="test-rol-select" title="Filtrar por rol">
+        @for (r of rolesDisponibles; track trackByIndex($index)) {
+        <option [value]="r.value">{{ r.label }}</option>
+        }
+      </select>
       <input type="text" [(ngModel)]="testQuery"
-        placeholder="Escribe una pregunta para ver qué documentos encuentra la IA..."
+        placeholder="Escribe una pregunta para ver qué documentos encuentra la IA para este rol..."
         (keyup.enter)="testBusqueda()"/>
       <button (click)="testBusqueda()" [disabled]="testCargando || !testQuery.trim()">
         {{ testCargando ? 'Buscando...' : 'Buscar' }}

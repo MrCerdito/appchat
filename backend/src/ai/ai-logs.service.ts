@@ -24,6 +24,7 @@ export interface LogData {
   transfer?: boolean;
   feedback?: boolean;
   esRestringido?: boolean;
+  esOfensivo?: boolean;
   huboError?: boolean;
   errorMsg?: string;
 }

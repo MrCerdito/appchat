@@ -7,6 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Documento } from './entities/documento.entity';
 import { ConfigService } from '@nestjs/config';
+import { normalizarRolesCsv } from './roles.util';
 import * as fs from 'fs';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -169,7 +170,7 @@ export class DocumentosService implements OnApplicationBootstrap {
 
     let sql = `
       SELECT
-        id, nombre, contenido, pdf_url, categoria, chunk_index,
+        id, nombre, contenido, pdf_url, categoria, chunk_index, roles_permitidos,
         embedding_vec <=> $1::vector AS distancia
       FROM documentos
       WHERE activo = true
@@ -184,13 +185,22 @@ export class DocumentosService implements OnApplicationBootstrap {
       params.push(colegio);
     }
 
-    // Filtro rol: acepta NULL y todos los aliases del rol recibido
+    // Filtro rol: acepta NULL (documentos públicos) y solo roles cuyo token
+    // coincida EXACTAMENTE dentro del CSV (evita matches parciales tipo
+    // "padre" dentro de "compadres" o "estudiante" dentro de "estudiantil").
     if (aliases.length > 0) {
-      const orClauses = aliases
-        .map((_, i) => `LOWER(roles_permitidos) LIKE $${params.length + 1 + i}`)
-        .join(' OR ');
-      sql += ` AND (roles_permitidos IS NULL OR ${orClauses})`;
-      aliases.forEach((a) => params.push(`%${a}%`));
+      const orClauses: string[] = [];
+      for (const alias of aliases) {
+        const p = (n: number) => `$${params.length + n}`;
+        orClauses.push(
+          `roles_permitidos = ${p(1)}` +
+            ` OR roles_permitidos LIKE ${p(2)} || ',%'` +
+            ` OR roles_permitidos LIKE '%,' || ${p(3)} || ',%'` +
+            ` OR roles_permitidos LIKE '%,' || ${p(4)}`,
+        );
+        params.push(alias, `${alias},%`, `%,${alias},%`, `%,${alias}`);
+      }
+      sql += ` AND (roles_permitidos IS NULL OR (${orClauses.join(' OR ')}))`;
     }
 
     sql += ` ORDER BY distancia ASC LIMIT ${topK}`;
@@ -213,7 +223,12 @@ export class DocumentosService implements OnApplicationBootstrap {
     }
 
     const contexto = rows
-      .map((r, i) => `[Documento ${i + 1}: ${r.nombre}]\n${r.contenido}`)
+      .map(
+        (r, i) =>
+          `[Documento ${i + 1}: ${r.nombre} — roles permitidos: ${
+            r.roles_permitidos || 'todos'
+          }]\n${r.contenido}`,
+      )
       .join('\n\n---\n\n');
 
     // REEMPLAZAR el bloque docsUnicos actual por este:
@@ -307,7 +322,7 @@ export class DocumentosService implements OnApplicationBootstrap {
         data.descripcion || null,
         data.categoria,
         data.colegio || null,
-        data.rolesPermitidos,
+        normalizarRolesCsv(data.rolesPermitidos),
         nombre,
       ],
     );
@@ -428,7 +443,7 @@ export class DocumentosService implements OnApplicationBootstrap {
     const aliases = resolverAliases(rol);
 
     let sql = `
-      SELECT nombre, contenido, pdf_url, categoria, chunk_index
+      SELECT nombre, contenido, pdf_url, categoria, chunk_index, roles_permitidos
       FROM documentos
       WHERE activo = true
         AND (${words.map((_, i) => `LOWER(contenido) LIKE $${i + 1}`).join(' OR ')})
@@ -441,11 +456,18 @@ export class DocumentosService implements OnApplicationBootstrap {
     }
 
     if (aliases.length > 0) {
-      const orClauses = aliases
-        .map((_, i) => `LOWER(roles_permitidos) LIKE $${params.length + 1 + i}`)
-        .join(' OR ');
-      sql += ` AND (roles_permitidos IS NULL OR ${orClauses})`;
-      aliases.forEach((a) => params.push(`%${a}%`));
+      const orClauses: string[] = [];
+      for (const alias of aliases) {
+        const p = (n: number) => `$${params.length + n}`;
+        orClauses.push(
+          `roles_permitidos = ${p(1)}` +
+            ` OR roles_permitidos LIKE ${p(2)} || ',%'` +
+            ` OR roles_permitidos LIKE '%,' || ${p(3)} || ',%'` +
+            ` OR roles_permitidos LIKE '%,' || ${p(4)}`,
+        );
+        params.push(alias, `${alias},%`, `%,${alias},%`, `%,${alias}`);
+      }
+      sql += ` AND (roles_permitidos IS NULL OR (${orClauses.join(' OR ')}))`;
     }
 
     sql += ` LIMIT ${topK}`;

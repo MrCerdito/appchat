@@ -4,6 +4,7 @@ import { AiService } from './ai.service';
 import { AiLogsService } from './ai-logs.service';
 import { AiChatDto } from './dto/ai-chat.dto';
 import { ChatService } from '../chat/chat.service';
+import { ChatGateway } from '../chat/chat.gateway';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.guard';
@@ -18,6 +19,7 @@ export class AiController {
     private readonly aiService: AiService,
     private readonly aiLogs: AiLogsService,
     private readonly chatService: ChatService,
+    private readonly chatGateway: ChatGateway,
   ) {}
 
   @Public()
@@ -99,12 +101,12 @@ export class AiController {
       const sessionId = dto.sessionId?.trim() || undefined;
 
       if (sessionId) {
-        const history = await this.chatService
+        const history = (await this.chatService
           .getHistory(sessionId, 50)
-          .catch(() => []);
+          .catch(() => [])) as any[];
 
         const yaHayIa = history.some(
-          (m) => m.senderName === 'Asistente Virtual',
+          (m: any) => m.senderName === 'Asistente Virtual',
         );
         if (!yaHayIa && dto.welcome?.trim()) {
           await this.persist(sessionId, () =>
@@ -144,7 +146,12 @@ export class AiController {
         reply &&
         !reply.includes('TRANSFER_TO_ADVISOR')
       ) {
-        const limpio = reply.replace(/\[FEEDBACK:(YES|NO)\]\s*$/, '').trim();
+        const esTerminated = reply.includes('SESSION_TERMINATED');
+        const limpio = reply
+          .replace(/SESSION_TERMINATED/g, '')
+          .replace(/\[FEEDBACK:(YES|NO)\]\s*$/, '')
+          .trim();
+
         if (limpio) {
           await this.persist(sessionId, () =>
             this.chatService.saveMessage(
@@ -153,6 +160,13 @@ export class AiController {
               'advisor',
               'Asistente Virtual',
             ),
+          );
+        }
+
+        if (esTerminated) {
+          await this.chatGateway.terminateAiSession(
+            sessionId,
+            'Uso continuado de lenguaje ofensivo',
           );
         }
       }
@@ -164,13 +178,19 @@ export class AiController {
     }
   }
 
-  private async persist(sessionId: string, fn: () => Promise<unknown>) {
+  private async persist<T>(sessionId: string, fn: () => Promise<T>): Promise<T | null> {
     try {
-      await fn();
+      const saved = await fn();
+      if (saved) {
+        this.chatGateway.emitMessageToSession(sessionId, saved);
+        this.chatGateway.emitSessionUpdated(sessionId);
+      }
+      return saved;
     } catch (err: any) {
       this.logger.error(
         `[PersistIA] Sesión ${sessionId}: ${err?.message ?? 'error'}`,
       );
+      return null;
     }
   }
 

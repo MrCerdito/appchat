@@ -94,6 +94,107 @@ function normalizarRol(rol: string): string {
   return 'estudiante';
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// CONDUCTA — configuración por defecto (overridable desde aiPromptConfig)
+// ─────────────────────────────────────────────────────────────────────────────
+const DEFAULT_PALABRAS_PROHIBIDAS: string[] = [
+  'hijueputa',
+  'hijo de puta',
+  'hija de puta',
+  'gonorrea',
+  'malparido',
+  'malparida',
+  'mal parto',
+  'carechimba',
+  'careverga',
+  'careculo',
+  'verga',
+  'marica',
+  'maricon',
+  'pendejo',
+  'pendeja',
+  'idiota',
+  'estupido',
+  'estupida',
+  'imbecil',
+  'retrasado',
+  'retrasada',
+  'perra',
+  'puta',
+  'puto',
+  'putazo',
+  'mierda',
+  'carajo',
+  'coño',
+  'weon',
+  'weona',
+  'webon',
+  'tarado',
+  'tarada',
+  'inutil',
+  'mamahuevo',
+  'mamaguevo',
+  'mamaguevo',
+  'culo',
+  'pija',
+  'cabron',
+  'cabrona',
+  'zorra',
+  'soplapollas',
+  'gilipollas',
+  'pelotudo',
+  'pelotuda',
+  'mogolico',
+  'pajero',
+  'tonto',
+  'estupidazo',
+];
+
+const DEFAULT_MENSAJE_GROSERIA =
+  'Por favor, mantengamos un trato respetuoso. No puedo ayudarte si usas lenguaje ofensivo. ¿En qué más puedo ayudarte?';
+
+const DEFAULT_MENSAJE_SESION_TERMINADA =
+  'Esta conversación ha sido finalizada por el uso continuado de lenguaje ofensivo. Si necesitas ayuda, inicia una nueva conversación manteniendo un trato respetuoso.';
+
+const DEFAULT_MENSAJE_SIN_INFORMACION =
+  'No tengo información registrada sobre eso por el momento. ¿Necesitas un asesor para una mejor ayuda?';
+
+const SALUDOS: string[] = [
+  'hola',
+  'buen dia',
+  'buenos dias',
+  'buenas tardes',
+  'buenas noches',
+  'buenas',
+  'saludos',
+  'que tal',
+  'hey',
+  'que mas',
+  'holi',
+  'hello',
+  'hi',
+  'como estas',
+  'como estas?',
+  'bienvenido',
+  'gracias',
+  'muchas gracias',
+];
+
+function normalizarTexto(texto: string): string {
+  return (texto ?? '')
+    .toLowerCase()
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function esSaludo(mensaje: string): boolean {
+  const m = normalizarTexto(mensaje).replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!m) return false;
+  if (m.length > 40) return false;
+  return SALUDOS.some((s) => m.includes(s));
+}
+
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
@@ -108,6 +209,31 @@ export class AiService {
     private configuracionService: ConfiguracionService,
   ) {
     this.apiKey = this.config.get<string>('GEMINI_API_KEY') ?? '';
+  }
+
+  // Contador de ofensas por sesión (en memoria; se reinicia al reiniciar el contenedor)
+  private readonly contadorOfensas = new Map<string, number>();
+
+  // ── Cargar configuración de conducta (con defaults) ──────────────────────
+  private cargarConducta(aiCfg?: Record<string, any> | null) {
+    return {
+      palabrasProhibidas: Array.isArray(aiCfg?.palabrasProhibidas)
+        ? (aiCfg!.palabrasProhibidas as string[]).filter(Boolean)
+        : DEFAULT_PALABRAS_PROHIBIDAS,
+      mensajeGroseria:
+        (aiCfg?.mensajeGroseria as string)?.trim() || DEFAULT_MENSAJE_GROSERIA,
+      mensajeSesionTerminada:
+        (aiCfg?.mensajeSesionTerminada as string)?.trim() ||
+        DEFAULT_MENSAJE_SESION_TERMINADA,
+      mensajeSinInformacion:
+        (aiCfg?.mensajeSinInformacion as string)?.trim() ||
+        DEFAULT_MENSAJE_SIN_INFORMACION,
+      limiteGroserias: Math.max(
+        1,
+        Number(aiCfg?.limiteGroserias) || 3,
+      ),
+      sugerirAsesorAutomatico: (aiCfg?.sugerirAsesorAutomatico as boolean) !== false,
+    };
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -145,6 +271,48 @@ export class AiService {
       mensajeRestringido: rolFromDb?.mensajeRestringido || configDefault.mensajeRestringido,
     };
 
+    // ── Conducta (palabras prohibidas / avisos / límites) ───────────────────
+    const conducta = this.cargarConducta(aiCfg);
+
+    // ── D1: groserías → aviso (endpoint legacy sin sesión, siempre avisa) ──
+    const ofensa = conducta.palabrasProhibidas.some((w) =>
+      normalizarTexto(message).includes(normalizarTexto(w)),
+    );
+    if (ofensa) {
+      this.aiLogs.guardar({
+        colegio,
+        rol: rolNormalizado,
+        tipoSolicitud,
+        clientName,
+        pregunta: message,
+        respuesta: conducta.mensajeGroseria,
+        esOfensivo: true,
+        chunksUsados: [],
+      });
+      this.logger.warn(`[IA] Ofensa detectada (legacy) | rol=${rolNormalizado}`);
+      return {
+        reply: conducta.mensajeGroseria,
+        transfer: false,
+        showFeedback: false,
+        documentos: [],
+      };
+    }
+
+    // ── D2: saludos / cortesías → respuesta breve sin asesor ────────────────
+    if (esSaludo(message)) {
+      const saludo = `¡Hola ${clientName}! Soy el asistente virtual del colegio "${colegio}". ¿En qué puedo ayudarte hoy?`;
+      this.aiLogs.guardar({
+        colegio,
+        rol: rolNormalizado,
+        tipoSolicitud,
+        clientName,
+        pregunta: message,
+        respuesta: saludo,
+        chunksUsados: [],
+      });
+      return { reply: saludo, transfer: false, showFeedback: false, documentos: [] };
+    }
+
     // ── Tema restringido ────────────────────────────────────────────────────
     const esRestringido = config.temasRestringidos.some((t) =>
       msgLower.includes(t.toLowerCase()),
@@ -181,6 +349,26 @@ export class AiService {
     this.logger.debug(
       `[RAG] tuvoContexto=${tieneContexto} | chunks=${chunks.length} | colegio=${colegio} | rol=${rolNormalizado}`,
     );
+
+    // ── D2: sin documentos del rol → no inventar, sugerir asesor ────────────
+    if (!tieneContexto && conducta.sugerirAsesorAutomatico) {
+      this.aiLogs.guardar({
+        colegio,
+        rol: rolNormalizado,
+        tipoSolicitud,
+        clientName,
+        pregunta: message,
+        respuesta: conducta.mensajeSinInformacion,
+        chunksUsados: [],
+        tuvoContexto: false,
+      });
+      return {
+        reply: conducta.mensajeSinInformacion,
+        transfer: false,
+        showFeedback: false,
+        documentos: [],
+      };
+    }
 
     const systemPrompt = this.buildSystemPrompt(
       clientName,
@@ -434,6 +622,62 @@ ${messages}`;
       mensajeRestringido: rolFromDb?.mensajeRestringido || configDefault.mensajeRestringido,
     };
 
+    // ── Conducta (palabras prohibidas / avisos / límites) ───────────────────
+    const conducta = this.cargarConducta(aiCfg);
+
+    // ── D1: groserías → aviso (1ª/2ª) o cierre de sesión (3ª) ───────────────
+    const ofensa = conducta.palabrasProhibidas.some((w) =>
+      normalizarTexto(message).includes(normalizarTexto(w)),
+    );
+    if (ofensa) {
+      const key = sessionId ?? '';
+      const contador = (this.contadorOfensas.get(key) ?? 0) + 1;
+      if (key) this.contadorOfensas.set(key, contador);
+      const terminar = contador >= conducta.limiteGroserias;
+      if (terminar && key) this.contadorOfensas.delete(key);
+
+      this.aiLogs.guardar({
+        sessionId,
+        colegio,
+        rol: rolNormalizado,
+        tipoSolicitud,
+        clientName,
+        pregunta: message,
+        respuesta: terminar
+          ? conducta.mensajeSesionTerminada
+          : conducta.mensajeGroseria,
+        esOfensivo: true,
+        chunksUsados: [],
+      });
+      this.logger.warn(
+        `[IA] Ofensa detectada sesión=${key || 'anónima'} (${contador}/${conducta.limiteGroserias})`,
+      );
+
+      if (terminar) {
+        emit('chunk', { text: conducta.mensajeSesionTerminada });
+        return `${conducta.mensajeSesionTerminada}\nSESSION_TERMINATED`;
+      }
+      emit('chunk', { text: conducta.mensajeGroseria });
+      return conducta.mensajeGroseria;
+    }
+
+    // ── D2: saludos / cortesías → respuesta breve sin asesor ────────────────
+    if (esSaludo(message)) {
+      const saludo = `¡Hola ${clientName}! Soy el asistente virtual del colegio "${colegio}". ¿En qué puedo ayudarte hoy?`;
+      this.aiLogs.guardar({
+        sessionId,
+        colegio,
+        rol: rolNormalizado,
+        tipoSolicitud,
+        clientName,
+        pregunta: message,
+        respuesta: saludo,
+        chunksUsados: [],
+      });
+      emit('chunk', { text: saludo });
+      return saludo;
+    }
+
     // ── Tema restringido ────────────────────────────────────────────────────
     const esRestringido = config.temasRestringidos.some((t) =>
       msgLower.includes(t.toLowerCase()),
@@ -468,8 +712,25 @@ ${messages}`;
       `[RAG] tuvoContexto=${tieneContexto} | chunks=${chunks.length} | colegio=${colegio} | rol=${rolNormalizado}`,
     );
 
-    // NOTA: NO emitir metadata aquí — todavía no sabemos si la IA
-    // va a responder algo concreto. Se emite al final del stream.
+    // ── D2: sin documentos del rol → no inventar, sugerir asesor ────────────
+    if (!tieneContexto) {
+      this.aiLogs.guardar({
+        sessionId,
+        colegio,
+        rol: rolNormalizado,
+        tipoSolicitud,
+        clientName,
+        pregunta: message,
+        respuesta: conducta.mensajeSinInformacion,
+        chunksUsados: [],
+        tuvoContexto: false,
+      });
+      if (conducta.sugerirAsesorAutomatico) {
+        emit('metadata', { documentos: [], sugerirAsesor: true });
+      }
+      emit('chunk', { text: conducta.mensajeSinInformacion });
+      return conducta.mensajeSinInformacion;
+    }
 
     const systemPrompt = this.buildSystemPrompt(
       clientName,
@@ -581,7 +842,11 @@ ${messages}`;
             categoria: documentos[0].categoria,
           },
         ],
+        sugerirAsesor: false,
       });
+    } else if (!respondioAlgo && conducta.sugerirAsesorAutomatico) {
+      // La IA no resolvió con los documentos → ofrecer asesor humano
+      emit('metadata', { documentos: [], sugerirAsesor: true });
     }
 
     // ── Guardar log al finalizar ────────────────────────────────────────────
@@ -715,6 +980,10 @@ ${messages}`;
       } else {
         prompt = prompt.replace(/\{\{CONTEXTO_RAG\}\}/g, '');
       }
+      prompt +=
+        '\n\nREGLA DE ROL: La información de la base de conocimiento es EXCLUSIVA para el rol ' +
+        config.label +
+        '. Responde SOLO con ella y nunca con datos de documentos de otros roles.';
       return prompt;
     }
 
@@ -760,6 +1029,10 @@ ${messages}`;
         contexto,
         '',
         'FIN DE LA BASE DE CONOCIMIENTO.',
+        '',
+        `Esta información es EXCLUSIVA para el rol ${config.label}.`,
+        'NUNCA respondas con información de documentos destinados a otros roles,',
+        'ni mezcles datos que no correspondan a este rol.',
       );
     }
 
@@ -770,7 +1043,13 @@ ${messages}`;
       `- NO uses emojis en ninguna respuesta.`,
       tieneContexto
         ? '- Basa tu respuesta PRINCIPALMENTE en la información de la base de conocimiento.'
-        : '- Responde con información general disponible.',
+        : '- NO tienes documentos oficiales para este rol sobre esta consulta.',
+      tieneContexto
+        ? '- NO inventes nada que no esté en los documentos provistos.'
+        : '- NO inventes información ni uses conocimiento general ni datos de otros roles.',
+      tieneContexto
+        ? ''
+        : '- Si la consulta requiere información institucional, responde que no tienes esa información registrada por el momento.',
       `- Si el cliente menciona "${frasesTransferencia}" o pide hablar con alguien, responde ÚNICAMENTE: TRANSFER_TO_ADVISOR`,
       `- Si la pregunta toca temas restringidos para el rol ${config.label}, redirige amablemente.`,
       '',

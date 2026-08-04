@@ -573,6 +573,39 @@
         </div>
         }
 
+        <!-- Oferta de transferencia a asesor -->
+        @if (mostrarOfertaAsesorEn(i)) {
+        <div class="inline-survey">
+          <div class="survey-question">¿Necesitas un asesor para una mejor ayuda?</div>
+          <div class="survey-actions">
+            <button class="survey-btn positive" (click)="responderOfertaAsesor(i, true)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              Sí, transferir
+            </button>
+            <button class="survey-btn negative" (click)="responderOfertaAsesor(i, false)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+              No, gracias
+            </button>
+          </div>
+        </div>
+        }
+
+        @if (ofertasAsesorRespondidas.has(i)) {
+        <div class="survey-feedback">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          {{ ofertasAsesorRespondidas.get(i) ? 'Conectando con un asesor...' : 'Entendido, continuaré ayudándote.' }}
+        </div>
+        }
+
       }
     </div>
 
@@ -671,6 +704,7 @@
       </div>
       }
 
+      @if (!aiMode) {
       <button class="input-icon-btn" (click)="triggerFileInput()" type="button" title="Adjuntar archivo"
         [disabled]="isRecordingAudio">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -684,6 +718,7 @@
         (recordingChange)="onVoiceRecordingChange($event)"
         (error)="onVoiceError($event)"
       ></wa-voice-recorder>
+      }
 
       <div class="input-field">
         <textarea rows="1" placeholder="Escribe un mensaje..."
@@ -826,6 +861,34 @@
       </div>
       }
 
+    </div>
+  </div>
+  }
+
+  <!-- ══════════════════════════════════════════════════════════════
+       PASO BLOQUEADO POR OFENSAS
+  ══════════════════════════════════════════════════════════════════ -->
+  @if (step === 'blocked') {
+  <div class="screen-center">
+    <div class="card rating-card">
+      <div class="rating-header">
+        <div class="thanks-icon" style="background:#fee2e2; color:#dc2626;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="15" y1="9" x2="9" y2="15"/>
+            <line x1="9" y1="9" x2="15" y2="15"/>
+          </svg>
+        </div>
+        <h2>Conversación finalizada</h2>
+        <p style="margin-top:0.75rem; font-size:0.9rem; color:#4b5563;">
+          Por el uso continuado de lenguaje ofensivo, la conversación ha sido terminada.
+        </p>
+      </div>
+      <div class="rating-actions" style="margin-top:1.5rem; justify-content:center;">
+        <button class="btn-send" (click)="clearSession()" style="width:100%;">
+          Iniciar nueva conversación
+        </button>
+      </div>
     </div>
   </div>
   }

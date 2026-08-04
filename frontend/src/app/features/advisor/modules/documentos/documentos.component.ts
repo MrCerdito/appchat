@@ -38,7 +38,7 @@ export class DocumentosComponent implements OnInit, OnDestroy {
     descripcion    : '',
     categoria      : 'general',
     colegio        : '',
-    rolesPermitidos: ['admin', 'docente', 'estudiante', 'padre'] as string[],
+    rolesPermitidos: ['administrador', 'docente', 'estudiante', 'padre'] as string[],
   };
 
   // Documento en edición
@@ -47,6 +47,7 @@ export class DocumentosComponent implements OnInit, OnDestroy {
 
   // Test RAG
   testQuery    = '';
+  testRol      = 'estudiante';
   testResultado: any = null;
   testCargando = false;
 
@@ -60,10 +61,10 @@ export class DocumentosComponent implements OnInit, OnDestroy {
   ];
 
   readonly rolesDisponibles = [
-    { value: 'admin',      label: 'Administrador' },
-    { value: 'docente',    label: 'Docente' },
-    { value: 'estudiante', label: 'Estudiante' },
-    { value: 'padre',      label: 'Padre/Madre' },
+    { value: 'administrador', label: 'Administrador' },
+    { value: 'docente',       label: 'Docente' },
+    { value: 'estudiante',    label: 'Estudiante' },
+    { value: 'padre',         label: 'Padre/Madre' },
   ];
 
   private destroy$ = new Subject<void>();
@@ -162,10 +163,13 @@ export class DocumentosComponent implements OnInit, OnDestroy {
     this.showForm     = true;
     this.uploadError  = '';
 
-    // roles_permitidos viene como string "admin,docente" — parsear a array
-    const roles = typeof doc.roles_permitidos === 'string' && doc.roles_permitidos
-      ? doc.roles_permitidos.split(',').map((r: string) => r.trim()).filter(Boolean)
-      : ['admin', 'docente', 'estudiante', 'padre'];
+    // roles_permitidos viene como string "administrador,docente" — parsear a array y normalizar "admin" -> "administrador"
+    const rawRoles = typeof doc.roles_permitidos === 'string' && doc.roles_permitidos
+      ? doc.roles_permitidos.split(',').map((r: string) => r.trim().toLowerCase()).filter(Boolean)
+      : ['administrador', 'docente', 'estudiante', 'padre'];
+
+    const mapaLocal: Record<string, string> = { admin: 'administrador', profesor: 'docente', alumno: 'estudiante', madre: 'padre', acudiente: 'padre' };
+    const roles = [...new Set(rawRoles.map(r => mapaLocal[r] ?? r))];
 
     this.form = {
       nombre         : doc.nombre,
@@ -239,15 +243,21 @@ export class DocumentosComponent implements OnInit, OnDestroy {
 
   getRolesArray(roles: string | null): string[] {
     if (!roles || (typeof roles === 'string' && !roles.trim())) {
-      return ['admin', 'docente', 'estudiante', 'padre'];
+      return ['administrador', 'docente', 'estudiante', 'padre'];
     }
     if (typeof roles === 'string') {
-      return roles.split(',').map((r: string) => r.trim()).filter(Boolean);
+      const arr = roles.split(',').map((r: string) => r.trim()).filter(Boolean);
+      return arr.length ? arr : ['administrador', 'docente', 'estudiante', 'padre'];
     }
-    return ['admin', 'docente', 'estudiante', 'padre'];
+    return ['administrador', 'docente', 'estudiante', 'padre'];
   }
 
   getRolLabel(value: string): string {
+    const v = (value || '').toLowerCase().trim();
+    if (v === 'admin' || v === 'administrador') return 'Administrador';
+    if (v === 'docente' || v === 'profesor') return 'Docente';
+    if (v === 'estudiante' || v === 'alumno') return 'Estudiante';
+    if (v === 'padre' || v === 'madre' || v === 'acudiente') return 'Padre/Madre';
     return this.rolesDisponibles.find(r => r.value === value)?.label ?? value;
   }
 
@@ -259,7 +269,7 @@ export class DocumentosComponent implements OnInit, OnDestroy {
     if (!this.testQuery.trim()) return;
     this.testCargando  = true;
     this.testResultado = null;
-    this.docService.buscar(this.testQuery).pipe(takeUntil(this.destroy$)).subscribe({
+    this.docService.buscar(this.testQuery, undefined, this.testRol).pipe(takeUntil(this.destroy$)).subscribe({
       next : (res) => { this.testResultado = res; this.testCargando = false; this.cdr.detectChanges(); },
       error: ()    => { this.testCargando = false; this.cdr.detectChanges(); },
     });
@@ -271,7 +281,7 @@ export class DocumentosComponent implements OnInit, OnDestroy {
   }
 
   resetForm(): void {
-    this.form = { nombre: '', descripcion: '', categoria: 'general', colegio: '', rolesPermitidos: ['admin','docente','estudiante','padre'] };
+    this.form = { nombre: '', descripcion: '', categoria: 'general', colegio: '', rolesPermitidos: ['administrador','docente','estudiante','padre'] };
     this.archivoSeleccionado = null;
     this.archivoNombre       = '';
     this.submitted           = false;
