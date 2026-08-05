@@ -292,6 +292,30 @@ a {
   flex-shrink: 0;
 }
 
+.s-preview {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 11px;
+  color: $text-secondary;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+.s-preview-from {
+  color: $text-faint;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.s-preview-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 // Badges
 .badge-unread {
   position: absolute;
@@ -677,6 +701,22 @@ a {
 @keyframes blink {
   0%, 100% { opacity: 1; }
   50%      { opacity: 0.25; }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SOLO LECTURA BANNER
+// ══════════════════════════════════════════════════════════════════════════════
+.readonly-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 24px;
+  background: $warning-soft;
+  border-bottom: 1px solid $warning-border;
+  font-size: 12px;
+  font-weight: 500;
+  color: $warning;
+  flex-shrink: 0;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

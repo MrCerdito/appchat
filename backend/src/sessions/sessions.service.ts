@@ -650,11 +650,64 @@ export class SessionsService {
   }
 
   async findAllAdmin(): Promise<Session[]> {
-    return this.sessionRepo.find({
+    const sessions = await this.sessionRepo.find({
       relations: ['advisor'],
       order: { createdAt: 'DESC' },
       take: 500,
     });
+    return this.attachLastMessages(sessions);
+  }
+
+  /** Añade `lastMessage` (último mensaje de la sesión, sea del cliente, la IA
+   *  "Asistente Virtual" o cualquier asesor) para que la lista de recientes
+   *  muestre el preview y se actualice en vivo. */
+  private async attachLastMessages(sessions: Session[]): Promise<Session[]> {
+    if (sessions.length === 0) return sessions;
+    const ids = sessions.map((s) => s.id);
+
+    // 1) Último id de mensaje por sesión en UNA consulta (Postgres DISTINCT ON)
+    const rows: Array<{ id: string; session_id: string }> =
+      await this.dataSource.query(
+        `SELECT DISTINCT ON ("session_id") "id", "session_id"
+         FROM "messages"
+         WHERE "session_id" = ANY($1)
+         ORDER BY "session_id", "created_at" DESC`,
+        [ids],
+      );
+    if (rows.length === 0) return sessions;
+
+    const msgIdToSession = new Map<string, string>();
+    const lastIds: string[] = [];
+    for (const row of rows) {
+      msgIdToSession.set(row.id, row.session_id);
+      lastIds.push(row.id);
+    }
+
+    // 2) Cargar esos mensajes por entidad para que se desencripten content/senderName
+    const lastMessages = await this.messageRepo.find({
+      where: { id: In(lastIds) },
+    });
+    const bySession = new Map<string, Message>();
+    for (const m of lastMessages) {
+      const sid = msgIdToSession.get(m.id);
+      if (sid) bySession.set(sid, m);
+    }
+
+    return sessions.map((s) => {
+      const lm = bySession.get(s.id);
+      return {
+        ...s,
+        lastMessage: lm
+          ? {
+              id: lm.id,
+              content: lm.content,
+              senderType: lm.senderType,
+              senderName: lm.senderName,
+              createdAt: lm.createdAt,
+            }
+          : null,
+      };
+    }) as Session[];
   }
 
   async findAllAdminPaginated(

@@ -134,6 +134,10 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   private destroy$       = new Subject<void>();
   private resizeObserver: ResizeObserver | null = null;
 
+  // Sesiones a las que este asesor se unió como apoyo (join_active_chat).
+  // Se usan para saber quién puede escribir en un chat activo de otro asesor.
+  private collaboratorSessions = new Set<string>();
+
   constructor(
     private socket      : SocketService,
     private sessionService: SessionService,
@@ -174,7 +178,43 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     const activeIds = new Set(this.activeSessions.map(s => s.id));
     return this.sessions
       .filter(s => !activeIds.has(s.id))
+      .sort((a, b) => this.lastActivityMs(b) - this.lastActivityMs(a))
       .slice(0, 4);
+  }
+
+  /** Momento de la última actividad de la sesión (último mensaje o creación). */
+  private lastActivityMs(session: Session): number {
+    const t = session.lastMessage?.createdAt ?? session.createdAt;
+    if (!t) return 0;
+    const ts = new Date(t).getTime();
+    return isNaN(ts) ? 0 : ts;
+  }
+
+  /** Etiqueta del remitente del último mensaje para el preview de Recientes. */
+  previewSenderLabel(session: Session): string {
+    const lm = session.lastMessage;
+    if (!lm) return '';
+    if (lm.senderType === 'client') return session.clientName || 'Cliente';
+    if (lm.senderName === 'Asistente Virtual') return 'IA';
+    return lm.senderName || 'Asesor';
+  }
+
+  /** Texto del preview: adjunto o contenido del último mensaje. */
+  previewText(session: Session): string {
+    const lm = session.lastMessage;
+    if (!lm) return 'Sin mensajes';
+    if (lm.attachments && lm.attachments.length > 0) {
+      return lm.attachments.length === 1
+        ? '\uD83D\uDCCE Adjunto'
+        : `\uD83D\uDCCE ${lm.attachments.length} adjuntos`;
+    }
+    return lm.content || '';
+  }
+
+  /** Hora relativa según el último mensaje (o creación si no hay mensajes). */
+  recentTime(session: Session): string {
+    const t = session.lastMessage?.createdAt ?? session.createdAt;
+    return this.relativeTime(t);
   }
 
   get activeAdvisorName(): string {
@@ -198,11 +238,30 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
 
   get isCollaborator(): boolean {
     if (!this.activeSession || !this.currentAdvisor) return false;
-    return this.activeSession.advisor?.id !== this.currentAdvisor.id;
+    return (
+      this.activeSession.advisor?.id !== this.currentAdvisor.id &&
+      this.collaboratorSessions.has(this.activeSession.id)
+    );
+  }
+
+  /** Chat activo de otro asesor visto en solo lectura (no soy dueño ni apoyo). */
+  get isReadOnlyView(): boolean {
+    if (!this.activeSession || !this.currentAdvisor) return false;
+    const s = this.activeSession;
+    if (s.status !== 'active') return false;
+    if (this.currentAdvisor.role === 'admin') return false;
+    if (s.advisor?.id === this.currentAdvisor.id) return false;
+    return !this.collaboratorSessions.has(s.id);
   }
 
   get canSendMessage(): boolean {
-    return !!this.activeSession && this.activeSession.status !== 'closed';
+    if (!this.activeSession) return false;
+    const s = this.activeSession;
+    if (s.status === 'closed') return false;
+    if (this.currentAdvisor?.role === 'admin') return true;
+    if (s.advisor?.id === this.currentAdvisor?.id) return true;
+    if (s.status === 'ai' || s.status === 'waiting' || !s.advisor) return true;
+    return this.collaboratorSessions.has(s.id);
   }
 
   get slashFiltered(): Array<{ name: string; content: string }> {
@@ -274,7 +333,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
       this.joinSession(target);
     } else {
       // Si aún no está en la lista, recargar explícitamente
-      this.sessionService.findAll().subscribe({
+      this.sessionService.findAllAdmin().subscribe({
         next: (sessions) => {
           this.sessions = sessions;
           sessions.filter(s => s.status === 'active' || s.status === 'waiting')
@@ -299,8 +358,10 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     this.socket.on<{ sessionId: string; clientName: string }>('joined_chat_ok')
       .pipe(takeUntil(this.destroy$))
       .subscribe((data) => {
+        // Marcamos esta sesión como "apoyo" (puede escribir en chats de otros)
+        this.collaboratorSessions.add(data.sessionId);
         // Recargar lista para incluir el nuevo chat
-          this.sessionService.findAll().subscribe({
+          this.sessionService.findAllAdmin().subscribe({
             next: (sessions) => {
               this.sessions = sessions;
               sessions
@@ -383,6 +444,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
         if (!sessionId) return;
 
         const added = this.state.addMessage(sessionId, msg);
+        this.updateSessionPreview(sessionId, msg);
 
         if (msg.senderType === 'client') {
           if (this.activeSession?.id === sessionId) {
@@ -465,7 +527,6 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe((data) => {
         if (this.activeSession?.id === data.sessionId) this.activeSession = null;
-        this.sessions = this.sessions.filter(s => s.id !== data.sessionId);
         this.clearSession(data.sessionId);
         this.loadSessions();
         this.cdr.detectChanges();
@@ -547,6 +608,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     this.state.clearSession(sessionId);
     this.timerMap.delete(sessionId);
     this.colorIndex.delete(sessionId);
+    this.collaboratorSessions.delete(sessionId);
     if (this.activeSession?.id === sessionId) {
       this.activeSession    = null;
       this.showCloseConfirm = false;
@@ -565,6 +627,26 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     if (this.state.isJoined(sessionId)) return;
     this.state.markJoined(sessionId);
     this.state.setMessages(sessionId, []);
+  }
+
+  /** Actualiza el preview (último mensaje) de la sesión en la lista compartida. */
+  private updateSessionPreview(sessionId: string, msg: any): void {
+    const idx = this.sessions.findIndex(s => s.id === sessionId);
+    if (idx === -1) return;
+    const updated = {
+      ...this.sessions[idx],
+      lastMessage: {
+        id: msg.id,
+        content: msg.content,
+        senderType: msg.senderType,
+        senderName: msg.senderName,
+        createdAt: msg.createdAt,
+        attachments: msg.attachments ?? undefined,
+      },
+    };
+    this.sessions = [...this.sessions];
+    this.sessions[idx] = updated;
+    this.cdr.detectChanges();
   }
 
   // ── IA ────────────────────────────────────────────────────────────────────
@@ -590,14 +672,14 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     const sessionId = this.activeSession.id;
     this.socket.emit('leave_active_chat', sessionId);
     this.clearSession(sessionId);
-    this.sessions = this.sessions.filter(s => s.id !== sessionId);
+    this.loadSessions();
     this.cdr.detectChanges();
   }
 
   // ── Supervisor: tomar chat de otro asesor ─────────────────────────────────
   // ── Carga de datos ────────────────────────────────────────────────────────
   loadSessions(openSessionId = ''): void {
-    this.sessionService.findAll().subscribe({
+    this.sessionService.findAllAdmin().subscribe({
       next: (sessions) => {
         this.state.reconcileSessions(sessions);
         this.sessions = sessions;

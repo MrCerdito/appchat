@@ -158,6 +158,9 @@ export class ChatGateway
         // Store in Redis + join advisor room for cross-instance messaging
         await this.redisState.addConnectedAdvisor(payload.sub);
         client.join(`advisor:${payload.sub}`);
+        // Sala compartida: recibe en tiempo real los mensajes de TODAS las
+        // conversaciones web para actualizar la lista de recientes/previews.
+        client.join('advisors');
 
         this.logger.log(
           `[WS] Asesor conectado: ${payload.name} (PID: ${process.pid})`,
@@ -491,18 +494,13 @@ export class ChatGateway
 
     if (client.data.role === 'advisor') {
       try {
+        // Vista compartida: cualquier asesor puede UNIRSE (leer) cualquier
+        // sesión, incluidas las cerradas (historial). El envío de mensajes
+        // sigue restringido por isAdvisorAuthorized en send_message.
         const session = await this.sessionsService.findOne(data.sessionId);
-        if (!session || session.status === 'closed') {
+        if (!session) {
           client.emit('join_error', {
             reason: 'Sesión no encontrada o cerrada',
-          });
-          return;
-        }
-        if (
-          !this.isAdvisorAuthorized(session, client.data.user)
-        ) {
-          client.emit('join_error', {
-            reason: 'No tienes permisos para unirte a esta sesión',
           });
           return;
         }
@@ -660,6 +658,7 @@ export class ChatGateway
       'Sistema',
     );
     this.server.to(sessionId).emit('new_message', msg);
+    this.broadcastMessageToAdvisors(sessionId, msg);
 
     // ✅ Confirmar al asesor
     this.logger.log('[JoinActive] emitiendo joined_chat_ok...');
@@ -914,6 +913,7 @@ export class ChatGateway
       });
     if (!message) return;
     this.server.to(data.sessionId).emit('new_message', message);
+    this.broadcastMessageToAdvisors(data.sessionId, message);
 
     if (senderType === 'client') {
       await this.redisState.setClientPresence(data.sessionId, {
@@ -1264,6 +1264,10 @@ export class ChatGateway
       this.server
         .to(sessionId)
         .emit('new_message', { ...saved, showFeedback: result.showFeedback });
+      this.broadcastMessageToAdvisors(sessionId, {
+        ...saved,
+        showFeedback: result.showFeedback,
+      });
     } catch (err) {
       this.server.to(sessionId).emit('typing_stop', { sessionId });
       this.logger.error('[AutoIA]', (err as Error).message);
@@ -2264,6 +2268,14 @@ export class ChatGateway
   emitMessageToSession(sessionId: string, msg: any) {
     if (!sessionId) return;
     this.server.to(sessionId).emit('new_message', { ...msg, sessionId });
+    this.broadcastMessageToAdvisors(sessionId, msg);
+  }
+
+  /** Propaga el mensaje a la sala compartida de asesores para que la lista
+   *  de recientes/previews se actualice en vivo en todas las pantallas. */
+  private broadcastMessageToAdvisors(sessionId: string, msg: any) {
+    if (!sessionId) return;
+    this.server.to('advisors').emit('new_message', { ...msg, sessionId });
   }
 
   emitSessionUpdated(sessionId: string) {
