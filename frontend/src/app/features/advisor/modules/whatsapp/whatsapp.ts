@@ -181,6 +181,8 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   aiSuggestion = '';
   showAiSuggestion = false;
   assignmentToast = '';
+  toastMessage = '';
+  toastType: 'ok' | 'error' = 'ok';
 
   ghostSuggestion = '';
   showSlashMenu = false;
@@ -212,6 +214,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   compactList = false;
   profilePhotoPreview?: { src: string; name: string };
   mediaPreview?: { src: string; name: string };
+  videoPreview?: { src: string; name: string };
   mediaZoom = 1;
   mediaPanX = 0;
   mediaPanY = 0;
@@ -257,10 +260,16 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     'audio/aac',
     'audio/mp4',
     'audio/mpeg',
+    'audio/mp3',
     'audio/ogg',
     'audio/opus',
     'audio/amr',
     'audio/webm',
+    'audio/wav',
+    'audio/x-wav',
+    'audio/x-m4a',
+    'audio/flac',
+    'audio/3gpp',
     'application/pdf',
     'text/plain',
     'text/csv',
@@ -850,6 +859,20 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     this.mediaPanY = 0;
   }
 
+  openVideoFullscreen(message: WaMessage, event?: Event): void {
+    event?.stopPropagation();
+    const src = this.mediaUrlFor(message);
+    if (!src) return;
+    this.videoPreview = {
+      src,
+      name: message.fileName || 'Video',
+    };
+  }
+
+  closeVideoFullscreen(): void {
+    this.videoPreview = undefined;
+  }
+
   onMediaWheel(event: WheelEvent): void {
     event.preventDefault();
     const delta = event.deltaY > 0 ? -0.1 : 0.1;
@@ -1174,6 +1197,61 @@ copyMessageText(message: WaMessage): void {
   navigator.clipboard.writeText(text);
   this.sendError = '';
   this.messageMenu = undefined;
+}
+
+async copyMessageImage(message: WaMessage): Promise<void> {
+  const src = this.mediaUrlFor(message);
+  this.messageMenu = undefined;
+  if (!src) return;
+  try {
+    const blob = await this.imageBlobFromUrl(src);
+    if (!blob) throw new Error('no-blob');
+    await this.writeClipboardImage(blob);
+    this.showToast('Imagen copiada al portapapeles', 'ok');
+  } catch {
+    try {
+      const blob = await this.imageBlobViaCanvas(src);
+      if (!blob) throw new Error('no-blob');
+      await this.writeClipboardImage(blob);
+      this.showToast('Imagen copiada al portapapeles', 'ok');
+    } catch {
+      this.showToast('No se pudo copiar la imagen', 'error');
+    }
+  }
+}
+
+private async imageBlobFromUrl(url: string): Promise<Blob | null> {
+  const resp = await fetch(url);
+  if (!resp.ok) return null;
+  const blob = await resp.blob();
+  return blob.type.startsWith('image/') ? blob : null;
+}
+
+private async imageBlobViaCanvas(url: string): Promise<Blob | null> {
+  const img = new Image();
+  img.src = url;
+  await img.decode();
+  const canvas = document.createElement('canvas');
+  canvas.width = img.naturalWidth || 300;
+  canvas.height = img.naturalHeight || 300;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.drawImage(img, 0, 0);
+  return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+}
+
+private async writeClipboardImage(blob: Blob): Promise<void> {
+  if (typeof ClipboardItem === 'undefined') throw new Error('no-clipboard-item');
+  await navigator.clipboard.write([
+    new ClipboardItem({ [blob.type || 'image/png']: blob }),
+  ]);
+}
+
+private showToast(message: string, type: 'ok' | 'error' = 'ok', ms = 3000): void {
+  this.toastMessage = message;
+  this.toastType = type;
+  if (this.toastTimer) clearTimeout(this.toastTimer);
+  this.toastTimer = setTimeout(() => (this.toastMessage = ''), ms);
 }
 
 startReply(message: WaMessage): void {
@@ -1528,9 +1606,9 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     }
 
     this.clearSelectedFile(false);
-    this.selectedFile = file;
-    this.selectedFileKind = this.fileKind(file);
-    this.selectedFilePreviewUrl = URL.createObjectURL(file);
+    this.selectedFile = this.normalizeAudioFile(file);
+    this.selectedFileKind = this.fileKind(this.selectedFile);
+    this.selectedFilePreviewUrl = URL.createObjectURL(this.selectedFile);
     this.sendError = '';
   }
 
@@ -2370,10 +2448,37 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
 
   private isAllowedUpload(file: File): boolean {
     const mimeType = this.normalizeMimeType(file.type);
+    const audioMime = this.audioMimeFromExtension(file.name);
+    if (
+      audioMime &&
+      (!mimeType || !this.allowedUploadTypes.includes(mimeType))
+    ) {
+      return true;
+    }
     if (!this.allowedUploadTypes.includes(mimeType)) return false;
     const ext = this.extensionFromName(file.name);
     const expected = this.extensionForMime(mimeType);
     return !expected || !ext || ext === expected || this.isCompatibleExtension(mimeType, ext);
+  }
+
+  private audioMimeFromExtension(name = ''): string {
+    const map: Record<string, string> = {
+      '.mp3': 'audio/mpeg',
+      '.m4a': 'audio/mp4',
+      '.aac': 'audio/aac',
+      '.ogg': 'audio/ogg',
+      '.opus': 'audio/opus',
+      '.wav': 'audio/wav',
+      '.amr': 'audio/amr',
+      '.flac': 'audio/flac',
+    };
+    return map[this.extensionFromName(name)] ?? '';
+  }
+
+  private normalizeAudioFile(file: File): File {
+    const audioMime = this.audioMimeFromExtension(file.name);
+    if (!audioMime || this.normalizeMimeType(file.type) === audioMime) return file;
+    return new File([file], file.name, { type: audioMime });
   }
 
   private normalizeMimeType(value = ''): string {

@@ -71,6 +71,27 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return this.allAdvisors.filter(a => a.advisorId !== this.currentAdvisor?.id);
   }
 
+  private isSelfAdvisor(adv: ConnectedAdvisor): boolean {
+    return adv.advisorId === this.currentAdvisor?.id;
+  }
+
+  advisorRingClass(adv: ConnectedAdvisor): string {
+    if (this.isSelfAdvisor(adv)) return this.enAlmuerzo ? 'lunch' : this.advisorStatus;
+    return adv.enAlmuerzo ? 'lunch' : (adv.status as 'online' | 'busy' | 'offline');
+  }
+
+  advisorStatusValue(adv: ConnectedAdvisor): 'online' | 'busy' | 'offline' {
+    if (this.isSelfAdvisor(adv)) return this.advisorStatus;
+    return (adv.status as 'online' | 'busy' | 'offline') ?? 'offline';
+  }
+
+  advisorStatusText(adv: ConnectedAdvisor): string {
+    const onLunch = this.isSelfAdvisor(adv) ? this.enAlmuerzo : adv.enAlmuerzo;
+    if (onLunch) return 'En almuerzo';
+    const status = this.advisorStatusValue(adv);
+    return status === 'online' ? 'Disponible' : status === 'busy' ? 'Ocupado' : 'Inactivo';
+  }
+
   enAlmuerzo = false;
   almuerzoPendiente = false;
   almuerzoModalVisible = true;

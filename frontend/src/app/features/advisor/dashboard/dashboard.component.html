@@ -262,9 +262,9 @@
                 @if (i < maxVisibleCapsules) {
                 <div class="capsule" [class.capsule-self]="adv.advisorId === currentAdvisor?.id"
                      [style.z-index]="maxVisibleCapsules - i"
-                     [title]="adv.name + ' — ' + (adv.enAlmuerzo ? 'En almuerzo' : adv.status === 'online' ? 'Disponible' : adv.status === 'busy' ? 'Ocupado' : 'Inactivo')">
+                     [title]="adv.name + ' — ' + advisorStatusText(adv)">
                   <div class="capsule-ring"
-                       [ngClass]="'ring-' + (adv.enAlmuerzo ? 'lunch' : adv.status)">
+                       [ngClass]="'ring-' + advisorRingClass(adv)">
                     <div class="capsule-avatar">
                       @if (adv.profilePhotoUrl) {
                       <img [src]="adv.profilePhotoUrl" [alt]="adv.name" class="capsule-img" />
@@ -297,7 +297,7 @@
               @for (adv of allAdvisors; track adv.advisorId) {
               <div class="team-row" [class.team-row-self]="adv.advisorId === currentAdvisor?.id">
                 <div class="team-avatar"
-                     [ngClass]="'ring-' + (adv.enAlmuerzo ? 'lunch' : adv.status)">
+                     [ngClass]="'ring-' + advisorRingClass(adv)">
                   @if (adv.profilePhotoUrl) {
                   <img [src]="adv.profilePhotoUrl" [alt]="adv.name" class="team-avatar-img" />
                   } @else {
@@ -306,11 +306,11 @@
                 </div>
                 <div class="team-info">
                   <span class="team-name">{{ adv.name }}</span>
-                  <span class="team-status">{{ adv.enAlmuerzo ? 'En almuerzo' : adv.status === 'online' ? 'Disponible' : adv.status === 'busy' ? 'Ocupado' : 'Inactivo' }}</span>
+                  <span class="team-status">{{ advisorStatusText(adv) }}</span>
                 </div>
-                <span class="team-dot" [class.online]="adv.status === 'online'"
-                      [class.busy]="adv.status === 'busy'"
-                      [class.offline]="adv.status === 'offline'"></span>
+                <span class="team-dot" [class.online]="advisorStatusValue(adv) === 'online'"
+                      [class.busy]="advisorStatusValue(adv) === 'busy'"
+                      [class.offline]="advisorStatusValue(adv) === 'offline'"></span>
                 @if (adv.advisorId === currentAdvisor?.id) {
                 <span class="team-badge">Tú</span>
                 }

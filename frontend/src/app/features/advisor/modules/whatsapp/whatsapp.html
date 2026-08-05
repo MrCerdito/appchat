@@ -48,6 +48,17 @@
     </figure>
   </div>
   }
+  @if (videoPreview) {
+  <div class="video-backdrop" (click)="closeVideoFullscreen()">
+    <div class="video-viewer" (click)="$event.stopPropagation()">
+      <video [src]="videoPreview.src" controls autoplay playsinline></video>
+      <figcaption>{{ videoPreview.name }}</figcaption>
+      <button type="button" class="icon-action" (click)="closeVideoFullscreen()" title="Cerrar">
+        <wa-icon name="x"></wa-icon>
+      </button>
+    </div>
+  </div>
+  }
   @if (showWhatsappSettings) {
   <section class="settings-modal">
     <header>
@@ -665,7 +676,10 @@
                 />
               }
               @case ('video') {
-                <video class="media-video" [src]="mediaUrlFor(msg)" controls playsinline></video>
+                <div class="media-video-wrap" (click)="openVideoFullscreen(msg, $event)">
+                  <video class="media-video" [src]="mediaUrlFor(msg)" preload="metadata" playsinline></video>
+                  <span class="video-play-badge"><wa-icon name="player-play"></wa-icon></span>
+                </div>
               }
               @case ('audio') {
                 <wa-voice-player [src]="mediaUrlFor(msg)" [out]="msg.fromMe" [avatar]="voiceAvatar(contact, msg.fromMe)"></wa-voice-player>
@@ -951,7 +965,7 @@
           #docInput
           type="file"
           class="file-input"
-          accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
+          accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,audio/*"
           (change)="onFileSelected($event)"
         />
         <input
@@ -1348,6 +1362,12 @@
       Copiar
     </button>
     }
+    @if (messageMenu.message.type === 'image' && messageMenu.message.mediaUrl) {
+    <button type="button" (click)="copyMessageImage(messageMenu.message)">
+      <wa-icon name="copy"></wa-icon>
+      Copiar imagen
+    </button>
+    }
     <button type="button" class="danger" (click)="deleteMessage(messageMenu.message)">
       <wa-icon name="trash"></wa-icon>
       Eliminar
@@ -1453,6 +1473,10 @@
   <!-- ── Toast flotante asignación / forward ───────────── -->
   @if (assignmentToast) {
   <div class="toast-floating toast-ok">{{ assignmentToast }}</div>
+  }
+  @if (toastMessage) {
+  <div class="toast-floating" [class.toast-ok]="toastType === 'ok'"
+       [class.toast-error]="toastType === 'error'">{{ toastMessage }}</div>
   }
 
   <!-- Compact filter dropdown — outside sidebar to avoid overflow:hidden -->
