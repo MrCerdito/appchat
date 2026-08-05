@@ -312,6 +312,14 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     'application/vnd.ms-powerpoint',
     'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'application/zip',
+    'application/x-zip-compressed',
+    'application/zip-compressed',
+    'application/vnd.rar',
+    'application/x-rar-compressed',
+    'application/x-rar',
+    'application/x-7z-compressed',
+    'application/x-compressed',
   ]);
 
   constructor(
@@ -997,8 +1005,8 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
   }
 
   async listChats(
-    _advisorId: string,
-    _role: string,
+    advisorId: string,
+    role: string,
     page?: number,
     limit?: number,
   ): Promise<
@@ -1009,6 +1017,15 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       .leftJoinAndSelect('chat.assignedAdvisor', 'advisor')
       .leftJoinAndSelect('chat.fixedAdvisor', 'fixedAdvisor')
       .orderBy('chat.lastMessageAt', 'DESC');
+
+    // Restricción por asesor: cada asesor ve sus chats asignados/fijos y la cola
+    // (chats sin asesor). Los admins ven todos los chats.
+    if (role !== 'admin') {
+      qb.andWhere(
+        '(advisor.id = :advisorId OR fixedAdvisor.id = :advisorId OR advisor.id IS NULL)',
+        { advisorId },
+      );
+    }
 
     const isPaginated = page !== undefined && limit !== undefined;
 
@@ -3658,15 +3675,17 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
 
   private assertAllowedMedia(file: Express.Multer.File): void {
     const mimeType = this.normalizeMimeType(file.mimetype);
-    if (!this.allowedMediaMimes.has(mimeType)) {
+    const ext = extname(
+      sanitizeFileName(file.originalname, mimeType),
+    ).toLowerCase();
+    const allowedByExt =
+      this.isArchiveFileExt(ext) &&
+      (mimeType === 'application/octet-stream' || mimeType === '');
+    if (!this.allowedMediaMimes.has(mimeType) && !allowedByExt) {
       throw new BadRequestException(
         'Tipo de archivo no permitido para WhatsApp',
       );
     }
-
-    const ext = extname(
-      sanitizeFileName(file.originalname, mimeType),
-    ).toLowerCase();
     const expected = this.extFromMime(mimeType);
     if (
       expected &&
@@ -3678,6 +3697,10 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
         'La extension del archivo no coincide con su contenido',
       );
     }
+  }
+
+  private isArchiveFileExt(ext = ''): boolean {
+    return ['.zip', '.rar', '.7z'].includes(ext);
   }
 
   private normalizeMimeType(mimeType = ''): string {

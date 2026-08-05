@@ -126,6 +126,12 @@ export class SessionsController {
     return this.sessionsService.findAll(req.user.id);
   }
 
+  @Get('mine')
+  @UseGuards(JwtAuthGuard)
+  findAllMine(@Request() req: any) {
+    return this.sessionsService.findAllMine(req.user.id);
+  }
+
   @Get('paginated')
   @UseGuards(JwtAuthGuard)
   findAllPaginated(

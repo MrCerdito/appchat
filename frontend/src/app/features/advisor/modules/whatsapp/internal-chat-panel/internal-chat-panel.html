@@ -114,13 +114,16 @@
         @if (msg.type === 'system') {
         <div class="ic-system-line">{{ msg.body }}</div>
         } @else if (msg.deletedAt) {
-        <div class="ic-bubble deleted" (contextmenu)="onContextMenu($event, msg)">
-          <p>Mensaje eliminado</p>
+        <div class="ic-bubble-wrap">
+          <div class="ic-bubble deleted" (contextmenu)="onContextMenu($event, msg)">
+            <p>Mensaje eliminado</p>
+          </div>
           <div class="ic-bubble-meta">
             <span>{{ messageTime(msg) }}</span>
           </div>
         </div>
         } @else {
+        <div class="ic-bubble-wrap">
         <div
           class="ic-bubble"
           [class.voice-bubble]="msg.type === 'audio'"
@@ -194,18 +197,8 @@
           }
 
           @if (msg.body) {
-          <p class="ic-body">{{ msg.body }}</p>
+          <p class="ic-body" [innerHTML]="formatMessage(msg.body)"></p>
           }
-
-          <div class="ic-bubble-meta">
-            @if (msg.editedAt) {
-            <em [title]="editedLabel(msg)">Editado</em>
-            }
-            <span [title]="msg.editedAt ? editedLabel(msg) : ''">{{ messageTime(msg) }}</span>
-            @if (messageOwn(msg)) {
-            <wa-icon class="ic-meta-tick" [name]="msg.pending ? 'loader-2' : 'checks'" [class.is-pending]="!!msg.pending"></wa-icon>
-            }
-          </div>
 
           @if (msg.reactions.length > 0) {
           <div class="ic-reactions">
@@ -223,6 +216,16 @@
             }
           </div>
           }
+        </div>
+        <div class="ic-bubble-meta">
+          @if (msg.editedAt) {
+          <em [title]="editedLabel(msg)">Editado</em>
+          }
+          <span [title]="msg.editedAt ? editedLabel(msg) : ''">{{ messageTime(msg) }}</span>
+          @if (messageOwn(msg)) {
+          <wa-icon class="ic-meta-tick" [name]="msg.pending ? 'loader-2' : 'checks'" [class.is-pending]="!!msg.pending"></wa-icon>
+          }
+        </div>
         </div>
         }
       </div>
@@ -298,8 +301,8 @@
     </div>
     }
 
-    <footer class="ic-input">
-      <input #fileInput type="file" hidden (change)="onFileSelected($event, 'file')" />
+    <footer class="ic-input" (paste)="onChatPaste($event)">
+      <input #fileInput type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z,audio/*" hidden (change)="onFileSelected($event, 'file')" />
       <input #imageInput type="file" accept="image/*" hidden (change)="onFileSelected($event, 'image')" />
       <input #videoInput type="file" accept="video/*" hidden (change)="onFileSelected($event, 'video')" />
       <div class="ic-attach-wrap">
@@ -471,9 +474,27 @@
   }
 
   @if (imagePreviewUrl) {
-  <div class="ic-backdrop viewer" (click)="closeImage()">
-    <figure class="ic-viewer" (click)="$event.stopPropagation()">
-      <img [src]="imagePreviewUrl" [alt]="imagePreviewName" />
+  <div class="ic-backdrop viewer"
+       (click)="closeImage()"
+       (wheel)="onMediaWheel($event)"
+       (touchstart)="onMediaTouchStart($event)"
+       (touchmove)="onMediaTouchMove($event)"
+       (touchend)="onMediaTouchEnd()">
+    <figure class="ic-viewer"
+            [class.dragging]="isMediaDragging"
+            (click)="$event.stopPropagation()"
+            (mousedown)="onMediaMouseDown($event)"
+            (mousemove)="onMediaMouseMove($event)"
+            (mouseup)="onMediaMouseUp()"
+            (mouseleave)="onMediaMouseUp()"
+            (dblclick)="onMediaDblClick($event)">
+      <img
+        #mediaImage
+        [src]="imagePreviewUrl"
+        [alt]="imagePreviewName"
+        [style.transform]="'scale(' + mediaZoom + ') translate(' + mediaPanX + 'px, ' + mediaPanY + 'px)'"
+      />
+      <div class="media-zoom-info">{{ (mediaZoom * 100).toFixed(0) }}%</div>
       <figcaption>{{ imagePreviewName }}</figcaption>
       <button type="button" class="ic-modal-close" (click)="closeImage()" title="Cerrar">
         <wa-icon name="x"></wa-icon>

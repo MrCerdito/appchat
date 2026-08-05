@@ -97,6 +97,9 @@ export class AdvisorsWhatsappGateway
         role: payload.role,
       };
       client.join(this.advisorRoom(payload.sub));
+      if (payload.role === 'admin') {
+        client.join('admins');
+      }
       this.addAdvisorSocket(payload.sub, client.id);
       this.whatsappService.setConnectedAdvisorIds(
         this.getConnectedAdvisorIds(),
@@ -191,7 +194,7 @@ export class AdvisorsWhatsappGateway
           'aw_new_message',
           result.message,
         );
-        this.server.emit('aw_new_message', result.message);
+        this.emitToAdmins('aw_new_message', result.message);
       }
       this.emitAssignments([result.assignment]);
       return;
@@ -204,17 +207,18 @@ export class AdvisorsWhatsappGateway
           'aw_new_message',
           result.message,
         );
-        this.server.emit('aw_new_message', result.message);
+        this.emitToAdmins('aw_new_message', result.message);
       }
       this.emitToAdvisor(
         result.assignedAdvisorId,
         'aw_chat_updated',
         result.chat,
       );
-      this.server.emit('aw_chat_updated', result.chat);
+      this.emitToAdmins('aw_chat_updated', result.chat);
       return;
     }
 
+    // Chat sin asesor asignado: permanece en la cola, visible para todos.
     this.server.emit('aw_chat_updated', result.chat);
     if (result.message) {
       this.server.emit('aw_new_message', result.message);
@@ -239,14 +243,14 @@ export class AdvisorsWhatsappGateway
         'aw_chat_updated',
         assignment.chat,
       );
-      this.server.emit('aw_chat_updated', assignment.chat);
+      this.emitToAdmins('aw_chat_updated', assignment.chat);
       if (assignment.autoMessage) {
         this.emitToAdvisor(
           assignment.advisorId,
           'aw_new_message',
           assignment.autoMessage,
         );
-        this.server.emit('aw_new_message', assignment.autoMessage);
+        this.emitToAdmins('aw_new_message', assignment.autoMessage);
       }
     }
     if (assignments.length) {
@@ -260,17 +264,33 @@ export class AdvisorsWhatsappGateway
   ) {
     if (advisorId) {
       this.emitToAdvisor(advisorId, 'aw_message_status', payload);
+      this.emitToAdmins('aw_message_status', payload);
     } else {
       this.server.emit('aw_message_status', payload);
     }
   }
 
   emitChatUpdated(chat: unknown) {
-    this.server.emit('aw_chat_updated', chat);
+    const anyChat = chat as {
+      assignedTo?: string;
+      assignedAdvisor?: { id?: string };
+    };
+    const advisorId = anyChat?.assignedTo ?? anyChat?.assignedAdvisor?.id;
+    if (advisorId) {
+      this.emitToAdvisor(advisorId, 'aw_chat_updated', chat);
+      this.emitToAdmins('aw_chat_updated', chat);
+    } else {
+      // Chat sin asesor (cola) — visible para todos.
+      this.server.emit('aw_chat_updated', chat);
+    }
   }
 
   private emitToAdvisor(advisorId: string, event: string, payload: unknown) {
     this.server.to(this.advisorRoom(advisorId)).emit(event, payload);
+  }
+
+  private emitToAdmins(event: string, payload: unknown) {
+    this.server.to('admins').emit(event, payload);
   }
 
   private advisorRoom(advisorId: string) {

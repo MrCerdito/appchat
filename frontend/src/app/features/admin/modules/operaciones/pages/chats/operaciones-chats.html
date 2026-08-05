@@ -315,20 +315,20 @@
                   </div>
                   }
                   @if (shouldShowMessageBody(msg)) {
-                  <span class="wa-bubble-text">{{ msg.texto }}</span>
+                  <span class="wa-bubble-text" [innerHTML]="formatMessage(msg.texto)"></span>
                   }
                 }
-                <div class="wa-bubble-meta">
-                  <span class="wa-bubble-time">{{ msg.hora }}</span>
-                  @if (msg.editedAt) {
-                  <em class="wa-bubble-edited">editado</em>
-                  }
-                  @if (msg.tipo === 'enviado') {
-                  <svg class="wa-bubble-check" viewBox="0 0 16 11" fill="currentColor">
-                    <path d="M11.07.65l-5.93 6.2L2.45 4.3l-1.1 1.1 3.08 3.3.7.8.8-.8 6.32-6.6L11.07.65z"/>
-                  </svg>
-                  }
-                </div>
+              </div>
+              <div class="wa-bubble-meta">
+                <span class="wa-bubble-time">{{ msg.hora }}</span>
+                @if (msg.editedAt) {
+                <em class="wa-bubble-edited">editado</em>
+                }
+                @if (msg.tipo === 'enviado') {
+                <svg class="wa-bubble-check" viewBox="0 0 16 11" fill="currentColor">
+                  <path d="M11.07.65l-5.93 6.2L2.45 4.3l-1.1 1.1 3.08 3.3.7.8.8-.8 6.32-6.6L11.07.65z"/>
+                </svg>
+                }
               </div>
               @if (messageReactions(msg).length) {
               <div class="wa-reactions-pill" [class.mine]="ownReactionEmoji(msg) !== ''" (click)="$event.stopPropagation(); toggleReactions(msg)">
@@ -350,7 +350,7 @@
           }
         </div>
 
-        <div class="wa-input-area">
+        <div class="wa-input-area" (paste)="onChatPaste($event)">
           @if (replyingTo) {
           <div class="wa-reply-bar">
             <div class="wa-quoted-block">
@@ -405,8 +405,8 @@
 
           <input #imageInput type="file" class="wa-file-input" accept="image/*" (change)="onFileSelected($event, 'image')" />
           <input #videoInput type="file" class="wa-file-input" accept="video/mp4,video/3gpp" (change)="onFileSelected($event, 'video')" />
-          <input #docInput type="file" class="wa-file-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv" (change)="onFileSelected($event, 'file')" />
-          <input #fileInput type="file" class="wa-file-input" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv" (change)="onFileSelected($event, 'file')" />
+          <input #docInput type="file" class="wa-file-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z" (change)="onFileSelected($event, 'file')" />
+          <input #fileInput type="file" class="wa-file-input" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z" (change)="onFileSelected($event, 'file')" />
 
           <button class="wa-input-btn" title="Emoji">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

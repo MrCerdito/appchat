@@ -1,6 +1,6 @@
 import {
   Component, OnInit, OnDestroy, ViewChild,
-  ElementRef, ChangeDetectorRef, ChangeDetectionStrategy
+  ElementRef, ChangeDetectorRef, ChangeDetectionStrategy, HostListener
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -16,7 +16,7 @@ import { ChatMediaService } from '../../../../core/services/chat-media.service';
 import { Message, Attachment } from '../../../../core/models/message.model';
 import { Session } from '../../../../core/models/session.model';
 import { User } from '../../../../core/models/user.model';
-import { Subject, firstValueFrom } from 'rxjs';
+import { Subject, Observable, firstValueFrom } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AiService } from '../../../../core/services/ai.service';
@@ -24,6 +24,7 @@ import { ConfiguracionFrontendService } from '../../../../core/services/configur
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
 import { priorityLabel } from '../../../../shared/utils/ticket-categories';
 import { scrollToBottom } from '../../../../shared/utils/scroll';
+import { normalizeUploadFile } from '../../../../shared/utils/media';
 import { relativeTime, fmtTime, fmtMedium, sameBogotaDay, isTodayBogota, isYesterdayBogota } from '../../../../shared/utils/date';
 import { Ticket } from '../../../../core/models/ticket.model';
 import {
@@ -120,6 +121,16 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
 
   // Image lightbox
   imagePreview: { src: string; name: string } | null = null;
+  mediaZoom = 1;
+  mediaPanX = 0;
+  mediaPanY = 0;
+  isMediaDragging = false;
+  @ViewChild('mediaImage') mediaImage?: ElementRef<HTMLImageElement>;
+  private mediaDragStartX = 0;
+  private mediaDragStartY = 0;
+  private mediaDragPanX = 0;
+  private mediaDragPanY = 0;
+  private mediaPinchDist = 0;
 
   // ★ Timer persistente por sessionId
   private timerMap = new Map<string, TimerPanelState>();
@@ -333,13 +344,26 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
       this.joinSession(target);
     } else {
       // Si aún no está en la lista, recargar explícitamente
-      this.sessionService.findAllAdmin().subscribe({
+      this.loadSessionsForRole().subscribe({
         next: (sessions) => {
           this.sessions = sessions;
           sessions.filter(s => s.status === 'active' || s.status === 'waiting')
                   .forEach(s => this.joinRoom(s.id));
           const joined = sessions.find(s => s.id === sessionId);
-          if (joined) this.joinSession(joined);
+          if (joined) {
+            this.joinSession(joined);
+          } else {
+            // Puede ser un chat de otro asesor al que entramos por apoyo
+            this.sessionService.findOne(sessionId).subscribe({
+              next: (s) => {
+                this.mergeSession(s);
+                this.collaboratorSessions.add(s.id);
+                this.joinRoom(s.id);
+                this.joinSession(s);
+              },
+              error: () => this.cdr.detectChanges(),
+            });
+          }
           this.cdr.detectChanges();
         },
         error: (err) => console.error('HTTP Error:', err),
@@ -361,19 +385,12 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
         // Marcamos esta sesión como "apoyo" (puede escribir en chats de otros)
         this.collaboratorSessions.add(data.sessionId);
         // Recargar lista para incluir el nuevo chat
-          this.sessionService.findAllAdmin().subscribe({
-            next: (sessions) => {
-              this.sessions = sessions;
-              sessions
-                .filter(s => s.status === 'active' || s.status === 'waiting')
-                .forEach(s => this.joinRoom(s.id));
-
-              // Abrir automáticamente el chat al que se unió
-              const joined = sessions.find(s => s.id === data.sessionId);
-              if (joined) {
-                this.joinSession(joined);
-              }
-
+          this.loadSessions();
+          this.sessionService.findOne(data.sessionId).subscribe({
+            next: (joined) => {
+              this.mergeSession(joined);
+              this.joinRoom(joined.id);
+              this.joinSession(joined);
               this.cdr.detectChanges();
             },
             error: (err) => console.error('HTTP Error:', err),
@@ -678,8 +695,21 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
 
   // ── Supervisor: tomar chat de otro asesor ─────────────────────────────────
   // ── Carga de datos ────────────────────────────────────────────────────────
+  private loadSessionsForRole(): Observable<Session[]> {
+    return this.currentAdvisor?.role === 'admin'
+      ? this.sessionService.findAllAdmin()
+      : this.sessionService.findAllMine();
+  }
+
+  private mergeSession(session: Session): void {
+    const idx = this.sessions.findIndex(s => s.id === session.id);
+    this.sessions = idx === -1
+      ? [session, ...this.sessions]
+      : this.sessions.map((s, i) => (i === idx ? session : s));
+  }
+
   loadSessions(openSessionId = ''): void {
-    this.sessionService.findAllAdmin().subscribe({
+    this.loadSessionsForRole().subscribe({
       next: (sessions) => {
         this.state.reconcileSessions(sessions);
         this.sessions = sessions;
@@ -907,7 +937,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     this.advisorFileInput?.nativeElement?.click();
   }
 
-  onFilesSelected(event: Event): void {
+  async onFilesSelected(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     if (!input.files?.length) return;
 
@@ -918,12 +948,13 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
         continue;
       }
 
-      const entry: typeof this.previewFiles[0] = { file, preview: null, uploading: false, error: null };
+      const normalized = await normalizeUploadFile(file);
+      const entry: typeof this.previewFiles[0] = { file: normalized, preview: null, uploading: false, error: null };
 
-      if (this.chatMedia.isImage(file.type)) {
+      if (this.chatMedia.isImage(normalized.type)) {
         const reader = new FileReader();
         reader.onload = () => { entry.preview = reader.result as string; this.cdr.detectChanges(); };
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(normalized);
       }
 
       this.previewFiles.push(entry);
@@ -931,6 +962,40 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
 
     input.value = '';
     this.cdr.detectChanges();
+  }
+
+  onChatPaste(event: ClipboardEvent): void {
+    const items = event.clipboardData?.items;
+    if (!items) return;
+
+    const files: File[] = [];
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.kind === 'file' && item.type.startsWith('image/')) {
+        const f = item.getAsFile();
+        if (f) files.push(f);
+      }
+    }
+    if (files.length === 0) return;
+
+    event.preventDefault();
+    for (const file of files) {
+      const error = this.chatMedia.validate(file);
+      if (error) {
+        this.notification.error('Archivo no permitido', error);
+        continue;
+      }
+      void normalizeUploadFile(file).then((normalized) => {
+        const entry: typeof this.previewFiles[0] = { file: normalized, preview: null, uploading: false, error: null };
+        if (this.chatMedia.isImage(normalized.type)) {
+          const reader = new FileReader();
+          reader.onload = () => { entry.preview = reader.result as string; this.cdr.detectChanges(); };
+          reader.readAsDataURL(normalized);
+        }
+        this.previewFiles.push(entry);
+        this.cdr.detectChanges();
+      });
+    }
   }
 
   onVoiceFileReady(result: VoiceRecordingResult): void {
@@ -1052,10 +1117,135 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
 
   openImagePreview(src: string, name: string): void {
     this.imagePreview = { src, name };
+    this.mediaZoom = 1;
+    this.mediaPanX = 0;
+    this.mediaPanY = 0;
+    this.isMediaDragging = false;
   }
 
   closeImagePreview(): void {
     this.imagePreview = null;
+    this.mediaZoom = 1;
+    this.mediaPanX = 0;
+    this.mediaPanY = 0;
+    this.isMediaDragging = false;
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    if (this.imagePreview) this.closeImagePreview();
+  }
+
+  onMediaWheel(event: WheelEvent): void {
+    event.preventDefault();
+    const delta = event.deltaY > 0 ? -0.1 : 0.1;
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    const ratioX = (mouseX - centerX) / centerX;
+    const ratioY = (mouseY - centerY) / centerY;
+    const newZoom = Math.max(0.25, Math.min(10, this.mediaZoom + delta));
+    const scale = newZoom / this.mediaZoom;
+    this.mediaPanX = ratioX * (centerX * (1 - scale)) + this.mediaPanX * scale;
+    this.mediaPanY = ratioY * (centerY * (1 - scale)) + this.mediaPanY * scale;
+    this.mediaZoom = newZoom;
+    this.clampMediaPan();
+  }
+
+  onMediaMouseDown(event: MouseEvent): void {
+    if (this.mediaZoom <= 1) return;
+    this.isMediaDragging = true;
+    this.mediaDragStartX = event.clientX;
+    this.mediaDragStartY = event.clientY;
+    this.mediaDragPanX = this.mediaPanX;
+    this.mediaDragPanY = this.mediaPanY;
+  }
+
+  onMediaMouseMove(event: MouseEvent): void {
+    if (!this.isMediaDragging) return;
+    this.mediaPanX = this.mediaDragPanX + (event.clientX - this.mediaDragStartX);
+    this.mediaPanY = this.mediaDragPanY + (event.clientY - this.mediaDragStartY);
+    this.clampMediaPan();
+  }
+
+  onMediaMouseUp(): void {
+    this.isMediaDragging = false;
+  }
+
+  onMediaDblClick(event: MouseEvent): void {
+    event.preventDefault();
+    if (this.mediaZoom > 1.5) {
+      this.mediaZoom = 1;
+      this.mediaPanX = 0;
+      this.mediaPanY = 0;
+    } else {
+      const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+      const mouseX = event.clientX - rect.left;
+      const mouseY = event.clientY - rect.top;
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      const newZoom = 3;
+      const scale = newZoom / (this.mediaZoom || 1);
+      this.mediaPanX = ((mouseX - centerX) / centerX) * (centerX * (1 - scale)) + this.mediaPanX * scale;
+      this.mediaPanY = ((mouseY - centerY) / centerY) * (centerY * (1 - scale)) + this.mediaPanY * scale;
+      this.mediaZoom = newZoom;
+    }
+    this.clampMediaPan();
+  }
+
+  onMediaTouchStart(event: TouchEvent): void {
+    if (event.touches.length === 1) {
+      this.isMediaDragging = true;
+      this.mediaDragStartX = event.touches[0].clientX;
+      this.mediaDragStartY = event.touches[0].clientY;
+      this.mediaDragPanX = this.mediaPanX;
+      this.mediaDragPanY = this.mediaPanY;
+    } else if (event.touches.length === 2) {
+      this.isMediaDragging = false;
+      this.mediaPinchDist = Math.hypot(
+        event.touches[0].clientX - event.touches[1].clientX,
+        event.touches[0].clientY - event.touches[1].clientY,
+      );
+    }
+  }
+
+  onMediaTouchMove(event: TouchEvent): void {
+    event.preventDefault();
+    if (event.touches.length === 1 && this.isMediaDragging) {
+      this.mediaPanX = this.mediaDragPanX + (event.touches[0].clientX - this.mediaDragStartX);
+      this.mediaPanY = this.mediaDragPanY + (event.touches[0].clientY - this.mediaDragStartY);
+      this.clampMediaPan();
+    } else if (event.touches.length === 2) {
+      const dist = Math.hypot(
+        event.touches[0].clientX - event.touches[1].clientX,
+        event.touches[0].clientY - event.touches[1].clientY,
+      );
+      const delta = (dist - this.mediaPinchDist) * 0.01;
+      this.mediaZoom = Math.max(0.25, Math.min(10, this.mediaZoom + delta));
+      this.mediaPinchDist = dist;
+      this.clampMediaPan();
+    }
+  }
+
+  onMediaTouchEnd(): void {
+    this.isMediaDragging = false;
+  }
+
+  private clampMediaPan(): void {
+    const img = this.mediaImage?.nativeElement;
+    const box = img?.parentElement;
+    if (!img || !box) return;
+    const zoom = this.mediaZoom;
+    const maxX = img.offsetWidth * zoom > box.clientWidth
+      ? (img.offsetWidth * zoom - box.clientWidth) / (2 * zoom)
+      : 0;
+    const maxY = img.offsetHeight * zoom > box.clientHeight
+      ? (img.offsetHeight * zoom - box.clientHeight) / (2 * zoom)
+      : 0;
+    this.mediaPanX = Math.min(Math.max(this.mediaPanX, -maxX), maxX);
+    this.mediaPanY = Math.min(Math.max(this.mediaPanY, -maxY), maxY);
   }
 
   formatMessage(text: string): SafeHtml {

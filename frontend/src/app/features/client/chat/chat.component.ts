@@ -1,6 +1,6 @@
 import {
   Component, OnInit, OnDestroy, ViewChild,
-  ElementRef, ChangeDetectorRef, ChangeDetectionStrategy
+  ElementRef, ChangeDetectorRef, ChangeDetectionStrategy, HostListener
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -18,6 +18,7 @@ import { environment } from '../../../../environments/environment';
 import { HttpClient } from '@angular/common/http';
 import { trackByIndex, trackById } from '../../../shared/utils/track-by';
 import { scrollToBottom } from '../../../shared/utils/scroll';
+import { normalizeUploadFile } from '../../../shared/utils/media';
 import { FaqComponent } from '../faq/faq.component';
 import { PqrsComponent } from '../pqrs/pqrs.component';
 import { ToastContainerComponent } from '../../../shared/components/toast-container.component';
@@ -179,6 +180,16 @@ get rolLabel(): string {
 
   // Image lightbox
   imagePreview: { src: string; name: string } | null = null;
+  mediaZoom = 1;
+  mediaPanX = 0;
+  mediaPanY = 0;
+  isMediaDragging = false;
+  @ViewChild('mediaImage') mediaImage?: ElementRef<HTMLImageElement>;
+  private mediaDragStartX = 0;
+  private mediaDragStartY = 0;
+  private mediaDragPanX = 0;
+  private mediaDragPanY = 0;
+  private mediaPinchDist = 0;
 
   // ══════════════════════════════════════════════════════════════════════════
   // RATING
@@ -948,7 +959,7 @@ get rolLabel(): string {
     }
   }
 
-  onFilesSelected(event: Event): void {
+  async onFilesSelected(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     if (!input.files?.length) return;
 
@@ -959,17 +970,18 @@ get rolLabel(): string {
         continue;
       }
 
+      const normalized = await normalizeUploadFile(file);
       const entry: typeof this.previewFiles[0] = {
-        file,
+        file: normalized,
         preview: null,
         uploading: false,
         error: null,
       };
 
-      if (this.chatMedia.isImage(file.type)) {
+      if (this.chatMedia.isImage(normalized.type)) {
         const reader = new FileReader();
         reader.onload = () => { entry.preview = reader.result as string; this.cdr.detectChanges(); };
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(normalized);
       }
 
       this.previewFiles.push(entry);
@@ -1003,12 +1015,180 @@ get rolLabel(): string {
     this.notification.error('Nota de voz', message);
   }
 
+  onChatPaste(event: ClipboardEvent): void {
+    if (this.step !== 'chat' || this.sesionFinalizando) return;
+    const items = event.clipboardData?.items;
+    if (!items) return;
+
+    const files: File[] = [];
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.kind === 'file' && item.type.startsWith('image/')) {
+        const f = item.getAsFile();
+        if (f) files.push(f);
+      }
+    }
+    if (files.length === 0) return;
+
+    event.preventDefault();
+    this.cancelarTimerInactividadIa();
+    this.iniciarTimerInactividadIa();
+
+    for (const file of files) {
+      const error = this.chatMedia.validate(file);
+      if (error) {
+        this.notification.error('Archivo no permitido', error);
+        continue;
+      }
+      void normalizeUploadFile(file).then((normalized) => {
+        const entry: typeof this.previewFiles[0] = {
+          file: normalized,
+          preview: null,
+          uploading: false,
+          error: null,
+        };
+        if (this.chatMedia.isImage(normalized.type)) {
+          const reader = new FileReader();
+          reader.onload = () => { entry.preview = reader.result as string; this.cdr.detectChanges(); };
+          reader.readAsDataURL(normalized);
+        }
+        this.previewFiles.push(entry);
+        this.cdr.detectChanges();
+      });
+    }
+  }
+
   openImagePreview(src: string, name: string): void {
     this.imagePreview = { src, name };
+    this.mediaZoom = 1;
+    this.mediaPanX = 0;
+    this.mediaPanY = 0;
+    this.isMediaDragging = false;
   }
 
   closeImagePreview(): void {
     this.imagePreview = null;
+    this.mediaZoom = 1;
+    this.mediaPanX = 0;
+    this.mediaPanY = 0;
+    this.isMediaDragging = false;
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    if (this.imagePreview) this.closeImagePreview();
+  }
+
+  onMediaWheel(event: WheelEvent): void {
+    event.preventDefault();
+    const delta = event.deltaY > 0 ? -0.1 : 0.1;
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    const ratioX = (mouseX - centerX) / centerX;
+    const ratioY = (mouseY - centerY) / centerY;
+    const newZoom = Math.max(0.25, Math.min(10, this.mediaZoom + delta));
+    const scale = newZoom / this.mediaZoom;
+    this.mediaPanX = ratioX * (centerX * (1 - scale)) + this.mediaPanX * scale;
+    this.mediaPanY = ratioY * (centerY * (1 - scale)) + this.mediaPanY * scale;
+    this.mediaZoom = newZoom;
+    this.clampMediaPan();
+  }
+
+  onMediaMouseDown(event: MouseEvent): void {
+    if (this.mediaZoom <= 1) return;
+    this.isMediaDragging = true;
+    this.mediaDragStartX = event.clientX;
+    this.mediaDragStartY = event.clientY;
+    this.mediaDragPanX = this.mediaPanX;
+    this.mediaDragPanY = this.mediaPanY;
+  }
+
+  onMediaMouseMove(event: MouseEvent): void {
+    if (!this.isMediaDragging) return;
+    this.mediaPanX = this.mediaDragPanX + (event.clientX - this.mediaDragStartX);
+    this.mediaPanY = this.mediaDragPanY + (event.clientY - this.mediaDragStartY);
+    this.clampMediaPan();
+  }
+
+  onMediaMouseUp(): void {
+    this.isMediaDragging = false;
+  }
+
+  onMediaDblClick(event: MouseEvent): void {
+    event.preventDefault();
+    if (this.mediaZoom > 1.5) {
+      this.mediaZoom = 1;
+      this.mediaPanX = 0;
+      this.mediaPanY = 0;
+    } else {
+      const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+      const mouseX = event.clientX - rect.left;
+      const mouseY = event.clientY - rect.top;
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      const newZoom = 3;
+      const scale = newZoom / (this.mediaZoom || 1);
+      this.mediaPanX = ((mouseX - centerX) / centerX) * (centerX * (1 - scale)) + this.mediaPanX * scale;
+      this.mediaPanY = ((mouseY - centerY) / centerY) * (centerY * (1 - scale)) + this.mediaPanY * scale;
+      this.mediaZoom = newZoom;
+    }
+    this.clampMediaPan();
+  }
+
+  onMediaTouchStart(event: TouchEvent): void {
+    if (event.touches.length === 1) {
+      this.isMediaDragging = true;
+      this.mediaDragStartX = event.touches[0].clientX;
+      this.mediaDragStartY = event.touches[0].clientY;
+      this.mediaDragPanX = this.mediaPanX;
+      this.mediaDragPanY = this.mediaPanY;
+    } else if (event.touches.length === 2) {
+      this.isMediaDragging = false;
+      this.mediaPinchDist = Math.hypot(
+        event.touches[0].clientX - event.touches[1].clientX,
+        event.touches[0].clientY - event.touches[1].clientY,
+      );
+    }
+  }
+
+  onMediaTouchMove(event: TouchEvent): void {
+    event.preventDefault();
+    if (event.touches.length === 1 && this.isMediaDragging) {
+      this.mediaPanX = this.mediaDragPanX + (event.touches[0].clientX - this.mediaDragStartX);
+      this.mediaPanY = this.mediaDragPanY + (event.touches[0].clientY - this.mediaDragStartY);
+      this.clampMediaPan();
+    } else if (event.touches.length === 2) {
+      const dist = Math.hypot(
+        event.touches[0].clientX - event.touches[1].clientX,
+        event.touches[0].clientY - event.touches[1].clientY,
+      );
+      const delta = (dist - this.mediaPinchDist) * 0.01;
+      this.mediaZoom = Math.max(0.25, Math.min(10, this.mediaZoom + delta));
+      this.mediaPinchDist = dist;
+      this.clampMediaPan();
+    }
+  }
+
+  onMediaTouchEnd(): void {
+    this.isMediaDragging = false;
+  }
+
+  private clampMediaPan(): void {
+    const img = this.mediaImage?.nativeElement;
+    const box = img?.parentElement;
+    if (!img || !box) return;
+    const zoom = this.mediaZoom;
+    const maxX = img.offsetWidth * zoom > box.clientWidth
+      ? (img.offsetWidth * zoom - box.clientWidth) / (2 * zoom)
+      : 0;
+    const maxY = img.offsetHeight * zoom > box.clientHeight
+      ? (img.offsetHeight * zoom - box.clientHeight) / (2 * zoom)
+      : 0;
+    this.mediaPanX = Math.min(Math.max(this.mediaPanX, -maxX), maxX);
+    this.mediaPanY = Math.min(Math.max(this.mediaPanY, -maxY), maxY);
   }
 
   private async uploadPendingFiles(): Promise<Attachment[]> {

@@ -14,6 +14,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Subscription } from 'rxjs';
 import { WaIconComponent } from '../../../../../shared/components/wa-icon/wa-icon.component';
 import { VoicePlayerComponent } from '../../../../../shared/components/voice-player/voice-player.component';
@@ -111,6 +112,16 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
 
   imagePreviewUrl: string | null = null;
   imagePreviewName = '';
+  mediaZoom = 1;
+  mediaPanX = 0;
+  mediaPanY = 0;
+  isMediaDragging = false;
+  @ViewChild('mediaImage') mediaImage?: ElementRef<HTMLImageElement>;
+  private mediaDragStartX = 0;
+  private mediaDragStartY = 0;
+  private mediaDragPanX = 0;
+  private mediaDragPanY = 0;
+  private mediaPinchDist = 0;
 
   errorMessage = '';
   showAttachMenu = false;
@@ -139,6 +150,7 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
     private readonly authService: AuthService,
     private readonly themeService: ThemeService,
     private readonly cdr: ChangeDetectorRef,
+    private readonly sanitizer: DomSanitizer,
   ) {}
 
   ngOnInit(): void {
@@ -299,6 +311,40 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
     return msg.body;
   }
 
+  formatMessage(text: string): SafeHtml {
+    if (!text) return '';
+    const html = this.escapeHtml(text)
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>')
+      .replace(/(<li>.*<\/li>\n?)+/g, '<ol>$&</ol>')
+      .replace(
+        /\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g,
+        '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
+      )
+      .replace(
+        /link:((https?:\/\/|www\.)[^\s<]+)/gi,
+        '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+      )
+      .replace(
+        /(?<!href="|src=")((https?:\/\/|www\.)[^\s<]+)/g,
+        (match) => {
+          const url = match.startsWith('www.') ? `https://${match}` : match;
+          return `<a href="${url}" target="_blank" rel="noopener noreferrer">${match}</a>`;
+        }
+      )
+      .replace(/\n/g, '<br>');
+    return this.sanitizer.bypassSecurityTrustHtml(html);
+  }
+
+  private escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   quotedThumb(msg: InternalMessage): string | null {
     return msg.type === 'image' && msg.mediaUrl ? msg.mediaUrl : null;
   }
@@ -398,6 +444,10 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
   }
 
   onEscape(): void {
+    if (this.imagePreviewUrl) {
+      this.closeImage();
+      return;
+    }
     if (this.editingMessage) {
       this.cancelEdit();
     } else if (this.replyToMessage) {
@@ -471,6 +521,29 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
     input.value = '';
     if (!file) return;
     this.setSelectedFile(file, kind);
+  }
+
+  onChatPaste(event: ClipboardEvent): void {
+    const items = event.clipboardData?.items;
+    if (!items) return;
+
+    const files: File[] = [];
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.kind === 'file' && item.type.startsWith('image/')) {
+        const f = item.getAsFile();
+        if (f) files.push(f);
+      }
+    }
+    if (files.length === 0) return;
+
+    event.preventDefault();
+    const file = files[0];
+    if (file.size > 64 * 1024 * 1024) {
+      this.errorMessage = 'El archivo supera el limite de 64 MB.';
+      return;
+    }
+    this.setSelectedFile(file, 'image');
   }
 
   private setSelectedFile(file: File, kind: 'image' | 'audio' | 'file' | 'video'): void {
@@ -879,11 +952,136 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
     if (!msg.mediaUrl) return;
     this.imagePreviewUrl = msg.mediaUrl;
     this.imagePreviewName = msg.mediaName || 'Imagen';
+    this.mediaZoom = 1;
+    this.mediaPanX = 0;
+    this.mediaPanY = 0;
+    this.isMediaDragging = false;
   }
 
   closeImage(): void {
     this.imagePreviewUrl = null;
     this.imagePreviewName = '';
+    this.mediaZoom = 1;
+    this.mediaPanX = 0;
+    this.mediaPanY = 0;
+    this.isMediaDragging = false;
+  }
+
+  @HostListener('document:keydown.escape')
+  onDocumentEscape(): void {
+    if (this.imagePreviewUrl) this.closeImage();
+  }
+
+  onMediaWheel(event: WheelEvent): void {
+    event.preventDefault();
+    const delta = event.deltaY > 0 ? -0.1 : 0.1;
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    const ratioX = (mouseX - centerX) / centerX;
+    const ratioY = (mouseY - centerY) / centerY;
+    const newZoom = Math.max(0.25, Math.min(10, this.mediaZoom + delta));
+    const scale = newZoom / this.mediaZoom;
+    this.mediaPanX = ratioX * (centerX * (1 - scale)) + this.mediaPanX * scale;
+    this.mediaPanY = ratioY * (centerY * (1 - scale)) + this.mediaPanY * scale;
+    this.mediaZoom = newZoom;
+    this.clampMediaPan();
+  }
+
+  onMediaMouseDown(event: MouseEvent): void {
+    if (this.mediaZoom <= 1) return;
+    this.isMediaDragging = true;
+    this.mediaDragStartX = event.clientX;
+    this.mediaDragStartY = event.clientY;
+    this.mediaDragPanX = this.mediaPanX;
+    this.mediaDragPanY = this.mediaPanY;
+  }
+
+  onMediaMouseMove(event: MouseEvent): void {
+    if (!this.isMediaDragging) return;
+    this.mediaPanX = this.mediaDragPanX + (event.clientX - this.mediaDragStartX);
+    this.mediaPanY = this.mediaDragPanY + (event.clientY - this.mediaDragStartY);
+    this.clampMediaPan();
+  }
+
+  onMediaMouseUp(): void {
+    this.isMediaDragging = false;
+  }
+
+  onMediaDblClick(event: MouseEvent): void {
+    event.preventDefault();
+    if (this.mediaZoom > 1.5) {
+      this.mediaZoom = 1;
+      this.mediaPanX = 0;
+      this.mediaPanY = 0;
+    } else {
+      const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+      const mouseX = event.clientX - rect.left;
+      const mouseY = event.clientY - rect.top;
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      const newZoom = 3;
+      const scale = newZoom / (this.mediaZoom || 1);
+      this.mediaPanX = ((mouseX - centerX) / centerX) * (centerX * (1 - scale)) + this.mediaPanX * scale;
+      this.mediaPanY = ((mouseY - centerY) / centerY) * (centerY * (1 - scale)) + this.mediaPanY * scale;
+      this.mediaZoom = newZoom;
+    }
+    this.clampMediaPan();
+  }
+
+  onMediaTouchStart(event: TouchEvent): void {
+    if (event.touches.length === 1) {
+      this.isMediaDragging = true;
+      this.mediaDragStartX = event.touches[0].clientX;
+      this.mediaDragStartY = event.touches[0].clientY;
+      this.mediaDragPanX = this.mediaPanX;
+      this.mediaDragPanY = this.mediaPanY;
+    } else if (event.touches.length === 2) {
+      this.isMediaDragging = false;
+      this.mediaPinchDist = Math.hypot(
+        event.touches[0].clientX - event.touches[1].clientX,
+        event.touches[0].clientY - event.touches[1].clientY,
+      );
+    }
+  }
+
+  onMediaTouchMove(event: TouchEvent): void {
+    event.preventDefault();
+    if (event.touches.length === 1 && this.isMediaDragging) {
+      this.mediaPanX = this.mediaDragPanX + (event.touches[0].clientX - this.mediaDragStartX);
+      this.mediaPanY = this.mediaDragPanY + (event.touches[0].clientY - this.mediaDragStartY);
+      this.clampMediaPan();
+    } else if (event.touches.length === 2) {
+      const dist = Math.hypot(
+        event.touches[0].clientX - event.touches[1].clientX,
+        event.touches[0].clientY - event.touches[1].clientY,
+      );
+      const delta = (dist - this.mediaPinchDist) * 0.01;
+      this.mediaZoom = Math.max(0.25, Math.min(10, this.mediaZoom + delta));
+      this.mediaPinchDist = dist;
+      this.clampMediaPan();
+    }
+  }
+
+  onMediaTouchEnd(): void {
+    this.isMediaDragging = false;
+  }
+
+  private clampMediaPan(): void {
+    const img = this.mediaImage?.nativeElement;
+    const box = img?.parentElement;
+    if (!img || !box) return;
+    const zoom = this.mediaZoom;
+    const maxX = img.offsetWidth * zoom > box.clientWidth
+      ? (img.offsetWidth * zoom - box.clientWidth) / (2 * zoom)
+      : 0;
+    const maxY = img.offsetHeight * zoom > box.clientHeight
+      ? (img.offsetHeight * zoom - box.clientHeight) / (2 * zoom)
+      : 0;
+    this.mediaPanX = Math.min(Math.max(this.mediaPanX, -maxX), maxX);
+    this.mediaPanY = Math.min(Math.max(this.mediaPanY, -maxY), maxY);
   }
 
   @HostListener('window:click')

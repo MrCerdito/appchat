@@ -158,9 +158,6 @@ export class ChatGateway
         // Store in Redis + join advisor room for cross-instance messaging
         await this.redisState.addConnectedAdvisor(payload.sub);
         client.join(`advisor:${payload.sub}`);
-        // Sala compartida: recibe en tiempo real los mensajes de TODAS las
-        // conversaciones web para actualizar la lista de recientes/previews.
-        client.join('advisors');
 
         this.logger.log(
           `[WS] Asesor conectado: ${payload.name} (PID: ${process.pid})`,
@@ -2271,11 +2268,26 @@ export class ChatGateway
     this.broadcastMessageToAdvisors(sessionId, msg);
   }
 
-  /** Propaga el mensaje a la sala compartida de asesores para que la lista
-   *  de recientes/previews se actualice en vivo en todas las pantallas. */
+  /** Propaga el mensaje al asesor asignado de la sesión para que la lista de
+   *  recientes/previews se actualice en vivo. Los chats en cola (sin asesor)
+   *  se actualizan vía su propia sala. */
   private broadcastMessageToAdvisors(sessionId: string, msg: any) {
     if (!sessionId) return;
-    this.server.to('advisors').emit('new_message', { ...msg, sessionId });
+    void this.sessionsService
+      .findOne(sessionId)
+      .then((session) => {
+        const advisorId = session?.advisor?.id;
+        if (advisorId) {
+          this.server
+            .to(`advisor:${advisorId}`)
+            .emit('new_message', { ...msg, sessionId });
+        }
+      })
+      .catch((err) =>
+        this.logger.warn(
+          `[WS] No se pudo propagar preview de ${sessionId}: ${err?.message ?? err}`,
+        ),
+      );
   }
 
   emitSessionUpdated(sessionId: string) {

@@ -3,6 +3,12 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { Attachment } from '../models/message.model';
 import { environment } from '../../../environments/environment';
+import {
+  extensionFromName,
+  isArchiveExtension,
+  isGenericOrEmptyMime,
+  normalizeMimeType,
+} from '../../shared/utils/media';
 
 const MAX_SIZE = 64 * 1024 * 1024;
 
@@ -23,11 +29,14 @@ const ALLOWED_TYPES = new Set([
   'audio/aac',
   'audio/mp4',
   'audio/mpeg',
+  'audio/mp3',
   'audio/ogg',
   'audio/opus',
   'audio/amr',
   'audio/webm',
   'audio/wav',
+  'audio/x-m4a',
+  'audio/flac',
   'application/pdf',
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -38,11 +47,15 @@ const ALLOWED_TYPES = new Set([
   'text/plain',
   'text/csv',
   'application/csv',
+  'application/zip',
+  'application/x-zip-compressed',
+  'application/zip-compressed',
+  'application/vnd.rar',
+  'application/x-rar-compressed',
+  'application/x-rar',
+  'application/x-7z-compressed',
+  'application/x-compressed',
 ]);
-
-function normalizeMimeType(value = ''): string {
-  return value.toLowerCase().split(';')[0].trim();
-}
 
 @Injectable({ providedIn: 'root' })
 export class ChatMediaService {
@@ -50,7 +63,10 @@ export class ChatMediaService {
 
   validate(file: File): string | null {
     const mimeType = normalizeMimeType(file.type);
-    if (!ALLOWED_TYPES.has(mimeType)) {
+    const allowed =
+      ALLOWED_TYPES.has(mimeType) ||
+      (isGenericOrEmptyMime(mimeType) && isArchiveExtension(extensionFromName(file.name)));
+    if (!allowed) {
       return `Tipo de archivo no permitido: ${mimeType || 'desconocido'}`;
     }
     if (file.size > MAX_SIZE) {

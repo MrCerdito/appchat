@@ -36,6 +36,7 @@
       (dblclick)="onMediaDblClick($event)"
     >
       <img
+        #mediaImage
         [src]="mediaPreview.src"
         [alt]="mediaPreview.name"
         [style.transform]="'scale(' + mediaZoom + ') translate(' + mediaPanX + 'px, ' + mediaPanY + 'px)'"
@@ -724,20 +725,6 @@
             <p [innerHTML]="formatWaMessage(msg)"></p>
             }
           }
-          <div class="bubble-meta">
-            <span>{{ messageTime(msg) }}</span>
-            @if (msg.editedAt) {
-            <em>editado</em>
-            }
-            @if (msg.fromMe && msg.status !== 'failed') {
-            <svg class="bubble-check" viewBox="0 0 16 11" fill="currentColor">
-              <path d="M11.07.65l-5.93 6.2L2.45 4.3l-1.1 1.1 3.08 3.3.7.8.8-.8 6.32-6.6L11.07.65z"/>
-            </svg>
-            }
-            @if (msg.status === 'failed') {
-            <wa-icon name="alert-circle"></wa-icon>
-            }
-          </div>
           @if (messageReactions(msg, contact.messages).length) {
           <div class="message-reactions">
   <!-- Contador clickeable -->
@@ -798,6 +785,20 @@
           </div>
           }
         </div>
+        <div class="bubble-meta">
+          <span>{{ messageTime(msg) }}</span>
+          @if (msg.editedAt) {
+          <em>editado</em>
+          }
+          @if (msg.fromMe && msg.status !== 'failed') {
+          <svg class="bubble-check" viewBox="0 0 16 11" fill="currentColor">
+            <path d="M11.07.65l-5.93 6.2L2.45 4.3l-1.1 1.1 3.08 3.3.7.8.8-.8 6.32-6.6L11.07.65z"/>
+          </svg>
+          }
+          @if (msg.status === 'failed') {
+          <wa-icon name="alert-circle"></wa-icon>
+          }
+        </div>
       </div>
       }
       }
@@ -835,7 +836,7 @@
     </div>
     }
 
-    <footer class="input-area" [class.blocked]="!canReply">
+    <footer class="input-area" [class.blocked]="!canReply" (paste)="onChatPaste($event)">
       @if (visibleQuickReplies.length) {
       <div class="quick-row">
         @for (reply of visibleQuickReplies; track trackByIndex($index)) {
@@ -965,14 +966,14 @@
           #docInput
           type="file"
           class="file-input"
-          accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,audio/*"
+          accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z,audio/*"
           (change)="onFileSelected($event)"
         />
         <input
           #fileInput
           type="file"
           class="file-input"
-          accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
+          accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z"
           (change)="onFileSelected($event)"
         />
 

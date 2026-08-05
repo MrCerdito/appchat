@@ -5,6 +5,7 @@ import {
   Component,
   ElementRef,
   HostBinding,
+  HostListener,
   OnDestroy,
   OnInit,
   ViewChild,
@@ -219,6 +220,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   mediaPanX = 0;
   mediaPanY = 0;
   protected isMediaDragging = false;
+  @ViewChild('mediaImage') mediaImage?: ElementRef<HTMLImageElement>;
   private mediaDragStartX = 0;
   private mediaDragStartY = 0;
   private mediaDragPanX = 0;
@@ -280,6 +282,14 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     'application/vnd.ms-powerpoint',
     'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'application/zip',
+    'application/x-zip-compressed',
+    'application/zip-compressed',
+    'application/vnd.rar',
+    'application/x-rar-compressed',
+    'application/x-rar',
+    'application/x-7z-compressed',
+    'application/x-compressed',
   ];
   readonly reactionOptions = ['\u{1F44D}', '\u2705', '\u274C'];
 
@@ -859,6 +869,17 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     this.mediaPanY = 0;
   }
 
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    if (this.mediaPreview) {
+      this.closeMediaPreview();
+    } else if (this.videoPreview) {
+      this.closeVideoFullscreen();
+    } else if (this.profilePhotoPreview) {
+      this.closeProfilePhoto();
+    }
+  }
+
   openVideoFullscreen(message: WaMessage, event?: Event): void {
     event?.stopPropagation();
     const src = this.mediaUrlFor(message);
@@ -888,6 +909,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     this.mediaPanX = ratioX * (centerX * (1 - scale)) + this.mediaPanX * scale;
     this.mediaPanY = ratioY * (centerY * (1 - scale)) + this.mediaPanY * scale;
     this.mediaZoom = newZoom;
+    this.clampMediaPan();
   }
 
   onMediaMouseDown(event: MouseEvent): void {
@@ -903,6 +925,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     if (!this.isMediaDragging) return;
     this.mediaPanX = this.mediaDragPanX + (event.clientX - this.mediaDragStartX);
     this.mediaPanY = this.mediaDragPanY + (event.clientY - this.mediaDragStartY);
+    this.clampMediaPan();
   }
 
   onMediaMouseUp(): void {
@@ -927,6 +950,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
       this.mediaPanY = ((mouseY - centerY) / centerY) * (centerY * (1 - scale)) + this.mediaPanY * scale;
       this.mediaZoom = newZoom;
     }
+    this.clampMediaPan();
   }
 
   onMediaTouchStart(event: TouchEvent): void {
@@ -950,6 +974,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     if (event.touches.length === 1 && this.isMediaDragging) {
       this.mediaPanX = this.mediaDragPanX + (event.touches[0].clientX - this.mediaDragStartX);
       this.mediaPanY = this.mediaDragPanY + (event.touches[0].clientY - this.mediaDragStartY);
+      this.clampMediaPan();
     } else if (event.touches.length === 2) {
       const dist = Math.hypot(
         event.touches[0].clientX - event.touches[1].clientX,
@@ -958,11 +983,27 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
       const delta = (dist - this.mediaPinchDist) * 0.01;
       this.mediaZoom = Math.max(0.25, Math.min(10, this.mediaZoom + delta));
       this.mediaPinchDist = dist;
+      this.clampMediaPan();
     }
   }
 
   onMediaTouchEnd(): void {
     this.isMediaDragging = false;
+  }
+
+  private clampMediaPan(): void {
+    const img = this.mediaImage?.nativeElement;
+    const box = img?.parentElement;
+    if (!img || !box) return;
+    const zoom = this.mediaZoom;
+    const maxX = img.offsetWidth * zoom > box.clientWidth
+      ? (img.offsetWidth * zoom - box.clientWidth) / (2 * zoom)
+      : 0;
+    const maxY = img.offsetHeight * zoom > box.clientHeight
+      ? (img.offsetHeight * zoom - box.clientHeight) / (2 * zoom)
+      : 0;
+    this.mediaPanX = Math.min(Math.max(this.mediaPanX, -maxX), maxX);
+    this.mediaPanY = Math.min(Math.max(this.mediaPanY, -maxY), maxY);
   }
 
   openMessageMenu(event: MouseEvent, message: WaMessage): void {
@@ -1602,6 +1643,38 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     if (!this.isAllowedUpload(file)) {
       this.sendError = 'Tipo de archivo no permitido para WhatsApp.';
       input.value = '';
+      return;
+    }
+
+    this.clearSelectedFile(false);
+    this.selectedFile = this.normalizeAudioFile(file);
+    this.selectedFileKind = this.fileKind(this.selectedFile);
+    this.selectedFilePreviewUrl = URL.createObjectURL(this.selectedFile);
+    this.sendError = '';
+  }
+
+  onChatPaste(event: ClipboardEvent): void {
+    const items = event.clipboardData?.items;
+    if (!items) return;
+
+    const files: File[] = [];
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.kind === 'file' && item.type.startsWith('image/')) {
+        const f = item.getAsFile();
+        if (f) files.push(f);
+      }
+    }
+    if (files.length === 0) return;
+
+    event.preventDefault();
+    const file = files[0];
+    if (file.size > 64 * 1024 * 1024) {
+      this.sendError = 'El archivo supera el limite de 64 MB.';
+      return;
+    }
+    if (!this.isAllowedUpload(file)) {
+      this.sendError = 'Tipo de archivo no permitido para WhatsApp.';
       return;
     }
 
@@ -2455,10 +2528,16 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     ) {
       return true;
     }
+    if (this.isArchiveByName(file.name)) return true;
     if (!this.allowedUploadTypes.includes(mimeType)) return false;
     const ext = this.extensionFromName(file.name);
     const expected = this.extensionForMime(mimeType);
     return !expected || !ext || ext === expected || this.isCompatibleExtension(mimeType, ext);
+  }
+
+  private isArchiveByName(name = ''): boolean {
+    const ext = this.extensionFromName(name);
+    return ['.zip', '.rar', '.7z'].includes(ext);
   }
 
   private audioMimeFromExtension(name = ''): string {

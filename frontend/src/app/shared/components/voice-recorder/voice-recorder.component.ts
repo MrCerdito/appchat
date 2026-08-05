@@ -129,7 +129,12 @@ export class VoiceRecorderComponent implements OnDestroy {
     const mime = this.mediaRecorder?.mimeType || this.mimeType || 'audio/webm';
     this.cleanupRecording();
     if (done) return;
-    const type = this.normalizeMimeType(mime);
+    let type = this.normalizeMimeType(mime);
+    // Solo se graba audio: si el navegador devuelve un contenedor video/*,
+    // relabel como audio/mp4 para que se muestre como nota de voz (ondas).
+    if (type.startsWith('video/')) {
+      type = 'audio/mp4';
+    }
     const blob = new Blob(this.chunks, { type });
     if (!blob.size) {
       this.error.emit('No se pudo capturar audio.');

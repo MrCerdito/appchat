@@ -56,6 +56,7 @@ export class WhatsappChatService implements OnDestroy {
   private chatUpdated$ = new Subject<WaChat>();
   private queueUpdated$ = new Subject<AwQueueUpdated>();
   private chats$ = new BehaviorSubject<WaChat[]>([]);
+  private myAdvisorId = '';
   private connection$ = new BehaviorSubject<WaConnectionStatus>({
     status: 'connecting',
     updatedAt: new Date().toISOString(),
@@ -137,6 +138,7 @@ export class WhatsappChatService implements OnDestroy {
   }
 
   joinAsAdvisor(advisorId: string): void {
+    this.myAdvisorId = advisorId;
     if (!this.socket) {
       this.connectSocket();
     } else if (!this.socket.connected) {
@@ -550,7 +552,10 @@ export class WhatsappChatService implements OnDestroy {
 
     chat.preview = this.isReactionMessage(msg) ? chat.preview : this.messagePreview(msg);
     chat.time = this.formatBogotaTime(now);
-    if (!msg.fromMe && isNewMessage && !this.isReactionMessage(msg)) chat.unread = (chat.unread ?? 0) + 1;
+    // Solo los chats asignados a este asesor acumulan no-leídos; la cola
+    // (sin asesor) actualiza el preview sin "notificar" al contador.
+    const isMine = chat.assignedTo === this.myAdvisorId;
+    if (!msg.fromMe && isNewMessage && !this.isReactionMessage(msg) && isMine) chat.unread = (chat.unread ?? 0) + 1;
     if (!msg.fromMe) chat.lastClientMsg = now;
     chat.messages = messages;
 

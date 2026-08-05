@@ -137,6 +137,14 @@ export class InternalChatService implements OnModuleInit {
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     'application/vnd.ms-powerpoint',
     'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'application/zip',
+    'application/x-zip-compressed',
+    'application/zip-compressed',
+    'application/vnd.rar',
+    'application/x-rar-compressed',
+    'application/x-rar',
+    'application/x-7z-compressed',
+    'application/x-compressed',
   ]);
 
   constructor(
@@ -897,14 +905,17 @@ export class InternalChatService implements OnModuleInit {
 
   private assertAllowedMedia(file: Express.Multer.File): void {
     const mimeType = this.normalizeMimeType(file.mimetype);
-    if (!this.allowedMediaMimes.has(mimeType)) {
+    const ext = extname(
+      sanitizeFileName(file.originalname, mimeType),
+    ).toLowerCase();
+    const allowedByExt =
+      this.isArchiveFileExt(ext) &&
+      (mimeType === 'application/octet-stream' || mimeType === '');
+    if (!this.allowedMediaMimes.has(mimeType) && !allowedByExt) {
       throw new BadRequestException(
         'Tipo de archivo no permitido en el chat interno',
       );
     }
-    const ext = extname(
-      sanitizeFileName(file.originalname, mimeType),
-    ).toLowerCase();
     const expected = this.extFromMime(mimeType);
     if (
       expected &&
@@ -916,6 +927,10 @@ export class InternalChatService implements OnModuleInit {
         'La extensión del archivo no coincide con su contenido',
       );
     }
+  }
+
+  private isArchiveFileExt(ext = ''): boolean {
+    return ['.zip', '.rar', '.7z'].includes(ext);
   }
 
   private normalizeMimeType(mimeType = ''): string {

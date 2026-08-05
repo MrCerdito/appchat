@@ -304,9 +304,9 @@
     }
 
     <!-- Input bar -->
-    <footer class="chat-input">
+    <footer class="chat-input" (paste)="onChatPaste($event)">
       <input #advisorFileInput type="file" hidden multiple
-        accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,image/avif,image/bmp,video/mp4,video/webm,video/ogg,video/3gpp,video/quicktime,audio/aac,audio/mp4,audio/mpeg,audio/ogg,audio/opus,audio/amr,audio/webm,audio/wav,audio/x-m4a,.m4a,.mp3,.wav,.ogg,.opus,.mp4,.mov,.heic,.heif,.avif,.bmp,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
+        accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,image/avif,image/bmp,video/mp4,video/webm,video/ogg,video/3gpp,video/quicktime,audio/aac,audio/mp4,audio/mpeg,audio/ogg,audio/opus,audio/amr,audio/webm,audio/wav,audio/x-m4a,.m4a,.mp3,.wav,.ogg,.opus,.mp4,.mov,.heic,.heif,.avif,.bmp,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z,application/zip,application/x-zip-compressed,application/vnd.rar,application/x-rar-compressed,application/x-7z-compressed"
         (change)="onFilesSelected($event)" />
 
       @if (previewFiles.length > 0) {
@@ -656,9 +656,27 @@
 
   <!-- ═══ IMAGE LIGHTBOX ══════════════════════════════════════════════════ -->
   @if (imagePreview) {
-  <div class="image-backdrop" (click)="closeImagePreview()">
-    <figure class="image-viewer" (click)="$event.stopPropagation()">
-      <img [src]="imagePreview.src" [alt]="imagePreview.name" />
+  <div class="image-backdrop"
+       (click)="closeImagePreview()"
+       (wheel)="onMediaWheel($event)"
+       (touchstart)="onMediaTouchStart($event)"
+       (touchmove)="onMediaTouchMove($event)"
+       (touchend)="onMediaTouchEnd()">
+    <figure class="image-viewer"
+            [class.dragging]="isMediaDragging"
+            (click)="$event.stopPropagation()"
+            (mousedown)="onMediaMouseDown($event)"
+            (mousemove)="onMediaMouseMove($event)"
+            (mouseup)="onMediaMouseUp()"
+            (mouseleave)="onMediaMouseUp()"
+            (dblclick)="onMediaDblClick($event)">
+      <img
+        #mediaImage
+        [src]="imagePreview.src"
+        [alt]="imagePreview.name"
+        [style.transform]="'scale(' + mediaZoom + ') translate(' + mediaPanX + 'px, ' + mediaPanY + 'px)'"
+      />
+      <div class="media-zoom-info">{{ (mediaZoom * 100).toFixed(0) }}%</div>
       <figcaption>{{ imagePreview.name }}</figcaption>
       <button type="button" class="image-close" (click)="closeImagePreview()" title="Cerrar">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">

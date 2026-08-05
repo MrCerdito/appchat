@@ -73,6 +73,10 @@ export class SessionService {
     return this.http.get<Session[]>(`${environment.apiUrl}/sessions`);
   }
 
+  findAllMine(): Observable<Session[]> {
+    return this.http.get<Session[]>(`${environment.apiUrl}/sessions/mine`);
+  }
+
   findWaiting(): Observable<Session[]> {
     return this.http.get<Session[]>(`${environment.apiUrl}/sessions/waiting`);
   }

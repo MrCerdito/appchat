@@ -774,7 +774,8 @@ a {
 .msg {
   display: flex;
   flex-direction: column;
-  max-width: 65%;
+  width: 100%;
+  max-width: 100%;
   animation: fadeUp 0.2s ease;
 
   .msg-time {
@@ -1948,7 +1949,7 @@ a {
   white-space: nowrap;
 }
 
-.msg { max-width: min(720px, 65%); }
+.msg { width: 100%; max-width: 100%; }
 .bubble { overflow-wrap: anywhere; }
 .input-field { min-width: 0; }
 .header-left { min-width: 0; }
@@ -1958,7 +1959,7 @@ a {
 // ── ≥1400px: extra wide ──────────────────────────────────
 @media (min-width: 1400px) {
   .conversations-panel:not(.compact) { width: 380px; }
-  .msg { max-width: min(780px, 60%); }
+  .msg { width: 100%; max-width: 100%; }
 }
 
 // ── ≤1180px: side panel narrower ─────────────────────────
@@ -1969,7 +1970,7 @@ a {
 // ── ≤1100px: panel narrower + msgs wider ─────────────────
 @media (max-width: 1100px) {
   .conversations-panel:not(.compact) { width: 320px; }
-  .msg { max-width: 75%; }
+  .msg { width: 100%; max-width: 100%; }
 }
 
 // ── ≤1024px: tighter padding ─────────────────────────────
@@ -1982,7 +1983,7 @@ a {
   .conv-header { padding: 8px 12px; }
   .conv-assigned { padding: 6px 8px; }
   .session-card { padding: 7px 8px; }
-  .msg { max-width: 80%; }
+  .msg { width: 100%; max-width: 100%; }
 }
 
 // ── ≤900px: compact avatar rail ──────────────────────────
@@ -2040,7 +2041,7 @@ a {
   .header-name { font-size: 13px; }
   .client-presence-pill { font-size: 10px; padding: 1px 6px; }
   .chat-messages { padding: 12px; gap: 12px; }
-  .msg { max-width: 85%; }
+  .msg { width: 100%; max-width: 100%; }
   .chat-input { padding: 8px 12px 10px; gap: 8px; }
   .input-icon-btn { width: 36px; height: 36px; svg { width: 16px; height: 16px; } }
   .send-btn { width: 36px; height: 36px; svg { width: 14px; height: 14px; } }
@@ -2070,7 +2071,7 @@ a {
   .header-name { font-size: 13px; }
 
   .chat-messages { padding: 10px 12px; }
-  .msg { max-width: 88%; }
+  .msg { width: 100%; max-width: 100%; }
 
   .chat-input { padding: 8px 10px 10px; }
 
@@ -2100,7 +2101,7 @@ a {
   .header-actions { gap: 2px; }
   .icon-btn { width: 32px; height: 32px; svg { width: 14px; height: 14px; } }
   .chat-messages { padding: 8px 10px; gap: 10px; }
-  .msg { max-width: 90%; }
+  .msg { width: 100%; max-width: 100%; }
   .msg-time { font-size: 10px; }
   .chat-input { padding: 6px 10px 8px; gap: 6px; }
   .input-icon-btn { width: 34px; height: 34px; }
@@ -2335,7 +2336,7 @@ a {
   z-index: 80;
   display: grid;
   place-items: center;
-  padding: 24px;
+  padding: 12px;
   background: rgba(0, 0, 0, 0.85);
   backdrop-filter: blur(4px);
   animation: fadeIn 0.15s ease;
@@ -2346,49 +2347,81 @@ a {
   margin: 0;
   text-align: center;
   color: #fff;
-  max-width: 92vw;
-  max-height: 88vh;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
 
   img {
-    max-width: 92vw;
-    max-height: 80vh;
+    max-width: 96vw;
+    max-height: 88vh;
     border-radius: 8px;
     object-fit: contain;
     display: block;
+    cursor: zoom-in;
+    transition: transform 0.08s ease;
+    user-select: none;
+    -webkit-user-drag: none;
+    touch-action: none;
+    will-change: transform;
   }
 
+  img:active { cursor: grabbing; }
+
+  &.dragging img { cursor: grabbing; transition: none; }
+
   figcaption {
-    margin-top: 10px;
+    position: absolute;
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.5);
+    padding: 4px 12px;
+    border-radius: 6px;
     font-size: 12px;
     font-weight: 500;
-    opacity: 0.8;
+    opacity: 0.95;
     max-width: 80%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    margin-left: auto;
-    margin-right: auto;
+    margin: 0;
   }
+}
+
+.media-zoom-info {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 2;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  color: #fff;
+  pointer-events: none;
 }
 
 .image-close {
   position: absolute;
-  top: -12px;
-  right: -12px;
+  top: 14px;
+  right: 14px;
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.55);
   color: #fff;
   border: 0;
   cursor: pointer;
   display: grid;
   place-items: center;
   transition: background 0.12s ease;
+  z-index: 2;
 
   svg { width: 16px; height: 16px; }
 
-  &:hover { background: rgba(255, 255, 255, 0.25); }
+  &:hover { background: rgba(0, 0, 0, 0.8); }
 }
 
 @keyframes spin {

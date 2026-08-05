@@ -157,6 +157,20 @@ export class SessionsService {
     });
   }
 
+  /** Sesiones propias del asesor + las de la cola (sin asesor) para que
+   *  cualquier asesor pueda tomarlas. Los admins usan findAllAdmin. */
+  async findAllMine(advisorId: string): Promise<Session[]> {
+    const sessions = await this.sessionRepo.find({
+      relations: ['advisor'],
+      order: { createdAt: 'DESC' },
+      take: 500,
+    });
+    const mine = sessions.filter(
+      (s) => s.advisor?.id === advisorId || s.status === 'waiting',
+    );
+    return this.attachLastMessages(mine);
+  }
+
   async findAllPaginated(
     advisorId: string | undefined,
     page: number,

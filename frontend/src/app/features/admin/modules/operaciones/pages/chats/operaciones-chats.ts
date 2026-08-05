@@ -1,6 +1,7 @@
 import { Component, ChangeDetectionStrategy, ChangeDetectorRef, HostListener, OnDestroy, OnInit, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Router, ActivatedRoute } from '@angular/router';
 import { Subscription, interval } from 'rxjs';
 import { WhatsappChatService } from '../../../../../../core/services/whatsapp-chat.service';
@@ -135,6 +136,14 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     'application/vnd.ms-powerpoint',
     'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'application/zip',
+    'application/x-zip-compressed',
+    'application/zip-compressed',
+    'application/vnd.rar',
+    'application/x-rar-compressed',
+    'application/x-rar',
+    'application/x-7z-compressed',
+    'application/x-compressed',
   ];
 
   constructor(
@@ -143,6 +152,7 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
     private whatsappChat: WhatsappChatService,
     private internalChat: InternalChatService,
     private cdr: ChangeDetectorRef,
+    private sanitizer: DomSanitizer,
   ) {}
 
   @HostListener('window:click')
@@ -153,6 +163,10 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
+    if (this.mediaPreview) {
+      this.closeMediaPreview();
+      return;
+    }
     if (this.editingMessageId) {
       this.cancelEditMessage();
       return;
@@ -545,6 +559,41 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
+  onChatPaste(event: ClipboardEvent): void {
+    const items = event.clipboardData?.items;
+    if (!items) return;
+
+    const files: File[] = [];
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.kind === 'file' && item.type.startsWith('image/')) {
+        const f = item.getAsFile();
+        if (f) files.push(f);
+      }
+    }
+    if (files.length === 0) return;
+
+    event.preventDefault();
+    const file = files[0];
+    if (file.size > 64 * 1024 * 1024) {
+      this.sendError = 'El archivo supera el limite de 64 MB.';
+      this.cdr.markForCheck();
+      return;
+    }
+    if (!this.isAllowedUpload(file)) {
+      this.sendError = 'Tipo de archivo no permitido para WhatsApp.';
+      this.cdr.markForCheck();
+      return;
+    }
+
+    this.clearSelectedFile(false);
+    this.selectedFile = file;
+    this.selectedFileKind = this.fileKind(file);
+    this.selectedFilePreviewUrl = URL.createObjectURL(file);
+    this.sendError = '';
+    this.cdr.markForCheck();
+  }
+
   clearSelectedFile(resetInput = true): void {
     if (this.selectedFilePreviewUrl) {
       URL.revokeObjectURL(this.selectedFilePreviewUrl);
@@ -681,6 +730,40 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
     if (msg.texto === 'Imagen' || msg.texto === 'Video' || msg.texto === 'Audio' || msg.texto === 'Documento') return false;
     if (msg.fileName && msg.texto.includes(msg.fileName)) return false;
     return true;
+  }
+
+  formatMessage(text: string): SafeHtml {
+    if (!text) return '';
+    const html = this.escapeHtml(text)
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>')
+      .replace(/(<li>.*<\/li>\n?)+/g, '<ol>$&</ol>')
+      .replace(
+        /\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g,
+        '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
+      )
+      .replace(
+        /link:((https?:\/\/|www\.)[^\s<]+)/gi,
+        '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+      )
+      .replace(
+        /(?<!href="|src=")((https?:\/\/|www\.)[^\s<]+)/g,
+        (match) => {
+          const url = match.startsWith('www.') ? `https://${match}` : match;
+          return `<a href="${url}" target="_blank" rel="noopener noreferrer">${match}</a>`;
+        }
+      )
+      .replace(/\n/g, '<br>');
+    return this.sanitizer.bypassSecurityTrustHtml(html);
+  }
+
+  private escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   openMediaPreview(msg: Mensaje, event?: Event): void {
@@ -1010,8 +1093,9 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
 
   private isAllowedUpload(file: File): boolean {
     const mimeType = this.normalizeMimeType(file.type);
-    if (!this.allowedUploadTypes.includes(mimeType)) return false;
     const ext = this.extensionFromName(file.name);
+    if (ext === '.zip' || ext === '.rar' || ext === '.7z') return true;
+    if (!this.allowedUploadTypes.includes(mimeType)) return false;
     const expected = this.extensionForMime(mimeType);
     return !expected || !ext || ext === expected || this.isCompatibleExtension(mimeType, ext);
   }
