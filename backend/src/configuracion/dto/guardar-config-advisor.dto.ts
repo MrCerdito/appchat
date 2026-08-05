@@ -8,8 +8,10 @@ import {
   Max,
   MaxLength,
   ValidateNested,
+  Validate,
 } from 'class-validator';
 import { HorarioAlmuerzo } from '../entities/configuracion.entity';
+import { ValidTimeRangeConstraint } from './validators';
 
 class HorarioAlmuerzoObject {
   @IsInt()
@@ -18,9 +20,11 @@ class HorarioAlmuerzoObject {
   dia: number;
 
   @IsString()
+  @Validate(ValidTimeRangeConstraint)
   inicio: string;
 
   @IsString()
+  @Validate(ValidTimeRangeConstraint)
   fin: string;
 }
 

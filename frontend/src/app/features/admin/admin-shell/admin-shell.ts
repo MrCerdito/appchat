@@ -45,7 +45,13 @@ export class AdminShellComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.currentAdmin = this.auth.getUser();
+    this.auth.user$.subscribe({
+      next: (user) => {
+        this.currentAdmin = user;
+        this.cdr.markForCheck();
+      },
+      error: (err) => console.error('HTTP Error:', err),
+    });
     this.socket.connect(this.auth.getToken() ?? undefined);
     this.internalChat.connect();
     this.internalUnreadSub = this.internalChat.getUnreadTotalStream().subscribe({

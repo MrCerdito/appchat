@@ -1,5 +1,5 @@
-import { Controller, Post, Body, Get, Res, UseGuards, Logger } from '@nestjs/common';
-import type { Response } from 'express';
+import { Controller, Post, Body, Get, Res, Req, UseGuards, Logger } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import { AiService } from './ai.service';
 import { AiLogsService } from './ai-logs.service';
 import { AiChatDto } from './dto/ai-chat.dto';
@@ -9,6 +9,10 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.guard';
 import { Public } from '../auth/public.decorator';
+
+// Segundos que el cliente tiene para leer el mensaje final antes de cerrar la
+// sesión por uso continuado de lenguaje ofensivo.
+const SEGUNDOS_CIERRE_POR_OFENSAS = 6;
 
 @Controller('ai')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -78,7 +82,7 @@ export class AiController {
 
   @Public()
   @Post('stream')
-  async stream(@Body() dto: AiChatDto, @Res() res: Response) {
+  async stream(@Req() req: Request, @Body() dto: AiChatDto, @Res() res: Response) {
     if (!dto.message?.trim()) {
       res.status(400).json({ error: 'Mensaje vacío' });
       return;
@@ -91,14 +95,27 @@ export class AiController {
     res.flushHeaders();
 
     const emit = (event: string, data: object) => {
-      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-      (res as any).flush?.();
+      if (res.writableEnded || res.destroyed || !res.writable) return;
+      try {
+        res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+        (res as any).flush?.();
+      } catch {
+        /* cliente desconectado */
+      }
+    };
+
+    const abortController = new AbortController();
+    req.on('close', () => abortController.abort());
+
+    const sessionId = dto.sessionId?.trim() || undefined;
+    let respuestaParcial = '';
+
+    const onPartial = (texto: string) => {
+      if (texto && texto.trim()) respuestaParcial = texto.trim();
     };
 
     try {
       emit('start', { message: 'Procesando...' });
-
-      const sessionId = dto.sessionId?.trim() || undefined;
 
       if (sessionId) {
         const history = (await this.chatService
@@ -139,6 +156,8 @@ export class AiController {
         emit,
         sessionId,
         dto.welcome,
+        abortController.signal,
+        onPartial,
       );
 
       if (
@@ -164,17 +183,42 @@ export class AiController {
         }
 
         if (esTerminated) {
-          await this.chatGateway.terminateAiSession(
-            sessionId,
-            'Uso continuado de lenguaje ofensivo',
-          );
+          emit('session_terminated', {
+            motivo: 'Uso continuado de lenguaje ofensivo',
+          });
+          setTimeout(() => {
+            this.chatGateway.terminateAiSession(
+              sessionId,
+              'Uso continuado de lenguaje ofensivo',
+            );
+          }, SEGUNDOS_CIERRE_POR_OFENSAS * 1000);
         }
       }
     } catch (err: any) {
+      // Si el stream se interrumpió a mitad, persistir la respuesta parcial
+      // para que el historial y los otros canales (advisors) la conserven.
+      if (sessionId && respuestaParcial) {
+        const limpio = respuestaParcial
+          .replace(/SESSION_TERMINATED/g, '')
+          .replace(/\[FEEDBACK:(YES|NO)\]\s*$/, '')
+          .trim();
+        if (limpio) {
+          await this.persist(sessionId, () =>
+            this.chatService.saveMessage(
+              sessionId,
+              limpio,
+              'advisor',
+              'Asistente Virtual',
+            ),
+          );
+        }
+      }
       emit('error', { message: err?.message ?? 'Error interno' });
     } finally {
-      emit('end', { message: 'Listo' });
-      res.end();
+      if (!res.writableEnded && !res.destroyed) {
+        emit('end', { message: 'Listo' });
+        res.end();
+      }
     }
   }
 

@@ -1,31 +1,5 @@
 <div class="config-page">
 
-  <!-- ★ MODAL DE ALMUERZO — aparece mientras dure el horario de almuerzo configurado -->
-  @if (almuerzoActivo) {
-  <div class="almuerzo-overlay">
-    <div class="almuerzo-modal">
-      <div class="almuerzo-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-          stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/>
-          <path d="M7 2v20"/>
-          <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7"/>
-        </svg>
-      </div>
-      <h2>Hora del almuerzo</h2>
-      <p>Estás en pausa de almuerzo. No recibirás nuevos chats durante este tiempo.</p>
-      <div class="almuerzo-countdown">
-        <span class="countdown-label">Regresa en</span>
-        <span class="countdown-timer">{{ almuerzoRestante }}</span>
-      </div>
-      <div class="almuerzo-bar-wrap">
-        <div class="almuerzo-bar"></div>
-      </div>
-      <span class="almuerzo-sub">El sistema reanudará automáticamente al finalizar</span>
-    </div>
-  </div>
-  }
-
   <!-- Header -->
   <div class="config-header">
     <div class="config-title">
@@ -251,6 +225,7 @@
           @for (dia of dias; track trackByIndex($index)) {
           <button
             class="dia-pill"
+            [class.dia-pill--today]="esHoy(dia.value)"
             [class.dia-pill--active]="tieneAlmuerzo(dia.value)"
             [class.dia-pill--selected]="diaSeleccionado === dia.value && tieneAlmuerzo(dia.value)"
             (click)="seleccionarDia(dia.value)">
@@ -309,6 +284,12 @@
                   (ngModelChange)="setAlmuerzoFin(diaSeleccionado, $event)"/>
               </div>
             </div>
+            @if (duracionAlmuerzo(diaSeleccionado)) {
+            <div class="duracion-line">
+              <span>Duración</span>
+              <strong>{{ duracionAlmuerzo(diaSeleccionado) }}</strong>
+            </div>
+            }
           </div>
 
           <!-- Barra visual -->

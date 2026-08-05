@@ -16,24 +16,30 @@ function horario(
 
 describe('ConfiguracionService (horario)', () => {
   let service: ConfiguracionService;
-  let repoMock: { findOne: jest.Mock };
+  let repoMock: {
+    findOne: jest.Mock;
+    create: jest.Mock;
+    save: jest.Mock;
+    count: jest.Mock;
+    query: jest.Mock;
+  };
 
   beforeEach(async () => {
     jest.useFakeTimers();
-    repoMock = { findOne: jest.fn() };
+    repoMock = {
+      findOne: jest.fn(),
+      create: jest.fn(),
+      save: jest.fn(),
+      count: jest.fn(),
+      query: jest.fn(),
+    };
 
     const module = await Test.createTestingModule({
       providers: [
         ConfiguracionService,
         {
           provide: getRepositoryToken(Configuracion),
-          useValue: {
-            findOne: repoMock.findOne,
-            create: jest.fn(),
-            save: jest.fn(),
-            count: jest.fn(),
-            query: jest.fn(),
-          },
+          useValue: repoMock,
         },
         {
           provide: CACHE_MANAGER,
@@ -133,5 +139,43 @@ describe('ConfiguracionService (horario)', () => {
 
     const estado = await service.getHorarioEstado();
     expect(estado.horarios.map((h) => h.dia)).toEqual([1, 5]);
+  });
+
+  it('guardar: dedupe almuerzos por dia (gana el ultimo) y los ordena', async () => {
+    const existing = { id: 'cfg', advisorId: null, almuerzos: [] };
+    repoMock.findOne.mockResolvedValue(existing);
+    repoMock.save.mockImplementation((e) => Promise.resolve(e));
+
+    await service.guardar({
+      almuerzos: [
+        { dia: 3, inicio: '12:00', fin: '13:00' },
+        { dia: 1, inicio: '13:00', fin: '14:00' },
+        { dia: 3, inicio: '15:00', fin: '16:00' },
+      ],
+    }, undefined);
+
+    expect(repoMock.save).toHaveBeenCalled();
+    const arg = repoMock.save.mock.calls[0][0];
+    expect(arg.almuerzos).toEqual([
+      { dia: 1, inicio: '13:00', fin: '14:00' },
+      { dia: 3, inicio: '15:00', fin: '16:00' },
+    ]);
+  });
+
+  it('guardar: descarta almuerzos con horas vacias o rango invertido', async () => {
+    const existing = { id: 'cfg', advisorId: null, almuerzos: [] };
+    repoMock.findOne.mockResolvedValue(existing);
+    repoMock.save.mockImplementation((e) => Promise.resolve(e));
+
+    await service.guardar({
+      almuerzos: [
+        { dia: 1, inicio: '13:00', fin: '12:00' } as any,
+        { dia: 2, inicio: '', fin: '14:00' } as any,
+        { dia: 3, inicio: '12:00', fin: '13:00' },
+      ],
+    }, undefined);
+
+    const arg = repoMock.save.mock.calls[0][0];
+    expect(arg.almuerzos).toEqual([{ dia: 3, inicio: '12:00', fin: '13:00' }]);
   });
 });

@@ -169,7 +169,6 @@
               <option value="estudiante">Estudiante</option>
               <option value="docente">Docente</option>
               <option value="padre">Padre / Madre</option>
-              <option value="admin">Administrativo</option>
             </select>
             <span class="arrow">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -675,6 +674,17 @@
         accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,image/avif,image/bmp,video/mp4,video/webm,video/ogg,video/3gpp,video/quicktime,audio/aac,audio/mp4,audio/mpeg,audio/ogg,audio/opus,audio/amr,audio/webm,audio/wav,audio/x-m4a,.m4a,.mp3,.wav,.ogg,.opus,.mp4,.mov,.heic,.heif,.avif,.bmp,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
         (change)="onFilesSelected($event)" />
 
+      @if (sesionFinalizando) {
+      <div class="cierre-ofensas-bar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <span>Por el uso de lenguaje ofensivo, esta conversación se cerrará automáticamente en unos segundos.</span>
+      </div>
+      }
+
       @if (previewFiles.length > 0) {
       <div class="preview-bar">
         @for (p of previewFiles; track $index) {
@@ -725,9 +735,10 @@
           [(ngModel)]="newMessage"
           (keyup)="handleKey($event)"
           (input)="autoResize($event)"
+          [disabled]="sesionFinalizando"
           maxlength="1000"></textarea>
       </div>
-      <button class="send-btn" (click)="send()" [disabled]="(!newMessage.trim() && previewFiles.length === 0) || isRecordingAudio">
+      <button class="send-btn" (click)="send()" [disabled]="(!newMessage.trim() && previewFiles.length === 0) || isRecordingAudio || sesionFinalizando">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <line x1="22" y1="2" x2="11" y2="13"/>
           <polygon points="22 2 15 22 11 13 2 9 22 2"/>

@@ -8,6 +8,7 @@ import { AuthModule } from '../auth/auth.module';
 import { User } from '../auth/entities/user.entity';
 import { ConfiguracionModule } from '../configuracion/configuracion.module';
 import { TicketsModule } from '../tickets/tickets.module';
+import { RedisStateService } from '../common/redis/redis-state.service';
 import { AdvisorsWhatsappController } from './advisors-whatsapp.controller';
 import { AdvisorsWhatsappService } from './advisors-whatsapp.service';
 import { AdvisorsWhatsappGateway } from './advisors-whatsapp.gateway';
@@ -28,6 +29,7 @@ import { WhatsappMessage } from './entities/whatsapp-message.entity';
     AdvisorsWhatsappService,
     AdvisorsWhatsappGateway,
     TeamsMeetingsService,
+    RedisStateService,
   ],
   exports: [AdvisorsWhatsappService],
 })

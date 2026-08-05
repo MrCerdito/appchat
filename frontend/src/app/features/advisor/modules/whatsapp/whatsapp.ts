@@ -322,6 +322,16 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
       }),
     );
 
+    this.subs.add(
+      this.authService.user$.subscribe(u => {
+        this.currentUserId = u?.id || this.currentUserId;
+        this.currentUserName = u?.name || this.currentUserName;
+        this.currentUserRole = u?.role || this.currentUserRole;
+        this.advisorPhotoUrl = u?.profilePhotoUrl || '';
+        this.cdr.detectChanges();
+      }),
+    );
+
     if (this.currentUserId) {
       this.waService.joinAsAdvisor(this.currentUserId);
     }

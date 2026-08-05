@@ -10,8 +10,10 @@ import {
   MaxLength,
   ValidateNested,
   IsInt,
+  Validate,
 } from 'class-validator';
 import { HorarioSlot, HorarioAlmuerzo } from '../entities/configuracion.entity';
+import { ValidTimeRangeConstraint } from './validators';
 
 export class GuardarConfigGlobalDto {
   @IsOptional()
@@ -151,9 +153,11 @@ class HorarioSlotObject {
   dia: number;
 
   @IsString()
+  @Validate(ValidTimeRangeConstraint)
   inicio: string;
 
   @IsString()
+  @Validate(ValidTimeRangeConstraint)
   fin: string;
 }
 
@@ -164,8 +168,10 @@ class HorarioAlmuerzoObject {
   dia: number;
 
   @IsString()
+  @Validate(ValidTimeRangeConstraint)
   inicio: string;
 
   @IsString()
+  @Validate(ValidTimeRangeConstraint)
   fin: string;
 }

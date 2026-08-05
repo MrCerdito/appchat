@@ -27,8 +27,6 @@ export class ConfiguracionComponent implements OnInit, OnDestroy {
   saving = false;
   saved = false;
   error = '';
-  almuerzoActivo = false;
-  almuerzoRestante = '';
   tab: 'bienvenida' | 'asesor' | 'cliente' | 'almuerzo' | 'respuestas' = 'bienvenida';
   diaSeleccionado: number | null = null;
 
@@ -71,7 +69,9 @@ export class ConfiguracionComponent implements OnInit, OnDestroy {
         this.config = { ...config, almuerzos: config.almuerzos ?? [] };
         this.loading = false;
         if (this.config.almuerzos.length) {
-          this.diaSeleccionado = this.config.almuerzos[0].dia;
+          this.diaSeleccionado =
+            this.config.almuerzos.find((a) => a.dia === new Date().getDay())?.dia
+            ?? this.config.almuerzos[0].dia;
         }
         this.cdr.detectChanges();
       },
@@ -186,14 +186,56 @@ export class ConfiguracionComponent implements OnInit, OnDestroy {
     this.diaSeleccionado = null;
   }
 
+  esHoy(dia: number): boolean {
+    return new Date().getDay() === dia;
+  }
+
   setAlmuerzoInicio(dia: number, valor: string): void {
     const slot = this.config?.almuerzos?.find(a => a.dia === dia);
-    if (slot) slot.inicio = valor;
+    if (slot) {
+      if (!valor || !/^\d{2}:\d{2}$/.test(valor)) return;
+      if (this.horaMayorIgual(valor, slot.fin)) {
+        this.error = 'La hora de inicio debe ser menor que la de fin';
+        this.notification.error('Horario inválido', 'La hora de inicio debe ser menor que la de fin');
+        return;
+      }
+      this.error = '';
+      slot.inicio = valor;
+    }
   }
 
   setAlmuerzoFin(dia: number, valor: string): void {
     const slot = this.config?.almuerzos?.find(a => a.dia === dia);
-    if (slot) slot.fin = valor;
+    if (slot) {
+      if (!valor || !/^\d{2}:\d{2}$/.test(valor)) return;
+      if (this.horaMayorIgual(slot.inicio, valor)) {
+        this.error = 'La hora de fin debe ser mayor que la de inicio';
+        this.notification.error('Horario inválido', 'La hora de fin debe ser mayor que la de inicio');
+        return;
+      }
+      this.error = '';
+      slot.fin = valor;
+    }
+  }
+
+  duracionAlmuerzo(dia: number): string {
+    const slot = this.config?.almuerzos?.find(a => a.dia === dia);
+    if (!slot?.inicio || !slot.fin) return '';
+    const [ih, im] = slot.inicio.split(':').map(Number);
+    const [fh, fm] = slot.fin.split(':').map(Number);
+    if (!Number.isFinite(ih) || !Number.isFinite(im) || !Number.isFinite(fh) || !Number.isFinite(fm)) return '';
+    const mins = fh * 60 + fm - (ih * 60 + im);
+    if (mins <= 0) return '';
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return h > 0 ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m`;
+  }
+
+  private horaMayorIgual(a: string, b: string): boolean {
+    const [ah, am] = a.split(':').map(Number);
+    const [bh, bm] = b.split(':').map(Number);
+    if (!Number.isFinite(ah) || !Number.isFinite(am) || !Number.isFinite(bh) || !Number.isFinite(bm)) return false;
+    return ah * 60 + am >= bh * 60 + bm;
   }
 
   horaAPct(hora: string | undefined): number {

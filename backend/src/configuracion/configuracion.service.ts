@@ -88,6 +88,10 @@ export class ConfiguracionService implements OnModuleInit {
       ADD COLUMN IF NOT EXISTS asesor_reconexion_msg text NOT NULL
       DEFAULT 'El asesor se ha desconectado. Por favor inicia una nueva conversacion.'
     `);
+    await this.repo.query(`
+      ALTER TABLE IF EXISTS public.configuracion
+      ADD COLUMN IF NOT EXISTS almuerzos jsonb NOT NULL DEFAULT '[]'::jsonb
+    `);
 
     const count = await this.repo.count({ where: { advisorId: null as any } });
     if (count === 0) {
@@ -332,6 +336,10 @@ export class ConfiguracionService implements OnModuleInit {
   ): Promise<Configuracion> {
     this.sanitizeConfigText(data);
 
+    if (Array.isArray(data.almuerzos)) {
+      data.almuerzos = this.normalizeAlmuerzos(data.almuerzos);
+    }
+
     if (Array.isArray(data.whatsappQuickReplies)) {
       const first = data.whatsappQuickReplies[0];
 
@@ -492,6 +500,30 @@ export class ConfiguracionService implements OnModuleInit {
         data.aiPromptConfig = null;
       }
     }
+  }
+
+  private normalizeAlmuerzos(almuerzos: HorarioAlmuerzo[]): HorarioAlmuerzo[] {
+    const HHMM_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+    const byDia = new Map<number, HorarioAlmuerzo>();
+    for (const a of almuerzos) {
+      if (
+        !a ||
+        !Number.isInteger(a.dia) ||
+        a.dia < 0 ||
+        a.dia > 6 ||
+        typeof a.inicio !== 'string' ||
+        typeof a.fin !== 'string' ||
+        !HHMM_RE.test(a.inicio) ||
+        !HHMM_RE.test(a.fin)
+      ) {
+        continue;
+      }
+      const [h1, m1] = a.inicio.split(':').map(Number);
+      const [h2, m2] = a.fin.split(':').map(Number);
+      if (h1 * 60 + m1 >= h2 * 60 + m2) continue;
+      byDia.set(a.dia, { dia: a.dia, inicio: a.inicio, fin: a.fin });
+    }
+    return [...byDia.values()].sort((a, b) => a.dia - b.dia);
   }
 
   async resetearOverride(advisorId: string): Promise<{ ok: boolean }> {

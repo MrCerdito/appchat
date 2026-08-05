@@ -86,12 +86,38 @@ function normalizarRol(rol: string): string {
     .trim()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '');
-  if (r.includes('admin')) return 'administrador';
+  // Seguridad: el chat público es anónimo y el rol lo auto-reporta el cliente.
+  // El rol 'admin/administrador' da acceso a documentos con acceso completo, por
+  // lo que NO se reconoce para sesiones públicas (siempre cae a 'estudiante').
+  if (r.includes('admin') || r.includes('administrador')) return 'estudiante';
   if (r.includes('docente') || r.includes('profesor')) return 'docente';
   if (r.includes('padre') || r.includes('madre') || r.includes('acudiente'))
     return 'padre';
   if (r.includes('estudiante') || r.includes('alumno')) return 'estudiante';
   return 'estudiante';
+}
+
+// Coincidencia de temas restringidos con límites de palabra (evita que "pago"
+// pegue dentro de "pagar", o "notas" dentro de "notasales", etc.).
+function coincideTema(mensaje: string, tema: string): boolean {
+  const msg = normalizarTexto(mensaje);
+  const t = normalizarTexto(tema);
+  if (!t) return false;
+  const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^|\\W)${escaped}(\\W|$)`, 'i').test(msg);
+}
+
+const MAX_HISTORY_MESSAGES = 20; // ~10 turnos cliente↔IA hacia Gemini
+
+function filtrarHistorial(history: AiMessage[]): AiMessage[] {
+  const validos = (history ?? []).filter(
+    (h) =>
+      h?.text &&
+      typeof h.text === 'string' &&
+      h.text.trim().length > 0 &&
+      (h.role === 'user' || h.role === 'model'),
+  );
+  return validos.slice(-MAX_HISTORY_MESSAGES);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -315,7 +341,7 @@ export class AiService {
 
     // ── Tema restringido ────────────────────────────────────────────────────
     const esRestringido = config.temasRestringidos.some((t) =>
-      msgLower.includes(t.toLowerCase()),
+      coincideTema(msgLower, t),
     );
     if (esRestringido) {
       const msgRestringido = config.mensajeRestringido;
@@ -339,7 +365,7 @@ export class AiService {
 
     // ── RAG ─────────────────────────────────────────────────────────────────
     const ragResult = await this.documentosService
-      .buscarRelevantes(message, colegio || undefined, rolNormalizado, 3)
+      .buscarRelevantes(message, colegio || undefined, rolNormalizado, 5)
       .catch(() => ({ contexto: '', documentos: [], chunks: [] }));
 
     const { contexto, documentos } = ragResult;
@@ -380,13 +406,7 @@ export class AiService {
       aiCfg,
     );
 
-    const historyFiltered = history.filter(
-      (h) =>
-        h?.text &&
-        typeof h.text === 'string' &&
-        h.text.trim().length > 0 &&
-        (h.role === 'user' || h.role === 'model'),
-    );
+    const historyFiltered = filtrarHistorial(history);
 
     const contents = [
       { role: 'user', parts: [{ text: systemPrompt }] },
@@ -438,8 +458,16 @@ export class AiService {
     }
 
     const data = await response.json();
-    const raw = (data.candidates?.[0]?.content?.parts?.[0]?.text ?? '').trim();
+    let raw = (data.candidates?.[0]?.content?.parts?.[0]?.text ?? '').trim();
+    const finishReason: string | undefined = data.candidates?.[0]?.finishReason;
     const tiempoMs = Date.now() - t0;
+
+    if (finishReason === 'MAX_TOKENS') {
+      this.logger.warn(
+        `Gemini truncado por MAX_TOKENS en chat() (${raw.length} chars)`,
+      );
+      raw = `${raw}\n\n(La respuesta se cortó por extensión; intenta reformular tu pregunta.)`;
+    }
 
     // ── Transfer ─────────────────────────────────────────────────────────────
     if (raw === 'TRANSFER_TO_ADVISOR') {
@@ -604,6 +632,8 @@ ${messages}`;
     emit: (event: string, data: object) => void,
     sessionId?: string,
     _welcome?: string,
+    signal?: AbortSignal,
+    onPartial?: (texto: string) => void,
   ): Promise<string> {
     const rolNormalizado = normalizarRol(rol);
     const configDefault = ROL_CONFIG[rolNormalizado] ?? ROL_CONFIG['estudiante'];
@@ -680,7 +710,7 @@ ${messages}`;
 
     // ── Tema restringido ────────────────────────────────────────────────────
     const esRestringido = config.temasRestringidos.some((t) =>
-      msgLower.includes(t.toLowerCase()),
+      coincideTema(msgLower, t),
     );
     if (esRestringido) {
       const msgRestringido = config.mensajeRestringido;
@@ -701,7 +731,7 @@ ${messages}`;
 
     // ── RAG ─────────────────────────────────────────────────────────────────
     const ragResult = await this.documentosService
-      .buscarRelevantes(message, colegio || undefined, rolNormalizado, 3)
+      .buscarRelevantes(message, colegio || undefined, rolNormalizado, 5)
       .catch(() => ({ contexto: '', documentos: [], chunks: [] }));
 
     const { contexto, documentos } = ragResult;
@@ -742,9 +772,7 @@ ${messages}`;
       aiCfg,
     );
 
-    const historyFiltered = history.filter(
-      (h) => h?.text?.trim() && (h.role === 'user' || h.role === 'model'),
-    );
+    const historyFiltered = filtrarHistorial(history);
 
     const contents = [
       { role: 'user', parts: [{ text: systemPrompt }] },
@@ -766,18 +794,34 @@ ${messages}`;
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30_000);
-    const response = await fetch(streamUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': this.apiKey,
-      },
-      body: JSON.stringify({
-        contents,
-        generationConfig: { temperature: 0.3, maxOutputTokens: 1000 },
-      }),
-      signal: controller.signal,
-    }).finally(() => clearTimeout(timeout));
+    const onExternalAbort = () => controller.abort();
+    if (signal) {
+      if (signal.aborted) controller.abort();
+      else signal.addEventListener('abort', onExternalAbort);
+    }
+
+    let response: Response;
+    try {
+      response = await fetch(streamUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': this.apiKey,
+        },
+        body: JSON.stringify({
+          contents,
+          generationConfig: { temperature: 0.3, maxOutputTokens: 1000 },
+        }),
+        signal: controller.signal,
+      });
+    } catch (err: any) {
+      clearTimeout(timeout);
+      if (signal) signal.removeEventListener('abort', onExternalAbort);
+      if (err?.name === 'AbortError') {
+        throw new Error('La generación fue interrumpida.');
+      }
+      throw err;
+    }
 
     if (!response.ok) {
       const err = await response.text();
@@ -800,31 +844,56 @@ ${messages}`;
     const decoder = new TextDecoder();
     let buffer = '';
     let textoAcumulado = '';
+    let finishReason: string | undefined;
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() ?? '';
-
-      for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        const json = line.slice(6).trim();
-        if (!json || json === '[DONE]') continue;
-
+    try {
+      while (true) {
+        let chunk: { done: boolean; value?: Uint8Array };
         try {
-          const parsed = JSON.parse(json);
-          const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-          if (text) {
-            textoAcumulado += text;
-            emit('chunk', { text });
+          chunk = await reader.read();
+        } catch (err: any) {
+          if (err?.name === 'AbortError') {
+            onPartial?.(textoAcumulado);
+            throw new Error('La generación fue interrumpida.');
           }
-        } catch {
-          /* ignorar */
+          throw err;
+        }
+        if (chunk.done) break;
+
+        buffer += decoder.decode(chunk.value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const json = line.slice(6).trim();
+          if (!json || json === '[DONE]') continue;
+
+          try {
+            const parsed = JSON.parse(json);
+            const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+            const fr: string | undefined = parsed.candidates?.[0]?.finishReason;
+            if (fr) finishReason = fr;
+            if (text) {
+              textoAcumulado += text;
+              emit('chunk', { text });
+            }
+          } catch {
+            /* ignorar */
+          }
         }
       }
+    } finally {
+      clearTimeout(timeout);
+      if (signal) signal.removeEventListener('abort', onExternalAbort);
+    }
+
+    if (finishReason === 'MAX_TOKENS') {
+      const aviso =
+        '\n\n(La respuesta se cortó por extensión; intenta reformular tu pregunta.)';
+      textoAcumulado += aviso;
+      emit('chunk', { text: aviso });
+      this.logger.warn('Gemini truncado por MAX_TOKENS en chatStream()');
     }
 
     // ── Emitir documento solo si la IA respondió algo concreto ─────────────
@@ -984,6 +1053,10 @@ ${messages}`;
         '\n\nREGLA DE ROL: La información de la base de conocimiento es EXCLUSIVA para el rol ' +
         config.label +
         '. Responde SOLO con ella y nunca con datos de documentos de otros roles.';
+      if (tieneContexto) {
+        prompt +=
+          '\nCITAS: Cuando uses información de un documento, menciona su nombre entre corchetes (ej: [Documento 1: <nombre>]) para que el cliente sepa de dónde proviene.';
+      }
       return prompt;
     }
 
@@ -1025,6 +1098,8 @@ ${messages}`;
         'INFORMACIÓN DE LA BASE DE CONOCIMIENTO:',
         'La siguiente información proviene de documentos oficiales del sistema.',
         'Úsala para responder con precisión. NO inventes información que no esté aquí.',
+        'Cuando uses datos de un documento, cita su nombre tal como aparece,',
+        'ej. [Documento 1: Manual de convivencia], para que el cliente sepa la fuente.',
         '',
         contexto,
         '',

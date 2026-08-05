@@ -32,6 +32,7 @@ import {
 } from 'fs';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdvisorsService } from './advisors.service';
+import { ChatGateway } from '../chat/chat.gateway';
 import { CreateAdvisorDto } from './dto/create-advisor.dto';
 import { UpdateAdvisorDto } from './dto/update-advisor.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
@@ -53,7 +54,10 @@ if (!existsSync(TEMP_DIR)) mkdirSync(TEMP_DIR, { recursive: true });
 @Controller('advisors')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class AdvisorsController {
-  constructor(private readonly advisorsService: AdvisorsService) {}
+  constructor(
+    private readonly advisorsService: AdvisorsService,
+    private readonly chatGateway: ChatGateway,
+  ) {}
 
   @Get()
   @Roles('admin')
@@ -249,6 +253,7 @@ export class AdvisorsController {
     const backendUrl = process.env.APP_URL || 'http://localhost:3001';
     const profilePhotoUrl = `${backendUrl}/uploads/profiles/${filename}`;
     await this.advisorsService.updatePhoto(id, profilePhotoUrl);
+    this.chatGateway.broadcastProfilePhoto(id, profilePhotoUrl);
     return { profilePhotoUrl };
   }
 
@@ -275,6 +280,7 @@ export class AdvisorsController {
       }
     }
     await this.advisorsService.updatePhoto(id, null);
+    this.chatGateway.broadcastProfilePhoto(id, null);
     return { ok: true };
   }
 }

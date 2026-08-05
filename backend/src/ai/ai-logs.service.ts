@@ -58,12 +58,25 @@ export class AiLogsService {
 ❌ Error       : ${data.huboError ? `SÍ — ${data.errorMsg}` : 'NO'}
 ─────────────────────────────────────────`);
 
-      // Descomentar cuando crees la tabla en PostgreSQL
-      // const log = this.repo.create({
-      //   ...data,
-      //   chunksUsados: data.chunksUsados ?? [],
-      // });
-      // await this.repo.save(log);
+      const log = this.repo.create({
+        sessionId: data.sessionId ?? undefined,
+        colegio: data.colegio ?? undefined,
+        rol: data.rol ?? undefined,
+        tipoSolicitud: data.tipoSolicitud ?? undefined,
+        clientName: data.clientName ?? undefined,
+        pregunta: data.pregunta,
+        respuesta: data.respuesta ?? undefined,
+        chunksUsados: data.chunksUsados ?? [],
+        tuvoContexto: data.tuvoContexto ?? false,
+        tiempoRespuestaMs: data.tiempoRespuestaMs ?? undefined,
+        tokensEstimados: data.tokensEstimados ?? undefined,
+        transfer: data.transfer ?? false,
+        feedback: data.feedback ?? undefined,
+        esRestringido: data.esRestringido ?? false,
+        huboError: data.huboError ?? false,
+        errorMsg: data.errorMsg ?? undefined,
+      });
+      await this.repo.save(log);
     } catch (e) {
       this.logger.error('[AiLogs] Error:', e);
     }

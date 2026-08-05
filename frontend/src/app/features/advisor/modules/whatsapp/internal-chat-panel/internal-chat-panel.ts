@@ -148,6 +148,16 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
     this.currentUserRole = user?.role || '';
     this.advisorPhotoUrl = user?.profilePhotoUrl || '';
 
+    this.subs.add(
+      this.authService.user$.subscribe(u => {
+        this.currentUserId = u?.id || this.currentUserId;
+        this.currentUserName = u?.name || this.currentUserName;
+        this.currentUserRole = u?.role || this.currentUserRole;
+        this.advisorPhotoUrl = u?.profilePhotoUrl || '';
+        this.cdr.detectChanges();
+      }),
+    );
+
     this.internalChat.setCurrentUser(this.currentUserId);
     this.internalChat.connect();
 

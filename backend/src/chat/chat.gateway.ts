@@ -224,6 +224,9 @@ export class ChatGateway
       }
 
       // Remove from Redis + local state
+      const estabaEnAlmuerzo = advisorId
+        ? await this.redisState.isOnLunch(advisorId).catch(() => false)
+        : false;
       await this.redisState.cleanupAdvisor(advisorId);
       await this.sessionsService.setAdvisorStatus(advisorId, 'offline');
       this.server.emit('advisor_status_changed', {
@@ -232,6 +235,13 @@ export class ChatGateway
         status: 'offline',
         profilePhotoUrl: client.data.user?.profilePhotoUrl ?? null,
       });
+      if (estabaEnAlmuerzo) {
+        this.server.emit('lunch_status_changed', {
+          advisorId,
+          enAlmuerzo: false,
+          fin: null,
+        });
+      }
     }
 
     const sessionId = client.data.sessionId;
@@ -292,21 +302,20 @@ export class ChatGateway
 
     if (status === 'online') {
       if (await this.estaEnAlmuerzo(client.data.user.id)) {
-        const finHora = await this.redisState.getOnLunch(client.data.user.id);
-        client.emit('lunch_started', {
-          fin: finHora ?? '',
-          restante: '',
-          inicio: '',
-          finOriginal: '',
-        });
+        await this.emitLunchStarted(client.data.user.id, client);
         return;
       }
       if (await this.tieneAlmuerzoPendiente(client.data.user.id)) {
+        const pend = await this.redisState.getPendingLunch(
+          client.data.user.id,
+        );
         client.emit('lunch_pending', {
           mensaje: '',
           chats: 0,
-          inicio: '',
-          finOriginal: '',
+          chatsWeb: 0,
+          chatsWhatsapp: 0,
+          inicio: pend?.inicioOriginal ?? '',
+          finOriginal: pend?.finOriginal ?? '',
         });
         return;
       }
@@ -330,17 +339,118 @@ export class ChatGateway
     }
   }
 
+  // ── Estado / acciones manuales de almuerzo ────────────────────────────────
+  @SubscribeMessage('get_lunch_state')
+  async handleGetLunchState(@ConnectedSocket() client: Socket) {
+    if (client.data.role !== 'advisor') return;
+    const advisorId = client.data.user.id;
+
+    if (await this.estaEnAlmuerzo(advisorId)) {
+      await this.emitLunchStarted(advisorId, client);
+      return;
+    }
+    if (await this.tieneAlmuerzoPendiente(advisorId)) {
+      const pend = await this.redisState.getPendingLunch(advisorId);
+      const chats = await this.countChatsActivosAlmuerzo(advisorId);
+      client.emit('lunch_pending', {
+        mensaje: pend
+          ? `Tienes ${chats.total} chat(s) activo(s). Termínalos para iniciar tu pausa de almuerzo.`
+          : '',
+        chats: chats.total,
+        chatsWeb: chats.web,
+        chatsWhatsapp: chats.whatsapp,
+        inicio: pend?.inicioOriginal ?? '',
+        finOriginal: pend?.finOriginal ?? '',
+      });
+      return;
+    }
+    client.emit('lunch_state', { enAlmuerzo: false });
+  }
+
+  @SubscribeMessage('lunch_action')
+  async handleLunchAction(
+    @MessageBody() payload: { action?: string; minutes?: number },
+    @ConnectedSocket() client: Socket,
+  ) {
+    if (client.data.role !== 'advisor') return;
+    const advisorId = client.data.user.id;
+    const action = payload?.action;
+
+    if (action === 'start') {
+      if (await this.estaEnAlmuerzo(advisorId)) {
+        await this.emitLunchStarted(advisorId, client);
+        return;
+      }
+      const chats = await this.countChatsActivosAlmuerzo(advisorId);
+      if (chats.total > 0) {
+        client.emit('lunch_error', {
+          reason:
+            'Tienes chats activos. Termínalos para iniciar tu pausa de almuerzo.',
+        });
+        return;
+      }
+      const ahora = new Date();
+      const config = await this.configuracionService
+        .getEfectiva(advisorId)
+        .catch(() => null);
+      const almuerzos = (config?.almuerzos ?? []) as Array<{
+        dia: number;
+        inicio: string;
+        fin: string;
+      }>;
+      const slotHoy = almuerzos.find((a) => a.dia === ahora.getDay());
+      const [ih, im] = (slotHoy?.inicio ?? '12:00').split(':').map(Number);
+      const [fh, fm] = (slotHoy?.fin ?? '13:00').split(':').map(Number);
+      const duracionMs = Math.max(
+        1,
+        (fh * 60 + fm - (ih * 60 + im)) * 60_000,
+      );
+      await this.iniciarAlmuerzoAhora(
+        advisorId,
+        slotHoy?.inicio ?? '12:00',
+        slotHoy?.fin ?? '13:00',
+        duracionMs,
+        ahora,
+      );
+      return;
+    }
+
+    if (action === 'end') {
+      if (await this.estaEnAlmuerzo(advisorId)) {
+        await this.terminarAlmuerzo(advisorId);
+      }
+      return;
+    }
+  }
+
   @SubscribeMessage('get_all_advisors')
   async handleGetAllAdvisors(@ConnectedSocket() client: Socket) {
     const advisors = await this.sessionsService.findAllAdvisors();
     const statuses = await this.redisState.getAdvisorStatuses();
+    const onLunch = await this.redisState.getAllOnLunch();
     const list = advisors.map((a) => ({
       advisorId: a.id,
       name: a.name,
       status: (statuses[a.id] ?? a.status) as 'online' | 'busy' | 'offline',
       profilePhotoUrl: a.profilePhotoUrl ?? null,
+      enAlmuerzo: !!onLunch[a.id],
+      lunchFin: onLunch[a.id]?.fin ?? null,
     }));
     client.emit('all_advisors_list', list);
+  }
+
+  // ── Foto de perfil ────────────────────────────────────────────────────────
+  // Emite a todos los asesores/admins conectados para que las capsules/headers
+  // del equipo y el avatar del propio usuario se actualicen sin recargar.
+  broadcastProfilePhoto(userId: string, profilePhotoUrl: string | null): void {
+    this.server.to(`advisor:${userId}`).emit('profile_photo_updated', {
+      userId,
+      profilePhotoUrl,
+    });
+    this.server.emit('profile_photo_updated', {
+      userId,
+      profilePhotoUrl,
+    });
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -1105,8 +1215,17 @@ export class ChatGateway
   ): Promise<void> {
     const session = await this.sessionsService.findOne(sessionId);
     const all = await this.chatService.getHistory(sessionId, 100);
-    const history = all
-      .filter((m) => m.content !== clientMessage || m.senderType !== 'client')
+    // Solo se excluye el ÚLTIMO mensaje (el que estamos respondiendo). El filtro
+    // anterior descartaba además copias anteriores del mismo texto, perdiendo contexto.
+    const previos = [...all];
+    const ultimo = previos[previos.length - 1];
+    if (
+      ultimo?.senderType === 'client' &&
+      ultimo.content === clientMessage
+    ) {
+      previos.pop();
+    }
+    const history = previos
       .slice(-20)
       .map((m) => ({
         role:
@@ -1127,6 +1246,7 @@ export class ChatGateway
         session.clientName,
         session.colegio ?? '',
         session.tipoSolicitud ?? '',
+        session.rol ?? 'estudiante',
       );
       this.server.to(sessionId).emit('typing_stop', { sessionId });
 
@@ -1766,6 +1886,58 @@ export class ChatGateway
       .getEfectivaBatch(advisorIds)
       .catch(() => new Map());
 
+    // Barrido: limpiar almuerzos de asesores que se desconectaron y cuyo fin
+    // ajustado ya pasó (el estado on-lunch se conserva para reanudar, pero no
+    // puede quedar huérfano para siempre).
+    try {
+      const allOnLunch = await this.redisState.getAllOnLunch();
+      const connectedSet = new Set(advisorIds);
+      await Promise.all(
+        Object.entries(allOnLunch).map(async ([id, rec]) => {
+          if (connectedSet.has(id)) return;
+          if (!rec?.fin) {
+            await this.redisState.removeOnLunch(id);
+            return;
+          }
+          const [h, m] = rec.fin.split(':').map(Number);
+          const finMs = new Date(ahora).setHours(h, m, 0, 0);
+          if (ahora.getTime() >= finMs) {
+            await this.redisState.removeOnLunch(id);
+          }
+        }),
+      );
+    } catch (err) {
+      this.logger.warn(
+        `[Almuerzo] Barrido on-lunch falló: ${(err as Error).message}`,
+      );
+    }
+
+    // Barrido de almuerzos pendientes huérfanos: asesores desconectados cuyo
+    // fin original ya pasó (el estado pending-lunch también se conserva para
+    // reanudar tras una recarga).
+    try {
+      const allPending = await this.redisState.getAllPendingLunch();
+      const connectedSet = new Set(advisorIds);
+      await Promise.all(
+        Object.entries(allPending).map(async ([id, pend]) => {
+          if (connectedSet.has(id)) return;
+          if (!pend?.finOriginal) {
+            await this.redisState.removePendingLunch(id);
+            return;
+          }
+          const [h, m] = pend.finOriginal.split(':').map(Number);
+          const finMs = new Date(ahora).setHours(h, m, 0, 0);
+          if (ahora.getTime() >= finMs) {
+            await this.redisState.removePendingLunch(id);
+          }
+        }),
+      );
+    } catch (err) {
+      this.logger.warn(
+        `[Almuerzo] Barrido pending-lunch falló: ${(err as Error).message}`,
+      );
+    }
+
     await Promise.all(
       advisorIds.map(async (advisorId) => {
         try {
@@ -1857,13 +2029,13 @@ export class ChatGateway
             }
           }
 
-          // SALIÓ del horario (fin natural)
-          else if (!enHorario && enAlmuerzoActivo) {
-            const finAjustado = await this.redisState.getOnLunch(advisorId);
-            if (finAjustado) {
-              const [h, m] = finAjustado.split(':').map(Number);
+          // Almuerzo activo: terminar al alcanzar el fin AJUSTADO. Aplica aunque
+          // se haya iniciado manualmente antes del rango o durante él.
+          else if (enAlmuerzoActivo) {
+            const record = await this.redisState.getOnLunch(advisorId);
+            if (record?.fin) {
+              const [h, m] = record.fin.split(':').map(Number);
               const finAjMs = new Date(ahora).setHours(h, m, 0, 0);
-
               if (ahora.getTime() >= finAjMs) {
                 await this.terminarAlmuerzo(advisorId);
               }
@@ -1918,20 +2090,20 @@ export class ChatGateway
     const finAjDate = new Date(finAjMs);
     const finAjHora = `${String(finAjDate.getHours()).padStart(2, '0')}:${String(finAjDate.getMinutes()).padStart(2, '0')}`;
 
-    await this.redisState.setOnLunch(advisorId, finAjHora);
+    await this.redisState.setOnLunch(advisorId, {
+      fin: finAjHora,
+      inicioOriginal,
+      finOriginal,
+      inicioReal: inicioReal.toISOString(),
+      duracionMs,
+    });
     await this.redisState.removePendingLunch(advisorId);
 
-    const ahora = new Date();
-    const diffMs = Math.max(0, finAjMs - ahora.getTime());
-    const restMins = Math.floor(diffMs / 60000);
-    const restSegs = Math.floor((diffMs % 60000) / 1000);
-    const restante = `${String(restMins).padStart(2, '0')}:${String(restSegs).padStart(2, '0')}`;
-
-    this.server.to(`advisor:${advisorId}`).emit('lunch_started', {
+    await this.emitLunchStarted(advisorId);
+    this.server.emit('lunch_status_changed', {
+      advisorId,
+      enAlmuerzo: true,
       fin: finAjHora,
-      restante,
-      inicio: inicioOriginal,
-      finOriginal,
     });
 
     const ajuste =
@@ -1941,6 +2113,45 @@ export class ChatGateway
     this.logger.log(
       `[Almuerzo] 🍽️  ${advisorId} almuerzo hasta ${finAjHora}${ajuste} (PID: ${process.pid})`,
     );
+  }
+
+  // Emite el estado de almuerzo activo (útil al reconectar, reanudar, etc.).
+  // Si se pasa un socket concreto, le responde a él; si no, a la room del asesor.
+  private async emitLunchStarted(
+    advisorId: string,
+    target?: Socket,
+  ): Promise<void> {
+    const record = await this.redisState.getOnLunch(advisorId);
+    if (!record || !record.fin) return;
+
+    const ahora = new Date();
+    const [fh, fm] = record.fin.split(':').map(Number);
+    const finMs = Math.max(0, new Date(ahora).setHours(fh, fm, 0, 0));
+    const diffMs = Math.max(0, finMs - ahora.getTime());
+    const restMins = Math.floor(diffMs / 60000);
+    const restSegs = Math.floor((diffMs % 60000) / 1000);
+    const restante = `${String(restMins).padStart(2, '0')}:${String(restSegs).padStart(2, '0')}`;
+
+    const finEpochMs =
+      record.inicioReal && record.duracionMs
+        ? new Date(record.inicioReal).getTime() + record.duracionMs
+        : finMs;
+
+    const payload = {
+      fin: record.fin,
+      restante,
+      inicio: record.inicioOriginal ?? '',
+      finOriginal: record.finOriginal ?? '',
+      inicioReal: record.inicioReal ?? '',
+      duracionMs: record.duracionMs ?? 0,
+      finEpochMs,
+    };
+
+    if (target) {
+      target.emit('lunch_started', payload);
+    } else {
+      this.server.to(`advisor:${advisorId}`).emit('lunch_started', payload);
+    }
   }
 
   private async terminarAlmuerzo(advisorId: string): Promise<void> {
@@ -1953,11 +2164,17 @@ export class ChatGateway
       advisorId,
       status: 'online',
     });
+    this.server.emit('lunch_status_changed', {
+      advisorId,
+      enAlmuerzo: false,
+      fin: null,
+    });
     this.server.to(`advisor:${advisorId}`).emit('lunch_ended');
     this.logger.log(
       `[Almuerzo] ✅ ${advisorId} volvió del almuerzo (PID: ${process.pid})`,
     );
     await this.assignPendingSessions();
+    await this.assignWaitingWhatsappChats();
   }
 
   private async countChatsActivosAlmuerzo(
@@ -1969,7 +2186,7 @@ export class ChatGateway
         .then((chats) => chats.length)
         .catch(() => 0),
       this.advisorsWhatsappService
-        .countActiveChatsByAdvisor(advisorId)
+        .countActiveChatsByAdvisorExcludingFixed(advisorId)
         .catch(() => 0),
     ]);
     return { web, whatsapp, total: web + whatsapp };

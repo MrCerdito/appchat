@@ -33,6 +33,7 @@ import {
   ConfiguracionService,
   HorarioEstado,
 } from '../configuracion/configuracion.service';
+import { RedisStateService } from '../common/redis/redis-state.service';
 import {
   cleanText,
   sanitizeOutboundText,
@@ -322,6 +323,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
     private readonly configuracionService: ConfiguracionService,
+    private readonly redisState: RedisStateService,
   ) {
     this.logger.log('WhatsApp usara Baileys con sesion unica por QR.');
   }
@@ -903,10 +905,11 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     }
 
     if (role !== 'admin') {
-      const enAlmuerzo = await this.configuracionService
-        .estaEnAlmuerzo(advisor.id)
-        .catch(() => false);
-      if (enAlmuerzo) {
+      const [enAlmuerzo, enAlmuerzoRedis] = await Promise.all([
+        this.configuracionService.estaEnAlmuerzo(advisor.id).catch(() => false),
+        this.redisState.isOnLunch(advisor.id).catch(() => false),
+      ]);
+      if (enAlmuerzo || enAlmuerzoRedis) {
         throw new ForbiddenException(
           'No puedes tomar chats mientras estas en almuerzo',
         );
@@ -1472,6 +1475,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     text: string,
   ): Promise<{ chat: WaChatDto; message: WaMessageDto }> {
     this.assertWhatsappUserRole(role);
+    await this.assertNoLunch(advisorId, role);
     const cleanText = sanitizeOutboundText(text, this.maxTextLength);
     if (!cleanText) throw new BadRequestException('Mensaje requerido');
 
@@ -1524,6 +1528,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     text: string,
   ): Promise<{ chat: WaChatDto; message: WaMessageDto }> {
     this.assertWhatsappUserRole(role);
+    await this.assertNoLunch(advisorId, role);
     const cleanText = sanitizeOutboundText(text, this.maxTextLength);
     if (!cleanText) throw new BadRequestException('Mensaje requerido');
 
@@ -1618,6 +1623,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     targetChatId: string,
   ): Promise<{ chat: WaChatDto; message: WaMessageDto }> {
     this.assertWhatsappUserRole(role);
+    await this.assertNoLunch(advisorId, role);
 
     const sourceMsg = await this.messageRepo.findOne({
       where: { id: messageId, chat: { id: chatId } },
@@ -3055,10 +3061,13 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     for (const advisor of advisors) {
       const activeCount = activeCountByAdvisor.get(advisor.id) ?? 0;
       if (activeCount >= this.maxActiveChatsPerAdvisor) continue;
-      const enAlmuerzo = await this.configuracionService
-        .estaEnAlmuerzo(advisor.id)
-        .catch(() => false);
-      if (enAlmuerzo) continue;
+      const [enAlmuerzo, enAlmuerzoRedis] = await Promise.all([
+        this.configuracionService
+          .estaEnAlmuerzo(advisor.id)
+          .catch(() => false),
+        this.redisState.isOnLunch(advisor.id).catch(() => false),
+      ]);
+      if (enAlmuerzo || enAlmuerzoRedis) continue;
       available.push(advisor);
     }
 
@@ -3112,6 +3121,19 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
+  async countActiveChatsByAdvisorExcludingFixed(
+    advisorId: string,
+  ): Promise<number> {
+    return this.chatRepo.count({
+      where: {
+        status: 'active',
+        assignedAdvisor: { id: advisorId },
+        isGroup: false,
+        assignmentMode: Not('fixed'),
+      },
+    });
+  }
+
   private async findFixedAdvisorIfAvailable(
     chat: WhatsappChat,
     connectedAdvisorIds: string[],
@@ -3131,10 +3153,11 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
 
     const activeCount = await this.countActiveChatsByAdvisor(advisor.id);
     if (activeCount >= this.maxActiveChatsPerAdvisor) return null;
-    const enAlmuerzo = await this.configuracionService
-      .estaEnAlmuerzo(advisor.id)
-      .catch(() => false);
-    return enAlmuerzo ? null : advisor;
+    const [enAlmuerzo, enAlmuerzoRedis] = await Promise.all([
+      this.configuracionService.estaEnAlmuerzo(advisor.id).catch(() => false),
+      this.redisState.isOnLunch(advisor.id).catch(() => false),
+    ]);
+    return enAlmuerzo || enAlmuerzoRedis ? null : advisor;
   }
 
   private buildAdvisorStats(
@@ -3389,6 +3412,19 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     if (role !== 'advisor' && role !== 'admin') {
       throw new ForbiddenException(
         'Solo asesores o administradores pueden enviar mensajes de WhatsApp',
+      );
+    }
+  }
+
+  private async assertNoLunch(advisorId: string, role: string): Promise<void> {
+    if (role === 'admin') return;
+    const [enAlmuerzo, enAlmuerzoRedis] = await Promise.all([
+      this.configuracionService.estaEnAlmuerzo(advisorId).catch(() => false),
+      this.redisState.isOnLunch(advisorId).catch(() => false),
+    ]);
+    if (enAlmuerzo || enAlmuerzoRedis) {
+      throw new ForbiddenException(
+        'No puedes enviar mensajes mientras estas en almuerzo',
       );
     }
   }

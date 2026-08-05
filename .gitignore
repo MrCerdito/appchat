@@ -11,6 +11,7 @@ backend/uploads/baileys-auth/
 backend/uploads/whatsapp/
 backend/uploads/chat-media/
 backend/uploads/internal/
+backend/uploads/profiles/
 BD.csv
 Backup/
 backend/.env.save

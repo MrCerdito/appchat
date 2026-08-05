@@ -17,7 +17,7 @@ export interface AiResponse {
 
 // Eventos que llegan por SSE
 export interface SseEvent {
-  event : 'start' | 'metadata' | 'chunk' | 'end' | 'error';
+  event : 'start' | 'metadata' | 'chunk' | 'end' | 'error' | 'session_terminated';
   data  : any;
 }
 

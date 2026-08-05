@@ -40,9 +40,14 @@ export class DocumentosService implements OnApplicationBootstrap {
   private readonly embedUrl =
     'https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent';
 
-  private readonly CHUNK_SIZE = 1500;
-  private readonly CHUNK_OVERLAP = 200;
+  private readonly CHUNK_SIZE = 1200;
+  private readonly CHUNK_OVERLAP = 150;
   private readonly EMBEDDING_DIM = 768;
+  // Umbral de recuperación: por debajo de 0.60 el chunk se trae de la BD.
+  private readonly RETRIEVAL_THRESHOLD = 0.60;
+  // Umbral de "match fuerte": solo documentos con distancia menor a este valor
+  // se adjuntan a la respuesta / contexto de la IA (evita ruido de matches débiles).
+  private readonly DOC_MATCH_THRESHOLD = 0.45;
 
   constructor(
     @InjectRepository(Documento)
@@ -175,7 +180,7 @@ export class DocumentosService implements OnApplicationBootstrap {
       FROM documentos
       WHERE activo = true
         AND embedding_vec IS NOT NULL
-        AND embedding_vec <=> $1::vector < 0.60
+        AND embedding_vec <=> $1::vector < ${this.RETRIEVAL_THRESHOLD}
     `;
     const params: any[] = [vectorStr];
 
@@ -222,16 +227,7 @@ export class DocumentosService implements OnApplicationBootstrap {
       return { contexto: '', documentos: [], chunks: [] };
     }
 
-    const contexto = rows
-      .map(
-        (r, i) =>
-          `[Documento ${i + 1}: ${r.nombre} — roles permitidos: ${
-            r.roles_permitidos || 'todos'
-          }]\n${r.contenido}`,
-      )
-      .join('\n\n---\n\n');
-
-    // REEMPLAZAR el bloque docsUnicos actual por este:
+    // Agrupar por documento conservando la mejor (menor) distancia
     const docsUnicos = new Map<
       string,
       {
@@ -257,13 +253,33 @@ export class DocumentosService implements OnApplicationBootstrap {
       }
     });
 
-    // Ordenar por relevancia y solo devolver docs con distancia < 0.45
+    // Solo "matches fuertes" se adjuntan: distancia < DOC_MATCH_THRESHOLD.
+    // Ordenados de más a menos relevante.
     const documentos = [...docsUnicos.values()]
-      .filter((d) => d.mejorDistancia < 0.45)
+      .filter((d) => d.mejorDistancia < this.DOC_MATCH_THRESHOLD)
       .sort((a, b) => a.mejorDistancia - b.mejorDistancia)
       .map(({ mejorDistancia, ...d }) => d);
 
-    const chunksDetalle = rows.map((r) => ({
+    // El contexto (lo que ve la IA) incluye únicamente chunks de documentos
+    // que pasaron el umbral fuerte, para no contaminar la respuesta con ruido.
+    const nombresPermitidos = new Set(
+      [...docsUnicos.values()]
+        .filter((d) => d.mejorDistancia < this.DOC_MATCH_THRESHOLD)
+        .map((d) => d.nombre),
+    );
+
+    const rowsFiltrados = rows.filter((r) => nombresPermitidos.has(r.nombre));
+
+    const contexto = rowsFiltrados
+      .map(
+        (r, i) =>
+          `[Documento ${i + 1}: ${r.nombre} — roles permitidos: ${
+            r.roles_permitidos || 'todos'
+          }${r.categoria ? ` — categoría: ${r.categoria}` : ''}]\n${r.contenido}`,
+      )
+      .join('\n\n---\n\n');
+
+    const chunksDetalle = rowsFiltrados.map((r) => ({
       nombre: r.nombre,
       pdfUrl: r.pdf_url,
       categoria: r.categoria,
@@ -274,11 +290,13 @@ export class DocumentosService implements OnApplicationBootstrap {
       contenido: r.contenido,
     }));
 
-    this.logger.log(`[RAG] ${rows.length} chunks encontrados para: "${query}"`);
+    this.logger.log(
+      `[RAG] ${rowsFiltrados.length}/${rows.length} chunks con match fuerte (< ${this.DOC_MATCH_THRESHOLD}) para: "${query}"`,
+    );
 
     return {
       contexto,
-      documentos: [...docsUnicos.values()],
+      documentos,
       chunks: chunksDetalle,
     };
   }
@@ -394,13 +412,39 @@ export class DocumentosService implements OnApplicationBootstrap {
   }
 
   private dividirEnChunks(texto: string): string[] {
+    // Normalizar: saltos de línea Windows → Unix, guiones suaves, espacios
+    // múltiples y párrafos seguidos excesivos.
+    const limpio = texto
+      .replace(/\r\n/g, '\n')
+      .replace(/\u00ad/g, '')
+      .replace(/[ \t]+/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+
     const chunks: string[] = [];
     let inicio = 0;
-    while (inicio < texto.length) {
-      const fin = Math.min(inicio + this.CHUNK_SIZE, texto.length);
-      const chunk = texto.slice(inicio, fin).trim();
+    while (inicio < limpio.length) {
+      const fin = Math.min(inicio + this.CHUNK_SIZE, limpio.length);
+
+      // Cortar en límite de oración cuando sea posible (a menos que el chunk
+      // sea casi todo el texto restante).
+      let corte = fin;
+      if (fin < limpio.length) {
+        const ultimoPunto = Math.max(
+          limpio.lastIndexOf('. ', fin),
+          limpio.lastIndexOf('.\n', fin),
+          limpio.lastIndexOf('; ', fin),
+          limpio.lastIndexOf(';\n', fin),
+          limpio.lastIndexOf(':\n', fin),
+        );
+        if (ultimoPunto > inicio + 200) corte = ultimoPunto + 1;
+      }
+
+      const chunk = limpio.slice(inicio, corte).trim();
       if (chunk.length > 50) chunks.push(chunk);
-      inicio += this.CHUNK_SIZE - this.CHUNK_OVERLAP;
+
+      if (corte <= inicio) break;
+      inicio = Math.max(corte - this.CHUNK_OVERLAP, inicio + 1);
     }
     return chunks;
   }

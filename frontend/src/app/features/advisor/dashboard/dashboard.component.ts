@@ -27,6 +27,8 @@ interface ConnectedAdvisor {
   name: string;
   status: string;
   profilePhotoUrl: string | null;
+  enAlmuerzo?: boolean;
+  lunchFin?: string | null;
 }
 
 @Component({
@@ -70,20 +72,27 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   enAlmuerzo = false;
+  almuerzoPendiente = false;
+  almuerzoModalVisible = true;
   almuerzoRestante = '';
   almuerzoFinHora = '';
   almuerzoMensaje = '';
   almuerzoInicio = '';
   almuerzoFinOriginal = '';
+  almuerzoInicioReal = '';
+  almuerzoDuracionMs = 0;
+  almuerzoFinEpochMs = 0;
   almuerzoChatsPendientes = 0;
   almuerzoChatsWeb = 0;
   almuerzoChatsWhatsapp = 0;
   almuerzoProgreso = 0;
   almuerzoProximoMensaje = '';
+  almuerzoError = '';
 
   private lunchInterval: ReturnType<typeof setInterval> | null = null;
   private destroy$ = new Subject<void>();
   private readonly STATUS_KEY = 'advisor_status';
+  private readonly LUNCH_STATE_KEY = 'advisor_lunch_state';
   private fixedAdvisorCache = new Map<string, string | null | undefined>();
   private readonly teamBreakpoint = window.matchMedia('(max-width: 900px)');
 
@@ -109,7 +118,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.currentAdvisor = this.auth.getUser();
+    this.auth.user$.pipe(takeUntil(this.destroy$)).subscribe((user) => {
+      this.currentAdvisor = user;
+      if (user?.id) {
+        const idx = this.allAdvisors.findIndex(a => a.advisorId === user.id);
+        if (idx >= 0 && this.allAdvisors[idx].profilePhotoUrl !== (user.profilePhotoUrl ?? null)) {
+          this.allAdvisors[idx] = { ...this.allAdvisors[idx], profilePhotoUrl: user.profilePhotoUrl ?? null };
+        }
+      }
+      this.cdr.detectChanges();
+    });
     this.sound.init();
     this.sound.ping();
     this.socket.connect(this.auth.getToken() ?? undefined);
@@ -125,6 +143,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.loadActiveCount();
     this.registerSocketListeners();
     this.registerGlobalNotificationListeners();
+    this.restoreLunchFromStorage();
+    this.socket.emit('get_lunch_state');
     this.syncUnreadIndicators();
     this.teamBreakpoint.addEventListener('change', this.onTeamBreakpoint);
     this.sessionService.findAdvisors().subscribe({
@@ -165,6 +185,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.cdr.detectChanges();
       });
 
+    this.socket.on<{ userId: string; profilePhotoUrl: string | null }>('profile_photo_updated')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        const idx = this.allAdvisors.findIndex(a => a.advisorId === data.userId);
+        if (idx >= 0) {
+          this.allAdvisors[idx] = { ...this.allAdvisors[idx], profilePhotoUrl: data.profilePhotoUrl };
+          this.cdr.detectChanges();
+        }
+      });
+
     this.socket.on<any>('session_updated')
       .pipe(takeUntil(this.destroy$))
       .subscribe(() => {
@@ -179,50 +209,75 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.cdr.detectChanges();
       });
 
-    this.socket.on<{ fin: string; restante: string; inicio: string; finOriginal: string }>('lunch_started')
+    this.socket.on<{ fin: string; restante: string; inicio: string; finOriginal: string; inicioReal?: string; duracionMs?: number; finEpochMs?: number }>('lunch_started')
       .pipe(takeUntil(this.destroy$))
       .subscribe(data => {
         this.enAlmuerzo = true;
+        this.almuerzoPendiente = false;
+        this.almuerzoModalVisible = true;
         this.almuerzoFinHora = data.fin;
         this.almuerzoRestante = data.restante;
         this.almuerzoInicio = data.inicio;
         this.almuerzoFinOriginal = data.finOriginal;
+        this.almuerzoInicioReal = data.inicioReal ?? '';
+        this.almuerzoDuracionMs = data.duracionMs ?? 0;
+        this.almuerzoFinEpochMs = this.computeLunchFinEpoch(data);
         this.almuerzoMensaje = '';
         this.almuerzoProximoMensaje = '';
+        this.almuerzoError = '';
         this.advisorStatus = 'busy';
+        this.persistLunchState();
         this.startLunchCountdown();
+        this.cdr.detectChanges();
+      });
+
+    this.socket.on<{ enAlmuerzo: boolean }>('lunch_state')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        if (data.enAlmuerzo) return;
+        this.resetAlmuerzo(false);
+      });
+
+    this.socket.on<{ advisorId: string; enAlmuerzo: boolean; fin: string | null }>('lunch_status_changed')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        const idx = this.allAdvisors.findIndex(a => a.advisorId === data.advisorId);
+        if (idx >= 0) {
+          this.allAdvisors[idx] = {
+            ...this.allAdvisors[idx],
+            enAlmuerzo: data.enAlmuerzo,
+            lunchFin: data.fin,
+          };
+        }
+        this.cdr.detectChanges();
+      });
+
+    this.socket.on<{ reason: string }>('lunch_error')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        this.almuerzoError = data.reason || '';
         this.cdr.detectChanges();
       });
 
     this.socket.on<void>('lunch_ended')
       .pipe(takeUntil(this.destroy$))
       .subscribe(() => {
-        this.enAlmuerzo = false;
-        this.almuerzoRestante = '';
-        this.almuerzoFinHora = '';
-        this.almuerzoMensaje = '';
-        this.almuerzoInicio = '';
-        this.almuerzoFinOriginal = '';
-        this.almuerzoChatsPendientes = 0;
-        this.almuerzoChatsWeb = 0;
-        this.almuerzoChatsWhatsapp = 0;
-        this.almuerzoProgreso = 0;
-        this.almuerzoProximoMensaje = '';
-        this.advisorStatus = 'online';
-        this.stopLunchCountdown();
-        this.cdr.detectChanges();
+        this.resetAlmuerzo(true);
       });
 
     this.socket.on<{ mensaje: string; chats: number; chatsWeb: number; chatsWhatsapp: number; inicio: string; finOriginal: string }>('lunch_pending')
       .pipe(takeUntil(this.destroy$))
       .subscribe(data => {
         this.almuerzoMensaje = data.mensaje;
+        this.almuerzoPendiente = true;
+        this.almuerzoModalVisible = true;
         this.almuerzoChatsPendientes = data.chats;
         this.almuerzoChatsWeb = data.chatsWeb;
         this.almuerzoChatsWhatsapp = data.chatsWhatsapp;
         this.almuerzoInicio = data.inicio;
         this.almuerzoFinOriginal = data.finOriginal;
         this.almuerzoProximoMensaje = '';
+        this.almuerzoError = '';
         this.advisorStatus = 'busy';
         this.cdr.detectChanges();
       });
@@ -231,6 +286,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe(() => {
         this.almuerzoMensaje = '';
+        this.almuerzoPendiente = false;
+        this.almuerzoModalVisible = true;
         this.almuerzoInicio = '';
         this.almuerzoFinOriginal = '';
         this.almuerzoChatsPendientes = 0;
@@ -238,6 +295,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.almuerzoChatsWhatsapp = 0;
         this.almuerzoProgreso = 0;
         this.almuerzoProximoMensaje = '';
+        this.almuerzoError = '';
         this.advisorStatus = 'online';
         this.cdr.detectChanges();
       });
@@ -438,26 +496,42 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private startLunchCountdown(): void {
     this.stopLunchCountdown();
 
-    const [ih, im] = (this.almuerzoInicio || '12:00').split(':').map(Number);
-    const [fh, fm] = (this.almuerzoFinOriginal || this.almuerzoFinHora).split(':').map(Number);
-    const duracionTotalMs = Math.max(1, ((fh * 60 + fm) - (ih * 60 + im)) * 60000);
+    const duracionTotalMs =
+      this.almuerzoDuracionMs > 0
+        ? this.almuerzoDuracionMs
+        : (() => {
+            const [ih, im] = (this.almuerzoInicio || '12:00').split(':').map(Number);
+            const [fh, fm] = (this.almuerzoFinOriginal || this.almuerzoFinHora).split(':').map(Number);
+            return Math.max(1, ((fh * 60 + fm) - (ih * 60 + im)) * 60000);
+          })();
+    const inicioRealMs = this.almuerzoInicioReal
+      ? new Date(this.almuerzoInicioReal).getTime()
+      : Date.now();
 
     this.lunchInterval = setInterval(() => {
-      if (!this.almuerzoFinHora) return;
+      if (this.almuerzoFinEpochMs <= 0 && !this.almuerzoFinHora) return;
 
-      const now = new Date();
-      const [fh2, fm2] = this.almuerzoFinHora.split(':').map(Number);
-      const finMs = new Date(now).setHours(fh2, fm2, 0, 0);
-      const diff = Math.max(0, finMs - now.getTime());
+      const now = Date.now();
+      const finMs =
+        this.almuerzoFinEpochMs > 0
+          ? this.almuerzoFinEpochMs
+          : (() => {
+              const [fh2, fm2] = this.almuerzoFinHora.split(':').map(Number);
+              return new Date().setHours(fh2, fm2, 0, 0);
+            })();
+      const diff = Math.max(0, finMs - now);
       const mins = Math.floor(diff / 60000);
       const segs = Math.floor((diff % 60000) / 1000);
       this.almuerzoRestante = `${String(mins).padStart(2, '0')}:${String(segs).padStart(2, '0')}`;
 
-      const elapsed = duracionTotalMs - diff;
+      const elapsed = Math.min(duracionTotalMs, Math.max(0, now - inicioRealMs));
       this.almuerzoProgreso = Math.min(100, Math.max(0, (elapsed / duracionTotalMs) * 100));
       this.cdr.detectChanges();
 
-      if (diff === 0) this.stopLunchCountdown();
+      if (diff === 0) {
+        this.socket.emit('lunch_action', { action: 'end' });
+        this.resetAlmuerzo(true);
+      }
     }, 1000);
   }
 
@@ -465,6 +539,96 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (!this.lunchInterval) return;
     clearInterval(this.lunchInterval);
     this.lunchInterval = null;
+  }
+
+  private computeLunchFinEpoch(data: {
+    fin?: string;
+    inicioReal?: string;
+    duracionMs?: number;
+    finEpochMs?: number;
+  }): number {
+    if (data.finEpochMs && data.finEpochMs > 0) return data.finEpochMs;
+    if (data.inicioReal && (data.duracionMs ?? 0) > 0) {
+      return new Date(data.inicioReal).getTime() + (data.duracionMs ?? 0);
+    }
+    const [fh, fm] = (data.fin || '00:00').split(':').map(Number);
+    return new Date().setHours(fh, fm, 0, 0);
+  }
+
+  private persistLunchState(): void {
+    try {
+      localStorage.setItem(
+        this.LUNCH_STATE_KEY,
+        JSON.stringify({
+          enAlmuerzo: true,
+          fin: this.almuerzoFinHora,
+          inicio: this.almuerzoInicio,
+          finOriginal: this.almuerzoFinOriginal,
+          inicioReal: this.almuerzoInicioReal,
+          duracionMs: this.almuerzoDuracionMs,
+          finEpochMs: this.almuerzoFinEpochMs,
+        }),
+      );
+    } catch {}
+  }
+
+  private restoreLunchFromStorage(): void {
+    let saved: {
+      enAlmuerzo: boolean;
+      fin: string;
+      inicio: string;
+      finOriginal: string;
+      inicioReal: string;
+      duracionMs: number;
+      finEpochMs: number;
+    } | null = null;
+    try {
+      const raw = localStorage.getItem(this.LUNCH_STATE_KEY);
+      saved = raw ? JSON.parse(raw) : null;
+    } catch {
+      localStorage.removeItem(this.LUNCH_STATE_KEY);
+      return;
+    }
+    if (!saved?.enAlmuerzo) return;
+
+    this.enAlmuerzo = true;
+    this.almuerzoPendiente = false;
+    this.almuerzoModalVisible = true;
+    this.almuerzoFinHora = saved.fin ?? '';
+    this.almuerzoInicio = saved.inicio ?? '';
+    this.almuerzoFinOriginal = saved.finOriginal ?? '';
+    this.almuerzoInicioReal = saved.inicioReal ?? '';
+    this.almuerzoDuracionMs = saved.duracionMs ?? 0;
+    this.almuerzoFinEpochMs = saved.finEpochMs ?? 0;
+    this.almuerzoMensaje = '';
+    this.almuerzoProximoMensaje = '';
+    this.almuerzoError = '';
+    this.advisorStatus = 'busy';
+    this.startLunchCountdown();
+  }
+
+  private resetAlmuerzo(restoreOnline: boolean): void {
+    this.enAlmuerzo = false;
+    this.almuerzoPendiente = false;
+    this.almuerzoModalVisible = true;
+    this.almuerzoRestante = '';
+    this.almuerzoFinHora = '';
+    this.almuerzoFinEpochMs = 0;
+    this.almuerzoMensaje = '';
+    this.almuerzoInicio = '';
+    this.almuerzoFinOriginal = '';
+    this.almuerzoInicioReal = '';
+    this.almuerzoDuracionMs = 0;
+    this.almuerzoChatsPendientes = 0;
+    this.almuerzoChatsWeb = 0;
+    this.almuerzoChatsWhatsapp = 0;
+    this.almuerzoProgreso = 0;
+    this.almuerzoProximoMensaje = '';
+    this.almuerzoError = '';
+    if (restoreOnline) this.advisorStatus = 'online';
+    this.stopLunchCountdown();
+    localStorage.removeItem(this.LUNCH_STATE_KEY);
+    this.cdr.detectChanges();
   }
 
   loadActiveCount(): void {
@@ -524,9 +688,32 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.socket.emit('set_advisor_status', status);
   }
 
+  terminarAlmuerzo(): void {
+    this.almuerzoError = '';
+    this.socket.emit('lunch_action', { action: 'end' });
+    this.resetAlmuerzo(true);
+  }
+
+  iniciarAlmuerzoManual(): void {
+    this.almuerzoError = '';
+    this.almuerzoPendiente = false;
+    this.socket.emit('lunch_action', { action: 'start' });
+  }
+
+  cerrarModalAlmuerzo(): void {
+    this.almuerzoModalVisible = false;
+    this.almuerzoError = '';
+  }
+
+  reabrirModalAlmuerzo(): void {
+    this.almuerzoModalVisible = true;
+    this.almuerzoError = '';
+  }
+
   logout(): void {
     this.applyStatus('offline');
     localStorage.removeItem(this.STATUS_KEY);
+    localStorage.removeItem(this.LUNCH_STATE_KEY);
     this.almuerzoMensaje = '';
     this.almuerzoInicio = '';
     this.almuerzoFinOriginal = '';
@@ -581,11 +768,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (!file || !this.currentAdvisor) return;
 
     if (!file.type.startsWith('image/')) {
-      this.almuerzoMensaje = 'Solo se permiten imágenes';
+      this.almuerzoError = 'Solo se permiten imágenes';
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      this.almuerzoMensaje = 'La imagen no debe superar 5 MB';
+      this.almuerzoError = 'La imagen no debe superar 5 MB';
       return;
     }
 
@@ -599,7 +786,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.cdr.detectChanges();
       },
       error: () => {
-        this.almuerzoMensaje = 'No se pudo subir la foto';
+        this.almuerzoError = 'No se pudo subir la foto';
         input.value = '';
         this.cdr.detectChanges();
       },
@@ -617,7 +804,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.cdr.detectChanges();
       },
       error: () => {
-        this.almuerzoMensaje = 'No se pudo eliminar la foto';
+        this.almuerzoError = 'No se pudo eliminar la foto';
         this.cdr.detectChanges();
       },
     });
@@ -642,6 +829,25 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.router.navigate(['/dashboard/whatsapp'], {
       queryParams: { modo: mode },
       queryParamsHandling: 'merge',
+    });
+  }
+
+  openWebChat(): void {
+    this.sessionService.findAll().subscribe({
+      next: (sessions) => {
+        const first =
+          sessions.find(s => s.status === 'waiting') ??
+          sessions.find(s => this.chatState.getUnread(s.id) > 0);
+        this.router.navigate(['/dashboard/chats'], {
+          queryParams: first ? { openSession: first.id } : {},
+          queryParamsHandling: 'merge',
+        });
+      },
+      error: () => {
+        this.router.navigate(['/dashboard/chats'], {
+          queryParamsHandling: 'merge',
+        });
+      },
     });
   }
 

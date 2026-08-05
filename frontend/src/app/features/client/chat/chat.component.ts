@@ -69,6 +69,7 @@ export class ChatComponent implements OnInit, OnDestroy {
 
   step: 'faq' | 'name' | 'pqrs' | 'waiting' | 'chat' | 'rating' | 'blocked' = 'faq';
   aiMode    = true;
+  sesionFinalizando = false;
   aiHistory : AiMessage[] = [];
   private bienvenidaIa = '';
   aiTyping  = false;
@@ -1041,6 +1042,7 @@ get rolLabel(): string {
    * Esto garantiza que el timer de inactividad se resetea con cada mensaje.
    */
   async send(): Promise<void> {
+    if (this.sesionFinalizando) return;
     const hasText = this.newMessage.trim().length > 0;
     const hasFiles = this.previewFiles.length > 0;
     if (!hasText && !hasFiles) return;
@@ -1147,8 +1149,17 @@ get rolLabel(): string {
     }
 
     if (this.session?.id) {
-      const preguntaIdx = this.aiHistory.findIndex((h, i) => h.role === 'user' && i === index * 2 - 1);
-      const pregunta    = preguntaIdx >= 0 ? this.aiHistory[preguntaIdx].text : '';
+      // La pregunta es el último mensaje 'user' anterior al índice de la
+      // respuesta. El cálculo fijo (index * 2 - 1) se rompe si el historial
+      // incluye saludos, transferencias o mensajes de sistema.
+      let preguntaIdx = -1;
+      for (let i = index - 1; i >= 0; i--) {
+        if (this.aiHistory[i]?.role === 'user') {
+          preguntaIdx = i;
+          break;
+        }
+      }
+      const pregunta = preguntaIdx >= 0 ? this.aiHistory[preguntaIdx].text : '';
       this.http.post(`${environment.apiUrl}/ai/feedback`, {
         sessionId: this.session.id,
         pregunta,
@@ -1215,6 +1226,14 @@ get rolLabel(): string {
           if (data.sugerirAsesor) streamSugerirAsesor = true;
         }
 
+        if (event === 'session_terminated') {
+          this.isStreaming = false;
+          this.sesionFinalizando = true;
+          this.scrollToBottom();
+          this.cdr.detectChanges();
+          return;
+        }
+
         if (event === 'chunk' && data.text) {
           // Detectar cierre por groserías dentro del stream
           if (data.text.includes('SESSION_TERMINATED')) {
@@ -1241,7 +1260,7 @@ get rolLabel(): string {
 
         if (event === 'end') {
         this.isStreaming = false;
-        if (this.step === 'blocked') return;
+        if (this.step === 'blocked' || this.sesionFinalizando) return;
 
         // Limpiar la etiqueta de feedback y marcadores del texto visible
         const textoLimpio = this.streamingText
@@ -1516,6 +1535,7 @@ private escapeHtml(value: string): string {
 
     this.session = null; this.messages = []; this.aiHistory = []; this.advisorName = ''; this.codigoSesion = ''; this.codigoCopiado = false;
     this.step = 'faq'; this.clientName = ''; this.submitted = false;
+    this.sesionFinalizando = false;
     this.identificacion = ''; this.apellido = ''; this.rol = '';
     this.colegio = ''; this.colegioLink = ''; this.colegioQuery = '';
     this.colegioSeleccionado = null; this.tipoSolicitud = '';

@@ -25,6 +25,14 @@ export interface PendingLunchData {
   inicioReal: string; // ISO string, serialized
 }
 
+export interface OnLunchData {
+  fin: string; // "HH:MM" hora de fin AJUSTADA (inicioReal + duracionMs)
+  inicioOriginal: string;
+  finOriginal: string;
+  inicioReal: string; // ISO
+  duracionMs: number;
+}
+
 // Keys
 const K = {
   CONNECTED_ADVISORS: 'chat:connected-advisors', // SET
@@ -34,7 +42,7 @@ const K = {
   CLIENT_PRESENCE: 'chat:client-presence', // HASH sessionId→JSON
   RATE_LIMIT: 'chat:rate-limit', // HASH sessionId→JSON
   AI_ACTIVE: 'chat:ai-active', // SET of sessionIds
-  ON_LUNCH: 'chat:on-lunch', // HASH advisorId→finHora
+  ON_LUNCH: 'chat:on-lunch', // HASH advisorId→JSON OnLunchData
   PENDING_LUNCH: 'chat:pending-lunch', // HASH advisorId→JSON
   LUNCH_NOTIFIED: 'chat:lunch-notified', // SET of advisorIds
   ASSIGN_LOCK: 'chat:assign-lock', // STRING (SETNX for distributed lock)
@@ -198,15 +206,35 @@ export class RedisStateService implements OnModuleDestroy {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // ON LUNCH (HASH advisorId→finHora)
+  // ON LUNCH (HASH advisorId→JSON OnLunchData)
   // ═══════════════════════════════════════════════════════════════════════════
 
-  async setOnLunch(advisorId: string, finHora: string): Promise<void> {
-    await this.redis.hset(K.ON_LUNCH, advisorId, finHora);
+  async setOnLunch(advisorId: string, data: OnLunchData): Promise<void> {
+    await this.redis.hset(K.ON_LUNCH, advisorId, JSON.stringify(data));
   }
 
-  async getOnLunch(advisorId: string): Promise<string | null> {
-    return this.redis.hget(K.ON_LUNCH, advisorId);
+  async getOnLunch(advisorId: string): Promise<OnLunchData | null> {
+    const raw = await this.redis.hget(K.ON_LUNCH, advisorId);
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(raw);
+      return {
+        fin: parsed.fin ?? '',
+        inicioOriginal: parsed.inicioOriginal ?? '',
+        finOriginal: parsed.finOriginal ?? '',
+        inicioReal: parsed.inicioReal ?? '',
+        duracionMs: parsed.duracionMs ?? 0,
+      };
+    } catch {
+      // Formato legacy (solo "HH:MM")
+      return {
+        fin: raw,
+        inicioOriginal: '',
+        finOriginal: '',
+        inicioReal: '',
+        duracionMs: 0,
+      };
+    }
   }
 
   async isOnLunch(advisorId: string): Promise<boolean> {
@@ -217,8 +245,23 @@ export class RedisStateService implements OnModuleDestroy {
     await this.redis.hdel(K.ON_LUNCH, advisorId);
   }
 
-  async getAllOnLunch(): Promise<Record<string, string>> {
-    return this.redis.hgetall(K.ON_LUNCH);
+  async getAllOnLunch(): Promise<Record<string, OnLunchData>> {
+    const raw = await this.redis.hgetall(K.ON_LUNCH);
+    const out: Record<string, OnLunchData> = {};
+    for (const [id, value] of Object.entries(raw)) {
+      try {
+        out[id] = JSON.parse(value);
+      } catch {
+        out[id] = {
+          fin: value,
+          inicioOriginal: '',
+          finOriginal: '',
+          inicioReal: '',
+          duracionMs: 0,
+        };
+      }
+    }
+    return out;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -245,6 +288,25 @@ export class RedisStateService implements OnModuleDestroy {
 
   async removePendingLunch(advisorId: string): Promise<void> {
     await this.redis.hdel(K.PENDING_LUNCH, advisorId);
+  }
+
+  async getAllPendingLunch(): Promise<Record<string, PendingLunchData>> {
+    const raw = await this.redis.hgetall(K.PENDING_LUNCH);
+    const out: Record<string, PendingLunchData> = {};
+    for (const [id, value] of Object.entries(raw)) {
+      try {
+        out[id] = JSON.parse(value);
+      } catch {
+        // Valor legacy no parseable: descartar
+        out[id] = {
+          inicioOriginal: '',
+          finOriginal: '',
+          duracionMs: 0,
+          inicioReal: '',
+        };
+      }
+    }
+    return out;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -290,8 +352,11 @@ export class RedisStateService implements OnModuleDestroy {
     const pipeline = this.redis.pipeline();
     pipeline.srem(K.CONNECTED_ADVISORS, advisorId);
     pipeline.hdel(K.ADVISOR_STATUSES, advisorId);
-    pipeline.hdel(K.ON_LUNCH, advisorId);
-    pipeline.hdel(K.PENDING_LUNCH, advisorId);
+    // NOTA: NO se borra chat:on-lunch ni chat:pending-lunch a propósito. Si el
+    // asesor se desconecta durante el almuerzo (activo o pendiente), al
+    // reconectar reanuda el tiempo restante en vez de reiniciar la duración
+    // completa. Un barrido en checkLunchBreaks elimina registros huérfanos de
+    // asesores que ya no vuelven.
     pipeline.srem(K.LUNCH_NOTIFIED, advisorId);
     await pipeline.exec();
   }

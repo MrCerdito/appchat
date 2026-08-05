@@ -7,12 +7,19 @@
        (click)="sidebarOpen = false">
   </div>
 
-  <!-- ── Modal de almuerzo ──────────────────────────────────────────────── -->
+  <!-- ── Widget flotante de almuerzo (no bloqueante) ────────────────────── -->
   @if (enAlmuerzo) {
-  <div class="almuerzo-overlay">
-    <div class="almuerzo-modal">
+    @if (almuerzoModalVisible) {
+    <div class="lunch-widget">
+      <button class="lunch-widget-close" (click)="cerrarModalAlmuerzo()" title="Minimizar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
 
-      <div class="almuerzo-icon">
+      <div class="lunch-widget-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
           stroke-linecap="round" stroke-linejoin="round">
           <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/>
@@ -21,33 +28,55 @@
         </svg>
       </div>
 
-      <h2>¡Hora del almuerzo!</h2>
-      <p>Estás en tu pausa de almuerzo.<br>No recibirás nuevos chats durante este tiempo.</p>
+      <div class="lunch-widget-body">
+        <h3>Estás en almuerzo</h3>
+        <p class="lunch-widget-sub">No recibirás nuevos chats durante este tiempo.</p>
 
-      @if (almuerzoInicio) {
-      <div class="almuerzo-schedule">
-        <span class="schedule-label">Horario de almuerzo</span>
-        <span class="schedule-range">{{ almuerzoInicio }} — {{ almuerzoFinOriginal }}</span>
-        @if (almuerzoFinHora !== almuerzoFinOriginal) {
-        <span class="schedule-adjust">
-          Ajustado hasta las {{ almuerzoFinHora }}
-        </span>
+        @if (almuerzoInicio) {
+        <div class="almuerzo-schedule">
+          <span class="schedule-label">Horario de almuerzo</span>
+          <span class="schedule-range">{{ almuerzoInicio }} — {{ almuerzoFinOriginal }}</span>
+          @if (almuerzoFinHora !== almuerzoFinOriginal) {
+          <span class="schedule-adjust">Ajustado hasta las {{ almuerzoFinHora }}</span>
+          }
+        </div>
         }
-      </div>
-      }
 
-      <div class="almuerzo-countdown-wrap">
-        <span class="countdown-label">Regresas en</span>
-        <span class="countdown-timer">{{ almuerzoRestante }}</span>
-      </div>
+        <div class="almuerzo-countdown-wrap">
+          <span class="countdown-label">Regresas en</span>
+          <span class="countdown-timer">{{ almuerzoRestante }}</span>
+        </div>
 
-      <div class="almuerzo-progress">
-        <div class="almuerzo-progress-bar" [style.width.%]="almuerzoProgreso"></div>
-      </div>
+        <div class="almuerzo-progress">
+          <div class="almuerzo-progress-bar" [style.width.%]="almuerzoProgreso"></div>
+        </div>
 
-      <span class="almuerzo-nota">El sistema reanudará automáticamente al finalizar</span>
+        <div class="lunch-widget-actions">
+          <button class="lunch-btn lunch-btn--end" (click)="terminarAlmuerzo()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="18 15 12 9 6 15"/>
+            </svg>
+            Terminar almuerzo
+          </button>
+        </div>
+
+        <span class="almuerzo-nota">El sistema reanudará automáticamente al finalizar</span>
+      </div>
     </div>
-  </div>
+    } @else {
+    <button class="lunch-float-badge" (click)="reabrirModalAlmuerzo()" title="Ver almuerzo">
+      <span class="lunch-float-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/>
+          <path d="M7 2v20"/>
+          <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7"/>
+        </svg>
+      </span>
+      <span class="lunch-float-timer">{{ almuerzoRestante }}</span>
+    </button>
+    }
   }
 
   <!-- ── Sidebar ────────────────────────────────────────────────────────── -->
@@ -214,12 +243,13 @@
         </svg>
       </button>
 
-      <div class="topbar-logo">
-        <span>{{ topbarTitle }}</span>
-        @if (totalUnreadCount > 0) {
-        <span class="topbar-badge">{{ totalUnreadCount }}</span>
-        }
-      </div>
+        <div class="topbar-logo">
+          <span>{{ topbarTitle }}</span>
+          @if (totalUnreadCount > 0) {
+          <span class="topbar-badge" role="button" tabindex="0" (click)="openWebChat()"
+                (keydown.enter)="openWebChat()">{{ totalUnreadCount }}</span>
+          }
+        </div>
 
       <!-- ── Centro: cápsulas + contadores ────────────────────────────────── -->
       <div class="topbar-center">
@@ -232,9 +262,9 @@
                 @if (i < maxVisibleCapsules) {
                 <div class="capsule" [class.capsule-self]="adv.advisorId === currentAdvisor?.id"
                      [style.z-index]="maxVisibleCapsules - i"
-                     [title]="adv.name + ' — ' + (adv.status === 'online' ? 'Disponible' : adv.status === 'busy' ? 'Ocupado' : 'Inactivo')">
+                     [title]="adv.name + ' — ' + (adv.enAlmuerzo ? 'En almuerzo' : adv.status === 'online' ? 'Disponible' : adv.status === 'busy' ? 'Ocupado' : 'Inactivo')">
                   <div class="capsule-ring"
-                       [ngClass]="'ring-' + (adv.advisorId === currentAdvisor?.id && enAlmuerzo ? 'lunch' : adv.status)">
+                       [ngClass]="'ring-' + (adv.enAlmuerzo ? 'lunch' : adv.status)">
                     <div class="capsule-avatar">
                       @if (adv.profilePhotoUrl) {
                       <img [src]="adv.profilePhotoUrl" [alt]="adv.name" class="capsule-img" />
@@ -267,7 +297,7 @@
               @for (adv of allAdvisors; track adv.advisorId) {
               <div class="team-row" [class.team-row-self]="adv.advisorId === currentAdvisor?.id">
                 <div class="team-avatar"
-                     [ngClass]="'ring-' + (adv.advisorId === currentAdvisor?.id && enAlmuerzo ? 'lunch' : adv.status)">
+                     [ngClass]="'ring-' + (adv.enAlmuerzo ? 'lunch' : adv.status)">
                   @if (adv.profilePhotoUrl) {
                   <img [src]="adv.profilePhotoUrl" [alt]="adv.name" class="team-avatar-img" />
                   } @else {
@@ -276,7 +306,7 @@
                 </div>
                 <div class="team-info">
                   <span class="team-name">{{ adv.name }}</span>
-                  <span class="team-status">{{ adv.status === 'online' ? 'Disponible' : adv.status === 'busy' ? 'Ocupado' : 'Inactivo' }}</span>
+                  <span class="team-status">{{ adv.enAlmuerzo ? 'En almuerzo' : adv.status === 'online' ? 'Disponible' : adv.status === 'busy' ? 'Ocupado' : 'Inactivo' }}</span>
                 </div>
                 <span class="team-dot" [class.online]="adv.status === 'online'"
                       [class.busy]="adv.status === 'busy'"
@@ -298,7 +328,9 @@
         <div class="topbar-divider"></div>
 
         <div class="topbar-metrics">
-          <div class="metric-item" title="Mensajes pendientes de chat">
+          <div class="metric-item" title="Mensajes pendientes de chat"
+             role="button" tabindex="0"
+             (click)="openWebChat()" (keydown.enter)="openWebChat()">
             <svg class="metric-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
@@ -439,6 +471,19 @@
               </svg>
               <span>Almuerzo — {{ almuerzoRestante }}</span>
             </div>
+            <div class="pd-lunch-controls">
+              <button class="pd-lunch-btn" (click)="terminarAlmuerzo()">Terminar</button>
+            </div>
+            } @else if (!almuerzoPendiente) {
+            <button class="pd-lunch-start" (click)="iniciarAlmuerzoManual()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/>
+                <path d="M7 2v20"/>
+                <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7"/>
+              </svg>
+              <span>Iniciar almuerzo ahora</span>
+            </button>
             }
           </div>
 
@@ -562,7 +607,7 @@
     }
 
     <!-- Banner almuerzo pendiente -->
-    @if (almuerzoMensaje && !enAlmuerzo) {
+    @if (almuerzoPendiente && !enAlmuerzo) {
     <div class="lunch-pending-banner">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
         stroke-linecap="round" stroke-linejoin="round">
@@ -589,6 +634,37 @@
         </span>
         }
       </div>
+      @if (almuerzoPendiente && almuerzoChatsPendientes === 0) {
+      <button class="pending-start-btn" (click)="iniciarAlmuerzoManual()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/>
+          <path d="M7 2v20"/>
+          <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7"/>
+        </svg>
+        Iniciar almuerzo
+      </button>
+      }
+    </div>
+    }
+
+    <!-- Banner error almuerzo -->
+    @if (almuerzoError && !enAlmuerzo) {
+    <div class="lunch-error-banner">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <span>{{ almuerzoError }}</span>
+      <button class="lunch-error-close" (click)="almuerzoError = ''" title="Cerrar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
     </div>
     }
 

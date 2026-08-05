@@ -232,6 +232,10 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   // ── Init ──────────────────────────────────────────────────────────────────
   ngOnInit(): void {
     this.currentAdvisor = this.auth.getUser();
+    this.auth.user$.pipe(takeUntil(this.destroy$)).subscribe(u => {
+      this.currentAdvisor = u;
+      this.cdr.detectChanges();
+    });
     this.loadSessions();
     this.loadAdvisors();
 

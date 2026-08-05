@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { tap, firstValueFrom } from 'rxjs';
-import { Observable } from 'rxjs';
+import { BehaviorSubject, Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { User } from '../models/user.model';
 import { Metrics } from './admin.service';
@@ -23,6 +23,9 @@ export class AuthService {
   private readonly refreshKey = 'chat_refresh_token';
   private readonly userKey = 'chat_user';
 
+  private userSubject = new BehaviorSubject<User | null>(this.readStoredUser());
+  readonly user$: Observable<User | null> = this.userSubject.asObservable();
+
   constructor(private http: HttpClient) {}
 
   login(email: string, password: string): Observable<LoginResponse> {
@@ -33,6 +36,7 @@ export class AuthService {
           localStorage.setItem(this.tokenKey, res.access_token);
           localStorage.setItem(this.refreshKey, res.refresh_token);
           localStorage.setItem(this.userKey, JSON.stringify(res.user));
+          this.userSubject.next(res.user);
         }),
       );
   }
@@ -73,22 +77,22 @@ export class AuthService {
     const payload = this.getToken() ? this.decodeToken(this.getToken()!) : null;
     if (!payload) return;
     const current = this.getUser();
-    localStorage.setItem(
-      this.userKey,
-      JSON.stringify({
+    const merged = {
         ...(current ?? {}),
         id: payload.id ?? current?.id,
         name: payload.name ?? current?.name ?? '',
         email: payload.email ?? current?.email ?? '',
         role: payload.role ?? current?.role ?? 'advisor',
-      } as User),
-    );
+      } as User;
+    localStorage.setItem(this.userKey, JSON.stringify(merged));
+    this.userSubject.next(merged);
   }
 
   logout(): void {
     localStorage.removeItem(this.tokenKey);
     localStorage.removeItem(this.refreshKey);
     localStorage.removeItem(this.userKey);
+    this.userSubject.next(null);
   }
 
   getToken(): string | null {
@@ -99,9 +103,13 @@ export class AuthService {
     return localStorage.getItem(this.refreshKey);
   }
 
-  getUser(): User | null {
+  private readStoredUser(): User | null {
     const raw = localStorage.getItem(this.userKey);
     return raw ? (JSON.parse(raw) as User) : null;
+  }
+
+  getUser(): User | null {
+    return this.readStoredUser();
   }
 
   isTokenExpired(): boolean {
@@ -136,6 +144,7 @@ export class AuthService {
 
   updateUser(user: User): void {
     localStorage.setItem(this.userKey, JSON.stringify(user));
+    this.userSubject.next(user);
   }
 
   getMetrics(): Observable<Metrics> {
