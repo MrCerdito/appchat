@@ -36,6 +36,10 @@ const CLIENT_NAME_KEY = 'chat_client_name';
 const AI_HISTORY_KEY  = 'chat_ai_history';
 const AI_MESSAGES_KEY = 'chat_ai_messages';
 
+// Segundos que espera el backend antes de cerrar la sesión tras la 3ª ofensa.
+// Debe coincidir con SEGUNDOS_CIERRE_POR_OFENSAS de ai.controller.ts.
+const SEGUNDOS_CIERRE_POR_OFENSAS = 6;
+
 interface TimerUpdatePayload {
   sessionId : string;
   tipo      : 'advisor_waiting' | 'client_waiting' | 'closing';
@@ -70,6 +74,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   step: 'faq' | 'name' | 'pqrs' | 'waiting' | 'chat' | 'rating' | 'blocked' = 'faq';
   aiMode    = true;
   sesionFinalizando = false;
+  private timerCierreSesion: any = null;
   aiHistory : AiMessage[] = [];
   private bienvenidaIa = '';
   aiTyping  = false;
@@ -1231,6 +1236,7 @@ get rolLabel(): string {
           this.sesionFinalizando = true;
           this.scrollToBottom();
           this.cdr.detectChanges();
+          this.timerCierreSesion = setTimeout(() => this.clearSession(), SEGUNDOS_CIERRE_POR_OFENSAS * 1000);
           return;
         }
 
@@ -1520,6 +1526,7 @@ private escapeHtml(value: string): string {
   // ══════════════════════════════════════════════════════════════════════════
 
   clearSession(): void {
+    if (this.timerCierreSesion) { clearTimeout(this.timerCierreSesion); this.timerCierreSesion = null; }
     clearInterval(this.reconexionInterval);
     this.reconexionInterval = null;
     this.reconexionActiva = false;
@@ -1603,6 +1610,7 @@ private escapeHtml(value: string): string {
     window.removeEventListener('offline', this.offlineHandler);
     document.removeEventListener('visibilitychange', this.visibilityHandler);
     this.cancelarTimerInactividadIa();
+    if (this.timerCierreSesion) { clearTimeout(this.timerCierreSesion); this.timerCierreSesion = null; }
     if (this.session && this.step === 'chat') {
       this.socket.emit('set_active', { sessionId: this.session.id, active: false });
     }
