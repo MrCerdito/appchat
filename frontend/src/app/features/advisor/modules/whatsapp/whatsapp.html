@@ -544,7 +544,9 @@
         (click)="selectInternalConversation(conv)"
       >
         <div class="ic-avatar" [class.is-group]="conv.type === 'group'">
-          @if (conv.type === 'group') {
+          @if (internalConversationPhotoUrl(conv)) {
+          <img [src]="internalConversationPhotoUrl(conv)" [alt]="internalConversationName(conv)" />
+          } @else if (conv.type === 'group') {
           <wa-icon name="users-group"></wa-icon>
           } @else {
           {{ internalConversationAvatar(conv) }}
@@ -628,6 +630,7 @@
 
     <section class="messages-bg" #messagesContainer>
       @for (group of groupedMessages(contact.messages); track trackByIndex($index)) {
+      <div class="date-group">
       <div class="date-sep"><span>{{ group.label }}</span></div>
       @for (msg of group.messages; track trackById($index, msg)) {
       <div
@@ -801,6 +804,7 @@
         </div>
       </div>
       }
+      </div>
       }
 
       @if (isTyping) {

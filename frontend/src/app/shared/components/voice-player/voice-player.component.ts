@@ -11,8 +11,8 @@ import {
 } from '@angular/core';
 import { VoicePlaybackService } from '../../../core/services/voice-playback.service';
 
-const BARS = 48;
-const BARS_COMPACT = 28;
+const BARS = 36;
+const BARS_COMPACT = 24;
 
 let audioCtx: AudioContext | null = null;
 

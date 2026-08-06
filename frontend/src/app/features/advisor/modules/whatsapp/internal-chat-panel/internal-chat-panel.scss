@@ -236,6 +236,47 @@ a { text-decoration: none; color: inherit; }
   .ic-avatar { width: 38px; height: 38px; flex-basis: 38px; font-size: 16px; }
 }
 
+.ic-avatar-wrap {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+
+  .ic-avatar {
+    width: 100%;
+    height: 100%;
+    flex-basis: auto;
+  }
+}
+
+.ic-avatar-cam {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--wa-green, #00A884);
+  color: #fff;
+  border: 2px solid var(--wa-surface-2, #F0F2F5);
+  padding: 0;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+
+  wa-icon { font-size: 10px; }
+
+  &:hover { transform: scale(1.1); }
+
+  .ic-avatar-wrap:hover &,
+  .ic-avatar-wrap:focus-within & {
+    opacity: 1;
+  }
+}
+
 .ic-back-btn {
   display: inline-flex;
   align-items: center;
@@ -335,9 +376,10 @@ a { text-decoration: none; color: inherit; }
 }
 
 .ic-bubble.voice-bubble {
-  width: min(340px, 100%);
+  width: 320px;
   max-width: 100%;
   min-width: 0;
+  overflow: hidden;
 }
 
 .ic-sender-tag {
@@ -351,10 +393,14 @@ a { text-decoration: none; color: inherit; }
   display: flex;
   flex-direction: column;
   min-width: 0;
-  max-width: 70%;
+  max-width: 50%;
 
   .ic-msg-row.in & { align-items: flex-start; }
   .ic-msg-row.out & { align-items: flex-end; }
+
+  &:has(.voice-bubble) {
+    max-width: 100%;
+  }
 }
 
 .ic-bubble {
@@ -482,12 +528,12 @@ a { text-decoration: none; color: inherit; }
 
 .ic-media-image {
   display: block;
-  max-width: min(280px, 100%);
+  max-width: 100%;
   max-height: 320px;
   border-radius: 8px;
   cursor: pointer;
   margin-bottom: 4px;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .ic-media-image.pending-img {
@@ -503,7 +549,7 @@ a { text-decoration: none; color: inherit; }
 }
 
 .ic-bubble.video-bubble {
-  width: min(340px, 100%);
+  width: 100%;
   max-width: 100%;
   min-width: 0;
   padding: 0;
@@ -1352,14 +1398,14 @@ a { text-decoration: none; color: inherit; }
   .ic-layout.has-chat .ic-sidebar { display: none; }
   .ic-layout.has-chat .ic-main { display: flex; }
 
-  .ic-bubble-wrap { max-width: 82%; }
+  .ic-bubble-wrap { max-width: 65%; }
   .ic-media-image { max-width: 100%; }
 }
 
 @media (max-width: 700px) {
   .ic-messages { padding: 12px 10px; }
 
-  .ic-bubble-wrap { max-width: 86%; }
+  .ic-bubble-wrap { max-width: 80%; }
 
   .ic-back-btn {
     display: inline-flex;

@@ -12,6 +12,7 @@ const ICONS: Record<string, string> = {
   'brand-teams': '<path d="M3 7h10v10h-10z" /><path d="M6 10h4" /><path d="M8 10v4" /><path d="M8.104 17c.47 2.274 2.483 4 4.896 4a5 5 0 0 0 5 -5v-7h-5" /><path d="M18 18a4 4 0 0 0 4 -4v-5h-4" /><path d="M13.003 8.83a3 3 0 1 0 -1.833 -1.833" /><path d="M15.83 8.36a2.5 2.5 0 1 0 .594 -4.117" />',
   building: '<path d="M3 21l18 0" /><path d="M9 8h1" /><path d="M9 12h1" /><path d="M9 16h1" /><path d="M14 8h1" /><path d="M14 12h1" /><path d="M14 16h1" /><path d="M5 21v-16a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v16" />',
   calendar: '<path d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12z" /><path d="M16 3v4" /><path d="M8 3v4" /><path d="M4 11h16" /><path d="M11 15h1" /><path d="M12 15v3" />',
+  camera: '<path d="M5 7h1a2 2 0 0 0 2 -2a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1a2 2 0 0 0 2 2h1a2 2 0 0 1 2 2v9a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-9a2 2 0 0 1 2 -2" /><path d="M9 13a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" />',
   checks: '<path d="M7 12l5 5l10 -10" /><path d="M2 12l5 5m5 -5l5 -5" />',
   'chevron-left': '<path d="M15 6l-6 6l6 6" />',
   'circle-check': '<path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><path d="M9 12l2 2l4 -4" />',

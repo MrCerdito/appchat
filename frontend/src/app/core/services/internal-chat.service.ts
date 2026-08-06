@@ -202,6 +202,19 @@ export class InternalChatService implements OnDestroy {
     );
   }
 
+  uploadPhoto(conversationId: string, file: File): Observable<InternalConversation> {
+    const form = new FormData();
+    form.append('photo', file);
+    return this.http.patch<InternalConversation>(
+      `${this.apiUrl}/conversations/${conversationId}/photo`,
+      form,
+      { headers: this.headers() },
+    ).pipe(
+      tap(conversation => this.upsertConversation(conversation)),
+      catchError(() => of(null as unknown as InternalConversation)),
+    );
+  }
+
   loadMessages(conversationId: string, before?: string, limit = 50): Observable<InternalMessage[]> {
     const params: Record<string, string> = { limit: String(limit) };
     if (before) params['before'] = before;

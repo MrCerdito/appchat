@@ -629,9 +629,10 @@ a{text-decoration:none;color:inherit}
   }
   .ic-avatar{
     display:flex; align-items:center; justify-content:center;
-    width:44px; height:44px; flex:0 0 44px; border-radius:50%;
+    width:44px; height:44px; flex:0 0 44px; border-radius:50%; overflow:hidden;
     background:var(--wa-green); color:#fff; font-size:18px; font-weight:700;
     &.is-group{background:var(--wa-purple)} wa-icon{font-size:22px}
+    img{width:100%; height:100%; object-fit:cover; border-radius:50%}
   }
   .ic-item-info{flex:1; min-width:0}
   .ic-item-top{
@@ -857,17 +858,14 @@ a{text-decoration:none;color:inherit}
 
 .date-sep{
   display:flex; align-items:center; justify-content:center;
-  margin:10px 0; position:sticky; top:0; z-index:2;
-
-  &::before,
-  &::after{
-    content:''; flex:1; height:1px; background:var(--wa-line);
-  }
+  position:sticky; top:0; z-index:3;
+  margin:10px 0 4px; pointer-events:none;
 
   span{
-    padding:5px 14px; border-radius:999px;
-    background:var(--wa-surface-3); color:var(--wa-muted); font-size:11px; font-weight:500;
-    white-space:nowrap; box-shadow:0 1px 3px rgba(0,0,0,.06);
+    padding:5px 12px; border-radius:8px;
+    background:var(--wa-surface, #fff); color:var(--wa-muted, #667781);
+    font-size:12px; font-weight:600; white-space:nowrap;
+    box-shadow:0 1px 2px var(--wa-shadow, rgba(0,0,0,.08));
   }
 }
 
@@ -886,6 +884,15 @@ a{text-decoration:none;color:inherit}
   .msg-row.out &{background:#B8E6B0; margin:0 8px -3px auto}
   
   &.ai-sender{background:rgba(var(--wa-purple-rgb),.1); color:var(--wa-purple)}
+}
+
+.wa-mention{
+  color:var(--wa-blue, #3B82F6);
+  font-weight:600;
+  cursor:pointer;
+  text-decoration:none;
+
+  &:hover{text-decoration:underline}
 }
 
 .msg-bubble{
@@ -912,7 +919,7 @@ a{text-decoration:none;color:inherit}
 }
 
 .msg-bubble.voice-bubble{
-  width:min(340px,100%); max-width:100%; min-width:0;
+  width:320px; max-width:100%; min-width:0; overflow:hidden;
 }
 
 .ai-badge{display:inline-flex; gap:5px; margin-bottom:5px; color:var(--wa-purple); font-size:10px; font-weight:700}
@@ -1243,6 +1250,7 @@ a{text-decoration:none;color:inherit}
 @media (max-width: 1180px) {
   .right-panel { display: block; }
   .assignment-toast { right: 18px; }
+  .msg-bubble { max-width: 55%; }
 }
 
 // ── ≤960px: panel narrower + header tighter ──────────────
@@ -1252,7 +1260,7 @@ a{text-decoration:none;color:inherit}
   .chat-header-info { gap: 1px; }
   .header-name { font-size: 15px; }
   .header-actions { gap: 4px; }
-  .msg-bubble { width: 100%; max-width: 100%; }
+  .msg-bubble { max-width: 60%; }
 }
 
 // ── ≤900px: compact avatar rail + right-panel fixed ──────
@@ -1299,7 +1307,7 @@ a{text-decoration:none;color:inherit}
   }
 
   .mobile-back-btn { display: grid; }
-  .msg-bubble { width: 100%; max-width: 100%; }
+  .msg-bubble { max-width: 65%; }
 }
 
 // ── ≤820px: tighter padding + smaller elements ───────────
@@ -1320,6 +1328,7 @@ a{text-decoration:none;color:inherit}
   .messages-bg { padding: 14px 12px; }
   .composer-row { padding: 8px 10px 10px; }
   .quick-row { padding: 6px 10px 0; }
+  .msg-bubble { max-width: 70%; }
 }
 
 // ── ≤760px: stack to column (solo si no compact) ─────────
@@ -1361,8 +1370,7 @@ a{text-decoration:none;color:inherit}
   .presence-pill { font-size: 10px; padding: 1px 6px; }
   .take-chat-btn { padding: 0 8px; min-height: 30px; font-size: 11px; }
   .messages-bg { padding: 10px 12px; }
-  .msg-bubble { width: 100%; max-width: 100%; }
-  .date-sep span { font-size: 10px; padding: 4px 10px; }
+  .msg-bubble { max-width: 80%; }
 }
 
 // ── Fixed advisor panel ────────────────────────────────────
@@ -1380,6 +1388,7 @@ a{text-decoration:none;color:inherit}
   .sidebar-header { padding: 8px 10px; }
   .brand > div:not(.brand-icon) { display: none; }
   .chat-avatar { width: 34px; height: 34px; }
+  .msg-bubble { max-width: 85%; }
 }
 
 // ── ≤480px: maximum compact ──────────────────────────────
@@ -1388,9 +1397,8 @@ a{text-decoration:none;color:inherit}
   .connection-strip { font-size: 10px; }
   .chat-avatar { width: 32px; height: 32px; }
   .messages-bg { padding: 10px 8px; }
-  .date-sep span { font-size: 9px; padding: 3px 8px; }
-  .msg-bubble { width: 100%; max-width: 100%; }
-  .media-image,.media-video,.media-video-wrap{max-width:min(280px,100%); max-height:240px}
+  .msg-bubble { max-width: 90%; }
+  .media-image,.media-video,.media-video-wrap{max-width:100%; max-height:240px}
   .chat-header { padding: 6px 8px; gap: 6px; min-height: 46px; }
   .header-name { font-size: 12px; }
   .header-presence { display: none; }

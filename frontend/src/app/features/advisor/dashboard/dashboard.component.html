@@ -328,15 +328,23 @@
         <div class="topbar-divider"></div>
 
         <div class="topbar-metrics">
-          <div class="metric-item" title="Mensajes pendientes de chat"
+          <div class="metric-item chat-metric" [class.has-unread]="misChatsNoLeidos > 0"
+               title="Mensajes pendientes de chat"
              role="button" tabindex="0"
              (click)="openWebChat()" (keydown.enter)="openWebChat()">
-            <svg class="metric-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-            </svg>
-            <span class="metric-value" [class.metric-zero]="misChatsNoLeidos === 0">{{ misChatsNoLeidos }}</span>
-            <span class="metric-label">pendientes</span>
+            <div class="chat-metric-icon" [class.has-unread]="misChatsNoLeidos > 0">
+              <svg class="metric-icon--chat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+            </div>
+            <div class="chat-metric-info">
+              <div class="chat-metric-head">
+                <span class="metric-value" [class.metric-zero]="misChatsNoLeidos === 0"
+                  [class.chat-has-unread]="misChatsNoLeidos > 0">{{ misChatsNoLeidos }}</span>
+                <span class="metric-label">pendientes</span>
+              </div>
+            </div>
           </div>
           <div class="metric-item wa-metric" [class.has-unread]="whatsappTotalUnread > 0" [title]="whatsappUnreadTitle"
                (click)="openWhatsapp('clients')" role="button" tabindex="0"

@@ -167,4 +167,25 @@ export class InternalChatController {
       .markRead(req.user.id, conversationId)
       .then(() => ({ ok: true as const }));
   }
+
+  @Patch('conversations/:id/photo')
+  @UseInterceptors(
+    FileInterceptor('photo', {
+      limits: { fileSize: 5 * 1024 * 1024 },
+    }),
+  )
+  uploadPhoto(
+    @Request() req,
+    @Param('id') conversationId: string,
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<InternalConversationDto> {
+    if (!file) {
+      throw new BadRequestException('Imagen requerida');
+    }
+    return this.internalChatService.updateConversationPhoto(
+      req.user.id,
+      conversationId,
+      file,
+    );
+  }
 }

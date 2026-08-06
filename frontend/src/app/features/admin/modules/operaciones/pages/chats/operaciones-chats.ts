@@ -457,6 +457,10 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
     return this.internalPanel?.conversationAvatar(conv) ?? '';
   }
 
+  internalConversationPhotoUrl(conv: InternalConversation): string | null {
+    return this.internalPanel?.conversationPhotoUrl(conv) ?? null;
+  }
+
   internalConversationTime(conv: InternalConversation): string {
     return this.internalPanel?.convTime(conv) ?? '';
   }

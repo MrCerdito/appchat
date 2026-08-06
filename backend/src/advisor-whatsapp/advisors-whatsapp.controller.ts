@@ -122,7 +122,7 @@ export class AdvisorsWhatsappController {
   getMessages(
     @Param('chatId') chatId: string,
     @Query('page') page = '1',
-    @Query('limit') limit = '50',
+    @Query('limit') limit = '100',
     @Req() req: Request & { user: any },
   ) {
     return this.whatsappService.getMessages(

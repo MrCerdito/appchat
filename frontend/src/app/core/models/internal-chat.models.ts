@@ -38,6 +38,7 @@ export interface InternalConversation {
   id: string;
   type: 'direct' | 'group';
   name: string | null;
+  photoUrl: string | null;
   lastMessageAt: Date | null;
   createdAt: Date;
   members: InternalChatUser[];

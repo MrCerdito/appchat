@@ -28,6 +28,9 @@ export class InternalConversation {
   @Column({ type: 'varchar', length: 120, nullable: true })
   name: string | null;
 
+  @Column({ name: 'photo_url', type: 'varchar', length: 500, nullable: true })
+  photoUrl: string | null;
+
   @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'created_by' })
   createdBy: User | null;

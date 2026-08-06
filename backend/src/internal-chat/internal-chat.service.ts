@@ -9,7 +9,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { extname, join } from 'path';
-import { mkdir, writeFile } from 'fs/promises';
+import { mkdir, writeFile, unlink, readdir } from 'fs/promises';
 import { Repository, In } from 'typeorm';
 import { Subject } from 'rxjs';
 import { User } from '../auth/entities/user.entity';
@@ -55,6 +55,7 @@ export interface InternalConversationDto {
   id: string;
   type: 'direct' | 'group';
   name: string | null;
+  photoUrl: string | null;
   lastMessageAt: Date | null;
   createdAt: Date;
   members: InternalChatUserDto[];
@@ -227,6 +228,10 @@ export class InternalChatService implements OnModuleInit {
           FOREIGN KEY (sender_id) REFERENCES public.users(id) ON DELETE SET NULL
       )
     `);
+    await this.conversationRepo.query(`
+      ALTER TABLE public.internal_conversations
+        ADD COLUMN IF NOT EXISTS photo_url varchar(500) NULL
+    `);
     await this.conversationRepo.query(
       `CREATE INDEX IF NOT EXISTS idx_internal_conversations_type ON public.internal_conversations(type)`,
     );
@@ -366,6 +371,77 @@ export class InternalChatService implements OnModuleInit {
     return this.toConversationDto(conv, userId, member.unreadCount);
   }
 
+  async updateConversationPhoto(
+    userId: string,
+    conversationId: string,
+    file: Express.Multer.File,
+  ): Promise<InternalConversationDto> {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException('Imagen requerida');
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      throw new BadRequestException('La imagen supera 5MB');
+    }
+    const mimeType = this.normalizeMimeType(file.mimetype);
+    if (!mimeType.startsWith('image/')) {
+      throw new BadRequestException('Solo se permiten imágenes');
+    }
+
+    const members = await this.assertMember(userId, conversationId);
+    const conv = await this.conversationRepo.findOne({
+      where: { id: conversationId },
+    });
+    if (!conv) throw new NotFoundException('Conversación no encontrada');
+    if (conv.type !== 'group') {
+      throw new BadRequestException('Solo los grupos pueden tener foto');
+    }
+
+    const uploadsDir = join(process.cwd(), 'uploads', 'conversations');
+    await mkdir(uploadsDir, { recursive: true });
+
+    if (conv.photoUrl) {
+      try {
+        const oldName = conv.photoUrl.split('/').pop();
+        if (oldName) await unlink(join(uploadsDir, oldName));
+      } catch {
+        /* archivo antiguo no existe */
+      }
+    }
+    try {
+      const files = await readdir(uploadsDir);
+      const prefix = `conv-${conversationId}-`;
+      for (const f of files) {
+        if (f.startsWith(prefix)) {
+          try {
+            await unlink(join(uploadsDir, f));
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+
+    const ext = this.extFromMime(mimeType) || extname(file.originalname).toLowerCase();
+    const filename = `conv-${conversationId}-${Date.now()}${ext}`;
+    await writeFile(join(uploadsDir, filename), file.buffer);
+
+    const backendUrl =
+      this.config.get<string>('APP_URL') ?? 'http://localhost:3001';
+    conv.photoUrl = `${backendUrl}/uploads/conversations/${filename}`;
+    await this.conversationRepo.save(conv);
+
+    for (const member of members) {
+      this.conversationUpdates$.next({
+        conversation: await this.getConversationForUser(member.userId, conversationId),
+        memberIds: [member.userId],
+      });
+    }
+
+    return this.getConversationForUser(userId, conversationId);
+  }
+
   private async toConversationDto(
     conv: InternalConversation,
     userId: string,
@@ -380,6 +456,7 @@ export class InternalChatService implements OnModuleInit {
       id: conv.id,
       type: conv.type,
       name: conv.name,
+      photoUrl: conv.photoUrl ?? null,
       lastMessageAt: conv.lastMessageAt,
       createdAt: conv.createdAt,
       members: conv.members.map((m) => this.toUserDto(m.user)),

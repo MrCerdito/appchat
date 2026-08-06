@@ -31,10 +31,10 @@
       @for (conv of filteredConversations; track conv.id) {
       <button type="button" class="ic-item" [class.active]="activeConversation?.id === conv.id" (click)="selectConversation(conv)">
         <div class="ic-avatar" [class.is-group]="conv.type === 'group'">
-          @if (conv.type === 'group') {
-          <wa-icon name="users-group"></wa-icon>
-          } @else if (conversationPhotoUrl(conv)) {
+          @if (conversationPhotoUrl(conv)) {
           <img [src]="conversationPhotoUrl(conv)" [alt]="conversationName(conv)" />
+          } @else if (conv.type === 'group') {
+          <wa-icon name="users-group"></wa-icon>
           } @else {
           {{ conversationAvatar(conv) }}
           }
@@ -75,14 +75,27 @@
       <button type="button" class="ic-back-btn" (click)="backToList()" title="Volver">
         <wa-icon name="chevron-left"></wa-icon>
       </button>
-      <div class="ic-avatar" [class.is-group]="activeConversation.type === 'group'">
+      <div class="ic-avatar-wrap" [class.is-group]="activeConversation.type === 'group'">
+        <div class="ic-avatar" [class.is-group]="activeConversation.type === 'group'">
+          @if (conversationPhotoUrl(activeConversation)) {
+          <img [src]="conversationPhotoUrl(activeConversation)" [alt]="conversationName(activeConversation)" />
+          } @else if (activeConversation.type === 'group') {
+          <wa-icon name="users-group"></wa-icon>
+          } @else {
+          {{ conversationAvatar(activeConversation) }}
+          }
+        </div>
         @if (activeConversation.type === 'group') {
-        <wa-icon name="users-group"></wa-icon>
-        } @else if (conversationPhotoUrl(activeConversation)) {
-        <img [src]="conversationPhotoUrl(activeConversation)" [alt]="conversationName(activeConversation)" />
-        } @else {
-        {{ conversationAvatar(activeConversation) }}
+        <button
+          type="button"
+          class="ic-avatar-cam"
+          [title]="activeConversation.photoUrl ? 'Cambiar foto del grupo' : 'Poner foto del grupo'"
+          (click)="changeGroupPhoto()"
+        >
+          <wa-icon [name]="isUploadingPhoto ? 'loader-2' : 'camera'"></wa-icon>
+        </button>
         }
+        <input #groupPhotoInput type="file" accept="image/*" hidden (change)="onGroupPhotoSelected($event)" />
       </div>
       <div class="ic-chat-info">
         <strong>{{ conversationName(activeConversation) }}</strong>
@@ -99,6 +112,7 @@
       </div>
       } @else {
       @for (group of groupedMessages(messages); track trackByIndex($index)) {
+      <div class="ic-date-group">
       <div class="ic-date-sep"><span>{{ group.label }}</span></div>
       @for (msg of group.messages; track msg.id) {
       <div class="ic-msg-row" [ngClass]="messageOwn(msg) ? 'out' : 'in'" [attr.data-msg-id]="msg.id">
@@ -126,7 +140,7 @@
         <div class="ic-bubble-wrap">
         <div
           class="ic-bubble"
-          [class.voice-bubble]="msg.type === 'audio'"
+          [class.voice-bubble]="msg.type === 'audio' || (msg.type === 'file' && isAudioMessage(msg))"
           [class.video-bubble]="msg.type === 'file' && isVideoMessage(msg)"
           [class.pending]="!!msg.pending"
           [class.ic-editing]="editingMessage?.id === msg.id"
@@ -168,6 +182,15 @@
           <div class="ic-file-voice">
             <wa-icon name="microphone"></wa-icon>
             <span>Nota de voz</span>
+          </div>
+          }
+
+          @if (msg.type === 'file' && isAudioMessage(msg) && msg.mediaUrl) {
+          <wa-voice-player [src]="msg.mediaUrl" [out]="messageOwn(msg)" [avatar]="messageOwn(msg) ? advisorPhotoUrl : senderAvatar(msg)"></wa-voice-player>
+          } @else if (msg.type === 'file' && isAudioMessage(msg)) {
+          <div class="ic-file-voice">
+            <wa-icon name="microphone"></wa-icon>
+            <span>Audio</span>
           </div>
           }
 
@@ -230,6 +253,7 @@
         }
       </div>
       }
+      </div>
       }
       }
       @if (!messages.length && !isLoadingMessages) {
@@ -434,7 +458,9 @@
           <wa-icon name="checks"></wa-icon>
         </div>
         <div class="ic-avatar" [class.is-group]="conv.type === 'group'">
-          @if (conv.type === 'group') {
+          @if (conversationPhotoUrl(conv)) {
+          <img [src]="conversationPhotoUrl(conv)" [alt]="conversationName(conv)" />
+          } @else if (conv.type === 'group') {
           <wa-icon name="users-group"></wa-icon>
           } @else {
           {{ conversationAvatar(conv) }}

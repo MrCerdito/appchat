@@ -438,6 +438,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
 
     window.addEventListener('message', this.handleTeamsAuthMessage);
     window.addEventListener('click', this.closeMessageMenuOnWindowClick);
+    document.addEventListener('click', this.handleMentionClick);
 
     // ── Compact mode ───────────────────────────────────────────────────────
     this.checkCompact();
@@ -457,6 +458,9 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     this.showWhatsappSettings = false;
     this.showCompactFilter = false;
     this.showInfoPanel = false;
+    this.closeMediaPreview();
+    this.closeVideoFullscreen();
+    this.closeProfilePhoto();
     if (mode === 'advisors') {
       this.activeContact = undefined;
     }
@@ -502,6 +506,10 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     return this.internalPanel?.conversationAvatar(conv) ?? '';
   }
 
+  internalConversationPhotoUrl(conv: InternalConversation): string | null {
+    return this.internalPanel?.conversationPhotoUrl(conv) ?? null;
+  }
+
   internalConversationTime(conv: InternalConversation): string {
     return this.internalPanel?.convTime(conv) ?? '';
   }
@@ -533,6 +541,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     this.resizeObserver?.disconnect();
     window.removeEventListener('message', this.handleTeamsAuthMessage);
     window.removeEventListener('click', this.closeMessageMenuOnWindowClick);
+    document.removeEventListener('click', this.handleMentionClick);
     if (this.toastTimer) clearTimeout(this.toastTimer);
     if (this.closeReactionTimer) clearTimeout(this.closeReactionTimer);
     if (this.longPressTimer) clearTimeout(this.longPressTimer);
@@ -811,6 +820,9 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     this.sendError = '';
     this.newNote = '';
     this.shouldScroll = true;
+    this.closeMediaPreview();
+    this.closeVideoFullscreen();
+    this.closeProfilePhoto();
 
     if (contact.unread > 0) {
       contact.unread = 0;
@@ -818,7 +830,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     }
 
     this.subs.add(
-      this.waService.loadMessages(contact.id).subscribe(messages => {
+      this.waService.loadMessages(contact.id, 1, 100).subscribe(messages => {
         if (!this.activeContact || this.activeContact.id !== contact.id) return;
         this.activeContact = { ...this.activeContact, messages };
         this.contactDraft = this.draftFromContact(this.activeContact);
@@ -1450,6 +1462,22 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
   }
   this.dismissReactionPopover();
 };
+
+  private handleMentionClick = (event: MouseEvent) => {
+    const target = event.target as HTMLElement | null;
+    const el = target?.closest?.('.wa-mention[data-mention]') as HTMLElement | null;
+    if (!el) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const name = (el.getAttribute('data-mention') || '').trim();
+    if (!name) return;
+    const match = this.contacts.find(
+      contact => (contact.name || '').toLowerCase() === name.toLowerCase(),
+    );
+    if (match) {
+      this.selectContact(match);
+    }
+  };
 
   sendMessage(): void {
     if (this.selectedFile) {
@@ -2478,6 +2506,10 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(
+        /(?<![\p{L}\p{N}_.])@([\p{L}\p{N}_.]+)/gu,
+        '<span class="wa-mention" data-mention="$1">@$1</span>'
+      )
+      .replace(
         /\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g,
         '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
       )
@@ -2544,12 +2576,19 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     const map: Record<string, string> = {
       '.mp3': 'audio/mpeg',
       '.m4a': 'audio/mp4',
+      '.m4b': 'audio/mp4',
       '.aac': 'audio/aac',
       '.ogg': 'audio/ogg',
+      '.oga': 'audio/ogg',
       '.opus': 'audio/opus',
       '.wav': 'audio/wav',
+      '.weba': 'audio/webm',
       '.amr': 'audio/amr',
       '.flac': 'audio/flac',
+      '.mka': 'audio/matroska',
+      '.wma': 'audio/x-ms-wma',
+      '.aif': 'audio/aiff',
+      '.aiff': 'audio/aiff',
     };
     return map[this.extensionFromName(name)] ?? '';
   }

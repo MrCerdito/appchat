@@ -20,6 +20,7 @@ import { User } from '../../../core/models/user.model';
 import { Session } from '../../../core/models/session.model';
 import { Message } from '../../../core/models/message.model';
 import { AwNewMessage, WaChat } from '../../../core/models/whatsapp.models';
+import { InternalMessage } from '../../../core/models/internal-chat.models';
 import { trackByIndex, trackById } from '../../../shared/utils/track-by';
 
 interface ConnectedAdvisor {
@@ -349,6 +350,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe(message => this.handleGlobalWhatsappMessage(message));
 
+    this.internalChat.onNewMessage()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(message => this.handleGlobalInternalMessage(message));
+
     this.whatsapp.onChatAssigned()
       .pipe(takeUntil(this.destroy$))
       .subscribe(event => {
@@ -494,6 +499,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
       'WHATSAPP',
       `${this.whatsappConversationName(chat, message)}\n${message.body || this.whatsappMediaLabel(message.type)}`,
       `wa-message-${message.chatId}`,
+    );
+  }
+
+  private handleGlobalInternalMessage(message: InternalMessage): void {
+    if (message.senderId === this.currentAdvisor?.id) return;
+    if (message.type === 'system') return;
+    this.sound.playWhatsappAssignedMessage();
+    this.sound.notify(
+      'CHAT INTERNO',
+      `${message.senderName}\n${message.body || this.internalMediaLabel(message)}`,
+      `internal-message-${message.conversationId}`,
     );
   }
 
@@ -769,6 +785,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
       audio: 'Audio',
       document: 'Documento',
     }[type] ?? 'Nuevo mensaje de WhatsApp';
+  }
+
+  private internalMediaLabel(message: InternalMessage): string {
+    if (message.type === 'image') return 'Imagen';
+    if (message.type === 'audio') return 'Audio';
+    if (message.type === 'file') {
+      return (message.mediaMimeType || '').startsWith('video/') ? 'Video' : (message.mediaName || 'Archivo');
+    }
+    return 'Mensaje';
   }
 
   private whatsappConversationName(chat: WaChat | undefined, message: AwNewMessage): string {

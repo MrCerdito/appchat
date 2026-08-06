@@ -70,6 +70,7 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
   @ViewChild('fileInput') fileInput?: ElementRef<HTMLInputElement>;
   @ViewChild('imageInput') imageInput?: ElementRef<HTMLInputElement>;
   @ViewChild('videoInput') videoInput?: ElementRef<HTMLInputElement>;
+  @ViewChild('groupPhotoInput') groupPhotoInput?: ElementRef<HTMLInputElement>;
 
   conversations: InternalConversation[] = [];
   activeConversation: InternalConversation | null = null;
@@ -126,6 +127,7 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
   errorMessage = '';
   showAttachMenu = false;
   successMessage = '';
+  isUploadingPhoto = false;
 
   private successTimer: ReturnType<typeof setTimeout> | null = null;
   private longPressTimer: ReturnType<typeof setTimeout> | null = null;
@@ -176,6 +178,10 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
     this.subs.add(
       this.internalChat.getConversationsStream().subscribe(list => {
         this.conversations = list;
+        if (this.activeConversation) {
+          const fresh = list.find(c => c.id === this.activeConversation?.id);
+          if (fresh) this.activeConversation = fresh;
+        }
         this.cdr.detectChanges();
       }),
     );
@@ -275,9 +281,43 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
   }
 
   conversationPhotoUrl(conv: InternalConversation): string | null {
-    if (conv.type === 'group') return null;
+    if (conv.type === 'group') return conv.photoUrl || null;
     const other = conv.members.find(m => m.id !== this.currentUserId);
     return other?.profilePhotoUrl || null;
+  }
+
+  changeGroupPhoto(): void {
+    if (!this.activeConversation || this.activeConversation.type !== 'group') return;
+    this.groupPhotoInput?.nativeElement.click();
+  }
+
+  onGroupPhotoSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file || !this.activeConversation) return;
+    if (!file.type.startsWith('image/')) {
+      this.errorMessage = 'Solo se permiten imágenes.';
+      this.cdr.detectChanges();
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      this.errorMessage = 'La imagen supera el límite de 5 MB.';
+      this.cdr.detectChanges();
+      return;
+    }
+    this.isUploadingPhoto = true;
+    this.cdr.detectChanges();
+    this.internalChat.uploadPhoto(this.activeConversation.id, file).subscribe(res => {
+      this.isUploadingPhoto = false;
+      if (res?.id) {
+        this.activeConversation = { ...this.activeConversation!, ...res };
+        this.showSuccess('Foto del grupo actualizada');
+      } else {
+        this.errorMessage = 'No se pudo actualizar la foto del grupo.';
+      }
+      this.cdr.detectChanges();
+    });
   }
 
   previewText(conv: InternalConversation): string {
@@ -383,6 +423,7 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
     this.activeChange.emit(true);
     this.forceScrollToBottom = true;
     this.internalChat.setActiveConversation(conv.id);
+    this.closeImage();
     this.isLoadingMessages = true;
     this.messages = [];
     this.cdr.detectChanges();
@@ -547,6 +588,18 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
   }
 
   private setSelectedFile(file: File, kind: 'image' | 'audio' | 'file' | 'video'): void {
+    if (kind === 'file') {
+      const normalized = this.normalizeAudioFile(file);
+      if (this.normalizeMimeType(normalized.type).startsWith('audio/')) {
+        this.selectedFile = normalized;
+        this.selectedFileKind = 'audio';
+        this.selectedFilePreviewUrl = URL.createObjectURL(normalized);
+        this.errorMessage = '';
+        this.cdr.detectChanges();
+        return;
+      }
+      file = normalized;
+    }
     this.selectedFile = file;
     this.selectedFileKind = kind === 'video' ? 'file' : kind;
     this.selectedFilePreviewUrl = kind === 'image' || kind === 'audio' ? URL.createObjectURL(file) : '';
@@ -644,6 +697,46 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
 
   isVideoMessage(msg: InternalMessage): boolean {
     return (msg.mediaMimeType || '').toLowerCase().startsWith('video/');
+  }
+
+  isAudioMessage(msg: InternalMessage): boolean {
+    return (msg.mediaMimeType || '').toLowerCase().startsWith('audio/');
+  }
+
+  private extensionFromName(name = ''): string {
+    const match = name.toLowerCase().match(/\.[a-z0-9]+$/);
+    return match?.[0] ?? '';
+  }
+
+  private audioMimeFromExtension(name = ''): string {
+    const map: Record<string, string> = {
+      '.mp3': 'audio/mpeg',
+      '.m4a': 'audio/mp4',
+      '.m4b': 'audio/mp4',
+      '.aac': 'audio/aac',
+      '.ogg': 'audio/ogg',
+      '.oga': 'audio/ogg',
+      '.opus': 'audio/opus',
+      '.wav': 'audio/wav',
+      '.weba': 'audio/webm',
+      '.amr': 'audio/amr',
+      '.flac': 'audio/flac',
+      '.mka': 'audio/matroska',
+      '.wma': 'audio/x-ms-wma',
+      '.aif': 'audio/aiff',
+      '.aiff': 'audio/aiff',
+    };
+    return map[this.extensionFromName(name)] ?? '';
+  }
+
+  private normalizeMimeType(value = ''): string {
+    return value.toLowerCase().split(';')[0].trim();
+  }
+
+  private normalizeAudioFile(file: File): File {
+    const audioMime = this.audioMimeFromExtension(file.name);
+    if (!audioMime || this.normalizeMimeType(file.type) === audioMime) return file;
+    return new File([file], file.name, { type: audioMime });
   }
 
   formatFileSize(size: number | null): string {
