@@ -438,7 +438,18 @@
                 <td><span class="op-estado-tag">{{ chat.institution || '—' }}</span></td>
                 <td><small class="op-estado-sub" [class]="estadoClass(chat)">{{ estadoLabel(chat) }}</small></td>
                 <td><span class="op-priority" [class]="prioridadClass(chat.priority)">{{ (chat.priority || 'normal') | titlecase }}</span></td>
-                <td>{{ chat.assignedToName || '—' }}</td>
+                <td>
+                  @if (chat.fixedAdvisorId && chat.fixedAdvisorName) {
+                  <span class="op-fijo-badge">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 17v5"/><path d="M9 11l-4 4h14l-4-4"/><path d="M15 3.5L9.5 9 15 11l-5.5 5.5"/>
+                    </svg>
+                    {{ chat.fixedAdvisorName }}
+                  </span>
+                  } @else {
+                  {{ chat.assignedToName || '—' }}
+                  }
+                </td>
                 <td class="op-msg-cell">{{ chat.preview || '—' }}</td>
                 <td>{{ chat.time || '—' }}</td>
                 <td>
@@ -554,6 +565,9 @@
           }
         </div>
         <div class="op-assign-footer">
+          @if (assignError) {
+          <div class="op-assign-error">{{ assignError }}</div>
+          }
           @if (assignBusy) {
           <div class="op-assign-loading">Asignando...</div>
           }

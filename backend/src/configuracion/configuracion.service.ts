@@ -92,6 +92,10 @@ export class ConfiguracionService implements OnModuleInit {
       ALTER TABLE IF EXISTS public.configuracion
       ADD COLUMN IF NOT EXISTS almuerzos jsonb NOT NULL DEFAULT '[]'::jsonb
     `);
+    await this.repo.query(`
+      ALTER TABLE IF EXISTS public.configuracion
+      ADD COLUMN IF NOT EXISTS whatsapp_max_active_chats_per_advisor int NOT NULL DEFAULT 3
+    `);
 
     const count = await this.repo.count({ where: { advisorId: null as any } });
     if (count === 0) {
@@ -278,6 +282,7 @@ export class ConfiguracionService implements OnModuleInit {
       sonidoAsesor: 'asesor1',
       sonidoCliente: 'cliente1',
       sonidoAsignacion: 'asignacion1',
+      whatsappMaxActiveChatsPerAdvisor: 3,
     };
     const nueva = this.repo.create({ ...defaults, advisorId: null });
     const saved = await this.repo.save(nueva);

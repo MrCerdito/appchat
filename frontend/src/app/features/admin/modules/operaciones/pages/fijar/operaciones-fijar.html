@@ -10,6 +10,10 @@
     <span class="opf-nav-badge">{{ totalFijados }} fijados</span>
   </nav>
 
+  @if (lastError) {
+  <div class="opf-error">{{ lastError }}</div>
+  }
+
   <div class="opf-filters">
     <div class="opf-search-group">
       <svg class="opf-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -36,8 +40,8 @@
           <th>Cliente</th>
           <th>Colegio</th>
           <th>Prioridad</th>
-          <th>Asesor actual</th>
-          <th>Asesor fijo</th>
+          <th>Asignado a</th>
+          <th>Fijado a</th>
           <th>Acción</th>
         </tr>
       </thead>
@@ -50,6 +54,9 @@
               <div>
                 <strong>{{ chat.cliente }}</strong>
                 <small>{{ chat.telefono }}</small>
+                @if (chat.esGrupo) {
+                <span class="opf-group-tag">Grupo</span>
+                }
               </div>
             </div>
           </td>
@@ -57,7 +64,10 @@
           <td><span class="opf-priority" [class]="prioridadClass(chat.prioridad)">{{ chat.prioridad | titlecase }}</span></td>
           <td>
             @if (chat.asesorActualNombre && chat.asesorActualNombre !== '—') {
-            <span class="opf-asesor-actual">
+            <span class="opf-asesor-badge">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/>
+              </svg>
               {{ chat.asesorActualNombre }}
             </span>
             } @else {
@@ -78,7 +88,7 @@
           </td>
           <td>
             @if (!chat.isFijado) {
-            <button class="opf-action-btn fix" [disabled]="fixing.has(chat.id)" (click)="openFixPopup(chat.id, chat.cliente)">
+            <button class="opf-action-btn fix" [disabled]="fixing.has(chat.id)" (click)="openFixPopup(chat.id, chat.cliente, chat.esGrupo)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 17v5"/><path d="M9 11l-4 4h14l-4-4"/><path d="M15 3.5L9.5 9 15 11l-5.5 5.5"/>
               </svg>
@@ -117,7 +127,7 @@
         </button>
       </div>
       <div class="opf-popup-body">
-        <p class="opf-popup-hint">Este asesor atenderá siempre los mensajes de este chat.</p>
+        <p class="opf-popup-hint">@if (fixPopupEsGrupo) { Este asesor atenderá siempre los mensajes de este grupo. } @else { Este asesor atenderá siempre los mensajes de este chat. }</p>
         @for (advisor of asesores; track trackByAdvisorId($index, advisor)) {
         <button class="opf-popup-advisor" (click)="fijarChat(advisor.id)">
           <div class="opf-popup-adv-avatar">{{ advisor.nombre.charAt(0) }}</div>

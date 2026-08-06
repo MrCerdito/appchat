@@ -113,6 +113,13 @@ export class Configuracion {
   })
   whatsappQuickReplies: any[];
 
+  @Column({
+    name: 'whatsapp_max_active_chats_per_advisor',
+    type: 'int',
+    default: 3,
+  })
+  whatsappMaxActiveChatsPerAdvisor: number;
+
   // ★ Horarios de almuerzo personales del asesor
   // Columna nueva — requiere ejecutar el ALTER TABLE de abajo en la BD
   @Column({ type: 'jsonb', default: '[]' })

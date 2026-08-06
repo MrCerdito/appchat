@@ -124,6 +124,7 @@ export class AdvisorsWhatsappController {
     @Query('page') page = '1',
     @Query('limit') limit = '100',
     @Req() req: Request & { user: any },
+    @Query('anchor') anchor?: string,
   ) {
     return this.whatsappService.getMessages(
       chatId,
@@ -131,6 +132,7 @@ export class AdvisorsWhatsappController {
       +limit,
       req.user.id,
       req.user.role,
+      anchor,
     );
   }
 

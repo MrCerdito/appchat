@@ -746,6 +746,7 @@ a{text-decoration:none;color:inherit}
 .chat-name.has-unread{font-weight:700; color:var(--wa-text)}
 .chat-time{color:var(--wa-muted); font-size:11px; flex-shrink:0}
 .chat-inst{overflow:hidden; color:var(--wa-muted); font-size:11px; text-overflow:ellipsis; white-space:nowrap; margin-top:2px}
+.chat-mine-tag{display:inline-flex; align-items:center; margin-left:6px; padding:0 6px; border-radius:4px; background:rgba(var(--wa-green-rgb),.12); color:var(--wa-green); font-size:10px; font-weight:600}
 .chat-preview{overflow:hidden; color:var(--wa-faint); font-size:12px; text-overflow:ellipsis; white-space:nowrap; margin-top:3px}
 .chat-priority{margin-top:3px}
 .chat-meta{display:flex; align-items:center; gap:5px; flex-wrap:wrap; margin-top:6px}
@@ -914,6 +915,15 @@ a{text-decoration:none;color:inherit}
   p{margin:0; white-space:pre-wrap; overflow-wrap:anywhere; font-size:13.5px; line-height:1.5; color:inherit}
 }
 
+.msg-bubble.wa-flash{
+  animation: waMsgFlash 1.2s ease;
+  scroll-margin: 120px 0;
+}
+@keyframes waMsgFlash{
+  0%{box-shadow:0 0 0 3px rgba(var(--wa-green-rgb),.9); background:rgba(var(--wa-green-rgb),.28)}
+  100%{box-shadow:0 1px 2px var(--wa-shadow); background:var(--wa-bubble-mine)}
+}
+
 .msg-bubble:has(.media-message):not(.voice-bubble){
   width:fit-content; max-width:50%;
 }
@@ -942,6 +952,7 @@ a{text-decoration:none;color:inherit}
 // Media messages
 .media-message{display:block; max-width:100%; margin-bottom:6px; overflow:hidden}
 .media-image{display:block; width:auto; max-width:100%; max-height:300px; height:auto; border-radius:8px; object-fit:contain; background:var(--wa-bg); cursor:zoom-in}
+.media-sticker{width:120px; height:120px; max-height:120px; object-fit:contain; background:transparent}
 .media-video-wrap{
   position:relative; display:block; max-width:100%; cursor:pointer;
   .media-video{display:block; max-width:100%; max-height:280px; width:auto; border-radius:8px; object-fit:contain; background:#000}
@@ -1186,6 +1197,7 @@ a{text-decoration:none;color:inherit}
   display:inline-flex; align-items:center; gap:4px; padding:3px 8px;
   border:1px solid var(--wa-line); border-radius:999px; background:var(--wa-surface-2);
   color:var(--wa-text); cursor:pointer; font-size:12px;
+  b{font-size:14px; font-weight:400; line-height:1}
   em{font-style:normal; font-weight:700; font-size:11px; color:var(--wa-muted)}
   &:hover{background:var(--wa-hover)}
 }

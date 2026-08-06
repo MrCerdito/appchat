@@ -41,6 +41,9 @@ export class AdvisorsWhatsappGateway
   private readonly logger = new Logger(AdvisorsWhatsappGateway.name);
   private readonly advisorSockets = new Map<string, Set<string>>();
   private readonly subscriptions = new Subscription();
+  private readonly queueDrainIntervalMs = 45_000;
+  private queueDrainTimer: ReturnType<typeof setInterval> | null = null;
+  private queueDraining = false;
 
   constructor(
     private readonly jwtService: JwtService,
@@ -68,10 +71,34 @@ export class AdvisorsWhatsappGateway
         this.server?.emit('aw_connection_update', update);
       }),
     );
+    this.queueDrainTimer = setInterval(
+      () => void this.drainWaitingQueue(),
+      this.queueDrainIntervalMs,
+    );
   }
 
   onModuleDestroy() {
+    if (this.queueDrainTimer) clearInterval(this.queueDrainTimer);
     this.subscriptions.unsubscribe();
+  }
+
+  private async drainWaitingQueue(): Promise<void> {
+    if (this.queueDraining) return;
+    const connected = this.getConnectedAdvisorIds();
+    if (!connected.length) return;
+    this.queueDraining = true;
+    try {
+      const assignments = await this.whatsappService.assignWaitingChats(
+        connected,
+      );
+      this.emitAssignments(assignments);
+    } catch (err) {
+      this.logger.warn(
+        `Error drenando cola: ${err?.message ?? err}`,
+      );
+    } finally {
+      this.queueDraining = false;
+    }
   }
 
   async handleConnection(client: Socket) {
@@ -143,6 +170,8 @@ export class AdvisorsWhatsappGateway
     const advisorId = client.data.user?.id;
     if (!advisorId) return;
 
+    this.whatsappService.closeChatView(advisorId);
+
     const wentOffline = this.removeAdvisorSocket(advisorId, client.id);
     if (!wentOffline) return;
     this.whatsappService.setConnectedAdvisorIds(this.getConnectedAdvisorIds());
@@ -156,6 +185,34 @@ export class AdvisorsWhatsappGateway
     );
   }
 
+  @SubscribeMessage('aw_open_chat')
+  async handleOpenChat(
+    @MessageBody() chatId: string,
+    @ConnectedSocket() client: Socket,
+  ) {
+    const user = client.data.user;
+    if (!user || !chatId || typeof chatId !== 'string') return;
+    try {
+      const chat = await this.whatsappService.openChat(
+        chatId,
+        user.id,
+        user.role,
+      );
+      this.emitChatUpdated(chat);
+    } catch (err) {
+      this.logger.warn(
+        `Error marcando chat abierto para ${user.id}: ${err?.message ?? err}`,
+      );
+    }
+  }
+
+  @SubscribeMessage('aw_close_chat')
+  handleCloseChat(@ConnectedSocket() client: Socket) {
+    const user = client.data.user;
+    if (!user) return;
+    this.whatsappService.closeChatView(user.id);
+  }
+
   @SubscribeMessage('aw_join')
   async handleJoin(
     @MessageBody() advisorId: string,
@@ -167,6 +224,7 @@ export class AdvisorsWhatsappGateway
     )
       return;
     client.join(this.advisorRoom(advisorId));
+    this.whatsappService.closeChatView(advisorId);
 
     try {
       const assignments = await this.whatsappService.assignWaitingChats(

@@ -215,6 +215,81 @@
   color: #64748B;
 }
 
+.opas-group-tag {
+  display: inline-block;
+  margin-top: 3px;
+  padding: 1px 7px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  background: #EDE9FE;
+  color: #7C3AED;
+}
+
+.opas-asesor-actual {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: #059669;
+}
+
+.opas-fijado-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  padding: 1px 7px;
+  border-radius: 6px;
+  background: #EDE9FE;
+  color: #7C3AED;
+  font-size: 10px;
+  font-weight: 700;
+
+  svg { width: 11px; height: 11px; }
+}
+
+.opas-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.opas-release-btn {
+  height: 32px;
+  padding: 0 14px;
+  border: 1px solid #E5E7EB;
+  border-radius: 6px;
+  background: #fff;
+  color: #EF4444;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .12s ease;
+  white-space: nowrap;
+
+  &:hover {
+    background: #FEF2F2;
+    border-color: #FECACA;
+  }
+  &:disabled { opacity: .5; cursor: not-allowed; }
+}
+
+.opas-cerrado {
+  opacity: .55;
+
+  &:hover { opacity: 1; }
+}
+
+.opas-error {
+  margin: 0 24px 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  color: #DC2626;
+  font-size: 13px;
+}
+
 .opas-priority {
   display: inline-block;
   padding: 2px 10px;

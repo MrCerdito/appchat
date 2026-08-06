@@ -112,6 +112,12 @@ export class GuardarConfigGlobalDto {
   whatsappQuickReplies?: any[];
 
   @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  whatsappMaxActiveChatsPerAdvisor?: number;
+
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
   @MaxLength(100, { each: true })

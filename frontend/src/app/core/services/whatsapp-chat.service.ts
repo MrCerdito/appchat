@@ -57,6 +57,7 @@ export class WhatsappChatService implements OnDestroy {
   private queueUpdated$ = new Subject<AwQueueUpdated>();
   private chats$ = new BehaviorSubject<WaChat[]>([]);
   private myAdvisorId = '';
+  private activeChatId: string | null = null;
   private connection$ = new BehaviorSubject<WaConnectionStatus>({
     status: 'connecting',
     updatedAt: new Date().toISOString(),
@@ -81,6 +82,8 @@ export class WhatsappChatService implements OnDestroy {
     this.socket.on('connect', () => {
       this.connectionLoaded = false;
       this.loadConnection().subscribe();
+      this.scheduleChatListRefresh();
+      if (this.activeChatId) this.socket.emit('aw_open_chat', this.activeChatId);
     });
 
     this.socket.on('disconnect', (reason) => {
@@ -284,11 +287,26 @@ export class WhatsappChatService implements OnDestroy {
     );
   }
 
-  loadMessages(chatId: string, page = 1, limit = 50): Observable<WaMessage[]> {
+  loadMessages(chatId: string, page = 1, limit = 50, anchor?: string): Observable<WaMessage[]> {
     return this.http.get<WaMessage[]>(
       `${this.apiUrl}/chats/${chatId}/messages`,
-      { headers: this.headers(), params: { page: String(page), limit: String(limit) } },
+      {
+        headers: this.headers(),
+        params: {
+          page: String(page),
+          limit: String(limit),
+          ...(anchor ? { anchor } : {}),
+        },
+      },
     );
+  }
+
+  setActiveChat(chatId: string | null): void {
+    if (this.activeChatId === chatId) return;
+    this.activeChatId = chatId;
+    if (!this.socket?.connected) return;
+    if (chatId) this.socket.emit('aw_open_chat', chatId);
+    else this.socket.emit('aw_close_chat');
   }
 
   sendMessage(to: string, text: string): Observable<{ ok: boolean; messageId?: string; chat?: WaChat }> {
@@ -536,6 +554,7 @@ export class WhatsappChatService implements OnDestroy {
     const idx = current.findIndex(c => c.id === msg.chatId);
 
     if (idx === -1) {
+      this.scheduleChatListRefresh();
       return true;
     }
 
@@ -555,7 +574,8 @@ export class WhatsappChatService implements OnDestroy {
     // Solo los chats asignados a este asesor acumulan no-leídos; la cola
     // (sin asesor) actualiza el preview sin "notificar" al contador.
     const isMine = chat.assignedTo === this.myAdvisorId;
-    if (!msg.fromMe && isNewMessage && !this.isReactionMessage(msg) && isMine) chat.unread = (chat.unread ?? 0) + 1;
+    const isOpen = msg.chatId === this.activeChatId;
+    if (!msg.fromMe && isNewMessage && !this.isReactionMessage(msg) && isMine && !isOpen) chat.unread = (chat.unread ?? 0) + 1;
     if (!msg.fromMe) chat.lastClientMsg = now;
     chat.messages = messages;
 
@@ -607,6 +627,7 @@ export class WhatsappChatService implements OnDestroy {
       video: 'Video',
       audio: 'Audio',
       document: 'Documento',
+      sticker: 'Sticker',
     }[type] ?? 'Archivo';
   }
 
@@ -637,6 +658,17 @@ export class WhatsappChatService implements OnDestroy {
       chat.id === chatId ? { ...chat, unread } : chat,
     );
     this.chats$.next(updated);
+  }
+
+  private chatListRefreshScheduled = false;
+
+  private scheduleChatListRefresh(): void {
+    if (this.chatListRefreshScheduled) return;
+    this.chatListRefreshScheduled = true;
+    setTimeout(() => {
+      this.chatListRefreshScheduled = false;
+      this.loadChats(1, this.chatsLimit).subscribe();
+    }, 500);
   }
 
   private headers(): HttpHeaders {

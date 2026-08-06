@@ -27,7 +27,7 @@ import QRCode from 'qrcode';
 import { mkdir, rm, writeFile } from 'fs/promises';
 import { extname, join } from 'path';
 import { Subject } from 'rxjs';
-import { In, IsNull, Not, Repository } from 'typeorm';
+import { In, IsNull, MoreThan, Not, Repository } from 'typeorm';
 import { User } from '../auth/entities/user.entity';
 import {
   ConfiguracionService,
@@ -65,13 +65,15 @@ export interface IncomingWhatsappMessage {
   fileName?: string;
   caption?: string;
   reactionToMessageId?: string;
+  replyToMessageId?: string;
   timestamp: string;
   phoneNumberId?: string;
   messageKey?: WAMessageKey;
   rawMessage?: WAMessage;
 }
 
-export type WhatsappMediaType = 'image' | 'video' | 'audio' | 'document';
+export type WhatsappMediaType =
+  'image' | 'video' | 'audio' | 'document' | 'sticker';
 
 export interface WhatsappStatusUpdate {
   messageId: string;
@@ -254,6 +256,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
   private readonly contactNameCache = new Map<string, string>();
   private readonly connectedAdvisorIds = new Set<string>();
   private readonly handledCallIds = new Set<string>();
+  private readonly openChatByUser = new Map<string, string>();
   private socketId = 0;
   private connectionSequence = 0;
   private qrReceivedInSession = false;
@@ -335,6 +338,8 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
   ) {
     this.logger.log('WhatsApp usara Baileys con sesion unica por QR.');
   }
+
+  private assignWaitQueue: Promise<unknown> = Promise.resolve();
 
   async onModuleInit(): Promise<void> {
     await this.ensureWhatsappSchema();
@@ -733,16 +738,19 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       chat.institution = 'Grupo';
       chat.status = 'active';
       chat.operationalStatus = 'in_progress';
-      chat.assignedAdvisor = null;
-      chat.assignedAt = null;
-      chat.assignmentMode = null;
+      if (!chat.assignedAdvisor) {
+        chat.assignedAdvisor = null;
+        chat.assignedAt = null;
+        chat.assignmentMode = null;
+      }
       chat.queueNoticeSent = false;
       chat.outOfHoursNoticeSent = false;
     }
     if (raw.type !== 'reaction') {
       chat.lastMessageAt = new Date();
       chat.lastClientMessageAt = new Date(raw.timestamp || Date.now());
-      chat.unreadCount = (chat.unreadCount ?? 0) + 1;
+      const chatOpen = [...this.openChatByUser.values()].includes(chat.id);
+      if (!chatOpen) chat.unreadCount = (chat.unreadCount ?? 0) + 1;
     }
 
     if (!isGroup && (chat.status === 'closed' || assignmentExpired)) {
@@ -758,32 +766,63 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     chat = await this.chatRepo.save(chat);
     this.refreshProfilePicture(chat);
 
-    let savedMessage =
-      raw.type === 'reaction'
-        ? await this.saveReactionMessage(chat, raw, false)
-        : await this.messageRepo.save(
-            this.messageRepo.create({
-              chat,
-              metaMessageId: raw.messageId,
-              body: this.messageBody(raw),
-              fromMe: false,
-              senderName: raw.senderName || chat.name,
-              participantJid: raw.participantJid ?? null,
-              status: 'delivered',
-              isAuto: false,
-              type: raw.type || 'text',
-              mediaId: raw.mediaId ?? null,
-              mimeType: raw.mimeType ?? null,
-              fileName: raw.fileName ?? null,
-            }),
-          );
+    let savedMessage: WhatsappMessage;
+    try {
+      savedMessage =
+        raw.type === 'reaction'
+          ? await this.saveReactionMessage(chat, raw, false)
+          : await this.messageRepo.save(
+              this.messageRepo.create({
+                chat,
+                metaMessageId: raw.messageId,
+                body: this.messageBody(raw),
+                fromMe: false,
+                senderName: raw.senderName || chat.name,
+                participantJid: raw.participantJid ?? null,
+                status: 'delivered',
+                isAuto: false,
+                type: raw.type || 'text',
+                mediaId: raw.mediaId ?? null,
+                mimeType: raw.mimeType ?? null,
+                fileName: raw.fileName ?? null,
+                replyToMessageId: raw.replyToMessageId ?? null,
+              }),
+            );
+    } catch (err) {
+      if (!this.isUniqueViolation(err)) throw err;
+      const existing = await this.messageRepo.findOne({
+        where: { metaMessageId: raw.messageId },
+        relations: ['chat', 'chat.assignedAdvisor'],
+      });
+      if (!existing) throw err;
+      return {
+        chat: await this.toChatDto(existing.chat, true),
+        message: await this.toMessageDtoWithQuote(existing),
+        assignedAdvisorId: existing.chat.assignedAdvisor?.id,
+      };
+    }
 
     savedMessage = await this.attachIncomingMedia(savedMessage, raw);
 
     if (isGroup) {
+      let assignedAdvisorId: string | undefined = chat.assignedAdvisor?.id;
+      if (!assignedAdvisorId && chat.fixedAdvisor) {
+        const fixedAdvisor = await this.findFixedAdvisorIfAvailable(
+          chat,
+          connectedAdvisorIds,
+        );
+        if (fixedAdvisor) {
+          chat.assignedAdvisor = fixedAdvisor;
+          chat.assignedAt = new Date();
+          chat.assignmentMode = 'fixed';
+          chat = await this.chatRepo.save(chat);
+          assignedAdvisorId = fixedAdvisor.id;
+        }
+      }
       return {
         chat: await this.toChatDto(chat, true),
-        message: this.toMessageDto(savedMessage),
+        message: await this.toMessageDtoWithQuote(savedMessage),
+        assignedAdvisorId,
       };
     }
 
@@ -796,7 +835,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       const pausedChat = await this.findChatOrFail(chat.id);
       return {
         chat: await this.toChatDto(pausedChat, true),
-        message: this.toMessageDto(savedMessage),
+        message: await this.toMessageDtoWithQuote(savedMessage),
         queueMessage: outOfHoursMessage
           ? this.toMessageDto(outOfHoursMessage)
           : null,
@@ -816,7 +855,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       }
       return {
         chat: await this.toChatDto(chat, true),
-        message: this.toMessageDto(savedMessage),
+        message: await this.toMessageDtoWithQuote(savedMessage),
         assignedAdvisorId,
       };
     }
@@ -828,7 +867,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     if (assignment) {
       return {
         chat: assignment.chat,
-        message: this.toMessageDto(savedMessage),
+        message: await this.toMessageDtoWithQuote(savedMessage),
         assignment,
       };
     }
@@ -838,7 +877,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
 
     return {
       chat: await this.toChatDto(queuedChat, true),
-      message: this.toMessageDto(savedMessage),
+      message: await this.toMessageDtoWithQuote(savedMessage),
       queueMessage: queueMessage ? this.toMessageDto(queueMessage) : null,
     };
   }
@@ -846,11 +885,22 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
   async assignWaitingChats(
     connectedAdvisorIds: string[],
   ): Promise<AssignmentResult[]> {
+    const run = this.assignWaitQueue.then(() =>
+      this.assignWaitingChatsInner(connectedAdvisorIds),
+    );
+    this.assignWaitQueue = run.catch(() => undefined);
+    return run;
+  }
+
+  private async assignWaitingChatsInner(
+    connectedAdvisorIds: string[],
+  ): Promise<AssignmentResult[]> {
     const assignments: AssignmentResult[] = [];
     const horarioEstado = await this.configuracionService.getHorarioEstado();
     if (!horarioEstado.enJornada) return assignments;
 
     await this.releaseExpiredActiveChats();
+    await this.releaseFixedChatsForInactiveAdvisors();
 
     // 1. Asignar primero los chats con advisor fijo (solo su advisor puede tomarlos)
     const fixedChats = await this.chatRepo.find({
@@ -863,6 +913,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       order: { lastMessageAt: 'ASC' },
       relations: ['assignedAdvisor', 'fixedAdvisor'],
     });
+    fixedChats.sort(this.byPriorityThenFifo);
 
     for (const chat of fixedChats) {
       const assignment = await this.assignChatIfPossible(
@@ -872,12 +923,13 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       if (assignment) assignments.push(assignment);
     }
 
-    // 2. Asignar el resto de chats en espera (sin advisor fijo) por orden FIFO
+    // 2. Asignar el resto de chats en espera (sin asesor fijo)
+    //    por prioridad/SLA y luego FIFO
     while (true) {
       const advisor = await this.findAvailableAdvisor(connectedAdvisorIds);
       if (!advisor) break;
 
-      const chat = await this.chatRepo.findOne({
+      const waitingChats = await this.chatRepo.find({
         where: {
           status: 'waiting',
           isGroup: false,
@@ -887,10 +939,12 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
         order: { lastMessageAt: 'ASC' },
         relations: ['assignedAdvisor'],
       });
-      if (!chat) break;
+      if (!waitingChats.length) break;
+      waitingChats.sort(this.byPriorityThenFifo);
+      const chat = waitingChats[0];
 
       const assignment = await this.assignChatToAdvisor(chat, advisor);
-      assignments.push(assignment);
+      if (assignment) assignments.push(assignment);
     }
 
     return assignments;
@@ -1214,19 +1268,48 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     if (!advisor)
       throw new NotFoundException('Asesor no encontrado o inactivo');
     const chat = await this.findChatOrFail(chatId);
-    if (chat.isGroup)
-      throw new BadRequestException('Los grupos no requieren asignacion fija');
 
-    chat.status = 'active';
-    chat.operationalStatus = mode === 'temporary' ? 'assigned' : 'in_progress';
-    chat.assignedAdvisor = advisor;
-    chat.assignedAt = new Date();
-    chat.assignmentMode = mode;
-    chat.queueNoticeSent = false;
-    chat.outOfHoursNoticeSent = false;
-    await this.chatRepo.save(chat);
+    if (mode !== 'fixed') {
+      const [enAlmuerzo, enAlmuerzoRedis, activeCount, maxChats] =
+        await Promise.all([
+          this.configuracionService.estaEnAlmuerzo(advisor.id).catch(() => false),
+          this.redisState.isOnLunch(advisor.id).catch(() => false),
+          this.countActiveChatsByAdvisorExcludingFixed(advisor.id),
+          this.getMaxActiveChatsPerAdvisor(),
+        ]);
+      if (enAlmuerzo || enAlmuerzoRedis) {
+        throw new BadRequestException(
+          'Este asesor esta en almuerzo y no puede recibir el chat',
+        );
+      }
+      if (activeCount >= maxChats) {
+        throw new BadRequestException(
+          `Este asesor ya alcanzo su capacidad maxima de ${maxChats} chats activos`,
+        );
+      }
+    }
 
-    return this.finishChatAssignment(chat.id, advisor, customMessage);
+    const claimed = await this.claimChatForAdvisor(chatId, advisor, {
+      mode,
+      operationalStatus:
+        chat.isGroup
+          ? 'in_progress'
+          : mode === 'temporary'
+            ? 'assigned'
+            : 'in_progress',
+      admin: true,
+    });
+    if (!claimed) {
+      throw new ConflictException('Este chat no se puede asignar en este momento');
+    }
+
+    const skipAutoMessage = claimed.isGroup && !customMessage?.trim();
+    return this.finishChatAssignment(
+      claimed.id,
+      advisor,
+      customMessage,
+      skipAutoMessage,
+    );
   }
 
   async setFixedAdvisor(
@@ -1241,12 +1324,10 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     if (!advisor)
       throw new NotFoundException('Asesor fijo no encontrado o inactivo');
     const chat = await this.findChatOrFail(chatId);
-    if (chat.isGroup)
-      throw new BadRequestException('No se fijan asesores para grupos');
 
     chat.fixedAdvisor = advisor;
     chat.status = 'active';
-    chat.operationalStatus = 'assigned';
+    chat.operationalStatus = chat.isGroup ? 'in_progress' : 'assigned';
     chat.assignedAdvisor = advisor;
     chat.assignedAt = new Date();
     chat.assignmentMode = 'fixed';
@@ -1266,6 +1347,15 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
   async clearFixedAdvisor(chatId: string, role: string): Promise<WaChatDto> {
     this.assertAdminRole(role);
     const chat = await this.findChatOrFail(chatId);
+
+    if (chat.isGroup) {
+      chat.fixedAdvisor = null;
+      chat.assignmentMode = null;
+      chat.status = 'active';
+      chat.operationalStatus = 'in_progress';
+      await this.chatRepo.save(chat);
+      return this.toChatDto(await this.findChatOrFail(chatId), true);
+    }
 
     chat.fixedAdvisor = null;
     chat.status = 'closed';
@@ -1342,10 +1432,11 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     limit = 50,
     advisorId?: string,
     role?: string,
+    anchor?: string,
   ): Promise<WaMessageDto[]> {
     if (advisorId && role)
       await this.assertCanViewChat(chatId, advisorId, role);
-    return this.getMessagesInternal(chatId, page, limit);
+    return this.getMessagesInternal(chatId, page, limit, anchor);
   }
 
   async getChatForAdvisor(
@@ -1362,15 +1453,40 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     chatId: string,
     page = 1,
     limit = 50,
+    anchor?: string,
   ): Promise<WaMessageDto[]> {
-    const skip = Math.max(page - 1, 0) * limit;
-    const messages = await this.messageRepo.find({
+    let targetPage = Math.max(page, 1);
+
+    if (anchor) {
+      const anchorMsg = await this.messageRepo.findOne({
+        where: { chat: { id: chatId }, metaMessageId: anchor },
+      });
+      if (anchorMsg) {
+        const beforeCount = await this.messageRepo.count({
+          where: {
+            chat: { id: chatId },
+            createdAt: MoreThan(anchorMsg.createdAt),
+          },
+        });
+        targetPage = Math.max(1, Math.floor(beforeCount / limit) + 1);
+      }
+    }
+
+    const count = await this.messageRepo.count({
+      where: { chat: { id: chatId } },
+    });
+    const totalPages = Math.max(1, Math.ceil(count / limit));
+    targetPage = Math.min(targetPage, totalPages);
+    const skip = (targetPage - 1) * limit;
+
+    const rawMessages = await this.messageRepo.find({
       where: { chat: { id: chatId } },
       relations: ['chat', 'advisor'],
-      order: { createdAt: 'ASC' },
+      order: { createdAt: 'DESC' },
       skip,
       take: limit,
     });
+    const messages = rawMessages.reverse();
 
     const replyIds = [
       ...new Set(
@@ -1500,9 +1616,9 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     if (!chat) throw new NotFoundException('Chat de WhatsApp no encontrado');
 
     if (
-      !chat.isGroup &&
       role !== 'admin' &&
-      chat.assignedAdvisor?.id !== advisorId
+      chat.assignedAdvisor &&
+      chat.assignedAdvisor.id !== advisorId
     ) {
       throw new ForbiddenException('Este chat esta asignado a otro asesor');
     }
@@ -1557,9 +1673,9 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
 
     const chat = target.chat;
     if (
-      !chat.isGroup &&
       role !== 'admin' &&
-      chat.assignedAdvisor?.id !== advisorId
+      chat.assignedAdvisor &&
+      chat.assignedAdvisor.id !== advisorId
     ) {
       throw new ForbiddenException('Este chat esta asignado a otro asesor');
     }
@@ -1650,18 +1766,18 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
 
     const sourceChat = sourceMsg.chat;
     if (
-      !sourceChat.isGroup &&
       role !== 'admin' &&
-      sourceChat.assignedAdvisor?.id !== advisorId
+      sourceChat.assignedAdvisor &&
+      sourceChat.assignedAdvisor.id !== advisorId
     ) {
       throw new ForbiddenException('Este chat esta asignado a otro asesor');
     }
 
     const targetChat = await this.findChatOrFail(targetChatId);
     if (
-      !targetChat.isGroup &&
       role !== 'admin' &&
-      targetChat.assignedAdvisor?.id !== advisorId
+      targetChat.assignedAdvisor &&
+      targetChat.assignedAdvisor.id !== advisorId
     ) {
       throw new ForbiddenException(
         'El chat destino esta asignado a otro asesor',
@@ -1767,9 +1883,9 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     if (!chat) throw new NotFoundException('Chat de WhatsApp no encontrado');
 
     if (
-      !chat.isGroup &&
       role !== 'admin' &&
-      chat.assignedAdvisor?.id !== advisorId
+      chat.assignedAdvisor &&
+      chat.assignedAdvisor.id !== advisorId
     ) {
       throw new ForbiddenException('Este chat esta asignado a otro asesor');
     }
@@ -1836,9 +1952,9 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     if (!chat) throw new NotFoundException('Chat de WhatsApp no encontrado');
 
     if (
-      !chat.isGroup &&
       role !== 'admin' &&
-      chat.assignedAdvisor?.id !== advisorId
+      chat.assignedAdvisor &&
+      chat.assignedAdvisor.id !== advisorId
     ) {
       throw new ForbiddenException('Este chat esta asignado a otro asesor');
     }
@@ -1990,6 +2106,24 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     await this.chatRepo.save(chat);
   }
 
+  async openChat(
+    chatId: string,
+    userId: string,
+    role: string,
+  ): Promise<WaChatDto> {
+    const chat = await this.assertCanViewChat(chatId, userId, role);
+    this.openChatByUser.set(userId, chatId);
+    if (chat.unreadCount) {
+      chat.unreadCount = 0;
+      await this.chatRepo.save(chat);
+    }
+    return this.toChatDto(chat, true);
+  }
+
+  closeChatView(userId: string): void {
+    this.openChatByUser.delete(userId);
+  }
+
   async closeChat(
     chatId: string,
     advisorId: string,
@@ -1997,9 +2131,21 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
   ): Promise<WaChatDto> {
     const chat = await this.findChatOrFail(chatId);
     if (chat.isGroup) {
-      throw new BadRequestException(
-        'Los grupos permanecen compartidos y no se cierran por asignacion',
-      );
+      if (role !== 'admin') {
+        throw new ForbiddenException(
+          'Solo un administrador puede liberar la asignacion de un grupo',
+        );
+      }
+      chat.status = 'active';
+      chat.operationalStatus = 'in_progress';
+      chat.assignedAdvisor = null;
+      chat.assignedAt = null;
+      chat.assignmentMode = null;
+      chat.unreadCount = 0;
+      chat.queueNoticeSent = false;
+      chat.outOfHoursNoticeSent = false;
+      await this.chatRepo.save(chat);
+      return this.toChatDto(await this.findChatOrFail(chatId), true);
     }
     if (role !== 'admin' && chat.assignedAdvisor?.id !== advisorId) {
       throw new ForbiddenException('Este chat esta asignado a otro asesor');
@@ -2094,8 +2240,8 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     }
     if (
       role !== 'admin' &&
-      !target.chat.isGroup &&
-      target.chat.assignedAdvisor?.id !== advisorId
+      target.chat.assignedAdvisor &&
+      target.chat.assignedAdvisor.id !== advisorId
     ) {
       throw new ForbiddenException('Este chat esta asignado a otro asesor');
     }
@@ -2305,27 +2451,41 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     if (type && type !== 'notify') return;
 
     for (const message of messages) {
-      const raw = await this.baileysMessageToIncoming(message);
-      if (!raw) continue;
+      try {
+        const raw = await this.baileysMessageToIncoming(message);
+        if (!raw) continue;
 
-      if (message.key.fromMe) {
-        const saved = await this.saveBaileysOutgoingMessage(raw);
-        if (saved) {
-          this.incomingResults$.next({
-            chat: saved.chat,
-            message: saved.message,
-            assignedAdvisorId: saved.chat.assignedTo,
-          });
+        if (message.key.fromMe) {
+          const saved = await this.saveBaileysOutgoingMessage(raw);
+          if (saved) {
+            this.incomingResults$.next({
+              chat: saved.chat,
+              message: saved.message,
+              assignedAdvisorId: saved.chat.assignedTo,
+            });
+          }
+          continue;
         }
-        continue;
-      }
 
-      const result = await this.handleIncomingMessage(raw, [
-        ...this.connectedAdvisorIds,
-      ]);
-      this.incomingResults$.next(result);
-      if (raw.messageKey) await this.readBaileysMessage(raw.messageKey);
+        const result = await this.handleIncomingMessage(raw, [
+          ...this.connectedAdvisorIds,
+        ]);
+        this.incomingResults$.next(result);
+        if (raw.messageKey) await this.readBaileysMessage(raw.messageKey);
+      } catch (err) {
+        this.logger.warn(
+          `Error procesando mensaje de Baileys (${message.key?.id ?? 'desconocido'}): ${err?.message ?? err}`,
+        );
+      }
     }
+  }
+
+  private isUniqueViolation(err: unknown): boolean {
+    return (
+      typeof err === 'object' &&
+      err !== null &&
+      (err as any)?.code === '23505'
+    );
   }
 
   private async handleBaileysMessageUpdates(updates: any[]): Promise<void> {
@@ -2429,6 +2589,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       fileName: typeInfo.fileName,
       caption: typeInfo.caption,
       reactionToMessageId: typeInfo.reactionToMessageId,
+      replyToMessageId: typeInfo.replyToMessageId,
       timestamp: this.baileysTimestampToIso(message.messageTimestamp),
       messageKey: message.key,
       rawMessage: message,
@@ -2453,32 +2614,46 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       chat.institution = 'Grupo';
     }
     chat.lastMessageAt = new Date();
-    chat = await this.chatRepo.save(chat);
+    try {
+      chat = await this.chatRepo.save(chat);
+    } catch (err) {
+      if (!this.isUniqueViolation(err)) throw err;
+      const existing = await this.findChatByAddress(chat.jid, chat.phone);
+      if (!existing) throw err;
+      chat = existing;
+    }
 
-    let savedMessage =
-      raw.type === 'reaction'
-        ? await this.saveReactionMessage(chat, raw, true)
-        : await this.messageRepo.save(
-            this.messageRepo.create({
-              chat,
-              metaMessageId: raw.messageId,
-              body: this.messageBody(raw),
-              fromMe: true,
-              senderName: raw.senderName || this.connectedName || 'WhatsApp',
-              participantJid: raw.participantJid ?? this.connectedJid,
-              status: 'sent',
-              isAuto: false,
-              type: raw.type || 'text',
-              mediaId: raw.mediaId ?? null,
-              mimeType: raw.mimeType ?? null,
-              fileName: raw.fileName ?? null,
-            }),
-          );
+    let savedMessage: WhatsappMessage;
+    try {
+      savedMessage =
+        raw.type === 'reaction'
+          ? await this.saveReactionMessage(chat, raw, true)
+          : await this.messageRepo.save(
+              this.messageRepo.create({
+                chat,
+                metaMessageId: raw.messageId,
+                body: this.messageBody(raw),
+                fromMe: true,
+                senderName: raw.senderName || this.connectedName || 'WhatsApp',
+                participantJid: raw.participantJid ?? this.connectedJid,
+                status: 'sent',
+                isAuto: false,
+                type: raw.type || 'text',
+                mediaId: raw.mediaId ?? null,
+                mimeType: raw.mimeType ?? null,
+                fileName: raw.fileName ?? null,
+                replyToMessageId: raw.replyToMessageId ?? null,
+              }),
+            );
+    } catch (err) {
+      if (!this.isUniqueViolation(err)) throw err;
+      return null;
+    }
     savedMessage = await this.attachIncomingMedia(savedMessage, raw);
 
     return {
       chat: await this.toChatDto(chat, true),
-      message: this.toMessageDto(savedMessage),
+      message: await this.toMessageDtoWithQuote(savedMessage),
     };
   }
 
@@ -2490,15 +2665,24 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     fileName?: string;
     caption?: string;
     reactionToMessageId?: string;
+    replyToMessageId?: string;
   } {
     const type = getContentType(content);
     const data: any = type ? (content as any)[type] : null;
 
     if (type === 'conversation') {
-      return { type: 'text', text: String(data ?? '') };
+      return {
+        type: 'text',
+        text: String(data ?? ''),
+        ...this.extractReplyContext(data),
+      };
     }
     if (type === 'extendedTextMessage') {
-      return { type: 'text', text: data?.text ?? '' };
+      return {
+        type: 'text',
+        text: data?.text ?? '',
+        ...this.extractReplyContext(data),
+      };
     }
     if (type === 'imageMessage') {
       return {
@@ -2538,7 +2722,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     }
     if (type === 'stickerMessage') {
       return {
-        type: 'image',
+        type: 'sticker',
         text: '',
         mediaId: data?.mediaKeyTimestamp?.toString?.() ?? data?.directPath,
         mimeType: data?.mimetype ?? 'image/webp',
@@ -2573,6 +2757,14 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     }
 
     return { type: 'text', text: `[Mensaje ${type ?? 'no soportado'}]` };
+  }
+
+  private extractReplyContext(data: any): { replyToMessageId?: string } {
+    const ctx = data?.contextInfo;
+    if (!ctx) return {};
+    const quotedId =
+      typeof ctx.stanzaId === 'string' ? ctx.stanzaId : undefined;
+    return { replyToMessageId: quotedId };
   }
 
   private unwrapBaileysContent(
@@ -2910,33 +3102,78 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     chat: WhatsappChat,
     advisor: User,
     mode: WhatsappAssignmentMode = 'auto',
-  ): Promise<AssignmentResult> {
-    chat.status = 'active';
-    chat.operationalStatus = 'assigned';
-    chat.assignedAdvisor = advisor;
-    chat.assignedAt = new Date();
-    chat.assignmentMode = mode;
-    chat.queueNoticeSent = false;
-    chat.outOfHoursNoticeSent = false;
-    await this.chatRepo.save(chat);
+  ): Promise<AssignmentResult | null> {
+    const claimed = await this.claimChatForAdvisor(chat.id, advisor, {
+      mode,
+      operationalStatus: 'assigned',
+      fixedAdvisorId: chat.fixedAdvisor?.id ?? null,
+    });
+    if (!claimed) return null;
 
-    return this.finishChatAssignment(chat.id, advisor);
+    return this.finishChatAssignment(claimed.id, advisor);
+  }
+
+  private async claimChatForAdvisor(
+    chatId: string,
+    advisor: User,
+    opts: {
+      mode: WhatsappAssignmentMode;
+      operationalStatus: WhatsappOperationalStatus;
+      admin?: boolean;
+      fixedAdvisorId?: string | null;
+    },
+  ): Promise<WhatsappChat | null> {
+    return this.chatRepo.manager.transaction(async (manager) => {
+      const repo = manager.getRepository(WhatsappChat);
+      const builder = repo
+        .createQueryBuilder('chat')
+        .where('chat.id = :chatId', { chatId });
+
+      if (!opts.admin) {
+        builder
+          .andWhere('chat.status = :waiting', { waiting: 'waiting' })
+          .andWhere('chat.is_group = false');
+        if (opts.fixedAdvisorId) {
+          builder.andWhere('chat.fixed_advisor_id = :fixedId', {
+            fixedId: opts.fixedAdvisorId,
+          });
+        }
+      }
+
+      const chat = await builder.setLock('pessimistic_write').getOne();
+      if (!chat) return null;
+
+      chat.status = 'active';
+      chat.operationalStatus = opts.operationalStatus;
+      chat.operationalStatusUpdatedAt = new Date();
+      chat.assignedAdvisor = advisor;
+      chat.assignedAt = new Date();
+      chat.assignmentMode = opts.mode;
+      chat.queueNoticeSent = false;
+      chat.outOfHoursNoticeSent = false;
+
+      return repo.save(chat);
+    });
   }
 
   private async finishChatAssignment(
     chatId: string,
     advisor: User,
     customMessage?: string,
+    skipAutoMessage = false,
   ): Promise<AssignmentResult> {
     const chat = await this.findChatOrFail(chatId);
-    const template =
-      customMessage?.trim() ||
-      (
-        await this.configuracionService.getGlobal().catch(() => null)
-      )?.whatsappAssignmentMsg?.trim() ||
-      this.defaultAssignmentMessage;
-    const text = this.renderTemplate(template, advisor.name);
-    const autoMessage = await this.sendSystemMessage(chat, text, advisor);
+    let autoMessage: WhatsappMessage | null = null;
+    if (!skipAutoMessage) {
+      const template =
+        customMessage?.trim() ||
+        (
+          await this.configuracionService.getGlobal().catch(() => null)
+        )?.whatsappAssignmentMsg?.trim() ||
+        this.defaultAssignmentMessage;
+      const text = this.renderTemplate(template, advisor.name);
+      autoMessage = await this.sendSystemMessage(chat, text, advisor);
+    }
     const updatedChat = await this.findChatOrFail(chat.id);
 
     return {
@@ -2950,18 +3187,26 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
   private async sendQueueNoticeIfNeeded(
     chatId: string,
   ): Promise<WhatsappMessage | null> {
+    const result = await this.chatRepo
+      .createQueryBuilder()
+      .update(WhatsappChat)
+      .set({
+        status: 'waiting',
+        operationalStatus: 'queued',
+        operationalStatusUpdatedAt: new Date(),
+        assignedAdvisor: null,
+        assignedAt: null,
+        assignmentMode: null,
+        queueNoticeSent: true,
+        outOfHoursNoticeSent: false,
+      })
+      .where('id = :chatId', { chatId })
+      .andWhere('status = :waiting', { waiting: 'waiting' })
+      .andWhere('queue_notice_sent = false')
+      .execute();
+    if (!result.affected) return null;
+
     const chat = await this.findChatOrFail(chatId);
-    if (chat.queueNoticeSent) return null;
-
-    chat.status = 'waiting';
-    chat.operationalStatus = 'queued';
-    chat.assignedAdvisor = null;
-    chat.assignedAt = null;
-    chat.assignmentMode = null;
-    chat.queueNoticeSent = true;
-    chat.outOfHoursNoticeSent = false;
-    await this.chatRepo.save(chat);
-
     const config = await this.configuracionService
       .getGlobal()
       .catch(() => null);
@@ -2973,18 +3218,25 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     chatId: string,
     horarioEstado: HorarioEstado,
   ): Promise<WhatsappMessage | null> {
+    const result = await this.chatRepo
+      .createQueryBuilder()
+      .update(WhatsappChat)
+      .set({
+        status: 'waiting',
+        operationalStatus: 'queued',
+        operationalStatusUpdatedAt: new Date(),
+        assignedAdvisor: null,
+        assignedAt: null,
+        assignmentMode: null,
+        queueNoticeSent: false,
+        outOfHoursNoticeSent: true,
+      })
+      .where('id = :chatId', { chatId })
+      .andWhere('out_of_hours_notice_sent = false')
+      .execute();
+    if (!result.affected) return null;
+
     const chat = await this.findChatOrFail(chatId);
-    if (chat.outOfHoursNoticeSent) return null;
-
-    chat.status = 'waiting';
-    chat.operationalStatus = 'queued';
-    chat.assignedAdvisor = null;
-    chat.assignedAt = null;
-    chat.assignmentMode = null;
-    chat.queueNoticeSent = false;
-    chat.outOfHoursNoticeSent = true;
-    await this.chatRepo.save(chat);
-
     const config = await this.configuracionService
       .getGlobal()
       .catch(() => null);
@@ -3015,20 +3267,30 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       );
     }
 
-    const message = await this.messageRepo.save(
-      this.messageRepo.create({
-        chat,
-        metaMessageId,
-        body: text,
-        fromMe: true,
-        senderName: advisor?.name ?? 'Sistema',
-        participantJid: this.connectedJid,
-        advisor,
-        status,
-        isAuto: true,
-        type: 'text',
-      }),
-    );
+    let message: WhatsappMessage;
+    try {
+      message = await this.messageRepo.save(
+        this.messageRepo.create({
+          chat,
+          metaMessageId,
+          body: text,
+          fromMe: true,
+          senderName: advisor?.name ?? 'Sistema',
+          participantJid: this.connectedJid,
+          advisor,
+          status,
+          isAuto: true,
+          type: 'text',
+        }),
+      );
+    } catch (err) {
+      if (!this.isUniqueViolation(err)) throw err;
+      const existing = metaMessageId
+        ? await this.messageRepo.findOne({ where: { metaMessageId } })
+        : null;
+      if (!existing) throw err;
+      message = existing;
+    }
 
     chat.lastMessageAt = new Date();
     await this.chatRepo.save(chat);
@@ -3041,11 +3303,13 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     const uniqueConnected = [...new Set(connectedAdvisorIds)].filter(Boolean);
     if (!uniqueConnected.length) return null;
 
+    const maxChats = await this.getMaxActiveChatsPerAdvisor();
     const activeChats = await this.chatRepo.find({
-      where: { status: 'active', isGroup: false },
+      where: { status: 'active' },
       relations: ['assignedAdvisor'],
     });
     const activeCountByAdvisor = activeChats.reduce((acc, chat) => {
+      if (chat.assignmentMode === 'fixed') return acc;
       const id = chat.assignedAdvisor?.id;
       if (!id) return acc;
       acc.set(id, (acc.get(id) ?? 0) + 1);
@@ -3077,11 +3341,9 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     const available: User[] = [];
     for (const advisor of advisors) {
       const activeCount = activeCountByAdvisor.get(advisor.id) ?? 0;
-      if (activeCount >= this.maxActiveChatsPerAdvisor) continue;
+      if (activeCount >= maxChats) continue;
       const [enAlmuerzo, enAlmuerzoRedis] = await Promise.all([
-        this.configuracionService
-          .estaEnAlmuerzo(advisor.id)
-          .catch(() => false),
+        this.configuracionService.estaEnAlmuerzo(advisor.id).catch(() => false),
         this.redisState.isOnLunch(advisor.id).catch(() => false),
       ]);
       if (enAlmuerzo || enAlmuerzoRedis) continue;
@@ -3145,11 +3407,70 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       where: {
         status: 'active',
         assignedAdvisor: { id: advisorId },
-        isGroup: false,
         assignmentMode: Not('fixed'),
       },
     });
   }
+
+  private async releaseFixedChatsForInactiveAdvisors(): Promise<void> {
+    const chats = await this.chatRepo.find({
+      where: {
+        fixedAdvisor: Not(IsNull()),
+        status: In(['waiting', 'active']),
+      },
+      relations: ['fixedAdvisor'],
+    });
+    for (const chat of chats) {
+      const fa = chat.fixedAdvisor;
+      if (!fa) continue;
+      const stillValid = await this.userRepo.findOne({
+        where: { id: fa.id, role: 'advisor', active: true },
+      });
+      if (stillValid) continue;
+      chat.fixedAdvisor = null;
+      chat.assignedAdvisor = null;
+      chat.assignedAt = null;
+      chat.assignmentMode = null;
+      chat.status = 'waiting';
+      chat.operationalStatus = 'queued';
+      chat.queueNoticeSent = false;
+      chat.outOfHoursNoticeSent = false;
+      await this.chatRepo.save(chat);
+    }
+  }
+
+  private async getMaxActiveChatsPerAdvisor(): Promise<number> {
+    const config = await this.configuracionService.getGlobal().catch(() => null);
+    const raw = Number(config?.whatsappMaxActiveChatsPerAdvisor);
+    if (!Number.isFinite(raw) || raw < 1) return this.maxActiveChatsPerAdvisor;
+    return Math.max(1, Math.min(50, Math.floor(raw)));
+  }
+
+  private priorityWeight(priority?: string | null): number {
+    switch (priority) {
+      case 'critical':
+        return 0;
+      case 'high':
+        return 1;
+      case 'low':
+        return 3;
+      case 'normal':
+      default:
+        return 2;
+    }
+  }
+
+  private readonly byPriorityThenFifo = (
+    a: WhatsappChat,
+    b: WhatsappChat,
+  ): number => {
+    const pa = this.priorityWeight(a.priority);
+    const pb = this.priorityWeight(b.priority);
+    if (pa !== pb) return pa - pb;
+    const ta = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+    const tb = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+    return ta - tb;
+  };
 
   private async findFixedAdvisorIfAvailable(
     chat: WhatsappChat,
@@ -3168,8 +3489,6 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     });
     if (!advisor) return null;
 
-    const activeCount = await this.countActiveChatsByAdvisor(advisor.id);
-    if (activeCount >= this.maxActiveChatsPerAdvisor) return null;
     const [enAlmuerzo, enAlmuerzoRedis] = await Promise.all([
       this.configuracionService.estaEnAlmuerzo(advisor.id).catch(() => false),
       this.redisState.isOnLunch(advisor.id).catch(() => false),
@@ -3411,10 +3730,24 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
 
   private async assertCanViewChat(
     chatId: string,
-    _advisorId: string,
-    _role: string,
+    advisorId: string,
+    role: string,
   ): Promise<WhatsappChat> {
-    return this.findChatOrFail(chatId);
+    const chat = await this.chatRepo.findOne({
+      where: { id: chatId },
+      relations: ['assignedAdvisor', 'fixedAdvisor'],
+    });
+    if (!chat) throw new NotFoundException('Chat de WhatsApp no encontrado');
+    if (role === 'admin') return chat;
+    if (role !== 'advisor') {
+      throw new ForbiddenException('No tienes permisos para ver este chat');
+    }
+    const assignedId = chat.assignedAdvisor?.id;
+    const fixedId = chat.fixedAdvisor?.id;
+    if (assignedId && assignedId !== advisorId && fixedId !== advisorId) {
+      throw new ForbiddenException('Este chat esta asignado a otro asesor');
+    }
+    return chat;
   }
 
   private async assertCanManageMetadata(
@@ -3636,6 +3969,37 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       quotedSender: quoted?.senderName,
       isForwarded: message.type === 'forwarded',
     };
+  }
+
+  private async toMessageDtoWithQuote(
+    message: WhatsappMessage,
+  ): Promise<WaMessageDto> {
+    const dto = this.toMessageDto(message);
+    if (!message.replyToMessageId) return dto;
+    try {
+      const quoted = await this.messageRepo.findOne({
+        where: { metaMessageId: message.replyToMessageId },
+        select: ['metaMessageId', 'body', 'senderName'],
+      });
+      if (quoted?.metaMessageId) {
+        return this.toMessageDto(
+          message,
+          new Map([
+            [
+              quoted.metaMessageId,
+              { body: quoted.body, senderName: quoted.senderName },
+            ],
+          ]),
+        );
+      }
+    } catch (err: any) {
+      this.logger.warn(
+        `No se pudo cargar cita para ${message.replyToMessageId}: ${
+          err?.message ?? err
+        }`,
+      );
+    }
+    return dto;
   }
 
   private inferOperationalStatus(
@@ -3897,7 +4261,8 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       raw.type === 'image' ||
       raw.type === 'video' ||
       raw.type === 'audio' ||
-      raw.type === 'document'
+      raw.type === 'document' ||
+      raw.type === 'sticker'
     );
   }
 
@@ -3955,7 +4320,8 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     return type === 'image' ||
       type === 'video' ||
       type === 'audio' ||
-      type === 'document'
+      type === 'document' ||
+      type === 'sticker'
       ? type
       : 'document';
   }
@@ -3966,6 +4332,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       video: 'Video',
       audio: 'Audio',
       document: 'Documento',
+      sticker: 'Sticker',
     }[type];
     return fileName ? label : label;
   }

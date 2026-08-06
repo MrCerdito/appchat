@@ -54,6 +54,13 @@ interface Mensaje {
   reactionRemoved?: boolean;
 }
 
+interface ComposerState {
+  nuevoMensaje: string;
+  replyingTo: Mensaje | null;
+  editingMessageId: string;
+  editingMessageText: string;
+}
+
 @Component({
   selector: 'app-operaciones-chats',
   standalone: true,
@@ -108,6 +115,7 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
 
   private chatsMap = new Map<string, WaChat>();
   private messagesMap = new Map<string, WaMessage[]>();
+  private composerByChat = new Map<string, ComposerState>();
   private subs: Subscription[] = [];
   private progressTimer: ReturnType<typeof setInterval> | null = null;
   private dataReady = false;
@@ -208,6 +216,7 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
           this.chatsMap.set(chat.id, chat);
         }
         if (this.selectedChatId && this.chatsMap.has(this.selectedChatId)) {
+          this.whatsappChat.setActiveChat(this.selectedChatId);
           this.whatsappChat.loadMessages(this.selectedChatId, 1, 100).subscribe({
             next: (messages) => {
               this.messagesMap.set(this.selectedChatId!, messages);
@@ -252,7 +261,10 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
     );
 
     this.subs.push(
-      this.whatsappChat.onChatUpdated().subscribe(() => {
+      this.whatsappChat.onChatUpdated().subscribe((chat) => {
+        if (chat.id === this.selectedChatId) {
+          this.scheduleActiveReload();
+        }
         this.cdr.markForCheck();
       }),
     );
@@ -288,6 +300,16 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
         scrollToBottom(this.messageFeed.nativeElement);
       }
     } catch {}
+  }
+
+  private reloadTimer: ReturnType<typeof setTimeout> | null = null;
+
+  private scheduleActiveReload(): void {
+    if (this.reloadTimer) clearTimeout(this.reloadTimer);
+    this.reloadTimer = setTimeout(() => {
+      this.reloadTimer = null;
+      if (this.selectedChatId) this.loadChatMessages(this.selectedChatId, true);
+    }, 250);
   }
 
   get chatList(): Contacto[] {
@@ -408,18 +430,52 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
   }
 
   seleccionarChat(id: string): void {
+    if (this.selectedChatId && this.selectedChatId !== id) {
+      this.saveComposer();
+    }
+    const switching = this.selectedChatId !== id;
     this.selectedChatId = id;
+    if (switching) this.loadComposer(id);
+    this.whatsappChat.setActiveChat(id);
     this.loadChatMessages(id, true);
     this.whatsappChat.markRead(id).subscribe({
       error: (err) => console.error('HTTP Error:', err),
     });
   }
 
+  private saveComposer(): void {
+    if (!this.selectedChatId) return;
+    this.composerByChat.set(this.selectedChatId, {
+      nuevoMensaje: this.nuevoMensaje,
+      replyingTo: this.replyingTo,
+      editingMessageId: this.editingMessageId,
+      editingMessageText: this.editingMessageText,
+    });
+  }
+
+  private loadComposer(chatId: string): void {
+    this.clearSelectedFile(false);
+    const state = this.composerByChat.get(chatId);
+    if (state) {
+      this.nuevoMensaje = state.nuevoMensaje;
+      this.replyingTo = state.replyingTo;
+      this.editingMessageId = state.editingMessageId;
+      this.editingMessageText = state.editingMessageText;
+    } else {
+      this.nuevoMensaje = '';
+      this.replyingTo = null;
+      this.editingMessageId = '';
+      this.editingMessageText = '';
+    }
+  }
+
   setModo(mode: 'clientes' | 'asesores'): void {
     if (this.modo === mode) return;
+    this.saveComposer();
     this.modo = mode;
     if (mode === 'asesores') {
       this.selectedChatId = null;
+      this.whatsappChat.setActiveChat(null);
     }
     this.cdr.markForCheck();
   }
@@ -494,6 +550,7 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
     const reply = this.replyingTo;
     this.nuevoMensaje = '';
     this.replyingTo = null;
+    this.saveComposer();
     this.cdr.markForCheck();
 
     if (reply) {
@@ -652,6 +709,7 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
         if (res.ok && this.selectedChatId) {
           this.loadChatMessages(this.selectedChatId, true);
           this.clearSelectedFile();
+          this.saveComposer();
           return;
         }
         this.markMediaFailed(optimistic.id);
@@ -663,6 +721,7 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
         this.markMediaFailed(optimistic.id);
         this.sendError = err?.error?.error || err?.error?.message || 'Error al enviar el archivo.';
         this.clearSelectedFile();
+        this.saveComposer();
         this.cdr.markForCheck();
       },
     });
@@ -724,6 +783,7 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
       video: 'Video',
       audio: 'Audio',
       document: 'Documento',
+      sticker: 'Sticker',
     }[kind] ?? 'Archivo';
     return kind === 'document' && fileName ? `${label}: ${fileName}` : label;
   }
@@ -864,7 +924,32 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
   }
 
   scrollToMessage(messageId: string): void {
-    const el = this.messageFeed?.nativeElement.querySelector<HTMLElement>(`[data-msg-id="${messageId}"]`);
+    if (!this.selectedChatId || !this.messageFeed?.nativeElement) return;
+    const list = this.messagesMap.get(this.selectedChatId) ?? [];
+    const target = list.find(m => m.id === messageId || m.metaMessageId === messageId);
+    if (target) {
+      this.scrollToTarget(target.id);
+      return;
+    }
+    const chatId = this.selectedChatId;
+    this.whatsappChat.loadMessages(chatId, 1, 100, messageId).subscribe({
+      next: (messages) => {
+        if (this.selectedChatId !== chatId) return;
+        this.messagesMap.set(chatId, messages);
+        const found = messages.find(m => m.id === messageId || m.metaMessageId === messageId);
+        this.cdr.markForCheck();
+        if (found) {
+          setTimeout(() => this.scrollToTarget(found.id), 150);
+        }
+      },
+      error: (err) => console.error('HTTP Error:', err),
+    });
+  }
+
+  private scrollToTarget(messageId: string): void {
+    const feed = this.messageFeed?.nativeElement;
+    if (!feed) return;
+    const el = feed.querySelector<HTMLElement>(`[data-msg-id="${messageId}"]`);
     if (!el) return;
     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     el.classList.add('wa-flash');
@@ -1193,7 +1278,10 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
     this.stopProgressTimer();
     if (this.toastTimer) clearTimeout(this.toastTimer);
     if (this.longPressTimer) clearTimeout(this.longPressTimer);
+    if (this.reloadTimer) clearTimeout(this.reloadTimer);
     this.subs.forEach(s => s.unsubscribe());
+    this.saveComposer();
+    this.whatsappChat.setActiveChat(null);
     if (this.selectedFilePreviewUrl) {
       URL.revokeObjectURL(this.selectedFilePreviewUrl);
     }

@@ -9,6 +9,10 @@
     <span class="opas-nav-title">Asignar chats</span>
   </nav>
 
+  @if (lastError) {
+  <div class="opas-error">{{ lastError }}</div>
+  }
+
   <div class="opas-filters">
     <div class="opas-search-group">
       <svg class="opas-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -21,7 +25,21 @@
       <select [(ngModel)]="filtroEstado">
         <option value="todos">Todos</option>
         <option value="Nuevo">Nuevo</option>
-        <option value="Espera">En espera</option>
+        <option value="En cola">En cola</option>
+        <option value="En gestión">En gestión</option>
+        <option value="Asignado">Asignado</option>
+        <option value="Esperando cliente">Esperando cliente</option>
+        <option value="Esperando área técnica">Esperando área técnica</option>
+        <option value="Resuelto">Resuelto</option>
+        <option value="Cerrado">Cerrado</option>
+      </select>
+    </div>
+    <div class="opas-filter-group">
+      <label>Tipo</label>
+      <select [(ngModel)]="filtroTipo">
+        <option value="todos">Todos</option>
+        <option value="individuales">Individuales</option>
+        <option value="grupos">Grupos</option>
       </select>
     </div>
     <div class="opas-filter-group">
@@ -51,13 +69,27 @@
       </thead>
       <tbody>
         @for (chat of chatsFiltrados; track trackByChatId($index, chat)) {
-        <tr>
+        <tr [class.opas-cerrado]="chat.cerrado">
           <td>
             <div class="opas-cliente">
               <div class="opas-avatar" [style.background]="chat.avatar">{{ chat.iniciales }}</div>
               <div>
                 <strong>{{ chat.cliente }}</strong>
                 <small>{{ chat.telefono }}</small>
+                @if (chat.esGrupo) {
+                <span class="opas-group-tag">Grupo</span>
+                }
+                @if (chat.asesorNombre) {
+                <span class="opas-asesor-actual">→ {{ chat.asesorNombre }}</span>
+                }
+                @if (chat.esFijado && chat.asesorFijoNombre) {
+                <span class="opas-fijado-badge">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 17v5"/><path d="M9 11l-4 4h14l-4-4"/><path d="M15 3.5L9.5 9 15 11l-5.5 5.5"/>
+                  </svg>
+                  Fijado a {{ chat.asesorFijoNombre }}
+                </span>
+                }
               </div>
             </div>
           </td>
@@ -74,9 +106,16 @@
               </select>
           </td>
           <td>
-            <button class="opas-assign-btn" [class.loading]="assigning.has(chat.id)" [disabled]="assigning.has(chat.id) || !selectedAdvisor[chat.id] || selectedAdvisor[chat.id] === chat.asesorAsignado" (click)="asignarChat(chat.id, selectedAdvisor[chat.id])">
-              {{ assigning.has(chat.id) ? 'Asignando...' : (chat.asesorAsignado && selectedAdvisor[chat.id] !== chat.asesorAsignado ? 'Cambiar' : 'Asignar') }}
-            </button>
+            <div class="opas-actions">
+              <button class="opas-assign-btn" [class.loading]="assigning.has(chat.id)" [disabled]="assigning.has(chat.id) || releasing.has(chat.id) || !selectedAdvisor[chat.id] || selectedAdvisor[chat.id] === chat.asesorAsignado" (click)="asignarChat(chat.id, selectedAdvisor[chat.id])">
+                {{ assigning.has(chat.id) ? 'Asignando...' : (chat.asesorAsignado && selectedAdvisor[chat.id] !== chat.asesorAsignado ? 'Cambiar' : 'Asignar') }}
+              </button>
+              @if (chat.asesorAsignado && !chat.cerrado) {
+              <button class="opas-release-btn" [class.loading]="releasing.has(chat.id)" [disabled]="releasing.has(chat.id) || assigning.has(chat.id)" (click)="liberarChat(chat)">
+                {{ chat.esGrupo ? 'Liberar' : 'Cerrar' }}
+              </button>
+              }
+            </div>
           </td>
         </tr>
         }

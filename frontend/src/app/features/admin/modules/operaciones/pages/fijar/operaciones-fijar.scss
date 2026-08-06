@@ -260,16 +260,20 @@
   &.baja    { background: #F1F5F9; color: #64748B; }
 }
 
-.opf-asesor-actual {
+.opf-asesor-badge {
   display: inline-flex;
   align-items: center;
+  gap: 5px;
   height: 26px;
   padding: 0 10px;
   border-radius: 6px;
-  background: #F1F5F9;
-  color: #475569;
+  background: #ECFDF5;
+  color: #059669;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
+  white-space: nowrap;
+
+  svg { width: 13px; height: 13px; }
 }
 
 .opf-sin-asesor {
@@ -297,6 +301,27 @@
 .opf-sin-fijar {
   color: #CBD5E1;
   font-size: 14px;
+}
+
+.opf-group-tag {
+  display: inline-block;
+  margin-top: 3px;
+  padding: 1px 7px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  background: #EDE9FE;
+  color: #7C3AED;
+}
+
+.opf-error {
+  margin: 0 24px 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  color: #DC2626;
+  font-size: 13px;
 }
 
 // ── Botones de acción ────────────────────────────────────

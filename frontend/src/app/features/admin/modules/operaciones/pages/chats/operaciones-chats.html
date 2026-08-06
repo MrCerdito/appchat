@@ -256,6 +256,7 @@
                 [class.wa-bubble--editing]="editingMessageId === msg.id"
                 [class.context-active]="messageMenu?.message?.id === msg.id"
                 [attr.data-msg-id]="msg.id"
+                [attr.data-meta-id]="msg.metaMessageId"
                 (contextmenu)="openMessageMenu($event, msg)"
                 (touchstart)="onBubbleTouchStart($event, msg)"
                 (touchend)="onBubbleTouchEnd()"
@@ -280,6 +281,8 @@
                 } @else {
                 <audio class="wa-media-audio" [src]="mediaUrlFor(msg)" controls></audio>
                 }
+                } @else if (msg.type === 'sticker' && msg.mediaUrl) {
+                <img class="wa-media-img wa-media-sticker" [src]="mediaUrlFor(msg)" [alt]="msg.fileName || 'Sticker'" (click)="openMediaPreview(msg, $event)" />
                 } @else if (msg.mediaUrl && msg.type && msg.type !== 'text') {
                 <a class="wa-media-doc" [href]="mediaUrlFor(msg)" target="_blank" rel="noopener noreferrer">
                   <span class="wa-media-doc-icon">

@@ -782,6 +782,21 @@
   color: #64748B;
 }
 
+.op-fijo-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: #EDE9FE;
+  color: #7C3AED;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+
+  svg { width: 12px; height: 12px; }
+}
+
 .op-estado-sub {
   display: block;
   font-size: 10px;
@@ -1475,6 +1490,12 @@
   font-size: 12px;
   color: #64748B;
   animation: op-pulse 1s ease-in-out infinite;
+}
+
+.op-assign-error {
+  flex: 1;
+  font-size: 12px;
+  color: #DC2626;
 }
 
 @keyframes op-pulse {

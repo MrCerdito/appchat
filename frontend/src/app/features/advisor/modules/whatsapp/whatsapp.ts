@@ -73,6 +73,13 @@ interface ContactDraft {
   modulesText: string;
 }
 
+interface ComposerState {
+  messageText: string;
+  replyingTo: WaMessage | null;
+  editingMessageId: string;
+  editingMessageText: string;
+}
+
 interface WhatsappSettingsDraft {
   assignmentMsg: string;
   queueMsg: string;
@@ -233,6 +240,8 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   editingMessageText = '';
   replyingTo: WaMessage | null = null;
   forwardingMessage: WaMessage | null = null;
+  private forwardSourceChatId: string | null = null;
+  private composerByChat = new Map<string, ComposerState>();
   forwardSearchQuery = '';
   forwardTargetIds = new Set<string>();
   isForwarding = false;
@@ -429,6 +438,14 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     );
 
     this.subs.add(
+      this.waService.onChatUpdated().subscribe(chat => {
+        if (this.activeContact && this.activeContact.id === chat.id) {
+          this.reloadActiveMessages();
+        }
+      }),
+    );
+
+    this.subs.add(
       this.waService.onChatAssigned().subscribe(event => this.handleAssignment(event)),
     );
 
@@ -454,6 +471,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
 
   setChatMode(mode: 'clients' | 'advisors'): void {
     if (this.chatMode === mode) return;
+    this.saveComposer();
     this.chatMode = mode;
     this.showWhatsappSettings = false;
     this.showCompactFilter = false;
@@ -463,6 +481,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     this.closeProfilePhoto();
     if (mode === 'advisors') {
       this.activeContact = undefined;
+      this.waService.setActiveChat(null);
     }
     this.cdr.markForCheck();
     this.cdr.detectChanges();
@@ -545,6 +564,8 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     if (this.toastTimer) clearTimeout(this.toastTimer);
     if (this.closeReactionTimer) clearTimeout(this.closeReactionTimer);
     if (this.longPressTimer) clearTimeout(this.longPressTimer);
+    this.saveComposer();
+    this.waService.setActiveChat(null);
     this.clearSelectedFile();
   }
 
@@ -666,7 +687,8 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   get canReply(): boolean {
     if (!this.activeContact || this.connectionStatus.status !== 'connected') return false;
     if (this.activeContact.isGroup) {
-      return this.currentUserRole === 'advisor' || this.currentUserRole === 'admin';
+      if (this.currentUserRole === 'admin') return true;
+      return !this.activeContact.assignedTo || this.activeContact.assignedTo === this.currentUserId;
     }
     if (this.isAttentionClosed) return false;
     if (this.currentUserRole === 'admin') return true;
@@ -811,6 +833,11 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   }
 
   selectContact(contact: WaChat): void {
+    const switching = !this.activeContact || this.activeContact.id !== contact.id;
+    if (this.activeContact && this.activeContact.id !== contact.id) {
+      this.saveComposer();
+      if (this.forwardingMessage) this.cancelForward();
+    }
     this.activeContact = contact;
     this.showInfoPanel = false;
     this.isEditingContact = false;
@@ -823,6 +850,8 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     this.closeMediaPreview();
     this.closeVideoFullscreen();
     this.closeProfilePhoto();
+    if (switching) this.loadComposer(contact.id);
+    this.waService.setActiveChat(contact.id);
 
     if (contact.unread > 0) {
       contact.unread = 0;
@@ -841,11 +870,40 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   }
 
   closeActiveContactView(): void {
+    this.saveComposer();
+    this.waService.setActiveChat(null);
     this.activeContact = undefined;
     this.showInfoPanel = false;
     this.messageMenu = undefined;
     this.cancelEditMessage();
     this.cdr.detectChanges();
+  }
+
+  private saveComposer(): void {
+    if (!this.activeContact) return;
+    this.composerByChat.set(this.activeContact.id, {
+      messageText: this.messageText,
+      replyingTo: this.replyingTo,
+      editingMessageId: this.editingMessageId,
+      editingMessageText: this.editingMessageText,
+    });
+  }
+
+  private loadComposer(chatId: string): void {
+    this.clearSelectedFile(false);
+    const state = this.composerByChat.get(chatId);
+    if (state) {
+      this.messageText = state.messageText;
+      this.replyingTo = state.replyingTo;
+      this.editingMessageId = state.editingMessageId;
+      this.editingMessageText = state.editingMessageText;
+    } else {
+      this.messageText = '';
+      this.replyingTo = null;
+      this.editingMessageId = '';
+      this.editingMessageText = '';
+    }
+    this.resizeMessageInput();
   }
 
   openProfilePhoto(contact: WaChat | undefined, event?: Event): void {
@@ -1317,8 +1375,49 @@ cancelReply(): void {
   this.replyingTo = null;
 }
 
+scrollToQuotedMessage(msg: WaMessage): void {
+  const chat = this.activeContact;
+  const quotedId = msg.replyToMessageId;
+  if (!chat || !quotedId) return;
+  const findTarget = (list: WaMessage[]) =>
+    list.find(m => m.id === quotedId || m.metaMessageId === quotedId);
+
+  const existing = findTarget(chat.messages ?? []);
+  if (existing) {
+    this.scrollToMsgElement(existing.id);
+    return;
+  }
+
+  this.waService.loadMessages(chat.id, 1, 100, quotedId).subscribe({
+    next: (messages) => {
+      if (!this.activeContact || this.activeContact.id !== chat.id) return;
+      this.activeContact = { ...this.activeContact, messages };
+      this.cdr.detectChanges();
+      const target = findTarget(messages);
+      if (target) {
+        setTimeout(() => this.scrollToMsgElement(target.id), 150);
+      }
+    },
+    error: (err) => console.error('HTTP Error:', err),
+  });
+}
+
+private scrollToMsgElement(messageId: string): void {
+  try {
+    const container = this.messagesContainer.nativeElement as HTMLElement;
+    const el = container.querySelector<HTMLElement>(
+      `[data-msg-id="${messageId}"]`,
+    );
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('wa-flash');
+    setTimeout(() => el.classList.remove('wa-flash'), 1200);
+  } catch {}
+}
+
 startForward(message: WaMessage): void {
   this.forwardingMessage = message;
+  this.forwardSourceChatId = this.activeContact?.id ?? null;
   this.forwardSearchQuery = '';
   this.forwardTargetIds = new Set();
   this.messageMenu = undefined;
@@ -1327,6 +1426,7 @@ startForward(message: WaMessage): void {
 
 cancelForward(): void {
   this.forwardingMessage = null;
+  this.forwardSourceChatId = null;
   this.forwardSearchQuery = '';
   this.forwardTargetIds = new Set();
 }
@@ -1339,9 +1439,9 @@ toggleForwardTarget(targetChatId: string): void {
 }
 
 confirmForward(): void {
-  if (!this.forwardingMessage || !this.activeContact || this.isForwarding || this.forwardTargetIds.size === 0) return;
+  if (!this.forwardingMessage || !this.forwardSourceChatId || this.isForwarding || this.forwardTargetIds.size === 0) return;
   this.isForwarding = true;
-  const sourceId = this.activeContact.id;
+  const sourceId = this.forwardSourceChatId;
   const messageId = this.forwardingMessage.id;
   const ids = [...this.forwardTargetIds];
   let completed = 0;
@@ -1517,6 +1617,7 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     this.isSending = true;
     this.shouldScroll = true;
     this.resizeMessageInput();
+    this.saveComposer();
 
     this.subs.add(
       (replyingTo
@@ -1589,6 +1690,7 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     this.isSending = true;
     this.shouldScroll = true;
     this.resizeMessageInput();
+    this.saveComposer();
 
     this.subs.add(
       this.waService.sendMedia(this.addressForContact(contact), file, caption, this.selectedAudioDuration).subscribe({
@@ -2457,6 +2559,7 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
       video: 'Video',
       audio: 'Audio',
       document: 'Documento',
+      sticker: 'Sticker',
     }[kind] ?? 'Archivo';
     return kind === 'document' && fileName ? `${label}: ${fileName}` : label;
   }
@@ -2721,6 +2824,7 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
 
     this.shouldScroll = true;
     this.cdr.detectChanges();
+    this.reloadActiveMessages();
   }
 
   private handleAssignment(event: AwChatAssigned): void {
@@ -2762,11 +2866,48 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     }
 
     const existingMessages = this.activeContact.messages ?? [];
+    const mergedMessages = this.mergeMessages(existingMessages, updated.messages ?? []);
     this.activeContact = {
       ...updated,
-      messages: updated.messages?.length ? updated.messages : existingMessages,
+      messages: mergedMessages.length ? mergedMessages : (updated.messages ?? []),
     };
     if (!this.isEditingContact) this.contactDraft = this.draftFromContact(this.activeContact);
+  }
+
+  private mergeMessages(current: WaMessage[], incoming: WaMessage[]): WaMessage[] {
+    const byId = new Map<string, WaMessage>();
+    for (const message of current) byId.set(message.id, message);
+    for (const message of incoming) {
+      if (!byId.has(message.id)) byId.set(message.id, message);
+    }
+    return [...byId.values()].sort(
+      (a, b) =>
+        this.parseDateValue(a.timestamp).getTime() -
+        this.parseDateValue(b.timestamp).getTime(),
+    );
+  }
+
+  private reloadTimer: ReturnType<typeof setTimeout> | null = null;
+
+  private reloadActiveMessages(): void {
+    const contact = this.activeContact;
+    if (!contact) return;
+    const prevLastId = (contact.messages ?? []).slice(-1)[0]?.id ?? '';
+    if (this.reloadTimer) clearTimeout(this.reloadTimer);
+    this.reloadTimer = setTimeout(() => {
+      this.reloadTimer = null;
+      if (!this.activeContact || this.activeContact.id !== contact.id) return;
+      this.subs.add(
+        this.waService.loadMessages(contact.id, 1, 100).subscribe(messages => {
+          if (!this.activeContact || this.activeContact.id !== contact.id) return;
+          const lastId = messages.slice(-1)[0]?.id ?? '';
+          this.activeContact = { ...this.activeContact, messages };
+          if (lastId && lastId !== prevLastId) this.shouldScroll = true;
+          this.contactDraft = this.draftFromContact(this.activeContact);
+          this.cdr.detectChanges();
+        }),
+      );
+    }, 250);
   }
 
   private matchesFilter(contact: WaChat): boolean {

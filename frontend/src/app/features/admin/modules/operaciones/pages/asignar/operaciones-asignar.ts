@@ -15,10 +15,14 @@ interface AsignableChat {
   colegio: string;
   prioridad: string;
   estado: string;
+  esGrupo: boolean;
+  cerrado: boolean;
   ultimoMensaje: string;
   tiempoEspera: string;
   asesorAsignado: string;
   asesorNombre: string;
+  esFijado: boolean;
+  asesorFijoNombre: string;
 }
 
 @Component({
@@ -32,11 +36,14 @@ interface AsignableChat {
 export class OperacionesAsignarComponent implements OnInit, OnDestroy {
   filtroEstado = 'todos';
   filtroPrioridad = 'todas';
+  filtroTipo = 'todos';
   searchQuery = '';
 
   asesores: { id: string; nombre: string }[] = [];
   chats: AsignableChat[] = [];
   assigning = new Set<string>();
+  releasing = new Set<string>();
+  lastError: string | null = null;
   selectedAdvisor: Record<string, string> = {};
 
   private subs: Subscription[] = [];
@@ -100,10 +107,14 @@ export class OperacionesAsignarComponent implements OnInit, OnDestroy {
       colegio: chat.institution || '—',
       prioridad: chat.priority || 'normal',
       estado: chat.operationalStatusLabel || chat.operationalStatus || chat.assignmentStatus || 'Nuevo',
+      esGrupo: !!chat.isGroup,
+      cerrado: chat.assignmentStatus === 'closed' || chat.operationalStatus === 'closed',
       ultimoMensaje: chat.preview || '—',
       tiempoEspera: chat.time || '—',
       asesorAsignado: chat.assignedTo || '',
       asesorNombre: chat.assignedToName || '',
+      esFijado: !!chat.fixedAdvisorId,
+      asesorFijoNombre: chat.fixedAdvisorName || '',
     };
   }
 
@@ -120,15 +131,33 @@ export class OperacionesAsignarComponent implements OnInit, OnDestroy {
 
   get chatsFiltrados(): AsignableChat[] {
     const q = this.searchQuery.trim().toLowerCase();
-    return this.chats.filter(c => {
-      if (this.filtroEstado !== 'todos' && c.estado !== this.filtroEstado) return false;
-      if (this.filtroPrioridad !== 'todas' && c.prioridad !== this.filtroPrioridad) return false;
-      if (q) {
-        const haystack = [c.cliente, c.telefono, c.colegio, c.asesorNombre].join(' ').toLowerCase();
-        if (!haystack.includes(q)) return false;
-      }
-      return true;
-    });
+    return this.chats
+      .filter(c => {
+        if (this.filtroEstado !== 'todos' && c.estado !== this.filtroEstado) return false;
+        if (this.filtroPrioridad !== 'todas' && c.prioridad !== this.filtroPrioridad) return false;
+        if (this.filtroTipo === 'grupos' && !c.esGrupo) return false;
+        if (this.filtroTipo === 'individuales' && c.esGrupo) return false;
+        if (q) {
+          const haystack = [c.cliente, c.telefono, c.colegio, c.asesorNombre].join(' ').toLowerCase();
+          if (!haystack.includes(q)) return false;
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        if (a.cerrado !== b.cerrado) return a.cerrado ? 1 : -1;
+        const pa = this.priorityRank(a.prioridad);
+        const pb = this.priorityRank(b.prioridad);
+        if (pa !== pb) return pa - pb;
+        const ua = a.asesorAsignado ? 1 : 0;
+        const ub = b.asesorAsignado ? 1 : 0;
+        if (ua !== ub) return ua - ub;
+        return 0;
+      });
+  }
+
+  private priorityRank(p: string): number {
+    const map: Record<string, number> = { critical: 0, high: 1, normal: 2, low: 3 };
+    return map[p] ?? 2;
   }
 
   prioridadClass(p: string): string {
@@ -138,6 +167,7 @@ export class OperacionesAsignarComponent implements OnInit, OnDestroy {
 
   asignarChat(chatId: string, asesorId: string): void {
     if (!asesorId) return;
+    this.lastError = null;
     this.assigning.add(chatId);
     this.whatsappChat.adminAssignChat(chatId, asesorId).subscribe({
       next: () => {
@@ -145,11 +175,35 @@ export class OperacionesAsignarComponent implements OnInit, OnDestroy {
         this.selectedAdvisor[chatId] = asesorId;
         this.cdr.markForCheck();
       },
-      error: () => {
+      error: (err) => {
         this.assigning.delete(chatId);
+        this.lastError = this.errorMsg(err);
         this.cdr.markForCheck();
       },
     });
+  }
+
+  liberarChat(chat: AsignableChat): void {
+    if (this.releasing.has(chat.id)) return;
+    this.lastError = null;
+    this.releasing.add(chat.id);
+    this.whatsappChat.closeChat(chat.id).subscribe({
+      next: () => {
+        this.releasing.delete(chat.id);
+        this.selectedAdvisor[chat.id] = '';
+        this.cdr.markForCheck();
+      },
+      error: (err) => {
+        this.releasing.delete(chat.id);
+        this.lastError = this.errorMsg(err);
+        this.cdr.markForCheck();
+      },
+    });
+  }
+
+  private errorMsg(err: unknown): string {
+    const e = err as { error?: { message?: string }; message?: string };
+    return e?.error?.message || e?.message || 'No se pudo completar la operacion';
   }
 
   trackByChatId(_: number, c: AsignableChat): string { return c.id; }

@@ -454,6 +454,9 @@
           <div class="chat-inst">
             <wa-icon name="users-group"></wa-icon>
             <span>Grupo</span>
+            @if (c.assignedTo === currentUserId) {
+            <span class="chat-mine-tag">Asignado a ti</span>
+            }
           </div>
           }
           <div class="chat-preview">{{ displayPreview(c) }}</div>
@@ -649,6 +652,8 @@
           [class.failed]="msg.status === 'failed'"
           [class.editing]="editingMessageId === msg.id"
           [class.context-active]="messageMenu?.message?.id === msg.id"
+          [attr.data-msg-id]="msg.id"
+          [attr.data-meta-id]="msg.metaMessageId"
           (contextmenu)="openMessageMenu($event, msg)"
           (touchstart)="onBubbleTouchStart($event, msg)"
           (touchend)="onBubbleTouchEnd()"
@@ -676,6 +681,14 @@
                   class="media-image"
                   [src]="mediaUrlFor(msg)"
                   [alt]="msg.fileName || msg.body || 'Imagen'"
+                  (click)="openMediaPreview(msg, $event)"
+                />
+              }
+              @case ('sticker') {
+                <img
+                  class="media-image media-sticker"
+                  [src]="mediaUrlFor(msg)"
+                  [alt]="msg.fileName || 'Sticker'"
                   (click)="openMediaPreview(msg, $event)"
                 />
               }
@@ -716,7 +729,7 @@
           </div>
           } @else {
             @if (msg.replyToMessageId) {
-            <div class="quoted-block">
+            <div class="quoted-block" (click)="$event.stopPropagation(); scrollToQuotedMessage(msg)">
               <div class="quoted-bar"></div>
               <div class="quoted-content">
                 <strong>{{ msg.quotedSender || 'Mensaje' }}</strong>
@@ -737,6 +750,9 @@
     (click)="toggleReactionPopover($event, msg.id)"
     [class.open]="openReactionPopoverId === msg.id"
   >
+    @for (emoji of uniqueReactionEmojis(msg, contact.messages); track trackByIndex($index)) {
+    <b class="reactions-pill-emoji">{{ emoji }}</b>
+    }
     <em>{{ messageReactions(msg, contact.messages).length }}</em>
   </button>
 
@@ -1086,8 +1102,8 @@
           class="close-chat-btn"
           type="button"
           (click)="closeActiveChat()"
-          [disabled]="isClosingChat || activeContact.assignedTo !== currentUserId || isFixedToOther()"
-          [title]="isFixedToOther() ? 'No puedes cerrar un cliente fijado' : 'Cerrar chat'"
+          [disabled]="isClosingChat || activeContact.assignedTo !== currentUserId || isFixedToOther() || activeContact.isGroup"
+          [title]="isFixedToOther() ? 'No puedes cerrar un cliente fijado' : (activeContact.isGroup ? 'Solo un administrador puede liberar la asignacion de un grupo' : 'Cerrar chat')"
         >
           <wa-icon name="x-circle"></wa-icon>
           Cerrar chat

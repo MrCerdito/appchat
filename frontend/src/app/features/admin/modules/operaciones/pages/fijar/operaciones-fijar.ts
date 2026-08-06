@@ -17,6 +17,7 @@ interface FijableChat {
   prioridad: string;
   estado: string;
   ultimoMensaje: string;
+  esGrupo: boolean;
   asesorActual: string;
   asesorActualNombre: string;
   asesorFijoId: string;
@@ -39,9 +40,11 @@ export class OperacionesFijarComponent implements OnInit, OnDestroy {
   asesores: { id: string; nombre: string }[] = [];
   chats: FijableChat[] = [];
   fixing = new Set<string>();
+  lastError: string | null = null;
   showFixPopup = false;
   fixPopupChatId: string | null = null;
   fixPopupChatName = '';
+  fixPopupEsGrupo = false;
 
   private subs: Subscription[] = [];
 
@@ -100,6 +103,7 @@ export class OperacionesFijarComponent implements OnInit, OnDestroy {
       prioridad: chat.priority || 'normal',
       estado: chat.operationalStatusLabel || chat.operationalStatus || chat.assignmentStatus || 'Nuevo',
       ultimoMensaje: chat.preview || '—',
+      esGrupo: !!chat.isGroup,
       asesorActual: chat.assignedTo || '',
       asesorActualNombre: chat.assignedToName || '—',
       asesorFijoId: chat.fixedAdvisorId || '',
@@ -133,9 +137,10 @@ export class OperacionesFijarComponent implements OnInit, OnDestroy {
     return map[p] || p;
   }
 
-  openFixPopup(chatId: string, chatName: string): void {
+  openFixPopup(chatId: string, chatName: string, esGrupo: boolean): void {
     this.fixPopupChatId = chatId;
     this.fixPopupChatName = chatName;
+    this.fixPopupEsGrupo = esGrupo;
     this.showFixPopup = true;
   }
 
@@ -143,11 +148,13 @@ export class OperacionesFijarComponent implements OnInit, OnDestroy {
     this.showFixPopup = false;
     this.fixPopupChatId = null;
     this.fixPopupChatName = '';
+    this.fixPopupEsGrupo = false;
   }
 
   fijarChat(asesorId: string): void {
     if (!this.fixPopupChatId || !asesorId) return;
     this.fixing.add(this.fixPopupChatId);
+    this.lastError = null;
     const chatId = this.fixPopupChatId;
     this.whatsappChat.setFixedAdvisor(chatId, asesorId).subscribe({
       next: () => {
@@ -155,9 +162,10 @@ export class OperacionesFijarComponent implements OnInit, OnDestroy {
         this.closeFixPopup();
         this.cdr.markForCheck();
       },
-      error: () => {
+      error: (err) => {
         this.fixing.delete(chatId);
         this.closeFixPopup();
+        this.lastError = this.errorMsg(err);
         this.cdr.markForCheck();
       },
     });
@@ -165,16 +173,23 @@ export class OperacionesFijarComponent implements OnInit, OnDestroy {
 
   desfijarChat(chatId: string): void {
     this.fixing.add(chatId);
+    this.lastError = null;
     this.whatsappChat.clearFixedAdvisor(chatId).subscribe({
       next: () => {
         this.fixing.delete(chatId);
         this.cdr.markForCheck();
       },
-      error: () => {
+      error: (err) => {
         this.fixing.delete(chatId);
+        this.lastError = this.errorMsg(err);
         this.cdr.markForCheck();
       },
     });
+  }
+
+  private errorMsg(err: unknown): string {
+    const e = err as { error?: { message?: string }; message?: string };
+    return e?.error?.message || e?.message || 'No se pudo completar la operacion';
   }
 
   trackByChatId(_: number, c: FijableChat): string { return c.id; }

@@ -61,6 +61,7 @@ export class OperacionesComponent implements OnInit, OnDestroy {
 
   assignChatId: string | null = null;
   assignBusy = false;
+  assignError: string | null = null;
   isLoggingOut = false;
 
   private dashboardLoaded = false;
@@ -342,15 +343,18 @@ export class OperacionesComponent implements OnInit, OnDestroy {
   confirmAssign(advisorId: string): void {
     if (!this.assignChatId || this.assignBusy) return;
     this.assignBusy = true;
+    this.assignError = null;
     const advisor = this.advisors.find(a => a.id === advisorId);
-    const msg = advisor ? `Hola, soy {{advisor}} y el dia de hoy te atendere.` : undefined;
+    const chat = this.assignChat;
+    const msg = !chat?.isGroup && advisor ? `Hola, soy {{advisor}} y el dia de hoy te atendere.` : undefined;
     this.whatsappChat.adminAssignChat(this.assignChatId, advisorId, 'admin', msg).subscribe({
       next: () => {
         this.closeAssignMenu();
         this.cdr.markForCheck();
       },
-      error: () => {
+      error: (err) => {
         this.assignBusy = false;
+        this.assignError = err?.error?.message || err?.message || 'No se pudo asignar el chat';
         this.cdr.markForCheck();
       },
     });

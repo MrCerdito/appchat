@@ -983,6 +983,14 @@
   cursor: pointer;
 }
 
+.wa-media-sticker {
+  width: 120px;
+  height: 120px;
+  max-height: 120px;
+  object-fit: contain;
+  background: transparent;
+}
+
 .wa-media-video {
   max-width: 100%;
   max-height: 300px;
@@ -1361,6 +1369,7 @@
 
   &.wa-flash {
     animation: wa-flash 1.2s ease;
+    scroll-margin: 120px 0;
   }
 }
 
