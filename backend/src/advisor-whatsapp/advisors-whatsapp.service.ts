@@ -22,6 +22,7 @@ import makeWASocket, {
 } from '@whiskeysockets/baileys';
 import { ConfigService } from '@nestjs/config';
 import pino from 'pino';
+import * as ExcelJS from 'exceljs';
 import { InjectRepository } from '@nestjs/typeorm';
 import QRCode from 'qrcode';
 import { mkdir, rm, writeFile } from 'fs/promises';
@@ -143,6 +144,16 @@ export interface WaChatDto {
   lastClientMsg: Date;
   messages: WaMessageDto[];
   priority?: 'low' | 'normal' | 'high' | 'critical';
+  slaState?: 'in_time' | 'por_vencer' | 'vencido';
+  slaBreached?: boolean;
+  slaMinutesWaiting?: number;
+  slaWaitingSince?: string;
+  slaDeadlineMinutes?: number;
+  slaRemainingMinutes?: number;
+  frozen?: boolean;
+  frozenMinutes?: number;
+  categoria?: string;
+  categoriaLabel?: string;
 }
 
 export interface UpdateWhatsappContactInput {
@@ -180,6 +191,8 @@ export interface WhatsappAdvisorStatsDto {
   connectedMinutes: number;
   pauseMinutes: number;
   slaPercent: number;
+  slaBreachedChats: number;
+  frozenChats: number;
   lastActivity?: string;
 }
 
@@ -194,9 +207,14 @@ export interface WhatsappAdminDashboardDto {
     fixedClients: number;
     manualChats: number;
     slaBreached: number;
+    porVencer: number;
     frozenChats: number;
     avgResponseMinutes: number;
     slaCompliancePercent: number;
+    slaComplianceDenominator: number;
+    enGestion: number;
+    esperandoRespuesta: number;
+    soporteChats: number;
     closedToday: number;
     uniqueClientsToday: number;
   };
@@ -209,7 +227,52 @@ export interface WhatsappAdminDashboardDto {
     detail: string;
     chatId?: string;
     advisorId?: string;
+    timestamp?: string;
   }[];
+}
+
+export interface WhatsappReportDataDto {
+  from: string;
+  to: string;
+  granularity: string;
+  summary: {
+    chatsRecibidos: number;
+    clientesUnicos: number;
+    asignados: number;
+    cerrados: number;
+    mensajesTotales: number;
+    mensajesAsesor: number;
+    tiempoPromedioRespuestaMin: number;
+    slaCumplimiento: number;
+    slaDenominador: number;
+  };
+  series: Array<{
+    periodo: string;
+    recibidos: number;
+    asignados: number;
+    cerrados: number;
+  }>;
+  perAdvisor: Array<{
+    id: string;
+    name: string;
+    chatsAsignados: number;
+    cerrados: number;
+    mensajesEnviados: number;
+    promRespuestaMin: number;
+  }>;
+  porCategoria: Array<{ categoria: string; label: string; total: number }>;
+  chats: Array<{
+    id: string;
+    name: string;
+    phone: string;
+    advisor: string;
+    priority: string;
+    categoria: string;
+    estado: string;
+    creado: string;
+    cerrado: string | null;
+    mensajes: number;
+  }>;
 }
 
 export interface IncomingHandlingResult {
@@ -241,7 +304,13 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
   private readonly maxActiveChatsPerAdvisor = 3;
   private readonly customerIdleReleaseMs = 3 * 60 * 1000;
   private readonly advisorIdleWarningMs = 5 * 60 * 1000;
-  private readonly slowResponseWarningMs = 2 * 60 * 1000;
+  private readonly frozenChatWarningMs = 10 * 60 * 1000;
+  private readonly slaMinutesByPriority: Record<string, number> = {
+    critical: 1,
+    high: 2,
+    normal: 7,
+    low: 10,
+  };
   private sock: WASocket | null = null;
   private connectingPromise: Promise<WhatsappConnectionDto> | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -670,7 +739,10 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
   }
 
   private baileysAuthDir(): string {
-    return join(process.cwd(), 'uploads', 'baileys-auth');
+    return (
+      this.config.get<string>('WHATSAPP_SESSION_DIR') ||
+      join(process.cwd(), '.session', 'baileys-auth')
+    );
   }
 
   private async ensureWhatsappSchema(): Promise<void> {
@@ -701,6 +773,10 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     await this.chatRepo.query(`
       ALTER TABLE IF EXISTS public.whatsapp_chats
         ADD COLUMN IF NOT EXISTS priority varchar(20) NOT NULL DEFAULT 'normal'
+    `);
+    await this.chatRepo.query(`
+      ALTER TABLE IF EXISTS public.whatsapp_chats
+        ADD COLUMN IF NOT EXISTS closed_at timestamp NULL
     `);
   }
 
@@ -1191,13 +1267,37 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     const activeNonGroup = chats.filter(
       (chat) => chat.status === 'active' && !chat.isGroup,
     ).length;
-    const slaBreached = alerts.filter(
-      (alert) => alert.type === 'sla_breached',
+    const slaScopeChats = chats.filter(
+      (chat) =>
+        chat.status === 'active' &&
+        !chat.isGroup &&
+        chat.operationalStatus !== 'waiting_customer' &&
+        chat.operationalStatus !== 'waiting_technical' &&
+        chat.operationalStatus !== 'resolved',
+    );
+    const slaBreached = chats.filter(
+      (chat) => !chat.isGroup && this.isSlaBreached(chat, messages),
     ).length;
-    const slaCompliancePercent = activeNonGroup
+    const porVencer = chats.filter(
+      (chat) =>
+        !chat.isGroup &&
+        chat.status === 'active' &&
+        this.computeChatSla(chat, messages).slaState === 'por_vencer',
+    ).length;
+    const frozenChats = chats.filter(
+      (chat) =>
+        chat.status === 'active' &&
+        this.computeChatSla(chat, messages).frozen,
+    ).length;
+    const slaComplianceDenominator = slaScopeChats.length;
+    const slaCompliancePercent = slaComplianceDenominator
       ? Math.max(
           0,
-          Math.round(((activeNonGroup - slaBreached) / activeNonGroup) * 100),
+          Math.round(
+            ((slaComplianceDenominator - slaBreached) /
+              slaComplianceDenominator) *
+              100,
+          ),
         )
       : 100;
     const now = new Date();
@@ -1217,41 +1317,467 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     );
     const uniqueClientsToday = todayClientChatIds.size;
 
+    const summary = {
+      totalChats: chats.length,
+      activeChats: chats.filter(
+        (chat) => chat.status === 'active' && !chat.isGroup,
+      ).length,
+      queuedChats: chats.filter(
+        (chat) =>
+          chat.status === 'waiting' &&
+          chat.operationalStatus !== 'waiting_customer',
+      ).length,
+      waitingCustomerChats: chats.filter(
+        (chat) => chat.operationalStatus === 'waiting_customer',
+      ).length,
+      waitingTechnicalChats: chats.filter(
+        (chat) => chat.operationalStatus === 'waiting_technical',
+      ).length,
+      closedChats: chats.filter((chat) => chat.status === 'closed').length,
+      fixedClients: chats.filter((chat) => !!chat.fixedAdvisor).length,
+      manualChats: chats.filter(
+        (chat) =>
+          chat.assignmentMode === 'manual' || chat.assignmentMode === 'admin',
+      ).length,
+      slaBreached,
+      porVencer,
+      frozenChats: frozenChats,
+      avgResponseMinutes,
+      slaCompliancePercent,
+      slaComplianceDenominator,
+      enGestion: chats.filter(
+        (chat) =>
+          chat.status === 'active' &&
+          !chat.isGroup &&
+          this.computeChatSla(chat, messages).categoria === 'gestion',
+      ).length,
+      esperandoRespuesta: chats.filter(
+        (chat) =>
+          chat.status === 'active' &&
+          !chat.isGroup &&
+          this.computeChatSla(chat, messages).categoria ===
+            'espera_respuesta',
+      ).length,
+      soporteChats: chats.filter(
+        (chat) => chat.operationalStatus === 'waiting_technical',
+      ).length,
+      closedToday,
+      uniqueClientsToday,
+    };
+
     return {
-      summary: {
-        totalChats: chats.length,
-        activeChats: chats.filter(
-          (chat) => chat.status === 'active' && !chat.isGroup,
-        ).length,
-        queuedChats: chats.filter(
-          (chat) =>
-            chat.status === 'waiting' &&
-            chat.operationalStatus !== 'waiting_customer',
-        ).length,
-        waitingCustomerChats: chats.filter(
-          (chat) => chat.operationalStatus === 'waiting_customer',
-        ).length,
-        waitingTechnicalChats: chats.filter(
-          (chat) => chat.operationalStatus === 'waiting_technical',
-        ).length,
-        closedChats: chats.filter((chat) => chat.status === 'closed').length,
-        fixedClients: chats.filter((chat) => !!chat.fixedAdvisor).length,
-        manualChats: chats.filter(
-          (chat) =>
-            chat.assignmentMode === 'manual' || chat.assignmentMode === 'admin',
-        ).length,
-        slaBreached,
-        frozenChats: alerts.filter((alert) => alert.type === 'frozen_chat')
-          .length,
-        avgResponseMinutes,
-        slaCompliancePercent,
-        closedToday,
-        uniqueClientsToday,
-      },
+      summary,
       advisors: advisorStats,
       chats: dtoChats,
       alerts,
     };
+  }
+
+  async generateReport(role: string, from?: string, to?: string): Promise<Buffer> {
+    this.assertAdminRole(role);
+    await this.releaseExpiredActiveChats();
+
+    const fromDate = from && !isNaN(new Date(from).getTime()) ? new Date(from) : null;
+    const toDate = to && !isNaN(new Date(to).getTime()) ? new Date(to) : null;
+    const toEnd = toDate ? new Date(toDate.getTime() + 24 * 60 * 60 * 1000) : null;
+
+    const chats = await this.chatRepo.find({
+      relations: ['assignedAdvisor', 'fixedAdvisor'],
+      order: { lastMessageAt: 'DESC' },
+    });
+    const advisors = await this.userRepo.find({
+      where: { role: 'advisor' },
+      order: { name: 'ASC' },
+    });
+    const messages = await this.messageRepo.find({
+      relations: ['chat', 'advisor'],
+      order: { createdAt: 'DESC' },
+      take: 1000,
+    });
+
+    const inRange = (chat: WhatsappChat): boolean => {
+      if (!fromDate && !toEnd) return true;
+      const t = new Date(chat.createdAt).getTime();
+      if (fromDate && t < fromDate.getTime()) return false;
+      if (toEnd && t >= toEnd.getTime()) return false;
+      return true;
+    };
+    const rangeChats = chats.filter(inRange);
+
+    const slaBreached = chats.filter(
+      (chat) => !chat.isGroup && this.isSlaBreached(chat, messages),
+    );
+    const porVencer = chats.filter(
+      (chat) =>
+        !chat.isGroup &&
+        chat.status === 'active' &&
+        this.computeChatSla(chat, messages).slaState === 'por_vencer',
+    );
+    const frozen = chats.filter(
+      (chat) =>
+        chat.status === 'active' && this.computeChatSla(chat, messages).frozen,
+    );
+
+    const now = new Date();
+    const startOfToday = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+    );
+    const closedToday = chats.filter(
+      (chat) => chat.status === 'closed' && chat.updatedAt >= startOfToday,
+    ).length;
+    const uniqueClientsToday = new Set(
+      messages
+        .filter((m) => !m.fromMe && m.createdAt >= startOfToday)
+        .map((m) => m.chat?.id)
+        .filter(Boolean),
+    ).size;
+
+    const workbook = new ExcelJS.Workbook();
+
+    const resumen = workbook.addWorksheet('Resumen');
+    resumen.columns = [
+      { header: 'Metrica', key: 'metrica', width: 40 },
+      { header: 'Valor', key: 'valor', width: 18 },
+    ];
+    resumen.addRows([
+      { metrica: 'Fecha de generacion', valor: now.toISOString() },
+      ...(fromDate
+        ? [
+            { metrica: 'Desde', valor: fromDate.toISOString() },
+            { metrica: 'Hasta', valor: toDate?.toISOString() ?? '' },
+          ]
+        : []),
+      { metrica: 'Clientes unicos hoy', valor: uniqueClientsToday },
+      { metrica: 'Chats cerrados hoy', valor: closedToday },
+      { metrica: 'Chats activos', valor: chats.filter((c) => c.status === 'active' && !c.isGroup).length },
+      { metrica: 'Chats en cola', valor: chats.filter((c) => c.status === 'waiting' && c.operationalStatus !== 'waiting_customer').length },
+      { metrica: 'SLA vencidos', valor: slaBreached.length },
+      { metrica: 'Por vencer (80% del plazo)', valor: porVencer.length },
+      { metrica: 'Chats congelados', valor: frozen.length },
+      { metrica: 'Cumplimiento SLA (%)', valor: this.computeSlaCompliance(chats, slaBreached) },
+    ]);
+    resumen.getColumn('metrica').font = { bold: true };
+
+    const detail = workbook.addWorksheet('Detalle chats');
+    detail.columns = [
+      { header: 'Cliente', key: 'name', width: 28 },
+      { header: 'Telefono', key: 'phone', width: 20 },
+      { header: 'Asesor', key: 'advisor', width: 22 },
+      { header: 'Prioridad', key: 'priority', width: 12 },
+      { header: 'Estado', key: 'estado', width: 18 },
+      { header: 'Categoria', key: 'categoria', width: 20 },
+      { header: 'Espera (min)', key: 'waiting', width: 14 },
+      { header: 'Plazo SLA (min)', key: 'deadline', width: 16 },
+      { header: 'Tiempo restante (min)', key: 'remaining', width: 18 },
+    ];
+    const rows: any[] = [];
+    for (const chat of rangeChats) {
+      if (chat.isGroup) continue;
+      const sla = this.computeChatSla(chat, messages);
+      rows.push({
+        name: chat.name,
+        phone: chat.phone,
+        advisor: chat.assignedAdvisor?.name ?? chat.fixedAdvisor?.name ?? '',
+        priority: chat.priority ?? 'normal',
+        estado: sla.slaState,
+        categoria: sla.categoriaLabel,
+        waiting: sla.slaMinutesWaiting,
+        deadline: sla.slaDeadlineMinutes,
+        remaining: sla.slaRemainingMinutes,
+      });
+    }
+    detail.addRows(rows);
+
+    if (rangeChats.length) {
+      const serie = workbook.addWorksheet('Serie');
+      const serieData = this.buildReportSeries(rangeChats, fromDate, toDate);
+      serie.columns = [
+        { header: 'Periodo', key: 'periodo', width: 16 },
+        { header: 'Recibidos', key: 'recibidos', width: 14 },
+        { header: 'Asignados', key: 'asignados', width: 14 },
+        { header: 'Cerrados', key: 'cerrados', width: 14 },
+      ];
+      serie.addRows(serieData);
+      serie.getColumn('periodo').font = { bold: true };
+
+      const asesores = workbook.addWorksheet('Asesores');
+      const advisorRows = this.buildReportAdvisors(
+        rangeChats,
+        advisors,
+        messages,
+      );
+      asesores.columns = [
+        { header: 'Asesor', key: 'name', width: 22 },
+        { header: 'Chats asignados', key: 'asignados', width: 18 },
+        { header: 'Cerrados', key: 'cerrados', width: 14 },
+        { header: 'Mensajes enviados', key: 'mensajes', width: 20 },
+        { header: 'Respuesta prom (min)', key: 'respuesta', width: 22 },
+      ];
+      asesores.addRows(advisorRows);
+      asesores.getColumn('name').font = { bold: true };
+    }
+
+    resumen.getCell('A1').value = 'Reporte del Centro de Operaciones';
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return buffer as unknown as Buffer;
+  }
+
+  async getReportData(
+    role: string,
+    from: string,
+    to: string,
+    granularity: 'day' | 'month' | 'year' = 'day',
+  ): Promise<WhatsappReportDataDto> {
+    this.assertAdminRole(role);
+
+    const fromDate = new Date(from);
+    const toDate = new Date(to);
+    const toEnd = new Date(toDate.getTime() + 24 * 60 * 60 * 1000);
+
+    const chats = await this.chatRepo.find({
+      relations: ['assignedAdvisor', 'fixedAdvisor'],
+      order: { lastMessageAt: 'DESC' },
+    });
+    const advisors = await this.userRepo.find({
+      where: { role: 'advisor' },
+      order: { name: 'ASC' },
+    });
+    const messages = await this.messageRepo.find({
+      relations: ['chat', 'advisor'],
+      order: { createdAt: 'DESC' },
+      take: 2000,
+    });
+
+    const rangeChats = chats.filter((chat) => {
+      if (chat.isGroup) return false;
+      const t = new Date(chat.createdAt).getTime();
+      return t >= fromDate.getTime() && t < toEnd.getTime();
+    });
+    const rangeMessages = messages.filter((m) => {
+      const t = new Date(m.createdAt).getTime();
+      return t >= fromDate.getTime() && t < toEnd.getTime();
+    });
+
+    const uniqueClients = new Set(
+      rangeMessages.filter((m) => !m.fromMe).map((m) => m.chat?.id).filter(Boolean),
+    ).size;
+    const cerrados = chats.filter((chat) => {
+      if (chat.isGroup) return false;
+      const closedAt = chat.closedAt ?? (chat.status === 'closed' ? chat.updatedAt : null);
+      if (!closedAt) return false;
+      const t = new Date(closedAt).getTime();
+      return t >= fromDate.getTime() && t < toEnd.getTime();
+    });
+    const asignados = rangeChats.filter((chat) => chat.assignedAt).length;
+    const mensajesTotales = rangeMessages.length;
+    const mensajesAsesor = rangeMessages.filter((m) => m.fromMe).length;
+
+    const avgResponseMinutes = this.averageResponseMinutesInRange(rangeMessages);
+
+    const slaScope = rangeChats.filter(
+      (chat) =>
+        chat.operationalStatus !== 'waiting_customer' &&
+        chat.operationalStatus !== 'waiting_technical' &&
+        chat.operationalStatus !== 'resolved',
+    );
+    const breachedInRange = slaScope.filter(
+      (chat) => this.isSlaBreached(chat, messages),
+    ).length;
+    const slaDenominador = slaScope.length;
+    const slaCumplimiento = slaDenominador
+      ? Math.max(0, Math.round(((slaDenominador - breachedInRange) / slaDenominador) * 100))
+      : 100;
+
+    const serie = this.buildReportSeries(rangeChats, fromDate, toDate, granularity);
+    const perAdvisor = this.buildReportAdvisors(rangeChats, advisors, messages);
+
+    const categoriaCounts = new Map<string, number>();
+    for (const chat of rangeChats) {
+      const sla = this.computeChatSla(chat, messages);
+      categoriaCounts.set(
+        sla.categoria,
+        (categoriaCounts.get(sla.categoria) ?? 0) + 1,
+      );
+    }
+    const porCategoria = [...categoriaCounts.entries()].map(
+      ([categoria, total]) => ({
+        categoria,
+        label: this.categoriaLabel(categoria as Parameters<typeof this.categoriaLabel>[0]),
+        total,
+      }),
+    );
+
+    const chatRows = rangeChats.map((chat) => {
+      const sla = this.computeChatSla(chat, messages);
+      return {
+        id: chat.id,
+        name: chat.name,
+        phone: chat.phone,
+        advisor: chat.assignedAdvisor?.name ?? chat.fixedAdvisor?.name ?? '',
+        priority: chat.priority ?? 'normal',
+        categoria: sla.categoria,
+        estado: sla.categoriaLabel,
+        creado: chat.createdAt.toISOString(),
+        cerrado: chat.closedAt?.toISOString() ?? null,
+        mensajes: rangeMessages.filter((m) => m.chat?.id === chat.id).length,
+      };
+    });
+
+    return {
+      from: fromDate.toISOString(),
+      to: toDate.toISOString(),
+      granularity,
+      summary: {
+        chatsRecibidos: rangeChats.length,
+        clientesUnicos: uniqueClients,
+        asignados,
+        cerrados: cerrados.length,
+        mensajesTotales,
+        mensajesAsesor,
+        tiempoPromedioRespuestaMin: avgResponseMinutes,
+        slaCumplimiento,
+        slaDenominador,
+      },
+      series: serie,
+      perAdvisor,
+      porCategoria,
+      chats: chatRows.slice(0, 300),
+    };
+  }
+
+  private buildReportSeries(
+    chats: WhatsappChat[],
+    fromDate: Date | null,
+    toDate: Date | null,
+    granularity: 'day' | 'month' | 'year' = 'day',
+  ): Array<{ periodo: string; recibidos: number; asignados: number; cerrados: number }> {
+    const keyFn = (date: Date): string => {
+      if (granularity === 'year') {
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      }
+      if (granularity === 'month') {
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      }
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    };
+    const received = new Map<string, number>();
+    const assigned = new Map<string, number>();
+    const closed = new Map<string, number>();
+    for (const chat of chats) {
+      received.set(keyFn(chat.createdAt), (received.get(keyFn(chat.createdAt)) ?? 0) + 1);
+      if (chat.assignedAt)
+        assigned.set(keyFn(chat.assignedAt), (assigned.get(keyFn(chat.assignedAt)) ?? 0) + 1);
+      const closedAt = chat.closedAt ?? (chat.status === 'closed' ? chat.updatedAt : null);
+      if (closedAt)
+        closed.set(keyFn(closedAt), (closed.get(keyFn(closedAt)) ?? 0) + 1);
+    }
+
+    const keys = new Set([...received.keys(), ...assigned.keys(), ...closed.keys()]);
+    const sortedKeys = [...keys].sort();
+    return sortedKeys.map((periodo) => ({
+      periodo,
+      recibidos: received.get(periodo) ?? 0,
+      asignados: assigned.get(periodo) ?? 0,
+      cerrados: closed.get(periodo) ?? 0,
+    }));
+  }
+
+  private buildReportAdvisors(
+    chats: WhatsappChat[],
+    advisors: Array<{ id: string; name: string }>,
+    messages: WhatsappMessage[],
+  ): Array<{
+    id: string;
+    name: string;
+    chatsAsignados: number;
+    cerrados: number;
+    mensajesEnviados: number;
+    promRespuestaMin: number;
+  }> {
+    return advisors.map((advisor) => {
+      const advisorChats = chats.filter(
+        (chat) => chat.assignedAdvisor?.id === advisor.id,
+      );
+      const advisorMessages = messages.filter(
+        (m) => m.fromMe && m.advisor?.id === advisor.id,
+      );
+      return {
+        id: advisor.id,
+        name: advisor.name,
+        chatsAsignados: advisorChats.length,
+        cerrados: advisorChats.filter(
+          (chat) => chat.status === 'closed',
+        ).length,
+        mensajesEnviados: advisorMessages.length,
+        promRespuestaMin: this.averageAdvisorResponseMinutes(
+          advisor.id,
+          messages,
+        ),
+      };
+    });
+  }
+
+  private averageResponseMinutesInRange(
+    messages: WhatsappMessage[],
+  ): number {
+    const ordered = [...messages]
+      .filter((message) => message.chat?.id)
+      .sort(
+        (a, b) =>
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      );
+    const pendingByChat = new Map<string, Date>();
+    const responseMinutes: number[] = [];
+
+    for (const message of ordered) {
+      const chatId = message.chat.id;
+      if (!message.fromMe) {
+        pendingByChat.set(chatId, message.createdAt);
+        continue;
+      }
+      if (!pendingByChat.has(chatId)) continue;
+      const started = pendingByChat.get(chatId)!;
+      responseMinutes.push(
+        Math.max(
+          0,
+          Math.round(
+            (new Date(message.createdAt).getTime() -
+              new Date(started).getTime()) /
+              60000,
+          ),
+        ),
+      );
+      pendingByChat.delete(chatId);
+    }
+
+    if (!responseMinutes.length) return 0;
+    return Math.round(
+      responseMinutes.reduce((sum, value) => sum + value, 0) /
+        responseMinutes.length,
+    );
+  }
+
+  private computeSlaCompliance(
+    chats: WhatsappChat[],
+    slaBreached: WhatsappChat[],
+  ): number {
+    const scope = chats.filter(
+      (chat) =>
+        chat.status === 'active' &&
+        !chat.isGroup &&
+        chat.operationalStatus !== 'waiting_customer' &&
+        chat.operationalStatus !== 'waiting_technical' &&
+        chat.operationalStatus !== 'resolved',
+    ).length;
+    return scope
+      ? Math.max(
+          0,
+          Math.round(((scope - slaBreached.length) / scope) * 100),
+        )
+      : 100;
   }
 
   async adminAssignChat(
@@ -1360,6 +1886,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     chat.fixedAdvisor = null;
     chat.status = 'closed';
     chat.operationalStatus = 'closed';
+    chat.closedAt = new Date();
     chat.assignedAdvisor = null;
     chat.assignedAt = null;
     chat.assignmentMode = null;
@@ -1398,6 +1925,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     chat.operationalStatusUpdatedAt = new Date();
     if (operationalStatus === 'closed') {
       chat.status = 'closed';
+      chat.closedAt = new Date();
       chat.assignedAdvisor = null;
       chat.assignedAt = null;
       chat.assignmentMode = null;
@@ -2159,6 +2687,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
 
     chat.status = 'closed';
     chat.operationalStatus = 'closed';
+    chat.closedAt = new Date();
     chat.assignedAdvisor = null;
     chat.assignedAt = null;
     chat.assignmentMode = null;
@@ -3381,6 +3910,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
         continue;
       chat.status = 'closed';
       chat.operationalStatus = 'closed';
+      chat.closedAt = new Date();
       chat.operationalStatusUpdatedAt = new Date();
       chat.assignedAdvisor = null;
       chat.assignedAt = null;
@@ -3536,6 +4066,12 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     const breached = advisorChats.filter((chat) =>
       this.isSlaBreached(chat, messages),
     ).length;
+    const slaBreachedChats = advisorChats.filter(
+      (chat) => !chat.isGroup && this.isSlaBreached(chat, messages),
+    ).length;
+    const frozenChats = advisorChats.filter(
+      (chat) => chat.status === 'active' && this.computeChatSla(chat, messages).frozen,
+    ).length;
 
     return {
       id: advisor.id,
@@ -3569,6 +4105,8 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
             Math.round(((activeChats - breached) / activeChats) * 100),
           )
         : 100,
+      slaBreachedChats,
+      frozenChats,
       lastActivity: lastMessageAt?.toISOString(),
     };
   }
@@ -3591,6 +4129,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
           title: 'Asesor idle',
           detail: `${advisor.name} lleva ${advisor.idleMinutes} min sin actividad.`,
           advisorId: advisor.id,
+          timestamp: advisor.lastActivity,
         });
       }
       if (advisor.activeChats > this.maxActiveChatsPerAdvisor) {
@@ -3619,27 +4158,47 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     }
 
     for (const chat of chats) {
-      if (this.isSlaBreached(chat, messages)) {
+      const sla = this.computeChatSla(chat, messages);
+      if (sla.slaBreached) {
         alerts.push({
           type: 'sla_breached',
           severity: 'critical',
           title: 'SLA vencido',
-          detail: `${chat.name} espera respuesta fuera del tiempo objetivo.`,
+          detail: `${chat.name} espera respuesta hace ${this.formatDuration(sla.slaMinutesWaiting)} (plazo ${this.formatDuration(sla.slaDeadlineMinutes)}).`,
           chatId: chat.id,
           advisorId: chat.assignedAdvisor?.id,
+          timestamp: (chat.lastClientMessageAt ?? chat.lastMessageAt)?.toISOString(),
+        });
+      } else if (sla.categoria === 'espera_respuesta') {
+        alerts.push({
+          type: 'espera_respuesta',
+          severity: 'info',
+          title: 'Esperando respuesta',
+          detail: `${chat.name} espera respuesta hace ${this.formatDuration(sla.slaMinutesWaiting)} (plazo ${this.formatDuration(sla.slaDeadlineMinutes)}).`,
+          chatId: chat.id,
+          advisorId: chat.assignedAdvisor?.id,
+          timestamp: chat.lastClientMessageAt?.toISOString(),
+        });
+      } else if (sla.categoria === 'soporte') {
+        alerts.push({
+          type: 'en_soporte',
+          severity: 'info',
+          title: 'En soporte tecnico',
+          detail: `${chat.name} esta en soporte tecnico y no puede recibir respuesta del asesor.`,
+          chatId: chat.id,
+          advisorId: chat.assignedAdvisor?.id,
+          timestamp: chat.lastMessageAt?.toISOString(),
         });
       }
-      if (
-        chat.status === 'active' &&
-        this.minutesSince(chat.lastMessageAt) >= 10
-      ) {
+      if (sla.frozen) {
         alerts.push({
           type: 'frozen_chat',
           severity: 'warning',
           title: 'Chat congelado',
-          detail: `${chat.name} no registra movimiento hace ${this.minutesSince(chat.lastMessageAt)} min.`,
+          detail: `${chat.name} no registra movimiento hace ${this.formatDuration(sla.frozenMinutes)}.`,
           chatId: chat.id,
           advisorId: chat.assignedAdvisor?.id,
+          timestamp: chat.lastMessageAt?.toISOString(),
         });
       }
     }
@@ -3692,18 +4251,171 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     chat: WhatsappChat,
     messages: WhatsappMessage[],
   ): boolean {
-    if (chat.status !== 'active' || !chat.lastClientMessageAt) return false;
-    const lastAdvisorMessage = messages.find(
-      (message) => message.chat?.id === chat.id && message.fromMe,
-    );
-    const lastAdvisorAt = lastAdvisorMessage?.createdAt
-      ? new Date(lastAdvisorMessage.createdAt).getTime()
-      : 0;
+    return this.computeChatSla(chat, messages).slaBreached;
+  }
+
+  private slaDeadlineMinutes(chat: WhatsappChat): number {
+    return this.slaMinutesByPriority[chat.priority ?? 'normal'] ?? 7;
+  }
+
+  private computeChatCategoria(
+    chat: WhatsappChat,
+    lastClientAt: number,
+    clientIsLast: boolean,
+  ): 'cola' | 'gestion' | 'espera_respuesta' | 'sla_vencido' | 'esperando_cliente' | 'soporte' | 'resuelto' | 'cerrado' | 'grupo' {
+    if (chat.status === 'closed') return 'cerrado';
+    if (chat.isGroup) return 'grupo';
+    if (chat.operationalStatus === 'resolved') return 'resuelto';
+    if (chat.operationalStatus === 'waiting_customer') return 'esperando_cliente';
+    if (chat.operationalStatus === 'waiting_technical') return 'soporte';
+    if (chat.status === 'waiting') return 'cola';
+    if (clientIsLast) {
+      const waitingMs = Date.now() - lastClientAt;
+      return waitingMs >= this.slaDeadlineMinutes(chat) * 60 * 1000
+        ? 'sla_vencido'
+        : 'espera_respuesta';
+    }
+    return 'gestion';
+  }
+
+  private categoriaLabel(
+    categoria:
+      | 'cola'
+      | 'gestion'
+      | 'espera_respuesta'
+      | 'sla_vencido'
+      | 'esperando_cliente'
+      | 'soporte'
+      | 'resuelto'
+      | 'cerrado'
+      | 'grupo',
+  ): string {
+    const labels = {
+      cola: 'En cola',
+      gestion: 'En gestion',
+      espera_respuesta: 'Esperando respuesta',
+      sla_vencido: 'SLA vencido',
+      esperando_cliente: 'Esperando cliente',
+      soporte: 'Soporte tecnico',
+      resuelto: 'Resuelto',
+      cerrado: 'Cerrado',
+      grupo: 'Grupo',
+    } as const;
+    return labels[categoria];
+  }
+
+  private computeChatSla(
+    chat: WhatsappChat,
+    _messages: Array<{ fromMe: boolean; createdAt?: Date; timestamp?: Date; chat?: { id?: string } }>,
+  ): {
+    slaState: 'in_time' | 'por_vencer' | 'vencido';
+    slaBreached: boolean;
+    slaMinutesWaiting: number;
+    slaWaitingSince?: string;
+    slaDeadlineMinutes: number;
+    slaRemainingMinutes: number;
+    frozen: boolean;
+    frozenMinutes: number;
+    categoria: string;
+    categoriaLabel: string;
+  } {
+    const deadlineMinutes = this.slaDeadlineMinutes(chat);
+    const base: {
+      slaState: 'in_time' | 'por_vencer' | 'vencido';
+      slaBreached: boolean;
+      slaMinutesWaiting: number;
+      slaWaitingSince?: string;
+      slaDeadlineMinutes: number;
+      slaRemainingMinutes: number;
+      frozen: boolean;
+      frozenMinutes: number;
+      categoria: string;
+      categoriaLabel: string;
+    } = {
+      slaState: 'in_time',
+      slaBreached: false,
+      slaMinutesWaiting: 0,
+      slaWaitingSince: undefined,
+      slaDeadlineMinutes: deadlineMinutes,
+      slaRemainingMinutes: deadlineMinutes,
+      frozen: false,
+      frozenMinutes: 0,
+      categoria: 'gestion',
+      categoriaLabel: 'En gestion',
+    };
+
+    if (chat.isGroup) {
+      base.categoria = 'grupo';
+      base.categoriaLabel = 'Grupo';
+      return base;
+    }
+
+    if (chat.status !== 'active' || !chat.lastClientMessageAt) {
+      if (chat.status === 'closed') {
+        base.categoria = 'cerrado';
+        base.categoriaLabel = 'Cerrado';
+      } else if (chat.status === 'waiting') {
+        base.categoria = 'cola';
+        base.categoriaLabel = 'En cola';
+        if (chat.lastClientMessageAt) {
+          const cAt = new Date(chat.lastClientMessageAt).getTime();
+          const mAt = chat.lastMessageAt
+            ? new Date(chat.lastMessageAt).getTime()
+            : 0;
+          const refAt = Math.max(cAt, mAt);
+          base.slaWaitingSince = new Date(refAt).toISOString();
+          base.slaMinutesWaiting = Math.max(
+            0,
+            Math.floor((Date.now() - refAt) / 60000),
+          );
+        }
+      }
+      return base;
+    }
+
     const lastClientAt = new Date(chat.lastClientMessageAt).getTime();
-    return (
-      lastClientAt > lastAdvisorAt &&
-      Date.now() - lastClientAt >= this.slowResponseWarningMs
+    const lastMessageAt = chat.lastMessageAt
+      ? new Date(chat.lastMessageAt).getTime()
+      : 0;
+    const clientIsLast = lastClientAt > 0 && lastMessageAt <= lastClientAt;
+
+    const categoria = this.computeChatCategoria(
+      chat,
+      lastClientAt,
+      clientIsLast,
     );
+    base.categoria = categoria;
+    base.categoriaLabel = this.categoriaLabel(categoria);
+
+    const refAt = Math.max(lastMessageAt, lastClientAt);
+    const waitingMs = Math.max(0, Date.now() - refAt);
+    base.slaMinutesWaiting = Math.floor(waitingMs / 60000);
+    base.slaWaitingSince = new Date(refAt).toISOString();
+
+    const inSlaScope =
+      categoria === 'espera_respuesta' || categoria === 'sla_vencido';
+
+    if (inSlaScope) {
+      const deadlineMs = deadlineMinutes * 60 * 1000;
+      const slaWaitingMs = Math.max(0, Date.now() - lastClientAt);
+      base.slaBreached = categoria === 'sla_vencido';
+      base.slaState = base.slaBreached
+        ? 'vencido'
+        : slaWaitingMs >= deadlineMs * 0.8
+          ? 'por_vencer'
+          : 'in_time';
+      base.slaRemainingMinutes = base.slaBreached
+        ? -Math.floor((slaWaitingMs - deadlineMs) / 60000)
+        : Math.ceil((deadlineMs - slaWaitingMs) / 60000);
+    }
+
+    if (chat.status === 'active') {
+      base.frozenMinutes = this.minutesSince(chat.lastMessageAt);
+      base.frozen =
+        base.frozenMinutes >= this.frozenChatWarningMs / 60000;
+    }
+
+    return base;
   }
 
   private minutesSince(date?: Date | null): number {
@@ -3712,6 +4424,19 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       0,
       Math.floor((Date.now() - new Date(date).getTime()) / 60000),
     );
+  }
+
+  private formatDuration(minutes: number): string {
+    const m = Math.max(0, Math.round(minutes));
+    if (m < 1) return 'menos de 1 min';
+    const d = Math.floor(m / 1440);
+    const h = Math.floor((m % 1440) / 60);
+    const min = m % 60;
+    const parts: string[] = [];
+    if (d > 0) parts.push(d === 1 ? '1 día' : `${d} días`);
+    if (h > 0) parts.push(`${h} h`);
+    if (min > 0) parts.push(`${min} min`);
+    return parts.length ? parts.join(' ') : '1 min';
   }
 
   private shouldReleaseForCustomerIdle(date?: Date | null): boolean {
@@ -3860,9 +4585,10 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       status: isClosed ? 'offline' : isWaiting ? 'away' : 'online',
       notes: chat.notes ?? [],
       quickReplies: await this.getQuickReplyTexts(),
-      lastClientMsg: chat.lastMessageAt ?? chat.updatedAt,
+      lastClientMsg: chat.lastClientMessageAt ?? chat.updatedAt,
       messages,
       priority: chat.priority ?? 'normal',
+      ...this.computeChatSla(chat, messages),
     };
   }
 
@@ -3922,6 +4648,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       lastClientMsg: chat.lastClientMessageAt ?? chat.updatedAt,
       messages: dtos,
       priority: chat.priority ?? 'normal',
+      ...this.computeChatSla(chat, messages),
     };
   }
 

@@ -5,6 +5,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
+import { RolesGuard } from '../auth/roles.guard';
 import { User } from '../auth/entities/user.entity';
 import { ConfiguracionModule } from '../configuracion/configuracion.module';
 import { TicketsModule } from '../tickets/tickets.module';
@@ -30,6 +31,7 @@ import { WhatsappMessage } from './entities/whatsapp-message.entity';
     AdvisorsWhatsappGateway,
     TeamsMeetingsService,
     RedisStateService,
+    RolesGuard,
   ],
   exports: [AdvisorsWhatsappService],
 })

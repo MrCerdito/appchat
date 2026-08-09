@@ -107,9 +107,9 @@ export const routes: Routes = [
           import('./features/admin/modules/operaciones/pages/asesores/operaciones-asesores').then(m => m.OperacionesAsesoresComponent),
       },
       {
-        path: 'operaciones/alertas',
+        path: 'operaciones/reportes',
         loadComponent: () =>
-          import('./features/admin/modules/operaciones/pages/alertas/operaciones-alertas').then(m => m.OperacionesAlertasComponent),
+          import('./features/admin/modules/operaciones/pages/reportes/operaciones-reportes').then(m => m.OperacionesReportesComponent),
       },
       {
         path: 'operaciones/fijar',

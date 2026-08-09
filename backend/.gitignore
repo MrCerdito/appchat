@@ -53,5 +53,13 @@ pids
 *.seed
 *.pid.lock
 
+# WhatsApp session (private, NEVER expose)
+/.session
+/session
+backend/.session
+
+# Uploaded media (runtime data, contains user content and session backups)
+/uploads
+
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json

@@ -71,11 +71,12 @@ export class AdvisorsController {
       }
     | User[]
   > {
-    if (query.page || query.limit || query.search) {
+    if (query.page || query.limit || query.search || query.role) {
       return this.advisorsService.findAllPaginated(
         query.page ?? 1,
         query.limit ?? 20,
         query.search,
+        query.role,
       );
     }
     return this.advisorsService.findAll();
@@ -150,7 +151,12 @@ export class AdvisorsController {
   create(
     @Body(new ValidationPipe({ whitelist: true })) body: CreateAdvisorDto,
   ): Promise<User> {
-    return this.advisorsService.create(body.name, body.email, body.password);
+    return this.advisorsService.create(
+      body.name,
+      body.email,
+      body.password,
+      body.role ?? 'advisor',
+    );
   }
 
   @Put(':id')
@@ -158,8 +164,9 @@ export class AdvisorsController {
   update(
     @Param('id') id: string,
     @Body(new ValidationPipe({ whitelist: true })) body: UpdateAdvisorDto,
+    @Request() req: any,
   ): Promise<User> {
-    return this.advisorsService.update(id, body);
+    return this.advisorsService.update(id, body, req.user.id);
   }
 
   @Patch(':id/password')
@@ -175,14 +182,14 @@ export class AdvisorsController {
 
   @Patch(':id/toggle')
   @Roles('admin')
-  toggle(@Param('id') id: string): Promise<User> {
-    return this.advisorsService.toggle(id);
+  toggle(@Param('id') id: string, @Request() req: any): Promise<User> {
+    return this.advisorsService.toggle(id, req.user.id);
   }
 
   @Delete(':id')
   @Roles('admin')
-  remove(@Param('id') id: string): Promise<void> {
-    return this.advisorsService.remove(id);
+  remove(@Param('id') id: string, @Request() req: any): Promise<void> {
+    return this.advisorsService.remove(id, req.user.id);
   }
 
   @Patch(':id/photo')

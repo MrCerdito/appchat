@@ -6,20 +6,15 @@ import { Subscription, interval, switchMap } from 'rxjs';
 import { WhatsappChatService } from '../../../../core/services/whatsapp-chat.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { LayoutService } from '../../../../core/services/layout.service';
-import { WaChat, WaAdvisorStats, WaAdminAlert, WaConnectionStatus } from '../../../../core/models/whatsapp.models';
+import { WaChat, WaAdvisorStats, WaConnectionStatus, WaAdminAlert, WaAdminDashboard } from '../../../../core/models/whatsapp.models';
 import { getInitials, getAvatarColor } from '../../../../shared/utils/avatar';
-
-interface FilteredAlert {
-  type: string;
-  label: string;
-  count: number;
-  severity: string;
-}
+import { formatDuration, minutesSince, timeAgo } from '../../../../shared/utils/duration';
+import { InfoTooltipDirective } from '../../../../shared/directives/info-tooltip.directive';
 
 @Component({
   selector: 'app-operaciones',
   standalone: true,
-  imports: [FormsModule, DecimalPipe, TitleCasePipe],
+  imports: [FormsModule, DecimalPipe, TitleCasePipe, InfoTooltipDirective],
   templateUrl: './operaciones.html',
   styleUrl: './operaciones.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -31,8 +26,10 @@ export class OperacionesComponent implements OnInit, OnDestroy {
     totalChats: number; activeChats: number; queuedChats: number;
     waitingCustomerChats: number; waitingTechnicalChats: number;
     closedChats: number; fixedClients: number; manualChats: number;
-    slaBreached: number; frozenChats: number;
+    slaBreached: number; porVencer: number; frozenChats: number;
     avgResponseMinutes: number; slaCompliancePercent: number;
+    slaComplianceDenominator: number;
+    enGestion: number; esperandoRespuesta: number; soporteChats: number;
     closedToday: number; uniqueClientsToday: number;
   } | null = null;
 
@@ -41,6 +38,10 @@ export class OperacionesComponent implements OnInit, OnDestroy {
   alerts: WaAdminAlert[] = [];
   loading = true;
   wsConnected = false;
+  lastSync = '';
+
+  monitorTab: 'panorama' | 'categorias' | 'actividad' = 'panorama';
+  filtersOpen = false;
 
   showSplash = true;
   splashExiting = false;
@@ -54,6 +55,7 @@ export class OperacionesComponent implements OnInit, OnDestroy {
   filterAsesor = 'todos';
   filterPrioridad = 'todos';
   filterSla = 'todos';
+  filterCategoria = 'todos';
   searchQuery = '';
 
   currentPage = 1;
@@ -79,15 +81,7 @@ export class OperacionesComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     // ── 1. Load dashboard data independently ──────────────────
     this.whatsappChat.loadAdminDashboard().subscribe({
-      next: (dashboard) => {
-        this.summary = dashboard.summary;
-        this.advisors = dashboard.advisors;
-        this.alerts = dashboard.alerts;
-        this.chats = dashboard.chats;
-        this.whatsappChat.syncChats(dashboard.chats);
-        this.dashboardLoaded = true;
-        this.cdr.markForCheck();
-      },
+      next: (dashboard) => this.applyDashboard(dashboard),
       error: (err) => console.error('HTTP Error:', err),
     });
 
@@ -150,19 +144,28 @@ export class OperacionesComponent implements OnInit, OnDestroy {
       this.whatsappChat.onChatUpdated().subscribe(() => this.cdr.markForCheck()),
     );
 
+    // ── 5b. Real-time admin dashboard push ────────────────
+    this.subs.push(
+      this.whatsappChat.onAdminDashboard().subscribe((dashboard) => {
+        if (!dashboard) return;
+        this.applyDashboard(dashboard, dashboard.wsTimestamp);
+      }),
+    );
+
     // ── 6. Auto-refresh fallback ──────────────────────────
     this.subs.push(
-      interval(15_000).subscribe(() => {
+      interval(10_000).subscribe(() => {
         this.whatsappChat.loadAdminDashboard().subscribe({
-          next: (dashboard) => {
-            this.summary = dashboard.summary;
-            this.advisors = dashboard.advisors;
-            this.alerts = dashboard.alerts;
-            this.whatsappChat.syncChats(dashboard.chats);
-            this.cdr.markForCheck();
-          },
+          next: (dashboard) => this.applyDashboard(dashboard),
           error: (err) => console.error('HTTP Error:', err),
         });
+      }),
+    );
+
+    // ── 7. Tick en vivo para tiempos transcurridos ────────────
+    this.subs.push(
+      interval(30_000).subscribe(() => {
+        this.cdr.markForCheck();
       }),
     );
   }
@@ -171,6 +174,10 @@ export class OperacionesComponent implements OnInit, OnDestroy {
 
   get filteredChats(): WaChat[] {
     let result = this.chats;
+
+    if (this.filterCategoria !== 'todos') {
+      result = result.filter(c => (c.categoria || '') === this.filterCategoria);
+    }
 
     if (this.filterEstado !== 'todos') {
       result = result.filter(c => {
@@ -190,6 +197,19 @@ export class OperacionesComponent implements OnInit, OnDestroy {
 
     if (this.filterPrioridad !== 'todos') {
       result = result.filter(c => (c.priority || 'normal') === this.filterPrioridad);
+    }
+
+    if (this.filterSla !== 'todos') {
+      result = result.filter(c => {
+        const state = c.slaState || 'in_time';
+        switch (this.filterSla) {
+          case 'vencido': return !!c.slaBreached || state === 'vencido';
+          case 'por_vencer': return state === 'por_vencer';
+          case 'en_tiempo': return state === 'in_time' && !c.frozen;
+          case 'congelado': return !!c.frozen;
+          default: return true;
+        }
+      });
     }
 
     if (this.searchQuery.trim()) {
@@ -221,24 +241,10 @@ export class OperacionesComponent implements OnInit, OnDestroy {
     return this.advisors;
   }
 
-  get alertChips(): FilteredAlert[] {
-    const chips: FilteredAlert[] = [];
-    const s = this.summary;
-    if (!s) return chips;
-
-    if (s.slaBreached > 0) chips.push({ type: 'sla_breached', label: 'SLA vencidos', count: s.slaBreached, severity: 'red' });
-    if (s.frozenChats > 0) chips.push({ type: 'frozen', label: 'Chats congelados', count: s.frozenChats, severity: 'amber' });
-    const inactiveCount = this.advisors.filter(a => a.status === 'away' || !a.active).length;
-    if (inactiveCount > 0) chips.push({ type: 'inactive_advisor', label: 'Asesores inactivos', count: inactiveCount, severity: 'orange' });
-    if (s.waitingCustomerChats > 0) chips.push({ type: 'waiting_customers', label: 'Clientes esperando', count: s.waitingCustomerChats, severity: 'blue' });
-    return chips;
-  }
-
   // ────────── trackBy ─────────────────────────────────────
 
   trackByChatId(_: number, c: WaChat): string { return c.id; }
   trackByAdvisorId(_: number, a: WaAdvisorStats): string { return a.id; }
-  trackByAlertType(_: number, a: FilteredAlert): string { return a.type; }
   trackByIndex(i: number): number { return i; }
 
   // ────────── Helpers visuales ────────────────────────────
@@ -260,14 +266,251 @@ export class OperacionesComponent implements OnInit, OnDestroy {
     return chat.operationalStatusLabel || chat.operationalStatus || chat.assignmentStatus || 'Activo';
   }
 
-  slaPercent(_chat: WaChat): number {
+  slaEstado(chat: WaChat): string {
+    const c = chat.categoria || '';
+    if (c === 'sla_vencido') return 'vencido';
+    if (c === 'espera_respuesta') return 'espera';
+    if (c === 'soporte') return 'soporte';
+    if (c === 'esperando_cliente') return 'cliente';
+    if (c === 'cola') return 'cola';
+    if (c === 'resuelto') return 'resuelto';
+    if (c === 'cerrado') return 'cerrado';
+    if (chat.slaBreached || chat.slaState === 'vencido') return 'vencido';
+    if (chat.slaState === 'por_vencer') return 'espera';
+    if (chat.slaState === 'in_time') return 'in_time';
+    return 'gestion';
+  }
+
+  slaEstadoLabel(chat: WaChat): string {
+    const map: Record<string, string> = {
+      in_time: 'En tiempo',
+      espera: 'Por vencer',
+      vencido: 'Vencido',
+      gestion: 'En gestión',
+      soporte: 'En soporte',
+      cliente: 'Espera cliente',
+      cola: 'En cola',
+      resuelto: 'Resuelto',
+      cerrado: 'Cerrado',
+    };
+    return map[this.slaEstado(chat)] || 'En tiempo';
+  }
+
+  slaEstadoClass(chat: WaChat): string {
+    return this.slaEstado(chat);
+  }
+
+  slaEspera(chat: WaChat): string {
+    const c = chat.categoria || '';
+    if (c === 'resuelto' || c === 'cerrado') return '—';
+    if (c === 'gestion' || c === 'esperando_cliente' || c === 'soporte') {
+      const iso = chat.slaWaitingSince ?? (chat.lastClientMsg ? new Date(chat.lastClientMsg).toISOString() : '');
+      return iso ? timeAgo(iso) : 'en gestión';
+    }
+    const mins = minutesSince(chat.slaWaitingSince) || chat.slaMinutesWaiting || 0;
+    if (mins < 1) return 'ahora';
+    return formatDuration(mins);
+  }
+
+  slaRestante(chat: WaChat): string {
+    const c = chat.categoria || '';
+    if (c === 'gestion') return 'respondido · espera al cliente';
+    if (c === 'soporte') return 'en soporte técnico';
+    if (c === 'esperando_cliente') return 'espera al cliente';
+    if (c === 'cola') return 'sin asesor asignado';
+    if (c === 'resuelto') return 'resuelto';
+    if (c === 'cerrado') return 'cerrado';
+    const state = this.slaEstado(chat);
+    if (state === 'in_time') {
+      return `plazo ${formatDuration(chat.slaDeadlineMinutes ?? 7)}`;
+    }
+    const rem = chat.slaRemainingMinutes ?? 0;
+    if (state === 'vencido') return `+${formatDuration(Math.abs(rem))} de retraso`;
+    return `${formatDuration(rem)} restantes`;
+  }
+
+  tiempoColumna(chat: WaChat): string {
+    const iso = chat.slaWaitingSince ?? (chat.lastClientMsg ? new Date(chat.lastClientMsg).toISOString() : '');
+    if (!iso) return '—';
+    return timeAgo(iso);
+  }
+
+  slaTooltip(chat: WaChat): string {
+    const c = chat.categoria || '';
+    const cat = chat.categoriaLabel || this.categoriaLabel(chat);
+    const lines: string[] = [];
+    lines.push(`${cat}${chat.isGroup ? ' (grupo)' : ''}`);
+    if (c === 'espera_respuesta' || c === 'sla_vencido' || c === 'cola') {
+      lines.push(`Espera: ${this.slaEspera(chat)}`);
+    } else if (c === 'gestion' || c === 'esperando_cliente' || c === 'soporte') {
+      lines.push(`Última respuesta: ${this.slaEspera(chat)}`);
+    }
+    if (c === 'espera_respuesta' || c === 'sla_vencido') {
+      lines.push(`Plazo: ${formatDuration(chat.slaDeadlineMinutes ?? 7)}`);
+    }
+    if (c === 'espera_respuesta') {
+      const rem = chat.slaRemainingMinutes ?? 0;
+      lines.push(`Restante: ${formatDuration(rem)}`);
+    } else if (c === 'sla_vencido') {
+      const rem = Math.abs(chat.slaRemainingMinutes ?? 0);
+      lines.push(`Retraso: +${formatDuration(rem)}`);
+    } else if (c === 'gestion') {
+      lines.push('Asesor ya respondió · el contador se reinició');
+    }
+    lines.push(`Prioridad: ${this.prioridadLabel(chat.priority)}`);
+    if (chat.fixedAdvisorName || chat.assignedToName) {
+      lines.push(`Asesor: ${chat.fixedAdvisorName || chat.assignedToName}`);
+    }
+    const last = chat.slaWaitingSince || (chat.lastClientMsg ? new Date(chat.lastClientMsg).toISOString() : '');
+    if (last) lines.push(`Último mensaje: ${timeAgo(last)}`);
+    return lines.join('\n');
+  }
+
+  prioridadLabel(p?: string): string {
+    const map: Record<string, string> = {
+      critical: 'Urgente', high: 'Alta', normal: 'Media', low: 'Baja',
+    };
+    return map[p || 'normal'] || 'Normal';
+  }
+
+  esCongelado(chat: WaChat): boolean {
+    return !!chat.frozen;
+  }
+
+  congeladoTexto(chat: WaChat): string {
+    return `sin movimiento ${formatDuration(chat.frozenMinutes ?? 0)}`;
+  }
+
+  get chatsVencidos(): WaChat[] {
+    return this.chats.filter(
+      c => !c.isGroup && (this.chatCategoriaLocal(c) === 'sla_vencido'),
+    );
+  }
+
+  get chatsEsperando(): WaChat[] {
+    return this.chats.filter(
+      c => !c.isGroup && (this.chatCategoriaLocal(c) === 'espera_respuesta'),
+    );
+  }
+
+  get chatsEnCola(): WaChat[] {
+    return this.chats.filter(c => !c.isGroup && (c.categoria === 'cola' || (c.assignmentStatus === 'waiting' && c.operationalStatus !== 'waiting_customer')));
+  }
+
+  get chatsSoporte(): WaChat[] {
+    return this.chats.filter(c => !c.isGroup && (c.categoria === 'soporte' || c.operationalStatus === 'waiting_technical'));
+  }
+
+  get chatsGestion(): WaChat[] {
+    return this.chats.filter(
+      c => !c.isGroup && this.chatCategoriaLocal(c) === 'gestion',
+    );
+  }
+
+  get chatsEsperandoCliente(): WaChat[] {
+    return this.chats.filter(
+      c => !c.isGroup && this.chatCategoriaLocal(c) === 'esperando_cliente',
+    );
+  }
+
+  get chatsGrupos(): WaChat[] {
+    return this.chats.filter(
+      c => c.isGroup && c.operationalStatus !== 'closed',
+    );
+  }
+
+  get chatsCongelados(): WaChat[] {
+    return this.chats.filter(c => !!c.frozen);
+  }
+
+  private chatCategoriaLocal(c: WaChat): string {
+    if (c.categoria === 'espera_respuesta' && c.slaWaitingSince && c.slaDeadlineMinutes) {
+      const mins = minutesSince(c.slaWaitingSince);
+      if (mins >= c.slaDeadlineMinutes) return 'sla_vencido';
+    }
+    return c.categoria || 'gestion';
+  }
+
+  get cumplimientoDetalle(): string {
+    if (!this.summary) return '';
+    const den = this.summary.slaComplianceDenominator ?? this.summary.activeChats;
+    const ok = Math.max(0, den - this.summary.slaBreached);
+    return `${ok}/${den}`;
+  }
+
+  get slaCompliancePct(): number {
     return this.summary?.slaCompliancePercent ?? 100;
   }
 
-  slaColor(pct: number): string {
-    if (pct < 60) return '#DC2626';
-    if (pct < 80) return '#F59E0B';
-    return '#10B981';
+  get distribution(): Array<{ categoria: string; label: string; cls: string; count: number; pct: number }> {
+    if (!this.summary) return [];
+    const items = [
+      { categoria: 'cola', label: 'En cola', cls: 'cola', count: this.summary.queuedChats },
+      { categoria: 'espera_respuesta', label: 'Esperando respuesta', cls: 'por_vencer', count: this.summary.esperandoRespuesta },
+      { categoria: 'sla_vencido', label: 'SLA vencido', cls: 'vencido', count: this.summary.slaBreached },
+      { categoria: 'gestion', label: 'En gestión', cls: 'gestion', count: this.summary.enGestion },
+      { categoria: 'esperando_cliente', label: 'Esperando cliente', cls: 'cliente', count: this.summary.waitingCustomerChats },
+      { categoria: 'soporte', label: 'Soporte', cls: 'soporte', count: this.summary.soporteChats },
+    ];
+    const total = items.reduce((s, i) => s + i.count, 0) || 1;
+    return items.map(i => ({ ...i, pct: Math.round((i.count / total) * 100) }));
+  }
+
+  get totalDistribucion(): number {
+    return this.distribution.reduce((s, i) => s + i.count, 0);
+  }
+
+  get onlineAdvisorCount(): number {
+    return this.advisors.filter(a => a.active && a.status !== 'offline').length;
+  }
+
+  get avgAdvisorCapacity(): number {
+    if (!this.advisors.length) return 0;
+    const avg = this.advisors.reduce((s, a) => s + this.advisorCapacity(a), 0) / this.advisors.length;
+    return Math.round(avg);
+  }
+
+  get advisorsWithSlaBreach(): number {
+    return this.advisors.filter(a => a.slaBreachedChats > 0).length;
+  }
+
+  get lastSyncText(): string {
+    if (!this.lastSync) return '—';
+    return timeAgo(this.lastSync);
+  }
+
+  get activeChatsPct(): number {
+    if (!this.summary || !this.summary.totalChats) return 0;
+    return Math.round((this.summary.activeChats / this.summary.totalChats) * 100);
+  }
+
+  gaugeOffset(pct: number): number {
+    const clamped = Math.min(100, Math.max(0, pct));
+    const circumference = 2 * Math.PI * 15.9;
+    return circumference * (1 - clamped / 100);
+  }
+
+  categoriaClass(chat: WaChat): string {
+    const c = chat.categoria || '';
+    if (c === 'sla_vencido') return 'vencido';
+    if (c === 'espera_respuesta') return 'por_vencer';
+    if (c === 'soporte') return 'soporte';
+    if (c === 'esperando_cliente') return 'cliente';
+    if (c === 'cola') return 'cola';
+    if (c === 'resuelto') return 'resuelto';
+    if (c === 'cerrado') return 'cerrado';
+    if (c === 'grupo') return 'grupo';
+    return 'gestion';
+  }
+
+  categoriaLabel(chat: WaChat): string {
+    if (chat.categoriaLabel) return chat.categoriaLabel;
+    const map: Record<string, string> = {
+      cola: 'En cola', gestion: 'En gestión', espera_respuesta: 'Esperando respuesta',
+      sla_vencido: 'SLA vencido', esperando_cliente: 'Esperando cliente',
+      soporte: 'Soporte técnico', resuelto: 'Resuelto', cerrado: 'Cerrado', grupo: 'Grupo',
+    };
+    return map[chat.categoria || ''] || chat.operationalStatusLabel || chat.operationalStatus || 'Activo';
   }
 
   advisorCapacity(advisor: WaAdvisorStats): number {
@@ -276,14 +519,14 @@ export class OperacionesComponent implements OnInit, OnDestroy {
     return Math.round((advisor.connectedMinutes / total) * 100);
   }
 
+  dur(minutes: number): string {
+    return formatDuration(minutes);
+  }
+
   capacityColor(pct: number): string {
     if (pct > 110) return '#DC2626';
     if (pct > 100) return '#F59E0B';
     return '#10B981';
-  }
-
-  advisorSlaRiesgo(advisor: WaAdvisorStats): number {
-    return Math.max(0, Math.round((1 - advisor.slaPercent / 100) * advisor.activeChats));
   }
 
   setPage(page: number): void {
@@ -298,12 +541,62 @@ export class OperacionesComponent implements OnInit, OnDestroy {
     this.filterAsesor = 'todos';
     this.filterPrioridad = 'todos';
     this.filterSla = 'todos';
+    this.filterCategoria = 'todos';
     this.searchQuery = '';
     this.currentPage = 1;
   }
 
+  setMonitorTab(tab: 'panorama' | 'categorias' | 'actividad'): void {
+    this.monitorTab = tab;
+  }
+
+  toggleFilters(): void {
+    this.filtersOpen = !this.filtersOpen;
+  }
+
+  filterByCategoria(categoria: string): void {
+    this.filterCategoria = categoria;
+    this.filterEstado = 'todos';
+    this.filterSla = categoria === 'sla_vencido' ? 'vencido' : 'todos';
+    this.applyFilters();
+    this.scrollToChats();
+  }
+
+  clearCategoria(): void {
+    this.filterCategoria = 'todos';
+    this.filterSla = 'todos';
+    this.applyFilters();
+  }
+
+  private scrollToChats(): void {
+    document.getElementById('op-chats')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  openAlert(alert: WaAdminAlert): void {
+    if (alert.chatId) {
+      this.openChat(alert.chatId);
+    } else if (alert.advisorId) {
+      this.goToAsesores();
+    }
+  }
+
+  alertSeverityCls(alert: WaAdminAlert): string {
+    return alert.severity || 'info';
+  }
+
+  private applyDashboard(d: WaAdminDashboard, wsTime?: string): void {
+    this.summary = d.summary;
+    this.advisors = d.advisors;
+    this.alerts = (d.alerts ?? []).slice(0, 20);
+    this.whatsappChat.syncChats(d.chats);
+    this.lastSync = wsTime ?? new Date().toISOString();
+    this.dashboardLoaded = true;
+    this.cdr.markForCheck();
+  }
+
   getInitials = getInitials;
   getAvatarColor = getAvatarColor;
+  timeAgo = timeAgo;
 
   statusLabel(advisor: WaAdvisorStats): string {
     if (!advisor.active) return 'Inactivo';
@@ -324,9 +617,9 @@ export class OperacionesComponent implements OnInit, OnDestroy {
 
   goToChats(): void { this.router.navigate(['/admin/operaciones/chats']); }
   goToAsesores(): void { this.router.navigate(['/admin/operaciones/asesores']); }
-  goToAlertas(): void { this.router.navigate(['/admin/operaciones/alertas']); }
   goToAsignar(): void { this.router.navigate(['/admin/operaciones/asignar']); }
   goToFijar(): void { this.router.navigate(['/admin/operaciones/fijar']); }
+  goToReportes(): void { this.router.navigate(['/admin/operaciones/reportes']); }
   goToChatInterno(): void { this.router.navigate(['/admin/operaciones/chats'], { queryParams: { modo: 'asesores' } }); }
   openChat(chatId: string): void { this.router.navigate(['/admin/operaciones/chats'], { queryParams: { chatId } }); }
 

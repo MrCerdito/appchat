@@ -60,7 +60,28 @@ export interface WaChat {
   lastClientMsg: Date;
   messages: WaMessage[];
   priority?: 'low' | 'normal' | 'high' | 'critical';
+  slaState?: 'in_time' | 'por_vencer' | 'vencido';
+  slaBreached?: boolean;
+  slaMinutesWaiting?: number;
+  slaWaitingSince?: string;
+  slaDeadlineMinutes?: number;
+  slaRemainingMinutes?: number;
+  frozen?: boolean;
+  frozenMinutes?: number;
+  categoria?: WaCategoria;
+  categoriaLabel?: string;
 }
+
+export type WaCategoria =
+  | 'cola'
+  | 'gestion'
+  | 'espera_respuesta'
+  | 'sla_vencido'
+  | 'esperando_cliente'
+  | 'soporte'
+  | 'resuelto'
+  | 'cerrado'
+  | 'grupo';
 
 export type WaOperationalStatus =
   | 'new'
@@ -88,6 +109,8 @@ export interface WaAdvisorStats {
   connectedMinutes: number;
   pauseMinutes: number;
   slaPercent: number;
+  slaBreachedChats: number;
+  frozenChats: number;
   lastActivity?: string;
 }
 
@@ -98,6 +121,7 @@ export interface WaAdminAlert {
   detail: string;
   chatId?: string;
   advisorId?: string;
+  timestamp?: string;
 }
 
 export interface WaAdminDashboard {
@@ -111,15 +135,77 @@ export interface WaAdminDashboard {
     fixedClients: number;
     manualChats: number;
     slaBreached: number;
+    porVencer: number;
     frozenChats: number;
     avgResponseMinutes: number;
     slaCompliancePercent: number;
+    slaComplianceDenominator: number;
+    enGestion: number;
+    esperandoRespuesta: number;
+    soporteChats: number;
     closedToday: number;
     uniqueClientsToday: number;
   };
   advisors: WaAdvisorStats[];
   chats: WaChat[];
   alerts: WaAdminAlert[];
+  wsTimestamp?: string;
+}
+
+export interface WaReportSeries {
+  periodo: string;
+  recibidos: number;
+  asignados: number;
+  cerrados: number;
+}
+
+export interface WaReportAdvisor {
+  id: string;
+  name: string;
+  chatsAsignados: number;
+  cerrados: number;
+  mensajesEnviados: number;
+  promRespuestaMin: number;
+}
+
+export interface WaReportCategory {
+  categoria: string;
+  label: string;
+  total: number;
+}
+
+export interface WaReportChat {
+  id: string;
+  name: string;
+  phone: string;
+  advisor: string;
+  priority: string;
+  categoria: string;
+  estado: string;
+  creado: string;
+  cerrado: string | null;
+  mensajes: number;
+}
+
+export interface WaReportData {
+  from: string;
+  to: string;
+  granularity: 'day' | 'month' | 'year';
+  summary: {
+    chatsRecibidos: number;
+    clientesUnicos: number;
+    asignados: number;
+    cerrados: number;
+    mensajesTotales: number;
+    mensajesAsesor: number;
+    tiempoPromedioRespuestaMin: number;
+    slaCumplimiento: number;
+    slaDenominador: number;
+  };
+  series: WaReportSeries[];
+  perAdvisor: WaReportAdvisor[];
+  porCategoria: WaReportCategory[];
+  chats: WaReportChat[];
 }
 
 export interface QuickReply {

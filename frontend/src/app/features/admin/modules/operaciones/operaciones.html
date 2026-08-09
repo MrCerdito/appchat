@@ -109,9 +109,24 @@
         <path d="M9 10.5c.5 1.6 1.7 2.8 3.5 3.5"/>
         <path d="M13.2 14.1l1.1-.5 1.4.8c.2.1.2.4.1.6-.3.7-.9 1.1-1.7 1.1-2.5 0-6.2-3.4-6.2-6.1 0-.8.4-1.5 1.1-1.8.2-.1.5 0 .6.2l.8 1.4-.5 1.1"/>
       </svg>
-      <span class="op-nav-title">Centro De operaciones WHATSAPP</span>
+      <span class="op-nav-title">Centro de operaciones</span>
+      <span class="op-live"><span class="op-live-dot"></span>EN VIVO<span class="op-live-sync">· sinc. {{ lastSyncText }}</span></span>
     </div>
     <div class="op-nav-right">
+      <div class="op-nav-quick">
+        <button class="op-nav-quick-btn" (click)="goToAsesores()" title="Ver asesores">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>
+          <span>Asesores</span>
+        </button>
+        <button class="op-nav-quick-btn" (click)="goToChats()" title="Ver todos los chats">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span>Chats</span>
+        </button>
+        <button class="op-nav-quick-btn" (click)="goToReportes()" title="Reportes">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          <span>Reportes</span>
+        </button>
+      </div>
       <div class="op-ws-indicator" [class.connected]="wsConnected" [class.disconnected]="!wsConnected">
         <span class="op-ws-dot"></span>
         <span class="op-ws-label">{{ wsConnected ? 'Conectado' : 'Desconectado' }}</span>
@@ -137,7 +152,6 @@
   <!-- Skeleton loading -->
   @if (loading) {
   <div class="op-skeleton">
-    <div class="op-skeleton-strip"></div>
     <div class="op-skeleton-kpis">
       @for (_ of [].constructor(6); track trackByIndex($index)) {
       <div class="op-skeleton-card"></div>
@@ -159,121 +173,332 @@
     </div>
   </div>
   } @else {
-    <div class="op-alerts-strip">
-      <div class="op-alerts-items">
-        @for (chip of alertChips; track trackByAlertType($index, chip)) {
-        <div class="op-alert-chip"
-          [class.op-ac-red]="chip.severity === 'red'"
-          [class.op-ac-amber]="chip.severity === 'amber'"
-          [class.op-ac-orange]="chip.severity === 'orange'"
-          [class.op-ac-blue]="chip.severity === 'blue'">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            @if (chip.type === 'sla_breached') {
-            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-            }
-            @if (chip.type === 'frozen') {
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-            }
-            @if (chip.type === 'inactive_advisor') {
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-            <circle cx="12" cy="7" r="4"/>
-            }
-            @if (chip.type === 'waiting_customers') {
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-            <circle cx="9" cy="7" r="4"/>
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-            }
-          </svg>
-          <span class="op-alert-count">{{ chip.count }}</span>
-          {{ chip.label }}
+    <div class="op-strip">
+      <button class="op-chip cola" (click)="filterByCategoria('cola')" title="Filtrar chats en cola">
+        <span class="op-chip-dot"></span>
+        <strong>{{ summary!.queuedChats }}</strong>
+        <small>En cola</small>
+      </button>
+      <button class="op-chip espera" (click)="filterByCategoria('espera_respuesta')" title="Filtrar esperando respuesta">
+        <span class="op-chip-dot"></span>
+        <strong>{{ summary!.esperandoRespuesta }}</strong>
+        <small>Esperando respuesta</small>
+      </button>
+      <button class="op-chip vencido" (click)="filterByCategoria('sla_vencido')" title="Filtrar SLA vencidos">
+        <span class="op-chip-dot"></span>
+        <strong [class.danger]="summary!.slaBreached > 0">{{ summary!.slaBreached }}</strong>
+        <small>SLA vencidos</small>
+      </button>
+      <button class="op-chip gestion" (click)="filterByCategoria('gestion')" title="Filtrar en gestión">
+        <span class="op-chip-dot"></span>
+        <strong>{{ summary!.enGestion }}</strong>
+        <small>En gestión</small>
+      </button>
+      <button class="op-chip cliente" (click)="filterByCategoria('esperando_cliente')" title="Filtrar esperando cliente">
+        <span class="op-chip-dot"></span>
+        <strong>{{ summary!.waitingCustomerChats }}</strong>
+        <small>Esperando cliente</small>
+      </button>
+      <button class="op-chip soporte" (click)="filterByCategoria('soporte')" title="Filtrar soporte técnico">
+        <span class="op-chip-dot"></span>
+        <strong>{{ summary!.soporteChats }}</strong>
+        <small>Soporte</small>
+      </button>
+      <button class="op-chip sla" (click)="clearCategoria()" title="Cumplimiento SLA general">
+        <svg class="op-chip-sla-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        <strong>{{ slaCompliancePct }}%</strong>
+        <small>Cumpl. SLA · {{ cumplimientoDetalle }}</small>
+      </button>
+    </div>
+
+    <div class="op-monitor">
+      <div class="op-monitor-head">
+        <div class="op-monitor-title">
+          <span>Monitoreo en tiempo real</span>
+          <span class="op-live op-live-mini"><span class="op-live-dot"></span>EN VIVO</span>
         </div>
+        <div class="op-tabs">
+          <button class="op-tab" [class.active]="monitorTab === 'panorama'" (click)="setMonitorTab('panorama')">Panorama</button>
+          <button class="op-tab" [class.active]="monitorTab === 'categorias'" (click)="setMonitorTab('categorias')">Categorías</button>
+          <button class="op-tab" [class.active]="monitorTab === 'actividad'" (click)="setMonitorTab('actividad')">
+            Actividad
+            @if (alerts.length) {
+            <span class="op-tab-badge">{{ alerts.length }}</span>
+            }
+          </button>
+        </div>
+      </div>
+
+      @if (monitorTab === 'panorama') {
+      <div class="op-panorama">
+        <div class="op-panorama-main">
+          <span class="op-panorama-label">Distribución de chats en vivo <em>{{ totalDistribucion }} activos</em></span>
+          <div class="op-distrib">
+            @for (seg of distribution; track seg.categoria) {
+            @if (seg.count > 0) {
+            <button class="op-distrib-seg {{ seg.cls }}" [style.width.%]="seg.pct" (click)="filterByCategoria(seg.categoria)" [attr.title]="seg.label + ': ' + seg.count + ' (' + seg.pct + '%)'">
+              <span>{{ seg.pct >= 7 ? seg.count : '' }}</span>
+            </button>
+            }
+            }
+          </div>
+          <div class="op-distrib-legend">
+            @for (seg of distribution; track seg.categoria) {
+            <button class="op-distrib-legend-item" (click)="filterByCategoria(seg.categoria)">
+              <span class="op-distrib-dot {{ seg.cls }}"></span>
+              {{ seg.label }}
+              <strong>{{ seg.count }}</strong>
+            </button>
+            }
+          </div>
+        </div>
+        <div class="op-gauges">
+          <div class="op-gauge">
+            <div class="op-gauge-ring">
+              <svg viewBox="0 0 36 36">
+                <circle cx="18" cy="18" r="15.9" class="op-gauge-track"/>
+                <circle cx="18" cy="18" r="15.9" class="op-gauge-fill" [class.warn]="avgAdvisorCapacity > 100" [style.stroke-dashoffset]="gaugeOffset(avgAdvisorCapacity)"/>
+              </svg>
+              <div class="op-gauge-center"><strong>{{ avgAdvisorCapacity }}%</strong></div>
+            </div>
+            <span class="op-gauge-of">Carga de asesores</span>
+          </div>
+          <div class="op-gauge">
+            <div class="op-gauge-ring">
+              <svg viewBox="0 0 36 36">
+                <circle cx="18" cy="18" r="15.9" class="op-gauge-track"/>
+                <circle cx="18" cy="18" r="15.9" class="op-gauge-fill" [class.warn]="slaCompliancePct < 90" [style.stroke-dashoffset]="gaugeOffset(slaCompliancePct)"/>
+              </svg>
+              <div class="op-gauge-center"><strong>{{ slaCompliancePct }}%</strong></div>
+            </div>
+            <span class="op-gauge-of">Cumplimiento SLA</span>
+          </div>
+          <div class="op-gauge">
+            <div class="op-gauge-ring">
+              <svg viewBox="0 0 36 36">
+                <circle cx="18" cy="18" r="15.9" class="op-gauge-track"/>
+                <circle cx="18" cy="18" r="15.9" class="op-gauge-fill" [class.warn]="activeChatsPct < 40" [style.stroke-dashoffset]="gaugeOffset(activeChatsPct)"/>
+              </svg>
+              <div class="op-gauge-center"><strong>{{ summary!.activeChats }}<small>/{{ summary!.totalChats }}</small></strong></div>
+            </div>
+            <span class="op-gauge-of">Chats activos</span>
+          </div>
+        </div>
+      </div>
+      }
+
+      @if (monitorTab === 'categorias') {
+      <div class="op-monitor-cols">
+        <div class="op-monitor-col">
+          <h4 class="op-mon-col-title blue">
+            En cola
+            <span class="op-tip op-tip-dark" data-tip="Clientes que enviaron un mensaje y aún no tienen asesor asignado. Están esperando a ser atendidos.">i</span>
+            <span class="op-mon-count">{{ chatsEnCola.length }}</span>
+          </h4>
+          <div class="op-mon-items">
+            @for (chat of chatsEnCola.slice(0, 5); track trackByChatId($index, chat)) {
+            <div class="op-mon-item" [infoTooltip]="slaTooltip(chat)" (click)="openChat(chat.id)">
+              <div class="op-mon-avatar" [style.background]="getAvatarColor(chat.name)">{{ getInitials(chat.name) }}</div>
+              <div class="op-mon-info">
+                <strong>{{ chat.name }}</strong>
+                <small>{{ chat.assignedToName || 'Sin asesor' }} · espera desde {{ slaEspera(chat) }}</small>
+              </div>
+              <span class="op-priority" [class]="prioridadClass(chat.priority)">{{ (chat.priority || 'normal') | titlecase }}</span>
+              <button class="op-mon-open" (click)="openChat(chat.id); $event.stopPropagation()" title="Abrir chat">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+              </button>
+            </div>
+            } @empty {
+            <div class="op-mon-empty">Sin chats en cola</div>
+            }
+          </div>
+        </div>
+
+        <div class="op-monitor-col">
+          <h4 class="op-mon-col-title amber">
+            Esperando respuesta
+            <span class="op-tip op-tip-dark" data-tip="Clientes que escribieron y esperan respuesta del asesor, todavía dentro del plazo SLA (por prioridad: urgente 1 min, alta 2 min, media 7 min, baja 10 min).">i</span>
+            <span class="op-mon-count">{{ chatsEsperando.length }}</span>
+          </h4>
+          <div class="op-mon-items">
+            @for (chat of chatsEsperando.slice(0, 5); track trackByChatId($index, chat)) {
+            <div class="op-mon-item" [infoTooltip]="slaTooltip(chat)" (click)="openChat(chat.id)">
+              <div class="op-mon-avatar" [style.background]="getAvatarColor(chat.name)">{{ getInitials(chat.name) }}</div>
+              <div class="op-mon-info">
+                <strong>{{ chat.name }}</strong>
+                <small>{{ chat.assignedToName || 'Sin asesor' }} · {{ slaEspera(chat) }} · {{ slaRestante(chat) }}</small>
+              </div>
+              <span class="op-priority" [class]="prioridadClass(chat.priority)">{{ (chat.priority || 'normal') | titlecase }}</span>
+              <button class="op-mon-open" (click)="openChat(chat.id); $event.stopPropagation()" title="Abrir chat">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+              </button>
+            </div>
+            } @empty {
+            <div class="op-mon-empty">Sin chats esperando respuesta</div>
+            }
+          </div>
+        </div>
+
+        <div class="op-monitor-col">
+          <h4 class="op-mon-col-title red">
+            SLA vencidos
+            <span class="op-tip op-tip-dark" data-tip="Clientes que esperan respuesta y ya superaron el plazo SLA según la prioridad del chat. Requieren atención inmediata.">i</span>
+            <span class="op-mon-count">{{ chatsVencidos.length }}</span>
+          </h4>
+          <div class="op-mon-items">
+            @for (chat of chatsVencidos.slice(0, 5); track trackByChatId($index, chat)) {
+            <div class="op-mon-item" [infoTooltip]="slaTooltip(chat)" (click)="openChat(chat.id)">
+              <div class="op-mon-avatar" [style.background]="getAvatarColor(chat.name)">{{ getInitials(chat.name) }}</div>
+              <div class="op-mon-info">
+                <strong>{{ chat.name }}</strong>
+                <small>{{ chat.assignedToName || 'Sin asesor' }} · {{ slaEspera(chat) }} · {{ slaRestante(chat) }}</small>
+              </div>
+              <span class="op-priority" [class]="prioridadClass(chat.priority)">{{ (chat.priority || 'normal') | titlecase }}</span>
+              <button class="op-mon-open" (click)="openChat(chat.id); $event.stopPropagation()" title="Abrir chat">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+              </button>
+            </div>
+            } @empty {
+            <div class="op-mon-empty">Sin SLA vencidos</div>
+            }
+          </div>
+        </div>
+
+        <div class="op-monitor-col">
+          <h4 class="op-mon-col-title slate">
+            Soporte técnico
+            <span class="op-tip op-tip-dark" data-tip="Chats que el asesor envió al área técnica. El asesor no puede responder mientras espera soporte, por eso NO cuentan como SLA vencido.">i</span>
+            <span class="op-mon-count">{{ chatsSoporte.length }}</span>
+          </h4>
+          <div class="op-mon-items">
+            @for (chat of chatsSoporte.slice(0, 5); track trackByChatId($index, chat)) {
+            <div class="op-mon-item" [infoTooltip]="slaTooltip(chat)" (click)="openChat(chat.id)">
+              <div class="op-mon-avatar" [style.background]="getAvatarColor(chat.name)">{{ getInitials(chat.name) }}</div>
+              <div class="op-mon-info">
+                <strong>{{ chat.name }}</strong>
+                <small>{{ chat.assignedToName || 'Sin asesor' }} · en soporte técnico</small>
+              </div>
+              <span class="op-priority" [class]="prioridadClass(chat.priority)">{{ (chat.priority || 'normal') | titlecase }}</span>
+              <button class="op-mon-open" (click)="openChat(chat.id); $event.stopPropagation()" title="Abrir chat">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+              </button>
+            </div>
+            } @empty {
+            <div class="op-mon-empty">Sin chats en soporte</div>
+            }
+          </div>
+        </div>
+
+        <div class="op-monitor-col">
+          <h4 class="op-mon-col-title green">
+            En gestión
+            <span class="op-tip op-tip-dark" data-tip="Chats donde el asesor ya respondió al cliente. El contador SLA se reinicia; se espera la siguiente respuesta del cliente.">i</span>
+            <span class="op-mon-count">{{ chatsGestion.length }}</span>
+          </h4>
+          <div class="op-mon-items">
+            @for (chat of chatsGestion.slice(0, 5); track trackByChatId($index, chat)) {
+            <div class="op-mon-item" [infoTooltip]="slaTooltip(chat)" (click)="openChat(chat.id)">
+              <div class="op-mon-avatar" [style.background]="getAvatarColor(chat.name)">{{ getInitials(chat.name) }}</div>
+              <div class="op-mon-info">
+                <strong>{{ chat.name }}</strong>
+                <small>{{ chat.assignedToName || 'Sin asesor' }} · {{ slaEspera(chat) }}</small>
+              </div>
+              <span class="op-priority" [class]="prioridadClass(chat.priority)">{{ (chat.priority || 'normal') | titlecase }}</span>
+              <button class="op-mon-open" (click)="openChat(chat.id); $event.stopPropagation()" title="Abrir chat">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+              </button>
+            </div>
+            } @empty {
+            <div class="op-mon-empty">Sin chats en gestión</div>
+            }
+          </div>
+        </div>
+
+        <div class="op-monitor-col">
+          <h4 class="op-mon-col-title purple">
+            Esperando cliente
+            <span class="op-tip op-tip-dark" data-tip="Chats donde el asesor respondió y ahora se espera la respuesta del cliente. El SLA no corre mientras esperamos al cliente.">i</span>
+            <span class="op-mon-count">{{ chatsEsperandoCliente.length }}</span>
+          </h4>
+          <div class="op-mon-items">
+            @for (chat of chatsEsperandoCliente.slice(0, 5); track trackByChatId($index, chat)) {
+            <div class="op-mon-item" [infoTooltip]="slaTooltip(chat)" (click)="openChat(chat.id)">
+              <div class="op-mon-avatar" [style.background]="getAvatarColor(chat.name)">{{ getInitials(chat.name) }}</div>
+              <div class="op-mon-info">
+                <strong>{{ chat.name }}</strong>
+                <small>{{ chat.assignedToName || 'Sin asesor' }} · {{ slaEspera(chat) }}</small>
+              </div>
+              <span class="op-priority" [class]="prioridadClass(chat.priority)">{{ (chat.priority || 'normal') | titlecase }}</span>
+              <button class="op-mon-open" (click)="openChat(chat.id); $event.stopPropagation()" title="Abrir chat">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+              </button>
+            </div>
+            } @empty {
+            <div class="op-mon-empty">Sin clientes por responder</div>
+            }
+          </div>
+        </div>
+
+        <div class="op-monitor-col">
+          <h4 class="op-mon-col-title">
+            Grupos
+            <span class="op-tip op-tip-dark" data-tip="Conversaciones de grupo. No participan del conteo SLA.">i</span>
+            <span class="op-mon-count">{{ chatsGrupos.length }}</span>
+          </h4>
+          <div class="op-mon-items">
+            @for (chat of chatsGrupos.slice(0, 5); track trackByChatId($index, chat)) {
+            <div class="op-mon-item" [infoTooltip]="slaTooltip(chat)" (click)="openChat(chat.id)">
+              <div class="op-mon-avatar" [style.background]="getAvatarColor(chat.name)">{{ getInitials(chat.name) }}</div>
+              <div class="op-mon-info">
+                <strong>{{ chat.name }}</strong>
+                <small>{{ chat.assignedToName || 'Sin asesor' }} · {{ slaEspera(chat) }}</small>
+              </div>
+              <button class="op-mon-open" (click)="openChat(chat.id); $event.stopPropagation()" title="Abrir chat">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+              </button>
+            </div>
+            } @empty {
+            <div class="op-mon-empty">Sin grupos activos</div>
+            }
+          </div>
+        </div>
+      </div>
+      }
+
+      @if (monitorTab === 'actividad') {
+      <div class="op-feed">
+        @for (alert of alerts; track $index) {
+        <button class="op-feed-item {{ alertSeverityCls(alert) }}" (click)="openAlert(alert)">
+          <span class="op-feed-dot {{ alertSeverityCls(alert) }}"></span>
+          <div class="op-feed-body">
+            <strong>{{ alert.title }}</strong>
+            <small>{{ alert.detail }}</small>
+          </div>
+          <span class="op-feed-time">{{ alert.timestamp ? timeAgo(alert.timestamp) : '' }}</span>
+        </button>
+        } @empty {
+        <div class="op-feed-empty">Sin alertas activas. Todo en orden.</div>
         }
       </div>
-      <button class="op-alerts-view-all" (click)="goToAlertas()">Ver todas las alertas</button>
+      }
     </div>
 
-    <div class="op-kpi-grid">
-      <div class="op-kpi-card">
-        <div class="op-kpi-icon green">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-          </svg>
-        </div>
-        <div class="op-kpi-info">
-          <span>Chats activos</span>
-          <strong>{{ summary!.activeChats }}</strong>
-        </div>
-      </div>
-
-      <div class="op-kpi-card">
-        <div class="op-kpi-icon amber">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-          </svg>
-        </div>
-        <div class="op-kpi-info">
-          <span>En cola</span>
-          <strong>{{ summary!.queuedChats }}</strong>
-        </div>
-      </div>
-
-      <div class="op-kpi-card">
-        <div class="op-kpi-icon blue">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-            <circle cx="12" cy="7" r="4"/>
-          </svg>
-        </div>
-        <div class="op-kpi-info">
-          <span>Esperando cliente</span>
-          <strong>{{ summary!.waitingCustomerChats }}</strong>
-        </div>
-      </div>
-
-      <div class="op-kpi-card">
-        <div class="op-kpi-icon red">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="12" y1="8" x2="12" y2="12"/>
-            <line x1="12" y1="16" x2="12.01" y2="16"/>
-          </svg>
-        </div>
-        <div class="op-kpi-info">
-          <span>SLA vencidos</span>
-          <strong class="danger">{{ summary!.slaBreached }}</strong>
-        </div>
-      </div>
-
-      <div class="op-kpi-card">
-        <div class="op-kpi-icon teal">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-            <circle cx="8.5" cy="7" r="4"/>
-            <polyline points="17 11 19 13 23 9"/>
-          </svg>
-        </div>
-        <div class="op-kpi-info">
-          <span>Clientes hoy</span>
-          <strong>{{ summary!.uniqueClientsToday }}</strong>
-        </div>
-      </div>
-
-      <div class="op-kpi-card">
-        <div class="op-kpi-icon primary">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-          </svg>
-        </div>
-        <div class="op-kpi-info">
-          <span>Cumplimiento SLA</span>
-          <strong>{{ summary!.slaCompliancePercent }}<small>%</small></strong>
-        </div>
-      </div>
-    </div>
-
+    @if (filtersOpen) {
     <div class="op-filter-box">
+      <div class="op-filter-group">
+        <label>Categoría <span class="op-tip" data-tip="Estado real de cada chat: En cola (sin asesor), En gestión (asesor trabajando), Esperando respuesta (dentro de plazo), SLA vencido (superó plazo), Soporte técnico (bloqueado), Esperando cliente, Resuelto, Cerrado o Grupo.">i</span></label>
+        <select [(ngModel)]="filterCategoria" (change)="applyFilters()">
+          <option value="todos">Todos</option>
+          <option value="cola">En cola</option>
+          <option value="gestion">En gestión</option>
+          <option value="espera_respuesta">Esperando respuesta</option>
+          <option value="sla_vencido">SLA vencido</option>
+          <option value="esperando_cliente">Esperando cliente</option>
+          <option value="soporte">Soporte técnico</option>
+          <option value="resuelto">Resuelto</option>
+          <option value="cerrado">Cerrado</option>
+        </select>
+      </div>
       <div class="op-filter-group">
         <label>Estado</label>
         <select [(ngModel)]="filterEstado" (change)="applyFilters()">
@@ -303,123 +528,139 @@
         </select>
       </div>
       <div class="op-filter-group">
-        <label>SLA</label>
+        <label>SLA <span class="op-tip" data-tip="Filtra según el cumplimiento del plazo: Por vencer (superó el 80% del plazo), Vencido (superó el plazo), En tiempo o Congelado (sin movimiento por más de 10 minutos).">i</span></label>
         <select [(ngModel)]="filterSla" (change)="applyFilters()">
           <option value="todos">Todos</option>
           <option value="por_vencer">Por vencer</option>
           <option value="vencido">Vencido</option>
           <option value="en_tiempo">En tiempo</option>
+          <option value="congelado">Congelado</option>
         </select>
       </div>
       <button class="op-btn op-btn-primary" (click)="applyFilters()">Aplicar filtros</button>
       <button class="op-btn op-btn-secondary" (click)="clearFilters()">Limpiar</button>
     </div>
+    }
 
-    <div class="op-widgets-row">
-      <div class="op-advisors-section">
-        <div class="op-advisors-header">
-          <span>Carga de asesores</span>
-          <button class="op-advisors-show-all" (click)="goToAsesores()">Mostrar todos los asesores</button>
+    <div class="op-advisors">
+      <div class="op-advisors-head">
+        <div class="op-advisors-title">
+          <h3>Carga de asesores</h3>
         </div>
-        <div class="op-advisors-row">
-          @for (advisor of advisors.slice(0, 4); track trackByAdvisorId($index, advisor)) {
-          <div class="op-advisor-card">
-            <div class="op-adv-top">
-              <div class="op-adv-avatar" [style.background]="getAvatarColor(advisor.name)">{{ getInitials(advisor.name) }}</div>
-              <div class="op-adv-info">
-                <strong>{{ advisor.name }}</strong>
-                <span class="op-adv-status" [class]="statusClass(advisor)">{{ statusLabel(advisor) }}</span>
-              </div>
-            </div>
-            <div class="op-adv-metrics">
-              <div class="op-adv-metric-row">
-                <span>Chats activos</span>
-                <strong>{{ advisor.activeChats }}</strong>
-              </div>
-              <div class="op-adv-metric-row">
-                <span>SLA en riesgo</span>
-                <strong [class.danger]="advisorSlaRiesgo(advisor) > 0">{{ advisorSlaRiesgo(advisor) }}</strong>
-              </div>
-              <div class="op-adv-metric-row">
-                <span>Cerrados</span>
-                <strong>{{ advisor.closedChats }}</strong>
-              </div>
-              <div class="op-adv-cap-row">
-                <div class="op-adv-cap-header">
-                  <span>Capacidad</span>
-                  <strong [class.danger]="advisorCapacity(advisor) > 100">{{ advisorCapacity(advisor) }}<small>%</small></strong>
-                </div>
-                <div class="op-adv-cap-bar">
-                  <div class="op-adv-cap-fill" [style.width.%]="Math.min(advisorCapacity(advisor), 100)" [style.background]="capacityColor(advisorCapacity(advisor))"></div>
-                </div>
-              </div>
-              <div class="op-adv-metric-row">
-                <span>Tiempo resp.</span>
-                <strong>{{ advisor.avgResponseMinutes }}<small>min</small></strong>
-              </div>
-              <div class="op-adv-metric-row">
-                <span>Asignados</span>
-                <strong>{{ advisor.manualChats }}</strong>
-              </div>
-              <div class="op-adv-metric-row">
-                <span>Fijos</span>
-                <strong>{{ advisor.fixedClients }}</strong>
-              </div>
-            </div>
-          </div>
+        <div class="op-advisors-meta">
+          <span class="op-adv-meta-item"><i class="op-dot on"></i>En línea {{ onlineAdvisorCount }}/{{ advisors.length }}</span>
+          <span class="op-adv-meta-item">Carga media <strong>{{ avgAdvisorCapacity }}%</strong></span>
+          @if (advisorsWithSlaBreach > 0) {
+          <span class="op-adv-meta-item danger">SLA vencido {{ advisorsWithSlaBreach }}</span>
           }
         </div>
+        <button class="op-advisors-show-all" (click)="goToAsesores()">Ver todos</button>
       </div>
-
-      <div class="op-summary-widget">
-        <div class="op-summary-header">Resumen del día</div>
-        <div class="op-summary-body">
-          <div class="op-summary-item">
-            <span>Clientes</span>
-            <strong>{{ summary!.uniqueClientsToday }}</strong>
+      <div class="op-advisor-rows">
+        @for (advisor of advisors; track trackByAdvisorId($index, advisor)) {
+        <button class="op-advisor-row" (click)="goToAsesores()">
+          <div class="op-adv-avatar" [style.background]="getAvatarColor(advisor.name)">{{ getInitials(advisor.name) }}</div>
+          <div class="op-adv-name">
+            <strong>{{ advisor.name }}</strong>
+            <span class="op-adv-status" [class]="statusClass(advisor)">{{ statusLabel(advisor) }}</span>
           </div>
-          <div class="op-summary-item">
-            <span>Chats asignados</span>
-            <strong>{{ summary!.manualChats }}</strong>
+          <div class="op-adv-cell chats">
+            <span>Activos</span>
+            <strong>{{ advisor.activeChats }}</strong>
           </div>
-          <div class="op-summary-item">
-            <span>Chats cerrados</span>
-            <strong>{{ summary!.closedToday }}</strong>
+          <div class="op-adv-load">
+            <div class="op-adv-load-head">
+              <span>Carga</span>
+              <strong [class.danger]="advisorCapacity(advisor) > 100">{{ advisorCapacity(advisor) }}%</strong>
+            </div>
+            <div class="op-adv-cap-bar">
+              <div class="op-adv-cap-fill" [style.width.%]="Math.min(advisorCapacity(advisor), 100)" [style.background]="capacityColor(advisorCapacity(advisor))"></div>
+            </div>
           </div>
-          <div class="op-summary-item">
-            <span>SLA cumplido</span>
-            <strong>{{ summary!.slaCompliancePercent }}<small>%</small></strong>
+          <div class="op-adv-cell sla" [class.danger]="advisor.slaBreachedChats > 0">
+            <span>SLA venc.</span>
+            <strong>{{ advisor.slaBreachedChats }}</strong>
           </div>
-        </div>
+          <div class="op-adv-cell resp">
+            <span>Resp.</span>
+            <strong>{{ dur(advisor.avgResponseMinutes) }}</strong>
+          </div>
+        </button>
+        } @empty {
+        <div class="op-mon-empty">Sin asesores registrados</div>
+        }
       </div>
     </div>
 
-    <div class="op-chats-row">
-      <div class="op-chats-section">
-        <div class="op-chats-header">
-          <div class="op-chats-header-left">
-            <span>Chats activos</span>
-            <button class="op-advisors-show-all" (click)="goToChats()">Ver todos los chats</button>
-          </div>
+    <div class="op-acciones-rapidas">
+      <div class="op-acciones-rapidas-head">
+        <h3>Acciones rápidas</h3>
+        <span>Atajos directos del centro de operaciones</span>
+      </div>
+      <div class="op-acciones-rapidas-grid">
+        <button class="op-rapida" (click)="goToChatInterno()">
+          <span class="op-rapida-icon blue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-2.4-5.8 8.5 8.5 0 0 1 8.5-8.5 8.38 8.38 0 0 1 8.5 8.5z"/><path d="M12 7v5"/><path d="M9.5 9.5h5"/></svg>
+          </span>
+          <span class="op-rapida-info">
+            <strong>Chat interno</strong>
+            <small>Habla con el equipo de soporte</small>
+          </span>
+          <svg class="op-rapida-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </button>
+        <button class="op-rapida" (click)="goToFijar()">
+          <span class="op-rapida-icon amber">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 11l-4 4h14l-4-4"/><path d="M15 3.5L9.5 9 15 11l-5.5 5.5"/></svg>
+          </span>
+          <span class="op-rapida-info">
+            <strong>Fijar chats</strong>
+            <small>Asignar asesor permanente</small>
+          </span>
+          <svg class="op-rapida-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </button>
+        <button class="op-rapida" (click)="goToReportes()">
+          <span class="op-rapida-icon green">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          </span>
+          <span class="op-rapida-info">
+            <strong>Reportes</strong>
+            <small>Resumen por día, mes o año</small>
+          </span>
+          <svg class="op-rapida-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="op-chats" id="op-chats">
+      <div class="op-chats-head">
+        <div class="op-chats-head-left">
+          <span class="op-chats-title">Chats</span>
+          <span class="op-chats-count">{{ totalFiltered }} de {{ chats.length }}</span>
+        </div>
+        <div class="op-chats-tools">
           <div class="op-chats-search">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
             <input type="text" placeholder="Buscar por cliente..." [(ngModel)]="searchQuery" (input)="applyFilters()" />
           </div>
+          <button class="op-filter-toggle" [class.open]="filtersOpen" (click)="toggleFilters()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+            Filtros
+          </button>
         </div>
-        <div class="op-chats-table-wrap">
+      </div>
+      <div class="op-chats-table-wrap">
           <table class="op-chats-table">
             <thead>
               <tr>
                 <th>Cliente</th>
-                <th>Colegio</th>
-                <th>Estado</th>
+                <th>Estado <span class="op-tip op-tip-dark" data-tip="Categoría real del chat: En cola, En gestión, Esperando respuesta, SLA vencido, Esperando cliente, Soporte técnico, Resuelto o Cerrado.">i</span></th>
                 <th>Prioridad</th>
                 <th>Asesor</th>
                 <th>Último mensaje</th>
-                <th>Tiempo</th>
-                <th>SLA</th>
+                <th>Tiempo <span class="op-tip op-tip-dark" data-tip="Tiempo transcurrido desde el último mensaje del cliente. 'Congelado' significa sin movimiento por más de 10 minutos.">i</span></th>
+                <th>SLA <span class="op-tip op-tip-dark" data-tip="Cumplimiento del plazo según prioridad (urgente 1 min, alta 2 min, media 7 min, baja 10 min). Solo se mide en chats en gestión/esperando respuesta; soporte técnico y esperando cliente no cuentan.">i</span></th>
                 <th>Acciones</th>
               </tr>
             </thead>
@@ -435,8 +676,12 @@
                     </div>
                   </div>
                 </td>
-                <td><span class="op-estado-tag">{{ chat.institution || '—' }}</span></td>
-                <td><small class="op-estado-sub" [class]="estadoClass(chat)">{{ estadoLabel(chat) }}</small></td>
+                <td>
+                  <span class="op-cat-badge" [class]="categoriaClass(chat)">
+                    <span class="op-cat-dot"></span>
+                    {{ categoriaLabel(chat) }}
+                  </span>
+                </td>
                 <td><span class="op-priority" [class]="prioridadClass(chat.priority)">{{ (chat.priority || 'normal') | titlecase }}</span></td>
                 <td>
                   @if (chat.fixedAdvisorId && chat.fixedAdvisorName) {
@@ -451,13 +696,28 @@
                   }
                 </td>
                 <td class="op-msg-cell">{{ chat.preview || '—' }}</td>
-                <td>{{ chat.time || '—' }}</td>
                 <td>
-                  <div class="op-sla-cell">
-                    <div class="op-sla-bar">
-                      <div class="op-sla-fill" [style.width.%]="slaPercent(chat)" [style.background]="slaColor(slaPercent(chat))"></div>
+                  @if (esCongelado(chat)) {
+                  <div class="op-tiempo-cell frozen">
+                    <small class="op-tiempo-mini">hace {{ chat.time || '' }}</small>
+                    <span>{{ congeladoTexto(chat) }}</span>
+                  </div>
+                  } @else {
+                  <div class="op-tiempo-cell">
+                    <span>{{ tiempoColumna(chat) }}</span>
+                    <small class="op-tiempo-mini">últ. msg {{ chat.time || '—' }}</small>
+                  </div>
+                  }
+                </td>
+                <td>
+                  <div class="op-sla-cell" [infoTooltip]="slaTooltip(chat)">
+                    <span class="op-sla-badge" [class]="slaEstadoClass(chat)">
+                      {{ slaEstadoLabel(chat) }}
+                    </span>
+                    <div class="op-sla-meta">
+                      <span>{{ slaEspera(chat) }}</span>
+                      <small>{{ slaRestante(chat) }}</small>
                     </div>
-                    <span>{{ slaPercent(chat) }}%</span>
                   </div>
                 </td>
                 <td>
@@ -478,7 +738,7 @@
               }
               @if (paginatedChats.length === 0) {
               <tr>
-                <td colspan="9" style="text-align:center;color:#94A3B8;padding:40px 0;">No hay chats con los filtros seleccionados</td>
+                <td colspan="8" style="text-align:center;color:#94A3B8;padding:40px 0;">No hay chats con los filtros seleccionados</td>
               </tr>
               }
             </tbody>
@@ -494,40 +754,6 @@
             <button class="op-page-btn" (click)="setPage(totalPages)" [class.active]="currentPage === totalPages">&raquo;</button>
           </div>
         </div>
-      </div>
-
-      <div class="op-actions-widget">
-        <div class="op-actions-header">Acciones rápidas</div>
-        <div class="op-actions-body">
-          <button class="op-action-card" (click)="goToChatInterno()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-            </svg>
-            <div>
-              <strong>Chat interno</strong>
-              <small>Habla con el grupo de soporte</small>
-            </div>
-          </button>
-          <button class="op-action-card" (click)="goToFijar()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 17v5"/><path d="M9 11l-4 4h14l-4-4"/><path d="M15 3.5L9.5 9 15 11l-5.5 5.5"/>
-            </svg>
-            <div>
-              <strong>Fijar chats</strong>
-              <small>Asignar asesor permanente</small>
-            </div>
-          </button>
-          <button class="op-action-card">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
-            </svg>
-            <div>
-              <strong>Generar reporte</strong>
-              <small>Resumen del día completo</small>
-            </div>
-          </button>
-        </div>
-      </div>
     </div>
     <!-- Assign popup -->
     @if (assignChatId) {

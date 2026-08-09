@@ -343,6 +343,10 @@ export class AdvisorsWhatsappGateway
     }
   }
 
+  emitAdminDashboard(payload: unknown) {
+    this.server?.to('admins').emit('aw_admin_dashboard', payload);
+  }
+
   private emitToAdvisor(advisorId: string, event: string, payload: unknown) {
     this.server.to(this.advisorRoom(advisorId)).emit(event, payload);
   }

@@ -202,3 +202,8 @@ img {
 /* ─── Utility classes ────────────────────────────────── */
 .text-muted { color: var(--text-muted); }
 .text-faint { color: var(--text-faint); }
+
+@keyframes it-tooltip-fade {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

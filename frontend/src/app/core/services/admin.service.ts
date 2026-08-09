@@ -27,9 +27,15 @@ export interface Metrics {
 export class AdminService {
   constructor(private http: HttpClient) {}
 
-  getAdvisors(page = 1, limit = 20, search?: string): Observable<PaginatedResponse<User>> {
+  getAdvisors(
+    page = 1,
+    limit = 20,
+    search?: string,
+    role?: 'admin' | 'advisor' | 'todos',
+  ): Observable<PaginatedResponse<User>> {
     let params = new HttpParams().set('page', page).set('limit', limit);
     if (search) params = params.set('search', search);
+    if (role) params = params.set('role', role);
     return this.http.get<PaginatedResponse<User>>(`${environment.apiUrl}/advisors`, { params });
   }
 
@@ -37,11 +43,19 @@ export class AdminService {
     return this.http.get<User>(`${environment.apiUrl}/advisors/${id}`);
   }
 
-  createAdvisor(name: string, email: string, password: string): Observable<User> {
-    return this.http.post<User>(`${environment.apiUrl}/advisors`, { name, email, password });
+  createAdvisor(
+    name: string,
+    email: string,
+    password: string,
+    role: 'admin' | 'advisor' = 'advisor',
+  ): Observable<User> {
+    return this.http.post<User>(`${environment.apiUrl}/advisors`, { name, email, password, role });
   }
 
-  updateAdvisor(id: string, data: { name?: string; email?: string }): Observable<User> {
+  updateAdvisor(
+    id: string,
+    data: { name?: string; email?: string; role?: 'admin' | 'advisor' },
+  ): Observable<User> {
     return this.http.put<User>(`${environment.apiUrl}/advisors/${id}`, data);
   }
 

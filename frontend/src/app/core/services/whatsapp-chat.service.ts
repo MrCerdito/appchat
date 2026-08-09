@@ -18,6 +18,7 @@ import {
   WaConnectionStatus,
   WaAdminDashboard,
   WaOperationalStatus,
+  WaReportData,
 } from '../models/whatsapp.models';
 
 export interface TeamsConnectionStatus {
@@ -55,6 +56,7 @@ export class WhatsappChatService implements OnDestroy {
   private chatAssigned$ = new Subject<AwChatAssigned>();
   private chatUpdated$ = new Subject<WaChat>();
   private queueUpdated$ = new Subject<AwQueueUpdated>();
+  private adminDashboard$ = new BehaviorSubject<WaAdminDashboard | null>(null);
   private chats$ = new BehaviorSubject<WaChat[]>([]);
   private myAdvisorId = '';
   private activeChatId: string | null = null;
@@ -129,6 +131,10 @@ export class WhatsappChatService implements OnDestroy {
       }
     });
 
+    this.socket.on('aw_admin_dashboard', (dashboard: WaAdminDashboard) => {
+      this.adminDashboard$.next(dashboard);
+    });
+
     this.socket.on('aw_connection_update', (data: WaConnectionStatus & { sequence?: number }) => {
       if (data.sequence !== undefined && data.sequence <= this.lastConnectionSequence) {
         return;
@@ -173,6 +179,10 @@ export class WhatsappChatService implements OnDestroy {
 
   onQueueUpdated(): Observable<AwQueueUpdated> {
     return this.queueUpdated$.asObservable();
+  }
+
+  onAdminDashboard(): Observable<WaAdminDashboard | null> {
+    return this.adminDashboard$.asObservable();
   }
 
   getChatsStream(): Observable<WaChat[]> {
@@ -285,6 +295,28 @@ export class WhatsappChatService implements OnDestroy {
       `${this.apiUrl}/admin/dashboard`,
       { headers: this.headers() },
     );
+  }
+
+  loadReport(from?: string, to?: string): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/admin/report`, {
+      headers: this.headers(),
+      responseType: 'blob',
+      params: {
+        ...(from ? { from } : {}),
+        ...(to ? { to } : {}),
+      },
+    });
+  }
+
+  loadReportData(
+    from: string,
+    to: string,
+    granularity: 'day' | 'month' | 'year',
+  ): Observable<WaReportData> {
+    return this.http.get<WaReportData>(`${this.apiUrl}/admin/report/data`, {
+      headers: this.headers(),
+      params: { from, to, granularity },
+    });
   }
 
   loadMessages(chatId: string, page = 1, limit = 50, anchor?: string): Observable<WaMessage[]> {

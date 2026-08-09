@@ -3,13 +3,14 @@ import {
   ConflictException,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
   Logger,
   Inject,
   Optional,
   forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, ILike, DataSource } from 'typeorm';
+import { Repository, Brackets, DataSource } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User } from '../auth/entities/user.entity';
 import * as ExcelJS from 'exceljs';
@@ -76,30 +77,42 @@ export class AdvisorsService {
     page: number,
     limit: number,
     search?: string,
+    role?: 'admin' | 'advisor' | 'todos',
   ): Promise<PaginatedResult<User>> {
-    const where: any = { role: 'advisor' };
+    const qb = this.userRepo
+      .createQueryBuilder('user')
+      .select([
+        'user.id',
+        'user.name',
+        'user.email',
+        'user.status',
+        'user.activeChats',
+        'user.active',
+        'user.createdAt',
+        'user.role',
+        'user.profilePhotoUrl',
+      ])
+      .orderBy('user.createdAt', 'DESC');
 
-    if (search) {
-      where.name = ILike(`%${search}%`);
+    if (role === 'admin' || role === 'advisor') {
+      qb.andWhere('user.role = :role', { role });
     }
 
-    const [data, total] = await this.userRepo.findAndCount({
-      where,
-      select: [
-        'id',
-        'name',
-        'email',
-        'status',
-        'activeChats',
-        'active',
-        'createdAt',
-        'role',
-        'profilePhotoUrl',
-      ],
-      order: { createdAt: 'DESC' },
-      skip: (page - 1) * limit,
-      take: limit,
-    });
+    if (search) {
+      qb.andWhere(
+        new Brackets((b) => {
+          b.where('user.name ILIKE :search', { search: `%${search}%` }).orWhere(
+            'user.email ILIKE :search',
+            { search: `%${search}%` },
+          );
+        }),
+      );
+    }
+
+    const [data, total] = await qb
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
 
     return {
       data,
@@ -129,7 +142,12 @@ export class AdvisorsService {
     return user;
   }
 
-  async create(name: string, email: string, password: string): Promise<User> {
+  async create(
+    name: string,
+    email: string,
+    password: string,
+    role: 'admin' | 'advisor' = 'advisor',
+  ): Promise<User> {
     const exists = await this.userRepo.findOne({ where: { email } });
     if (exists) throw new ConflictException('El email ya está registrado');
 
@@ -138,7 +156,7 @@ export class AdvisorsService {
       name,
       email,
       password: hash,
-      role: 'advisor',
+      role,
     });
     const saved = await this.userRepo.save(user);
     await this.internalChatService?.ensureSupportGroup().catch(() => {});
@@ -147,7 +165,8 @@ export class AdvisorsService {
 
   async update(
     id: string,
-    dto: { name?: string; email?: string },
+    dto: { name?: string; email?: string; role?: 'admin' | 'advisor' },
+    actorId?: string,
   ): Promise<User> {
     const user = await this.userRepo.findOne({ where: { id } });
     if (!user) throw new NotFoundException('Asesor no encontrado');
@@ -157,6 +176,11 @@ export class AdvisorsService {
         where: { email: dto.email },
       });
       if (exists) throw new ConflictException('El email ya está registrado');
+    }
+
+    if (dto.role && dto.role !== user.role) {
+      await this.assertCanChangeRole(user, dto.role, actorId);
+      user.role = dto.role;
     }
 
     if (dto.name) user.name = dto.name;
@@ -172,17 +196,60 @@ export class AdvisorsService {
     await this.userRepo.save(user);
   }
 
-  async toggle(id: string): Promise<User> {
+  async toggle(id: string, actorId?: string): Promise<User> {
+    if (actorId && id === actorId) {
+      throw new ForbiddenException(
+        'No puedes cambiar el estado de tu propia cuenta',
+      );
+    }
     const user = await this.userRepo.findOne({ where: { id } });
     if (!user) throw new NotFoundException('Asesor no encontrado');
+    if (user.active && user.role === 'admin') {
+      await this.assertNotLastActiveAdmin(user);
+    }
     user.active = !user.active;
     return this.userRepo.save(user);
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(id: string, actorId?: string): Promise<void> {
+    if (actorId && id === actorId) {
+      throw new ForbiddenException('No puedes eliminar tu propia cuenta');
+    }
     const user = await this.userRepo.findOne({ where: { id } });
     if (!user) throw new NotFoundException('Asesor no encontrado');
+    if (user.role === 'admin') {
+      await this.assertNotLastActiveAdmin(user);
+    }
     await this.userRepo.remove(user);
+  }
+
+  /**
+   * Evita que una cuenta se quede sin administradores activos:
+   * no se permite desactivar, eliminar ni degradar al último admin activo.
+   */
+  private async assertNotLastActiveAdmin(target: User): Promise<void> {
+    if (target.role !== 'admin') return;
+    const activeAdmins = await this.userRepo.count({
+      where: { role: 'admin', active: true },
+    });
+    if (activeAdmins <= 1) {
+      throw new ForbiddenException(
+        'No puedes desactivar/eliminar al último administrador activo',
+      );
+    }
+  }
+
+  private async assertCanChangeRole(
+    target: User,
+    newRole: 'admin' | 'advisor',
+    actorId?: string,
+  ): Promise<void> {
+    if (actorId && target.id === actorId) {
+      throw new ForbiddenException('No puedes cambiar el rol de tu propia cuenta');
+    }
+    if (target.role === 'admin' && newRole !== 'admin') {
+      await this.assertNotLastActiveAdmin(target);
+    }
   }
 
   async updatePhoto(id: string, profilePhotoUrl: string | null): Promise<User> {

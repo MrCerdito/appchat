@@ -1,0 +1,227 @@
+<div class="opr-page">
+  <nav class="opr-nav">
+    <button class="opr-back-btn" (click)="volverAlPanel()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+      </svg>
+      Volver al panel
+    </button>
+    <span class="opr-nav-title">Reportes</span>
+  </nav>
+
+  <div class="opr-toolbar">
+    <div class="opr-toolbar-right">
+      <div class="opr-live">
+        <span class="opr-live-badge" [class.updating]="cargando">
+          <i class="opr-live-dot"></i> En vivo
+        </span>
+        <span class="opr-live-time">Última actualización: {{ horaActualizacion() }}</span>
+        <button class="opr-refresh" (click)="actualizar()" [disabled]="cargando" title="Actualizar ahora">
+          <svg class="opr-refresh-icon" [class.spinning]="cargando" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+          </svg>
+          {{ cargando ? 'Actualizando...' : 'Actualizar' }}
+        </button>
+      </div>
+
+      <div class="opr-dates">
+        <label>
+          Desde
+          <input type="date" [value]="desde" (change)="desde = $any($event.target).value; cambiarDesde()" />
+        </label>
+        <label>
+          Hasta
+          <input type="date" [value]="hasta" (change)="hasta = $any($event.target).value; cambiarHasta()" />
+        </label>
+        <button class="opr-export" (click)="exportarExcel()" [disabled]="exportando">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+          {{ exportando ? 'Generando...' : 'Exportar Excel' }}
+        </button>
+      </div>
+    </div>
+
+    <div class="opr-tabs">
+      <button class="opr-tab" [class.active]="granularidad === 'day'" (click)="setGranularidad('day')">Día</button>
+      <button class="opr-tab" [class.active]="granularidad === 'month'" (click)="setGranularidad('month')">Mes</button>
+      <button class="opr-tab" [class.active]="granularidad === 'year'" (click)="setGranularidad('year')">Año</button>
+    </div>
+
+    <div class="opr-dates">
+      <label>
+        Desde
+        <input type="date" [value]="desde" (change)="desde = $any($event.target).value; cambiarDesde()" />
+      </label>
+      <label>
+        Hasta
+        <input type="date" [value]="hasta" (change)="hasta = $any($event.target).value; cambiarHasta()" />
+      </label>
+      <button class="opr-export" (click)="exportarExcel()" [disabled]="exportando">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+        </svg>
+        {{ exportando ? 'Generando...' : 'Exportar Excel' }}
+      </button>
+    </div>
+  </div>
+
+  @if (cargando) {
+    <div class="opr-loading">Cargando reporte...</div>
+  } @else if (error) {
+    <div class="opr-error">{{ error }}</div>
+  } @else if (reporte) {
+    <div class="opr-kpis">
+      <div class="opr-kpi">
+        <span>Chats recibidos</span>
+        <strong>{{ reporte.summary.chatsRecibidos }}</strong>
+      </div>
+      <div class="opr-kpi">
+        <span>Clientes únicos</span>
+        <strong>{{ reporte.summary.clientesUnicos }}</strong>
+      </div>
+      <div class="opr-kpi">
+        <span>Asignados</span>
+        <strong>{{ reporte.summary.asignados }}</strong>
+      </div>
+      <div class="opr-kpi">
+        <span>Cerrados</span>
+        <strong>{{ reporte.summary.cerrados }}</strong>
+      </div>
+      <div class="opr-kpi">
+        <span>Mensajes totales</span>
+        <strong>{{ reporte.summary.mensajesTotales }}</strong>
+      </div>
+      <div class="opr-kpi">
+        <span>Mensajes de asesores</span>
+        <strong>{{ reporte.summary.mensajesAsesor }}</strong>
+      </div>
+      <div class="opr-kpi">
+        <span>Tiempo promedio resp.</span>
+        <strong>{{ dur(reporte.summary.tiempoPromedioRespuestaMin) }}</strong>
+      </div>
+      <div class="opr-kpi">
+        <span>Cumplimiento SLA</span>
+        <strong>{{ reporte.summary.slaCumplimiento }}<small>%</small></strong>
+        <small class="opr-kpi-sub">{{ reporte.summary.slaCumplimiento > 0 ? reporte.summary.slaDenominador + ' chats evaluados' : 'sin datos' }}</small>
+      </div>
+    </div>
+
+    <div class="opr-section">
+      <h3 class="opr-section-title">Evolución del período</h3>
+      @if (reporte.series.length > 0) {
+        <div class="opr-chart">
+          @for (s of reporte.series; track trackBySerie($index, s)) {
+            <div class="opr-chart-col">
+              <div class="opr-chart-bars">
+                <div class="opr-bar recibidos" [style.height.%]="(s.recibidos / serieMax(reporte.series)) * 100" [title]="'Recibidos: ' + s.recibidos">
+                  @if (s.recibidos > 0) { <span>{{ s.recibidos }}</span> }
+                </div>
+                <div class="opr-bar asignados" [style.height.%]="(s.asignados / serieMax(reporte.series)) * 100" [title]="'Asignados: ' + s.asignados">
+                  @if (s.asignados > 0) { <span>{{ s.asignados }}</span> }
+                </div>
+                <div class="opr-bar cerrados" [style.height.%]="(s.cerrados / serieMax(reporte.series)) * 100" [title]="'Cerrados: ' + s.cerrados">
+                  @if (s.cerrados > 0) { <span>{{ s.cerrados }}</span> }
+                </div>
+              </div>
+              <small>{{ periodoLabel(s.periodo) }}</small>
+            </div>
+          }
+        </div>
+        <div class="opr-chart-legend">
+          <span><i class="recibidos"></i> Recibidos</span>
+          <span><i class="asignados"></i> Asignados</span>
+          <span><i class="cerrados"></i> Cerrados</span>
+        </div>
+      } @else {
+        <div class="opr-empty">Sin datos en el período seleccionado.</div>
+      }
+    </div>
+
+    <div class="opr-cols">
+      <div class="opr-section opr-cat-card">
+        <h3 class="opr-section-title">Por categoría</h3>
+        @if (reporte.porCategoria.length > 0) {
+          <div class="opr-cat-list">
+            @for (cat of reporte.porCategoria; track cat.categoria) {
+              <div class="opr-cat-row">
+                <span class="opr-cat-badge" [class]="categoriaClase(cat.categoria)">
+                  <i class="opr-cat-dot"></i>{{ cat.label }}
+                </span>
+                <strong>{{ cat.total }}</strong>
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="opr-empty">Sin datos.</div>
+        }
+      </div>
+
+      <div class="opr-section">
+        <h3 class="opr-section-title">Desempeño por asesor</h3>
+        @if (reporte.perAdvisor.length > 0) {
+          <table class="opr-table">
+            <thead>
+              <tr>
+                <th>Asesor</th>
+                <th>Chats asignados</th>
+                <th>Cerrados</th>
+                <th>Mensajes enviados</th>
+                <th>Prom. respuesta</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (a of reporte.perAdvisor; track a.id) {
+                <tr>
+                  <td class="opr-name">{{ a.name }}</td>
+                  <td>{{ a.chatsAsignados }}</td>
+                  <td>{{ a.cerrados }}</td>
+                  <td>{{ a.mensajesEnviados }}</td>
+                  <td>{{ dur(a.promRespuestaMin) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        } @else {
+          <div class="opr-empty">Sin datos.</div>
+        }
+      </div>
+    </div>
+
+    <div class="opr-section">
+      <h3 class="opr-section-title">Chats del período ({{ reporte.chats.length }})</h3>
+      @if (reporte.chats.length > 0) {
+        <div class="opr-table-wrap">
+          <table class="opr-table">
+            <thead>
+              <tr>
+                <th>Cliente</th>
+                <th>Asesor</th>
+                <th>Prioridad</th>
+                <th>Estado</th>
+                <th>Mensajes</th>
+                <th>Creado</th>
+                <th>Cerrado</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (c of reporte.chats; track c.id) {
+                <tr>
+                  <td class="opr-name">{{ c.name }}</td>
+                  <td>{{ c.advisor || '—' }}</td>
+                  <td>{{ c.priority }}</td>
+                  <td><span class="opr-cat-badge" [class]="categoriaClase(c.categoria)"><i class="opr-cat-dot"></i>{{ c.estado }}</span></td>
+                  <td>{{ c.mensajes }}</td>
+                  <td>{{ fmtFecha(c.creado) }}</td>
+                  <td>{{ fmtFecha(c.cerrado) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else {
+        <div class="opr-empty">Sin chats en el período.</div>
+      }
+    </div>
+  }
+</div>

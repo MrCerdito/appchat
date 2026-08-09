@@ -32,8 +32,12 @@
           <strong>{{ asesor.activeChats }}</strong>
         </div>
         <div class="opa-row">
-          <span>SLA en riesgo</span>
-          <strong [class.danger]="slaRiesgo(asesor) > 0">{{ slaRiesgo(asesor) }}</strong>
+          <span>SLA vencidos</span>
+          <strong [class.danger]="asesor.slaBreachedChats > 0">{{ asesor.slaBreachedChats }}</strong>
+        </div>
+        <div class="opa-row">
+          <span>Chats congelados</span>
+          <strong [class.danger]="asesor.frozenChats > 0">{{ asesor.frozenChats }}</strong>
         </div>
         <div class="opa-row">
           <span>Cerrados</span>
@@ -50,7 +54,7 @@
         </div>
         <div class="opa-row">
           <span>Tiempo resp.</span>
-          <strong>{{ asesor.avgResponseMinutes }}<small>min</small></strong>
+          <strong>{{ dur(asesor.avgResponseMinutes) }}</strong>
         </div>
         <div class="opa-row">
           <span>Asignados</span>

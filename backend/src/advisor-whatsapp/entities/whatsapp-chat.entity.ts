@@ -152,6 +152,9 @@ export class WhatsappChat {
   @OneToMany(() => WhatsappMessage, (message) => message.chat)
   messages: WhatsappMessage[];
 
+  @Column({ name: 'closed_at', nullable: true, type: 'timestamptz' })
+  closedAt: Date | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 

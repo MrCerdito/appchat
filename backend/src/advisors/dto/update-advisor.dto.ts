@@ -1,4 +1,10 @@
-import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsOptional,
+  IsString,
+  MinLength,
+  IsIn,
+} from 'class-validator';
 
 export class UpdateAdvisorDto {
   @IsOptional()
@@ -9,4 +15,8 @@ export class UpdateAdvisorDto {
   @IsOptional()
   @IsEmail({}, { message: 'Correo electrónico inválido' })
   email?: string;
+
+  @IsOptional()
+  @IsIn(['admin', 'advisor'], { message: 'Rol inválido (debe ser admin o advisor)' })
+  role?: 'admin' | 'advisor';
 }

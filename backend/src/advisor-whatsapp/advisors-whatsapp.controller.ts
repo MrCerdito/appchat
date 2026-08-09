@@ -16,14 +16,16 @@ import {
   Req,
   UploadedFile,
   UseInterceptors,
+  StreamableFile,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Roles, RolesGuard } from '../auth/roles.guard';
 import { TicketsService } from '../tickets/tickets.service';
 import {
   AdvisorsWhatsappService,
@@ -92,9 +94,54 @@ export class AdvisorsWhatsappController {
   }
 
   @Get('admin/dashboard')
-  @UseGuards(JwtAuthGuard)
-  getAdminDashboard(@Req() req: Request & { user: any }) {
-    return this.whatsappService.getAdminDashboard(req.user.role);
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  async getAdminDashboard(@Req() req: Request & { user: any }) {
+    const dashboard = await this.whatsappService.getAdminDashboard(
+      req.user.role,
+    );
+    this.whatsappGateway.emitAdminDashboard(dashboard);
+    return dashboard;
+  }
+
+  @Get('admin/report')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @HttpCode(HttpStatus.OK)
+  async generateReport(
+    @Req() req: Request & { user: any },
+    @Res({ passthrough: true }) res: Response,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ): Promise<StreamableFile> {
+    const file = await this.whatsappService.generateReport(
+      req.user.role,
+      from,
+      to,
+    );
+    res.set({
+      'Content-Type':
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="operaciones-${Date.now()}.xlsx"`,
+    });
+    return new StreamableFile(file);
+  }
+
+  @Get('admin/report/data')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  getReportData(
+    @Req() req: Request & { user: any },
+    @Query('from') from: string,
+    @Query('to') to: string,
+    @Query('granularity') granularity: 'day' | 'month' | 'year' = 'day',
+  ) {
+    return this.whatsappService.getReportData(
+      req.user.role,
+      from,
+      to,
+      granularity,
+    );
   }
 
   @Get('connection')
@@ -104,14 +151,16 @@ export class AdvisorsWhatsappController {
   }
 
   @Post('connection/restart')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
   @HttpCode(200)
   restartConnection() {
     return this.whatsappService.restartConnection();
   }
 
   @Post('connection/logout')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
   @HttpCode(200)
   logoutConnection() {
     return this.whatsappService.logoutConnection();
@@ -280,7 +329,8 @@ export class AdvisorsWhatsappController {
   }
 
   @Post('chats/:chatId/admin-assign')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
   @HttpCode(200)
   async adminAssignChat(
     @Param('chatId') chatId: string,
@@ -300,7 +350,8 @@ export class AdvisorsWhatsappController {
   }
 
   @Post('chats/:chatId/fixed-advisor')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
   @HttpCode(200)
   async setFixedAdvisor(
     @Param('chatId') chatId: string,
@@ -318,7 +369,8 @@ export class AdvisorsWhatsappController {
   }
 
   @Post('chats/:chatId/fixed-advisor/delete')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
   @HttpCode(200)
   async clearFixedAdvisor(
     @Param('chatId') chatId: string,
@@ -350,7 +402,8 @@ export class AdvisorsWhatsappController {
   }
 
   @Patch('chats/:chatId/priority')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
   async updateChatPriority(
     @Param('chatId') chatId: string,
     @Req() req: Request & { user: any },

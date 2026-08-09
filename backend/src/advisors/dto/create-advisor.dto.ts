@@ -1,4 +1,11 @@
-import { IsEmail, IsString, MinLength, Matches } from 'class-validator';
+import {
+  IsEmail,
+  IsString,
+  MinLength,
+  Matches,
+  IsOptional,
+  IsIn,
+} from 'class-validator';
 
 export class CreateAdvisorDto {
   @IsString()
@@ -7,6 +14,10 @@ export class CreateAdvisorDto {
 
   @IsEmail({}, { message: 'Correo electrónico inválido' })
   email!: string;
+
+  @IsOptional()
+  @IsIn(['admin', 'advisor'], { message: 'Rol inválido (debe ser admin o advisor)' })
+  role?: 'admin' | 'advisor';
 
   @IsString()
   @MinLength(8, { message: 'La contraseña debe tener mínimo 8 caracteres' })

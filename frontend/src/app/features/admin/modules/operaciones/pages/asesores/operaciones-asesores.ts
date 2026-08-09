@@ -5,6 +5,7 @@ import { Subscription, interval } from 'rxjs';
 import { WhatsappChatService } from '../../../../../../core/services/whatsapp-chat.service';
 import { WaAdvisorStats } from '../../../../../../core/models/whatsapp.models';
 import { getInitials, getAvatarColor } from '../../../../../../shared/utils/avatar';
+import { formatDuration } from '../../../../../../shared/utils/duration';
 
 @Component({
   selector: 'app-operaciones-asesores',
@@ -80,12 +81,12 @@ export class OperacionesAsesoresComponent implements OnInit, OnDestroy {
     return Math.round((advisor.connectedMinutes / total) * 100);
   }
 
-  slaRiesgo(advisor: WaAdvisorStats): number {
-    return Math.max(0, Math.round((1 - advisor.slaPercent / 100) * advisor.activeChats));
-  }
-
   getInitials = getInitials;
   getAvatarColor = getAvatarColor;
+
+  dur(minutes: number): string {
+    return formatDuration(minutes);
+  }
 
   statusLabel(advisor: WaAdvisorStats): string {
     if (!advisor.active) return 'Inactivo';

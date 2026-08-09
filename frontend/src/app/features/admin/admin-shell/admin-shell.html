@@ -59,6 +59,14 @@
         <span>Operaciones 2.0</span>
       </a>
 
+      <a class="nav-item" routerLink="operaciones/reportes" routerLinkActive="active" (click)="closeSidebarOnMobile()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+        </svg>
+        <span>Reportes</span>
+      </a>
+
       <span class="nav-label section-spacer">Comunicación</span>
 
       <a class="nav-item" routerLink="operaciones/chats" [queryParams]="{ modo: 'asesores' }" (click)="closeSidebarOnMobile()">

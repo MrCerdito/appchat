@@ -5,6 +5,7 @@ import { DataSource } from 'typeorm';
 import { AppModule } from './app.module';
 import { warmupEncryptedCache } from './common/security/encrypted-text.transformer';
 import { join } from 'path';
+import { cp, mkdir, rm } from 'fs/promises';
 import helmet from 'helmet';
 import compression from 'compression';
 
@@ -88,18 +89,17 @@ async function bootstrap() {
   // =========================
   const corsOrigins = process.env.CORS_ORIGINS
     ? process.env.CORS_ORIGINS.split(',')
-    : ['http://localhost:4200', 'http://192.168.10.26:4200'];
+        .map((origin) => origin.trim())
+        .filter(Boolean)
+    : ['http://localhost:4200', 'http://localhost:3001'];
 
   app.enableCors({
-    // Refleja el Origin de cualquier página: permite que el widget embebido
-    // (chat + config) funcione desde sitios externos sin fricción CORS.
+    // Whitelist estricta: solo se permiten orígenes configurados (o requests
+    // sin Origin, como curl/SSR). Nada se refleja dinámicamente.
     origin: (origin, cb) => {
-      // Sin Origin (curl, SSR, extensiones) → se permite.
       if (!origin) return cb(null, true);
-      // La SPA admin y websockets del mismo dominio siguen siendo válidos.
       if (corsOrigins.includes(origin)) return cb(null, true);
-      // Cualquier otro origen se refleja (endpoints públicos no autenticados).
-      return cb(null, origin);
+      return cb(null, false);
     },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
@@ -117,8 +117,43 @@ async function bootstrap() {
   );
 
   // =========================
+  // SESSION DE WHATSAPP — FUERA DEL ÁREA PÚBLICA
+  // =========================
+  // La sesión de Baileys (creds.json, pre-keys, sender-keys) vive ahora en un
+  // directorio privado. Si quedó en la ubicación antigua bajo /uploads, se
+  // migra a la nueva y se elimina del área que sirve el servidor estático.
+  const oldAuthDir = join(process.cwd(), 'uploads', 'baileys-auth');
+  const newAuthDir =
+    process.env.WHATSAPP_SESSION_DIR ||
+    join(process.cwd(), '.session', 'baileys-auth');
+  try {
+    await mkdir(newAuthDir, { recursive: true });
+    await cp(oldAuthDir, newAuthDir, { recursive: true, force: true }).catch(
+      (err: any) => {
+        if (err?.code !== 'ENOENT') throw err;
+      },
+    );
+    await rm(oldAuthDir, { recursive: true, force: true });
+  } catch {
+    // Sin sesión previa o ya migrada — se ignora
+  }
+
+  // =========================
   // STATIC FILES (UPLOADS)
   // =========================
+  // Middleware de bloqueo defensivo: nunca servir credenciales ni archivos de
+  // sesión aunque existan bajo /uploads.
+  app.use((req, res, next) => {
+    const p = (req.path || '/').toLowerCase();
+    if (
+      p.startsWith('/uploads/baileys-auth') ||
+      (p.startsWith('/uploads/') && p.endsWith('.json'))
+    ) {
+      return res.status(404).json({ statusCode: 404, message: 'Not Found' });
+    }
+    next();
+  });
+
   const mimeMap: Record<string, string> = {
     '.jpg': 'image/jpeg',
     '.jpeg': 'image/jpeg',
