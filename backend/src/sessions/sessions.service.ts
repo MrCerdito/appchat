@@ -240,14 +240,25 @@ export class SessionsService {
 
   // ── Asignación ────────────────────────────────────────────────────────────
   // Solo asigna si está en 'waiting'. Si está en 'ai', no asigna.
+  // ★ UPDATE ATÓMICO: solo un autoAssignAdvisor concurrente puede ganar la
+  //   carrera (join_session + request_advisor + polling simultáneos). Si
+  //   affected = 0, otra llamada ya asignó la sesión y NO debemos continuar
+  //   (esto evitaba que la bienvenida se guardara dos veces).
   async assignAdvisor(sessionId: string, advisorId: string): Promise<Session> {
-    const session = await this.findOne(sessionId);
-    if (session.status !== 'waiting') return session;
-    session.status = 'active';
-    session.advisor = { id: advisorId } as any;
-    const saved = await this.sessionRepo.save(session);
+    const result = await this.sessionRepo
+      .createQueryBuilder()
+      .update(Session)
+      .set({ status: 'active', advisor: { id: advisorId } as any })
+      .where('id = :id', { id: sessionId })
+      .andWhere("status = 'waiting'")
+      .execute();
+
+    if ((result.affected ?? 0) === 0) {
+      return this.findOne(sessionId);
+    }
+
     await this.syncAdvisorActiveChats(advisorId);
-    return saved;
+    return this.findOne(sessionId);
   }
   async findAvailableAdvisor(): Promise<User | null> {
     const advisors = await this.userRepo.find({

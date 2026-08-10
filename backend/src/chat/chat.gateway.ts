@@ -775,6 +775,8 @@ export class ChatGateway
         sessionId,
         takenBy: newAdvisorName,
       });
+      // El asesor anterior deja de recibir la sala en vivo.
+      await this.removeAdvisorsFromSessionRoom(sessionId, [oldAdvisorId]);
     }
 
     client.join(sessionId);
@@ -996,6 +998,12 @@ export class ChatGateway
       profilePhotoUrl: session.advisor?.profilePhotoUrl ?? null,
     });
     client.leave(data.sessionId);
+    // Si el asesor saliente tiene más sockets abiertos, también salen de la sala.
+    if (client.data.user?.id) {
+      await this.removeAdvisorsFromSessionRoom(data.sessionId, [
+        client.data.user.id,
+      ]);
+    }
 
     const msg = await this.chatService.saveMessage(
       data.sessionId,
@@ -1777,7 +1785,31 @@ export class ChatGateway
       sessionId,
       advisor.id,
     );
-    if (assigned.status !== 'active') return false;
+    if (
+      assigned.status !== 'active' ||
+      assigned.advisor?.id !== advisor.id
+    ) {
+      return false;
+    }
+
+    // ★ Los asesores que estaban en la sala como observadores de la cola
+    //   deben salir: la sesión ya tiene dueño y no debe filtrarse su chat.
+    try {
+      const sockets = await this.server.in(sessionId).fetchSockets();
+      for (const s of sockets) {
+        if (
+          s.data?.role === 'advisor' &&
+          s.data?.user?.id &&
+          s.data.user.id !== advisor.id
+        ) {
+          await s.leave(sessionId);
+        }
+      }
+    } catch (err) {
+      this.logger.warn(
+        `[RoomCleanup] No se pudo limpiar sala ${sessionId}: ${(err as Error).message}`,
+      );
+    }
 
     // Use Redis adapter room for cross-instance delivery
     this.server.to(`advisor:${advisor.id}`).emit('join_session', {
@@ -2268,6 +2300,34 @@ export class ChatGateway
   }
 
   // ── Emisión de eventos para la IA y tiempo real de sesiones ─────────────
+  /** Expulsa de la sala de la sesión a los sockets de los asesores indicados
+   *  (p. ej. cuando la sesión se reasigna a otro asesor). Evita que el chat
+   *  de un asesor se filtre a otros que estaban en la sala. */
+  private async removeAdvisorsFromSessionRoom(
+    sessionId: string,
+    advisorIds: string[],
+  ): Promise<void> {
+    if (!advisorIds.length) return;
+    const toRemove = new Set(advisorIds);
+    try {
+      const sockets = await this.server.in(sessionId).fetchSockets();
+      for (const socket of sockets) {
+        const advisorId = socket.data?.user?.id;
+        if (
+          socket.data?.role === 'advisor' &&
+          advisorId &&
+          toRemove.has(advisorId)
+        ) {
+          await socket.leave(sessionId);
+        }
+      }
+    } catch (err) {
+      this.logger.warn(
+        `[RoomCleanup] No se pudo limpiar sala ${sessionId}: ${(err as Error).message}`,
+      );
+    }
+  }
+
   emitMessageToSession(sessionId: string, msg: any) {
     if (!sessionId) return;
     this.server.to(sessionId).emit('new_message', { ...msg, sessionId });

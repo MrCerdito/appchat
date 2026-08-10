@@ -779,6 +779,7 @@ get rolLabel(): string {
     this.socket.on<Message & { showFeedback?: boolean }>('new_message')
       .pipe(takeUntil(this.socketDestroy$))
       .subscribe((msg) => {
+        if (msg?.id && this.messages.some(m => m.id === msg.id)) return;
         const msgIndex = this.messages.length;
         this.messages.push(msg);
         if (msg.senderType === 'advisor') {
@@ -1558,9 +1559,13 @@ private escapeHtml(value: string): string {
     this.cdr.detectChanges();
 
     this.connectSocket();
-    this.socket.on<string>('connect')
+    this.socket.connected$
       .pipe(takeUntil(this.socketDestroy$))
-      .subscribe(() => { this.socket.emit('request_advisor', this.session!.id); });
+      .subscribe((connected) => {
+        if (connected && this.session?.id) {
+          this.socket.emit('request_advisor', this.session.id);
+        }
+      });
   }
 
   // ══════════════════════════════════════════════════════════════════════════
