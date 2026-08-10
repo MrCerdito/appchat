@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  OnModuleInit,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Message, Attachment } from './entities/message.entity';
@@ -9,11 +14,26 @@ import {
 } from '../common/security/sanitize.helper';
 
 @Injectable()
-export class ChatService {
+export class ChatService implements OnModuleInit {
+  private readonly logger = new Logger(ChatService.name);
+
   constructor(
     @InjectRepository(Message)
     private readonly messageRepo: Repository<Message>,
   ) {}
+
+  // ── Schema (prod has synchronize off) ─────────────────────────────────────
+  async onModuleInit(): Promise<void> {
+    try {
+      await this.messageRepo.query(
+        `ALTER TABLE messages ADD COLUMN IF NOT EXISTS delivered_at timestamptz`,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `No se pudo asegurar la columna delivered_at: ${error.message}`,
+      );
+    }
+  }
 
   async saveMessage(
     sessionId: string,
@@ -54,6 +74,17 @@ export class ChatService {
       .where('session_id = :sessionId', { sessionId })
       .andWhere('sender_type = :senderType', { senderType })
       .andWhere('read_at IS NULL')
+      .execute();
+  }
+
+  async markDelivered(sessionId: string, senderType: string): Promise<void> {
+    await this.messageRepo
+      .createQueryBuilder()
+      .update()
+      .set({ deliveredAt: new Date() })
+      .where('session_id = :sessionId', { sessionId })
+      .andWhere('sender_type = :senderType', { senderType })
+      .andWhere('delivered_at IS NULL')
       .execute();
   }
 }

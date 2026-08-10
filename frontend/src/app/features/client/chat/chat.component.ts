@@ -716,7 +716,7 @@ get rolLabel(): string {
       const preview = texto.length > 80 ? texto.slice(0, 80) + '…' : texto;
       new Notification('\u{1F4AC} Nuevo mensaje', {
         body: preview,
-        icon: '/icon.jpg',
+        icon: 'icon.jpg',
         tag: 'chat-message',
       });
     }
@@ -865,11 +865,26 @@ get rolLabel(): string {
       .pipe(takeUntil(this.socketDestroy$))
       .subscribe(() => { this.otherTyping = false; this.cdr.detectChanges(); });
 
-    this.socket.on<any>('messages_read')
+    this.socket.on<{ sessionId: string; readBy: string }>('messages_read')
       .pipe(takeUntil(this.socketDestroy$))
-      .subscribe(() => {
+      .subscribe((data) => {
+        if (data?.readBy !== 'advisor') return;
+        if (data.sessionId && data.sessionId !== this.session?.id) return;
         this.messages = this.messages.map(m =>
           m.senderType === 'client' ? { ...m, readAt: new Date().toISOString() } : m
+        );
+        this.cdr.detectChanges();
+      });
+
+    this.socket.on<{ sessionId: string; senderType: string }>('message_delivered')
+      .pipe(takeUntil(this.socketDestroy$))
+      .subscribe((data) => {
+        if (data?.senderType !== 'client') return;
+        if (data.sessionId && data.sessionId !== this.session?.id) return;
+        this.messages = this.messages.map(m =>
+          m.senderType === 'client' && !m.readAt
+            ? { ...m, deliveredAt: new Date().toISOString() }
+            : m
         );
         this.cdr.detectChanges();
       });

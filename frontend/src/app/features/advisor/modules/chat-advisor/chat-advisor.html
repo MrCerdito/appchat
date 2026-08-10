@@ -4,7 +4,7 @@
   <aside class="conversations-panel" [class.compact]="compactList">
     <div class="conv-header">
       <div class="conv-brand-row">
-        <img class="conv-logo" src="/icon.jpg" alt="Innova Cloud">
+        <img class="conv-logo" src="icon.jpg" alt="Innova Cloud">
         <span class="conv-title">Innova Cloud</span>
         <div class="conv-stats-inline">
           <span class="stat-chip stat--active">{{ activeSessions.length }}</span>
@@ -281,10 +281,16 @@
           <span class="msg-time">
             {{ fmtTime(msg.createdAt) }}
             @if (msg.senderType === 'advisor') {
-            <span class="read-mark" [class.read]="!!msg.readAt">
-              <span class="check check-1">✓</span>
-              @if (msg.readAt) {
-              <span class="check check-2">✓</span>
+            <span class="read-mark"
+                  [class.delivered]="!!msg.deliveredAt"
+                  [class.read]="!!msg.readAt">
+              <svg class="check check-1" viewBox="0 0 16 11" fill="currentColor" aria-hidden="true">
+                <path d="M11.07.65l-5.93 6.2L2.45 4.3l-1.1 1.1 3.08 3.3.7.8.8-.8 6.32-6.6L11.07.65z"/>
+              </svg>
+              @if (msg.readAt || msg.deliveredAt) {
+              <svg class="check check-2" viewBox="0 0 16 11" fill="currentColor" aria-hidden="true">
+                <path d="M11.07.65l-5.93 6.2L2.45 4.3l-1.1 1.1 3.08 3.3.7.8.8-.8 6.32-6.6L11.07.65z"/>
+              </svg>
               }
             </span>
             }

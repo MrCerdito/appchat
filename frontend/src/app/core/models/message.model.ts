@@ -14,6 +14,7 @@ export interface Message {
   senderName?: string;
   createdAt : string;
   readAt    : string | null;
+  deliveredAt?: string | null;
   attachments?: Attachment[];
   documentos?: { nombre: string; pdfUrl: string | null; categoria: string | null }[];
 }

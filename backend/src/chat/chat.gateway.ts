@@ -519,6 +519,14 @@ export class ChatGateway
     const history = await this.chatService.getHistory(data.sessionId, 50);
     client.emit('message_history', history);
 
+    // Al conectarse el receptor, los mensajes pendientes del otro lado se
+    // consideran entregados y se notifica al remitente.
+    if (client.data.role === 'client') {
+      await this.markMessagesDelivered(data.sessionId, 'advisor');
+    } else if (client.data.role === 'advisor') {
+      await this.markMessagesDelivered(data.sessionId, 'client');
+    }
+
     this.server.to(data.sessionId).emit('user_joined', {
       role: client.data.role,
       name: data.clientName ?? client.data.user?.name ?? 'Anónimo',
@@ -652,6 +660,9 @@ export class ChatGateway
     // Historial al asesor
     const history = await this.chatService.getHistory(sessionId, 50);
     client.emit('message_history', history);
+
+    // Los mensajes del cliente quedan entregados al unirse el asesor.
+    await this.markMessagesDelivered(sessionId, 'client');
 
     // Mensaje de sistema
     const msg = await this.chatService.saveMessage(
@@ -917,6 +928,26 @@ export class ChatGateway
         return null;
       });
     if (!message) return;
+
+    // ── Entrega: si el receptor está conectado en la sala, el mensaje
+    //    se considera entregado y se notifica al remitente. ──────────────
+    const recipientRole = senderType === 'client' ? 'advisor' : 'client';
+    const roomSockets = await this.server
+      .in(data.sessionId)
+      .fetchSockets()
+      .catch(() => [] as Socket[]);
+    const hasRecipient = roomSockets.some(
+      (s) => (s as any)?.data?.role === recipientRole,
+    );
+    if (hasRecipient) {
+      message.deliveredAt = new Date();
+      await this.chatService.markDelivered(data.sessionId, senderType);
+      this.server.to(data.sessionId).emit('message_delivered', {
+        sessionId: data.sessionId,
+        senderType,
+      });
+    }
+
     this.server.to(data.sessionId).emit('new_message', message);
     this.broadcastMessageToAdvisors(data.sessionId, message);
 
@@ -1170,6 +1201,11 @@ export class ChatGateway
     }
     if (data.active) {
       const senderType = client.data.role === 'advisor' ? 'client' : 'advisor';
+      await this.chatService.markDelivered(data.sessionId, senderType);
+      this.server.to(data.sessionId).emit('message_delivered', {
+        sessionId: data.sessionId,
+        senderType,
+      });
       this.chatService.markAsRead(data.sessionId, senderType).then(() => {
         client.to(data.sessionId).emit('messages_read', {
           sessionId: data.sessionId,
@@ -1177,6 +1213,17 @@ export class ChatGateway
         });
       });
     }
+  }
+
+  private async markMessagesDelivered(
+    sessionId: string,
+    senderType: 'client' | 'advisor',
+  ): Promise<void> {
+    await this.chatService.markDelivered(sessionId, senderType);
+    this.server.to(sessionId).emit('message_delivered', {
+      sessionId,
+      senderType,
+    });
   }
 
   // ══════════════════════════════════════════════════════════════════════════

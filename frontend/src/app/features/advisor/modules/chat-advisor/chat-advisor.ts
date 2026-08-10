@@ -485,11 +485,19 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
         this.cdr.detectChanges();
       });
 
-    this.socket.on<any>('messages_read')
+    this.socket.on<{ sessionId: string; readBy: string }>('messages_read')
       .pipe(takeUntil(this.destroy$))
       .subscribe((data) => {
-        if (!data?.sessionId) return;
+        if (!data?.sessionId || data.readBy !== 'client') return;
         this.state.markRead(data.sessionId, 'advisor');
+        this.cdr.detectChanges();
+      });
+
+    this.socket.on<{ sessionId: string; senderType: string }>('message_delivered')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((data) => {
+        if (!data?.sessionId || data.senderType !== 'advisor') return;
+        this.state.markDelivered(data.sessionId, 'advisor');
         this.cdr.detectChanges();
       });
 

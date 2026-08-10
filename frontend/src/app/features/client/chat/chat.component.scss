@@ -647,9 +647,25 @@ $radius-pill: 999px;
 }
 
 .read-mark {
-  font-size: 11px; color: $text-faint; line-height: 1; white-space: nowrap;
-  display: inline-flex; align-items: center; gap: 1px;
+  font-size: 11px; color: #8e8e93; line-height: 1; white-space: nowrap;
+  display: inline-flex; align-items: center;
   transition: color 0.25s ease;
+
+  .check {
+    display: block; width: 14px; height: 11px; flex-shrink: 0;
+  }
+
+  .check-2 {
+    margin-left: -5px;
+  }
+
+  &.delivered {
+    color: #8e8e93;
+
+    .check-2 {
+      animation: check-pop 0.35s cubic-bezier(0.2, 0.8, 0.3, 1.2);
+    }
+  }
 
   &.read {
     color: $primary;
@@ -657,10 +673,10 @@ $radius-pill: 999px;
     .check-1 {
       animation: check-turn 0.25s ease;
     }
-  }
 
-  .check-2 {
-    animation: check-pop 0.35s cubic-bezier(0.2, 0.8, 0.3, 1.2);
+    .check-2 {
+      animation: check-pop 0.35s cubic-bezier(0.2, 0.8, 0.3, 1.2);
+    }
   }
 }
 

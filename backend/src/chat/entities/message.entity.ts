@@ -46,6 +46,9 @@ export class Message {
   @Column({ name: 'read_at', nullable: true, type: 'timestamptz' })
   readAt: Date | null;
 
+  @Column({ name: 'delivered_at', nullable: true, type: 'timestamptz' })
+  deliveredAt: Date | null;
+
   @Column({ type: 'jsonb', nullable: true })
   attachments: Attachment[] | null;
 

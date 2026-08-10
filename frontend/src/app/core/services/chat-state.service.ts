@@ -77,6 +77,15 @@ export class ChatStateService {
     ));
   }
 
+  markDelivered(sessionId: string, senderType: string): void {
+    const current = this.messagesMap.get(sessionId) ?? [];
+    this.messagesMap.set(sessionId, current.map(m =>
+      m.senderType === senderType && !m.readAt
+        ? { ...m, deliveredAt: new Date().toISOString() }
+        : m,
+    ));
+  }
+
   clearSession(sessionId: string): void {
     this.messagesMap.delete(sessionId);
     this.unreadMap.delete(sessionId);

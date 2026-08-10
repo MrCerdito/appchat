@@ -1022,8 +1022,8 @@ export class SoundService {
         tag,
         silent: false,
         requireInteraction: false,
-        icon: '/icon.jpg',
-        badge: '/icon.jpg',
+        icon: 'icon.jpg',
+        badge: 'icon.jpg',
       });
       notification.onclick = () => {
         window.focus();
