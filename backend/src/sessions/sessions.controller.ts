@@ -288,7 +288,7 @@ export class SessionsController {
       return this.sessionsService.close(id);
     }
     throw new ForbiddenException(
-      'Solo el asesor asignado o un administrador puede cerrar la sesión',
+      'Solo el agente asignado o un administrador puede cerrar la sesión',
     );
   }
 

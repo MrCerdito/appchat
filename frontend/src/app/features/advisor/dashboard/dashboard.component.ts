@@ -56,6 +56,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
   totalUnreadCount = 0;
   topbarTitle = 'CHAT EN LINEA';
 
+  teamsPanelOpen = false;
+  isTeamsConnected = false;
+  isLoadingTeams = false;
+  teamsAccountName = '';
+  teamsMessage = '';
+
   allAdvisors: ConnectedAdvisor[] = [];
   teamPanelOpen = false;
   compactTeamView = window.matchMedia('(max-width: 900px)').matches;
@@ -70,6 +76,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   get otherAdvisors(): ConnectedAdvisor[] {
     return this.allAdvisors.filter(a => a.advisorId !== this.currentAdvisor?.id);
+  }
+
+  get roleLabel(): string {
+    return this.currentAdvisor?.role === 'admin' ? 'Administrador' : 'Agente';
   }
 
   private isSelfAdvisor(adv: ConnectedAdvisor): boolean {
@@ -182,6 +192,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
       error: (err) => console.error('HTTP Error:', err),
     });
     this.syncShellMode(this.router.url);
+    window.addEventListener('message', this.handleTeamsAuthMessage);
+    this.loadTeamsStatus();
   }
 
   private registerSocketListeners(): void {
@@ -388,13 +400,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
           this.sound.playWhatsappAssignment();
           this.sound.notify(
             'WHATSAPP',
-            `${chat.name}\nTe han fijado como asesor`,
+            `${chat.name}\nTe han fijado como agente`,
             `wa-fixed-${chat.id}`,
           );
         } else if (prev === this.currentAdvisor?.id && !chat.fixedAdvisorId) {
           this.sound.notify(
             'WHATSAPP',
-            `${chat.name}\nSe quito la fijacion de asesor`,
+            `${chat.name}\nSe quito la fijacion de agente`,
             `wa-unfixed-${chat.id}`,
           );
         }
@@ -695,9 +707,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private syncShellMode(url: string): void {
     const shouldUseCompactShell =
       url.includes('/dashboard/whatsapp') ||
-      url.includes('/dashboard/chats') ||
-      url.includes('/dashboard/configuracion') ||
-      url.includes('/dashboard/tickets');
+      url.includes('/dashboard/chats');
     this.compactShellMode = shouldUseCompactShell;
     if (shouldUseCompactShell) {
       this.sidebarOpen = false;
@@ -869,6 +879,93 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.teamPanelOpen = !this.teamPanelOpen;
   }
 
+  toggleTeamsPanel(): void {
+    this.teamsPanelOpen = !this.teamsPanelOpen;
+    if (this.teamsPanelOpen) {
+      this.teamsMessage = '';
+      this.loadTeamsStatus();
+    }
+  }
+
+  connectTeams(): void {
+    if (this.isLoadingTeams) return;
+    const popup = window.open('', 'innovaTeamsAuth', 'width=520,height=720');
+    this.isLoadingTeams = true;
+    this.teamsMessage = 'Abriendo inicio de sesion de Microsoft...';
+    this.cdr.detectChanges();
+
+    this.whatsapp.getTeamsAuthUrl().subscribe({
+      next: res => {
+        this.isLoadingTeams = false;
+        if (popup) {
+          popup.location.href = res.authUrl;
+        } else {
+          window.location.href = res.authUrl;
+        }
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        popup?.close();
+        this.isLoadingTeams = false;
+        this.teamsMessage = 'No se pudo iniciar sesion en Teams.';
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  disconnectTeams(): void {
+    if (this.isLoadingTeams) return;
+    this.isLoadingTeams = true;
+    this.teamsMessage = 'Desconectando Teams...';
+    this.cdr.detectChanges();
+
+    this.whatsapp.disconnectTeams().subscribe({
+      next: () => {
+        this.isLoadingTeams = false;
+        this.isTeamsConnected = false;
+        this.teamsAccountName = '';
+        this.teamsMessage = '';
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.isLoadingTeams = false;
+        this.teamsMessage = 'No se pudo desconectar Teams.';
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  private loadTeamsStatus(): void {
+    this.isLoadingTeams = true;
+    this.cdr.detectChanges();
+    this.whatsapp.getTeamsStatus().subscribe({
+      next: status => {
+        this.isLoadingTeams = false;
+        this.isTeamsConnected = status.connected;
+        this.teamsAccountName = status.accountName || '';
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.isLoadingTeams = false;
+        this.isTeamsConnected = false;
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  private handleTeamsAuthMessage = (event: MessageEvent): void => {
+    if (event.data?.type !== 'teams-auth') return;
+    if (event.data.success) {
+      this.teamsMessage = 'Teams conectado.';
+      this.loadTeamsStatus();
+    } else {
+      this.isLoadingTeams = false;
+      this.isTeamsConnected = false;
+      this.teamsMessage = event.data.error || 'No se pudo conectar Teams.';
+    }
+    this.cdr.detectChanges();
+  };
+
   openWhatsapp(mode: 'clients' | 'advisors' = 'clients', event?: Event): void {
     event?.stopPropagation();
     this.router.navigate(['/dashboard/whatsapp'], {
@@ -902,6 +999,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.stopLunchCountdown();
     this.teamBreakpoint.removeEventListener('change', this.onTeamBreakpoint);
     document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+    window.removeEventListener('message', this.handleTeamsAuthMessage);
     this.internalChat.disconnect();
   }
 }

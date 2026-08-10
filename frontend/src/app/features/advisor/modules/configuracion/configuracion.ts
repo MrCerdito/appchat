@@ -43,7 +43,7 @@ export class ConfiguracionComponent implements OnInit, OnDestroy {
   qrDeletingBulk = false;
   pageSizeOptions = [10, 25, 50, 100];
 
-  readonly placeholderBienvenida = 'Hola, soy {{asesor}}, en que puedo ayudarte?';
+  readonly placeholderBienvenida = 'Hola, soy {{agente}}, en que puedo ayudarte?';
 
   readonly dias = [
     { value: 0, label: 'Domingo', short: 'Dom' },

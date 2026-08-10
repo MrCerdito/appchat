@@ -338,7 +338,7 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
     if (!c) return '';
     if (c.type === 'group') return `${c.members.length} participantes`;
     const other = c.members.find(m => m.id !== this.currentUserId);
-    if (other) return other.role === 'admin' ? 'Administrador' : 'Asesor';
+    if (other) return other.role === 'admin' ? 'Administrador' : 'Agente';
     return 'Chat directo';
   }
 

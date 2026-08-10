@@ -24,7 +24,7 @@
       <svg class="opas-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
       </svg>
-      <input class="opas-search" type="text" placeholder="Buscar por cliente, teléfono, colegio o asesor" [(ngModel)]="searchQuery" />
+      <input class="opas-search" type="text" placeholder="Buscar por cliente, teléfono, colegio o agente" [(ngModel)]="searchQuery" />
     </div>
     <div class="opas-filter-group">
       <label>Estado</label>
@@ -105,7 +105,7 @@
           <td>{{ chat.tiempoEspera }}</td>
           <td>
               <select class="opas-select" [ngModel]="selectedAdvisor[chat.id]" (ngModelChange)="selectedAdvisor[chat.id] = $event">
-                <option value="">Sin asesor</option>
+                <option value="">Sin agente</option>
                 @for (a of asesores; track trackByAdvisorId($index, a)) {
                 <option [value]="a.id">{{ a.nombre }}</option>
                 }

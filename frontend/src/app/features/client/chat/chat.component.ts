@@ -784,7 +784,7 @@ get rolLabel(): string {
         this.messages.push(msg);
         if (msg.senderType === 'advisor') {
           this.sound.playAdvisorMessage();
-          if (this.step === 'chat') {
+          if (this.step === 'chat' && document.visibilityState === 'visible') {
             this.socket.emit('set_active', { sessionId: this.session!.id, active: true });
           }
           if ((msg as any).showFeedback === true) {
@@ -894,7 +894,7 @@ get rolLabel(): string {
       .subscribe((data) => {
         if (data.sessionId !== this.session?.id) return;
         this.reconexionActiva = true;
-        this.reconexionMensaje = data.mensaje || 'El asesor se desconectó. Esperando reconexión...';
+        this.reconexionMensaje = data.mensaje || 'El agente se desconectó. Esperando reconexión...';
         this.reconexionSegundos = data.tiempoLimiteSeg;
         clearInterval(this.reconexionInterval);
         this.reconexionInterval = setInterval(() => {
@@ -1480,14 +1480,14 @@ get rolLabel(): string {
         if (event === 'error') {
           this.isStreaming = false;
           (this.messages[botMsgIndex] as any).content =
-            'Lo siento, tuve un problema. Intenta de nuevo o escribe "asesor".';
+            'Lo siento, tuve un problema. Intenta de nuevo o escribe "agente".';
           this.cdr.detectChanges();
         }
       },
       error: () => {
         this.isStreaming = false;
         (this.messages[botMsgIndex] as any).content =
-          'Lo siento, tuve un problema. Intenta de nuevo o escribe "asesor".';
+          'Lo siento, tuve un problema. Intenta de nuevo o escribe "agente".';
         this.cdr.detectChanges();
       },
     });

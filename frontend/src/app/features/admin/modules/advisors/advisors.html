@@ -2,7 +2,7 @@
   <!-- ═══════════ HEADER ═══════════ -->
   <div class="page-header">
     <div>
-      <h1>Asesores</h1>
+      <h1>Agentes</h1>
       <p>Gestiona el equipo de soporte y administradores</p>
     </div>
     <div class="header-actions">
@@ -12,7 +12,7 @@
         </svg>
         {{ exporting ? 'Exportando...' : 'Exportar Excel' }}
       </button>
-      <button class="btn-secondary" (click)="onImportClick()" [disabled]="importing" title="Cargar asesores desde Excel">
+      <button class="btn-secondary" (click)="onImportClick()" [disabled]="importing" title="Cargar agentes desde Excel">
         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
         </svg>
@@ -22,7 +22,7 @@
         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
         </svg>
-        Nuevo asesor
+        Nuevo agente
       </button>
       <input #fileInput type="file" accept=".xlsx,.xls" hidden (change)="onFileSelected($event)" />
     </div>
@@ -48,7 +48,7 @@
     <div class="stat total">
       <span class="stat-dot"></span>
       <strong>{{ total }}</strong>
-      <span>Total{{ filtroRol === 'admin' ? ' administradores' : (filtroRol === 'advisor' ? ' asesores' : ' registros') }}</span>
+      <span>Total{{ filtroRol === 'admin' ? ' administradores' : (filtroRol === 'advisor' ? ' agentes' : ' registros') }}</span>
     </div>
   </div>
 
@@ -83,7 +83,7 @@
   <div class="toolbar">
     <div class="role-filter" role="group" aria-label="Filtrar por rol">
       <button class="filter-chip" [class.active]="filtroRol === 'todos'" (click)="setFiltroRol('todos')">Todos</button>
-      <button class="filter-chip" [class.active]="filtroRol === 'advisor'" (click)="setFiltroRol('advisor')">Asesores</button>
+      <button class="filter-chip" [class.active]="filtroRol === 'advisor'" (click)="setFiltroRol('advisor')">Agentes</button>
       <button class="filter-chip" [class.active]="filtroRol === 'admin'" (click)="setFiltroRol('admin')">Administradores</button>
     </div>
     <div class="search-box">
@@ -97,7 +97,7 @@
         (ngModelChange)="onSearch($event)"
         placeholder="Buscar por nombre o email..."
         class="search-input"
-        aria-label="Buscar asesores"
+        aria-label="Buscar agentes"
       />
       @if (search) {
       <button class="search-clear" (click)="onSearch('')" title="Limpiar búsqueda" aria-label="Limpiar búsqueda">
@@ -118,7 +118,7 @@
     <table>
       <thead>
         <tr>
-          <th>Asesor</th>
+          <th>Agente</th>
           <th>Email</th>
           <th>Estado</th>
           <th>Chats</th>
@@ -151,7 +151,7 @@
       <table>
         <thead>
           <tr>
-            <th (click)="setSort('name')" class="sortable">Asesor {{ sortIcon('name') }}</th>
+            <th (click)="setSort('name')" class="sortable">Agente {{ sortIcon('name') }}</th>
             <th (click)="setSort('email')" class="sortable">Email {{ sortIcon('email') }}</th>
             <th (click)="setSort('status')" class="sortable">Estado {{ sortIcon('status') }}</th>
             <th (click)="setSort('activeChats')" class="sortable center">Chats {{ sortIcon('activeChats') }}</th>
@@ -164,7 +164,7 @@
         <tbody>
           @for (a of advisors; track trackById($index, a)) {
           <tr [class.inactive]="!a.active">
-            <td data-label="Asesor">
+            <td data-label="Agente">
               <div class="advisor-cell">
                 <div class="avatar-wrap">
                   <div class="avatar" [class.offline]="a.status === 'offline'" [class.busy]="a.status === 'busy'">
@@ -243,14 +243,14 @@
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
           <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
         </svg>
-        <h3>No se encontraron asesores</h3>
+        <h3>No se encontraron agentes</h3>
         <p>
-          {{ (search || filtroRol !== 'todos') ? 'Prueba ajustando la búsqueda o los filtros.' : 'Empieza agregando tu primer asesor al equipo.' }}
+          {{ (search || filtroRol !== 'todos') ? 'Prueba ajustando la búsqueda o los filtros.' : 'Empieza agregando tu primer agente al equipo.' }}
         </p>
         @if (search || filtroRol !== 'todos') {
         <button class="btn-secondary" (click)="limpiarFiltros()">Limpiar filtros</button>
         } @else {
-        <button class="btn-primary" (click)="openCreate()">+ Nuevo asesor</button>
+        <button class="btn-primary" (click)="openCreate()">+ Nuevo agente</button>
         }
       </div>
       }
@@ -285,7 +285,7 @@
     <div class="modal-card form-modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
       <div class="modal-header">
         <div>
-          <h3>{{ formModal.mode === 'create' ? 'Nuevo asesor' : 'Editar asesor' }}</h3>
+          <h3>{{ formModal.mode === 'create' ? 'Nuevo agente' : 'Editar agente' }}</h3>
           <p>{{ formModal.mode === 'create' ? 'Crea la cuenta de un nuevo miembro' : 'Actualiza la información de ' + formModal.advisor!.name }}</p>
         </div>
         <button class="modal-close" (click)="closeForm()" title="Cerrar" aria-label="Cerrar">
@@ -337,7 +337,7 @@
             <label class="role-option" [class.active]="form.role === 'advisor'">
               <input type="radio" name="formRole" [value]="'advisor'" [(ngModel)]="form.role" />
               <div>
-                <strong>Asesor</strong>
+                <strong>Agente</strong>
                 <small>Atiende chats de soporte</small>
               </div>
             </label>
@@ -395,7 +395,7 @@
       <div class="modal-actions">
         <button class="btn-secondary" (click)="closeForm()">Cancelar</button>
         <button class="btn-primary" (click)="save()" [disabled]="formBusy">
-          {{ formBusy ? 'Guardando...' : (formModal.mode === 'create' ? 'Crear asesor' : 'Guardar cambios') }}
+          {{ formBusy ? 'Guardando...' : (formModal.mode === 'create' ? 'Crear agente' : 'Guardar cambios') }}
         </button>
       </div>
     </div>
@@ -459,7 +459,7 @@
     <div class="modal-card delete-modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
       <div class="modal-header danger">
         <div>
-          <h3>¿Eliminar {{ confirmAction.advisor.role === 'admin' ? 'administrador' : 'asesor' }}?</h3>
+          <h3>¿Eliminar {{ confirmAction.advisor.role === 'admin' ? 'administrador' : 'agente' }}?</h3>
           <p>{{ confirmAction.advisor.name }} · {{ confirmAction.advisor.email }}</p>
         </div>
       </div>
@@ -471,7 +471,7 @@
             @if (confirmAction.advisor.role === 'admin') {
             Las sesiones asignadas y el acceso de administrador se perderán.
             } @else {
-            Las sesiones asignadas a este asesor quedarán sin responsable.
+            Las sesiones asignadas a este agente quedarán sin responsable.
             }
           </span>
         </p>

@@ -466,6 +466,13 @@ export class AdvisorsWhatsappController {
     return this.teamsService.getStatus(req.user.id);
   }
 
+  @Post('teams/disconnect')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  async disconnectTeams(@Req() req: Request & { user: any }) {
+    return this.teamsService.disconnect(req.user.id);
+  }
+
   @Post('teams/auth-url')
   @UseGuards(JwtAuthGuard)
   @HttpCode(200)

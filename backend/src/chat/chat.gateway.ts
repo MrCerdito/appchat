@@ -704,7 +704,7 @@ export class ChatGateway
     // El asesor principal no puede "salir" — debe cerrar o transferir
     if (session.advisor?.id === advisorId) {
       client.emit('leave_chat_error', {
-        reason: 'Eres el asesor principal. Usa transferir o cerrar.',
+        reason: 'Eres el agente principal. Usa transferir o cerrar.',
       });
       return;
     }
@@ -801,7 +801,7 @@ export class ChatGateway
 
     const msg = await this.chatService.saveMessage(
       sessionId,
-      `Has sido asignado al asesor ${newAdvisorName}`,
+      `Has sido asignado al agente ${newAdvisorName}`,
       'advisor',
       'Sistema',
     );
@@ -1007,7 +1007,7 @@ export class ChatGateway
 
     const msg = await this.chatService.saveMessage(
       data.sessionId,
-      `Has sido asignado al asesor ${session.advisor?.name ?? 'otro asesor'}`,
+      `Has sido asignado al agente ${session.advisor?.name ?? 'otro agente'}`,
       'advisor',
       'Sistema',
     );
@@ -1592,7 +1592,7 @@ export class ChatGateway
           sessionId,
           tiempoLimiteSeg: 0,
           mensaje:
-            'El asesor se desconectó. Buscando otro asesor disponible...',
+            'El agente se desconectó. Buscando otro agente disponible...',
         });
 
         // Try immediate assignment
@@ -1605,7 +1605,7 @@ export class ChatGateway
         if (updated && updated.status === 'active' && updated.advisor) {
           const msg2 = await this.chatService.saveMessage(
             sessionId,
-            `Fuiste asignado al asesor ${updated.advisor.name}`,
+            `Fuiste asignado al agente ${updated.advisor.name}`,
             'advisor',
             'Sistema',
           );
@@ -1616,7 +1616,7 @@ export class ChatGateway
             sessionId,
             tiempoLimiteSeg: 30,
             mensaje:
-              'Todos los asesores están ocupados. Te asignaremos uno en cuanto esté disponible.',
+              'Todos los agentes están ocupados. Te asignaremos uno en cuanto esté disponible.',
           });
 
           let retries = 0;
@@ -1634,7 +1634,7 @@ export class ChatGateway
               clearInterval(retryInterval);
               const msg3 = await this.chatService.saveMessage(
                 sessionId,
-                `Fuiste asignado al asesor ${updated2.advisor.name}`,
+                `Fuiste asignado al agente ${updated2.advisor.name}`,
                 'advisor',
                 'Sistema',
               );
@@ -1898,7 +1898,7 @@ export class ChatGateway
     if (!config?.mensajeBienvenida?.trim()) return;
 
     const texto = config.mensajeBienvenida.replace(
-      /\{\{asesor\}\}/gi,
+      /\{\{(asesor|agente)\}\}/gi,
       advisorName,
     );
     const msg = await this.chatService.saveMessage(

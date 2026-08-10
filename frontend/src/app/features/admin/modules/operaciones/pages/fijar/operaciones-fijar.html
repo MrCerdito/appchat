@@ -25,7 +25,7 @@
       <svg class="opf-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
       </svg>
-      <input class="opf-search" type="text" placeholder="Buscar por cliente, teléfono, colegio o asesor" [(ngModel)]="searchQuery" />
+      <input class="opf-search" type="text" placeholder="Buscar por cliente, teléfono, colegio o agente" [(ngModel)]="searchQuery" />
     </div>
     <div class="opf-filter-pills">
       <button class="opf-pill" [class.active]="filtroFijado === 'todos'" (click)="filtroFijado = 'todos'">Todos</button>
@@ -123,7 +123,7 @@
     <div class="opf-popup" (click)="$event.stopPropagation()">
       <div class="opf-popup-header">
         <div>
-          <strong>Fijar asesor para</strong>
+          <strong>Fijar agente para</strong>
           <span class="opf-popup-chatname">{{ fixPopupChatName }}</span>
         </div>
         <button class="opf-popup-close" (click)="closeFixPopup()">
@@ -133,7 +133,7 @@
         </button>
       </div>
       <div class="opf-popup-body">
-        <p class="opf-popup-hint">@if (fixPopupEsGrupo) { Este asesor atenderá siempre los mensajes de este grupo. } @else { Este asesor atenderá siempre los mensajes de este chat. }</p>
+        <p class="opf-popup-hint">@if (fixPopupEsGrupo) { Este agente atenderá siempre los mensajes de este grupo. } @else { Este agente atenderá siempre los mensajes de este chat. }</p>
         @for (advisor of asesores; track trackByAdvisorId($index, advisor)) {
         <button class="opf-popup-advisor" (click)="fijarChat(advisor.id)">
           <div class="opf-popup-adv-avatar">{{ advisor.nombre.charAt(0) }}</div>

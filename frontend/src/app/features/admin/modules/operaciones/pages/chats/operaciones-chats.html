@@ -49,12 +49,12 @@
           class="mode-tab"
           [class.active]="modo === 'asesores'"
           (click)="setModo('asesores')"
-          title="Chat asesores"
+          title="Chat agentes"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
           </svg>
-          <span>Chat asesores</span>
+          <span>Chat agentes</span>
           @if (internalUnreadTotal > 0) {
           <em class="mode-badge">{{ internalUnreadTotal }}</em>
           }
@@ -124,7 +124,7 @@
       } @else {
       <header class="ic-sidebar-header">
         <div class="ic-sidebar-title">
-          <strong>Chat asesores</strong>
+          <strong>Chat agentes</strong>
           <span>{{ internalConversations.length }} conversacion{{ internalConversations.length === 1 ? '' : 'es' }}</span>
         </div>
         <button type="button" class="ic-new-btn" title="Nuevo chat" (click)="openInternalNewChat()">
@@ -138,7 +138,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
-        <input type="text" placeholder="Buscar asesor o grupo" [(ngModel)]="internalSearchQuery" />
+        <input type="text" placeholder="Buscar agente o grupo" [(ngModel)]="internalSearchQuery" />
       </div>
 
       <div class="ic-list">

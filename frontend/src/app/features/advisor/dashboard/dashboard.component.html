@@ -257,7 +257,7 @@
           <div class="topbar-capsules">
             <span class="capsule-tag">Equipo</span>
             <div class="advisor-capsules"
-                 [title]="'Equipo — ' + allAdvisors.length + ' asesores'">
+                 [title]="'Equipo — ' + allAdvisors.length + ' agentes'">
               @for (adv of allAdvisors; track adv.advisorId; let i = $index) {
                 @if (i < maxVisibleCapsules) {
                 <div class="capsule" [class.capsule-self]="adv.advisorId === currentAdvisor?.id"
@@ -281,7 +281,7 @@
                       [class.open]="teamPanelOpen"
                       (click)="toggleTeamPanel(); $event.stopPropagation()"
                       [title]="hiddenAdvisorNames">
-                +{{ allAdvisors.length - maxVisibleCapsules }}<span class="capsule-badge-text"> asesores</span>
+                +{{ allAdvisors.length - maxVisibleCapsules }}<span class="capsule-badge-text"> agentes</span>
               </button>
               }
             </div>
@@ -291,7 +291,7 @@
           <div class="team-panel" (click)="$event.stopPropagation()">
             <div class="team-panel-header">
               <span class="team-panel-title">Equipo</span>
-              <span class="team-panel-count">{{ allAdvisors.length }} asesores</span>
+              <span class="team-panel-count">{{ allAdvisors.length }} agentes</span>
             </div>
             <div class="team-panel-list">
               @for (adv of allAdvisors; track adv.advisorId) {
@@ -363,7 +363,7 @@
               </div>
               <div class="wa-metric-breakdown">
                 <em class="wa-b wa-b-internal" [class.has-count]="internalUnreadCount > 0"
-                  title="Mensajes sin leer del chat interno de asesores" (click)="openWhatsapp('advisors', $event)">
+                  title="Mensajes sin leer del chat interno de agentes" (click)="openWhatsapp('advisors', $event)">
                   Internos <b>{{ internalUnreadCount }}</b>
                 </em>
                 <em class="wa-b wa-b-external" [class.has-count]="whatsappUnreadCount > 0"
@@ -374,6 +374,99 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- ── Microsoft Teams: estado + conectar/desconectar ─────────────── -->
+      <div class="teams-panel-wrap">
+        <button class="teams-trigger"
+                [class.open]="teamsPanelOpen"
+                [class.connected]="isTeamsConnected"
+                (click)="toggleTeamsPanel(); $event.stopPropagation()"
+                title="Microsoft Teams">
+          <span class="teams-trigger-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 7h10v10h-10z" />
+              <path d="M6 10h4" />
+              <path d="M8 10v4" />
+              <path d="M8.104 17c.47 2.274 2.483 4 4.896 4a5 5 0 0 0 5 -5v-7h-5" />
+              <path d="M18 18a4 4 0 0 0 4 -4v-5h-4" />
+              <path d="M13.003 8.83a3 3 0 1 0 -1.833 -1.833" />
+              <path d="M15.83 8.36a2.5 2.5 0 1 0 .594 -4.117" />
+            </svg>
+          </span>
+          <span class="teams-trigger-dot" [class.on]="isTeamsConnected"></span>
+        </button>
+
+        @if (teamsPanelOpen) {
+        <div class="teams-panel" (click)="$event.stopPropagation()">
+          <div class="teams-panel-header">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 7h10v10h-10z" />
+              <path d="M6 10h4" />
+              <path d="M8 10v4" />
+              <path d="M8.104 17c.47 2.274 2.483 4 4.896 4a5 5 0 0 0 5 -5v-7h-5" />
+              <path d="M18 18a4 4 0 0 0 4 -4v-5h-4" />
+              <path d="M13.003 8.83a3 3 0 1 0 -1.833 -1.833" />
+              <path d="M15.83 8.36a2.5 2.5 0 1 0 .594 -4.117" />
+            </svg>
+            <span>Microsoft Teams</span>
+          </div>
+
+          <div class="teams-panel-body">
+            <div class="teams-status-row">
+              <span class="teams-status-dot" [class.on]="isTeamsConnected"></span>
+              @if (isTeamsConnected) {
+              <div class="teams-status-info">
+                <span class="teams-status-text">Conectado</span>
+                <span class="teams-account">{{ teamsAccountName }}</span>
+              </div>
+              } @else {
+              <div class="teams-status-info">
+                <span class="teams-status-text">No conectado</span>
+                <span class="teams-account">Conecta tu cuenta para crear reuniones</span>
+              </div>
+              }
+            </div>
+
+            @if (teamsMessage) {
+            <div class="teams-message">{{ teamsMessage }}</div>
+            }
+
+            @if (isTeamsConnected) {
+            <button class="teams-panel-btn teams-panel-btn--danger"
+                    [disabled]="isLoadingTeams"
+                    (click)="disconnectTeams()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+              {{ isLoadingTeams ? 'Desconectando...' : 'Desconectar' }}
+            </button>
+            } @else {
+            <button class="teams-panel-btn"
+                    [disabled]="isLoadingTeams"
+                    (click)="connectTeams()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M15 3h4a2 2 0 0 1 2 2v4"/>
+                <polyline points="21 14 21 21 14 21"/>
+                <path d="M9 21H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="3 10 3 3 10 3"/>
+              </svg>
+              {{ isLoadingTeams ? 'Abriendo sesion...' : 'Conectar' }}
+            </button>
+            }
+          </div>
+        </div>
+        }
+
+        @if (teamsPanelOpen) {
+        <div class="teams-overlay" (click)="teamsPanelOpen = false"></div>
+        }
       </div>
 
       <!-- ── Asesor: nombre + cargo + flecha ────────────────────────────── -->
@@ -394,7 +487,7 @@
           </div>
           <div class="topbar-advisor-text">
             <span class="topbar-advisor-name">{{ currentAdvisor?.name }}</span>
-            <span class="topbar-advisor-role">{{ currentAdvisor?.role || 'Asesor' }}</span>
+            <span class="topbar-advisor-role">{{ roleLabel }}</span>
           </div>
           <svg class="topbar-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
             stroke-linecap="round" stroke-linejoin="round">
@@ -629,7 +722,7 @@
         @if (almuerzoChatsWeb > 0 || almuerzoChatsWhatsapp > 0) {
         <div class="pending-breakdown">
           @if (almuerzoChatsWeb > 0) {
-          <span class="breakdown-item">● Chat asesor: {{ almuerzoChatsWeb }} sin finalizar</span>
+          <span class="breakdown-item">● Chat agente: {{ almuerzoChatsWeb }} sin finalizar</span>
           }
           @if (almuerzoChatsWhatsapp > 0) {
           <span class="breakdown-item">● WhatsApp: {{ almuerzoChatsWhatsapp }} sin finalizar</span>

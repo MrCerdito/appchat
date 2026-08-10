@@ -120,9 +120,9 @@
     </div>
     <div class="op-nav-right">
       <div class="op-nav-quick">
-        <button class="op-nav-quick-btn" (click)="goToAsesores()" title="Ver asesores">
+        <button class="op-nav-quick-btn" (click)="goToAsesores()" title="Ver agentes">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>
-          <span>Asesores</span>
+          <span>Agentes</span>
         </button>
         <button class="op-nav-quick-btn" (click)="goToChats()" title="Ver todos los chats">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -284,7 +284,7 @@
           </div>
         </button>
         } @empty {
-        <div class="op-mon-empty">Sin asesores registrados</div>
+        <div class="op-mon-empty">Sin agentes registrados</div>
         }
       </div>
       }
@@ -296,7 +296,7 @@
           <div class="op-monitor-col">
             <h4 class="op-mon-col-title blue">
               En cola
-              <span class="op-tip op-tip-dark" data-tip="Clientes que enviaron un mensaje y aún no tienen asesor asignado. Están esperando a ser atendidos.">i</span>
+              <span class="op-tip op-tip-dark" data-tip="Clientes que enviaron un mensaje y aún no tienen agente asignado. Están esperando a ser atendidos.">i</span>
               <span class="op-mon-count">{{ chatsEstadoCola.length }}</span>
             </h4>
             <div class="op-mon-items">
@@ -305,7 +305,7 @@
                 <div class="op-mon-avatar" [style.background]="getAvatarColor(chat.name)">{{ getInitials(chat.name) }}</div>
                 <div class="op-mon-info">
                   <strong>{{ chat.name }}</strong>
-                  <small>{{ chat.assignedToName || 'Sin asesor' }} · espera desde {{ slaEspera(chat) }}</small>
+                  <small>{{ chat.assignedToName || 'Sin agente' }} · espera desde {{ slaEspera(chat) }}</small>
                 </div>
                 <span class="op-priority" [class]="prioridadClass(chat.priority)">{{ (chat.priority || 'normal') | titlecase }}</span>
                 <button class="op-mon-open" (click)="openChat(chat.id); $event.stopPropagation()" title="Abrir chat">
@@ -320,8 +320,8 @@
 
           <div class="op-monitor-col">
             <h4 class="op-mon-col-title amber">
-              Esperando respuesta del asesor
-              <span class="op-tip op-tip-dark" data-tip="El cliente escribió y el asesor aún no responde. Si se supera el plazo SLA se marca con 'SLA vencido' y además aparece en el caso 'SLA vencido'.">i</span>
+              Esperando respuesta del agente
+              <span class="op-tip op-tip-dark" data-tip="El cliente escribió y el agente aún no responde. Si se supera el plazo SLA se marca con 'SLA vencido' y además aparece en el caso 'SLA vencido'.">i</span>
               <span class="op-mon-count">{{ chatsEstadoEspera.length }}</span>
             </h4>
             <div class="op-mon-items">
@@ -330,7 +330,7 @@
                 <div class="op-mon-avatar" [style.background]="getAvatarColor(chat.name)">{{ getInitials(chat.name) }}</div>
                 <div class="op-mon-info">
                   <strong>{{ chat.name }}</strong>
-                  <small>{{ chat.assignedToName || 'Sin asesor' }} · {{ slaEspera(chat) }} · {{ slaRestante(chat) }} @if (esSlaVencido(chat)) {<span class="op-mon-badge">SLA vencido</span>}</small>
+                  <small>{{ chat.assignedToName || 'Sin agente' }} · {{ slaEspera(chat) }} · {{ slaRestante(chat) }} @if (esSlaVencido(chat)) {<span class="op-mon-badge">SLA vencido</span>}</small>
                 </div>
                 <span class="op-priority" [class]="prioridadClass(chat.priority)">{{ (chat.priority || 'normal') | titlecase }}</span>
                 <button class="op-mon-open" (click)="openChat(chat.id); $event.stopPropagation()" title="Abrir chat">
@@ -338,7 +338,7 @@
                 </button>
               </div>
               } @empty {
-              <div class="op-mon-empty">Sin chats esperando respuesta del asesor</div>
+              <div class="op-mon-empty">Sin chats esperando respuesta del agente</div>
               }
             </div>
           </div>
@@ -346,7 +346,7 @@
           <div class="op-monitor-col">
             <h4 class="op-mon-col-title green">
               En gestión
-              <span class="op-tip op-tip-dark" data-tip="El asesor respondió y el chat está en curso. Cuando el cliente aún no responde, también aparece en el caso 'Esperando cliente'.">i</span>
+              <span class="op-tip op-tip-dark" data-tip="El agente respondió y el chat está en curso. Cuando el cliente aún no responde, también aparece en el caso 'Esperando cliente'.">i</span>
               <span class="op-mon-count">{{ chatsEstadoGestion.length }}</span>
             </h4>
             <div class="op-mon-items">
@@ -355,7 +355,7 @@
                 <div class="op-mon-avatar" [style.background]="getAvatarColor(chat.name)">{{ getInitials(chat.name) }}</div>
                 <div class="op-mon-info">
                   <strong>{{ chat.name }}</strong>
-                  <small>{{ chat.assignedToName || 'Sin asesor' }} · {{ slaEspera(chat) }}</small>
+                  <small>{{ chat.assignedToName || 'Sin agente' }} · {{ slaEspera(chat) }}</small>
                 </div>
                 <span class="op-priority" [class]="prioridadClass(chat.priority)">{{ (chat.priority || 'normal') | titlecase }}</span>
                 <button class="op-mon-open" (click)="openChat(chat.id); $event.stopPropagation()" title="Abrir chat">
@@ -371,7 +371,7 @@
           <div class="op-monitor-col">
             <h4 class="op-mon-col-title slate">
               Soporte técnico
-              <span class="op-tip op-tip-dark" data-tip="Chats que el asesor envió al área técnica. El asesor no puede responder mientras espera soporte, por eso NO cuentan como SLA vencido.">i</span>
+              <span class="op-tip op-tip-dark" data-tip="Chats que el agente envió al área técnica. El agente no puede responder mientras espera soporte, por eso NO cuentan como SLA vencido.">i</span>
               <span class="op-mon-count">{{ chatsEstadoSoporte.length }}</span>
             </h4>
             <div class="op-mon-items">
@@ -380,7 +380,7 @@
                 <div class="op-mon-avatar" [style.background]="getAvatarColor(chat.name)">{{ getInitials(chat.name) }}</div>
                 <div class="op-mon-info">
                   <strong>{{ chat.name }}</strong>
-                  <small>{{ chat.assignedToName || 'Sin asesor' }} · en soporte técnico</small>
+                  <small>{{ chat.assignedToName || 'Sin agente' }} · en soporte técnico</small>
                 </div>
                 <span class="op-priority" [class]="prioridadClass(chat.priority)">{{ (chat.priority || 'normal') | titlecase }}</span>
                 <button class="op-mon-open" (click)="openChat(chat.id); $event.stopPropagation()" title="Abrir chat">
@@ -405,7 +405,7 @@
                 <div class="op-mon-avatar" [style.background]="getAvatarColor(chat.name)">{{ getInitials(chat.name) }}</div>
                 <div class="op-mon-info">
                   <strong>{{ chat.name }}</strong>
-                  <small>{{ chat.assignedToName || 'Sin asesor' }} · {{ slaEspera(chat) }}</small>
+                  <small>{{ chat.assignedToName || 'Sin agente' }} · {{ slaEspera(chat) }}</small>
                 </div>
                 <button class="op-mon-open" (click)="openChat(chat.id); $event.stopPropagation()" title="Abrir chat">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
@@ -425,7 +425,7 @@
           <div class="op-monitor-col">
             <h4 class="op-mon-col-title amber">
               Esperando respuesta (dentro de plazo)
-              <span class="op-tip op-tip-dark" data-tip="El cliente escribió y el asesor no responde, pero todavía dentro del plazo SLA por prioridad (urgente 1 min, alta 2 min, media 7 min, baja 10 min).">i</span>
+              <span class="op-tip op-tip-dark" data-tip="El cliente escribió y el agente no responde, pero todavía dentro del plazo SLA por prioridad (urgente 1 min, alta 2 min, media 7 min, baja 10 min).">i</span>
               <span class="op-mon-count">{{ chatsCasoEsperando.length }}</span>
             </h4>
             <div class="op-mon-items">
@@ -450,7 +450,7 @@
           <div class="op-monitor-col">
             <h4 class="op-mon-col-title red">
               SLA vencido
-              <span class="op-tip op-tip-dark" data-tip="El cliente escribió y el asesor no respondió a tiempo. Siguen en su estado 'Esperando respuesta del asesor' y acá se marcan como vencidos.">i</span>
+              <span class="op-tip op-tip-dark" data-tip="El cliente escribió y el agente no respondió a tiempo. Siguen en su estado 'Esperando respuesta del agente' y acá se marcan como vencidos.">i</span>
               <span class="op-mon-count">{{ chatsCasoVencidos.length }}</span>
             </h4>
             <div class="op-mon-items">
@@ -475,7 +475,7 @@
           <div class="op-monitor-col">
             <h4 class="op-mon-col-title purple">
               Esperando cliente
-              <span class="op-tip op-tip-dark" data-tip="El asesor respondió y se espera la respuesta del cliente. Incluye los de 'En gestión' y los explícitos 'esperando_cliente'. No se quitan de su estado.">i</span>
+              <span class="op-tip op-tip-dark" data-tip="El agente respondió y se espera la respuesta del cliente. Incluye los de 'En gestión' y los explícitos 'esperando_cliente'. No se quitan de su estado.">i</span>
               <span class="op-mon-count">{{ chatsCasoEsperandoCliente.length }}</span>
             </h4>
             <div class="op-mon-items">
@@ -521,7 +521,7 @@
     @if (filtersOpen) {
     <div class="op-filter-box">
       <div class="op-filter-group">
-        <label>Categoría <span class="op-tip" data-tip="Estado real de cada chat: En cola (sin asesor), En gestión (asesor trabajando), Esperando respuesta (dentro de plazo), SLA vencido (superó plazo), Soporte técnico (bloqueado), Esperando cliente, Resuelto, Cerrado o Grupo.">i</span></label>
+        <label>Categoría <span class="op-tip" data-tip="Estado real de cada chat: En cola (sin agente), En gestión (agente trabajando), Esperando respuesta (dentro de plazo), SLA vencido (superó plazo), Soporte técnico (bloqueado), Esperando cliente, Resuelto, Cerrado o Grupo.">i</span></label>
         <select [(ngModel)]="filterCategoria" (change)="applyFilters()">
           <option value="todos">Todos</option>
           <option value="cola">En cola</option>
@@ -544,7 +544,7 @@
         </select>
       </div>
       <div class="op-filter-group">
-        <label>Asesor</label>
+        <label>Agente</label>
         <select [(ngModel)]="filterAsesor" (change)="applyFilters()">
           <option value="todos">Todos</option>
           @for (a of advisorOptions; track trackByAdvisorId($index, a)) {
@@ -599,7 +599,7 @@
           </span>
           <span class="op-rapida-info">
             <strong>Fijar chats</strong>
-            <small>Asignar asesor permanente</small>
+            <small>Asignar agente permanente</small>
           </span>
           <svg class="op-rapida-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
         </button>
@@ -642,7 +642,7 @@
                 <th>Cliente</th>
                 <th>Estado <span class="op-tip op-tip-dark" data-tip="Categoría real del chat: En cola, En gestión, Esperando respuesta, SLA vencido, Esperando cliente, Soporte técnico, Resuelto o Cerrado.">i</span></th>
                 <th>Prioridad</th>
-                <th>Asesor</th>
+                <th>Agente</th>
                 <th>Último mensaje</th>
                 <th>Tiempo <span class="op-tip op-tip-dark" data-tip="Tiempo transcurrido desde el último mensaje del cliente. 'Congelado' significa sin movimiento por más de 10 minutos.">i</span></th>
                 <th>SLA <span class="op-tip op-tip-dark" data-tip="Cumplimiento del plazo según prioridad (urgente 1 min, alta 2 min, media 7 min, baja 10 min). Solo se mide en chats en gestión/esperando respuesta; soporte técnico y esperando cliente no cuentan.">i</span></th>

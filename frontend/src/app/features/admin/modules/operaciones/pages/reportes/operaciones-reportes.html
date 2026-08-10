@@ -99,7 +99,7 @@
         <strong>{{ reporte.summary.mensajesTotales }}</strong>
       </div>
       <div class="opr-kpi">
-        <span>Mensajes de asesores</span>
+        <span>Mensajes de agentes</span>
         <strong>{{ reporte.summary.mensajesAsesor }}</strong>
       </div>
       <div class="opr-kpi">
@@ -164,12 +164,12 @@
       </div>
 
       <div class="opr-section">
-        <h3 class="opr-section-title">Desempeño por asesor</h3>
+        <h3 class="opr-section-title">Desempeño por agente</h3>
         @if (reporte.perAdvisor.length > 0) {
           <table class="opr-table">
             <thead>
               <tr>
-                <th>Asesor</th>
+                <th>Agente</th>
                 <th>Chats asignados</th>
                 <th>Cerrados</th>
                 <th>Mensajes enviados</th>
@@ -202,7 +202,7 @@
             <thead>
               <tr>
                 <th>Cliente</th>
-                <th>Asesor</th>
+                <th>Agente</th>
                 <th>Prioridad</th>
                 <th>Estado</th>
                 <th>Mensajes</th>

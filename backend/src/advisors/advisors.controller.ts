@@ -226,7 +226,7 @@ export class AdvisorsController {
   ): Promise<{ profilePhotoUrl: string }> {
     if (!file) throw new BadRequestException('Archivo no recibido');
     if (req.user.role === 'advisor' && req.user.id !== id) {
-      throw new ForbiddenException('No puedes modificar la foto de otro asesor');
+      throw new ForbiddenException('No puedes modificar la foto de otro agente');
     }
 
     const ext =
@@ -268,7 +268,7 @@ export class AdvisorsController {
   @Roles('admin', 'advisor')
   async deletePhoto(@Param('id') id: string, @Request() req: any): Promise<{ ok: boolean }> {
     if (req.user.role === 'advisor' && req.user.id !== id) {
-      throw new ForbiddenException('No puedes eliminar la foto de otro asesor');
+      throw new ForbiddenException('No puedes eliminar la foto de otro agente');
     }
     const user = await this.advisorsService.findById(id);
     if (user.profilePhotoUrl) {

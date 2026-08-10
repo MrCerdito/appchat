@@ -9,7 +9,7 @@
   <div class="history-layout">
     <aside class="sessions-sidebar">
       <div class="search-bar">
-        <input type="text" [(ngModel)]="search" placeholder="Buscar cliente o asesor..." />
+        <input type="text" [(ngModel)]="search" placeholder="Buscar cliente o agente..." />
       </div>
       <div class="filter-tabs">
         <button [class.active]="filter === 'all'"    (click)="filter = 'all'">Todos</button>
@@ -51,7 +51,7 @@
               }
             </span>
             <span class="session-preview">
-              {{ session.advisor?.name ? 'Asesor: ' + session.advisor!.name : 'Sin asesor' }}
+              {{ session.advisor?.name ? 'Agente: ' + session.advisor!.name : 'Sin agente' }}
             </span>
           </div>
           <div class="session-right">
@@ -90,7 +90,7 @@
             <div>
               <span class="client-name">{{ activeSession.clientName }}</span>
               <span class="session-meta">
-                {{ activeSession.advisor?.name ? 'Atendido por ' + activeSession.advisor!.name : 'Sin asesor asignado' }}
+                {{ activeSession.advisor?.name ? 'Atendido por ' + activeSession.advisor!.name : 'Sin agente asignado' }}
                 · {{ fmtDateTimeFull(activeSession.createdAt) }}
               </span>
             </div>

@@ -281,7 +281,12 @@
           <span class="msg-time">
             {{ fmtTime(msg.createdAt) }}
             @if (msg.senderType === 'advisor') {
-            <span class="read-mark">{{ msg.readAt ? '\u2713\u2713' : '\u2713' }}</span>
+            <span class="read-mark" [class.read]="!!msg.readAt">
+              <span class="check check-1">✓</span>
+              @if (msg.readAt) {
+              <span class="check check-2">✓</span>
+              }
+            </span>
             }
           </span>
         </div>
@@ -458,7 +463,7 @@
         [class.timer-alert]="timer.estado === 'alerta'">
         <div class="timer-head">
           <span class="timer-dot" [ngClass]="'dot-' + timer.estado"></span>
-          <span class="timer-lbl">{{ timer.tipo === 'advisor_waiting' ? 'Respuesta del asesor' : timer.tipo === 'client_waiting' ? 'Respuesta del cliente' : 'Cerrando chat' }}</span>
+          <span class="timer-lbl">{{ timer.tipo === 'advisor_waiting' ? 'Respuesta del agente' : timer.tipo === 'client_waiting' ? 'Respuesta del cliente' : 'Cerrando chat' }}</span>
           <span class="timer-count" [class.count-alerta]="timer.estado === 'alerta'">{{ timer.restante }}s</span>
         </div>
         <div class="timer-bar-track">
@@ -620,7 +625,7 @@
   @if (showTransfer) {
   <div class="floating-modal" (click)="showTransfer = false">
     <div class="floating-modal-inner" (click)="$event.stopPropagation()">
-      <h3>Transferir a asesor</h3>
+      <h3>Transferir a agente</h3>
       <div class="transfer-modal-body">
         @for (advisor of advisors; track trackById($index, advisor)) {
         <button
@@ -644,7 +649,7 @@
         </button>
         }
         @if (advisors.length === 0) {
-        <div class="empty-adv">No hay asesores disponibles</div>
+        <div class="empty-adv">No hay agentes disponibles</div>
         }
       </div>
       <div class="modal-actions">

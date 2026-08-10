@@ -321,7 +321,7 @@ export class OperacionesComponent implements OnInit, OnDestroy {
     if (c === 'gestion') return 'respondido · espera al cliente';
     if (c === 'soporte') return 'en soporte técnico';
     if (c === 'esperando_cliente') return 'espera al cliente';
-    if (c === 'cola') return 'sin asesor asignado';
+    if (c === 'cola') return 'sin agente asignado';
     if (c === 'resuelto') return 'resuelto';
     if (c === 'cerrado') return 'cerrado';
     const state = this.slaEstado(chat);
@@ -359,11 +359,11 @@ export class OperacionesComponent implements OnInit, OnDestroy {
       const rem = Math.abs(chat.slaRemainingMinutes ?? 0);
       lines.push(`Retraso: +${formatDuration(rem)}`);
     } else if (c === 'gestion') {
-      lines.push('Asesor ya respondió · el contador se reinició');
+      lines.push('Agente ya respondió · el contador se reinició');
     }
     lines.push(`Prioridad: ${this.prioridadLabel(chat.priority)}`);
     if (chat.fixedAdvisorName || chat.assignedToName) {
-      lines.push(`Asesor: ${chat.fixedAdvisorName || chat.assignedToName}`);
+      lines.push(`Agente: ${chat.fixedAdvisorName || chat.assignedToName}`);
     }
     const last = chat.slaWaitingSince || (chat.lastClientMsg ? new Date(chat.lastClientMsg).toISOString() : '');
     if (last) lines.push(`Último mensaje: ${timeAgo(last)}`);

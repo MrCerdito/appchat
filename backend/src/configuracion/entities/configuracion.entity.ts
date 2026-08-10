@@ -74,7 +74,7 @@ export class Configuracion {
     type: 'text',
     nullable: true,
     default:
-      'Hola, soy {{asesor}}. Ya fui asignado a tu conversacion y revisare tu caso.',
+      'Hola, soy {{agente}}. Ya fui asignado a tu conversacion y revisare tu caso.',
   })
   whatsappAssignmentMsg: string;
 
@@ -83,7 +83,7 @@ export class Configuracion {
     type: 'text',
     nullable: true,
     default:
-      'Te encuentras en cola. En breves momentos un asesor se comunicara contigo.',
+      'Te encuentras en cola. En breves momentos un agente se comunicara contigo.',
   })
   whatsappQueueMsg: string;
 
@@ -101,7 +101,7 @@ export class Configuracion {
     type: 'text',
     nullable: true,
     default:
-      'Actualmente no estamos disponibles para llamadas. Por favor escribenos por este chat y un asesor te atendera.',
+      'Actualmente no estamos disponibles para llamadas. Por favor escribenos por este chat y un agente te atendera.',
   })
   whatsappCallUnavailableMsg: string;
 

@@ -4,7 +4,7 @@
   <aside class="ic-sidebar">
     <header class="ic-sidebar-header">
       <div class="ic-sidebar-title">
-        <strong>Chat asesores</strong>
+        <strong>Chat agentes</strong>
         <span>{{ conversations.length }} conversacion{{ conversations.length === 1 ? '' : 'es' }}</span>
       </div>
       <button type="button" class="ic-new-btn" title="Nuevo chat" (click)="openNewChat()">
@@ -14,7 +14,7 @@
 
     <div class="ic-search">
       <wa-icon name="search"></wa-icon>
-      <input type="text" placeholder="Buscar asesor o grupo" [(ngModel)]="searchQuery" />
+      <input type="text" placeholder="Buscar agente o grupo" [(ngModel)]="searchQuery" />
     </div>
 
     <div class="ic-list">
@@ -63,8 +63,8 @@
     @if (!activeConversation) {
     <div class="ic-welcome">
       <div class="ic-welcome-icon"><wa-icon name="users-group"></wa-icon></div>
-      <h3>Chat asesores</h3>
-      <p>Conversaciones internas entre asesores y el grupo de soporte.</p>
+      <h3>Chat agentes</h3>
+      <p>Conversaciones internas entre agentes y el grupo de soporte.</p>
       <button type="button" class="ic-primary-btn" (click)="openNewChat()">
         <wa-icon name="user-plus"></wa-icon>
         Nuevo chat
@@ -390,7 +390,7 @@
     </header>
     <div class="ic-modal-search">
       <wa-icon name="search"></wa-icon>
-      <input type="text" placeholder="Buscar asesor" [(ngModel)]="newChatSearch" />
+      <input type="text" placeholder="Buscar agente" [(ngModel)]="newChatSearch" />
     </div>
     <div class="ic-advisor-list">
       @for (advisor of filteredAdvisors; track advisor.id) {
@@ -409,7 +409,7 @@
         </div>
         <div class="ic-advisor-info">
           <strong>{{ advisor.name }}</strong>
-          <span>{{ advisor.role === 'admin' ? 'Administrador' : 'Asesor' }}</span>
+          <span>{{ advisor.role === 'admin' ? 'Administrador' : 'Agente' }}</span>
         </div>
         @if (existingDirectIds.has(advisor.id)) {
         <em>Ya existe</em>
@@ -417,7 +417,7 @@
       </button>
       }
       @if (!filteredAdvisors.length) {
-      <div class="ic-empty-list">Sin asesores disponibles.</div>
+      <div class="ic-empty-list">Sin agentes disponibles.</div>
       }
     </div>
   </section>

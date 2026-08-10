@@ -53,7 +53,7 @@ export class ConfiguracionService implements OnModuleInit {
     await this.repo.query(`
       ALTER TABLE IF EXISTS public.configuracion
       ADD COLUMN IF NOT EXISTS whatsapp_call_unavailable_msg text NOT NULL
-      DEFAULT 'Actualmente no estamos disponibles para llamadas. Por favor escribenos por este chat y un asesor te atendera.'
+      DEFAULT 'Actualmente no estamos disponibles para llamadas. Por favor escribenos por este chat y un agente te atendera.'
     `);
     await this.repo.query(`
       ALTER TABLE IF EXISTS public.configuracion
@@ -86,7 +86,7 @@ export class ConfiguracionService implements OnModuleInit {
     await this.repo.query(`
       ALTER TABLE IF EXISTS public.configuracion
       ADD COLUMN IF NOT EXISTS asesor_reconexion_msg text NOT NULL
-      DEFAULT 'El asesor se ha desconectado. Por favor inicia una nueva conversacion.'
+      DEFAULT 'El agente se ha desconectado. Por favor inicia una nueva conversacion.'
     `);
     await this.repo.query(`
       ALTER TABLE IF EXISTS public.configuracion
@@ -254,22 +254,22 @@ export class ConfiguracionService implements OnModuleInit {
     const defaults: Partial<Configuracion> = {
       mensajeBienvenida: '¡Bienvenido! ¿En qué puedo ayudarte?',
       asesorInactividadMsg:
-        'El asesor se ha desconectado. En breve lo atenderá otro.',
+        'El agente se ha desconectado. En breve lo atenderá otro.',
       asesorReconexionSeg: 120,
       asesorReconexionMsg:
-        'El asesor se ha desconectado. Por favor inicia una nueva conversacion.',
+        'El agente se ha desconectado. Por favor inicia una nueva conversacion.',
       clienteInactividadMsg: '¿Sigues ahí? Escribe algo para continuar.',
       clienteCierreMsg: 'Gracias por contactarnos. Que tengas un buen día.',
       horarioFueraMsg:
         'Estamos fuera del horario de atención. Vuelve en nuestro horario habitual.',
       whatsappAssignmentMsg:
-        'Hola, soy {{asesor}}. Ya fui asignado a tu conversacion y revisare tu caso.',
+        'Hola, soy {{agente}}. Ya fui asignado a tu conversacion y revisare tu caso.',
       whatsappQueueMsg:
-        'Te encuentras en cola. En breves momentos un asesor se comunicara contigo.',
+        'Te encuentras en cola. En breves momentos un agente se comunicara contigo.',
       whatsappOutOfHoursMsg:
         'Hola. En este momento estamos fuera de servicio. Por favor vuelve {{proximaApertura}}.',
       whatsappCallUnavailableMsg:
-        'Actualmente no estamos disponibles para llamadas. Por favor escribenos por este chat y un asesor te atendera.',
+        'Actualmente no estamos disponibles para llamadas. Por favor escribenos por este chat y un agente te atendera.',
       ticketCategories: [
         'Soporte tecnico',
         'Administrativo',

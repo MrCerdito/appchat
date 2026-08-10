@@ -61,7 +61,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="8" r="4"/><path d="M6 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
         </svg>
-        Inactividad asesor
+        Inactividad agente
       </button>
       <button class="tab" [class.active]="tab === 'cliente'" (click)="tab = 'cliente'">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -92,7 +92,7 @@
       <div class="panel-section">
         <div class="section-info">
           <h3>Mensaje de bienvenida</h3>
-          <p>Se envía automáticamente cuando te asignan a un cliente. Usa <code [innerHTML]="'{{' + 'asesor' + '}}'"></code> para incluir tu nombre.</p>
+          <p>Se envía automáticamente cuando te asignan a un cliente. Usa <code [innerHTML]="'{{' + 'agente' + '}}'"></code> para incluir tu nombre.</p>
         </div>
         <div class="field">
           <label>Mensaje</label>
@@ -356,7 +356,7 @@
       <div class="panel-section">
         <div class="section-info">
           <h3>Respuestas rapidas globales</h3>
-          <p>Estas respuestas se comparten con el administrador. Las que agregues aqui estaran disponibles para todos los asesores.</p>
+          <p>Estas respuestas se comparten con el administrador. Las que agregues aqui estaran disponibles para todos los agentes.</p>
           <p>Usa <code>/</code> en el chat para acceder rapidamente. Soporta <code>**negrita**</code> y <code>[texto](url)</code> para links.</p>
         </div>
 

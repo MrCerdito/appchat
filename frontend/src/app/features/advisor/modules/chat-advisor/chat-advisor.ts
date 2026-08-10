@@ -207,7 +207,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     if (!lm) return '';
     if (lm.senderType === 'client') return session.clientName || 'Cliente';
     if (lm.senderName === 'Asistente Virtual') return 'IA';
-    return lm.senderName || 'Asesor';
+    return lm.senderName || 'Agente';
   }
 
   /** Texto del preview: adjunto o contenido del último mensaje. */
@@ -229,7 +229,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   }
 
   get activeAdvisorName(): string {
-    return this.activeSession?.advisor?.name || 'Sin asesor';
+    return this.activeSession?.advisor?.name || 'Sin agente';
   }
 
   get timerState(): TimerPanelState | null {
@@ -466,7 +466,9 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
         if (msg.senderType === 'client') {
           if (this.activeSession?.id === sessionId) {
             this.state.setUnread(sessionId, 0);
-            this.socket.emit('set_active', { sessionId, active: true });
+            if (document.visibilityState === 'visible') {
+              this.socket.emit('set_active', { sessionId, active: true });
+            }
           } else if (added && this.state.getActiveSessionId() !== sessionId) {
             this.state.incrementUnread(sessionId);
           }
@@ -1332,7 +1334,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
         }, 3000);
         // Auto-mensaje
         const label = priorityLabel(ticket.priority);
-        const advisorName = this.currentAdvisor?.name || 'Asesor';
+        const advisorName = this.currentAdvisor?.name || 'Agente';
         this.socket.emit('send_message', {
           sessionId: session.id,
           content: `Se generó el ticket ${ticket.codigo} con prioridad ${label} y fue asignado a ${advisorName}.`,

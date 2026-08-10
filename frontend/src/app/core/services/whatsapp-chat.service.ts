@@ -570,6 +570,14 @@ export class WhatsappChatService implements OnDestroy {
     );
   }
 
+  disconnectTeams(): Observable<{ ok: boolean }> {
+    return this.http.post<{ ok: boolean }>(
+      `${this.apiUrl}/teams/disconnect`,
+      {},
+      { headers: this.headers() },
+    );
+  }
+
   createTeamsMeeting(
     chatId: string,
     payload: TeamsMeetingRequest,

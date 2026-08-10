@@ -24,7 +24,7 @@
           <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
         </svg>
         <input type="text" [(ngModel)]="search"
-          placeholder="Buscar por nombre, asesor, colegio o ID..."/>
+          placeholder="Buscar por nombre, agente, colegio o ID..."/>
       </div>
 
       <div class="filter-tabs">
@@ -111,7 +111,7 @@
             <span class="session-detail">{{ session.colegio }}</span>
             }
             <span class="session-preview">
-              {{ session.advisor?.name ? 'Asesor: ' + session.advisor!.name : 'Sin asesor' }}
+              {{ session.advisor?.name ? 'Agente: ' + session.advisor!.name : 'Sin agente' }}
             </span>
           </div>
 
@@ -166,7 +166,7 @@
             <div class="header-text">
               <span class="client-name">{{ activeSession.clientName }}</span>
               <span class="session-meta">
-                {{ activeSession.advisor?.name ? 'Atendido por ' + activeSession.advisor!.name : 'Sin asesor asignado' }}
+                {{ activeSession.advisor?.name ? 'Atendido por ' + activeSession.advisor!.name : 'Sin agente asignado' }}
                 · {{ fmtDateTimeFull(activeSession.createdAt) }}
               </span>
               @if (activeSession.colegio || activeSession.rol) {

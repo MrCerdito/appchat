@@ -73,13 +73,13 @@
     </header>
 
     <label>
-      <span>Mensaje al asignar asesor</span>
+      <span>Mensaje al asignar agente</span>
       <textarea
         rows="3"
         [(ngModel)]="settingsDraft.assignmentMsg"
-        [placeholder]="'Hola, soy {{asesor}}...'"
+        [placeholder]="'Hola, soy {{agente}}...'"
       ></textarea>
-      <em>Usa {{ '{' + '{asesor}' + '}' + '}' }} para insertar el nombre del asesor.</em>
+      <em>Usa {{ '{' + '{agente}' + '}' + '}' }} para insertar el nombre del agente.</em>
     </label>
 
     <label>
@@ -335,10 +335,10 @@
         class="mode-tab"
         [class.active]="chatMode === 'advisors'"
         (click)="setChatMode('advisors')"
-        title="Chat asesores"
+        title="Chat agentes"
       >
         <wa-icon name="users-group"></wa-icon>
-        <span>Chat asesores</span>
+        <span>Chat agentes</span>
         @if (internalUnreadTotal > 0) {
         <em class="mode-badge">{{ internalUnreadTotal }}</em>
         }
@@ -479,7 +479,7 @@
               {{ getAssignmentLabel(c) }}
             </span>
             @if (c.fixedAdvisorId && c.fixedAdvisorName) {
-            <span class="meta-badge fixed-badge" title="Asesor fijo">
+            <span class="meta-badge fixed-badge" title="Agente fijo">
               <wa-icon name="lock"></wa-icon>
               {{ c.fixedAdvisorName }}
             </span>
@@ -522,7 +522,7 @@
 
     <header class="ic-sidebar-header">
       <div class="ic-sidebar-title">
-        <strong>Chat asesores</strong>
+        <strong>Chat agentes</strong>
         <span>{{ internalConversations.length }} conversacion{{ internalConversations.length === 1 ? '' : 'es' }}</span>
       </div>
       <button type="button" class="ic-new-btn" title="Nuevo chat" (click)="openInternalNewChat()">
@@ -532,7 +532,7 @@
 
     <div class="ic-search">
       <wa-icon name="search"></wa-icon>
-      <input type="text" placeholder="Buscar asesor o grupo" [(ngModel)]="internalSearchQuery" />
+      <input type="text" placeholder="Buscar agente o grupo" [(ngModel)]="internalSearchQuery" />
     </div>
 
     <div class="ic-list">
@@ -835,7 +835,7 @@
 
     <!--<div class="state-banner group" *ngIf="contact.isGroup">
       <wa-icon name="users-group"></wa-icon>
-      Grupo compartido. No se asigna asesor ni se envian mensajes automaticos.
+      Grupo compartido. No se asigna agente ni se envian mensajes automaticos.
     </div>-->
     @if (isAttentionClosed) {
     <div class="state-banner closed">
@@ -846,7 +846,7 @@
     @if (isAssignedToSomeoneElse) {
     <div class="state-banner locked">
       <wa-icon name="user-shield"></wa-icon>
-      Este chat esta asignado a otro asesor.
+      Este chat esta asignado a otro agente.
     </div>
     }
     @if (sendError) {
@@ -1123,7 +1123,7 @@
     <section class="panel-section fixed-info-section">
       <div class="section-title">
         <wa-icon name="lock"></wa-icon>
-        Asesor fijado
+        Agente fijado
       </div>
       <div class="fixed-advisor-display">
         <wa-icon name="user"></wa-icon>

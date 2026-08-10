@@ -183,7 +183,7 @@ const DEFAULT_MENSAJE_SESION_TERMINADA =
   'Esta conversación ha sido finalizada por el uso continuado de lenguaje ofensivo. Si necesitas ayuda, inicia una nueva conversación manteniendo un trato respetuoso.';
 
 const DEFAULT_MENSAJE_SIN_INFORMACION =
-  'No tengo información registrada sobre eso por el momento. ¿Necesitas un asesor para una mejor ayuda?';
+  'No tengo información registrada sobre eso por el momento. ¿Necesitas un agente para una mejor ayuda?';
 
 const SALUDOS: string[] = [
   'hola',

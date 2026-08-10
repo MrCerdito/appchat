@@ -159,7 +159,7 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
           this.pages = res.pages;
           this.sortAdvisors();
         },
-        error: () => this.showError('Error cargando asesores'),
+        error: () => this.showError('Error cargando agentes'),
       });
   }
 
@@ -307,7 +307,7 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
     ).subscribe({
       next: () => {
         const action = this.formModal?.mode === 'create' ? 'creado' : 'actualizado';
-        this.showSuccess(`Asesor ${action}`);
+        this.showSuccess(`Agente ${action}`);
         this.closeForm();
         this.loadAdvisors();
       },
@@ -463,7 +463,7 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
         this.notification.success('Importación', res.message);
         this.loadAdvisors();
       },
-      error: (err) => this.showError(err.error?.message ?? 'Error al importar asesores'),
+      error: (err) => this.showError(err.error?.message ?? 'Error al importar agentes'),
     });
   }
 
@@ -477,13 +477,13 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `asesores-${new Date().toISOString().slice(0, 10)}.xlsx`;
+        a.download = `agentes-${new Date().toISOString().slice(0, 10)}.xlsx`;
         document.body.appendChild(a);
         a.click();
         a.remove();
         window.URL.revokeObjectURL(url);
       },
-      error: () => this.showError('Error al exportar asesores'),
+      error: () => this.showError('Error al exportar agentes'),
     });
   }
 
@@ -519,7 +519,7 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
       finalize(() => { this.busyId = null; this.cdr.detectChanges(); }),
     ).subscribe({
       next: () => {
-        this.showSuccess('Asesor eliminado');
+        this.showSuccess('Agente eliminado');
         if (this.advisors.length === 1 && this.page > 1) {
           this.page--;
         }
@@ -540,7 +540,7 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
   }
 
   getRoleLabel(role?: string): string {
-    return role === 'admin' ? 'Administrador' : 'Asesor';
+    return role === 'admin' ? 'Administrador' : 'Agente';
   }
 
   formatDate(date?: string): string {

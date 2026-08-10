@@ -349,9 +349,9 @@
       <div class="panel-section">
         <div class="section-info">
           <h3>Mensaje de bienvenida por defecto</h3>
-          <p>Mensaje que envían los asesores al conectarse con un cliente.
-             Cada asesor puede personalizarlo en su propia configuración.
-             Usa <code [innerHTML]="'{{' + 'asesor' + '}}'"></code> para el nombre.</p>
+          <p>Mensaje que envían los agentes al conectarse con un cliente.
+             Cada agente puede personalizarlo en su propia configuración.
+             Usa <code [innerHTML]="'{{' + 'agente' + '}}'"></code> para el nombre.</p>
         </div>
         <div class="field-card">
           <div class="field-card-header">
@@ -418,7 +418,7 @@
                 </div>
               </div>
               <div class="sound-category">
-                <label>Sonido Asesor <span class="field-tip" title="Sonido cuando un asesor escribe">ⓘ</span></label>
+                <label>Sonido Agente <span class="field-tip" title="Sonido cuando un agente escribe">ⓘ</span></label>
                 <div class="sound-select-row">
                   <select [(ngModel)]="config.sonidoAsesor">
                     @for (opt of sonidoAsesorOptions; track trackByIndex($index)) {
@@ -481,21 +481,21 @@
       <div class="panel-section whatsapp-settings">
         <div class="section-info">
           <h3>Mensajes automaticos de WhatsApp</h3>
-          <p>Define los textos que recibe el cliente cuando entra a cola, cuando se le asigna un asesor y cuando escribe fuera del horario de servicio.</p>
+          <p>Define los textos que recibe el cliente cuando entra a cola, cuando se le asigna un agente y cuando escribe fuera del horario de servicio.</p>
         </div>
 
         <div class="placeholder-row">
           <span>Variables disponibles</span>
-          <code [innerHTML]="'{{' + 'asesor' + '}}'"></code>
+          <code [innerHTML]="'{{' + 'agente' + '}}'"></code>
           <code [innerHTML]="'{{' + 'proximaApertura' + '}}'"></code>
           <code [innerHTML]="'{{' + 'horaApertura' + '}}'"></code>
         </div>
 
         <div class="field">
-          <label>Mensaje cuando se asigna un asesor</label>
+          <label>Mensaje cuando se asigna un agente</label>
           <textarea [(ngModel)]="config.whatsappAssignmentMsg" rows="3"
             [attr.placeholder]="placeholderWhatsappAsignacion"></textarea>
-          <span class="field-hint">Usa <code [innerHTML]="'{{' + 'asesor' + '}}'"></code> para insertar el nombre del asesor asignado.</span>
+          <span class="field-hint">Usa <code [innerHTML]="'{{' + 'agente' + '}}'"></code> para insertar el nombre del agente asignado.</span>
         </div>
         <div class="preview-box">
           <span class="preview-label">Vista previa</span>
@@ -543,8 +543,8 @@
 
         <div class="section-info">
           <h3>Parámetros de inactividad</h3>
-          <p>Configuración global que aplica a todos los asesores que no tengan
-             valores personalizados. Los asesores pueden sobrescribir estos valores
+          <p>Configuración global que aplica a todos los agentes que no tengan
+             valores personalizados. Los agentes pueden sobrescribir estos valores
              en su propia configuración.</p>
         </div>
 
@@ -555,7 +555,7 @@
               <circle cx="12" cy="8" r="4"/>
               <path d="M6 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
             </svg>
-            <span>Inactividad del asesor</span>
+            <span>Inactividad del agente</span>
           </div>
           <div class="field-card-body">
             <div class="inac-block">
@@ -568,8 +568,8 @@
                   </svg>
                 </div>
                 <div>
-                  <span class="inac-title">Inactividad del asesor</span>
-                  <span class="inac-sub">Si el asesor no responde en este tiempo, se envía un mensaje automático al cliente</span>
+                  <span class="inac-title">Inactividad del agente</span>
+                  <span class="inac-sub">Si el agente no responde en este tiempo, se envía un mensaje automático al cliente</span>
                 </div>
               </div>
               <div class="fields-row">
@@ -680,7 +680,7 @@
       <div class="panel-section">
         <div class="section-info">
           <h3>Respuestas rapidas con /</h3>
-          <p>Define las respuestas que los asesores pueden usar escribiendo <code>/</code> en el chat.
+          <p>Define las respuestas que los agentes pueden usar escribiendo <code>/</code> en el chat.
              Cada respuesta tiene un nombre para identificarla y el contenido que se enviara.
              Soporta <code>**negrita**</code> y <code>[texto](url)</code> para links.</p>
         </div>
@@ -1000,7 +1000,7 @@
                   <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                 </svg>
               </div>
-              <span class="ia-section-title">Transferencia a asesor</span>
+              <span class="ia-section-title">Transferencia a agente</span>
             </div>
             <svg class="ia-chevron" [class.open]="iaSectionOpen.transferencia" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
           </div>
@@ -1099,10 +1099,10 @@
                 <span class="field-hint">A la N-ésima grosería la sesión se finaliza automáticamente</span>
               </div>
               <div class="field">
-                <label>Sugerir asesor automáticamente cuando no haya respuesta</label>
+                <label>Sugerir agente automáticamente cuando no haya respuesta</label>
                 <div class="toggle-wrap" style="margin-top:0.5rem;">
                   <input type="checkbox" id="chkSugerirAsesor" [(ngModel)]="aiSugerirAsesorAutomatico"/>
-                  <label for="chkSugerirAsesor" class="toggle-label">Ofrecer transferencia a asesor humano</label>
+                  <label for="chkSugerirAsesor" class="toggle-label">Ofrecer transferencia a agente humano</label>
                 </div>
               </div>
             </div>
@@ -1198,8 +1198,8 @@
     <div class="tab-panel">
       <div class="panel-section">
         <div class="section-info">
-          <h3>Reconexión de asesores</h3>
-          <p>Cuando un asesor se desconecta inesperadamente, el sistema esperará este tiempo antes de cerrar la sesión y ofrecer al cliente iniciar una nueva.</p>
+          <h3>Reconexión de agentes</h3>
+          <p>Cuando un agente se desconecta inesperadamente, el sistema esperará este tiempo antes de cerrar la sesión y ofrecer al cliente iniciar una nueva.</p>
         </div>
 
         <div class="field-card">
@@ -1233,7 +1233,7 @@
             <div class="field">
               <label>Mensaje de reconexión</label>
               <textarea [(ngModel)]="config.asesorReconexionMsg" rows="3" maxlength="500"></textarea>
-              <span class="field-hint">Mensaje que se muestra al cliente mientras espera la reconexión del asesor. Máximo 500 caracteres.</span>
+              <span class="field-hint">Mensaje que se muestra al cliente mientras espera la reconexión del agente. Máximo 500 caracteres.</span>
             </div>
           </div>
         </div>

@@ -276,7 +276,7 @@
             </svg>
           </div>
         </div>
-        <h3>Conectando con un asesor</h3>
+        <h3>Conectando con un agente</h3>
         <p>En breve uno de nuestros especialistas atenderá tu solicitud</p>
 
         @if (queuePosition > 0) {
@@ -334,8 +334,8 @@
           </svg>
         </div>
         <div class="busy-text">
-          <strong>Los asesores están ocupados</strong>
-          <span>No hay asesores disponibles en este momento. Puedes cerrar y volver a intentarlo más tarde, o consultar nuestras preguntas frecuentes.</span>
+          <strong>Los agentes están ocupados</strong>
+          <span>No hay agentes disponibles en este momento. Puedes cerrar y volver a intentarlo más tarde, o consultar nuestras preguntas frecuentes.</span>
         </div>
       </div>
       }
@@ -537,7 +537,12 @@
           <span class="msg-time">
             {{ formatMessageTime(msg.createdAt) }}
             @if (msg.senderType === 'client') {
-            <span class="read-mark">{{ msg.readAt ? '\u2713\u2713' : '\u2713' }}</span>
+            <span class="read-mark" [class.read]="!!msg.readAt">
+              <span class="check check-1">✓</span>
+              @if (msg.readAt) {
+              <span class="check check-2">✓</span>
+              }
+            </span>
             }
           </span>
         </div>
@@ -581,7 +586,7 @@
         <!-- Oferta de transferencia a asesor -->
         @if (mostrarOfertaAsesorEn(i)) {
         <div class="inline-survey">
-          <div class="survey-question">¿Necesitas un asesor para una mejor ayuda?</div>
+          <div class="survey-question">¿Necesitas un agente para una mejor ayuda?</div>
           <div class="survey-actions">
             <button class="survey-btn positive" (click)="responderOfertaAsesor(i, true)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
@@ -607,7 +612,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="20 6 9 17 4 12"/>
           </svg>
-          {{ ofertasAsesorRespondidas.get(i) ? 'Conectando con un asesor...' : 'Entendido, continuaré ayudándote.' }}
+          {{ ofertasAsesorRespondidas.get(i) ? 'Conectando con un agente...' : 'Entendido, continuaré ayudándote.' }}
         </div>
         }
 
@@ -646,7 +651,7 @@
       [class.warning]="clientTimer.pct >= 65 && clientTimer.tipo !== 'closing'"
     >
       <div class="client-timer-copy">
-        <strong>{{ clientTimer.tipo === 'client_waiting' ? 'Esperando tu respuesta' : clientTimer.tipo === 'advisor_waiting' ? 'Esperando respuesta del asesor' : 'Cerrando chat' }}</strong>
+        <strong>{{ clientTimer.tipo === 'client_waiting' ? 'Esperando tu respuesta' : clientTimer.tipo === 'advisor_waiting' ? 'Esperando respuesta del agente' : 'Cerrando chat' }}</strong>
       </div>
       <span class="client-timer-count">{{ clientTimer.restante }}s</span>
       <div class="client-timer-track">

@@ -132,11 +132,11 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   @ViewChild('videoInput') videoInput!: ElementRef<HTMLInputElement>;
   @ViewChild('docInput') docInput!: ElementRef<HTMLInputElement>;
 
-  queueCopy = 'Te encuentras en cola. En breves momentos un asesor se comunicara contigo.';
+  queueCopy = 'Te encuentras en cola. En breves momentos un agente se comunicara contigo.';
   readonly defaultAssignmentMsg =
-    'Hola, soy {{asesor}}. Ya fui asignado a tu conversacion y revisare tu caso.';
+    'Hola, soy {{agente}}. Ya fui asignado a tu conversacion y revisare tu caso.';
   readonly defaultCallUnavailableMsg =
-    'Actualmente no estamos disponibles para llamadas. Por favor escribenos por este chat y un asesor te atendera.';
+    'Actualmente no estamos disponibles para llamadas. Por favor escribenos por este chat y un agente te atendera.';
   readonly defaultQuickReplies: Array<{ name: string; content: string }> = [
     { name: 'Saludo', content: 'Hola, con gusto reviso tu caso.' },
     { name: 'Espera', content: 'Dame un momento mientras valido la informacion.' },
@@ -154,7 +154,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   ];
   readonly operationalStatusOptions: { id: WaOperationalStatus; label: string; hint: string }[] = [
     { id: 'in_progress', label: 'En gestion', hint: 'Atencion activa del caso.' },
-    { id: 'waiting_technical', label: 'Esperando soporte', hint: 'Mantiene el asesor asignado y no dispara cierre.' },
+    { id: 'waiting_technical', label: 'Esperando soporte', hint: 'Mantiene el agente asignado y no dispara cierre.' },
     { id: 'resolved', label: 'Resuelto', hint: 'Solucionado; entra al tiempo de cierre automatico.' },
   ];
   readonly editWindowMs = 15 * 60_000;
@@ -785,7 +785,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     if (this.activeContact.isGroup) return 'Responder al grupo desde InnovaCloud';
     if (this.isAttentionClosed) return 'Atencion cerrada. El historial se conserva';
     if (this.isInQueue) return 'Conversacion en cola';
-    if (this.isAssignedToSomeoneElse) return 'Asignado a otro asesor';
+    if (this.isAssignedToSomeoneElse) return 'Asignado a otro agente';
     if (this.isAiGenerating) return 'Mejorando texto...';
     return 'Escribe un mensaje o / para respuestas rapidas';
   }

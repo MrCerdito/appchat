@@ -63,7 +63,7 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
   aiMensajeGroseria = 'Por favor, mantengamos un trato respetuoso. No puedo ayudarte si usas lenguaje ofensivo. ¿En qué más puedo ayudarte?';
   aiLimiteGroserias = 3;
   aiMensajeSesionTerminada = 'Esta conversación ha sido finalizada por el uso continuado de lenguaje ofensivo. Si necesitas ayuda, inicia una nueva conversación manteniendo un trato respetuoso.';
-  aiMensajeSinInformacion = 'No tengo información registrada sobre eso por el momento. ¿Necesitas un asesor para una mejor ayuda?';
+  aiMensajeSinInformacion = 'No tengo información registrada sobre eso por el momento. ¿Necesitas un agente para una mejor ayuda?';
   aiSugerirAsesorAutomatico = true;
   newForbiddenWord = '';
   iaSectionOpen = { identidad: true, instrucciones: true, roles: true, transferencia: false, conducta: false, feedback: false, avanzado: false };
@@ -98,15 +98,15 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
   };
 
   readonly placeholderBienvenida =
-    'Hola, soy {{asesor}}, en que puedo ayudarte?';
+    'Hola, soy {{agente}}, en que puedo ayudarte?';
   readonly placeholderWhatsappAsignacion =
-    'Hola, soy {{asesor}}. Ya fui asignado a tu conversacion y revisare tu caso.';
+    'Hola, soy {{agente}}. Ya fui asignado a tu conversacion y revisare tu caso.';
   readonly placeholderWhatsappCola =
-    'Te encuentras en cola. En breves momentos un asesor se comunicara contigo.';
+    'Te encuentras en cola. En breves momentos un agente se comunicara contigo.';
   readonly placeholderWhatsappFuera =
     'Hola. En este momento estamos fuera de servicio. Por favor vuelve {{proximaApertura}}.';
   readonly placeholderWhatsappLlamada =
-    'Actualmente no estamos disponibles para llamadas. Por favor escribenos por este chat y un asesor te atendera.';
+    'Actualmente no estamos disponibles para llamadas. Por favor escribenos por este chat y un agente te atendera.';
 
   readonly sonidoWhatsappOptions = [
     { value: 'whatsapp1', label: 'WhatsApp 1' },
@@ -122,11 +122,11 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
   ];
 
   readonly sonidoAsesorOptions = [
-    { value: 'asesor1', label: 'Asesor 1' },
-    { value: 'asesor2', label: 'Asesor 2' },
-    { value: 'asesor3', label: 'Asesor 3' },
-    { value: 'asesor4', label: 'Asesor 4' },
-    { value: 'asesor5', label: 'Asesor 5' },
+    { value: 'asesor1', label: 'Agente 1' },
+    { value: 'asesor2', label: 'Agente 2' },
+    { value: 'asesor3', label: 'Agente 3' },
+    { value: 'asesor4', label: 'Agente 4' },
+    { value: 'asesor5', label: 'Agente 5' },
     { value: 'fuerte', label: 'Fuerte' },
     { value: 'alerta', label: 'Alerta' },
     { value: 'timbre', label: 'Timbre' },
@@ -355,7 +355,7 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
 
   previewWhatsappAssignment(): string {
     return (this.config?.whatsappAssignmentMsg || this.placeholderWhatsappAsignacion)
-      .replace(/\{\{\s*(asesor|advisor)\s*\}\}/gi, 'Laura');
+      .replace(/\{\{\s*(asesor|advisor|agente)\s*\}\}/gi, 'Laura');
   }
 
   previewWhatsappOutOfHours(): string {
@@ -409,7 +409,7 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
       sonidoCliente: config.sonidoCliente ?? 'cliente1',
       sonidoAsignacion: config.sonidoAsignacion ?? 'asignacion1',
       asesorReconexionSeg: config.asesorReconexionSeg ?? 120,
-      asesorReconexionMsg: config.asesorReconexionMsg || 'El asesor se desconectó. Esperando reconexión...',
+      asesorReconexionMsg: config.asesorReconexionMsg || 'El agente se desconectó. Esperando reconexión...',
       whatsappQuickReplies: this.normalizeQuickReplies(config.whatsappQuickReplies),
     };
   }
@@ -657,7 +657,7 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
       this.aiMensajeGroseria = aiCfg['mensajeGroseria'] || 'Por favor, mantengamos un trato respetuoso. No puedo ayudarte si usas lenguaje ofensivo. ¿En qué más puedo ayudarte?';
       this.aiLimiteGroserias = Number(aiCfg['limiteGroserias']) || 3;
       this.aiMensajeSesionTerminada = aiCfg['mensajeSesionTerminada'] || 'Esta conversación ha sido finalizada por el uso continuado de lenguaje ofensivo. Si necesitas ayuda, inicia una nueva conversación manteniendo un trato respetuoso.';
-      this.aiMensajeSinInformacion = aiCfg['mensajeSinInformacion'] || 'No tengo información registrada sobre eso por el momento. ¿Necesitas un asesor para una mejor ayuda?';
+      this.aiMensajeSinInformacion = aiCfg['mensajeSinInformacion'] || 'No tengo información registrada sobre eso por el momento. ¿Necesitas un agente para una mejor ayuda?';
       this.aiSugerirAsesorAutomatico = aiCfg['sugerirAsesorAutomatico'] !== false;
 
       if (aiCfg['roles'] && typeof aiCfg['roles'] === 'object') {
@@ -688,7 +688,7 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
     this.aiMensajeGroseria = 'Por favor, mantengamos un trato respetuoso. No puedo ayudarte si usas lenguaje ofensivo. ¿En qué más puedo ayudarte?';
     this.aiLimiteGroserias = 3;
     this.aiMensajeSesionTerminada = 'Esta conversación ha sido finalizada por el uso continuado de lenguaje ofensivo. Si necesitas ayuda, inicia una nueva conversación manteniendo un trato respetuoso.';
-    this.aiMensajeSinInformacion = 'No tengo información registrada sobre eso por el momento. ¿Necesitas un asesor para una mejor ayuda?';
+    this.aiMensajeSinInformacion = 'No tengo información registrada sobre eso por el momento. ¿Necesitas un agente para una mejor ayuda?';
     this.aiSugerirAsesorAutomatico = true;
     this.aiRolesConfig = {
       administrador: { descripcion: 'Tienes acceso completo a toda la información del sistema.', temasRestringidos: [], mensajeRestringido: '' },

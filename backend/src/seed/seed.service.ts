@@ -122,13 +122,13 @@ export class SeedService implements OnApplicationBootstrap {
     const config = this.configRepo.create({
       advisorId: null,
       mensajeBienvenida:
-        '¡Hola! Soy {{asesor}}, tu asesor de soporte. ¿En qué puedo ayudarte hoy?',
+        '¡Hola! Soy {{agente}}, tu agente de soporte. ¿En qué puedo ayudarte hoy?',
       asesorInactividadSeg: 120,
       asesorInactividadMsg:
         'Estamos trabajando en tu solicitud, en breve te atendemos.',
       asesorReconexionSeg: 120,
       asesorReconexionMsg:
-        'Reconectando... Un asesor estará contigo en breve.',
+        'Reconectando... Un agente estará contigo en breve.',
       clienteInactividadSeg: 180,
       clienteInactividadMsg:
         '¿Sigues en línea? Tu sesión se cerrará pronto si no hay respuesta.',
@@ -146,13 +146,13 @@ export class SeedService implements OnApplicationBootstrap {
         'En este momento estamos fuera de horario. Nuestro horario de atención es de lunes a viernes de 8:00 a 17:00.',
       horariosActivos: true,
       whatsappAssignmentMsg:
-        'Hola, soy {{asesor}}. Ya fui asignado a tu conversacion y revisare tu caso.',
+        'Hola, soy {{agente}}. Ya fui asignado a tu conversacion y revisare tu caso.',
       whatsappQueueMsg:
-        'Te encuentras en cola. En breves momentos un asesor se comunicara contigo.',
+        'Te encuentras en cola. En breves momentos un agente se comunicara contigo.',
       whatsappOutOfHoursMsg:
         'Hola. En este momento estamos fuera de servicio. Por favor vuelve {{proximaApertura}}.',
       whatsappCallUnavailableMsg:
-        'Actualmente no estamos disponibles para llamadas. Por favor escribenos por este chat y un asesor te atendera.',
+        'Actualmente no estamos disponibles para llamadas. Por favor escribenos por este chat y un agente te atendera.',
       whatsappQuickReplies: [
         { name: 'Saludo', content: 'Hola, con gusto reviso tu caso.' },
         { name: 'Espera', content: 'Dame un momento mientras valido la informacion.' },
@@ -213,9 +213,9 @@ export class SeedService implements OnApplicationBootstrap {
   private async seedFaqs() {
     const faqs = this.faqRepo.create([
       {
-        pregunta: '¿Cómo puedo contactar a un asesor?',
+        pregunta: '¿Cómo puedo contactar a un agente?',
         respuesta:
-          'Puedes contactar a un asesor a través de nuestro chat en línea. Solo escribe tu consulta y un asesor te atenderá a la brevedad.',
+          'Puedes contactar a un agente a través de nuestro chat en línea. Solo escribe tu consulta y un agente te atenderá a la brevedad.',
         categoria: 'General',
         keywords: ['contactar', 'asesor', 'ayuda', 'humano'],
         orden: 1,
@@ -233,7 +233,7 @@ export class SeedService implements OnApplicationBootstrap {
       {
         pregunta: '¿Cómo puedo crear un ticket de soporte?',
         respuesta:
-          'Durante tu conversación con un asesor, puedes solicitar la creación de un ticket para dar seguimiento a tu caso de manera más estructurada.',
+          'Durante tu conversación con un agente, puedes solicitar la creación de un ticket para dar seguimiento a tu caso de manera más estructurada.',
         categoria: 'Soporte',
         keywords: ['ticket', 'soporte', 'caso', 'seguimiento'],
         orden: 3,

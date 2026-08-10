@@ -66,6 +66,14 @@ export class TeamsMeetingsService {
     };
   }
 
+  async disconnect(advisorId: string): Promise<{ ok: boolean }> {
+    const result = await this.tokenRepo.delete({ advisorId });
+    if (result.affected) {
+      this.logger.log(`Teams desconectado para el asesor ${advisorId}`);
+    }
+    return { ok: true };
+  }
+
   createAuthUrl(advisorId: string): { authUrl: string } {
     const clientId = this.clientId();
     const state = this.randomToken();

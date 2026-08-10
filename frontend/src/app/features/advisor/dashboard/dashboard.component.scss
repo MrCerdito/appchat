@@ -924,6 +924,216 @@
   opacity: 1 !important;
 }
 
+// ── Teams: botón + dropdown (topbar) ────────────────────────
+.teams-panel-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.teams-trigger {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 10px;
+  background: var(--sidebar-hover);
+  color: var(--sidebar-text-muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+
+  svg { width: 20px; height: 20px; }
+
+  &:hover {
+    background: var(--sidebar-accent);
+    color: var(--sidebar-text);
+  }
+
+  &.open {
+    background: var(--sidebar-accent);
+    color: var(--sidebar-text);
+    box-shadow: 0 0 0 2px var(--sidebar-accent);
+  }
+
+  &.connected {
+    color: var(--sidebar-text);
+    background: rgba(37, 211, 102, 0.14);
+    border: 1px solid rgba(37, 211, 102, 0.45);
+  }
+}
+
+.teams-trigger-dot {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #64748b;
+  border: 2px solid var(--sidebar-bg);
+
+  &.on {
+    background: #25d366;
+    box-shadow: 0 0 6px rgba(37, 211, 102, 0.6);
+  }
+}
+
+.teams-panel {
+  position: absolute;
+  top: calc(100% + 14px);
+  right: 0;
+  width: 300px;
+  background: var(--sidebar-bg);
+  border: 1px solid var(--sidebar-border);
+  border-radius: 16px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.2);
+  z-index: 210;
+  animation: pd-enter 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    right: 24px;
+    width: 12px;
+    height: 12px;
+    background: var(--sidebar-bg);
+    border: 1px solid var(--sidebar-border);
+    border-right: none;
+    border-bottom: none;
+    transform: rotate(45deg);
+    border-radius: 2px 0 0 0;
+  }
+}
+
+.teams-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.9rem 1.1rem 0.6rem;
+
+  svg {
+    width: 20px;
+    height: 20px;
+    color: #6366f1;
+    flex-shrink: 0;
+  }
+
+  span {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--sidebar-text);
+  }
+}
+
+.teams-panel-body {
+  padding: 0.4rem 1.1rem 1.1rem;
+}
+
+.teams-status-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0.6rem 0.75rem;
+  border-radius: 12px;
+  background: var(--sidebar-hover);
+}
+
+.teams-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #64748b;
+  flex-shrink: 0;
+
+  &.on {
+    background: #25d366;
+    box-shadow: 0 0 6px rgba(37, 211, 102, 0.6);
+  }
+}
+
+.teams-status-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.teams-status-text {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--sidebar-text);
+}
+
+.teams-account {
+  font-size: 0.7rem;
+  color: var(--sidebar-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.teams-message {
+  margin-top: 0.6rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  font-size: 0.75rem;
+  color: var(--sidebar-text);
+  line-height: 1.4;
+}
+
+.teams-panel-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  width: 100%;
+  margin-top: 0.8rem;
+  height: 40px;
+  border: none;
+  border-radius: 10px;
+  background: #6366f1;
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.15s, opacity 0.15s;
+
+  svg { width: 16px; height: 16px; }
+
+  &:hover:not(:disabled) { background: #4f46e5; transform: translateY(-1px); }
+  &:disabled { opacity: 0.6; cursor: default; }
+
+  &--danger {
+    background: rgba(239, 68, 68, 0.12);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.35);
+
+    &:hover:not(:disabled) {
+      background: rgba(239, 68, 68, 0.2);
+    }
+  }
+}
+
+.teams-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 209;
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  animation: overlay-fade-in 0.2s ease;
+}
+
+@media (max-width: 768px) {
+  .teams-panel { width: 270px; }
+}
+
 // ── Divider vertical ─────────────────────────────────────────
 .topbar-divider {
   width: 1px;

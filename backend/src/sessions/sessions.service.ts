@@ -429,7 +429,7 @@ export class SessionsService {
   async transfer(sessionId: string, newAdvisorId: string): Promise<Session> {
     const session = await this.findOne(sessionId);
     if (!session.advisor)
-      throw new NotFoundException('Sesion sin asesor asignado');
+      throw new NotFoundException('Sesion sin agente asignado');
 
     const oldAdvisorId = session.advisor.id;
     session.advisor = { id: newAdvisorId } as any;

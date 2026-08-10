@@ -345,11 +345,11 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
   private readonly defaultAssignmentMessage =
     'Hola, soy {{advisor}}. Ya fui asignado a tu conversacion y revisare tu caso.';
   private readonly defaultQueueMessage =
-    'Te encuentras en cola. En breves momentos un asesor se comunicara contigo.';
+    'Te encuentras en cola. En breves momentos un agente se comunicara contigo.';
   private readonly defaultOutOfHoursMessage =
     'Hola. En este momento estamos fuera de servicio. Por favor vuelve {{proximaApertura}}.';
   private readonly defaultCallUnavailableMessage =
-    'Actualmente no estamos disponibles para llamadas. Por favor escribenos por este chat y un asesor te atendera.';
+    'Actualmente no estamos disponibles para llamadas. Por favor escribenos por este chat y un agente te atendera.';
   readonly defaultQuickReplies = [
     { name: 'Saludo', content: 'Hola, con gusto reviso tu caso.' },
     {
@@ -1039,7 +1039,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
 
     if (advisor.role !== 'advisor' && advisor.role !== 'admin') {
       throw new ForbiddenException(
-        'Solo un asesor o administrador puede tomar chats de la cola',
+        'Solo un agente o administrador puede tomar chats de la cola',
       );
     }
 
@@ -1062,7 +1062,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       });
       if (chatCheck?.fixedAdvisor) {
         throw new ForbiddenException(
-          'Este chat tiene un asesor fijo asignado. Solo un administrador puede reasignarlo.',
+          'Este chat tiene un agente fijo asignado. Solo un administrador puede reasignarlo.',
         );
       }
     }
@@ -1808,12 +1808,12 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
         ]);
       if (enAlmuerzo || enAlmuerzoRedis) {
         throw new BadRequestException(
-          'Este asesor esta en almuerzo y no puede recibir el chat',
+          'Este agente esta en almuerzo y no puede recibir el chat',
         );
       }
       if (activeCount >= maxChats) {
         throw new BadRequestException(
-          `Este asesor ya alcanzo su capacidad maxima de ${maxChats} chats activos`,
+          `Este agente ya alcanzo su capacidad maxima de ${maxChats} chats activos`,
         );
       }
     }
@@ -1949,7 +1949,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     }
     const chat = await this.findChatOrFail(chatId);
     if (role !== 'admin' && chat.assignedAdvisor?.id !== advisorId) {
-      throw new ForbiddenException('Este chat esta asignado a otro asesor');
+      throw new ForbiddenException('Este chat esta asignado a otro agente');
     }
     chat.operationalStatus = operationalStatus;
     chat.operationalStatusUpdatedAt = new Date();
@@ -2090,11 +2090,11 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     if (!message) throw new NotFoundException('Mensaje no encontrado');
     if (!message.fromMe || message.isAuto || message.type !== 'text') {
       throw new BadRequestException(
-        'Solo se pueden editar mensajes de texto enviados por el asesor',
+        'Solo se pueden editar mensajes de texto enviados por el agente',
       );
     }
     if (role !== 'admin' && message.advisor?.id !== advisorId) {
-      throw new ForbiddenException('No puedes editar mensajes de otro asesor');
+      throw new ForbiddenException('No puedes editar mensajes de otro agente');
     }
     if (Date.now() - new Date(message.createdAt).getTime() > 15 * 60_000) {
       throw new BadRequestException(
@@ -2132,12 +2132,12 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     if (!message) throw new NotFoundException('Mensaje no encontrado');
     if (!message.fromMe || message.isAuto) {
       throw new BadRequestException(
-        'Solo se pueden eliminar mensajes enviados por el asesor',
+        'Solo se pueden eliminar mensajes enviados por el agente',
       );
     }
     if (role !== 'admin' && message.advisor?.id !== advisorId) {
       throw new ForbiddenException(
-        'No puedes eliminar mensajes de otro asesor',
+        'No puedes eliminar mensajes de otro agente',
       );
     }
     if (Date.now() - new Date(message.createdAt).getTime() > 60 * 60 * 60_000) {
@@ -2178,7 +2178,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       chat.assignedAdvisor &&
       chat.assignedAdvisor.id !== advisorId
     ) {
-      throw new ForbiddenException('Este chat esta asignado a otro asesor');
+      throw new ForbiddenException('Este chat esta asignado a otro agente');
     }
     const advisor = await this.userRepo.findOne({ where: { id: advisorId } });
     const result = await this.sendTextMessage(this.getChatJid(chat), cleanText);
@@ -2235,7 +2235,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       chat.assignedAdvisor &&
       chat.assignedAdvisor.id !== advisorId
     ) {
-      throw new ForbiddenException('Este chat esta asignado a otro asesor');
+      throw new ForbiddenException('Este chat esta asignado a otro agente');
     }
 
     const advisor = await this.userRepo.findOne({ where: { id: advisorId } });
@@ -2328,7 +2328,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       sourceChat.assignedAdvisor &&
       sourceChat.assignedAdvisor.id !== advisorId
     ) {
-      throw new ForbiddenException('Este chat esta asignado a otro asesor');
+      throw new ForbiddenException('Este chat esta asignado a otro agente');
     }
 
     const targetChat = await this.findChatOrFail(targetChatId);
@@ -2338,7 +2338,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       targetChat.assignedAdvisor.id !== advisorId
     ) {
       throw new ForbiddenException(
-        'El chat destino esta asignado a otro asesor',
+        'El chat destino esta asignado a otro agente',
       );
     }
 
@@ -2445,7 +2445,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       chat.assignedAdvisor &&
       chat.assignedAdvisor.id !== advisorId
     ) {
-      throw new ForbiddenException('Este chat esta asignado a otro asesor');
+      throw new ForbiddenException('Este chat esta asignado a otro agente');
     }
     const mimeType = this.normalizeMimeType(file.mimetype);
     const mediaType = this.mediaTypeFromMime(mimeType);
@@ -2514,7 +2514,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       chat.assignedAdvisor &&
       chat.assignedAdvisor.id !== advisorId
     ) {
-      throw new ForbiddenException('Este chat esta asignado a otro asesor');
+      throw new ForbiddenException('Este chat esta asignado a otro agente');
     }
 
     const advisor = await this.userRepo.findOne({ where: { id: advisorId } });
@@ -2706,12 +2706,12 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       return this.toChatDto(await this.findChatOrFail(chatId), true);
     }
     if (role !== 'admin' && chat.assignedAdvisor?.id !== advisorId) {
-      throw new ForbiddenException('Este chat esta asignado a otro asesor');
+      throw new ForbiddenException('Este chat esta asignado a otro agente');
     }
 
     if (role !== 'admin' && chat.fixedAdvisor) {
       throw new ForbiddenException(
-        'Este chat tiene un asesor fijo. Solo un administrador puede cerrarlo.',
+        'Este chat tiene un agente fijo. Solo un administrador puede cerrarlo.',
       );
     }
 
@@ -2802,7 +2802,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       target.chat.assignedAdvisor &&
       target.chat.assignedAdvisor.id !== advisorId
     ) {
-      throw new ForbiddenException('Este chat esta asignado a otro asesor');
+      throw new ForbiddenException('Este chat esta asignado a otro agente');
     }
 
     const jid = this.getChatJid(target.chat);
@@ -4214,7 +4214,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
           type: 'en_soporte',
           severity: 'info',
           title: 'En soporte tecnico',
-          detail: `${chat.name} esta en soporte tecnico y no puede recibir respuesta del asesor.`,
+          detail: `${chat.name} esta en soporte tecnico y no puede recibir respuesta del agente.`,
           chatId: chat.id,
           advisorId: chat.assignedAdvisor?.id,
           timestamp: chat.lastMessageAt?.toISOString(),
@@ -4517,7 +4517,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     const assignedId = chat.assignedAdvisor?.id;
     const fixedId = chat.fixedAdvisor?.id;
     if (assignedId && assignedId !== advisorId && fixedId !== advisorId) {
-      throw new ForbiddenException('Este chat esta asignado a otro asesor');
+      throw new ForbiddenException('Este chat esta asignado a otro agente');
     }
     return chat;
   }
@@ -4942,7 +4942,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     horarioEstado?: HorarioEstado,
   ): string {
     return template
-      .replace(/\{\{\s*(advisor|asesor)\s*\}\}/gi, advisorName ?? 'Asesor')
+      .replace(/\{\{\s*(advisor|asesor|agente)\s*\}\}/gi, advisorName ?? 'Agente')
       .replace(
         /\{\{\s*proximaApertura\s*\}\}/gi,
         horarioEstado?.proximaApertura ?? '',
