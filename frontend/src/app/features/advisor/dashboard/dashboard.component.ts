@@ -190,14 +190,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
       .subscribe(data => {
         if (data.advisorId === this.currentAdvisor?.id) {
           this.advisorStatus = data.status as 'online' | 'busy' | 'offline';
+          this.cdr.detectChanges();
         }
         const idx = this.allAdvisors.findIndex(a => a.advisorId === data.advisorId);
         if (idx >= 0) {
           this.allAdvisors[idx] = { ...this.allAdvisors[idx], status: data.status, profilePhotoUrl: data.profilePhotoUrl ?? this.allAdvisors[idx].profilePhotoUrl };
-        } else {
-          this.allAdvisors.push(data);
+          this.cdr.detectChanges();
         }
-        this.cdr.detectChanges();
       });
 
     this.socket.on<ConnectedAdvisor[]>('all_advisors_list')

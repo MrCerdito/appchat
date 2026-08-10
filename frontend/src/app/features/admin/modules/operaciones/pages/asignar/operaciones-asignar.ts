@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { Subscription, interval } from 'rxjs';
 import { WhatsappChatService } from '../../../../../../core/services/whatsapp-chat.service';
 import { WaChat, WaAdvisorStats } from '../../../../../../core/models/whatsapp.models';
+import { ConfirmModalComponent } from '../../components/confirm-modal/confirm-modal.component';
 
 interface AsignableChat {
   id: string;
@@ -28,7 +29,7 @@ interface AsignableChat {
 @Component({
   selector: 'app-operaciones-asignar',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ConfirmModalComponent],
   templateUrl: './operaciones-asignar.html',
   styleUrl: './operaciones-asignar.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -43,6 +44,8 @@ export class OperacionesAsignarComponent implements OnInit, OnDestroy {
   chats: AsignableChat[] = [];
   assigning = new Set<string>();
   releasing = new Set<string>();
+  unassigning = new Set<string>();
+  pendingConfirm: { kind: 'close' | 'unassign'; chat: AsignableChat } | null = null;
   lastError: string | null = null;
   selectedAdvisor: Record<string, string> = {};
 
@@ -185,6 +188,14 @@ export class OperacionesAsignarComponent implements OnInit, OnDestroy {
 
   liberarChat(chat: AsignableChat): void {
     if (this.releasing.has(chat.id)) return;
+    if (!chat.esGrupo) {
+      this.pendingConfirm = { kind: 'close', chat };
+      return;
+    }
+    this.doLiberarChat(chat);
+  }
+
+  private doLiberarChat(chat: AsignableChat): void {
     this.lastError = null;
     this.releasing.add(chat.id);
     this.whatsappChat.closeChat(chat.id).subscribe({
@@ -201,6 +212,43 @@ export class OperacionesAsignarComponent implements OnInit, OnDestroy {
     });
   }
 
+  quitarAsignacion(chat: AsignableChat): void {
+    if (this.unassigning.has(chat.id)) return;
+    this.pendingConfirm = { kind: 'unassign', chat };
+  }
+
+  private doQuitarAsignacion(chat: AsignableChat): void {
+    this.lastError = null;
+    this.unassigning.add(chat.id);
+    this.whatsappChat.adminUnassignChat(chat.id).subscribe({
+      next: () => {
+        this.unassigning.delete(chat.id);
+        this.selectedAdvisor[chat.id] = '';
+        this.cdr.markForCheck();
+      },
+      error: (err) => {
+        this.unassigning.delete(chat.id);
+        this.lastError = this.errorMsg(err);
+        this.cdr.markForCheck();
+      },
+    });
+  }
+
+  confirmDialog(): void {
+    const pending = this.pendingConfirm;
+    this.pendingConfirm = null;
+    if (!pending) return;
+    if (pending.kind === 'close') {
+      this.doLiberarChat(pending.chat);
+    } else {
+      this.doQuitarAsignacion(pending.chat);
+    }
+  }
+
+  cancelDialog(): void {
+    this.pendingConfirm = null;
+  }
+
   private errorMsg(err: unknown): string {
     const e = err as { error?: { message?: string }; message?: string };
     return e?.error?.message || e?.message || 'No se pudo completar la operacion';
@@ -211,6 +259,11 @@ export class OperacionesAsignarComponent implements OnInit, OnDestroy {
 
   volverAlPanel(): void {
     this.router.navigate(['/admin/operaciones']);
+  }
+
+  openAdminSidebar(): void {
+    const btn = document.querySelector('.sidebar-toggle-btn') as HTMLButtonElement;
+    btn?.click();
   }
 
   ngOnDestroy(): void {

@@ -122,6 +122,15 @@ export class WidgetConfig {
   })
   chatMarca: string;
 
+  // Avatar/logo de la empresa que aparece en el header del chat y en la burbuja
+  @Column({
+    name: 'chat_avatar',
+    type: 'varchar',
+    length: 500,
+    default: '',
+  })
+  chatAvatar: string;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 

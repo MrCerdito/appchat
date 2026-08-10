@@ -58,7 +58,7 @@ interface ContextMenuState {
 })
 export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnDestroy {
   protected readonly trackByIndex = trackByIndex;
-  protected readonly reactionEmojis = ['👍', '✅', '❌'];
+  protected readonly reactionEmojis = ['👍', '❤️', '🔥', '😂', '🎉', '😮', '😢', '👏', '🙏', '✅', '❌', '⭐'];
 
   @Output() activeChange = new EventEmitter<boolean>();
 

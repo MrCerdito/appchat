@@ -349,6 +349,22 @@ export class AdvisorsWhatsappController {
     return assignment.chat;
   }
 
+  @Post('chats/:chatId/admin-unassign')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @HttpCode(200)
+  async adminUnassignChat(
+    @Param('chatId') chatId: string,
+    @Req() req: Request & { user: any },
+  ) {
+    const chat = await this.whatsappService.adminUnassignChat(
+      chatId,
+      req.user.role,
+    );
+    this.whatsappGateway.emitChatUpdated(chat);
+    return chat;
+  }
+
   @Post('chats/:chatId/fixed-advisor')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')

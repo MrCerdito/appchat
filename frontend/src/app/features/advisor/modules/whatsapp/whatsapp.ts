@@ -176,6 +176,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   selectedFile?: File;
   openReactionPopoverId = '';
   closingReactionPopoverId = '';
+  emojiPickerOpen = false;
   private closeReactionTimer: ReturnType<typeof setTimeout> | null = null;
   selectedFilePreviewUrl = '';
   selectedFileKind: 'image' | 'video' | 'audio' | 'document' = 'document';
@@ -300,7 +301,13 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     'application/x-7z-compressed',
     'application/x-compressed',
   ];
-  readonly reactionOptions = ['\u{1F44D}', '\u2705', '\u274C'];
+  readonly reactionQuick = ['\u{1F44D}', '\u2764\uFE0F', '\u{1F525}', '\u{1F602}', '\u{1F389}', '\u{1F62E}'];
+  readonly reactionEmojiGroups: { label: string; emojis: string[] }[] = [
+    { label: 'Reacciones', emojis: ['\u{1F44D}', '\u{1F44E}', '\u2764\uFE0F', '\u{1F525}', '\u{1F602}', '\u{1F62E}', '\u{1F622}', '\u{1F621}', '\u{1F44F}', '\u{1F64F}'] },
+    { label: 'Emociones', emojis: ['\u{1F600}', '\u{1F601}', '\u{1F923}', '\u{1F60A}', '\u{1F60D}', '\u{1F929}', '\u{1F60E}', '\u{1F914}', '\u{1F62D}', '\u{1F92F}'] },
+    { label: 'Gestos', emojis: ['\u270C\uFE0F', '\u{1F91E}', '\u{1F91A}', '\u{1F91D}', '\u{1F4AA}', '\u{1F64C}', '\u{1F44C}', '\u{1F91F}', '\u{1FAA1}', '\u{1FAF6}'] },
+    { label: 'Celebracion', emojis: ['\u{1F389}', '\u{1F38A}', '\u{1F973}', '\u{1F3C6}', '\u2B50', '\u2705', '\u274C', '\u{1F4CC}', '\u{1F680}', '\u{1F4AF}'] },
+  ];
 
   currentUserId = '';
   currentUserName = '';
@@ -1096,11 +1103,16 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     this.cdr.detectChanges();
   }
 
+  toggleEmojiPicker(): void {
+    this.emojiPickerOpen = !this.emojiPickerOpen;
+  }
+
   reactToMessage(message: WaMessage, emoji: string): void {
     if (!this.activeContact || !this.canReactToMessage(message)) return;
     const currentEmoji = this.ownReactionEmoji(message, this.activeContact.messages ?? []);
     const nextEmoji = emoji && emoji === currentEmoji ? '' : emoji;
     this.messageMenu = undefined;
+    this.emojiPickerOpen = false;
     this.subs.add(
       this.waService.reactToMessage(this.activeContact.id, message.id, nextEmoji).subscribe({
         next: chat => {
@@ -1554,6 +1566,7 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
   private closeMessageMenuOnWindowClick = () => {
   if (this.messageMenu) {
     this.messageMenu = undefined;
+    this.emojiPickerOpen = false;
     this.cdr.detectChanges();
   }
   if (this.showAttachMenu) {

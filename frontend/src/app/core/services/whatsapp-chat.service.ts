@@ -547,6 +547,14 @@ export class WhatsappChatService implements OnDestroy {
     ).pipe(tap(chat => this.upsertChat(chat)));
   }
 
+  adminUnassignChat(chatId: string): Observable<WaChat> {
+    return this.http.post<WaChat>(
+      `${this.apiUrl}/chats/${chatId}/admin-unassign`,
+      {},
+      { headers: this.headers() },
+    ).pipe(tap(chat => this.upsertChat(chat)));
+  }
+
   getTeamsStatus(): Observable<TeamsConnectionStatus> {
     return this.http.get<TeamsConnectionStatus>(
       `${this.apiUrl}/teams/status`,

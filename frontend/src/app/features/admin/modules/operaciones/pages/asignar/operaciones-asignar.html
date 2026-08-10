@@ -1,10 +1,16 @@
 <div class="opas-page">
   <nav class="opas-nav">
-    <button class="opas-back-btn" (click)="volverAlPanel()">
+    <button class="opas-menu-btn" (click)="openAdminSidebar()" title="Menú de navegación">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" y1="6" x2="21" y2="6"/>
+        <line x1="3" y1="12" x2="21" y2="12"/>
+        <line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
+    <button class="opas-back-btn" (click)="volverAlPanel()" title="Volver al panel">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
       </svg>
-      Volver al panel
     </button>
     <span class="opas-nav-title">Asignar chats</span>
   </nav>
@@ -110,10 +116,15 @@
               <button class="opas-assign-btn" [class.loading]="assigning.has(chat.id)" [disabled]="assigning.has(chat.id) || releasing.has(chat.id) || !selectedAdvisor[chat.id] || selectedAdvisor[chat.id] === chat.asesorAsignado" (click)="asignarChat(chat.id, selectedAdvisor[chat.id])">
                 {{ assigning.has(chat.id) ? 'Asignando...' : (chat.asesorAsignado && selectedAdvisor[chat.id] !== chat.asesorAsignado ? 'Cambiar' : 'Asignar') }}
               </button>
-              @if (chat.asesorAsignado && !chat.cerrado) {
-              <button class="opas-release-btn" [class.loading]="releasing.has(chat.id)" [disabled]="releasing.has(chat.id) || assigning.has(chat.id)" (click)="liberarChat(chat)">
+              @if (chat.asesorAsignado && !chat.cerrado && (chat.esGrupo || chat.esFijado)) {
+              <button class="opas-release-btn" [class.loading]="releasing.has(chat.id)" [disabled]="releasing.has(chat.id) || assigning.has(chat.id) || unassigning.has(chat.id)" (click)="liberarChat(chat)">
                 {{ chat.esGrupo ? 'Liberar' : 'Cerrar' }}
               </button>
+              @if (chat.asesorAsignado && !chat.cerrado && !chat.esGrupo && !chat.esFijado) {
+              <button class="opas-unassign-btn" [class.loading]="unassigning.has(chat.id)" [disabled]="unassigning.has(chat.id) || assigning.has(chat.id) || releasing.has(chat.id)" (click)="quitarAsignacion(chat)">
+                {{ unassigning.has(chat.id) ? 'Quitando...' : 'Quitar asignación' }}
+              </button>
+              }
               }
             </div>
           </td>
@@ -126,5 +137,15 @@
         }
       </tbody>
     </table>
+    @if (pendingConfirm) {
+    <app-confirm-modal
+      [title]="pendingConfirm.kind === 'close' ? '¿Cerrar el chat?' : '¿Quitar la asignación?'"
+      [message]="pendingConfirm.kind === 'close' ? 'Cerrar deja el chat inactivo hasta que el cliente escriba de nuevo.' : 'El chat quedará cerrado hasta que el cliente escriba de nuevo.'"
+      [confirmLabel]="pendingConfirm.kind === 'close' ? 'Cerrar' : 'Quitar asignación'"
+      [danger]="true"
+      (confirm)="confirmDialog()"
+      (cancel)="cancelDialog()"
+    ></app-confirm-modal>
+    }
   </div>
 </div>

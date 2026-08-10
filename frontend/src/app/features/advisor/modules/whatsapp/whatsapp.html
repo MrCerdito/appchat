@@ -1351,7 +1351,7 @@
     @if (canReactToMessage(messageMenu.message)) {
     <div class="menu-reactions">
       <span>Reaccionar</span>
-      @for (emoji of reactionOptions; track trackByIndex($index)) {
+      @for (emoji of reactionQuick; track trackByIndex($index)) {
       <button
         type="button"
         (click)="reactToMessage(messageMenu.message, emoji)"
@@ -1361,7 +1361,44 @@
         {{ emoji }}
       </button>
       }
+      <button
+        type="button"
+        class="emoji-picker-toggle"
+        [class.open]="emojiPickerOpen"
+        (click)="toggleEmojiPicker()"
+        title="Ver más emojis"
+        aria-label="Ver más emojis"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="8" y1="14" x2="16" y2="14"/>
+          <circle cx="9" cy="9" r="1.2"/>
+          <circle cx="15" cy="9" r="1.2"/>
+        </svg>
+      </button>
     </div>
+    @if (emojiPickerOpen) {
+    <div class="emoji-picker">
+      @for (group of reactionEmojiGroups; track group.label) {
+      <div class="emoji-picker-group">
+        <span class="emoji-picker-label">{{ group.label }}</span>
+        <div class="emoji-picker-grid">
+          @for (emoji of group.emojis; track trackByIndex($index)) {
+          <button
+            type="button"
+            class="emoji-picker-btn"
+            [class.selected]="ownReactionEmoji(messageMenu.message, activeContact?.messages || []) === emoji"
+            (click)="reactToMessage(messageMenu.message, emoji)"
+            [title]="'Reaccionar con ' + emoji"
+          >
+            {{ emoji }}
+          </button>
+          }
+        </div>
+      </div>
+      }
+    </div>
+    }
     }
     <button type="button" (click)="startReply(messageMenu.message)">
       <wa-icon name="corner-up-left"></wa-icon>

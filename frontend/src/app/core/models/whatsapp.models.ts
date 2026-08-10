@@ -58,6 +58,7 @@ export interface WaChat {
   notes: string[];
   quickReplies: Array<{ name: string; content: string }> | string[];
   lastClientMsg: Date;
+  clientWrote?: boolean;
   messages: WaMessage[];
   priority?: 'low' | 'normal' | 'high' | 'critical';
   slaState?: 'in_time' | 'por_vencer' | 'vencido';
@@ -91,6 +92,7 @@ export type WaOperationalStatus =
   | 'waiting_customer'
   | 'waiting_technical'
   | 'resolved'
+  | 'released'
   | 'closed';
 
 export interface WaAdvisorStats {

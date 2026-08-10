@@ -705,9 +705,11 @@ a { text-decoration: none; color: inherit; }
   bottom: calc(100% + 6px);
   left: 8px;
   display: flex;
+  flex-wrap: wrap;
+  max-width: 232px;
   gap: 4px;
   padding: 6px 8px;
-  border-radius: 20px;
+  border-radius: 16px;
   background: var(--wa-surface, #fff);
   box-shadow: 0 4px 16px var(--wa-shadow, rgba(0, 0, 0, .2));
   z-index: 6;

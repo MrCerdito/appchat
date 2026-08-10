@@ -10,11 +10,12 @@ import { WaChat, WaAdvisorStats, WaConnectionStatus, WaAdminAlert, WaAdminDashbo
 import { getInitials, getAvatarColor } from '../../../../shared/utils/avatar';
 import { formatDuration, minutesSince, timeAgo } from '../../../../shared/utils/duration';
 import { InfoTooltipDirective } from '../../../../shared/directives/info-tooltip.directive';
+import { ConfirmModalComponent } from './components/confirm-modal/confirm-modal.component';
 
 @Component({
   selector: 'app-operaciones',
   standalone: true,
-  imports: [FormsModule, DecimalPipe, TitleCasePipe, InfoTooltipDirective],
+  imports: [FormsModule, DecimalPipe, TitleCasePipe, InfoTooltipDirective, ConfirmModalComponent],
   templateUrl: './operaciones.html',
   styleUrl: './operaciones.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -64,6 +65,9 @@ export class OperacionesComponent implements OnInit, OnDestroy {
   assignChatId: string | null = null;
   assignBusy = false;
   assignError: string | null = null;
+  unassigningId: string | null = null;
+  pendingUnassignId: string | null = null;
+  unassignError: string | null = null;
   isLoggingOut = false;
 
   private dashboardLoaded = false;
@@ -184,7 +188,7 @@ export class OperacionesComponent implements OnInit, OnDestroy {
         const s = c.operationalStatus || c.assignmentStatus || '';
         switch (this.filterEstado) {
           case 'activo': return ['active', 'assigned', 'in_progress'].includes(s);
-          case 'espera': return ['queued', 'waiting', 'waiting_customer', 'new'].includes(s);
+          case 'espera': return ['queued', 'waiting', 'waiting_customer', 'new', 'released'].includes(s);
           case 'cerrado': return ['closed', 'resolved'].includes(s);
           default: return true;
         }
@@ -257,7 +261,7 @@ export class OperacionesComponent implements OnInit, OnDestroy {
   estadoClass(chat: WaChat): string {
     const s = chat.operationalStatus || chat.assignmentStatus || '';
     if (['active', 'assigned', 'in_progress'].includes(s)) return 'activo';
-    if (['queued', 'waiting', 'waiting_customer', 'new'].includes(s)) return 'espera';
+    if (['queued', 'waiting', 'waiting_customer', 'new', 'released'].includes(s)) return 'espera';
     if (['closed', 'resolved'].includes(s)) return 'cerrado';
     return 'activo';
   }
@@ -381,54 +385,74 @@ export class OperacionesComponent implements OnInit, OnDestroy {
     return `sin movimiento ${formatDuration(chat.frozenMinutes ?? 0)}`;
   }
 
-  get chatsVencidos(): WaChat[] {
+  get chatsCasoEsperando(): WaChat[] {
     return this.chats.filter(
-      c => !c.isGroup && (this.chatCategoriaLocal(c) === 'sla_vencido'),
+      c => !c.isGroup && c.categoria === 'espera_respuesta' && !this.esSlaVencido(c),
     );
   }
 
-  get chatsEsperando(): WaChat[] {
+  get chatsCasoVencidos(): WaChat[] {
+    return this.chats.filter(c => !c.isGroup && this.esSlaVencido(c));
+  }
+
+  get chatsCasoEsperandoCliente(): WaChat[] {
     return this.chats.filter(
-      c => !c.isGroup && (this.chatCategoriaLocal(c) === 'espera_respuesta'),
+      c => !c.isGroup && (c.categoria === 'gestion' || c.categoria === 'esperando_cliente'),
     );
   }
 
-  get chatsEnCola(): WaChat[] {
-    return this.chats.filter(c => !c.isGroup && (c.categoria === 'cola' || (c.assignmentStatus === 'waiting' && c.operationalStatus !== 'waiting_customer')));
+  get chatsEstadoCola(): WaChat[] {
+    return this.chats.filter(c => this.estadoDeChat(c) === 'cola');
   }
 
-  get chatsSoporte(): WaChat[] {
-    return this.chats.filter(c => !c.isGroup && (c.categoria === 'soporte' || c.operationalStatus === 'waiting_technical'));
+  get chatsEstadoEspera(): WaChat[] {
+    return this.chats.filter(c => this.estadoDeChat(c) === 'espera_respuesta');
   }
 
-  get chatsGestion(): WaChat[] {
-    return this.chats.filter(
-      c => !c.isGroup && this.chatCategoriaLocal(c) === 'gestion',
-    );
+  get chatsEstadoGestion(): WaChat[] {
+    return this.chats.filter(c => this.estadoDeChat(c) === 'gestion');
   }
 
-  get chatsEsperandoCliente(): WaChat[] {
-    return this.chats.filter(
-      c => !c.isGroup && this.chatCategoriaLocal(c) === 'esperando_cliente',
-    );
+  get chatsEstadoSoporte(): WaChat[] {
+    return this.chats.filter(c => this.estadoDeChat(c) === 'soporte');
   }
 
-  get chatsGrupos(): WaChat[] {
-    return this.chats.filter(
-      c => c.isGroup && c.operationalStatus !== 'closed',
-    );
+  get chatsEstadoGrupos(): WaChat[] {
+    return this.chats.filter(c => this.estadoDeChat(c) === 'grupo');
+  }
+
+  private estadoDeChat(c: WaChat): string {
+    if (c.isGroup) return c.operationalStatus === 'closed' ? 'cerrado' : 'grupo';
+    const cat = c.categoria || '';
+    if (cat === 'sla_vencido') return 'espera_respuesta';
+    if (cat === 'esperando_cliente') return 'gestion';
+    if (cat === 'resuelto' || cat === 'cerrado') return 'cerrado';
+    if (cat) return cat;
+    if (c.assignmentStatus === 'waiting' && c.operationalStatus !== 'waiting_customer' && !c.fixedAdvisorId && c.clientWrote) return 'cola';
+    if (c.operationalStatus === 'waiting_technical') return 'soporte';
+    return 'gestion';
+  }
+
+  esSlaVencido(c: WaChat): boolean {
+    if (c.categoria === 'sla_vencido') return true;
+    if (c.categoria === 'espera_respuesta' && c.slaWaitingSince && c.slaDeadlineMinutes) {
+      return minutesSince(c.slaWaitingSince) >= c.slaDeadlineMinutes;
+    }
+    return false;
+  }
+
+  estadoCategoriaLabel(c: WaChat): string {
+    const map: Record<string, string> = {
+      cola: 'En cola',
+      gestion: 'En gestión',
+      espera_respuesta: 'Esperando respuesta',
+      soporte: 'Soporte técnico',
+    };
+    return map[this.estadoDeChat(c)] || '—';
   }
 
   get chatsCongelados(): WaChat[] {
     return this.chats.filter(c => !!c.frozen);
-  }
-
-  private chatCategoriaLocal(c: WaChat): string {
-    if (c.categoria === 'espera_respuesta' && c.slaWaitingSince && c.slaDeadlineMinutes) {
-      const mins = minutesSince(c.slaWaitingSince);
-      if (mins >= c.slaDeadlineMinutes) return 'sla_vencido';
-    }
-    return c.categoria || 'gestion';
   }
 
   get cumplimientoDetalle(): string {
@@ -440,54 +464,6 @@ export class OperacionesComponent implements OnInit, OnDestroy {
 
   get slaCompliancePct(): number {
     return this.summary?.slaCompliancePercent ?? 100;
-  }
-
-  get distribution(): Array<{ categoria: string; label: string; cls: string; count: number; pct: number }> {
-    if (!this.summary) return [];
-    const items = [
-      { categoria: 'cola', label: 'En cola', cls: 'cola', count: this.summary.queuedChats },
-      { categoria: 'espera_respuesta', label: 'Esperando respuesta', cls: 'por_vencer', count: this.summary.esperandoRespuesta },
-      { categoria: 'sla_vencido', label: 'SLA vencido', cls: 'vencido', count: this.summary.slaBreached },
-      { categoria: 'gestion', label: 'En gestión', cls: 'gestion', count: this.summary.enGestion },
-      { categoria: 'esperando_cliente', label: 'Esperando cliente', cls: 'cliente', count: this.summary.waitingCustomerChats },
-      { categoria: 'soporte', label: 'Soporte', cls: 'soporte', count: this.summary.soporteChats },
-    ];
-    const total = items.reduce((s, i) => s + i.count, 0) || 1;
-    return items.map(i => ({ ...i, pct: Math.round((i.count / total) * 100) }));
-  }
-
-  get totalDistribucion(): number {
-    return this.distribution.reduce((s, i) => s + i.count, 0);
-  }
-
-  get onlineAdvisorCount(): number {
-    return this.advisors.filter(a => a.active && a.status !== 'offline').length;
-  }
-
-  get avgAdvisorCapacity(): number {
-    if (!this.advisors.length) return 0;
-    const avg = this.advisors.reduce((s, a) => s + this.advisorCapacity(a), 0) / this.advisors.length;
-    return Math.round(avg);
-  }
-
-  get advisorsWithSlaBreach(): number {
-    return this.advisors.filter(a => a.slaBreachedChats > 0).length;
-  }
-
-  get lastSyncText(): string {
-    if (!this.lastSync) return '—';
-    return timeAgo(this.lastSync);
-  }
-
-  get activeChatsPct(): number {
-    if (!this.summary || !this.summary.totalChats) return 0;
-    return Math.round((this.summary.activeChats / this.summary.totalChats) * 100);
-  }
-
-  gaugeOffset(pct: number): number {
-    const clamped = Math.min(100, Math.max(0, pct));
-    const circumference = 2 * Math.PI * 15.9;
-    return circumference * (1 - clamped / 100);
   }
 
   categoriaClass(chat: WaChat): string {
@@ -517,10 +493,6 @@ export class OperacionesComponent implements OnInit, OnDestroy {
     const total = advisor.connectedMinutes + advisor.idleMinutes;
     if (total === 0) return Math.min(advisor.activeChats * 20, 100);
     return Math.round((advisor.connectedMinutes / total) * 100);
-  }
-
-  dur(minutes: number): string {
-    return formatDuration(minutes);
   }
 
   capacityColor(pct: number): string {
@@ -651,6 +623,38 @@ export class OperacionesComponent implements OnInit, OnDestroy {
         this.cdr.markForCheck();
       },
     });
+  }
+
+  quitarAsignacion(chatId: string): void {
+    if (this.unassigningId || !chatId) return;
+    this.pendingUnassignId = chatId;
+  }
+
+  confirmUnassign(): void {
+    const chatId = this.pendingUnassignId;
+    this.pendingUnassignId = null;
+    if (!chatId || this.unassigningId) return;
+    this.unassigningId = chatId;
+    this.unassignError = null;
+    this.whatsappChat.adminUnassignChat(chatId).subscribe({
+      next: () => {
+        this.unassigningId = null;
+        this.cdr.markForCheck();
+      },
+      error: (err) => {
+        this.unassigningId = null;
+        this.unassignError = err?.error?.message || err?.message || 'No se pudo quitar la asignación';
+        this.cdr.markForCheck();
+      },
+    });
+  }
+
+  cancelUnassign(): void {
+    this.pendingUnassignId = null;
+  }
+
+  clearUnassignError(): void {
+    this.unassignError = null;
   }
 
   // ────────── Splash / Conexión ────────────────────────────

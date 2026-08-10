@@ -30,6 +30,7 @@ export interface WidgetConfig {
   chatBubbleColor   : string;
   chatBubbleUserColor: string;
   chatMarca         : string;
+  chatAvatar        : string;
 }
 
 const DEFAULT_CONFIG: WidgetConfig = {
@@ -52,6 +53,7 @@ const DEFAULT_CONFIG: WidgetConfig = {
   chatBubbleColor    : '#ffffff',
   chatBubbleUserColor: '#1a1a1a',
   chatMarca          : 'Soporte en línea',
+  chatAvatar         : '',
 };
 
 @Component({
@@ -260,6 +262,7 @@ export class WidgetComponent implements OnInit, OnDestroy {
       chatBubbleColor    : res.chatBubbleColor    ?? DEFAULT_CONFIG.chatBubbleColor,
       chatBubbleUserColor: res.chatBubbleUserColor ?? DEFAULT_CONFIG.chatBubbleUserColor,
       chatMarca          : res.chatMarca          ?? DEFAULT_CONFIG.chatMarca,
+      chatAvatar         : res.chatAvatar         ?? DEFAULT_CONFIG.chatAvatar,
     };
   }
 }

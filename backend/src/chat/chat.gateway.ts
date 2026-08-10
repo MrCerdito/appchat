@@ -155,12 +155,15 @@ export class ChatGateway
         };
         client.data.role = 'advisor';
 
-        // Store in Redis + join advisor room for cross-instance messaging
-        await this.redisState.addConnectedAdvisor(payload.sub);
-        client.join(`advisor:${payload.sub}`);
+        const isAdvisor = fullUser?.role === 'advisor';
+        if (isAdvisor) {
+          // Store in Redis + join advisor room for cross-instance messaging
+          await this.redisState.addConnectedAdvisor(payload.sub);
+          client.join(`advisor:${payload.sub}`);
+        }
 
         this.logger.log(
-          `[WS] Asesor conectado: ${payload.name} (PID: ${process.pid})`,
+          `[WS] ${isAdvisor ? 'Asesor' : 'Usuario no-asesor'} conectado: ${payload.name} (PID: ${process.pid})`,
         );
 
         // Cancel reconnection timers — advisor is back
@@ -205,7 +208,10 @@ export class ChatGateway
 
   // ── Desconexión ───────────────────────────────────────────────────────────
   async handleDisconnect(client: Socket) {
-    if (client.data.role === 'advisor') {
+    if (
+      client.data.role === 'advisor' &&
+      client.data.user?.role === 'advisor'
+    ) {
       const advisorId = client.data.user?.id;
       const advisorName = client.data.user?.name;
 

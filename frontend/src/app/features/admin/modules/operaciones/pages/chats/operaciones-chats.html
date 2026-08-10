@@ -3,11 +3,20 @@
     <!-- ==================== SIDEBAR ==================== -->
     <aside class="wa-sidebar">
       <header class="wa-sidebar-header">
-        <button class="wa-back-btn" (click)="volverAlPanel()" title="Volver al panel">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
-          </svg>
-        </button>
+        <div class="wa-header-left">
+          <button class="wa-menu-btn" (click)="openAdminSidebar()" title="Menú de navegación">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="3" y1="6" x2="21" y2="6"/>
+              <line x1="3" y1="12" x2="21" y2="12"/>
+              <line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+          </button>
+          <button class="wa-back-btn" (click)="volverAlPanel()" title="Volver al panel">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+            </svg>
+          </button>
+        </div>
         <div class="wa-sidebar-actions">
           <button class="wa-icon-btn" title="Nuevo chat">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

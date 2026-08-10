@@ -262,6 +262,7 @@
       @if (sidebarCollapsed) {
       <button
         class="sidebar-toggle-btn"
+        [class.operaciones-hidden]="isOperacionesRoute"
         type="button"
         (click)="openSidebar()"
         title="Mostrar menu"

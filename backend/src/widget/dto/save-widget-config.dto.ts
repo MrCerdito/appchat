@@ -116,4 +116,9 @@ export class SaveWidgetConfigDto {
   @IsString()
   @MaxLength(80)
   chatMarca?: string;
+
+  @IsOptional()
+  @IsUrl()
+  @MaxLength(500)
+  chatAvatar?: string;
 }

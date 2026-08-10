@@ -142,6 +142,7 @@ export interface WaChatDto {
   notes: string[];
   quickReplies: Array<{ name: string; content: string }>;
   lastClientMsg: Date;
+  clientWrote?: boolean;
   messages: WaMessageDto[];
   priority?: 'low' | 'normal' | 'high' | 'critical';
   slaState?: 'in_time' | 'por_vencer' | 'vencido';
@@ -1325,7 +1326,9 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       queuedChats: chats.filter(
         (chat) =>
           chat.status === 'waiting' &&
-          chat.operationalStatus !== 'waiting_customer',
+          chat.operationalStatus !== 'waiting_customer' &&
+          !chat.fixedAdvisor &&
+          !!chat.lastClientMessageAt,
       ).length,
       waitingCustomerChats: chats.filter(
         (chat) => chat.operationalStatus === 'waiting_customer',
@@ -1836,6 +1839,33 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       customMessage,
       skipAutoMessage,
     );
+  }
+
+  async adminUnassignChat(
+    chatId: string,
+    role: string,
+  ): Promise<WaChatDto> {
+    this.assertAdminRole(role);
+    const chat = await this.findChatOrFail(chatId);
+    if (chat.status === 'closed') {
+      throw new ConflictException('Este chat ya esta cerrado');
+    }
+    if (chat.isGroup) {
+      throw new ConflictException(
+        'Los grupos se liberan con la opcion Liberar',
+      );
+    }
+    chat.status = 'closed';
+    chat.operationalStatus = 'closed';
+    chat.closedAt = new Date();
+    chat.assignedAdvisor = null;
+    chat.assignedAt = null;
+    chat.assignmentMode = null;
+    chat.queueNoticeSent = false;
+    chat.outOfHoursNoticeSent = false;
+    chat.unreadCount = 0;
+    await this.chatRepo.save(chat);
+    return this.toChatDto(chat, false);
   }
 
   async setFixedAdvisor(
@@ -4258,6 +4288,15 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     return this.slaMinutesByPriority[chat.priority ?? 'normal'] ?? 7;
   }
 
+  private clientWroteLast(chat: WhatsappChat): boolean {
+    if (!chat.lastClientMessageAt) return false;
+    const lastClientAt = new Date(chat.lastClientMessageAt).getTime();
+    const lastMessageAt = chat.lastMessageAt
+      ? new Date(chat.lastMessageAt).getTime()
+      : 0;
+    return lastClientAt > 0 && lastMessageAt <= lastClientAt;
+  }
+
   private computeChatCategoria(
     chat: WhatsappChat,
     lastClientAt: number,
@@ -4268,7 +4307,8 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     if (chat.operationalStatus === 'resolved') return 'resuelto';
     if (chat.operationalStatus === 'waiting_customer') return 'esperando_cliente';
     if (chat.operationalStatus === 'waiting_technical') return 'soporte';
-    if (chat.status === 'waiting') return 'cola';
+    if (chat.status === 'waiting' && !chat.fixedAdvisor && !!chat.lastClientMessageAt)
+      return 'cola';
     if (clientIsLast) {
       const waitingMs = Date.now() - lastClientAt;
       return waitingMs >= this.slaDeadlineMinutes(chat) * 60 * 1000
@@ -4316,6 +4356,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     slaRemainingMinutes: number;
     frozen: boolean;
     frozenMinutes: number;
+    clientWrote: boolean;
     categoria: string;
     categoriaLabel: string;
   } {
@@ -4329,6 +4370,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       slaRemainingMinutes: number;
       frozen: boolean;
       frozenMinutes: number;
+      clientWrote: boolean;
       categoria: string;
       categoriaLabel: string;
     } = {
@@ -4340,6 +4382,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       slaRemainingMinutes: deadlineMinutes,
       frozen: false,
       frozenMinutes: 0,
+      clientWrote: false,
       categoria: 'gestion',
       categoriaLabel: 'En gestion',
     };
@@ -4355,19 +4398,22 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
         base.categoria = 'cerrado';
         base.categoriaLabel = 'Cerrado';
       } else if (chat.status === 'waiting') {
-        base.categoria = 'cola';
-        base.categoriaLabel = 'En cola';
-        if (chat.lastClientMessageAt) {
-          const cAt = new Date(chat.lastClientMessageAt).getTime();
-          const mAt = chat.lastMessageAt
-            ? new Date(chat.lastMessageAt).getTime()
-            : 0;
-          const refAt = Math.max(cAt, mAt);
-          base.slaWaitingSince = new Date(refAt).toISOString();
-          base.slaMinutesWaiting = Math.max(
-            0,
-            Math.floor((Date.now() - refAt) / 60000),
-          );
+        base.clientWrote = !!chat.lastClientMessageAt;
+        if (!chat.fixedAdvisor && base.clientWrote) {
+          base.categoria = 'cola';
+          base.categoriaLabel = 'En cola';
+          if (chat.lastClientMessageAt) {
+            const cAt = new Date(chat.lastClientMessageAt).getTime();
+            const mAt = chat.lastMessageAt
+              ? new Date(chat.lastMessageAt).getTime()
+              : 0;
+            const refAt = Math.max(cAt, mAt);
+            base.slaWaitingSince = new Date(refAt).toISOString();
+            base.slaMinutesWaiting = Math.max(
+              0,
+              Math.floor((Date.now() - refAt) / 60000),
+            );
+          }
         }
       }
       return base;
@@ -4377,7 +4423,8 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     const lastMessageAt = chat.lastMessageAt
       ? new Date(chat.lastMessageAt).getTime()
       : 0;
-    const clientIsLast = lastClientAt > 0 && lastMessageAt <= lastClientAt;
+    const clientIsLast = this.clientWroteLast(chat);
+    base.clientWrote = true;
 
     const categoria = this.computeChatCategoria(
       chat,
@@ -4575,8 +4622,8 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
         chat.operationalStatus ?? this.inferOperationalStatus(chat),
       ),
       assignmentMode: chat.assignmentMode ?? undefined,
-      assignedTo: assigned?.id,
-      assignedToName: assigned?.name,
+      assignedTo: assigned?.id ?? '',
+      assignedToName: assigned?.name ?? '',
       fixedAdvisorId: chat.fixedAdvisor?.id ?? null,
       fixedAdvisorName: chat.fixedAdvisor?.name ?? null,
       unread: chat.unreadCount ?? 0,
@@ -4635,8 +4682,8 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
         chat.operationalStatus ?? this.inferOperationalStatus(chat),
       ),
       assignmentMode: chat.assignmentMode ?? undefined,
-      assignedTo: assigned?.id,
-      assignedToName: assigned?.name,
+      assignedTo: assigned?.id ?? '',
+      assignedToName: assigned?.name ?? '',
       fixedAdvisorId: chat.fixedAdvisor?.id ?? null,
       fixedAdvisorName: chat.fixedAdvisor?.name ?? null,
       unread: chat.unreadCount ?? 0,
@@ -4747,6 +4794,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       waiting_customer: 'Esperando cliente',
       waiting_technical: 'Esperando area tecnica',
       resolved: 'Resuelto',
+      released: 'En cola',
       closed: 'Cerrado',
     };
     return labels[status] ?? 'Nuevo';

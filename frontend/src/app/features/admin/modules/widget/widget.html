@@ -316,6 +316,16 @@
             placeholder="Soporte en línea" maxlength="80"/>
         </div>
 
+        <!-- Avatar / Logo -->
+        <div class="field-block">
+          <div class="field-header">
+            <span class="field-title">Avatar / Logo</span>
+            <span class="field-hint">Imagen circular en el header del chat y en la burbuja</span>
+          </div>
+          <input type="text" class="text-field" [(ngModel)]="config.chatAvatar"
+            placeholder="https://tudominio.com/logo.png" maxlength="500"/>
+        </div>
+
         <!-- Color header -->
         <div class="field-block">
           <div class="field-header">
@@ -642,9 +652,13 @@
       <div class="chat-prev">
         <div class="chat-prev-header" [style.background]="config.chatHeaderColor">
           <div class="chat-prev-avatar">
+            @if (config.chatAvatar) {
+            <img [src]="config.chatAvatar" alt="Logo" class="chat-prev-avatar-img" />
+            } @else {
             <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
             </svg>
+            }
           </div>
           <div class="chat-prev-info">
             <span class="chat-prev-title">{{ config.chatMarca || config.tituloPanelChat || 'Soporte en línea' }}</span>

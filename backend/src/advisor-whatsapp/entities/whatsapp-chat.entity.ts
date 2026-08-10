@@ -21,6 +21,7 @@ export type WhatsappOperationalStatus =
   | 'waiting_customer'
   | 'waiting_technical'
   | 'resolved'
+  | 'released'
   | 'closed';
 
 export type WhatsappAssignmentMode =

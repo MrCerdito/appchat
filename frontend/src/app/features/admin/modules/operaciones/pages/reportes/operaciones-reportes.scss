@@ -13,28 +13,26 @@
   gap: 12px;
 }
 
+.opr-menu-btn,
 .opr-back-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
   border: 1px solid #E5E7EB;
-  border-radius: 8px;
-  background: #fff;
+  background: #FFFFFF;
   color: #475569;
-  font-size: 13px;
-  font-weight: 600;
   cursor: pointer;
-  transition: all .12s ease;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
 
-  svg {
-    width: 15px;
-    height: 15px;
-  }
+  svg { width: 18px; height: 18px; }
 
   &:hover {
-    border-color: #10B981;
-    color: #059669;
+    border-color: #2563EB;
+    background: #EFF6FF;
+    color: #2563EB;
   }
 }
 

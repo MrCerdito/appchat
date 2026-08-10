@@ -16,25 +16,26 @@
   flex-shrink: 0;
 }
 
+.opf-menu-btn,
 .opf-back-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: none;
-  border: none;
-  color: #10B981;
-  font-size: 13px;
-  font-weight: 600;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid #E5E7EB;
+  background: #FFFFFF;
+  color: #475569;
   cursor: pointer;
-  padding: 6px 12px;
-  border-radius: 8px;
-  transition: all .12s ease;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
 
-  svg { width: 16px; height: 16px; }
+  svg { width: 18px; height: 18px; }
 
   &:hover {
-    background: #D1FAE5;
-    color: #059669;
+    border-color: #2563EB;
+    background: #EFF6FF;
+    color: #2563EB;
   }
 }
 

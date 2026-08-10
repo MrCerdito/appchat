@@ -90,6 +90,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   Math = Math;
   
   marcaChat = 'Soporte en línea';
+  chatAvatar = '';
 
   pqrsCodigo = '';
   showPqrsSuccess = false;
@@ -737,6 +738,7 @@ get rolLabel(): string {
         if (d.chatBubbleColor) { root.style.setProperty('--chat-bubble', d.chatBubbleColor); root.style.setProperty('--chat-bubble-text', getContrastColor(d.chatBubbleColor)); }
         if (d.chatBubbleUserColor) { root.style.setProperty('--chat-bubble-user', d.chatBubbleUserColor); root.style.setProperty('--chat-bubble-user-text', getContrastColor(d.chatBubbleUserColor)); }
         if (d.chatMarca) this.marcaChat = d.chatMarca;
+        if (typeof d.chatAvatar === 'string') this.chatAvatar = d.chatAvatar;
         this.cdr.detectChanges();
       }
     });
@@ -1762,6 +1764,7 @@ private escapeHtml(value: string): string {
         root.style.setProperty('--chat-bubble-user-text', getContrastColor(cfg['chatBubbleUserColor']));
       }
       if (cfg['chatMarca']) this.marcaChat = cfg['chatMarca'];
+      if (typeof cfg['chatAvatar'] === 'string') this.chatAvatar = cfg['chatAvatar'];
       this.cdr.detectChanges();
     },
     error: () => {},

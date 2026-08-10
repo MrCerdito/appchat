@@ -438,4 +438,10 @@
     background: var(--sidebar-hover);
     color: var(--text);
   }
+
+  // En Operaciones la hamburguesa se integra en el nav de cada página
+  &.operaciones-hidden {
+    visibility: hidden;
+    pointer-events: none;
+  }
 }
