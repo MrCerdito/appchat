@@ -425,6 +425,9 @@ export class ChatGateway
       if (await this.estaEnAlmuerzo(advisorId)) {
         await this.terminarAlmuerzo(advisorId);
       }
+      // El asesor terminó su almuerzo manualmente: evitar que el barrido
+      // automático lo vuelva a activar mientras siga dentro del horario.
+      await this.redisState.setLunchSkipped(advisorId, this.todayStr());
       return;
     }
   }
@@ -1966,6 +1969,7 @@ export class ChatGateway
     const ahora = new Date();
     const diaSem = ahora.getDay();
     const hhmm = `${String(ahora.getHours()).padStart(2, '0')}:${String(ahora.getMinutes()).padStart(2, '0')}`;
+    const fechaHoy = this.todayStr(ahora);
 
     const advisorIds = await this.redisState.getConnectedAdvisorIds();
     const configMap = await this.configuracionService
@@ -2068,7 +2072,12 @@ export class ChatGateway
           }
 
           // ENTRÓ al horario de almuerzo
-          if (enHorario && !enAlmuerzoActivo && !pendiente) {
+          if (
+            enHorario &&
+            !enAlmuerzoActivo &&
+            !pendiente &&
+            !(await this.redisState.isLunchSkipped(advisorId, fechaHoy))
+          ) {
             await this.redisState.removeLunchNotified(advisorId);
             await this.sessionsService
               .setAdvisorStatus(advisorId, 'busy')
@@ -2184,6 +2193,8 @@ export class ChatGateway
       duracionMs,
     });
     await this.redisState.removePendingLunch(advisorId);
+    // Un inicio (manual o automático) invalida una supresión anterior.
+    await this.redisState.removeLunchSkipped(advisorId);
 
     await this.emitLunchStarted(advisorId);
     this.server.emit('lunch_status_changed', {
@@ -2304,6 +2315,13 @@ export class ChatGateway
 
   private async estaEnAlmuerzo(advisorId: string): Promise<boolean> {
     return this.redisState.isOnLunch(advisorId);
+  }
+
+  private todayStr(now: Date = new Date()): string {
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
   }
 
   private async tieneAlmuerzoPendiente(advisorId: string): Promise<boolean> {

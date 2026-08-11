@@ -2357,8 +2357,9 @@
 // ── Widget flotante almuerzo (no bloqueante) ────────────────
 .lunch-widget {
   position: fixed;
-  top: 14px;
-  right: 14px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   z-index: 9990;
   width: 320px;
   max-width: calc(100vw - 28px);
@@ -2374,7 +2375,7 @@
   flex-direction: column;
   gap: 0.7rem;
   text-align: center;
-  animation: slideInRight 0.35s ease;
+  animation: fadeIn 0.3s ease;
 
   .lunch-widget-close {
     position: absolute;
@@ -2434,8 +2435,6 @@
   }
 
   @media (max-width: 1268px) {
-    top: 10px;
-    right: 10px;
     max-width: calc(100vw - 20px);
   }
 }
@@ -2461,7 +2460,61 @@
     color: #fff;
     &:hover { background: #d97706; }
   }
+
+  &--confirm {
+    background: #dc2626;
+    color: #fff;
+    &:hover:not(:disabled) { background: #b91c1c; }
+    &:disabled { opacity: 0.55; cursor: not-allowed; }
+  }
+
+  &--cancel {
+    background: #f1f5f9;
+    color: #475569;
+    border-color: #e2e8f0;
+    &:hover { background: #e2e8f0; }
+  }
 }
+
+// ── Confirmación fin de almuerzo ─────────────────────────
+.lunch-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.8rem 0.9rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 12px;
+
+  .lunch-confirm-msg {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #b91c1c;
+
+    svg { width: 15px; height: 15px; flex-shrink: 0; }
+  }
+
+  .lunch-confirm-actions {
+    display: flex;
+    gap: 0.5rem;
+    width: 100%;
+  }
+}
+
+.lunch-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
 
 .lunch-float-badge {
   position: fixed;

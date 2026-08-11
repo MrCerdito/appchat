@@ -16,6 +16,7 @@ import { WhatsappChatService } from '../../../core/services/whatsapp-chat.servic
 import { ChatStateService } from '../../../core/services/chat-state.service';
 import { InternalChatService } from '../../../core/services/internal-chat.service';
 import { ThemeService } from '../../../core/services/theme.service';
+import { NotificationService } from '../../../core/services/notification.service';
 import { User } from '../../../core/models/user.model';
 import { Session } from '../../../core/models/session.model';
 import { Message } from '../../../core/models/message.model';
@@ -120,6 +121,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
   almuerzoProgreso = 0;
   almuerzoProximoMensaje = '';
   almuerzoError = '';
+  terminarAlmuerzoLoading = false;
+  confirmarFinAlmuerzo = false;
 
   private lunchInterval: ReturnType<typeof setInterval> | null = null;
   private destroy$ = new Subject<void>();
@@ -147,6 +150,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     protected themeService: ThemeService,
     private admin: AdminService,
     private elementRef: ElementRef,
+    private notification: NotificationService,
   ) {}
 
   ngOnInit(): void {
@@ -268,7 +272,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe(data => {
         if (data.enAlmuerzo) return;
-        this.resetAlmuerzo(false);
+        this.resetAlmuerzo(false, 'sync');
       });
 
     this.socket.on<{ advisorId: string; enAlmuerzo: boolean; fin: string | null }>('lunch_status_changed')
@@ -295,7 +299,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.socket.on<void>('lunch_ended')
       .pipe(takeUntil(this.destroy$))
       .subscribe(() => {
-        this.resetAlmuerzo(true);
+        this.resetAlmuerzo(true, 'sync');
       });
 
     this.socket.on<{ mensaje: string; chats: number; chatsWeb: number; chatsWhatsapp: number; inicio: string; finOriginal: string }>('lunch_pending')
@@ -578,7 +582,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
       if (diff === 0) {
         this.socket.emit('lunch_action', { action: 'end' });
-        this.resetAlmuerzo(true);
+        this.resetAlmuerzo(true, 'auto');
       }
     }, 1000);
   }
@@ -655,7 +659,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.startLunchCountdown();
   }
 
-  private resetAlmuerzo(restoreOnline: boolean): void {
+  private resetAlmuerzo(restoreOnline: boolean, causa: 'manual' | 'auto' | 'sync' = 'manual'): void {
+    const estabaEnAlmuerzo = this.enAlmuerzo;
     this.enAlmuerzo = false;
     this.almuerzoPendiente = false;
     this.almuerzoModalVisible = true;
@@ -673,10 +678,23 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.almuerzoProgreso = 0;
     this.almuerzoProximoMensaje = '';
     this.almuerzoError = '';
+    this.confirmarFinAlmuerzo = false;
+    this.terminarAlmuerzoLoading = false;
     if (restoreOnline) this.advisorStatus = 'online';
     this.stopLunchCountdown();
     localStorage.removeItem(this.LUNCH_STATE_KEY);
     this.cdr.detectChanges();
+
+    if (estabaEnAlmuerzo) {
+      if (causa === 'auto') {
+        this.notification.success('Tu horario de almuerzo finalizó', 'Ya puedes recibir chats de nuevo.');
+      } else if (causa === 'sync') {
+        this.notification.success('Almuerzo finalizado', 'Ya estás disponible para recibir chats.');
+      } else {
+        this.notification.success('Almuerzo terminado', 'Volviste a estar disponible. Puedes recibir chats de nuevo.');
+      }
+      this.sound.playSuccessSound();
+    }
   }
 
   loadActiveCount(): void {
@@ -734,10 +752,22 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.socket.emit('set_advisor_status', status);
   }
 
-  terminarAlmuerzo(): void {
+  solicitarFinAlmuerzo(): void {
     this.almuerzoError = '';
+    this.confirmarFinAlmuerzo = true;
+    this.almuerzoModalVisible = true;
+  }
+
+  cancelarFinAlmuerzo(): void {
+    this.confirmarFinAlmuerzo = false;
+  }
+
+  terminarAlmuerzo(): void {
+    if (this.terminarAlmuerzoLoading || !this.enAlmuerzo) return;
+    this.almuerzoError = '';
+    this.terminarAlmuerzoLoading = true;
     this.socket.emit('lunch_action', { action: 'end' });
-    this.resetAlmuerzo(true);
+    this.resetAlmuerzo(true, 'manual');
   }
 
   iniciarAlmuerzoManual(): void {
@@ -749,6 +779,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   cerrarModalAlmuerzo(): void {
     this.almuerzoModalVisible = false;
     this.almuerzoError = '';
+    this.confirmarFinAlmuerzo = false;
   }
 
   reabrirModalAlmuerzo(): void {

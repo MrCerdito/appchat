@@ -3,21 +3,34 @@
   <app-toast-container />
 
   <div class="login-left">
+
+    <svg class="deco-curve" viewBox="0 0 200 200" fill="none" preserveAspectRatio="none"
+      aria-hidden="true">
+      <circle cx="150" cy="40" r="26" stroke="rgba(34, 211, 238, 0.35)" stroke-width="1.5"/>
+      <circle cx="40" cy="180" r="34" stroke="rgba(37, 99, 235, 0.35)" stroke-width="1.5"/>
+      <path d="M-10 170 C60 120, 90 200, 210 150" stroke="rgba(34, 211, 238, 0.35)"
+        stroke-width="2"/>
+      <path d="M-10 190 C70 140, 100 220, 210 170" stroke="rgba(37, 99, 235, 0.35)"
+        stroke-width="2"/>
+    </svg>
+
     <div class="brand">
-      <div class="brand-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-          <path d="M2 17l10 5 10-5"/>
-          <path d="M2 12l10 5 10-5"/>
-        </svg>
-      </div>
-      <span class="brand-name">Chat en linea</span>
+      <img class="brand-logo" src="LOGO.png" alt="Korvix" />
     </div>
 
     <div class="left-content">
-      <h1>Comunícate con tu equipo<br>de forma simple</h1>
-      <p>Gestiona conversaciones con agentes en un solo lugar de manera rápida y organizada.</p>
+      <h1>
+        Conecta<br />
+        <span class="highlight">con tu equipo.</span><br />
+        Así de simple.
+      </h1>
+
+      <div class="divider"></div>
+
+      <p>
+        Gestiona tus conversaciones con agentes en un solo lugar, de forma rápida,
+        organizada y eficiente.
+      </p>
 
       <div class="features">
         <div class="feature-item">
@@ -66,24 +79,15 @@
         </div>
       </div>
     </div>
-
-    <p class="left-footer">© 2025 Chat Agentes. Todos los derechos reservados.</p>
   </div>
 
   <div class="login-right">
     <div class="login-card">
 
       <div class="card-header">
-        <div class="card-logo">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-            <path d="M2 17l10 5 10-5"/>
-            <path d="M2 12l10 5 10-5"/>
-          </svg>
-        </div>
+        <img class="card-logo" src="LOGO.png" alt="Korvix" />
         <h2>Bienvenido</h2>
-        <p>Ingresa para acceder al chat</p>
+        <div class="card-divider"></div>
       </div>
 
       <div class="form">
@@ -117,12 +121,34 @@
             </svg>
             <input
               id="password"
-              type="password"
+              [type]="showPassword ? 'text' : 'password'"
               [(ngModel)]="password"
               placeholder="••••••••"
               (keyup.enter)="login()"
               [disabled]="loading"
             />
+            <button
+              type="button"
+              class="toggle-btn"
+              (click)="showPassword = !showPassword"
+              [attr.aria-label]="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+            >
+              @if (showPassword) {
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/>
+                <line x1="1" y1="1" x2="23" y2="23"/>
+              </svg>
+              } @else {
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+              }
+            </button>
           </div>
         </div>
 
@@ -138,7 +164,7 @@
         </div>
         }
 
-        <button (click)="login()" [disabled]="loading || !email.trim() || !password.trim()">
+        <button class="login-btn" (click)="login()" [disabled]="loading || !email.trim() || !password.trim()">
           @if (!loading) {
           <span>Ingresar</span>
           } @else {

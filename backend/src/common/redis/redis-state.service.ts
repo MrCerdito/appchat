@@ -45,6 +45,7 @@ const K = {
   ON_LUNCH: 'chat:on-lunch', // HASH advisorId→JSON OnLunchData
   PENDING_LUNCH: 'chat:pending-lunch', // HASH advisorId→JSON
   LUNCH_NOTIFIED: 'chat:lunch-notified', // SET of advisorIds
+  LUNCH_SKIPPED: 'chat:lunch-skipped', // HASH advisorId→fecha (YYYY-MM-DD)
   ASSIGN_LOCK: 'chat:assign-lock', // STRING (SETNX for distributed lock)
 } as const;
 
@@ -243,6 +244,19 @@ export class RedisStateService implements OnModuleDestroy {
 
   async removeOnLunch(advisorId: string): Promise<void> {
     await this.redis.hdel(K.ON_LUNCH, advisorId);
+  }
+
+  async setLunchSkipped(advisorId: string, fecha: string): Promise<void> {
+    await this.redis.hset(K.LUNCH_SKIPPED, advisorId, fecha);
+  }
+
+  async isLunchSkipped(advisorId: string, fecha: string): Promise<boolean> {
+    const stored = await this.redis.hget(K.LUNCH_SKIPPED, advisorId);
+    return stored === fecha;
+  }
+
+  async removeLunchSkipped(advisorId: string): Promise<void> {
+    await this.redis.hdel(K.LUNCH_SKIPPED, advisorId);
   }
 
   async getAllOnLunch(): Promise<Record<string, OnLunchData>> {

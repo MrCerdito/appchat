@@ -51,8 +51,9 @@
           <div class="almuerzo-progress-bar" [style.width.%]="almuerzoProgreso"></div>
         </div>
 
+        @if (!confirmarFinAlmuerzo) {
         <div class="lunch-widget-actions">
-          <button class="lunch-btn lunch-btn--end" (click)="terminarAlmuerzo()">
+          <button class="lunch-btn lunch-btn--end" (click)="solicitarFinAlmuerzo()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
               <polyline points="18 15 12 9 6 15"/>
@@ -60,6 +61,37 @@
             Terminar almuerzo
           </button>
         </div>
+        } @else {
+        <div class="lunch-confirm">
+          <div class="lunch-confirm-msg">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            ¿Seguro que deseas terminar el almuerzo?
+          </div>
+          <div class="lunch-confirm-actions">
+            <button class="lunch-btn lunch-btn--confirm" (click)="terminarAlmuerzo()"
+              [disabled]="terminarAlmuerzoLoading">
+              @if (terminarAlmuerzoLoading) {
+              <span class="lunch-spinner"></span>
+              } @else {
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              }
+              Sí, terminar
+            </button>
+            <button class="lunch-btn lunch-btn--cancel" (click)="cancelarFinAlmuerzo()"
+              [disabled]="terminarAlmuerzoLoading">
+              Cancelar
+            </button>
+          </div>
+        </div>
+        }
 
         <span class="almuerzo-nota">El sistema reanudará automáticamente al finalizar</span>
       </div>
@@ -573,7 +605,7 @@
               <span>Almuerzo — {{ almuerzoRestante }}</span>
             </div>
             <div class="pd-lunch-controls">
-              <button class="pd-lunch-btn" (click)="terminarAlmuerzo()">Terminar</button>
+              <button class="pd-lunch-btn" (click)="solicitarFinAlmuerzo()">Terminar</button>
             </div>
             } @else if (!almuerzoPendiente) {
             <button class="pd-lunch-start" (click)="iniciarAlmuerzoManual()">
