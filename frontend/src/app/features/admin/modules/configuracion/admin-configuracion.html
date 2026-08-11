@@ -1,8 +1,9 @@
 <div class="config-page">
 
-  <div class="config-header">
-    <div class="config-title">
-      <div class="config-icon">
+  <!-- ═══════════ HEADER STICKY ═══════════ -->
+  <header class="cfg-header">
+    <div class="cfg-header-left">
+      <div class="cfg-header-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
           stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="3"/>
@@ -17,62 +18,61 @@
             a1.65 1.65 0 0 0-1.51 1z"/>
         </svg>
       </div>
-      <div>
+      <div class="cfg-header-text">
+        <span class="cfg-eyebrow">Panel de administración</span>
         <h1>Configuración global</h1>
         <p>Chat en línea, WhatsApp y configuración general de la plataforma</p>
       </div>
     </div>
-    <button class="btn-save" [disabled]="saving" (click)="guardar()">
-      @if (saving) {
-      <svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
-      </svg>
-      }
-      @if (!saving && !saved) {
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-        <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
-      </svg>
-      }
+    <div class="cfg-header-actions">
       @if (saved) {
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="20 6 9 17 4 12"/>
-      </svg>
+      <span class="cfg-saved-pill">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+        Cambios guardados
+      </span>
       }
-      {{ saving ? 'Guardando...' : saved ? '¡Guardado!' : 'Guardar cambios' }}
-    </button>
-  </div>
+      <button class="cfg-btn cfg-btn--primary cfg-save-btn" [disabled]="saving" (click)="guardar()">
+        @if (saving) {
+        <svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+        </svg>
+        }
+        @if (!saving && !saved) {
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+          <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+        </svg>
+        }
+        @if (saved) {
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+        }
+        {{ saving ? 'Guardando...' : saved ? '¡Guardado!' : 'Guardar cambios' }}
+      </button>
+    </div>
+  </header>
 
-  @if (error) {
-  <div class="config-error">{{ error }}</div>
-  }
-
-  @if (loading) {
-  <div class="loading-state">
-    <div class="spinner"></div><span>Cargando configuración...</span>
-  </div>
-  }
-
-  @if (!loading && config) {
-  <div class="config-body">
-
-    <!-- Tabs -->
-    <div class="config-nav">
-      <div class="tabs tabs--groups">
-        <button class="tab" [class.active]="grupo === 'chat'" (click)="setGrupo('chat')">
+  <!-- ═══════════ NAV GRUPOS (sticky) ═══════════ -->
+  <nav class="cfg-nav">
+    <div class="cfg-container cfg-nav-inner">
+      <div class="cfg-tabs">
+        <button class="cfg-tab" [class.cfg-tab--active]="grupo === 'chat'" (click)="setGrupo('chat')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
           </svg>
           Chat en línea
         </button>
-        <button class="tab" [class.active]="grupo === 'whatsapp'" (click)="setGrupo('whatsapp')">
+        <button class="cfg-tab" [class.cfg-tab--active]="grupo === 'whatsapp'" (click)="setGrupo('whatsapp')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 11.5a8.4 8.4 0 0 1-12.6 7.3L3 20l1.4-5A8.4 8.4 0 1 1 21 11.5z"/>
             <path d="M9.5 8.5c.3 3 2 4.8 5 5"/>
           </svg>
           WhatsApp
         </button>
-        <button class="tab" [class.active]="grupo === 'general'" (click)="setGrupo('general')">
+        <button class="cfg-tab" [class.cfg-tab--active]="grupo === 'general'" (click)="setGrupo('general')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="3"/>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06
@@ -88,22 +88,27 @@
           General
         </button>
       </div>
+    </div>
+  </nav>
 
+  <!-- ═══════════ SUB-NAV (sticky) ═══════════ -->
+  <div class="cfg-nav-sub">
+    <div class="cfg-container">
       @if (grupo === 'chat') {
-      <div class="tabs tabs--sub">
-        <button class="tab" [class.active]="tab === 'bienvenida'" (click)="tab = 'bienvenida'">
+      <div class="cfg-tabs cfg-tabs--sub">
+        <button class="cfg-tab--sub" [class.cfg-tab--sub-active]="tab === 'bienvenida'" (click)="tab = 'bienvenida'">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
           </svg>
           Mensaje de bienvenida
         </button>
-        <button class="tab" [class.active]="tab === 'inactividad'" (click)="tab = 'inactividad'">
+        <button class="cfg-tab--sub" [class.cfg-tab--sub-active]="tab === 'inactividad'" (click)="tab = 'inactividad'">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="8" r="4"/><path d="M6 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
           </svg>
           Tiempos de espera
         </button>
-        <button class="tab" [class.active]="tab === 'reconexion'" (click)="tab = 'reconexion'">
+        <button class="cfg-tab--sub" [class.cfg-tab--sub-active]="tab === 'reconexion'" (click)="tab = 'reconexion'">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
           </svg>
@@ -111,8 +116,8 @@
         </button>
       </div>
       } @else if (grupo === 'whatsapp') {
-      <div class="tabs tabs--sub">
-        <button class="tab" [class.active]="tab === 'whatsapp'" (click)="tab = 'whatsapp'">
+      <div class="cfg-tabs cfg-tabs--sub">
+        <button class="cfg-tab--sub" [class.cfg-tab--sub-active]="tab === 'whatsapp'" (click)="tab = 'whatsapp'">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 11.5a8.4 8.4 0 0 1-12.6 7.3L3 20l1.4-5A8.4 8.4 0 1 1 21 11.5z"/>
             <path d="M9.5 8.5c.3 3 2 4.8 5 5"/>
@@ -121,21 +126,21 @@
         </button>
       </div>
       } @else {
-      <div class="tabs tabs--sub">
-        <button class="tab" [class.active]="tab === 'jornada'" (click)="tab = 'jornada'">
+      <div class="cfg-tabs cfg-tabs--sub">
+        <button class="cfg-tab--sub" [class.cfg-tab--sub-active]="tab === 'jornada'" (click)="tab = 'jornada'">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
           </svg>
           Jornada laboral
         </button>
-        <button class="tab" [class.active]="tab === 'sonidos'" (click)="tab = 'sonidos'">
+        <button class="cfg-tab--sub" [class.cfg-tab--sub-active]="tab === 'sonidos'" (click)="tab = 'sonidos'">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
             <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
           </svg>
           Sonidos
         </button>
-        <button class="tab" [class.active]="tab === 'ia'" (click)="tab = 'ia'">
+        <button class="cfg-tab--sub" [class.cfg-tab--sub-active]="tab === 'ia'" (click)="tab = 'ia'">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.58-3.25 3.93"/><path d="M8 12a4 4 0 0 1 8 0"/>
             <path d="M4 18c0-2.2 3.6-4 8-4s8 1.8 8 4"/><circle cx="8" cy="6" r="1" fill="currentColor"/>
@@ -143,7 +148,7 @@
           </svg>
           Prompt IA
         </button>
-        <button class="tab" [class.active]="tab === 'colegios'" (click)="tab = 'colegios'; loadColegios()">
+        <button class="cfg-tab--sub" [class.cfg-tab--sub-active]="tab === 'colegios'" (click)="tab = 'colegios'; loadColegios()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/>
           </svg>
@@ -152,321 +157,387 @@
       </div>
       }
     </div>
+  </div>
 
-    <!-- ══════════════════════════════════════════════════════════
-         TAB — JORNADA LABORAL
-    ══════════════════════════════════════════════════════════ -->
-    @if (tab === 'jornada') {
-    <div class="tab-panel">
-      <div class="panel-section">
+  <!-- ═══════════ CONTENIDO ═══════════ -->
+  <div class="cfg-container cfg-body-container">
 
-        <div class="section-info">
-          <h3>Jornada laboral global</h3>
-          <p>Define los días y horarios en que la plataforma acepta nuevas conversaciones.
-             Fuera de este horario los clientes verán el mensaje configurado abajo.</p>
-        </div>
+    @if (error) {
+    <div class="cfg-alert cfg-alert--error">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <span>{{ error }}</span>
+    </div>
+    }
 
-        <!-- Toggle global -->
-        <div class="toggle-row">
-          <div class="toggle-row-info">
-            <span class="toggle-label">Activar control de horarios</span>
-            <span class="toggle-sub">
-              Cuando está activo, los clientes solo pueden iniciar chats dentro del horario configurado
-            </span>
-          </div>
-          <label class="toggle">
-            <input type="checkbox" [(ngModel)]="config.horariosActivos"/>
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
+    @if (loading) {
+    <div class="cfg-skeletons">
+      <div class="cfg-skeleton-card">
+        <div class="cfg-skeleton-row" style="width: 40%;"></div>
+        <div class="cfg-skeleton-row"></div>
+        <div class="cfg-skeleton-row"></div>
+        <div class="cfg-skeleton-row" style="width: 70%;"></div>
+      </div>
+      <div class="cfg-skeleton-card">
+        <div class="cfg-skeleton-row" style="width: 55%;"></div>
+        <div class="cfg-skeleton-row"></div>
+        <div class="cfg-skeleton-row"></div>
+      </div>
+      <div class="cfg-loading">
+        <div class="spinner"></div>
+        <span>Cargando configuración...</span>
+      </div>
+    </div>
+    }
 
-        <!-- Selector de días -->
-        <div class="dias-selector" [class.disabled]="!config.horariosActivos">
-          @for (dia of dias; track trackByIndex($index)) {
-          <button class="dia-pill"
-            [class.dia-pill--active]="tieneHorario(dia.value)"
-            [class.dia-pill--selected]="diaSeleccionado === dia.value && tieneHorario(dia.value)"
-            (click)="seleccionarDia(dia.value)">
-            <span class="dia-pill-label">{{ dia.short }}</span>
-            @if (tieneHorario(dia.value)) {
-            <span class="dia-pill-dot"></span>
-            }
-          </button>
-          }
-        </div>
+    @if (!loading && config) {
+    <div class="cfg-body">
 
-        <!-- Panel del día seleccionado -->
-        @if (diaSeleccionado !== null && tieneHorario(diaSeleccionado)) {
-        <div class="dia-config-panel">
+      <!-- ══════════════════════════════════════════════════════════
+           TAB — JORNADA LABORAL
+      ══════════════════════════════════════════════════════════ -->
+      @if (tab === 'jornada') {
+      <div class="cfg-panel">
 
-          <div class="dia-config-header">
-            <div class="dia-config-title">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
+        <div class="cfg-card">
+          <div class="cfg-card__header">
+            <div class="cfg-card__icon cfg-card__icon--purple">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
                 <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
                 <line x1="3" y1="10" x2="21" y2="10"/>
               </svg>
-              <h4>{{ getDiaNombre(diaSeleccionado) }}</h4>
             </div>
-            <button class="btn-quitar" (click)="quitarDia(diaSeleccionado)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="3 6 5 6 21 6"/>
-                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                <path d="M10 11v6"/><path d="M14 11v6"/>
-                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-              </svg>
-              Quitar día
-            </button>
+            <div class="cfg-card__titles">
+              <h3>Jornada laboral global</h3>
+              <p>Define los días y horarios en que la plataforma acepta nuevas conversaciones.
+                 Fuera de este horario los clientes verán el mensaje configurado abajo.</p>
+            </div>
           </div>
+          <div class="cfg-card__body">
 
-          <div class="dia-config-section">
-            <span class="section-row-label">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-              </svg>
-              Horario de atención
-            </span>
-            <div class="time-row">
-              <div class="time-field">
-                <span class="time-field-label">Apertura</span>
-                <input type="time"
-                  [ngModel]="getHorario(diaSeleccionado).inicio"
-                  (ngModelChange)="setInicio(diaSeleccionado, $event)"
-                  [disabled]="!config.horariosActivos"/>
+            <div class="cfg-toggle-row">
+              <div class="cfg-toggle-info">
+                <span class="cfg-toggle-label">Activar control de horarios</span>
+                <span class="cfg-toggle-sub">
+                  Cuando está activo, los clientes solo pueden iniciar chats dentro del horario configurado
+                </span>
               </div>
-              <div class="time-arrow">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              <label class="cfg-toggle">
+                <input type="checkbox" [(ngModel)]="config.horariosActivos"/>
+                <span class="cfg-toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="cfg-days" [class.cfg-days--disabled]="!config.horariosActivos">
+              @for (dia of dias; track trackByIndex($index)) {
+              <button class="cfg-day"
+                [class.cfg-day--active]="tieneHorario(dia.value)"
+                [class.cfg-day--selected]="diaSeleccionado === dia.value && tieneHorario(dia.value)"
+                (click)="seleccionarDia(dia.value)">
+                <span class="cfg-day__label">{{ dia.short }}</span>
+                @if (tieneHorario(dia.value)) {
+                <span class="cfg-day__dot"></span>
+                }
+              </button>
+              }
+            </div>
+
+            @if (diaSeleccionado !== null && tieneHorario(diaSeleccionado)) {
+            <div class="cfg-day-panel">
+
+              <div class="cfg-day-panel__header">
+                <div class="cfg-day-panel__title">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+                    <line x1="3" y1="10" x2="21" y2="10"/>
+                  </svg>
+                  <h4>{{ getDiaNombre(diaSeleccionado) }}</h4>
+                </div>
+                <button class="cfg-btn cfg-btn--ghost cfg-btn--danger cfg-btn--sm" (click)="quitarDia(diaSeleccionado)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                    <path d="M10 11v6"/><path d="M14 11v6"/>
+                    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                  </svg>
+                  Quitar día
+                </button>
+              </div>
+
+              <div class="cfg-day-panel__body">
+                <span class="cfg-row-label">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                  </svg>
+                  Horario de atención
+                </span>
+                <div class="cfg-time-row">
+                  <div class="cfg-time-field">
+                    <span class="cfg-time-field__label">Apertura</span>
+                    <input type="time"
+                      [ngModel]="getHorario(diaSeleccionado).inicio"
+                      (ngModelChange)="setInicio(diaSeleccionado, $event)"
+                      [disabled]="!config.horariosActivos"/>
+                  </div>
+                  <div class="cfg-time-arrow">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                      stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+                    </svg>
+                  </div>
+                  <div class="cfg-time-field">
+                    <span class="cfg-time-field__label">Cierre</span>
+                    <input type="time"
+                      [ngModel]="getHorario(diaSeleccionado).fin"
+                      (ngModelChange)="setFin(diaSeleccionado, $event)"
+                      [disabled]="!config.horariosActivos"/>
+                  </div>
+                </div>
+                @if (!horarioValido(getHorario(diaSeleccionado))) {
+                <div class="cfg-time-error">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                  </svg>
+                  <span>El cierre debe ser posterior a la apertura</span>
+                </div>
+                }
+
+                <div class="cfg-day-bar">
+                  <div class="cfg-day-bar__track">
+                    <div class="cfg-day-bar__slot"
+                      [style.left.%]="horaAPct(getHorario(diaSeleccionado).inicio)"
+                      [style.width.%]="horaAPct(getHorario(diaSeleccionado).fin) - horaAPct(getHorario(diaSeleccionado).inicio)">
+                    </div>
+                  </div>
+                  <div class="cfg-day-bar__labels">
+                    <span>7am</span><span>9am</span><span>11am</span>
+                    <span>1pm</span><span>3pm</span><span>5pm</span><span>7pm</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            }
+
+            @if (diaSeleccionado === null || !tieneHorario(diaSeleccionado)) {
+            <div class="cfg-empty cfg-empty--dashed">
+              <div class="cfg-empty__inner">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
                   stroke-linecap="round" stroke-linejoin="round">
-                  <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
                 </svg>
+                <p>Selecciona un día para configurar su jornada</p>
+                <span>Haz clic en una píldora para activar o editar ese día</span>
               </div>
-              <div class="time-field">
-                <span class="time-field-label">Cierre</span>
-                <input type="time"
-                  [ngModel]="getHorario(diaSeleccionado).fin"
-                  (ngModelChange)="setFin(diaSeleccionado, $event)"
-                  [disabled]="!config.horariosActivos"/>
-              </div>
-            </div>
-            @if (!horarioValido(getHorario(diaSeleccionado))) {
-            <div class="time-error">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="12" y1="8" x2="12" y2="12"/>
-                <line x1="12" y1="16" x2="12.01" y2="16"/>
-              </svg>
-              <span>El cierre debe ser posterior a la apertura</span>
-            </div>
-            }
-          </div>
-
-          <!-- Barra visual -->
-          <div class="dia-resumen">
-            <div class="dia-resumen-bar">
-              <div class="resumen-slot"
-                [style.left.%]="horaAPct(getHorario(diaSeleccionado).inicio)"
-                [style.width.%]="horaAPct(getHorario(diaSeleccionado).fin) - horaAPct(getHorario(diaSeleccionado).inicio)">
-              </div>
-            </div>
-            <div class="dia-resumen-labels">
-              <span>7am</span><span>9am</span><span>11am</span>
-              <span>1pm</span><span>3pm</span><span>5pm</span><span>7pm</span>
-            </div>
-          </div>
-
-        </div>
-        }
-
-        <!-- Estado vacío -->
-        @if (diaSeleccionado === null || !tieneHorario(diaSeleccionado)) {
-        <div class="dia-empty">
-          <div class="dia-empty-inner">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
-              stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-              <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
-              <line x1="3" y1="10" x2="21" y2="10"/>
-            </svg>
-            <p>Selecciona un día para configurar su jornada</p>
-            <span>Haz clic en una píldora para activar o editar ese día</span>
-          </div>
-        </div>
-        }
-
-        <!-- Resumen de jornadas activas -->
-        @if (config.horarios.length > 0) {
-        <div class="jornada-resumen">
-          <span class="jornada-resumen-label">Jornada configurada</span>
-          <div class="jornada-chips">
-            @for (h of config.horarios; track trackByIndex($index)) {
-            <div class="jornada-chip">
-              <span class="chip-dia">{{ getDiaNombre(h.dia) }}</span>
-              <span class="chip-hora">{{ h.inicio }} – {{ h.fin }}</span>
-            </div>
-            }
-          </div>
-          @if (errorHorarioVisible) {
-          <div class="jornada-error">
-            Hay horarios con el cierre menor o igual a la apertura. Corrígelos antes de guardar.
-          </div>
-          }
-        </div>
-        }
-
-        <!-- Vista previa para el cliente -->
-        <div class="fh-preview" [class.disabled]="!config.horariosActivos">
-          <div class="fh-preview-header">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-              <circle cx="12" cy="12" r="3"/>
-            </svg>
-            <span>Vista previa para el cliente</span>
-            @if (!config.horariosActivos) {
-            <span class="fh-preview-badge">horarios desactivados</span>
-            }
-          </div>
-          <div class="fh-preview-card">
-            <div class="fh-preview-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"/>
-                <polyline points="12 6 12 12 16 14"/>
-              </svg>
-            </div>
-            <h4>Fuera de horario</h4>
-            <p class="fh-preview-sub">En este momento no estamos disponibles.</p>
-
-            @if (config.horariosActivos && previewProxima().texto) {
-            <div class="fh-preview-proxima">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"/>
-                <polyline points="12 6 12 12 16 14"/>
-              </svg>
-              <span>Volvemos <strong>{{ previewProxima().texto }}</strong></span>
             </div>
             }
 
             @if (config.horarios.length > 0) {
-            <div class="fh-preview-horarios">
-              @for (h of config.horarios; track trackByIndex($index)) {
-              <div class="fh-preview-row" [class.invalid]="!horarioValido(h)">
-                <span>{{ getDiaNombre(h.dia) }}</span>
-                <span>{{ h.inicio }} – {{ h.fin }}</span>
+            <div class="cfg-summary">
+              <span class="cfg-summary__label">Jornada configurada</span>
+              <div class="cfg-summary__chips">
+                @for (h of config.horarios; track trackByIndex($index)) {
+                <div class="cfg-chip cfg-chip--purple">
+                  <span class="cfg-chip__dia">{{ getDiaNombre(h.dia) }}</span>
+                  <span class="cfg-chip__hora">{{ h.inicio }} – {{ h.fin }}</span>
+                </div>
+                }
+              </div>
+              @if (errorHorarioVisible) {
+              <div class="cfg-alert cfg-alert--warning">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <span>Hay horarios con el cierre menor o igual a la apertura. Corrígelos antes de guardar.</span>
               </div>
               }
             </div>
             }
-
-            @if (config.horarioFueraMsg) {
-            <p class="fh-preview-msg">{{ config.horarioFueraMsg }}</p>
-            }
           </div>
         </div>
 
-        <!-- Mensaje fuera de horario -->
-        <div class="field">
-          <label>Mensaje fuera de horario</label>
-          <textarea [(ngModel)]="config.horarioFueraMsg" rows="3"
-            placeholder=""></textarea>
-          <span class="field-hint">
-            El cliente verá este mensaje cuando intente iniciar un chat fuera del horario configurado
-          </span>
+        <div class="cfg-card">
+          <div class="cfg-card__header">
+            <div class="cfg-card__icon cfg-card__icon--amber">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </div>
+            <div class="cfg-card__titles">
+              <h3>Vista previa para el cliente</h3>
+              <p>Así verá el cliente el aviso de no disponibilidad.</p>
+            </div>
+            @if (!config.horariosActivos) {
+            <span class="cfg-badge cfg-badge--amber">horarios desactivados</span>
+            }
+          </div>
+          <div class="cfg-card__body">
+            <div class="cfg-preview">
+              <div class="cfg-preview__widget" [class.cfg-preview__widget--dim]="!config.horariosActivos">
+                <div class="cfg-preview__icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12 6 12 12 16 14"/>
+                  </svg>
+                </div>
+                <h4>Fuera de horario</h4>
+                <p class="cfg-preview__sub">En este momento no estamos disponibles.</p>
+
+                @if (config.horariosActivos && previewProxima().texto) {
+                <div class="cfg-preview__proxima">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12 6 12 12 16 14"/>
+                  </svg>
+                  <span>Volvemos <strong>{{ previewProxima().texto }}</strong></span>
+                </div>
+                }
+
+                @if (config.horarios.length > 0) {
+                <div class="cfg-preview__horarios">
+                  @for (h of config.horarios; track trackByIndex($index)) {
+                  <div class="cfg-preview__row" [class.invalid]="!horarioValido(h)">
+                    <span>{{ getDiaNombre(h.dia) }}</span>
+                    <span>{{ h.inicio }} – {{ h.fin }}</span>
+                  </div>
+                  }
+                </div>
+                }
+
+                @if (config.horarioFueraMsg) {
+                <p class="cfg-preview__msg">{{ config.horarioFueraMsg }}</p>
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cfg-card">
+          <div class="cfg-card__header">
+            <div class="cfg-card__icon cfg-card__icon--blue">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+            </div>
+            <div class="cfg-card__titles">
+              <h3>Mensaje fuera de horario</h3>
+              <p>El cliente verá este mensaje cuando intente iniciar un chat fuera del horario configurado.</p>
+            </div>
+          </div>
+          <div class="cfg-card__body">
+            <div class="cfg-field">
+              <label class="cfg-field__label">Mensaje fuera de horario</label>
+              <textarea class="cfg-textarea" [(ngModel)]="config.horarioFueraMsg" rows="3" placeholder=""></textarea>
+            </div>
+          </div>
         </div>
 
       </div>
-    </div>
-    }
+      }
 
-    <!-- ══════════════════════════════════════════════════════════
-         TAB — MENSAJE DE BIENVENIDA (Chat en línea)
-    ══════════════════════════════════════════════════════════ -->
-    @if (tab === 'bienvenida') {
-    <div class="tab-panel">
-      <div class="panel-section">
-        <div class="section-info">
-          <h3>Mensaje de bienvenida</h3>
-          <p>Se envía automáticamente al cliente cuando un agente se conecta a su
-             chat en línea. Aplica de forma global a todos los agentes.
-             Usa <code [innerHTML]="'{{' + 'agente' + '}}'"></code> para insertar el nombre del agente.</p>
-        </div>
+      <!-- ══════════════════════════════════════════════════════════
+           TAB — MENSAJE DE BIENVENIDA (Chat en línea)
+      ══════════════════════════════════════════════════════════ -->
+      @if (tab === 'bienvenida') {
+      <div class="cfg-panel">
 
-        <div class="placeholder-row">
-          <span>Variables disponibles</span>
-          <code [innerHTML]="'{{' + 'agente' + '}}'"></code>
-        </div>
-
-        <div class="field-card">
-          <div class="field-card-header">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-            </svg>
-            <span>Mensaje de bienvenida</span>
+        <div class="cfg-card">
+          <div class="cfg-card__header">
+            <div class="cfg-card__icon cfg-card__icon--green">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+            </div>
+            <div class="cfg-card__titles">
+              <h3>Mensaje de bienvenida</h3>
+              <p>Se envía automáticamente al cliente cuando un agente se conecta a su
+                 chat en línea. Aplica de forma global a todos los agentes.</p>
+            </div>
           </div>
-          <div class="field-card-body">
-            <div class="field">
-              <label>Texto del mensaje</label>
-              <textarea [(ngModel)]="config.mensajeBienvenida" rows="4" maxlength="500"
+          <div class="cfg-card__body">
+
+            <div class="cfg-placeholder-row">
+              <span>Variables disponibles</span>
+              <code [innerHTML]="'{{' + 'agente' + '}}'"></code>
+            </div>
+
+            <div class="cfg-field">
+              <label class="cfg-field__label">Texto del mensaje</label>
+              <textarea class="cfg-textarea" [(ngModel)]="config.mensajeBienvenida" rows="4" maxlength="500"
                 [attr.placeholder]="placeholderBienvenida"></textarea>
-              <span class="field-hint">
+              <span class="cfg-field__hint">
                 {{ (config.mensajeBienvenida || '').length }}/500 caracteres
               </span>
             </div>
-          </div>
-        </div>
-        <div class="preview-box">
-          <span class="preview-label">Vista previa para el cliente</span>
-          <div class="preview-bubble">{{ config.mensajeBienvenida || placeholderBienvenida }}</div>
-        </div>
-      </div>
-    </div>
-    }
 
-    <!-- ══════════════════════════════════════════════════════════
-         TAB — SONIDOS (General)
-    ══════════════════════════════════════════════════════════ -->
-    @if (tab === 'sonidos') {
-    <div class="tab-panel">
-      <div class="panel-section">
-        <div class="section-info">
-          <h3>Sonido de notificaciones</h3>
-          <p>Controla los sonidos que se reproducen al recibir nuevos mensajes y notificaciones en la plataforma</p>
-        </div>
-        <div class="field-card">
-          <div class="field-card-header">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
-              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-              <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
-            </svg>
-            <span>Configuración de sonidos</span>
+            <div class="cfg-preview">
+              <span class="cfg-preview__label">Vista previa para el cliente</span>
+              <div class="cfg-bubble">{{ config.mensajeBienvenida || placeholderBienvenida }}</div>
+            </div>
+
           </div>
-          <div class="field-card-body">
-            <div class="toggle-row">
-              <div class="toggle-row-info">
-                <span class="toggle-label">Activar sonidos</span>
-                <span class="toggle-sub">Reproduce un sonido al recibir nuevos mensajes, asignaciones o notificaciones</span>
+        </div>
+
+      </div>
+      }
+
+      <!-- ══════════════════════════════════════════════════════════
+           TAB — SONIDOS (General)
+      ══════════════════════════════════════════════════════════ -->
+      @if (tab === 'sonidos') {
+      <div class="cfg-panel">
+
+        <div class="cfg-card">
+          <div class="cfg-card__header">
+            <div class="cfg-card__icon cfg-card__icon--purple">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+              </svg>
+            </div>
+            <div class="cfg-card__titles">
+              <h3>Sonido de notificaciones</h3>
+              <p>Controla los sonidos que se reproducen al recibir nuevos mensajes y notificaciones en la plataforma.</p>
+            </div>
+          </div>
+          <div class="cfg-card__body">
+
+            <div class="cfg-toggle-row">
+              <div class="cfg-toggle-info">
+                <span class="cfg-toggle-label">Activar sonidos</span>
+                <span class="cfg-toggle-sub">Reproduce un sonido al recibir nuevos mensajes, asignaciones o notificaciones</span>
               </div>
-              <label class="toggle">
+              <label class="cfg-toggle">
                 <input type="checkbox" [(ngModel)]="config.sonidoActivado"/>
-                <span class="toggle-slider"></span>
+                <span class="cfg-toggle-slider"></span>
               </label>
             </div>
+
             @if (config.sonidoActivado) {
-            <div class="sound-grid">
-              <div class="sound-category">
-                <label>Sonido WhatsApp <span class="field-tip" title="Sonido para mensajes de WhatsApp">ⓘ</span></label>
-                <div class="sound-select-row">
-                  <select [(ngModel)]="config.sonidoWhatsapp">
+            <div class="cfg-sound-grid">
+              <div class="cfg-sound-cat">
+                <label class="cfg-field__label">Sonido WhatsApp <span class="cfg-field__tip" title="Sonido para mensajes de WhatsApp">ⓘ</span></label>
+                <div class="cfg-sound-row">
+                  <select class="cfg-select" [(ngModel)]="config.sonidoWhatsapp">
                     @for (opt of sonidoWhatsappOptions; track trackByIndex($index)) {
                     <option [value]="opt.value">{{ opt.label }}</option>
                     }
                   </select>
-                  <button class="btn-test" (click)="testSound('whatsapp', config.sonidoWhatsapp)" title="Probar sonido">
+                  <button class="cfg-btn--icon" (click)="testSound('whatsapp', config.sonidoWhatsapp)" title="Probar sonido">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
                       <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
@@ -474,15 +545,15 @@
                   </button>
                 </div>
               </div>
-              <div class="sound-category">
-                <label>Sonido Agente <span class="field-tip" title="Sonido cuando un agente escribe">ⓘ</span></label>
-                <div class="sound-select-row">
-                  <select [(ngModel)]="config.sonidoAsesor">
+              <div class="cfg-sound-cat">
+                <label class="cfg-field__label">Sonido Agente <span class="cfg-field__tip" title="Sonido cuando un agente escribe">ⓘ</span></label>
+                <div class="cfg-sound-row">
+                  <select class="cfg-select" [(ngModel)]="config.sonidoAsesor">
                     @for (opt of sonidoAsesorOptions; track trackByIndex($index)) {
                     <option [value]="opt.value">{{ opt.label }}</option>
                     }
                   </select>
-                  <button class="btn-test" (click)="testSound('asesor', config.sonidoAsesor)" title="Probar sonido">
+                  <button class="cfg-btn--icon" (click)="testSound('asesor', config.sonidoAsesor)" title="Probar sonido">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
                       <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
@@ -490,15 +561,15 @@
                   </button>
                 </div>
               </div>
-              <div class="sound-category">
-                <label>Sonido Cliente <span class="field-tip" title="Sonido cuando un cliente escribe">ⓘ</span></label>
-                <div class="sound-select-row">
-                  <select [(ngModel)]="config.sonidoCliente">
+              <div class="cfg-sound-cat">
+                <label class="cfg-field__label">Sonido Cliente <span class="cfg-field__tip" title="Sonido cuando un cliente escribe">ⓘ</span></label>
+                <div class="cfg-sound-row">
+                  <select class="cfg-select" [(ngModel)]="config.sonidoCliente">
                     @for (opt of sonidoClienteOptions; track trackByIndex($index)) {
                     <option [value]="opt.value">{{ opt.label }}</option>
                     }
                   </select>
-                  <button class="btn-test" (click)="testSound('cliente', config.sonidoCliente)" title="Probar sonido">
+                  <button class="cfg-btn--icon" (click)="testSound('cliente', config.sonidoCliente)" title="Probar sonido">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
                       <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
@@ -506,15 +577,15 @@
                   </button>
                 </div>
               </div>
-              <div class="sound-category">
-                <label>Sonido Asignación <span class="field-tip" title="Sonido cuando se asigna un nuevo chat">ⓘ</span></label>
-                <div class="sound-select-row">
-                  <select [(ngModel)]="config.sonidoAsignacion">
+              <div class="cfg-sound-cat">
+                <label class="cfg-field__label">Sonido Asignación <span class="cfg-field__tip" title="Sonido cuando se asigna un nuevo chat">ⓘ</span></label>
+                <div class="cfg-sound-row">
+                  <select class="cfg-select" [(ngModel)]="config.sonidoAsignacion">
                     @for (opt of sonidoAsignacionOptions; track trackByIndex($index)) {
                     <option [value]="opt.value">{{ opt.label }}</option>
                     }
                   </select>
-                  <button class="btn-test" (click)="testSound('asignacion', config.sonidoAsignacion)" title="Probar sonido">
+                  <button class="cfg-btn--icon" (click)="testSound('asignacion', config.sonidoAsignacion)" title="Probar sonido">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
                       <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
@@ -526,829 +597,897 @@
             }
           </div>
         </div>
+
       </div>
-    </div>
-    }
+      }
 
-    <!-- ══════════════════════════════════════════════════════════
-         TAB — WHATSAPP (MENSAJES AUTOMÁTICOS)
-    ══════════════════════════════════════════════════════════ -->
-    @if (tab === 'whatsapp') {
-    <div class="tab-panel">
-      <div class="panel-section whatsapp-settings">
-        <div class="section-info">
-          <h3>Mensajes automaticos de WhatsApp</h3>
-          <p>Define los textos que recibe el cliente cuando entra a cola, cuando se le asigna un agente y cuando escribe fuera del horario de servicio.</p>
-        </div>
+      <!-- ══════════════════════════════════════════════════════════
+           TAB — WHATSAPP (MENSAJES AUTOMÁTICOS)
+      ══════════════════════════════════════════════════════════ -->
+      @if (tab === 'whatsapp') {
+      <div class="cfg-panel">
 
-        <div class="placeholder-row">
-          <span>Variables disponibles</span>
-          <code [innerHTML]="'{{' + 'agente' + '}}'"></code>
-          <code [innerHTML]="'{{' + 'proximaApertura' + '}}'"></code>
-          <code [innerHTML]="'{{' + 'horaApertura' + '}}'"></code>
-        </div>
-
-        <div class="field">
-          <label>Mensaje cuando se asigna un agente</label>
-          <textarea [(ngModel)]="config.whatsappAssignmentMsg" rows="3"
-            [attr.placeholder]="placeholderWhatsappAsignacion"></textarea>
-          <span class="field-hint">Usa <code [innerHTML]="'{{' + 'agente' + '}}'"></code> para insertar el nombre del agente asignado.</span>
-        </div>
-        <div class="preview-box">
-          <span class="preview-label">Vista previa</span>
-          <div class="preview-bubble">{{ previewWhatsappAssignment() }}</div>
-        </div>
-
-        <div class="field">
-          <label>Mensaje de cola</label>
-          <textarea [(ngModel)]="config.whatsappQueueMsg" rows="3"
-            [attr.placeholder]="placeholderWhatsappCola"></textarea>
-        </div>
-        <div class="preview-box">
-          <span class="preview-label">Vista previa</span>
-          <div class="preview-bubble">{{ config.whatsappQueueMsg || '(vacio)' }}</div>
-        </div>
-
-        <div class="field">
-          <label>Mensaje fuera de servicio</label>
-          <textarea [(ngModel)]="config.whatsappOutOfHoursMsg" rows="3"
-            [attr.placeholder]="placeholderWhatsappFuera"></textarea>
-          <span class="field-hint">Este mensaje se enviara si el cliente escribe fuera de la jornada laboral configurada.</span>
-        </div>
-        <div class="preview-box">
-          <span class="preview-label">Vista previa</span>
-          <div class="preview-bubble">{{ previewWhatsappOutOfHours() }}</div>
-        </div>
-
-        <div class="field">
-          <label>Mensaje cuando llaman por WhatsApp</label>
-          <textarea [(ngModel)]="config.whatsappCallUnavailableMsg" rows="3"
-            [attr.placeholder]="placeholderWhatsappLlamada"></textarea>
-          <span class="field-hint">Se envia automaticamente al rechazar una llamada o videollamada entrante.</span>
-        </div>
-        <div class="preview-box">
-          <span class="preview-label">Vista previa</span>
-          <div class="preview-bubble">{{ config.whatsappCallUnavailableMsg || '(vacio)' }}</div>
-        </div>
-      </div>
-
-      <div class="panel-section whatsapp-settings">
-        <div class="section-info">
-          <h3>Límite de chats por agente</h3>
-          <p>Máximo de conversaciones de WhatsApp activas que puede atender un agente al mismo tiempo.
-             Al llegar al límite, los nuevos chats entran a la cola.</p>
-        </div>
-        <div class="field-card">
-          <div class="field-card-header">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-            </svg>
-            <span>Capacidad de atención</span>
-          </div>
-          <div class="field-card-body">
-            <div class="fields-row">
-              <div class="field">
-                <label>Chats simultáneos por agente <span class="field-tip" title="Número máximo de chats de WhatsApp que atiende un agente en paralelo">ⓘ</span></label>
-                <div class="time-input">
-                  <input type="number" [(ngModel)]="config.whatsappMaxActiveChatsPerAdvisor" min="1" max="50"/>
-                  <span class="time-unit">chats</span>
-                </div>
-                <span class="field-hint">Recomendado: 3–8 chats por agente</span>
-              </div>
+        <div class="cfg-card">
+          <div class="cfg-card__header">
+            <div class="cfg-card__icon cfg-card__icon--green">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 11.5a8.4 8.4 0 0 1-12.6 7.3L3 20l1.4-5A8.4 8.4 0 1 1 21 11.5z"/>
+                <path d="M9.5 8.5c.3 3 2 4.8 5 5"/>
+              </svg>
+            </div>
+            <div class="cfg-card__titles">
+              <h3>Mensajes automáticos de WhatsApp</h3>
+              <p>Define los textos que recibe el cliente cuando entra a cola, cuando se le asigna un agente y cuando escribe fuera del horario de servicio.</p>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
-    }
+          <div class="cfg-card__body">
 
-    <!-- ══════════════════════════════════════════════════════════
-         TAB — TIEMPOS DE ESPERA (Chat en línea)
-    ══════════════════════════════════════════════════════════ -->
-    @if (tab === 'inactividad') {
-    <div class="tab-panel">
-      <div class="panel-section">
+            <div class="cfg-placeholder-row">
+              <span>Variables disponibles</span>
+              <code [innerHTML]="'{{' + 'agente' + '}}'"></code>
+              <code [innerHTML]="'{{' + 'proximaApertura' + '}}'"></code>
+              <code [innerHTML]="'{{' + 'horaApertura' + '}}'"></code>
+            </div>
 
-        <div class="section-info">
-          <h3>Parámetros de inactividad</h3>
-          <p>Tiempos y mensajes automáticos del chat en línea. Aplican de forma
-             global a todos los agentes y clientes.</p>
-        </div>
+            <div class="cfg-grid cfg-grid--2">
+              <div class="cfg-field">
+                <label class="cfg-field__label">Mensaje cuando se asigna un agente</label>
+                <textarea class="cfg-textarea" [(ngModel)]="config.whatsappAssignmentMsg" rows="4"
+                  [attr.placeholder]="placeholderWhatsappAsignacion"></textarea>
+                <span class="cfg-field__hint">Usa <code [innerHTML]="'{{' + 'agente' + '}}'"></code> para insertar el nombre del agente asignado.</span>
+              </div>
+              <div class="cfg-field">
+                <label class="cfg-field__label">Vista previa</label>
+                <div class="cfg-preview cfg-preview--fill">
+                  <div class="cfg-bubble">{{ previewWhatsappAssignment() }}</div>
+                </div>
+              </div>
 
-        <div class="field-card">
-          <div class="field-card-header field-card-header--amber">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
-              <circle cx="12" cy="8" r="4"/>
-              <path d="M6 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
-            </svg>
-            <span>Inactividad del agente</span>
+              <div class="cfg-field">
+                <label class="cfg-field__label">Mensaje de cola</label>
+                <textarea class="cfg-textarea" [(ngModel)]="config.whatsappQueueMsg" rows="4"
+                  [attr.placeholder]="placeholderWhatsappCola"></textarea>
+              </div>
+              <div class="cfg-field">
+                <label class="cfg-field__label">Vista previa</label>
+                <div class="cfg-preview cfg-preview--fill">
+                  <div class="cfg-bubble">{{ config.whatsappQueueMsg || '(vacio)' }}</div>
+                </div>
+              </div>
+
+              <div class="cfg-field">
+                <label class="cfg-field__label">Mensaje fuera de servicio</label>
+                <textarea class="cfg-textarea" [(ngModel)]="config.whatsappOutOfHoursMsg" rows="4"
+                  [attr.placeholder]="placeholderWhatsappFuera"></textarea>
+                <span class="cfg-field__hint">Este mensaje se enviara si el cliente escribe fuera de la jornada laboral configurada.</span>
+              </div>
+              <div class="cfg-field">
+                <label class="cfg-field__label">Vista previa</label>
+                <div class="cfg-preview cfg-preview--fill">
+                  <div class="cfg-bubble">{{ previewWhatsappOutOfHours() }}</div>
+                </div>
+              </div>
+
+              <div class="cfg-field">
+                <label class="cfg-field__label">Mensaje cuando llaman por WhatsApp</label>
+                <textarea class="cfg-textarea" [(ngModel)]="config.whatsappCallUnavailableMsg" rows="4"
+                  [attr.placeholder]="placeholderWhatsappLlamada"></textarea>
+                <span class="cfg-field__hint">Se envia automaticamente al rechazar una llamada o videollamada entrante.</span>
+              </div>
+              <div class="cfg-field">
+                <label class="cfg-field__label">Vista previa</label>
+                <div class="cfg-preview cfg-preview--fill">
+                  <div class="cfg-bubble">{{ config.whatsappCallUnavailableMsg || '(vacio)' }}</div>
+                </div>
+              </div>
+            </div>
+
           </div>
-          <div class="field-card-body">
-            <div class="inac-block">
-              <div class="inac-block-title">
-                <div class="inac-icon inac-icon--amber">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                    stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="8" r="4"/>
-                    <path d="M6 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
-                  </svg>
-                </div>
-                <div>
-                  <span class="inac-title">Inactividad del agente</span>
-                  <span class="inac-sub">Si el agente no responde en este tiempo, se envía un mensaje automático al cliente</span>
-                </div>
+        </div>
+
+        <div class="cfg-card">
+          <div class="cfg-card__header">
+            <div class="cfg-card__icon cfg-card__icon--blue">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+            </div>
+            <div class="cfg-card__titles">
+              <h3>Límite de chats por agente</h3>
+              <p>Máximo de conversaciones de WhatsApp activas que puede atender un agente al mismo tiempo.
+                 Al llegar al límite, los nuevos chats entran a la cola.</p>
+            </div>
+          </div>
+          <div class="cfg-card__body">
+            <div class="cfg-field">
+              <label class="cfg-field__label">
+                Chats simultáneos por agente
+                <span class="cfg-field__tip" title="Número máximo de chats de WhatsApp que atiende un agente en paralelo">ⓘ</span>
+              </label>
+              <div class="cfg-time-input">
+                <input class="cfg-input cfg-input--num" type="number" [(ngModel)]="config.whatsappMaxActiveChatsPerAdvisor" min="1" max="50"/>
+                <span class="cfg-time-unit">chats</span>
               </div>
-              <div class="fields-row">
-                <div class="field">
-                  <label>Tiempo de espera <span class="field-tip" title="Minutos sin respuesta antes de enviar aviso">ⓘ</span></label>
-                  <div class="time-input">
-                    <input type="number" min="1" max="60"
-                      [ngModel]="segsToMins(config.asesorInactividadSeg)"
-                      (ngModelChange)="setAsesorMins($event)"/>
-                    <span class="time-unit">minutos</span>
-                  </div>
-                  <span class="field-hint">Recomendado: 2–5 min</span>
-                </div>
-              </div>
-              <div class="field">
-                <label>Mensaje automático al cliente</label>
-                <textarea [(ngModel)]="config.asesorInactividadMsg" rows="2"
-                  placeholder="Estamos trabajando en tu solicitud..."></textarea>
-              </div>
+              <span class="cfg-field__hint">Recomendado: 3–8 chats por agente</span>
             </div>
           </div>
         </div>
 
-        <div class="inac-divider"></div>
+      </div>
+      }
 
-        <div class="field-card">
-          <div class="field-card-header field-card-header--blue">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
-              <circle cx="12" cy="8" r="4"/>
-              <path d="M6 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
-            </svg>
-            <span>Inactividad del cliente</span>
+      <!-- ══════════════════════════════════════════════════════════
+           TAB — TIEMPOS DE ESPERA (Chat en línea)
+      ══════════════════════════════════════════════════════════ -->
+      @if (tab === 'inactividad') {
+      <div class="cfg-panel">
+
+        <div class="cfg-card">
+          <div class="cfg-card__header">
+            <div class="cfg-card__icon cfg-card__icon--amber">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="8" r="4"/>
+                <path d="M6 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
+              </svg>
+            </div>
+            <div class="cfg-card__titles">
+              <h3>Inactividad del agente</h3>
+              <p>Si el agente no responde en este tiempo, se envía un mensaje automático al cliente.</p>
+            </div>
           </div>
-          <div class="field-card-body">
-            <div class="inac-block">
-              <div class="inac-block-title">
-                <div class="inac-icon inac-icon--blue">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                    stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="8" r="4"/>
-                    <path d="M6 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
-                  </svg>
-                </div>
-                <div>
-                  <span class="inac-title">Inactividad del cliente</span>
-                  <span class="inac-sub">Si el cliente no responde, se envían avisos periódicos y al agotar los intentos se cierra la sesión</span>
+          <div class="cfg-card__body">
+            <div class="cfg-field">
+              <label class="cfg-field__label">
+                Tiempo de espera
+                <span class="cfg-field__tip" title="Minutos sin respuesta antes de enviar aviso">ⓘ</span>
+              </label>
+              <div class="cfg-time-input">
+                <input class="cfg-input cfg-input--num" type="number" min="1" max="60"
+                  [ngModel]="segsToMins(config.asesorInactividadSeg)"
+                  (ngModelChange)="setAsesorMins($event)"/>
+                <span class="cfg-time-unit">minutos</span>
+              </div>
+              <span class="cfg-field__hint">Recomendado: 2–5 min</span>
+            </div>
+            <div class="cfg-field">
+              <label class="cfg-field__label">Mensaje automático al cliente</label>
+              <textarea class="cfg-textarea" [(ngModel)]="config.asesorInactividadMsg" rows="3"
+                placeholder="Estamos trabajando en tu solicitud..."></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="cfg-card">
+          <div class="cfg-card__header">
+            <div class="cfg-card__icon cfg-card__icon--blue">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="8" r="4"/>
+                <path d="M6 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
+              </svg>
+            </div>
+            <div class="cfg-card__titles">
+              <h3>Inactividad del cliente</h3>
+              <p>Si el cliente no responde, se envían avisos periódicos y al agotar los intentos se cierra la sesión.</p>
+            </div>
+          </div>
+          <div class="cfg-card__body">
+
+            <div class="cfg-grid cfg-grid--2">
+              <div class="cfg-field">
+                <label class="cfg-field__label">
+                  Tiempo entre avisos
+                  <span class="cfg-field__tip" title="Tiempo de espera entre cada aviso al cliente">ⓘ</span>
+                </label>
+                <div class="cfg-time-input">
+                  <input class="cfg-input cfg-input--num" type="number" min="1" max="60"
+                    [ngModel]="segsToMins(config.clienteInactividadSeg)"
+                    (ngModelChange)="setClienteMins($event)"/>
+                  <span class="cfg-time-unit">minutos</span>
                 </div>
               </div>
-              <div class="fields-row">
-                <div class="field">
-                  <label>Tiempo entre avisos <span class="field-tip" title="Tiempo de espera entre cada aviso al cliente">ⓘ</span></label>
-                  <div class="time-input">
-                    <input type="number" min="1" max="60"
-                      [ngModel]="segsToMins(config.clienteInactividadSeg)"
-                      (ngModelChange)="setClienteMins($event)"/>
-                    <span class="time-unit">minutos</span>
-                  </div>
-                </div>
-                <div class="field">
-                  <label>Avisos antes de cerrar <span class="field-tip" title="Número de avisos antes de cerrar la sesión automáticamente">ⓘ</span></label>
-                  <div class="time-input">
-                    <input type="number" min="1" max="5" [(ngModel)]="config.clienteInactividadIters"/>
-                    <span class="time-unit">avisos</span>
-                  </div>
+              <div class="cfg-field">
+                <label class="cfg-field__label">
+                  Avisos antes de cerrar
+                  <span class="cfg-field__tip" title="Número de avisos antes de cerrar la sesión automáticamente">ⓘ</span>
+                </label>
+                <div class="cfg-time-input">
+                  <input class="cfg-input cfg-input--num" type="number" min="1" max="5" [(ngModel)]="config.clienteInactividadIters"/>
+                  <span class="cfg-time-unit">avisos</span>
                 </div>
               </div>
-              <div class="field">
-                <label>Mensaje de aviso</label>
-                <textarea [(ngModel)]="config.clienteInactividadMsg" rows="2"
+            </div>
+
+            <div class="cfg-grid cfg-grid--2">
+              <div class="cfg-field">
+                <label class="cfg-field__label">Mensaje de aviso</label>
+                <textarea class="cfg-textarea" [(ngModel)]="config.clienteInactividadMsg" rows="3"
                   placeholder="¿Sigues en línea? Tu sesión se cerrará pronto..."></textarea>
               </div>
-              <div class="field">
-                <label>Mensaje de cierre</label>
-                <textarea [(ngModel)]="config.clienteCierreMsg" rows="2"
+              <div class="cfg-field">
+                <label class="cfg-field__label">Mensaje de cierre</label>
+                <textarea class="cfg-textarea" [(ngModel)]="config.clienteCierreMsg" rows="3"
                   placeholder="La sesión ha sido cerrada por inactividad."></textarea>
               </div>
             </div>
+
           </div>
         </div>
 
-        <!-- Flujo visual -->
-        <div class="flow-preview">
-          <span class="flow-label">Flujo de cierre automático</span>
-          <div class="flow-steps">
-            <div class="flow-step"><div class="flow-dot blue"></div>
-              <span>Cliente inactivo {{ segsToMins(config.clienteInactividadSeg) }} min</span></div>
-            <div class="flow-arrow">↓</div>
-            @for (i of getIters(); track trackByIndex($index)) {
-            <div class="flow-step"><div class="flow-dot amber"></div>
-              <span>Aviso {{ i + 1 }}: "{{ (config.clienteInactividadMsg || '') | slice:0:50 }}{{ config.clienteInactividadMsg.length > 50 ? '…' : '' }}"</span></div>
-            <div class="flow-arrow">↓</div>
-            }
-            <div class="flow-step"><div class="flow-dot red"></div>
-              <span>Sesión cerrada automáticamente</span></div>
+        <div class="cfg-card">
+          <div class="cfg-card__header">
+            <div class="cfg-card__icon cfg-card__icon--red">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </div>
+            <div class="cfg-card__titles">
+              <h3>Flujo de cierre automático</h3>
+              <p>Así se comporta el sistema cuando el cliente deja de responder.</p>
+            </div>
+          </div>
+          <div class="cfg-card__body">
+            <div class="cfg-flow">
+              <div class="cfg-flow__step">
+                <span class="cfg-flow__dot cfg-flow__dot--blue"></span>
+                <span>Cliente inactivo {{ segsToMins(config.clienteInactividadSeg) }} min</span>
+              </div>
+              <div class="cfg-flow__arrow"></div>
+              @for (i of getIters(); track trackByIndex($index)) {
+              <div class="cfg-flow__step">
+                <span class="cfg-flow__dot cfg-flow__dot--amber"></span>
+                <span>Aviso {{ i + 1 }}: "{{ (config.clienteInactividadMsg || '') | slice:0:50 }}{{ config.clienteInactividadMsg.length > 50 ? '…' : '' }}"</span>
+              </div>
+              <div class="cfg-flow__arrow"></div>
+              }
+              <div class="cfg-flow__step">
+                <span class="cfg-flow__dot cfg-flow__dot--red"></span>
+                <span>Sesión cerrada automáticamente</span>
+              </div>
+            </div>
           </div>
         </div>
 
       </div>
-    </div>
-    }
+      }
 
-    <!-- ══════════════════════════════════════════════════════════
-         TAB — PROMPT IA
-    ══════════════════════════════════════════════════════════ -->
-    @if (tab === 'ia') {
-    <div class="tab-panel">
-      <div class="panel-section">
-        <div class="section-info">
-          <h3>Configuracion del Asistente IA</h3>
-          <p>Personaliza como la IA responde a los clientes. Los campos se usan para armar el prompt automaticamente.
-             Si necesitas control total, usa el editor avanzado abajo.</p>
-        </div>
+      <!-- ══════════════════════════════════════════════════════════
+           TAB — RECONEXIÓN (Chat en línea)
+      ══════════════════════════════════════════════════════════ -->
+      @if (tab === 'reconexion') {
+      <div class="cfg-panel">
 
-        <!-- Seccion: Identidad -->
-        <div class="ia-section">
-          <div class="ia-section-header" (click)="toggleIaSection('identidad')">
-            <div class="ia-section-header-left">
-              <div class="ia-section-icon ia-section-icon--purple">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                  <circle cx="12" cy="7" r="4"/>
-                </svg>
-              </div>
-              <span class="ia-section-title">Identidad</span>
+        <div class="cfg-card">
+          <div class="cfg-card__header">
+            <div class="cfg-card__icon cfg-card__icon--purple">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
             </div>
-            <svg class="ia-chevron" [class.open]="iaSectionOpen.identidad" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
-          </div>
-          @if (iaSectionOpen.identidad) {
-          <div class="ia-section-body">
-            <div class="field">
-              <label>Nombre del asistente</label>
-              <input type="text" [(ngModel)]="aiPromptNombre" maxlength="200" placeholder="asistente virtual de atencion al cliente"/>
-              <span class="field-hint">Identidad principal de la IA (ej: "asistente virtual de atencion al cliente")</span>
-            </div>
-            <div class="field">
-              <label>Especialidad</label>
-              <input type="text" [(ngModel)]="aiPromptEspecialidad" maxlength="200" placeholder="colegios"/>
-              <span class="field-hint">Area de conocimiento (ej: "colegios", "tecnologia", "salud")</span>
+            <div class="cfg-card__titles">
+              <h3>Reconexión de agentes</h3>
+              <p>Cuando un agente se desconecta inesperadamente, el sistema esperará este tiempo antes de cerrar la sesión y ofrecer al cliente iniciar una nueva.</p>
             </div>
           </div>
-          }
-        </div>
+          <div class="cfg-card__body">
 
-        <!-- Seccion: Instrucciones generales -->
-        <div class="ia-section">
-          <div class="ia-section-header" (click)="toggleIaSection('instrucciones')">
-            <div class="ia-section-header-left">
-              <div class="ia-section-icon ia-section-icon--blue">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                  <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
-                </svg>
-              </div>
-              <span class="ia-section-title">Instrucciones generales</span>
-            </div>
-            <svg class="ia-chevron" [class.open]="iaSectionOpen.instrucciones" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
-          </div>
-          @if (iaSectionOpen.instrucciones) {
-          <div class="ia-section-body">
-            <div class="field">
-              <label>Como debe responder la IA</label>
-              <textarea [(ngModel)]="aiPromptInstrucciones" rows="4"
-                placeholder="Responde de forma clara, amable y concisa en espanol. Adapta el lenguaje al rol del usuario."></textarea>
-              <span class="field-hint">Instrucciones de comportamiento general de la IA</span>
-            </div>
-          </div>
-          }
-        </div>
-
-        <!-- Seccion: Configuracion por Rol -->
-        <div class="ia-section">
-          <div class="ia-section-header" (click)="toggleIaSection('roles')">
-            <div class="ia-section-header-left">
-              <div class="ia-section-icon ia-section-icon--amber">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                  <circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                </svg>
-              </div>
-              <span class="ia-section-title">Configuracion por Rol</span>
-            </div>
-            <svg class="ia-chevron" [class.open]="iaSectionOpen.roles" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
-          </div>
-          @if (iaSectionOpen.roles) {
-          <div class="ia-section-body">
-            <span class="ia-chips-label">Selecciona un rol para configurar</span>
-            <div class="ia-role-tabs">
-              @for (role of aiRoles; track role.key) {
-              <button class="ia-role-tab" [class.active]="selectedRole === role.key" (click)="selectRole(role.key)">
-                {{ role.label }}
-              </button>
-              }
-            </div>
-
-            <div class="ia-role-panel">
-              <div class="field">
-                <label>Descripcion del rol</label>
-                <textarea [(ngModel)]="getRoleConfig(selectedRole).descripcion" rows="2"
-                  placeholder="Que puede hacer este rol..."></textarea>
-                <span class="field-hint">Describe que tipo de usuario es y que acceso tiene</span>
-              </div>
-
-              <div class="field">
-                <label>Temas restringidos</label>
-                <span class="field-hint">Temas que la IA NO puede responder para este rol. Chips: haz clic en el [x] para eliminar</span>
-                <div class="ia-chips">
-                  @for (topic of getRoleConfig(selectedRole).temasRestringidos; track topic) {
-                  <span class="ia-chip ia-chip--amber">
-                    {{ topic }}
-                    <button type="button" class="ia-chip-remove" (click)="removeRestrictedTopic(topic)">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12" height="12"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
-                    </button>
-                  </span>
-                  }
-                  @if (getRoleConfig(selectedRole).temasRestringidos.length === 0) {
-                  <span class="ia-chips-empty">Sin temas restringidos (acceso completo)</span>
-                  }
-                </div>
-                <div class="ia-add-phrase">
-                  <input type="text" [(ngModel)]="newRestrictedTopic" placeholder="Ej: pagos, notas, nomina..." maxlength="50"
-                    (keydown.enter)="addRestrictedTopic()"/>
-                  <button type="button" class="ia-add-btn" (click)="addRestrictedTopic()" [disabled]="!newRestrictedTopic.trim()">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-                    Agregar
-                  </button>
-                </div>
-              </div>
-
-              <div class="field">
-                <label>Mensaje cuando pregunta tema restringido</label>
-                <textarea [(ngModel)]="getRoleConfig(selectedRole).mensajeRestringido" rows="3"
-                  placeholder="Lo siento, no puedo proporcionar esa informacion..."></textarea>
-                <span class="field-hint">Este mensaje se envia cuando el usuario pregunta algo restringido para su rol</span>
-              </div>
-            </div>
-
-          </div>
-          }
-        </div>
-
-        <!-- Seccion: Transferencia a asesor -->
-        <div class="ia-section">
-          <div class="ia-section-header" (click)="toggleIaSection('transferencia')">
-            <div class="ia-section-header-left">
-              <div class="ia-section-icon ia-section-icon--green">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                </svg>
-              </div>
-              <span class="ia-section-title">Transferencia a agente</span>
-            </div>
-            <svg class="ia-chevron" [class.open]="iaSectionOpen.transferencia" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
-          </div>
-          @if (iaSectionOpen.transferencia) {
-          <div class="ia-section-body">
-            <span class="ia-chips-label">Frases que activan la transferencia</span>
-            <div class="ia-chips">
-              @for (phrase of aiPromptFrasesTransferencia; track phrase) {
-              <span class="ia-chip">
-                {{ phrase }}
-                <button type="button" class="ia-chip-remove" (click)="removeTransferPhrase(phrase)">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12" height="12"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
-                </button>
-              </span>
-              }
-            </div>
-            <div class="ia-add-phrase">
-              <input type="text" [(ngModel)]="newTransferPhrase" placeholder="Escribir frase..." maxlength="50"
-                (keydown.enter)="addTransferPhrase()"/>
-              <button type="button" class="ia-add-btn" (click)="addTransferPhrase()" [disabled]="!newTransferPhrase.trim()">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-                Agregar
-              </button>
-            </div>
-          </div>
-          }
-        </div>
-
-        <!-- Seccion: Feedback -->
-        <div class="ia-section">
-          <div class="ia-section-header" (click)="toggleIaSection('feedback')">
-            <div class="ia-section-header-left">
-              <div class="ia-section-icon ia-section-icon--teal">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
-                </svg>
-              </div>
-              <span class="ia-section-title">Control de feedback</span>
-            </div>
-            <svg class="ia-chevron" [class.open]="iaSectionOpen.feedback" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
-          </div>
-          @if (iaSectionOpen.feedback) {
-          <div class="ia-section-body">
-            <div class="field">
-              <label>Cuando marcar como resuelto</label>
-              <textarea [(ngModel)]="aiPromptFeedback" rows="3"
-                placeholder="SOLO si resolviste completamente una pregunta real y concreta"></textarea>
-              <span class="field-hint">La IA usa esto para decidir si muestra el boton de calificacion al cliente</span>
-            </div>
-          </div>
-          }
-        </div>
-
-        <!-- Seccion: Conducta y limites -->
-        <div class="ia-section">
-          <div class="ia-section-header" (click)="toggleIaSection('conducta')">
-            <div class="ia-section-header-left">
-              <div class="ia-section-icon ia-section-icon--red">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                  <line x1="12" y1="8" x2="12" y2="12"/>
-                  <line x1="12" y1="16" x2="12.01" y2="16"/>
-                </svg>
-              </div>
-              <span class="ia-section-title">Conducta y límites (groserías y sin respuesta)</span>
-            </div>
-            <svg class="ia-chevron" [class.open]="iaSectionOpen.conducta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
-          </div>
-          @if (iaSectionOpen.conducta) {
-          <div class="ia-section-body">
-            <div class="field">
-              <label>Palabras prohibidas (groserías e insultos)</label>
-              <span class="field-hint">Si el mensaje contiene alguna de estas palabras, la IA dará un aviso sin responder y no llamará al modelo.</span>
-              <div class="ia-chips">
-                @for (word of aiPalabrasProhibidas; track word) {
-                <span class="ia-chip">
-                  {{ word }}
-                  <button type="button" (click)="removeForbiddenWord(word)" title="Eliminar">✕</button>
-                </span>
-                }
-              </div>
-              <div class="ia-add-phrase">
-                <input type="text" [(ngModel)]="newForbiddenWord" placeholder="Agregar palabra..." maxlength="50"
-                  (keydown.enter)="addForbiddenWord()"/>
-                <button type="button" class="ia-add-btn" (click)="addForbiddenWord()" [disabled]="!newForbiddenWord.trim()">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-                  Agregar
-                </button>
-              </div>
-            </div>
-
-            <div class="field-row">
-              <div class="field">
-                <label>Límite de groserías antes de cerrar sesión</label>
-                <input type="number" [(ngModel)]="aiLimiteGroserias" min="1" max="10" placeholder="3"/>
-                <span class="field-hint">A la N-ésima grosería la sesión se finaliza automáticamente</span>
-              </div>
-              <div class="field">
-                <label>Sugerir agente automáticamente cuando no haya respuesta</label>
-                <div class="toggle-wrap" style="margin-top:0.5rem;">
-                  <input type="checkbox" id="chkSugerirAsesor" [(ngModel)]="aiSugerirAsesorAutomatico"/>
-                  <label for="chkSugerirAsesor" class="toggle-label">Ofrecer transferencia a agente humano</label>
-                </div>
-              </div>
-            </div>
-
-            <div class="field">
-              <label>Mensaje de aviso por grosería (1ª y 2ª vez)</label>
-              <textarea [(ngModel)]="aiMensajeGroseria" rows="2" placeholder="Por favor, mantengamos un trato respetuoso..."></textarea>
-            </div>
-
-            <div class="field">
-              <label>Mensaje de cierre por groserías (3ª vez)</label>
-              <textarea [(ngModel)]="aiMensajeSesionTerminada" rows="2" placeholder="Esta conversación ha sido finalizada..."></textarea>
-            </div>
-
-            <div class="field">
-              <label>Mensaje cuando la IA no encuentra respuesta en documentos</label>
-              <textarea [(ngModel)]="aiMensajeSinInformacion" rows="2" placeholder="No tengo información registrada sobre eso..."></textarea>
-              <span class="field-hint">Se muestra cuando no existen documentos indexados para el rol y la consulta del usuario</span>
-            </div>
-          </div>
-          }
-        </div>
-
-        <!-- Seccion: Editor avanzado -->
-        <div class="ia-section">
-          <div class="ia-section-header" (click)="toggleIaSection('avanzado')">
-            <div class="ia-section-header-left">
-              <div class="ia-section-icon ia-section-icon--gray">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
-                </svg>
-              </div>
-              <span class="ia-section-title">Editor avanzado</span>
-              @if (aiPromptUseCustom) {
-              <span class="ia-badge">Activo</span>
-              }
-            </div>
-            <svg class="ia-chevron" [class.open]="iaSectionOpen.avanzado" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
-          </div>
-          @if (iaSectionOpen.avanzado) {
-          <div class="ia-section-body">
-            <div class="toggle-row">
-              <div class="toggle-row-info">
-                <span class="toggle-label">Usar prompt personalizado</span>
-                <span class="toggle-sub">Cuando esta activo, la IA usa este prompt completo e ignora las secciones de arriba</span>
-              </div>
-              <label class="toggle">
-                <input type="checkbox" [(ngModel)]="aiPromptUseCustom"/>
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-            @if (aiPromptUseCustom) {
-            <div class="field">
-              <label>Prompt completo</label>
-              <textarea [(ngModel)]="aiPromptPersonalizado" rows="12" class="ia-textarea"
-                placeholder="Escribe el prompt completo aqui. Puedes usar variables como CLIENT_NAME, COLEGIO, ROL, MOTIVO, DESCRIPCION_ROL, TEMAS_RESTRINGIDOS, MENSAJE_RESTRINGIDO, CONTEXTO_RAG."></textarea>
-              <span class="field-hint">Variables disponibles:
-                <code [innerHTML]="'{{' + 'CLIENT_NAME' + '}}'"></code>
-                <code [innerHTML]="'{{' + 'COLEGIO' + '}}'"></code>
-                <code [innerHTML]="'{{' + 'ROL' + '}}'"></code>
-                <code [innerHTML]="'{{' + 'MOTIVO' + '}}'"></code>
-                <code [innerHTML]="'{{' + 'DESCRIPCION_ROL' + '}}'"></code>
-                <code [innerHTML]="'{{' + 'TEMAS_RESTRINGIDOS' + '}}'"></code>
-                <code [innerHTML]="'{{' + 'MENSAJE_RESTRINGIDO' + '}}'"></code>
-                <code [innerHTML]="'{{' + 'CONTEXTO_RAG' + '}}'"></code>
-              </span>
-            </div>
-            }
-          </div>
-          }
-        </div>
-
-        <div class="ia-actions">
-          <button type="button" class="ia-reset-btn" (click)="resetAiPrompt()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
-              <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
-            </svg>
-            Restablecer predeterminado
-          </button>
-        </div>
-
-      </div>
-    </div>
-    }
-
-    <!-- ══════════════════════════════════════════════════════════
-         TAB — RECONEXIÓN (Chat en línea)
-    ══════════════════════════════════════════════════════════ -->
-    @if (tab === 'reconexion') {
-    <div class="tab-panel">
-      <div class="panel-section">
-        <div class="section-info">
-          <h3>Reconexión de agentes</h3>
-          <p>Cuando un agente se desconecta inesperadamente, el sistema esperará este tiempo antes de cerrar la sesión y ofrecer al cliente iniciar una nueva.</p>
-        </div>
-
-        <div class="field-card">
-          <div class="field-card-header">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
-              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-            </svg>
-            <span>Configuración de reconexión</span>
-          </div>
-          <div class="field-card-body">
-            <div class="fields-row">
-              <div class="field">
-                <label>
+            <div class="cfg-grid cfg-grid--2">
+              <div class="cfg-field">
+                <label class="cfg-field__label">
                   Tiempo de espera
-                  <span class="field-tip" title="Segundos que el sistema esperará antes de cerrar la sesión">ⓘ</span>
+                  <span class="cfg-field__tip" title="Segundos que el sistema esperará antes de cerrar la sesión">ⓘ</span>
                 </label>
-                <div class="time-input">
-                  <input type="number" [(ngModel)]="config.asesorReconexionSeg" min="30" max="600" />
-                  <span class="time-unit">segundos</span>
+                <div class="cfg-time-input">
+                  <input class="cfg-input cfg-input--num" type="number" [(ngModel)]="config.asesorReconexionSeg" min="30" max="600"/>
+                  <span class="cfg-time-unit">segundos</span>
                 </div>
-                <span class="field-hint">Recomendado: 120–300 segundos (2–5 min)</span>
+                <span class="cfg-field__hint">Recomendado: 120–300 segundos (2–5 min)</span>
               </div>
-              <div class="field">
-                <label>Vista previa del tiempo</label>
-                <div class="preview-chip">
+              <div class="cfg-field">
+                <label class="cfg-field__label">Vista previa del tiempo</label>
+                <div class="cfg-chip cfg-chip--purple cfg-chip--lg">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                   <span>{{ config.asesorReconexionSeg }}s — El cliente esperará {{ config.asesorReconexionSeg >= 60 ? (config.asesorReconexionSeg / 60 | number:'1.0-0') + ' min' : config.asesorReconexionSeg + ' seg' }}</span>
                 </div>
               </div>
             </div>
-            <div class="field">
-              <label>Mensaje de reconexión</label>
-              <textarea [(ngModel)]="config.asesorReconexionMsg" rows="3" maxlength="500"></textarea>
-              <span class="field-hint">Mensaje que se muestra al cliente mientras espera la reconexión del agente. Máximo 500 caracteres.</span>
+
+            <div class="cfg-field">
+              <label class="cfg-field__label">Mensaje de reconexión</label>
+              <textarea class="cfg-textarea" [(ngModel)]="config.asesorReconexionMsg" rows="3" maxlength="500"></textarea>
+              <span class="cfg-field__hint">Mensaje que se muestra al cliente mientras espera la reconexión del agente. Máximo 500 caracteres.</span>
             </div>
+
+            <div class="cfg-preview">
+              <span class="cfg-preview__label">Vista previa del mensaje</span>
+              <div class="cfg-bubble">{{ config.asesorReconexionMsg || '(sin mensaje definido)' }}</div>
+            </div>
+
           </div>
         </div>
 
-        <div class="preview-box">
-          <span class="preview-label">Vista previa del mensaje</span>
-          <div class="preview-bubble">{{ config.asesorReconexionMsg || '(sin mensaje definido)' }}</div>
-        </div>
       </div>
-    </div>
-    }
+      }
 
-    <!-- ══════════════════════════════════════════════════════════
-         TAB — COLEGIOS (General)
-    ══════════════════════════════════════════════════════════ -->
-    @if (tab === 'colegios') {
-    <div class="tab-panel">
-      <div class="panel-section">
+      <!-- ══════════════════════════════════════════════════════════
+           TAB — PROMPT IA
+      ══════════════════════════════════════════════════════════ -->
+      @if (tab === 'ia') {
+      <div class="cfg-panel">
 
-        <div class="section-info">
-          <h3>Gestión de colegios</h3>
-          <p>Administra los colegios disponibles en el sistema. Estos aparecen en el autocomplete
-             del formulario de registro del chat.</p>
-        </div>
-
-        <!-- Barra de búsqueda + botones -->
-        <div class="colegios-toolbar">
-          <div class="colegios-search">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-            <input type="text" [(ngModel)]="colegioSearch" placeholder="Buscar colegio..."/>
-          </div>
-          <div class="colegios-toolbar-actions">
-            <button class="btn-add-colegio" (click)="exportarColegiosCsv()">
-              Exportar CSV
-            </button>
-            <button class="btn-add-colegio" (click)="colegioFileInput.click()">
-              Importar CSV
-            </button>
-            <input #colegioFileInput type="file" accept=".csv" hidden (change)="importarColegiosCsv($event)" />
-            <button class="btn-add-colegio" (click)="openColegioForm()" [disabled]="colegioFormVisible">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-              </svg>
-              Agregar colegio
-            </button>
-          </div>
-        </div>
-
-        <!-- Formulario crear/editar -->
-        @if (colegioFormVisible) {
-        <div class="colegio-form-card">
-          <div class="colegio-form-header">
-            <h4>{{ colegioEditando ? 'Editar colegio' : 'Nuevo colegio' }}</h4>
-            <button class="btn-close-form" (click)="closeColegioForm()" type="button">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
-            </button>
-          </div>
-          <div class="colegio-form-body">
-            <div class="field">
-              <label>Nombre <span class="req">*</span></label>
-              <input type="text" [(ngModel)]="colegioForm.nombre" placeholder="Ej: Colegio San José" maxlength="200"/>
-            </div>
-            <div class="field">
-              <label>Link <span class="req">*</span></label>
-              <input type="url" [(ngModel)]="colegioForm.link" placeholder="https://ejemplo.com" maxlength="500"/>
-            </div>
-            <div class="field">
-              <label>Correo electrónico</label>
-              <input type="email" [(ngModel)]="colegioForm.email" placeholder="contacto@colegio.com" maxlength="255"/>
-            </div>
-          </div>
-          <div class="colegio-form-actions">
-            <button class="btn-cancel" (click)="closeColegioForm()" type="button">Cancelar</button>
-            <button class="btn-save-colegio" (click)="saveColegio()" [disabled]="colegioSaving || !colegioForm.nombre.trim() || !colegioForm.link.trim()">
-              @if (colegioSaving) {
-              <div class="btn-spinner"></div>
-              Guardando...
-              } @else {
-              {{ colegioEditando ? 'Actualizar' : 'Crear colegio' }}
-              }
-            </button>
-          </div>
-        </div>
-        }
-
-        <!-- Loading -->
-        @if (colegiosLoading) {
-        <div class="colegios-loading">
-          <div class="spinner"></div>
-          <span>Cargando colegios...</span>
-        </div>
-        }
-
-        <!-- Lista de colegios -->
-        @if (!colegiosLoading) {
-        @if (colegiosFiltrados.length === 0) {
-        <div class="colegios-empty">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/>
-          </svg>
-          <p>{{ colegioSearch ? 'No se encontraron colegios' : 'No hay colegios registrados' }}</p>
-          <span>{{ colegioSearch ? 'Intenta con otro término de búsqueda' : 'Haz clic en "Agregar colegio" para comenzar' }}</span>
-        </div>
-        } @else {
-        <div class="colegios-table-wrap">
-          <div class="colegios-bulk-bar" [class.visible]="colegioSelectedIds.size > 0">
-            <span>{{ colegioSelectedIds.size }} seleccionado{{ colegioSelectedIds.size === 1 ? '' : 's' }}</span>
-            <button class="btn-bulk-delete" (click)="deleteColegiosSeleccionados()" [disabled]="colegioDeletingBulk">
-              @if (colegioDeletingBulk) {
-              <div class="btn-spinner"></div>
-              Eliminando...
-              } @else {
+        <div class="cfg-card">
+          <div class="cfg-card__header">
+            <div class="cfg-card__icon cfg-card__icon--purple">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="3 6 5 6 21 6"/>
-                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                <path d="M10 11v6"/><path d="M14 11v6"/>
-                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                <path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.58-3.25 3.93"/><path d="M8 12a4 4 0 0 1 8 0"/>
+                <path d="M4 18c0-2.2 3.6-4 8-4s8 1.8 8 4"/><circle cx="8" cy="6" r="1" fill="currentColor"/>
+                <circle cx="16" cy="6" r="1" fill="currentColor"/>
               </svg>
-              Eliminar seleccionados
-              }
-            </button>
+            </div>
+            <div class="cfg-card__titles">
+              <h3>Configuración del Asistente IA</h3>
+              <p>Personaliza como la IA responde a los clientes. Los campos se usan para armar el prompt automaticamente.
+                 Si necesitas control total, usa el editor avanzado abajo.</p>
+            </div>
           </div>
-          <table class="colegios-table">
-            <thead>
-              <tr>
-                <th class="th-check">
-                  <input type="checkbox" [checked]="paginatedColegios.length > 0 && paginatedColegios.every(c => colegioSelectedIds.has(c.id))" (change)="toggleAllColegios()" />
-                </th>
-                <th>Nombre</th>
-                <th>Link</th>
-                <th>Correo</th>
-                <th class="th-actions">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (c of paginatedColegios; track c.id) {
-              <tr [class.selected]="colegioSelectedIds.has(c.id)">
-                <td class="td-check">
-                  <input type="checkbox" [checked]="colegioSelectedIds.has(c.id)" (change)="toggleColegioSelection(c.id)" />
-                </td>
-                <td class="td-name">{{ sanitizeText(c.nombre) }}</td>
-                <td class="td-link">
-                  <a [href]="c.link" target="_blank" rel="noopener noreferrer">{{ sanitizeText(c.link) }}</a>
-                </td>
-                <td class="td-email">{{ sanitizeText(c.email || '') || '—' }}</td>
-                <td class="td-actions">
-                  @if (colegioDeletingId === c.id) {
-                  <span class="delete-confirm">
-                    <span>¿Eliminar?</span>
-                    <button class="btn-confirm-yes" (click)="deleteColegio(c.id)">Sí</button>
-                    <button class="btn-confirm-no" (click)="cancelDeleteColegio()">No</button>
-                  </span>
-                  } @else {
-                  <button class="btn-icon-edit" (click)="openColegioForm(c)" title="Editar">
+          <div class="cfg-card__body cfg-card__body--flush">
+
+            <!-- Identidad -->
+            <div class="cfg-accordion">
+              <div class="cfg-accordion__header" (click)="toggleIaSection('identidad')">
+                <div class="cfg-accordion__head">
+                  <div class="cfg-card__icon cfg-card__icon--purple">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                      <path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                      <circle cx="12" cy="7" r="4"/>
                     </svg>
-                  </button>
-                  <button class="btn-icon-delete" (click)="confirmDeleteColegio(c)" title="Eliminar">
+                  </div>
+                  <span class="cfg-accordion__title">Identidad</span>
+                </div>
+                <svg class="cfg-accordion__chevron" [class.open]="iaSectionOpen.identidad" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+              </div>
+              @if (iaSectionOpen.identidad) {
+              <div class="cfg-accordion__body">
+                <div class="cfg-grid cfg-grid--2">
+                  <div class="cfg-field">
+                    <label class="cfg-field__label">Nombre del asistente</label>
+                    <input class="cfg-input" type="text" [(ngModel)]="aiPromptNombre" maxlength="200" placeholder="asistente virtual de atencion al cliente"/>
+                    <span class="cfg-field__hint">Identidad principal de la IA (ej: "asistente virtual de atencion al cliente")</span>
+                  </div>
+                  <div class="cfg-field">
+                    <label class="cfg-field__label">Especialidad</label>
+                    <input class="cfg-input" type="text" [(ngModel)]="aiPromptEspecialidad" maxlength="200" placeholder="colegios"/>
+                    <span class="cfg-field__hint">Area de conocimiento (ej: "colegios", "tecnologia", "salud")</span>
+                  </div>
+                </div>
+              </div>
+              }
+            </div>
+
+            <!-- Instrucciones generales -->
+            <div class="cfg-accordion">
+              <div class="cfg-accordion__header" (click)="toggleIaSection('instrucciones')">
+                <div class="cfg-accordion__head">
+                  <div class="cfg-card__icon cfg-card__icon--blue">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="3 6 5 6 21 6"/>
-                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                      <path d="M10 11v6"/><path d="M14 11v6"/>
-                      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                      <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
                     </svg>
+                  </div>
+                  <span class="cfg-accordion__title">Instrucciones generales</span>
+                </div>
+                <svg class="cfg-accordion__chevron" [class.open]="iaSectionOpen.instrucciones" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+              </div>
+              @if (iaSectionOpen.instrucciones) {
+              <div class="cfg-accordion__body">
+                <div class="cfg-field">
+                  <label class="cfg-field__label">Como debe responder la IA</label>
+                  <textarea class="cfg-textarea" [(ngModel)]="aiPromptInstrucciones" rows="4"
+                    placeholder="Responde de forma clara, amable y concisa en espanol. Adapta el lenguaje al rol del usuario."></textarea>
+                  <span class="cfg-field__hint">Instrucciones de comportamiento general de la IA</span>
+                </div>
+              </div>
+              }
+            </div>
+
+            <!-- Configuración por Rol -->
+            <div class="cfg-accordion">
+              <div class="cfg-accordion__header" (click)="toggleIaSection('roles')">
+                <div class="cfg-accordion__head">
+                  <div class="cfg-card__icon cfg-card__icon--amber">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                      <circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
+                  </div>
+                  <span class="cfg-accordion__title">Configuración por Rol</span>
+                </div>
+                <svg class="cfg-accordion__chevron" [class.open]="iaSectionOpen.roles" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+              </div>
+              @if (iaSectionOpen.roles) {
+              <div class="cfg-accordion__body">
+                <span class="cfg-label">Selecciona un rol para configurar</span>
+                <div class="cfg-role-tabs">
+                  @for (role of aiRoles; track role.key) {
+                  <button class="cfg-role-tab" [class.active]="selectedRole === role.key" (click)="selectRole(role.key)">
+                    {{ role.label }}
                   </button>
                   }
-                </td>
-              </tr>
-              }
-            </tbody>
-          </table>
-          <div class="colegios-footer">
-            <div class="colegios-count">
-              <span class="colegios-count-total">{{ colegiosFiltrados.length }} colegio{{ colegiosFiltrados.length === 1 ? '' : 's' }}</span>
-              @if (colegioSelectedIds.size > 0) {
-              <span class="colegios-count-selected">({{ colegioSelectedIds.size }} seleccionado{{ colegioSelectedIds.size === 1 ? '' : 's' }})</span>
+                </div>
+
+                <div class="cfg-role-panel">
+                  <div class="cfg-field">
+                    <label class="cfg-field__label">Descripcion del rol</label>
+                    <textarea class="cfg-textarea" [(ngModel)]="getRoleConfig(selectedRole).descripcion" rows="2"
+                      placeholder="Que puede hacer este rol..."></textarea>
+                    <span class="cfg-field__hint">Describe que tipo de usuario es y que acceso tiene</span>
+                  </div>
+
+                  <div class="cfg-field">
+                    <label class="cfg-field__label">Temas restringidos</label>
+                    <span class="cfg-field__hint">Temas que la IA NO puede responder para este rol. Haz clic en el [x] para eliminar</span>
+                    <div class="cfg-chips">
+                      @for (topic of getRoleConfig(selectedRole).temasRestringidos; track topic) {
+                      <span class="cfg-chip cfg-chip--amber">
+                        {{ topic }}
+                        <button type="button" class="cfg-chip__remove" (click)="removeRestrictedTopic(topic)">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12" height="12"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
+                        </button>
+                      </span>
+                      }
+                      @if (getRoleConfig(selectedRole).temasRestringidos.length === 0) {
+                      <span class="cfg-chips-empty">Sin temas restringidos (acceso completo)</span>
+                      }
+                    </div>
+                    <div class="cfg-add-row">
+                      <input class="cfg-input" type="text" [(ngModel)]="newRestrictedTopic" placeholder="Ej: pagos, notas, nomina..." maxlength="50"
+                        (keydown.enter)="addRestrictedTopic()"/>
+                      <button type="button" class="cfg-btn cfg-btn--primary" (click)="addRestrictedTopic()" [disabled]="!newRestrictedTopic.trim()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                        Agregar
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="cfg-field">
+                    <label class="cfg-field__label">Mensaje cuando pregunta tema restringido</label>
+                    <textarea class="cfg-textarea" [(ngModel)]="getRoleConfig(selectedRole).mensajeRestringido" rows="3"
+                      placeholder="Lo siento, no puedo proporcionar esa informacion..."></textarea>
+                    <span class="cfg-field__hint">Este mensaje se envia cuando el usuario pregunta algo restringido para su rol</span>
+                  </div>
+                </div>
+
+              </div>
               }
             </div>
-            @if (totalColegioPages > 1) {
-            <div class="colegios-paginator">
-              <button class="pag-btn pag-nav-extreme" (click)="setColegioPage(1)" [disabled]="colegioPage === 1" title="Primera">&laquo;</button>
-              <button class="pag-btn" (click)="setColegioPage(colegioPage - 1)" [disabled]="colegioPage === 1" title="Anterior">&lsaquo;</button>
-              @for (p of colegioPageRange(); track p) {
-              <button class="pag-btn" [class.active]="p === colegioPage" (click)="setColegioPage(p)">{{ p }}</button>
+
+            <!-- Transferencia a asesor -->
+            <div class="cfg-accordion">
+              <div class="cfg-accordion__header" (click)="toggleIaSection('transferencia')">
+                <div class="cfg-accordion__head">
+                  <div class="cfg-card__icon cfg-card__icon--green">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
+                  </div>
+                  <span class="cfg-accordion__title">Transferencia a agente</span>
+                </div>
+                <svg class="cfg-accordion__chevron" [class.open]="iaSectionOpen.transferencia" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+              </div>
+              @if (iaSectionOpen.transferencia) {
+              <div class="cfg-accordion__body">
+                <span class="cfg-label">Frases que activan la transferencia</span>
+                <div class="cfg-chips">
+                  @for (phrase of aiPromptFrasesTransferencia; track phrase) {
+                  <span class="cfg-chip">
+                    {{ phrase }}
+                    <button type="button" class="cfg-chip__remove" (click)="removeTransferPhrase(phrase)">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12" height="12"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
+                    </button>
+                  </span>
+                  }
+                </div>
+                <div class="cfg-add-row">
+                  <input class="cfg-input" type="text" [(ngModel)]="newTransferPhrase" placeholder="Escribir frase..." maxlength="50"
+                    (keydown.enter)="addTransferPhrase()"/>
+                  <button type="button" class="cfg-btn cfg-btn--primary" (click)="addTransferPhrase()" [disabled]="!newTransferPhrase.trim()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                    Agregar
+                  </button>
+                </div>
+              </div>
               }
-              <button class="pag-btn" (click)="setColegioPage(colegioPage + 1)" [disabled]="colegioPage === totalColegioPages" title="Siguiente">&rsaquo;</button>
-              <button class="pag-btn pag-nav-extreme" (click)="setColegioPage(totalColegioPages)" [disabled]="colegioPage === totalColegioPages" title="Última">&raquo;</button>
-              <select class="pag-size" [ngModel]="colegioPageSize" (ngModelChange)="onColegioPageSizeChange($event)">
-                @for (s of pageSizeOptions; track s) {
-                <option [value]="s">{{ s }} por pág.</option>
+            </div>
+
+            <!-- Feedback -->
+            <div class="cfg-accordion">
+              <div class="cfg-accordion__header" (click)="toggleIaSection('feedback')">
+                <div class="cfg-accordion__head">
+                  <div class="cfg-card__icon cfg-card__icon--teal">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
+                    </svg>
+                  </div>
+                  <span class="cfg-accordion__title">Control de feedback</span>
+                </div>
+                <svg class="cfg-accordion__chevron" [class.open]="iaSectionOpen.feedback" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+              </div>
+              @if (iaSectionOpen.feedback) {
+              <div class="cfg-accordion__body">
+                <div class="cfg-field">
+                  <label class="cfg-field__label">Cuando marcar como resuelto</label>
+                  <textarea class="cfg-textarea" [(ngModel)]="aiPromptFeedback" rows="3"
+                    placeholder="SOLO si resolviste completamente una pregunta real y concreta"></textarea>
+                  <span class="cfg-field__hint">La IA usa esto para decidir si muestra el boton de calificacion al cliente</span>
+                </div>
+              </div>
+              }
+            </div>
+
+            <!-- Conducta y limites -->
+            <div class="cfg-accordion">
+              <div class="cfg-accordion__header" (click)="toggleIaSection('conducta')">
+                <div class="cfg-accordion__head">
+                  <div class="cfg-card__icon cfg-card__icon--red">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                      <line x1="12" y1="8" x2="12" y2="12"/>
+                      <line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                  </div>
+                  <span class="cfg-accordion__title">Conducta y límites (groserías y sin respuesta)</span>
+                </div>
+                <svg class="cfg-accordion__chevron" [class.open]="iaSectionOpen.conducta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+              </div>
+              @if (iaSectionOpen.conducta) {
+              <div class="cfg-accordion__body">
+                <div class="cfg-field">
+                  <label class="cfg-field__label">Palabras prohibidas (groserías e insultos)</label>
+                  <span class="cfg-field__hint">Si el mensaje contiene alguna de estas palabras, la IA dará un aviso sin responder y no llamará al modelo.</span>
+                  <div class="cfg-chips">
+                    @for (word of aiPalabrasProhibidas; track word) {
+                    <span class="cfg-chip">
+                      {{ word }}
+                      <button type="button" class="cfg-chip__remove" (click)="removeForbiddenWord(word)" title="Eliminar">✕</button>
+                    </span>
+                    }
+                  </div>
+                  <div class="cfg-add-row">
+                    <input class="cfg-input" type="text" [(ngModel)]="newForbiddenWord" placeholder="Agregar palabra..." maxlength="50"
+                      (keydown.enter)="addForbiddenWord()"/>
+                    <button type="button" class="cfg-btn cfg-btn--primary" (click)="addForbiddenWord()" [disabled]="!newForbiddenWord.trim()">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                      Agregar
+                    </button>
+                  </div>
+                </div>
+
+                <div class="cfg-grid cfg-grid--2">
+                  <div class="cfg-field">
+                    <label class="cfg-field__label">Límite de groserías antes de cerrar sesión</label>
+                    <div class="cfg-time-input">
+                      <input class="cfg-input cfg-input--num" type="number" [(ngModel)]="aiLimiteGroserias" min="1" max="10" placeholder="3"/>
+                      <span class="cfg-time-unit">veces</span>
+                    </div>
+                    <span class="cfg-field__hint">A la N-ésima grosería la sesión se finaliza automáticamente</span>
+                  </div>
+                  <div class="cfg-field">
+                    <label class="cfg-field__label">Sugerir agente automáticamente cuando no haya respuesta</label>
+                    <div class="cfg-toggle-wrap" style="margin-top:0.5rem;">
+                      <input type="checkbox" id="chkSugerirAsesor" [(ngModel)]="aiSugerirAsesorAutomatico"/>
+                      <label for="chkSugerirAsesor" class="cfg-toggle-text">Ofrecer transferencia a agente humano</label>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="cfg-grid cfg-grid--2">
+                  <div class="cfg-field">
+                    <label class="cfg-field__label">Mensaje de aviso por grosería (1ª y 2ª vez)</label>
+                    <textarea class="cfg-textarea" [(ngModel)]="aiMensajeGroseria" rows="3" placeholder="Por favor, mantengamos un trato respetuoso..."></textarea>
+                  </div>
+                  <div class="cfg-field">
+                    <label class="cfg-field__label">Mensaje de cierre por groserías (3ª vez)</label>
+                    <textarea class="cfg-textarea" [(ngModel)]="aiMensajeSesionTerminada" rows="3" placeholder="Esta conversación ha sido finalizada..."></textarea>
+                  </div>
+                </div>
+
+                <div class="cfg-field">
+                  <label class="cfg-field__label">Mensaje cuando la IA no encuentra respuesta en documentos</label>
+                  <textarea class="cfg-textarea" [(ngModel)]="aiMensajeSinInformacion" rows="3" placeholder="No tengo información registrada sobre eso..."></textarea>
+                  <span class="cfg-field__hint">Se muestra cuando no existen documentos indexados para el rol y la consulta del usuario</span>
+                </div>
+              </div>
+              }
+            </div>
+
+            <!-- Editor avanzado -->
+            <div class="cfg-accordion">
+              <div class="cfg-accordion__header" (click)="toggleIaSection('avanzado')">
+                <div class="cfg-accordion__head">
+                  <div class="cfg-card__icon cfg-card__icon--gray">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+                    </svg>
+                  </div>
+                  <span class="cfg-accordion__title">Editor avanzado</span>
+                  @if (aiPromptUseCustom) {
+                  <span class="cfg-badge cfg-badge--purple">Activo</span>
+                  }
+                </div>
+                <svg class="cfg-accordion__chevron" [class.open]="iaSectionOpen.avanzado" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+              </div>
+              @if (iaSectionOpen.avanzado) {
+              <div class="cfg-accordion__body">
+                <div class="cfg-toggle-row">
+                  <div class="cfg-toggle-info">
+                    <span class="cfg-toggle-label">Usar prompt personalizado</span>
+                    <span class="cfg-toggle-sub">Cuando esta activo, la IA usa este prompt completo e ignora las secciones de arriba</span>
+                  </div>
+                  <label class="cfg-toggle">
+                    <input type="checkbox" [(ngModel)]="aiPromptUseCustom"/>
+                    <span class="cfg-toggle-slider"></span>
+                  </label>
+                </div>
+                @if (aiPromptUseCustom) {
+                <div class="cfg-field">
+                  <label class="cfg-field__label">Prompt completo</label>
+                  <textarea class="cfg-textarea ia-textarea" [(ngModel)]="aiPromptPersonalizado" rows="12"
+                    placeholder="Escribe el prompt completo aqui. Puedes usar variables como CLIENT_NAME, COLEGIO, ROL, MOTIVO, DESCRIPCION_ROL, TEMAS_RESTRINGIDOS, MENSAJE_RESTRINGIDO, CONTEXTO_RAG."></textarea>
+                  <span class="cfg-field__hint">Variables disponibles:
+                    <code [innerHTML]="'{{' + 'CLIENT_NAME' + '}}'"></code>
+                    <code [innerHTML]="'{{' + 'COLEGIO' + '}}'"></code>
+                    <code [innerHTML]="'{{' + 'ROL' + '}}'"></code>
+                    <code [innerHTML]="'{{' + 'MOTIVO' + '}}'"></code>
+                    <code [innerHTML]="'{{' + 'DESCRIPCION_ROL' + '}}'"></code>
+                    <code [innerHTML]="'{{' + 'TEMAS_RESTRINGIDOS' + '}}'"></code>
+                    <code [innerHTML]="'{{' + 'MENSAJE_RESTRINGIDO' + '}}'"></code>
+                    <code [innerHTML]="'{{' + 'CONTEXTO_RAG' + '}}'"></code>
+                  </span>
+                </div>
                 }
-              </select>
+              </div>
+              }
             </div>
-            }
+
+            <div class="cfg-actions">
+              <button type="button" class="cfg-btn cfg-btn--ghost cfg-btn--danger" (click)="resetAiPrompt()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                  <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                </svg>
+                Restablecer predeterminado
+              </button>
+            </div>
+
           </div>
         </div>
-        }
-        }
 
       </div>
+      }
+
+      <!-- ══════════════════════════════════════════════════════════
+           TAB — COLEGIOS (General)
+      ══════════════════════════════════════════════════════════ -->
+      @if (tab === 'colegios') {
+      <div class="cfg-panel">
+
+        <div class="cfg-card">
+          <div class="cfg-card__header">
+            <div class="cfg-card__icon cfg-card__icon--blue">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/>
+              </svg>
+            </div>
+            <div class="cfg-card__titles">
+              <h3>Gestión de colegios</h3>
+              <p>Administra los colegios disponibles en el sistema. Estos aparecen en el autocomplete
+                 del formulario de registro del chat.</p>
+            </div>
+          </div>
+          <div class="cfg-card__body">
+
+            <div class="cfg-toolbar">
+              <div class="cfg-search">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <input type="text" [(ngModel)]="colegioSearch" placeholder="Buscar colegio..."/>
+              </div>
+              <div class="cfg-toolbar-actions">
+                <button class="cfg-btn cfg-btn--ghost" (click)="exportarColegiosCsv()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                  Exportar CSV
+                </button>
+                <button class="cfg-btn cfg-btn--ghost" (click)="colegioFileInput.click()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                  </svg>
+                  Importar CSV
+                </button>
+                <input #colegioFileInput type="file" accept=".csv" hidden (change)="importarColegiosCsv($event)"/>
+                <button class="cfg-btn cfg-btn--primary" (click)="openColegioForm()" [disabled]="colegioFormVisible">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                  </svg>
+                  Agregar colegio
+                </button>
+              </div>
+            </div>
+
+            @if (colegioFormVisible) {
+            <div class="cfg-form">
+              <div class="cfg-form__header">
+                <h4>{{ colegioEditando ? 'Editar colegio' : 'Nuevo colegio' }}</h4>
+                <button class="cfg-btn--icon" (click)="closeColegioForm()" type="button" title="Cerrar">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
+              </div>
+              <div class="cfg-form__body">
+                <div class="cfg-grid cfg-grid--2">
+                  <div class="cfg-field">
+                    <label class="cfg-field__label">Nombre <span class="cfg-field__req">*</span></label>
+                    <input class="cfg-input" type="text" [(ngModel)]="colegioForm.nombre" placeholder="Ej: Colegio San José" maxlength="200"/>
+                  </div>
+                  <div class="cfg-field">
+                    <label class="cfg-field__label">Link <span class="cfg-field__req">*</span></label>
+                    <input class="cfg-input" type="url" [(ngModel)]="colegioForm.link" placeholder="https://ejemplo.com" maxlength="500"/>
+                  </div>
+                  <div class="cfg-field">
+                    <label class="cfg-field__label">Correo electrónico</label>
+                    <input class="cfg-input" type="email" [(ngModel)]="colegioForm.email" placeholder="contacto@colegio.com" maxlength="255"/>
+                  </div>
+                </div>
+              </div>
+              <div class="cfg-form__footer">
+                <button class="cfg-btn cfg-btn--ghost" (click)="closeColegioForm()" type="button">Cancelar</button>
+                <button class="cfg-btn cfg-btn--primary" (click)="saveColegio()" [disabled]="colegioSaving || !colegioForm.nombre.trim() || !colegioForm.link.trim()">
+                  @if (colegioSaving) {
+                  <span class="cfg-btn__spinner"></span>
+                  Guardando...
+                  } @else {
+                  {{ colegioEditando ? 'Actualizar' : 'Crear colegio' }}
+                  }
+                </button>
+              </div>
+            </div>
+            }
+
+            @if (colegiosLoading) {
+            <div class="cfg-loading">
+              <div class="spinner"></div>
+              <span>Cargando colegios...</span>
+            </div>
+            }
+
+            @if (!colegiosLoading) {
+            @if (colegiosFiltrados.length === 0) {
+            <div class="cfg-empty">
+              <div class="cfg-empty__inner">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/>
+                </svg>
+                <p>{{ colegioSearch ? 'No se encontraron colegios' : 'No hay colegios registrados' }}</p>
+                <span>{{ colegioSearch ? 'Intenta con otro término de búsqueda' : 'Haz clic en "Agregar colegio" para comenzar' }}</span>
+              </div>
+            </div>
+            } @else {
+            <div class="cfg-table-wrap">
+              <div class="cfg-bulkbar" [class.visible]="colegioSelectedIds.size > 0">
+                <span>{{ colegioSelectedIds.size }} seleccionado{{ colegioSelectedIds.size === 1 ? '' : 's' }}</span>
+                <button class="cfg-btn cfg-btn--danger-solid cfg-btn--sm" (click)="deleteColegiosSeleccionados()" [disabled]="colegioDeletingBulk">
+                  @if (colegioDeletingBulk) {
+                  <span class="cfg-btn__spinner"></span>
+                  Eliminando...
+                  } @else {
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                    <path d="M10 11v6"/><path d="M14 11v6"/>
+                    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                  </svg>
+                  Eliminar seleccionados
+                  }
+                </button>
+              </div>
+              <div class="cfg-table-scroll">
+                <table class="cfg-table">
+                  <thead>
+                    <tr>
+                      <th class="cfg-table__check">
+                        <input type="checkbox" [checked]="paginatedColegios.length > 0 && paginatedColegios.every(c => colegioSelectedIds.has(c.id))" (change)="toggleAllColegios()"/>
+                      </th>
+                      <th>Nombre</th>
+                      <th>Link</th>
+                      <th>Correo</th>
+                      <th class="cfg-table__actions">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (c of paginatedColegios; track c.id) {
+                    <tr [class.selected]="colegioSelectedIds.has(c.id)">
+                      <td class="cfg-table__check">
+                        <input type="checkbox" [checked]="colegioSelectedIds.has(c.id)" (change)="toggleColegioSelection(c.id)"/>
+                      </td>
+                      <td class="cfg-table__name">
+                        <span class="cfg-table__avatar">{{ (sanitizeText(c.nombre) || '?').charAt(0).toUpperCase() }}</span>
+                        {{ sanitizeText(c.nombre) }}
+                      </td>
+                      <td class="cfg-table__link">
+                        <a [href]="c.link" target="_blank" rel="noopener noreferrer">{{ sanitizeText(c.link) }}</a>
+                      </td>
+                      <td class="cfg-table__email">{{ sanitizeText(c.email || '') || '—' }}</td>
+                      <td class="cfg-table__actions">
+                        @if (colegioDeletingId === c.id) {
+                        <span class="cfg-delete-confirm">
+                          <span>¿Eliminar?</span>
+                          <button class="cfg-btn cfg-btn--sm cfg-btn--danger-solid" (click)="deleteColegio(c.id)">Sí</button>
+                          <button class="cfg-btn cfg-btn--sm cfg-btn--ghost" (click)="cancelDeleteColegio()">No</button>
+                        </span>
+                        } @else {
+                        <button class="cfg-btn--icon" (click)="openColegioForm(c)" title="Editar">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                          </svg>
+                        </button>
+                        <button class="cfg-btn--icon cfg-btn--icon-danger" (click)="confirmDeleteColegio(c)" title="Eliminar">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                            <path d="M10 11v6"/><path d="M14 11v6"/>
+                            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                          </svg>
+                        </button>
+                        }
+                      </td>
+                    </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+              <div class="cfg-table__footer">
+                <div class="cfg-count">
+                  <span class="cfg-count__total">{{ colegiosFiltrados.length }} colegio{{ colegiosFiltrados.length === 1 ? '' : 's' }}</span>
+                  @if (colegioSelectedIds.size > 0) {
+                  <span class="cfg-count__selected">({{ colegioSelectedIds.size }} seleccionado{{ colegioSelectedIds.size === 1 ? '' : 's' }})</span>
+                  }
+                </div>
+                @if (totalColegioPages > 1) {
+                <div class="cfg-paginator">
+                  <button class="cfg-page-btn cfg-page-btn--extreme" (click)="setColegioPage(1)" [disabled]="colegioPage === 1" title="Primera">&laquo;</button>
+                  <button class="cfg-page-btn" (click)="setColegioPage(colegioPage - 1)" [disabled]="colegioPage === 1" title="Anterior">&lsaquo;</button>
+                  @for (p of colegioPageRange(); track p) {
+                  <button class="cfg-page-btn" [class.active]="p === colegioPage" (click)="setColegioPage(p)">{{ p }}</button>
+                  }
+                  <button class="cfg-page-btn" (click)="setColegioPage(colegioPage + 1)" [disabled]="colegioPage === totalColegioPages" title="Siguiente">&rsaquo;</button>
+                  <button class="cfg-page-btn cfg-page-btn--extreme" (click)="setColegioPage(totalColegioPages)" [disabled]="colegioPage === totalColegioPages" title="Última">&raquo;</button>
+                  <select class="cfg-page-size" [ngModel]="colegioPageSize" (ngModelChange)="onColegioPageSizeChange($event)">
+                    @for (s of pageSizeOptions; track s) {
+                    <option [value]="s">{{ s }} por pág.</option>
+                    }
+                  </select>
+                </div>
+                }
+              </div>
+            </div>
+            }
+            }
+
+          </div>
+        </div>
+
+      </div>
+      }
+
     </div>
     }
-
   </div>
-  }
 </div>

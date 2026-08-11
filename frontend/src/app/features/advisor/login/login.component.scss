@@ -24,7 +24,8 @@ $cyan-soft: #06b6d4;
   width: 60%;
   display: flex;
   flex-direction: column;
-  padding: 2.75rem 3.5rem 2rem;
+  padding: clamp(2rem, 3.5vw, 3.5rem) clamp(2.5rem, 4vw, 4.5rem)
+    clamp(1.75rem, 2.5vw, 2.5rem);
   position: relative;
   overflow: hidden;
   color: #ffffff;
@@ -68,9 +69,10 @@ $cyan-soft: #06b6d4;
     pointer-events: none;
   }
 
-  @media (max-width: 960px) {
-    flex: 0 0 100%;
-    width: 100%;
+  @media (max-width: 1100px) and (min-width: 769px) {
+    flex: 0 0 55%;
+    width: 55%;
+    padding: 2rem 2.25rem 1.75rem;
   }
 
   @media (max-width: 768px) {
@@ -91,12 +93,13 @@ $cyan-soft: #06b6d4;
 // ── Marca ───────────────────────────────────────────────
 .brand {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: center;
   flex-direction: column;
   z-index: 1;
 
   .brand-logo {
-    height: 110px;
+    height: clamp(180px, 16vw, 300px);
     width: auto;
     display: block;
   }
@@ -109,15 +112,16 @@ $cyan-soft: #06b6d4;
   flex-direction: column;
   justify-content: center;
   z-index: 1;
-  max-width: 460px;
+  width: 100%;
+  max-width: none;
 
   h1 {
-    font-size: 2.55rem;
+    font-size: clamp(1.8rem, 1.4rem + 1vw, 2.3rem);
     font-weight: 800;
     color: #ffffff;
-    line-height: 1.22;
+    line-height: 1.25;
     letter-spacing: -0.5px;
-    margin-bottom: 1.35rem;
+    margin-bottom: 1.2rem;
 
     .highlight {
       background: linear-gradient(90deg, $blue-soft, $cyan);
@@ -132,22 +136,32 @@ $cyan-soft: #06b6d4;
     height: 4px;
     border-radius: 99px;
     background: linear-gradient(90deg, $cyan, $blue);
-    margin-bottom: 1.35rem;
+    margin-bottom: 1.2rem;
   }
 
   > p {
-    font-size: 0.98rem;
+    font-size: clamp(0.85rem, 0.8rem + 0.2vw, 0.95rem);
     color: rgba(255, 255, 255, 0.62);
     line-height: 1.65;
-    margin-bottom: 2.4rem;
+    margin-bottom: 2rem;
+    max-width: 620px;
   }
 }
 
 // ── Características ─────────────────────────────────────
 .features {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 1.1rem;
+
+  @media (min-width: 1200px) {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.25rem;
+  }
+
+  @media (max-width: 1100px) and (min-width: 769px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .feature-item {
@@ -175,13 +189,13 @@ $cyan-soft: #06b6d4;
     gap: 0.12rem;
 
     strong {
-      font-size: 0.92rem;
+      font-size: 0.88rem;
       font-weight: 600;
       color: #ffffff;
     }
 
     span {
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       color: rgba(255, 255, 255, 0.48);
     }
   }
@@ -195,11 +209,12 @@ $cyan-soft: #06b6d4;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2rem;
+  padding: clamp(1.5rem, 2.5vw, 2.5rem);
   overflow-y: auto;
 
-  @media (max-width: 960px) {
-    display: none;
+  @media (max-width: 1100px) and (min-width: 769px) {
+    flex: 0 0 45%;
+    width: 45%;
   }
 
   @media (max-width: 768px) {
@@ -214,10 +229,11 @@ $cyan-soft: #06b6d4;
 // ── Tarjeta ─────────────────────────────────────────────
 .login-card {
   width: 100%;
-  max-width: 400px;
+  max-width: clamp(400px, 26vw, 460px);
   background: #ffffff;
   border-radius: 24px;
-  padding: 2.75rem 2.5rem 2.25rem;
+  padding: clamp(2.25rem, 2.6vw, 3rem) clamp(2rem, 2.4vw, 2.75rem)
+    clamp(2rem, 2.2vw, 2.5rem);
   box-shadow: 0 20px 50px rgba(10, 30, 80, 0.12),
     0 4px 14px rgba(10, 30, 80, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.6);
@@ -242,7 +258,7 @@ $cyan-soft: #06b6d4;
   margin-bottom: 2rem;
 
   .card-logo {
-    height: 96px;
+    height: clamp(100px, 7vw, 130px);
     width: auto;
     display: block;
     margin-bottom: 0.9rem;
