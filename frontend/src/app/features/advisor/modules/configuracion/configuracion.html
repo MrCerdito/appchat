@@ -12,7 +12,7 @@
       </div>
       <div>
         <h1>Mi configuración</h1>
-        <p>Mensajes automáticos y horarios de almuerzo</p>
+        <p>Tu horario de almuerzo y las respuestas rápidas</p>
       </div>
     </div>
     <button class="btn-save" [disabled]="saving" (click)="guardar()">
@@ -51,24 +51,6 @@
 
     <!-- Tabs -->
     <div class="tabs">
-      <button class="tab" [class.active]="tab === 'bienvenida'" (click)="tab = 'bienvenida'">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-        </svg>
-        Bienvenida
-      </button>
-      <button class="tab" [class.active]="tab === 'asesor'" (click)="tab = 'asesor'">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="8" r="4"/><path d="M6 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
-        </svg>
-        Inactividad agente
-      </button>
-      <button class="tab" [class.active]="tab === 'cliente'" (click)="tab = 'cliente'">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="8" r="4"/><path d="M6 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
-        </svg>
-        Inactividad cliente
-      </button>
       <button class="tab" [class.active]="tab === 'almuerzo'" (click)="tab = 'almuerzo'">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/>
@@ -85,119 +67,6 @@
       </button>
 
     </div>
-
-    <!-- ── Tab Bienvenida ── -->
-    @if (tab === 'bienvenida') {
-    <div class="tab-panel">
-      <div class="panel-section">
-        <div class="section-info">
-          <h3>Mensaje de bienvenida</h3>
-          <p>Se envía automáticamente cuando te asignan a un cliente. Usa <code [innerHTML]="'{{' + 'agente' + '}}'"></code> para incluir tu nombre.</p>
-        </div>
-        <div class="field">
-          <label>Mensaje</label>
-          <textarea [(ngModel)]="config.mensajeBienvenida" rows="4"
-            [attr.placeholder]="placeholderBienvenida"></textarea>
-        </div>
-        <div class="preview-box">
-          <span class="preview-label">Vista previa</span>
-          <div class="preview-bubble">{{ config.mensajeBienvenida || '(vacío)' }}</div>
-        </div>
-      </div>
-    </div>
-    }
-
-    <!-- ── Tab Inactividad asesor ── -->
-    @if (tab === 'asesor') {
-    <div class="tab-panel">
-      <div class="panel-section">
-        <div class="section-info">
-          <h3>Mensaje automático por tu inactividad</h3>
-          <p>Si no respondes en el tiempo configurado, el sistema envía este mensaje al cliente.</p>
-        </div>
-        <div class="field">
-          <label>Tiempo de espera</label>
-          <div class="time-input">
-            <input type="number" min="1" max="60"
-              [ngModel]="segsToMins(config.asesorInactividadSeg)"
-              (ngModelChange)="setAsesorMins($event)"/>
-            <span class="time-unit">minutos</span>
-          </div>
-          <span class="field-hint">Recomendado: 2–5 minutos</span>
-        </div>
-        <div class="field">
-          <label>Mensaje al cliente</label>
-          <textarea [(ngModel)]="config.asesorInactividadMsg" rows="3"
-            placeholder="Estamos trabajando en tu solicitud..."></textarea>
-        </div>
-        <div class="preview-box">
-          <span class="preview-label">Vista previa — el cliente verá</span>
-          <div class="preview-bubble">{{ config.asesorInactividadMsg || '(vacío)' }}</div>
-        </div>
-      </div>
-    </div>
-    }
-
-    <!-- ── Tab Inactividad cliente ── -->
-    @if (tab === 'cliente') {
-    <div class="tab-panel">
-      <div class="panel-section">
-        <div class="section-info">
-          <h3>Cierre automático por inactividad del cliente</h3>
-          <p>Si el cliente no responde, el sistema envía avisos. Al alcanzar el límite, cierra la sesión.</p>
-        </div>
-        <div class="fields-row">
-          <div class="field">
-            <label>Tiempo entre avisos</label>
-            <div class="time-input">
-              <input type="number" min="1" max="60"
-                [ngModel]="segsToMins(config.clienteInactividadSeg)"
-                (ngModelChange)="setClienteMins($event)"/>
-              <span class="time-unit">minutos</span>
-            </div>
-          </div>
-          <div class="field">
-            <label>Avisos antes de cerrar</label>
-            <div class="time-input">
-              <input type="number" min="1" max="5" [(ngModel)]="config.clienteInactividadIters"/>
-              <span class="time-unit">avisos</span>
-            </div>
-          </div>
-        </div>
-        <div class="field">
-          <label>Mensaje de aviso</label>
-          <textarea [(ngModel)]="config.clienteInactividadMsg" rows="3"
-            placeholder="¿Sigues en línea? Tu sesión se cerrará pronto..."></textarea>
-        </div>
-        <div class="field">
-          <label>Mensaje de cierre</label>
-          <textarea [(ngModel)]="config.clienteCierreMsg" rows="3"
-            placeholder="La sesión ha sido cerrada por inactividad."></textarea>
-        </div>
-        <div class="flow-preview">
-          <span class="flow-label">Flujo de cierre automático</span>
-          <div class="flow-steps">
-            <div class="flow-step">
-              <div class="flow-dot blue"></div>
-              <span>Cliente inactivo {{ segsToMins(config.clienteInactividadSeg) }} min</span>
-            </div>
-            <div class="flow-arrow">↓</div>
-            @for (i of getIters(); track trackByIndex($index)) {
-            <div class="flow-step">
-              <div class="flow-dot amber"></div>
-              <span>Aviso {{ i + 1 }}: "{{ (config.clienteInactividadMsg || '') | slice:0:45 }}{{ config.clienteInactividadMsg.length > 45 ? '…' : '' }}"</span>
-            </div>
-            <div class="flow-arrow">↓</div>
-            }
-            <div class="flow-step">
-              <div class="flow-dot red"></div>
-              <span>Sesión cerrada automáticamente</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    }
 
     <!-- ── Tab Almuerzo ── -->
     @if (tab === 'almuerzo') {

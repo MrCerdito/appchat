@@ -96,6 +96,19 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   remitFeedback : { type: 'ok' | 'error'; text: string } | null = null;
   aiModeActive  = false;
 
+  // ── Mejorar mensaje con IA ────────────────────────────────────────────────
+  showImprovePanel = false;
+  isImproving      = false;
+  improveTone      = 'formal';
+  improveStep: 'tones' | 'variants' = 'tones';
+  improveVariants: string[] = [];
+  improveVariantIndex = -1;
+  readonly improveTones = [
+    { id: 'formal',  label: 'Formal',  desc: 'Serio e institucional' },
+    { id: 'educado', label: 'Educado', desc: 'Amable y respetuoso' },
+    { id: 'directo', label: 'Directo', desc: 'Claro y sin rodeos' },
+  ] as const;
+
   showAiInsightModal = false;
   isAiInsightLoading = false;
   aiInsightText = 'Analisis pendiente.';
@@ -1088,22 +1101,118 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     this.ghostSuggestion = '';
   }
 
+  toggleImprovePanel(): void {
+    if (!this.newMessage.trim()) return;
+    this.showImprovePanel = !this.showImprovePanel;
+    if (this.showImprovePanel) this.backToImproveTones();
+  }
+
+  selectImproveTone(tone: string): void {
+    this.improveTone = tone;
+    this.improveStep = 'tones';
+    this.improveVariants = [];
+    this.improveVariantIndex = -1;
+  }
+
+  get improveToneLabel(): string {
+    return (
+      this.improveTones.find(t => t.id === this.improveTone)?.label ??
+      this.improveTone
+    );
+  }
+
+  closeImprovePanel(): void {
+    this.showImprovePanel = false;
+    this.improveStep = 'tones';
+  }
+
+  backToImproveTones(): void {
+    this.improveStep = 'tones';
+    this.improveVariants = [];
+    this.improveVariantIndex = -1;
+  }
+
+  async generateImprovedText(): Promise<void> {
+    const draft = this.newMessage.trim();
+    if (!draft || this.isImproving || !this.activeSession) return;
+
+    this.isImproving = true;
+    this.cdr.detectChanges();
+    try {
+      const res = await firstValueFrom(
+        this.aiService.improveWhatsappDraft({
+          draft,
+          clientName: this.activeSession.clientName,
+          institution: this.activeSession.colegio,
+          role: this.activeSession.rol,
+          tone: this.improveTone,
+        }),
+      );
+      const variants = (res.replies ?? [])
+        .map(v => (v ?? '').trim())
+        .filter(Boolean)
+        .slice(0, 3);
+      if (variants.length) {
+        this.improveVariants = variants;
+        this.improveVariantIndex = -1;
+        this.improveStep = 'variants';
+      } else {
+        this.notification.error(
+          'Error de IA',
+          'No se pudo generar opciones, intenta de nuevo.',
+        );
+      }
+    } catch {
+      this.notification.error(
+        'Error de IA',
+        'No se pudo generar opciones, intenta de nuevo.',
+      );
+    } finally {
+      this.isImproving = false;
+      this.cdr.detectChanges();
+    }
+  }
+
+  selectImproveVariant(index: number): void {
+    const text = this.improveVariants[index];
+    if (!text) return;
+    this.improveVariantIndex = index;
+    this.newMessage = text.slice(0, 1000);
+    this.resizeInput();
+    this.showSlashMenu = false;
+    this.slashQuery = '';
+    this.ghostSuggestion = '';
+    this.msgInput?.nativeElement.focus();
+    this.notification.success(
+      'Mensaje mejorado',
+      'El texto se reemplazo por la opcion seleccionada.',
+    );
+    this.closeImprovePanel();
+  }
+
   async aiInsight(): Promise<void> {
     if (this.isAiInsightLoading || !this.activeSession) return;
-    const msgs = this.messages
-      .filter(m => m.senderName !== 'Sistema')
-      .slice(-20)
-      .map(m => ({
-        fromMe: m.senderType === 'advisor',
-        body: m.content,
-      }));
-    if (!msgs.length) {
-      this.aiInsightText = 'No hay mensajes para analizar.';
-      this.showAiInsightModal = true;
-      return;
-    }
     this.isAiInsightLoading = true;
     try {
+      let history: Message[] = [];
+      try {
+        history = await firstValueFrom(
+          this.sessionService.getMessages(this.activeSession.id, 1000),
+        );
+      } catch {
+        history = this.messages;
+      }
+      const msgs = history
+        .filter(m => m.senderName !== 'Sistema')
+        .map(m => ({
+          fromMe: m.senderType === 'advisor',
+          body: m.content,
+          time: m.createdAt,
+        }));
+      if (!msgs.length) {
+        this.aiInsightText = 'No hay mensajes para analizar.';
+        return;
+      }
       const res = await firstValueFrom(
         this.aiService.summarizeWhatsappConversation({
           clientName: this.activeSession.clientName,
@@ -1125,6 +1234,32 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     this.showAiInsightModal = false;
   }
 
+  get parsedAiInsightSections(): { label: string; text: string }[] {
+    const text = this.aiInsightText || '';
+    const sections: { label: string; text: string }[] = [];
+    let current: { label: string; text: string } | null = null;
+    for (const line of text.split('\n')) {
+      const m = line.match(/^\*\*(.+?)\*\*\s*:\s*(.*)$/);
+      if (m) {
+        current = { label: m[1].trim(), text: m[2] };
+        sections.push(current);
+      } else if (current && line.trim()) {
+        current.text += (current.text ? '\n' : '') + line;
+      }
+    }
+    return sections.length ? sections : [{ label: 'Analisis', text }];
+  }
+
+  get aiInsightPreview(): string {
+    const sections = this.parsedAiInsightSections;
+    const target =
+      sections.find(s => /de que trata|situacion/i.test(s.label)) ??
+      sections[0];
+    const text = (target?.text ?? '').replace(/\s+/g, ' ').trim();
+    if (!text) return 'Analisis pendiente.';
+    return text.length > 150 ? `${text.slice(0, 150).trim()}...` : text;
+  }
+
   openImagePreview(src: string, name: string): void {
     this.imagePreview = { src, name };
     this.mediaZoom = 1;
@@ -1143,6 +1278,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
+    if (this.showImprovePanel) { this.closeImprovePanel(); return; }
     if (this.imagePreview) this.closeImagePreview();
   }
 

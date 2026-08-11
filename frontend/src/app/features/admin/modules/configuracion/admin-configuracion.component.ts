@@ -12,10 +12,19 @@ import { NotificationService } from '../../../../core/services/notification.serv
 import { SoundService } from '../../../../core/services/sound.service';
 import { WhatsappChatService } from '../../../../core/services/whatsapp-chat.service';
 import { WaConnectionStatus } from '../../../../core/models/whatsapp.models';
-import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
+import { trackByIndex } from '../../../../shared/utils/track-by';
 import { Colegio, SessionService } from '../../../../core/services/session.service';
 
-type ConfigTab = 'jornada' | 'whatsapp' | 'mensajes' | 'inactividad' | 'respuestas' | 'ia' | 'colegios' | 'reconexion';
+type ConfigGrupo = 'chat' | 'whatsapp' | 'general';
+type ConfigTab =
+  | 'bienvenida'
+  | 'inactividad'
+  | 'reconexion'
+  | 'whatsapp'
+  | 'jornada'
+  | 'sonidos'
+  | 'ia'
+  | 'colegios';
 
 @Component({
   selector: 'app-admin-configuracion',
@@ -27,26 +36,20 @@ type ConfigTab = 'jornada' | 'whatsapp' | 'mensajes' | 'inactividad' | 'respuest
 })
 export class AdminConfiguracionComponent implements OnInit, OnDestroy {
   protected readonly trackByIndex = trackByIndex;
-  protected readonly trackById = trackById;
   config: ConfiguracionData | null = null;
   loading = true;
   saving = false;
   saved = false;
   error = '';
-  tab: ConfigTab = 'jornada';
+  grupo: ConfigGrupo = 'chat';
+  tab: ConfigTab = 'bienvenida';
   diaSeleccionado: number | null = null;
 
-  quickReplies: Array<{ id: string; name: string; content: string }> = [];
-  editingReplyIdx: number | null = null;
-  activeTextarea: HTMLTextAreaElement | null = null;
-  showLinkModal = false;
-  linkName = '';
-  linkUrl = '';
-  qrSearch = '';
-  qrPage = 1;
-  qrPageSize = 10;
-  qrSelectedIds: Set<string> = new Set();
-  qrDeletingBulk = false;
+  readonly grupos: Array<{ key: ConfigGrupo; label: string; tabInicial: ConfigTab }> = [
+    { key: 'chat', label: 'Chat en línea', tabInicial: 'bienvenida' },
+    { key: 'whatsapp', label: 'WhatsApp', tabInicial: 'whatsapp' },
+    { key: 'general', label: 'General', tabInicial: 'jornada' },
+  ];
 
   // ── IA Prompt ──────────────────────────────────────────────────────────────
   aiPromptNombre = 'asistente virtual de atención al cliente';
@@ -209,7 +212,6 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
     this.saving = true;
     this.error = '';
 
-    this.config.whatsappQuickReplies = this.quickReplies;
     this.saveAiPromptConfig();
     this.applySoundConfig();
     this.svc.guardarGlobal(this.config).pipe(takeUntil(this.destroy$)).subscribe({
@@ -232,6 +234,14 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
         this.cdr.detectChanges();
       },
     });
+  }
+
+  setGrupo(g: ConfigGrupo): void {
+    this.grupo = g;
+    this.tab = this.grupos.find(x => x.key === g)?.tabInicial ?? 'bienvenida';
+    if (g === 'general' && this.tab === 'colegios') {
+      this.loadColegios();
+    }
   }
 
   getDiaNombre(dia: number): string {
@@ -410,232 +420,9 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
       sonidoAsignacion: config.sonidoAsignacion ?? 'asignacion1',
       asesorReconexionSeg: config.asesorReconexionSeg ?? 120,
       asesorReconexionMsg: config.asesorReconexionMsg || 'El agente se desconectó. Esperando reconexión...',
-      whatsappQuickReplies: this.normalizeQuickReplies(config.whatsappQuickReplies),
+      whatsappQuickReplies: Array.isArray(config.whatsappQuickReplies) ? config.whatsappQuickReplies : [],
+      whatsappMaxActiveChatsPerAdvisor: config.whatsappMaxActiveChatsPerAdvisor ?? 3,
     };
-  }
-
-  private normalizeQuickReplies(value: any[]): Array<{ id: string; name: string; content: string }> {
-    if (!Array.isArray(value) || !value.length) {
-      return [
-        { id: 'qr_1', name: 'Saludo', content: 'Hola, con gusto reviso tu caso.' },
-        { id: 'qr_2', name: 'Espera', content: 'Dame un momento mientras valido la informacion.' },
-        { id: 'qr_3', name: 'Despedida', content: 'Quedo atento si necesitas algo mas.' },
-      ];
-    }
-    let nextId = 1;
-    for (const r of value) {
-      if (r.id && /^qr_\d+$/.test(String(r.id))) {
-        const num = parseInt(String(r.id).slice(3), 10);
-        if (num >= nextId) nextId = num + 1;
-      }
-    }
-    if (typeof value[0] === 'string') {
-      return value
-        .map((text: string) => {
-          const clean = text.trim();
-          if (!clean) return null;
-          return { id: `qr_${nextId++}`, name: clean.slice(0, 60), content: clean };
-        })
-        .filter(Boolean) as any;
-    }
-    return value
-      .filter((r: any) => r?.name && r?.content)
-      .map((r: any) => ({
-        id: r.id || `qr_${nextId++}`,
-        name: String(r.name).slice(0, 60),
-        content: String(r.content).slice(0, 500),
-      }));
-  }
-
-  addQuickReply(): void {
-    if (!this.config) return;
-    let nextId = 1;
-    for (const r of this.quickReplies) {
-      if (r.id && /^qr_\d+$/.test(String(r.id))) {
-        const num = parseInt(String(r.id).slice(3), 10);
-        if (num >= nextId) nextId = num + 1;
-      }
-    }
-    this.quickReplies.push({ id: `qr_${nextId}`, name: '', content: '' });
-    this.editingReplyIdx = this.quickReplies.length - 1;
-  }
-
-  removeQuickReply(idx: number): void {
-    const removed = this.quickReplies[idx];
-    this.quickReplies.splice(idx, 1);
-    if (removed) this.qrSelectedIds.delete(removed.id);
-    if (this.editingReplyIdx === idx) this.editingReplyIdx = null;
-    else if (this.editingReplyIdx !== null && this.editingReplyIdx > idx) this.editingReplyIdx--;
-  }
-
-  moveQuickReply(idx: number, dir: -1 | 1): void {
-    const newIdx = idx + dir;
-    if (newIdx < 0 || newIdx >= this.quickReplies.length) return;
-    const temp = this.quickReplies[idx];
-    this.quickReplies[idx] = this.quickReplies[newIdx];
-    this.quickReplies[newIdx] = temp;
-    if (this.editingReplyIdx === idx) this.editingReplyIdx = newIdx;
-    else if (this.editingReplyIdx === newIdx) this.editingReplyIdx = idx;
-  }
-
-  startEditReply(idx: number): void {
-    this.editingReplyIdx = this.editingReplyIdx === idx ? null : idx;
-    if (this.editingReplyIdx !== null) {
-      setTimeout(() => {
-        const el = document.querySelector(`.qr-item:nth-child(${idx + 1}) .qr-item-editor textarea`) as HTMLTextAreaElement | null;
-        if (el) this.activeTextarea = el;
-      });
-    }
-  }
-
-  onTextareaClick(textarea: HTMLTextAreaElement): void {
-    this.activeTextarea = textarea;
-  }
-
-  formatPreview(text: string): string {
-    return text
-      .replace(/\*\*(.+?)\*\*/g, '$1')
-      .replace(/\[(.+?)\]\((.+?)\)/g, '$1');
-  }
-
-  insertBold(): void {
-    const textarea = this.activeTextarea;
-    if (!textarea) return;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selected = textarea.value.substring(start, end);
-    const reply = this.quickReplies[this.editingReplyIdx!];
-    if (!reply) return;
-
-    const before = textarea.value.substring(0, start);
-    const after = textarea.value.substring(end);
-    const wrapped = selected ? `**${selected}**` : '**texto**';
-    textarea.value = before + wrapped + after;
-    reply.content = textarea.value;
-
-    const newCursorPos = start + wrapped.length;
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(selected ? newCursorPos : start + 2, selected ? newCursorPos : start + 7);
-    });
-  }
-
-  openLinkModal(): void {
-    this.linkName = '';
-    this.linkUrl = '';
-    this.showLinkModal = true;
-  }
-
-  closeLinkModal(): void {
-    this.showLinkModal = false;
-  }
-
-  insertLink(): void {
-    if (!this.linkName.trim() || !this.linkUrl.trim()) return;
-    const textarea = this.activeTextarea;
-    if (!textarea) return;
-    const reply = this.quickReplies[this.editingReplyIdx!];
-    if (!reply) return;
-
-    const start = textarea.selectionStart;
-    const link = `[${this.linkName.trim()}](${this.linkUrl.trim()})`;
-    const before = textarea.value.substring(0, start);
-    const after = textarea.value.substring(textarea.selectionEnd);
-    textarea.value = before + link + after;
-    reply.content = textarea.value;
-
-    this.showLinkModal = false;
-    this.linkName = '';
-    this.linkUrl = '';
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start + link.length, start + link.length);
-    });
-  }
-
-  initQuickRepliesFromConfig(): void {
-    if (this.config) {
-      this.quickReplies = this.normalizeQuickReplies(this.config.whatsappQuickReplies);
-    }
-  }
-
-  exportarQuickRepliesCsv(): void {
-    this.svc.exportQuickRepliesCsv().pipe(takeUntil(this.destroy$)).subscribe({
-      next: (blob) => {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'respuestas-rapidas.csv';
-        a.click();
-        window.URL.revokeObjectURL(url);
-      },
-      error: () => this.notification.error('Error', 'No se pudo exportar las respuestas rápidas'),
-    });
-  }
-
-  importarQuickRepliesCsv(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    if (!input.files?.length) return;
-    const file = input.files[0];
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const buf = reader.result as ArrayBuffer;
-      let csv: string;
-      try {
-        csv = new TextDecoder('utf-8', { fatal: true }).decode(buf);
-      } catch {
-        csv = new TextDecoder('windows-1252').decode(buf);
-      }
-      csv = csv.replace(/^\uFEFF/, '');
-      const lines = csv.split('\n').filter(l => l.trim());
-      if (lines.length < 2) {
-        this.notification.error('Error', 'El CSV está vacío');
-        input.value = '';
-        return;
-      }
-
-      const header = lines[0].toLowerCase();
-      const cols = header.split(';').map((c: string) => c.trim().replace(/"/g, ''));
-      const nIdx = cols.indexOf('name');
-      const cIdx = cols.indexOf('content');
-
-      if (nIdx === -1 || cIdx === -1) {
-        this.notification.error('Error', 'El CSV debe tener columnas "name" y "content"');
-        input.value = '';
-        return;
-      }
-
-      const items: { name: string; content: string }[] = [];
-      for (let i = 1; i < lines.length; i++) {
-        const vals = this.parseCsvLine(lines[i]);
-        const name = vals[nIdx]?.trim().slice(0, 60);
-        const content = vals[cIdx]?.trim().slice(0, 500);
-        if (name && content) {
-          items.push({ name, content });
-        }
-      }
-
-      if (!items.length) {
-        this.notification.error('Error', 'No se encontraron datos válidos en el CSV');
-        input.value = '';
-        return;
-      }
-
-      this.svc.importBulkQuickReplies(items).pipe(takeUntil(this.destroy$)).subscribe({
-        next: (res) => {
-          const msg = `${res.imported} respuesta${res.imported === 1 ? '' : 's'} importada${res.imported === 1 ? '' : 's'}${res.skipped ? ` (${res.skipped} omitida${res.skipped === 1 ? '' : 's'} por duplicado)` : ''}`;
-          this.notification.success('Importación completa', msg);
-          input.value = '';
-          this.refreshQuickReplies();
-        },
-        error: (err) => {
-          this.notification.error('Error', err.error?.message || 'No se pudo importar');
-          input.value = '';
-        },
-      });
-    };
-    reader.readAsArrayBuffer(file);
   }
 
   // ── IA Prompt methods ──────────────────────────────────────────────────────
@@ -1064,105 +851,6 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
     }
     result.push(current);
     return result;
-  }
-
-  // ── Quick Replies Paginator ────────────────────────────────────────────
-
-  get quickRepliesFiltrados(): Array<{ id: string; name: string; content: string }> {
-    const q = this.qrSearch.trim().toLowerCase();
-    if (!q) return this.quickReplies;
-    return this.quickReplies.filter(r =>
-      r.name.toLowerCase().includes(q) || r.content.toLowerCase().includes(q)
-    );
-  }
-
-  get paginatedQuickReplies(): Array<{ id: string; name: string; content: string }> {
-    const start = (this.qrPage - 1) * this.qrPageSize;
-    return this.quickRepliesFiltrados.slice(start, start + this.qrPageSize);
-  }
-
-  get totalQrPages(): number {
-    return Math.ceil(this.quickRepliesFiltrados.length / this.qrPageSize);
-  }
-
-  qrPageRange(): number[] {
-    const total = this.totalQrPages;
-    const current = this.qrPage;
-    const range: number[] = [];
-    let start = Math.max(1, current - 2);
-    let end = Math.min(total, current + 2);
-    if (end - start < 4) {
-      if (start === 1) end = Math.min(total, start + 4);
-      else start = Math.max(1, end - 4);
-    }
-    for (let i = start; i <= end; i++) range.push(i);
-    return range;
-  }
-
-  setQrPage(page: number): void {
-    if (page < 1 || page > this.totalQrPages) return;
-    this.qrPage = page;
-    this.cdr.detectChanges();
-  }
-
-  onQrPageSizeChange(size: number): void {
-    this.qrPageSize = size;
-    this.qrPage = 1;
-    this.cdr.detectChanges();
-  }
-
-  toggleQrSelection(id: string): void {
-    if (this.qrSelectedIds.has(id)) {
-      this.qrSelectedIds.delete(id);
-    } else {
-      this.qrSelectedIds.add(id);
-    }
-    this.cdr.detectChanges();
-  }
-
-  toggleAllQr(): void {
-    const currentIds = this.paginatedQuickReplies.map(r => r.id);
-    const allSelected = currentIds.every(id => this.qrSelectedIds.has(id));
-    if (allSelected) {
-      for (const id of currentIds) this.qrSelectedIds.delete(id);
-    } else {
-      for (const id of currentIds) this.qrSelectedIds.add(id);
-    }
-    this.cdr.detectChanges();
-  }
-
-  selectAllQr(): void {
-    for (const r of this.quickRepliesFiltrados) {
-      this.qrSelectedIds.add(r.id);
-    }
-    this.cdr.detectChanges();
-  }
-
-  deleteQrSeleccionadas(): void {
-    const ids = Array.from(this.qrSelectedIds);
-    if (!ids.length) return;
-    this.qrDeletingBulk = true;
-    this.svc.deleteBulkQuickReplies(ids).pipe(takeUntil(this.destroy$)).subscribe({
-      next: (res) => {
-        this.qrDeletingBulk = false;
-        this.qrSelectedIds.clear();
-        this.refreshQuickReplies();
-        this.notification.success('Eliminadas', `${res.deleted} respuesta${res.deleted === 1 ? '' : 's'} eliminada${res.deleted === 1 ? '' : 's'}.`);
-      },
-      error: (err) => {
-        this.qrDeletingBulk = false;
-        this.notification.error('Error', err.error?.message || 'Error al eliminar respuestas.');
-        this.cdr.detectChanges();
-      },
-    });
-  }
-
-  private refreshQuickReplies(): void {
-    this.svc.getGlobal().pipe(takeUntil(this.destroy$)).subscribe((config) => {
-      this.config = this.normalize(config);
-      this.quickReplies = this.normalizeQuickReplies(this.config.whatsappQuickReplies);
-      this.cdr.detectChanges();
-    });
   }
 
   ngOnDestroy(): void {

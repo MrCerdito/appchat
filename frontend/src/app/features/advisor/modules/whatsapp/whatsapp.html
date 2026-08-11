@@ -234,7 +234,12 @@
       </button>
     </header>
     <div class="ai-insight-body">
-      <p>{{ aiInsightText }}</p>
+      @for (sec of parsedAiInsightSections; track $index) {
+      <div class="ai-insight-section">
+        <span class="ai-insight-label">{{ sec.label }}</span>
+        <p class="ai-insight-text">{{ sec.text }}</p>
+      </div>
+      }
     </div>
     <div class="settings-actions">
       <button type="button" class="primary-btn" (click)="closeAiInsightModal()">Cerrar</button>
@@ -435,7 +440,7 @@
           [class.is-closed]="isChatClosed(c)"
           [class.is-recent]="isRecentChat(c)"
         >
-          <img class="chat-avatar" [src]="avatarSrc(c)" [alt]="c.name" (click)="!compactList && openProfilePhoto(c, $event)" (error)="useFallbackAvatar($event, c)" />
+          <img class="chat-avatar" [src]="avatarSrc(c)" [alt]="c.name" referrerpolicy="no-referrer" (click)="!compactList && openProfilePhoto(c, $event)" (error)="useFallbackAvatar($event, c)" />
           <span class="status-dot" [class]="c.status"></span>
           @if (c.unread > 0) {
           <span class="badge">{{ c.unread }}</span>
@@ -548,7 +553,7 @@
       >
         <div class="ic-avatar" [class.is-group]="conv.type === 'group'">
           @if (internalConversationPhotoUrl(conv)) {
-          <img [src]="internalConversationPhotoUrl(conv)" [alt]="internalConversationName(conv)" />
+          <img [src]="internalConversationPhotoUrl(conv)" [alt]="internalConversationName(conv)" referrerpolicy="no-referrer" />
           } @else if (conv.type === 'group') {
           <wa-icon name="users-group"></wa-icon>
           } @else {
@@ -584,7 +589,7 @@
         <wa-icon name="chevron-left"></wa-icon>
       </button>
       <div class="avatar-wrap">
-        <img class="chat-avatar" [src]="avatarSrc(contact)" [alt]="contact.name" (click)="openProfilePhoto(contact, $event)" (error)="useFallbackAvatar($event, contact)" />
+        <img class="chat-avatar" [src]="avatarSrc(contact)" [alt]="contact.name" referrerpolicy="no-referrer" (click)="openProfilePhoto(contact, $event)" (error)="useFallbackAvatar($event, contact)" />
         <span class="status-dot" [class]="contact.status"></span>
       </div>
 
@@ -904,31 +909,6 @@
       </div>
       }
 
-      @if (showAiSuggestion && aiSuggestion) {
-      <div class="ai-suggestion-popup">
-        <div class="ai-suggestion-header">
-          <wa-icon name="sparkles"></wa-icon>
-          <span>Mejora con IA</span>
-          <button type="button" class="ai-suggestion-close" (click)="dismissAiSuggestion()">
-            <wa-icon name="x"></wa-icon>
-          </button>
-        </div>
-        <div class="ai-suggestion-body">
-          <p>{{ aiSuggestion }}</p>
-        </div>
-        <div class="ai-suggestion-actions">
-          <button type="button" class="copy-btn" (click)="copyAiSuggestion()">
-            <wa-icon name="copy"></wa-icon>
-            Copiar texto
-          </button>
-          <button type="button" class="try-again-btn" (click)="triggerAI()">
-            <wa-icon name="refresh"></wa-icon>
-            Otra opci&oacute;n
-          </button>
-        </div>
-      </div>
-      }
-
       @if (replyingTo) {
       <div class="reply-preview-bar">
         <div class="reply-preview-info">
@@ -1040,7 +1020,7 @@
             (ngModelChange)="onInputChange()"
             rows="1"
             [placeholder]="replyPlaceholder"
-            [disabled]="!canReply || isAiGenerating || isSending"
+            [disabled]="!canReply || isImproving || isSending"
             (keydown)="handleKey($event)"
           ></textarea>
           @if (ghostSuggestion) {
@@ -1048,16 +1028,110 @@
           }
         </div>
 
-        <button
-          class="ai-btn"
-          type="button"
-          (click)="triggerAI()"
-          [disabled]="!canImproveDraft"
-          [class.loading]="isAiGenerating"
-          [title]="hasImprovedOnce ? 'Volver a mejorar con IA' : 'Mejorar texto con IA'"
-        >
-          <wa-icon [name]="isAiGenerating ? 'loader-2' : 'sparkles'"></wa-icon>
-        </button>
+        <div class="improve-wrap" [class.active]="showImprovePanel">
+          <button
+            class="ai-btn improve-btn"
+            type="button"
+            (click)="toggleImprovePanel()"
+            [disabled]="!canImproveDraft"
+            title="Mejorar mensaje"
+          >
+            <wa-icon [name]="isImproving ? 'loader-2' : 'sparkles'" class="spin"></wa-icon>
+          </button>
+
+          @if (showImprovePanel) {
+          <div class="improve-panel">
+            <div class="improve-header">
+              <wa-icon name="sparkles" class="improve-header-icon"></wa-icon>
+              Mejorar mensaje
+              <button type="button" class="improve-close" (click)="closeImprovePanel()" title="Cerrar">
+                <wa-icon name="x"></wa-icon>
+              </button>
+            </div>
+
+            @if (improveStep === 'tones') {
+            <div class="improve-sub">Selecciona el tono del mensaje</div>
+            <div class="improve-tones">
+              @for (t of improveTones; track t.id) {
+              <button
+                type="button"
+                class="improve-tone"
+                [class.active]="improveTone === t.id"
+                (click)="selectImproveTone(t.id)"
+              >
+                <span class="improve-tone-label">{{ t.label }}</span>
+                <span class="improve-tone-desc">{{ t.desc }}</span>
+              </button>
+              }
+            </div>
+            <button
+              class="improve-generate"
+              type="button"
+              (click)="generateImprovedText()"
+              [disabled]="isImproving || !messageText.trim()"
+            >
+              @if (isImproving) {
+              <span class="improve-spinner"></span>
+              Generando...
+              } @else {
+              <wa-icon name="sparkles"></wa-icon>
+              Generar 3 opciones
+              }
+            </button>
+            } @else {
+            <div class="improve-sub">
+              Elige la opcion que mas te guste
+              <span class="improve-tone-badge">Tono {{ improveToneLabel }}</span>
+            </div>
+            <div class="improve-variants">
+              @for (variant of improveVariants; track $index) {
+              <button
+                type="button"
+                class="improve-variant"
+                [class.active]="improveVariantIndex === $index"
+                (click)="selectImproveVariant($index)"
+              >
+                <span class="improve-variant-head">
+                  <span class="improve-variant-num">Opción {{ $index + 1 }}</span>
+                  <wa-icon name="circle-check" class="improve-variant-check"></wa-icon>
+                </span>
+                <span class="improve-variant-text">{{ variant }}</span>
+              </button>
+              }
+            </div>
+            <div class="improve-actions">
+              <button
+                type="button"
+                class="improve-ghost"
+                (click)="backToImproveTones()"
+                [disabled]="isImproving"
+              >
+                <wa-icon name="chevron-left"></wa-icon>
+                Cambiar tono
+              </button>
+              <button
+                type="button"
+                class="improve-regenerate"
+                (click)="generateImprovedText()"
+                [disabled]="isImproving || !messageText.trim()"
+              >
+                @if (isImproving) {
+                <span class="improve-spinner"></span>
+                Generando...
+                } @else {
+                <wa-icon name="refresh"></wa-icon>
+                Regenerar
+                }
+              </button>
+            </div>
+            }
+          </div>
+          }
+        </div>
+
+        @if (showImprovePanel) {
+        <div class="improve-backdrop" (click)="closeImprovePanel()"></div>
+        }
 
         <button
           class="send-btn"
@@ -1078,7 +1152,8 @@
       <strong>Cargando conversaciones</strong>
       }
       @if (!isLoadingChats) {
-      <strong>Elige una conversacion asignada</strong>
+      <strong>Seleccione un chat</strong>
+      <span class="empty-main-hint">Elige una conversación de la lista para verla aquí</span>
       }
     </main>
   }
@@ -1094,7 +1169,7 @@
   @if (activeContact; as contact) {
   <aside class="right-panel" [class.open]="showInfoPanel">
     <section class="profile-head">
-      <img [src]="avatarSrc(contact)" [alt]="contact.name" (click)="openProfilePhoto(contact, $event)" (error)="useFallbackAvatar($event, contact)" />
+      <img [src]="avatarSrc(contact)" [alt]="contact.name" referrerpolicy="no-referrer" (click)="openProfilePhoto(contact, $event)" (error)="useFallbackAvatar($event, contact)" />
       <div>
         <h2>{{ contact.name }}</h2>
         <p>{{ getAssignmentLabel(contact) }}</p>
@@ -1297,7 +1372,7 @@
         Analisis IA
       </div>
       @if (!isAiInsightLoading) {
-      <p>{{ aiInsightText }}</p>
+      <p>{{ aiInsightPreview }}</p>
       }
       @if (isAiInsightLoading) {
       <div class="ai-loading-bar"><span></span></div>

@@ -356,6 +356,115 @@
         (error)="onVoiceError($event)"
       ></wa-voice-recorder>
 
+      <div class="improve-wrap" [class.active]="showImprovePanel">
+        <button
+          class="input-icon-btn improve-btn"
+          type="button"
+          title="Mejorar mensaje"
+          (click)="toggleImprovePanel()"
+          [disabled]="!newMessage.trim() || isImproving || isRecordingAudio"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/>
+            <path d="M19 15l.9 2.4L22 18.3l-2.1.9L19 21.5l-.9-2.3-2.1-.9 2.1-.9L19 15z"/>
+          </svg>
+        </button>
+
+        @if (showImprovePanel) {
+        <div class="improve-panel">
+          <div class="improve-header">
+            <svg class="improve-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/>
+              <path d="M19 15l.9 2.4L22 18.3l-2.1.9L19 21.5l-.9-2.3-2.1-.9 2.1-.9L19 15z"/>
+            </svg>
+            Mejorar mensaje
+            <button class="improve-close" type="button" (click)="closeImprovePanel()" title="Cerrar">✕</button>
+          </div>
+
+          @if (improveStep === 'tones') {
+          <div class="improve-sub">Selecciona el tono del mensaje</div>
+          <div class="improve-tones">
+            @for (t of improveTones; track t.id) {
+            <button
+              type="button"
+              class="improve-tone"
+              [class.active]="improveTone === t.id"
+              (click)="selectImproveTone(t.id)"
+            >
+              <span class="improve-tone-label">{{ t.label }}</span>
+              <span class="improve-tone-desc">{{ t.desc }}</span>
+            </button>
+            }
+          </div>
+          <button
+            class="improve-generate"
+            type="button"
+            (click)="generateImprovedText()"
+            [disabled]="isImproving || !newMessage.trim()"
+          >
+            @if (isImproving) {
+            <span class="improve-spinner"></span>
+            Generando...
+            } @else {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/>
+            </svg>
+            Generar 3 opciones
+            }
+          </button>
+          } @else {
+          <div class="improve-sub">
+            Elige la opcion que mas te guste
+            <span class="improve-tone-badge">Tono {{ improveToneLabel }}</span>
+          </div>
+          <div class="improve-variants">
+            @for (variant of improveVariants; track $index) {
+            <button
+              type="button"
+              class="improve-variant"
+              [class.active]="improveVariantIndex === $index"
+              (click)="selectImproveVariant($index)"
+            >
+              <span class="improve-variant-head">
+                <span class="improve-variant-num">Opción {{ $index + 1 }}</span>
+                <span class="improve-variant-check">✓</span>
+              </span>
+              <span class="improve-variant-text">{{ variant }}</span>
+            </button>
+            }
+          </div>
+          <div class="improve-actions">
+            <button
+              type="button"
+              class="improve-ghost"
+              (click)="backToImproveTones()"
+              [disabled]="isImproving"
+            >
+              ← Cambiar tono
+            </button>
+            <button
+              type="button"
+              class="improve-regenerate"
+              (click)="generateImprovedText()"
+              [disabled]="isImproving || !newMessage.trim()"
+            >
+              @if (isImproving) {
+              <span class="improve-spinner"></span>
+              Generando...
+              } @else {
+              ↻ Regenerar
+              }
+            </button>
+          </div>
+          }
+        </div>
+        }
+      </div>
+
+      @if (showImprovePanel) {
+      <div class="improve-backdrop" (click)="closeImprovePanel()"></div>
+      }
+
       <div class="input-field">
         <textarea
           #msgInput
@@ -515,7 +624,7 @@
           Analisis IA
         </div>
         @if (!isAiInsightLoading) {
-        <p>{{ aiInsightText }}</p>
+        <p>{{ aiInsightPreview }}</p>
         }
         @if (isAiInsightLoading) {
         <div class="ai-loading-bar"><span></span></div>
@@ -566,7 +675,12 @@
       </button>
     </div>
     <div class="ai-summary-body">
-      <p>{{ aiInsightText }}</p>
+      @for (sec of parsedAiInsightSections; track $index) {
+      <div class="ai-insight-section">
+        <span class="ai-insight-label">{{ sec.label }}</span>
+        <p class="ai-insight-text">{{ sec.text }}</p>
+      </div>
+      }
     </div>
     <div class="modal-actions">
       <button class="modal-cancel" type="button" (click)="closeAiInsightModal()">Cerrar</button>

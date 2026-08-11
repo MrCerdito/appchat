@@ -178,4 +178,86 @@ describe('ConfiguracionService (horario)', () => {
     const arg = repoMock.save.mock.calls[0][0];
     expect(arg.almuerzos).toEqual([{ dia: 3, inicio: '12:00', fin: '13:00' }]);
   });
+
+  it('getEfectiva: el override de asesor solo aporta almuerzos, el resto es global', async () => {
+    const global = {
+      id: 'global',
+      advisorId: null,
+      mensajeBienvenida: 'Bienvenido global',
+      asesorInactividadSeg: 120,
+      asesorInactividadMsg: 'mensaje asesor global',
+      clienteInactividadSeg: 180,
+      clienteInactividadIters: 2,
+      clienteInactividadMsg: 'aviso global',
+      clienteCierreMsg: 'cierre global',
+      horarios: [],
+      horariosActivos: true,
+      horarioFueraMsg: '',
+      almuerzos: [],
+      whatsappAssignmentMsg: '',
+      whatsappQueueMsg: '',
+      whatsappOutOfHoursMsg: '',
+      whatsappCallUnavailableMsg: '',
+      whatsappQuickReplies: [],
+      whatsappMaxActiveChatsPerAdvisor: 3,
+      sonidoActivado: true,
+      sonidoWhatsapp: 'whatsapp1',
+      sonidoAsesor: 'asesor1',
+      sonidoCliente: 'cliente1',
+      sonidoAsignacion: 'asignacion1',
+      aiPromptConfig: null,
+      asesorReconexionSeg: 120,
+      asesorReconexionMsg: '',
+      ticketCategories: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as any;
+
+    const override = {
+      ...global,
+      id: 'override-id',
+      advisorId: 'advisor-1',
+      mensajeBienvenida: 'Bienvenida vieja del asesor',
+      asesorInactividadSeg: 999,
+      clienteInactividadSeg: 999,
+      almuerzos: [{ dia: 3, inicio: '12:00', fin: '13:00' }],
+    } as any;
+
+    repoMock.findOne.mockImplementation((opts: any) => {
+      if (opts?.where?.advisorId === 'advisor-1') return Promise.resolve(override);
+      return Promise.resolve(global);
+    });
+
+    const efectiva = await service.getEfectiva('advisor-1');
+
+    expect(efectiva.mensajeBienvenida).toBe('Bienvenido global');
+    expect(efectiva.asesorInactividadSeg).toBe(120);
+    expect(efectiva.clienteInactividadSeg).toBe(180);
+    expect(efectiva.clienteInactividadIters).toBe(2);
+    expect(efectiva.almuerzos).toEqual([
+      { dia: 3, inicio: '12:00', fin: '13:00' },
+    ]);
+    expect(efectiva.advisorId).toBe('advisor-1');
+  });
+
+  it('getEfectiva: sin override devuelve la configuracion global', async () => {
+    const global = {
+      id: 'global',
+      advisorId: null,
+      mensajeBienvenida: 'Bienvenido global',
+      asesorInactividadSeg: 120,
+      clienteInactividadSeg: 180,
+      almuerzos: [],
+    } as any;
+
+    repoMock.findOne.mockImplementation((opts: any) => {
+      if (opts?.where?.advisorId) return Promise.resolve(null);
+      return Promise.resolve(global);
+    });
+
+    const efectiva = await service.getEfectiva('advisor-sin-override');
+
+    expect(efectiva.mensajeBienvenida).toBe('Bienvenido global');
+    expect(efectiva.almuerzos).toEqual([]);
+  });
 });

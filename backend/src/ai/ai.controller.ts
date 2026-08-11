@@ -54,14 +54,15 @@ export class AiController {
       clientName?: string;
       institution?: string;
       role?: string;
+      tone?: string;
     },
   ) {
-    if (!body.draft?.trim()) return { reply: '' };
+    if (!body.draft?.trim()) return { replies: [] };
     return this.aiService.improveWhatsappDraft(body.draft, {
       clientName: body.clientName ?? '',
       institution: body.institution ?? '',
       role: body.role ?? '',
-    });
+    }, body.tone ?? 'formal');
   }
 
   @Post('whatsapp/summary')

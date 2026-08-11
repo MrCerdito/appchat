@@ -27,7 +27,7 @@ export class ConfiguracionComponent implements OnInit, OnDestroy {
   saving = false;
   saved = false;
   error = '';
-  tab: 'bienvenida' | 'asesor' | 'cliente' | 'almuerzo' | 'respuestas' = 'bienvenida';
+  tab: 'almuerzo' | 'respuestas' = 'almuerzo';
   diaSeleccionado: number | null = null;
 
   quickReplies: Array<{ id: string; name: string; content: string }> = [];
@@ -42,8 +42,6 @@ export class ConfiguracionComponent implements OnInit, OnDestroy {
   qrSelectedIds: Set<string> = new Set();
   qrDeletingBulk = false;
   pageSizeOptions = [10, 25, 50, 100];
-
-  readonly placeholderBienvenida = 'Hola, soy {{agente}}, en que puedo ayudarte?';
 
   readonly dias = [
     { value: 0, label: 'Domingo', short: 'Dom' },
@@ -96,9 +94,7 @@ export class ConfiguracionComponent implements OnInit, OnDestroy {
   }
 
     private advisorFields: (keyof ConfiguracionData)[] = [
-    'mensajeBienvenida', 'horarioFueraMsg', 'asesorInactividadSeg', 'asesorInactividadMsg',
-    'clienteInactividadSeg', 'clienteInactividadMsg', 'clienteInactividadIters',
-    'clienteCierreMsg', 'almuerzos',
+    'almuerzos',
   ];
 
   private extractError(err: any): string {
@@ -245,29 +241,6 @@ export class ConfiguracionComponent implements OnInit, OnDestroy {
     const startMins = 7 * 60;
     const rangeMins = 12 * 60;
     return Math.min(100, Math.max(0, ((totalMins - startMins) / rangeMins) * 100));
-  }
-
-  segsToMins(segs: number): number {
-    return Math.round((segs || 0) / 60);
-  }
-
-  minsToSegs(mins: number): number {
-    return Math.max(1, Number(mins) || 1) * 60;
-  }
-
-  setAsesorMins(mins: number): void {
-    if (this.config) this.config.asesorInactividadSeg = this.minsToSegs(mins);
-  }
-
-  setClienteMins(mins: number): void {
-    if (this.config) this.config.clienteInactividadSeg = this.minsToSegs(mins);
-  }
-
-  getIters(): number[] {
-    return Array.from(
-      { length: this.config?.clienteInactividadIters ?? 0 },
-      (_, i) => i,
-    );
   }
 
   initQuickRepliesFromConfig(): void {

@@ -20,7 +20,7 @@ import {
   VoiceRecorderComponent,
   VoiceRecordingResult,
 } from '../../../../shared/components/voice-recorder/voice-recorder.component';
-import { firstValueFrom, interval, Subscription, switchMap, timeout } from 'rxjs';
+import { firstValueFrom, interval, Subscription, switchMap } from 'rxjs';
 
 import { AiService } from '../../../../core/services/ai.service';
 import { AuthService } from '../../../../core/services/auth.service';
@@ -187,11 +187,21 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   sendError = '';
   newNote = '';
   aiInsightText = 'Analisis pendiente.';
-  aiSuggestion = '';
-  showAiSuggestion = false;
   assignmentToast = '';
   toastMessage = '';
   toastType: 'ok' | 'error' = 'ok';
+
+  showImprovePanel = false;
+  isImproving      = false;
+  improveTone      = 'formal';
+  improveStep: 'tones' | 'variants' = 'tones';
+  improveVariants: string[] = [];
+  improveVariantIndex = -1;
+  readonly improveTones = [
+    { id: 'formal',  label: 'Formal',  desc: 'Serio e institucional' },
+    { id: 'educado', label: 'Educado', desc: 'Amable y respetuoso' },
+    { id: 'directo', label: 'Directo', desc: 'Claro y sin rodeos' },
+  ] as const;
 
   ghostSuggestion = '';
   showSlashMenu = false;
@@ -200,8 +210,6 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
 
   isTyping = false;
   isSending = false;
-  isAiGenerating = false;
-  hasImprovedOnce = false;
   isAiInsightLoading = false;
   isLoadingChats = true;
   loadingProgress = 0;
@@ -405,7 +413,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     );
 
     this.subs.add(
-      this.configService.getGlobal().subscribe(config => {
+      this.configService.getEfectiva().subscribe(config => {
         this.queueCopy = config.whatsappQueueMsg || this.queueCopy;
         const replies = this.normalizeQuickReplies(config.whatsappQuickReplies);
         this.settingsDraft = {
@@ -427,7 +435,6 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
         this.loadingProgress = 100;
         this.stopProgressTimer();
         const chats = Array.isArray(res) ? res : res.chats;
-        if (!this.activeContact && chats.length) this.selectContact(chats[0]);
         this.cdr.detectChanges();
       }),
     );
@@ -746,7 +753,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   }
 
   get canImproveDraft(): boolean {
-    return !!this.activeContact && !this.isAiGenerating && !!this.messageText.trim();
+    return !!this.activeContact && !this.isImproving && !!this.messageText.trim();
   }
 
   get hasComposerContent(): boolean {
@@ -786,7 +793,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     if (this.isAttentionClosed) return 'Atencion cerrada. El historial se conserva';
     if (this.isInQueue) return 'Conversacion en cola';
     if (this.isAssignedToSomeoneElse) return 'Asignado a otro agente';
-    if (this.isAiGenerating) return 'Mejorando texto...';
+    if (this.isImproving) return 'Mejorando texto...';
     return 'Escribe un mensaje o / para respuestas rapidas';
   }
 
@@ -948,6 +955,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
+    if (this.showImprovePanel) { this.closeImprovePanel(); return; }
     if (this.mediaPreview) {
       this.closeMediaPreview();
     } else if (this.videoPreview) {
@@ -2453,20 +2461,43 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     return this.getAssignmentStatus(contact) === 'closed' || contact?.tag === 'cerrado';
   }
 
-  async triggerAI(): Promise<void> {
-    if (this.isAiGenerating || !this.activeContact) return;
-    const c = this.activeContact;
-    const draft = this.messageText.trim();
-    if (!draft) {
-      this.sendError = 'Escribe primero un borrador para que la IA lo mejore.';
-      this.messageInput?.nativeElement?.focus();
-      return;
-    }
+  toggleImprovePanel(): void {
+    if (!this.messageText.trim()) return;
+    this.showImprovePanel = !this.showImprovePanel;
+    if (this.showImprovePanel) this.backToImproveTones();
+  }
 
-    this.isAiGenerating = true;
-    this.sendError = '';
-    const startedAt = performance.now();
-    console.groupCollapsed('[WhatsApp IA] Mejorar texto');
+  selectImproveTone(tone: string): void {
+    this.improveTone = tone;
+    this.improveStep = 'tones';
+    this.improveVariants = [];
+    this.improveVariantIndex = -1;
+  }
+
+  get improveToneLabel(): string {
+    return (
+      this.improveTones.find(t => t.id === this.improveTone)?.label ??
+      this.improveTone
+    );
+  }
+
+  closeImprovePanel(): void {
+    this.showImprovePanel = false;
+    this.improveStep = 'tones';
+  }
+
+  backToImproveTones(): void {
+    this.improveStep = 'tones';
+    this.improveVariants = [];
+    this.improveVariantIndex = -1;
+  }
+
+  async generateImprovedText(): Promise<void> {
+    const draft = this.messageText.trim();
+    if (!draft || this.isImproving || !this.activeContact) return;
+
+    const c = this.activeContact;
+    this.isImproving = true;
     try {
       const res = await firstValueFrom(
         this.aiService.improveWhatsappDraft({
@@ -2474,44 +2505,63 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
           clientName: c.name,
           institution: c.institution,
           role: c.role,
-        }).pipe(timeout(25000)),
+          tone: this.improveTone,
+        }),
       );
-      const improved = res.reply?.trim() || draft;
-      this.aiSuggestion = improved;
-      this.showAiSuggestion = true;
-      this.hasImprovedOnce = true;
-    } catch (err) {
-      console.error('Estado: la IA no pudo mejorar el texto.', err);
-      this.sendError = 'No se pudo mejorar el texto con IA. Intenta de nuevo.';
+      const variants = (res.replies ?? [])
+        .map(v => (v ?? '').trim())
+        .filter(Boolean)
+        .slice(0, 3);
+      if (variants.length) {
+        this.improveVariants = variants;
+        this.improveVariantIndex = -1;
+        this.improveStep = 'variants';
+      } else {
+        this.showToast('No se pudo mejorar el mensaje con IA.', 'error');
+      }
+    } catch {
+      this.showToast('No se pudo mejorar el mensaje con IA.', 'error');
     } finally {
-      this.isAiGenerating = false;
-      console.groupEnd();
-      this.messageInput?.nativeElement?.focus();
+      this.isImproving = false;
     }
   }
 
-  dismissAiSuggestion(): void {
-    this.showAiSuggestion = false;
-    this.aiSuggestion = '';
-  }
-
-  copyAiSuggestion(): void {
-    if (!this.aiSuggestion) return;
-    navigator.clipboard.writeText(this.aiSuggestion);
+  selectImproveVariant(index: number): void {
+    const text = this.improveVariants[index];
+    if (!text) return;
+    this.improveVariantIndex = index;
+    this.messageText = text.slice(0, 1000);
+    this.showSlashMenu = false;
+    this.slashQuery = '';
+    this.ghostSuggestion = '';
+    this.resizeMessageInput();
+    this.messageInput?.nativeElement?.focus();
+    this.showToast('Mensaje mejorado', 'ok');
+    this.closeImprovePanel();
   }
 
   async aiInsight(): Promise<void> {
     if (this.isAiInsightLoading || !this.activeContact) return;
     const c = this.activeContact;
-    const messages = this.compactConversationForAi(c);
-    if (!messages.length) {
-      this.aiInsightText = 'Aun no hay mensajes suficientes para resumir esta conversacion.';
-      return;
-    }
 
     this.isAiInsightLoading = true;
     this.aiInsightText = '';
     try {
+      let fetched: WaMessage[] = [];
+      try {
+        fetched = await firstValueFrom(
+          this.waService.loadMessages(c.id, 1, 500),
+        );
+      } catch {
+        fetched = c.messages ?? [];
+      }
+      const messages = this.compactConversationForAi(fetched);
+      if (!messages.length) {
+        this.aiInsightText =
+          'Aun no hay mensajes suficientes para resumir esta conversacion.';
+        return;
+      }
+
       const res = await firstValueFrom(
         this.aiService.summarizeWhatsappConversation({
           clientName: c.name,
@@ -2536,18 +2586,45 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     this.showAiInsightModal = false;
   }
 
-  private compactConversationForAi(contact: WaChat): { fromMe: boolean; body: string }[] {
-    return (contact.messages ?? [])
-      .map(message => ({
-        ...message,
-        body: this.displayMessageBody(message) || this.mediaFallbackLabel(message.type),
-      }))
-      .filter(message => !!message.body?.trim())
-      .slice(-20)
+  get parsedAiInsightSections(): { label: string; text: string }[] {
+    const text = this.aiInsightText || '';
+    const sections: { label: string; text: string }[] = [];
+    let current: { label: string; text: string } | null = null;
+    for (const line of text.split('\n')) {
+      const m = line.match(/^\*\*(.+?)\*\*\s*:\s*(.*)$/);
+      if (m) {
+        current = { label: m[1].trim(), text: m[2] };
+        sections.push(current);
+      } else if (current && line.trim()) {
+        current.text += (current.text ? '\n' : '') + line;
+      }
+    }
+    return sections.length ? sections : [{ label: 'Analisis', text }];
+  }
+
+  get aiInsightPreview(): string {
+    const sections = this.parsedAiInsightSections;
+    const target =
+      sections.find(s => /de que trata|situacion/i.test(s.label)) ??
+      sections[0];
+    const text = (target?.text ?? '').replace(/\s+/g, ' ').trim();
+    if (!text) return 'Analisis pendiente.';
+    return text.length > 150 ? `${text.slice(0, 150).trim()}...` : text;
+  }
+
+  private compactConversationForAi(
+    messages: WaMessage[],
+  ): { fromMe: boolean; body: string; time?: string | number | Date }[] {
+    return messages
       .map(message => ({
         fromMe: message.fromMe,
-        body: this.compactText(message.body, 180),
-      }));
+        body: this.compactText(
+          this.displayMessageBody(message) || this.mediaFallbackLabel(message.type),
+          180,
+        ),
+        time: message.timestamp,
+      }))
+      .filter(message => !!message.body?.trim());
   }
 
   private compactText(value: string, maxLength: number): string {
@@ -2859,22 +2936,13 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
   }
 
   private syncActiveContact(chats: WaChat[]): void {
-    if (!this.activeContact) {
-      if (chats.length) {
-        this.activeContact = chats[0];
-        this.contactDraft = this.draftFromContact(this.activeContact);
-        this.shouldScroll = true;
-        if (this.activeContact.unread > 0) {
-          this.subs.add(this.waService.markRead(this.activeContact.id).subscribe());
-        }
-      }
-      return;
-    }
+    if (!this.activeContact) return;
 
     const updated = chats.find(chat => chat.id === this.activeContact?.id);
     if (!updated) {
-      this.activeContact = chats[0];
-      if (this.activeContact) this.contactDraft = this.draftFromContact(this.activeContact);
+      this.activeContact = undefined;
+      this.contactDraft = this.emptyDraft();
+      this.waService.setActiveChat(null);
       return;
     }
 

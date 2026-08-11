@@ -26,6 +26,7 @@ export interface WhatsappDraftImproveRequest {
   clientName?: string;
   institution?: string;
   role?: string;
+  tone?: string;
 }
 
 export interface WhatsappSummaryRequest {
@@ -35,7 +36,7 @@ export interface WhatsappSummaryRequest {
   city?: string;
   phone?: string;
   notes?: string[];
-  messages?: { fromMe: boolean; body: string }[];
+  messages?: { fromMe: boolean; body: string; time?: string | number | Date }[];
 }
 
 @Injectable({ providedIn: 'root' })
@@ -60,8 +61,8 @@ export class AiService {
   }
 
   // ── Nuevo método SSE ──────────────────────────────────────────────────────
-  improveWhatsappDraft(payload: WhatsappDraftImproveRequest): Observable<{ reply: string }> {
-    return this.http.post<{ reply: string }>(`${this.baseUrl}/ai/whatsapp/improve`, payload);
+  improveWhatsappDraft(payload: WhatsappDraftImproveRequest): Observable<{ replies: string[] }> {
+    return this.http.post<{ replies: string[] }>(`${this.baseUrl}/ai/whatsapp/improve`, payload);
   }
 
   summarizeWhatsappConversation(payload: WhatsappSummaryRequest): Observable<{ summary: string }> {

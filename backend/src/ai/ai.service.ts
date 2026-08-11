@@ -23,6 +23,7 @@ export interface AiResult {
 export interface WhatsappSummaryMessage {
   fromMe: boolean;
   body: string;
+  time?: string | number;
 }
 
 const ROL_CONFIG: Record<
@@ -531,24 +532,44 @@ export class AiService {
   async improveWhatsappDraft(
     draft: string,
     profile: { clientName?: string; institution?: string; role?: string } = {},
-  ): Promise<{ reply: string }> {
+    tone: string = 'formal',
+  ): Promise<{ replies: string[] }> {
     const cleanDraft = this.compactText(draft, 900);
-    if (!cleanDraft) return { reply: '' };
+    if (!cleanDraft) return { replies: [] };
 
-    const prompt = `Mejora la redaccion del siguiente borrador para enviarlo por WhatsApp a un cliente.
+    const toneRules: Record<string, string> = {
+      formal:   'Tono FORMAL: serio, institucional y profesional; trata al cliente de usted y evita expresiones coloquiales.',
+      educado:  'Tono EDUCADO: amable, cortes y respetuoso; demuestra consideracion por el cliente.',
+      directo:  'Tono DIRECTO: claro, conciso y sin rodeos; va al punto sin perder la amabilidad.',
+    };
 
-Reglas:
+    const prompt = `Mejora la redaccion del siguiente borrador para enviarlo por WhatsApp a un cliente y genera 3 variantes distintas.
+
+Reglas por variante:
 - Corrige ortografia, tildes, puntuacion, capitalizacion y errores de digitacion.
 - Conserva exactamente la intencion, datos, promesas, fechas, precios, nombres y preguntas del texto original.
 - No agregues informacion nueva.
 - No respondas por el cliente ni inventes solucion.
+- ${toneRules[tone] ?? toneRules.formal}
 - Hazlo claro, amable, profesional y natural.
-- Devuelve SOLO el texto final, sin explicaciones, sin comillas, sin markdown, sin frases como "Texto mejorado:" ni ningun otro prefijo.
 - Maximo 90 palabras.
 
-Ejemplo:
-Borrador: hola msi nombre es carlos andre,s
-Texto mejorado: Hola, mi nombre es Carlos Andrés.
+Formato de salida: EXACTAMENTE 3 bloques, cada uno encabezado por una linea de solo "=" (sin texto adyacente), seguida de "VARIANTE N", un salto de linea y el texto de esa variante:
+
+=====
+VARIANTE 1
+(texto de la variante 1)
+
+=====
+VARIANTE 2
+(texto de la variante 2)
+
+=====
+VARIANTE 3
+(texto de la variante 3)
+
+Las 3 variantes deben ser realmente distintas entre si: cambia la estructura, el orden de la informacion, el saludo o la forma de expresion, pero manteniendo el mismo tono, el mismo contenido y la misma longitud aproximada.
+Dentro de cada bloque usa SOLO el texto, sin comillas, sin markdown, sin prefijos como "Texto mejorado:" ni ninguna otra etiqueta.
 
 Perfil breve:
 Cliente: ${this.compactText(profile.clientName, 80) || 'Cliente WhatsApp'}
@@ -558,8 +579,24 @@ Rol: ${this.compactText(profile.role, 60) || 'Cliente'}
 Borrador:
 ${cleanDraft}`;
 
-    const reply = await this.generateCompactText(prompt, 500, 0.2);
-    return { reply: this.cleanAiPlainText(reply) || cleanDraft };
+    const raw = this.cleanAiPlainText(
+      await this.generateCompactText(prompt, 1400, 0.8),
+    );
+    const replies = this.splitImproveVariants(raw);
+    return { replies: replies.length ? replies : [raw || cleanDraft] };
+  }
+
+  private splitImproveVariants(text: string): string[] {
+    return text
+      .split(/={3,}/)
+      .map((block) =>
+        block
+          .replace(/^\s*VARIANTE\s*\d+\s*:?\s*/i, '')
+          .replace(/\s+/g, ' ')
+          .trim(),
+      )
+      .filter((block) => block.length > 0)
+      .slice(0, 3);
   }
 
   async summarizeWhatsappConversation(input: {
@@ -571,21 +608,22 @@ ${cleanDraft}`;
     notes?: string[];
     messages?: WhatsappSummaryMessage[];
   }): Promise<{ summary: string }> {
-    const messages = (input.messages ?? [])
+    const raw = (input.messages ?? [])
       .filter((message) => this.compactText(message.body, 220))
-      .slice(-20)
-      .map(
-        (message) =>
-          `${message.fromMe ? 'Asesor' : 'Cliente'}: ${this.compactText(message.body, 180)}`,
-      )
-      .join('\n');
+      .slice(0, 1000);
 
-    if (!messages) {
+    if (!raw.length) {
       return {
         summary:
-          'Aun no hay mensajes suficientes para resumir esta conversacion.',
+          '**Metadatos:** Sin mensajes\n**De que trata:** Aun no hay mensajes suficientes para analizar esta conversacion.',
       };
     }
+
+    const lines = raw.map(
+      (message) =>
+        `${message.fromMe ? 'Asesor' : 'Cliente'}: ${this.compactText(message.body, 150)}`,
+    );
+    const transcript = lines.join('\n');
 
     const notes = (input.notes ?? [])
       .map((note) => this.compactText(note, 120))
@@ -593,15 +631,25 @@ ${cleanDraft}`;
       .slice(0, 3)
       .join(' | ');
 
-    const prompt = `Resume para un asesor una conversacion de WhatsApp usando solo la informacion dada.
+    const metrics = this.conversationMetrics(raw);
+
+    const prompt = `Eres un analista de atencion al cliente. Analiza la CONVERSACION COMPLETA (desde el primer mensaje "hola" hasta el ultimo) y entrega un analisis util para un asesor.
 
 Reglas:
-- Maximo 70 palabras.
-- Un solo parrafo.
-- Menciona: situacion actual, necesidad del cliente y siguiente paso sugerido.
-- Relaciona el resumen con el perfil si aporta contexto.
-- No inventes datos.
-- Sin markdown, sin emojis, sin saludo.
+- Usa SOLO la informacion dada; no inventes datos.
+- Secciones: usa EXACTAMENTE estas etiquetas, una por linea, en este orden:
+**De que trata:** tema central en 1 linea
+**Situacion actual:** donde quedo la conversacion, 1-2 lineas
+**Necesidad del cliente:** que quiere o necesita el cliente, 1-2 lineas
+**Actitud del cliente:** como se siente (urgente, tranquilo, molesto, satisfecho...), 1 linea
+**Siguiente paso sugerido:** accion concreta que recomiendas al asesor, 1-2 lineas
+**Datos clave:** fechas, precios, promesas, nombres o datos importantes, separados por comas, 1 linea
+- Devuelve SOLO las secciones, sin introduccion ni despedida.
+- Cada seccion en una sola linea: comienza con "**" y la etiqueta, luego ":** " y el contenido.
+- Si una seccion no aplica, escribe "No se indica".
+
+Metadatos de la conversacion:
+${metrics}
 
 Perfil:
 Nombre: ${this.compactText(input.clientName, 80) || 'Cliente WhatsApp'}
@@ -611,15 +659,57 @@ Ciudad: ${this.compactText(input.city, 60) || 'No registrada'}
 Telefono: ${this.compactText(input.phone, 40) || 'No registrado'}
 Notas internas: ${notes || 'Sin notas'}
 
-Ultimos mensajes:
-${messages}`;
+Conversacion completa:
+${transcript}`;
 
-    const summary = await this.generateCompactText(prompt, 200, 0.1);
+    const summary = await this.generateCompactText(prompt, 400, 0.1);
+    const clean = this.cleanAiPlainText(summary);
     return {
       summary:
-        this.cleanAiPlainText(summary) ||
-        'No se pudo generar un resumen claro.',
+        `**Metadatos:** ${metrics}\n` +
+        (clean || '**De que trata:** No se pudo generar un analisis claro.'),
     };
+  }
+
+  private conversationMetrics(
+    messages: WhatsappSummaryMessage[],
+  ): string {
+    const total = messages.length;
+    const firstSender = messages[0]?.fromMe ? 'Asesor' : 'Cliente';
+    const times = messages
+      .map((m) => this.toDate(m.time))
+      .filter((d): d is Date => !!d && !isNaN(d.getTime()));
+    let duracion = '';
+    if (times.length >= 2) {
+      const first = times[0].getTime();
+      const last = times[times.length - 1].getTime();
+      duracion = this.formatDuration(last - first);
+    }
+    const parts = [`${total} mensajes`];
+    if (duracion) parts.push(`Duracion: ${duracion}`);
+    parts.push(`Inicio: ${firstSender}`);
+    return parts.join(' | ');
+  }
+
+  private toDate(value: unknown): Date | null {
+    if (typeof value === 'number') return new Date(value);
+    if (typeof value === 'string') {
+      const d = new Date(value);
+      return isNaN(d.getTime()) ? null : d;
+    }
+    return null;
+  }
+
+  private formatDuration(ms: number): string {
+    const totalMin = Math.max(1, Math.round(ms / 60000));
+    const days = Math.floor(totalMin / 1440);
+    const hours = Math.floor((totalMin % 1440) / 60);
+    const mins = totalMin % 60;
+    const parts: string[] = [];
+    if (days) parts.push(`${days} d`);
+    if (hours) parts.push(`${hours} h`);
+    parts.push(`${mins} min`);
+    return parts.join(' ');
   }
 
   async chatStream(

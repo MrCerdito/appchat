@@ -34,6 +34,7 @@ export interface ConfiguracionData {
   whatsappOutOfHoursMsg: string;
   whatsappCallUnavailableMsg: string;
   whatsappQuickReplies: any[];
+  whatsappMaxActiveChatsPerAdvisor: number;
   sonidoActivado: boolean;
   sonidoWhatsapp: string;
   sonidoAsesor: string;

@@ -230,26 +230,57 @@ export class ConfiguracionService implements OnModuleInit {
     } catch {}
   }
 
+  private async invalidateAll(): Promise<void> {
+    try {
+      const store = (this.cache as any).store;
+      const keys =
+        typeof store?.keys === 'function' ? ((await store.keys()) as string[]) : [];
+      for (const k of keys) {
+        if (String(k).startsWith(this.CACHE_PREFIX)) {
+          await this.cache.del(k);
+        }
+      }
+    } catch {}
+  }
+
   async getEfectiva(advisorId?: string): Promise<Configuracion> {
     const key = this.cacheKey(advisorId);
     const cached = await this.getFromCache(key);
     if (cached) return cached;
 
-    if (advisorId) {
-      const override = await this.repo.findOne({ where: { advisorId } });
-      if (override) {
-        await this.setCache(key, override);
-        return override;
-      }
-    }
+    const global = await this.getGlobalRow();
 
-    const global = await this.repo.findOne({
-      where: { advisorId: null as any },
-    });
-    if (global) {
+    if (!advisorId) {
       await this.setCache(this.cacheKey(), global);
       return global;
     }
+
+    const override = await this.repo.findOne({ where: { advisorId } });
+    const efectiva = override ? this.mergePersonal(global, override) : global;
+    await this.setCache(key, efectiva);
+    return efectiva;
+  }
+
+  /**
+   * La configuracion de bienvenida, inactividad y mensajes es GLOBAL
+   * (la gestiona el administrador). El asesor solo puede personalizar su
+   * almuerzo. Por eso el override solo aporta `almuerzos`; el resto siempre
+   * proviene de la configuracion global para que todos tengan la misma.
+   */
+  private mergePersonal(global: Configuracion, override: Configuracion): Configuracion {
+    return {
+      ...global,
+      id: override.id,
+      advisorId: override.advisorId,
+      almuerzos: override.almuerzos ?? global.almuerzos ?? [],
+      createdAt: override.createdAt,
+      updatedAt: override.updatedAt,
+    };
+  }
+
+  private async getGlobalRow(): Promise<Configuracion> {
+    const global = await this.repo.findOne({ where: { advisorId: null as any } });
+    if (global) return global;
 
     const defaults: Partial<Configuracion> = {
       mensajeBienvenida: '¡Bienvenido! ¿En qué puedo ayudarte?',
@@ -294,8 +325,7 @@ export class ConfiguracionService implements OnModuleInit {
     const result = new Map<string, Configuracion>();
     const missingIds: string[] = [];
 
-    const globalCached = await this.getFromCache(this.cacheKey());
-    let globalConfig: Configuracion | null = globalCached;
+    const globalConfig = await this.getGlobalRow();
 
     for (const id of advisorIds) {
       const cached = await this.getFromCache(this.cacheKey(id));
@@ -315,16 +345,11 @@ export class ConfiguracionService implements OnModuleInit {
       const overrideMap = new Map(overrides.map(o => [o.advisorId!, o]));
       for (const id of missingIds) {
         const override = overrideMap.get(id);
-        if (override) {
-          await this.setCache(this.cacheKey(id), override);
-          result.set(id, override);
-        } else {
-          if (!globalConfig) {
-            globalConfig = await this.repo.findOne({ where: { advisorId: null as any } });
-            if (globalConfig) await this.setCache(this.cacheKey(), globalConfig);
-          }
-          if (globalConfig) result.set(id, globalConfig);
-        }
+        const efectiva = override
+          ? this.mergePersonal(globalConfig, override)
+          : globalConfig;
+        await this.setCache(this.cacheKey(id), efectiva);
+        result.set(id, efectiva);
       }
     }
 
@@ -398,9 +423,10 @@ export class ConfiguracionService implements OnModuleInit {
       saved = await this.repo.save(nueva);
     }
 
-    this.invalidateCache(advisorId);
-    if (!advisorId) {
-      this.invalidateCache();
+    if (advisorId) {
+      await this.invalidateCache(advisorId);
+    } else {
+      await this.invalidateAll();
     }
 
     return saved;

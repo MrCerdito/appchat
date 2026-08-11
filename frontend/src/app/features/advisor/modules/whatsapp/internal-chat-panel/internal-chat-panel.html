@@ -32,7 +32,7 @@
       <button type="button" class="ic-item" [class.active]="activeConversation?.id === conv.id" (click)="selectConversation(conv)">
         <div class="ic-avatar" [class.is-group]="conv.type === 'group'">
           @if (conversationPhotoUrl(conv)) {
-          <img [src]="conversationPhotoUrl(conv)" [alt]="conversationName(conv)" />
+          <img [src]="conversationPhotoUrl(conv)" [alt]="conversationName(conv)" referrerpolicy="no-referrer" />
           } @else if (conv.type === 'group') {
           <wa-icon name="users-group"></wa-icon>
           } @else {
@@ -78,7 +78,7 @@
       <div class="ic-avatar-wrap" [class.is-group]="activeConversation.type === 'group'">
         <div class="ic-avatar" [class.is-group]="activeConversation.type === 'group'">
           @if (conversationPhotoUrl(activeConversation)) {
-          <img [src]="conversationPhotoUrl(activeConversation)" [alt]="conversationName(activeConversation)" />
+          <img [src]="conversationPhotoUrl(activeConversation)" [alt]="conversationName(activeConversation)" referrerpolicy="no-referrer" />
           } @else if (activeConversation.type === 'group') {
           <wa-icon name="users-group"></wa-icon>
           } @else {
@@ -119,7 +119,7 @@
         @if (!messageOwn(msg) && msg.type !== 'system') {
         <div class="ic-msg-avatar" [title]="msg.senderName">
           @if (senderAvatar(msg)) {
-          <img [src]="senderAvatar(msg)" [alt]="msg.senderName" />
+          <img [src]="senderAvatar(msg)" [alt]="msg.senderName" referrerpolicy="no-referrer" />
           } @else {
           {{ senderInitial(msg) }}
           }
@@ -402,7 +402,7 @@
       >
         <div class="ic-avatar">
           @if (advisor.profilePhotoUrl) {
-          <img [src]="advisor.profilePhotoUrl" [alt]="advisor.name" />
+          <img [src]="advisor.profilePhotoUrl" [alt]="advisor.name" referrerpolicy="no-referrer" />
           } @else {
           {{ advisor.name.charAt(0).toUpperCase() }}
           }
@@ -459,7 +459,7 @@
         </div>
         <div class="ic-avatar" [class.is-group]="conv.type === 'group'">
           @if (conversationPhotoUrl(conv)) {
-          <img [src]="conversationPhotoUrl(conv)" [alt]="conversationName(conv)" />
+          <img [src]="conversationPhotoUrl(conv)" [alt]="conversationName(conv)" referrerpolicy="no-referrer" />
           } @else if (conv.type === 'group') {
           <wa-icon name="users-group"></wa-icon>
           } @else {

@@ -196,6 +196,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
       error: (err) => console.error('HTTP Error:', err),
     });
     this.syncShellMode(this.router.url);
+    this.topbarTitle = this.router.url.includes('/dashboard/whatsapp')
+      ? 'CHAT WHATSAPP'
+      : 'CHAT EN LINEA';
     window.addEventListener('message', this.handleTeamsAuthMessage);
     this.loadTeamsStatus();
   }
@@ -422,7 +425,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
         takeUntil(this.destroy$),
       )
       .subscribe(event => {
-        this.syncShellMode(event.urlAfterRedirects);
         const url = event.urlAfterRedirects;
         if (url.includes('/dashboard/chats')) {
           this.topbarTitle = 'CHAT EN LINEA';
@@ -434,6 +436,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
           this.topbarTitle = 'CHAT EN LINEA';
           this.chatState.setActiveSession(null);
         }
+        this.syncShellMode(url);
+        this.cdr.detectChanges();
       });
   }
 
