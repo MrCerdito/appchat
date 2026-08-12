@@ -7,8 +7,20 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Documento } from './entities/documento.entity';
 import { ConfigService } from '@nestjs/config';
-import { normalizarRolesCsv } from './roles.util';
+import { normalizarRolesCsv, normalizarCategoria } from './roles.util';
 import * as fs from 'fs';
+
+// Normaliza un nombre de colegio para comparaciones exactas sin importar
+// mayúsculas, espacios o tildes ("Inst. San José" → "inst san jose").
+export function normalizarColegio(value?: string | null): string {
+  return (value ?? '')
+    .toLowerCase()
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tabla de alias de roles — normaliza cualquier variante al buscar en la BD.
@@ -64,7 +76,10 @@ export class DocumentosService implements OnApplicationBootstrap {
       await this.dataSource.query(
         `ALTER TABLE documentos ADD COLUMN IF NOT EXISTS embedding_vec vector(${this.EMBEDDING_DIM})`,
       );
-      this.logger.log('[RAG] pgvector inicializado (extensión + columna embedding_vec)');
+      await this.dataSource.query(
+        `ALTER TABLE documentos ADD COLUMN IF NOT EXISTS colegio_norm text`,
+      );
+      this.logger.log('[RAG] pgvector inicializado (extensión + columnas embedding_vec/colegio_norm)');
       await this.repararEmbeddingVec();
     } catch (error) {
       this.logger.error(
@@ -112,6 +127,7 @@ export class DocumentosService implements OnApplicationBootstrap {
           pdfPath: data.pdfPath,
           pdfUrl: data.pdfUrl,
           colegio: data.colegio ?? null,
+          colegioNorm: normalizarColegio(data.colegio) || null,
           categoria: data.categoria,
           rolesPermitidos: data.rolesPermitidos.join(','),
           activo: true,
@@ -148,6 +164,7 @@ export class DocumentosService implements OnApplicationBootstrap {
     colegio?: string,
     rol?: string,
     topK = 3,
+    categoriaPref?: string,
   ): Promise<{
     contexto: string;
     documentos: {
@@ -171,7 +188,7 @@ export class DocumentosService implements OnApplicationBootstrap {
 
     const aliases = resolverAliases(rol);
     this.logger.log(
-      `[RAG] rol="${rol}" → aliases=${JSON.stringify(aliases)} | colegio="${colegio}"`,
+      `[RAG] rol="${rol}" → aliases=${JSON.stringify(aliases)} | colegio="${colegio}" | catPref="${categoriaPref}"`,
     );
 
     let sql = `
@@ -185,15 +202,22 @@ export class DocumentosService implements OnApplicationBootstrap {
     `;
     const params: any[] = [vectorStr];
 
-    // Filtro colegio: acepta NULL (documentos para todos los colegios)
+    // Filtro colegio: acepta NULL (documentos para todos los colegios).
+    // Se compara con el valor normalizado (colegio_norm) para que no importen
+    // mayúsculas, espacios ni tildes; fallback a texto limpio para registros
+    // legacy todavía sin colegio_norm.
     if (colegio) {
-      sql += ` AND (colegio IS NULL OR LOWER(colegio) = LOWER($${params.length + 1}))`;
-      params.push(colegio);
+      const norm = normalizarColegio(colegio);
+      sql +=
+        ` AND (colegio IS NULL OR colegio_norm = $${params.length + 1}` +
+        ` OR (colegio_norm IS NULL AND LOWER(TRIM(colegio)) = LOWER(TRIM($${params.length + 2}))))`;
+      params.push(norm, colegio);
     }
 
-    // Filtro rol: acepta NULL (documentos públicos) y solo roles cuyo token
-    // coincida EXACTAMENTE dentro del CSV (evita matches parciales tipo
-    // "padre" dentro de "compadres" o "estudiante" dentro de "estudiantil").
+    // Filtro rol: acepta NULL (documentos públicos) y CSV vacío (público por
+    // defecto). Solo roles cuyo token coincida EXACTAMENTE dentro del CSV
+    // (evita matches parciales tipo "padre" dentro de "compadres" o
+    // "estudiante" dentro de "estudiantil").
     if (aliases.length > 0) {
       const orClauses: string[] = [];
       for (const alias of aliases) {
@@ -206,10 +230,17 @@ export class DocumentosService implements OnApplicationBootstrap {
         );
         params.push(alias, `${alias},%`, `%,${alias},%`, `%,${alias}`);
       }
-      sql += ` AND (roles_permitidos IS NULL OR (${orClauses.join(' OR ')}))`;
+      sql += ` AND (roles_permitidos IS NULL OR roles_permitidos = '' OR (${orClauses.join(' OR ')}))`;
     }
 
-    sql += ` ORDER BY distancia ASC LIMIT ${topK}`;
+    // Priorizar o dar boost (ORDER BY) si coincide con la categoría preferida mapeada
+    if (categoriaPref) {
+      const p = `$${params.length + 1}`;
+      sql += ` ORDER BY CASE WHEN categoria = ${p} THEN 0 ELSE 1 END ASC, distancia ASC LIMIT ${topK}`;
+      params.push(categoriaPref);
+    } else {
+      sql += ` ORDER BY distancia ASC LIMIT ${topK}`;
+    }
 
     let rows: any[] = [];
     try {
@@ -218,7 +249,7 @@ export class DocumentosService implements OnApplicationBootstrap {
       this.logger.warn(
         '[RAG] pgvector no disponible, usando búsqueda por texto',
       );
-      rows = await this.buscarPorTexto(query, colegio, rol, topK);
+      rows = await this.buscarPorTexto(query, colegio, rol, topK, categoriaPref);
     }
 
     // Fallback: si la búsqueda semántica no encontró nada (umbral muy estricto
@@ -227,7 +258,7 @@ export class DocumentosService implements OnApplicationBootstrap {
       this.logger.warn(
         `[RAG] 0 chunks semánticos para: "${query}" | colegio=${colegio} | rol=${rol} | aliases=${JSON.stringify(aliases)} → fallback por texto`,
       );
-      rows = await this.buscarPorTexto(query, colegio, rol, topK);
+      rows = await this.buscarPorTexto(query, colegio, rol, topK, categoriaPref);
     }
 
     if (!rows.length) {
@@ -263,49 +294,74 @@ export class DocumentosService implements OnApplicationBootstrap {
       }
     });
 
-    // Solo "matches fuertes" se adjuntan: distancia < DOC_MATCH_THRESHOLD.
-    // Ordenados de más a menos relevante.
+    const distanciaDe = (row: any): number =>
+      row.distancia != null ? parseFloat(row.distancia) : 1;
+
+    // Tier 1: "matches fuertes" (distancia < DOC_MATCH_THRESHOLD). Tier 2:
+    // si no hay ninguno fuerte, se usan los mejores chunks dentro del umbral
+    // de recuperación marcados como "posiblemente relacionado". Esto evita
+    // que la IA responda "no tengo información" cuando el documento del rol
+    // existe pero la similitud quedó entre 0.45 y 0.60 (consultas cortas,
+    // sinónimos, etc.).
+    const strong = rows.filter((r) => distanciaDe(r) < this.DOC_MATCH_THRESHOLD);
+    const weak = rows.filter((r) => distanciaDe(r) >= this.DOC_MATCH_THRESHOLD);
+
+    const usarStrong = strong.length > 0;
+    const rowsFiltrados: any[] = usarStrong
+      ? strong
+      : // Tier 2: mejor chunk de cada documento débil, máx. 2 para no ensuciar.
+        Object.values(
+          weak.reduce<Record<string, any>>((acc, r) => {
+            if (!acc[r.nombre] || distanciaDe(r) < distanciaDe(acc[r.nombre])) {
+              acc[r.nombre] = r;
+            }
+            return acc;
+          }, {}),
+        ).slice(0, 2);
+
+    // Documentos que la IA usará (ordenados por relevancia)
     const documentos = [...docsUnicos.values()]
-      .filter((d) => d.mejorDistancia < this.DOC_MATCH_THRESHOLD)
+      .filter((d) => rowsFiltrados.some((r) => r.nombre === d.nombre))
       .sort((a, b) => a.mejorDistancia - b.mejorDistancia)
       .map(({ mejorDistancia, ...d }) => d);
 
-    // El contexto (lo que ve la IA) incluye únicamente chunks de documentos
-    // que pasaron el umbral fuerte, para no contaminar la respuesta con ruido.
-    const nombresPermitidos = new Set(
-      [...docsUnicos.values()]
-        .filter((d) => d.mejorDistancia < this.DOC_MATCH_THRESHOLD)
-        .map((d) => d.nombre),
-    );
-
-    const rowsFiltrados = rows.filter((r) => nombresPermitidos.has(r.nombre));
-
+    // Contexto con etiqueta por chunk. En tier 2 se advierte que la relación
+    // es posible (la IA decide no inventar sobre ella).
+    const MAX_CONTEXT_CHARS = 2500;
     const contexto = rowsFiltrados
-      .map(
-        (r, i) =>
-          `[Documento ${i + 1}: ${r.nombre} — roles permitidos: ${
-            r.roles_permitidos || 'todos'
-          }${r.categoria ? ` — categoría: ${r.categoria}` : ''}]\n${r.contenido}`,
-      )
+      .map((r, i) => {
+        const header = `[Documento ${i + 1}: ${r.nombre} — roles permitidos: ${
+          r.roles_permitidos || 'todos'
+        }${r.categoria ? ` — categoría: ${r.categoria}` : ''}`;
+        const nota = usarStrong
+          ? ']'
+          : ' — POSIBLEMENTE RELACIONADO: verifica con cuidado antes de usarlo]';
+        return `${header}${nota}\n${r.contenido}`;
+      })
       .join('\n\n---\n\n');
+
+    const contextoCortado =
+      contexto.length > MAX_CONTEXT_CHARS
+        ? `${contexto.slice(0, MAX_CONTEXT_CHARS).trim()}\n[...]`
+        : contexto;
 
     const chunksDetalle = rowsFiltrados.map((r) => ({
       nombre: r.nombre,
       pdfUrl: r.pdf_url,
       categoria: r.categoria,
       chunkIndex: r.chunk_index,
-      distancia: r.distancia
-        ? parseFloat(parseFloat(r.distancia).toFixed(4))
+      distancia: distanciaDe(r)
+        ? parseFloat(distanciaDe(r).toFixed(4))
         : null,
       contenido: r.contenido,
     }));
 
     this.logger.log(
-      `[RAG] ${rowsFiltrados.length}/${rows.length} chunks con match fuerte (< ${this.DOC_MATCH_THRESHOLD}) para: "${query}"`,
+      `[RAG] ${rowsFiltrados.length}/${rows.length} chunks (tier=${usarStrong ? 'fuerte' : 'posible'}) para: "${query}"`,
     );
 
     return {
-      contexto,
+      contexto: contextoCortado,
       documentos,
       chunks: chunksDetalle,
     };
@@ -343,13 +399,15 @@ export class DocumentosService implements OnApplicationBootstrap {
     await this.dataSource.query(
       `
       UPDATE documentos
-      SET descripcion = $1, categoria = $2, colegio = $3, roles_permitidos = $4
-      WHERE nombre = $5
+      SET descripcion = $1, categoria = $2, colegio = $3, colegio_norm = $4,
+          roles_permitidos = $5
+      WHERE nombre = $6
     `,
       [
         data.descripcion || null,
         data.categoria,
         data.colegio || null,
+        normalizarColegio(data.colegio) || null,
         normalizarRolesCsv(data.rolesPermitidos),
         nombre,
       ],
@@ -400,6 +458,56 @@ export class DocumentosService implements OnApplicationBootstrap {
       `[RAG] repararEmbeddingVec: ${reparados} reparados, ${errores} errores`,
     );
     return { reparados, errores };
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // REPARAR METADATA — canonicaliza roles viejos, normaliza colegios y
+  // asegura embedding_vec. Corrección masiva para datos previos al fix.
+  // ─────────────────────────────────────────────────────────────────────────
+  async repararMetadata(): Promise<{
+    rolesCanonicalizados: number;
+    colegiosNormalizados: number;
+    embeddings: { reparados: number; errores: number };
+  }> {
+    const roles = await this.dataSource.query(
+      `SELECT DISTINCT roles_permitidos FROM documentos WHERE roles_permitidos IS NOT NULL AND roles_permitidos <> ''`,
+    );
+
+    let rolesCanonicalizados = 0;
+    for (const row of roles) {
+      const canon = normalizarRolesCsv(row.roles_permitidos);
+      if (canon !== row.roles_permitidos) {
+        await this.dataSource.query(
+          `UPDATE documentos SET roles_permitidos = $1 WHERE roles_permitidos = $2`,
+          [canon, row.roles_permitidos],
+        );
+        rolesCanonicalizados++;
+      }
+    }
+
+    const colegios = await this.dataSource.query(
+      `SELECT DISTINCT colegio FROM documentos WHERE colegio IS NOT NULL`,
+    );
+    let colegiosNormalizados = 0;
+    for (const row of colegios) {
+      const norm = normalizarColegio(row.colegio);
+      const upd = await this.dataSource.query(
+        `UPDATE documentos SET colegio_norm = $1 WHERE colegio = $2 AND (colegio_norm IS NULL OR colegio_norm <> $1)`,
+        [norm || null, row.colegio],
+      );
+      colegiosNormalizados += upd[1] ?? 0;
+    }
+
+    const embeddings = await this.repararEmbeddingVec();
+
+    this.logger.log(
+      `[RAG] repararMetadata: roles=${rolesCanonicalizados} colegios=${colegiosNormalizados} embeddings=${JSON.stringify(embeddings)}`,
+    );
+    return {
+      rolesCanonicalizados,
+      colegiosNormalizados,
+      embeddings,
+    };
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -487,6 +595,7 @@ export class DocumentosService implements OnApplicationBootstrap {
     colegio?: string,
     rol?: string,
     topK = 4,
+    categoriaPref?: string,
   ): Promise<any[]> {
     const words = query
       .toLowerCase()
@@ -506,8 +615,11 @@ export class DocumentosService implements OnApplicationBootstrap {
     const params = words.map((w) => `%${w}%`);
 
     if (colegio) {
-      sql += ` AND (colegio IS NULL OR LOWER(colegio) = LOWER($${params.length + 1}))`;
-      params.push(colegio);
+      const norm = normalizarColegio(colegio);
+      sql +=
+        ` AND (colegio IS NULL OR colegio_norm = $${params.length + 1}` +
+        ` OR (colegio_norm IS NULL AND LOWER(TRIM(colegio)) = LOWER(TRIM($${params.length + 2}))))`;
+      params.push(norm, colegio);
     }
 
     if (aliases.length > 0) {
@@ -522,10 +634,16 @@ export class DocumentosService implements OnApplicationBootstrap {
         );
         params.push(alias, `${alias},%`, `%,${alias},%`, `%,${alias}`);
       }
-      sql += ` AND (roles_permitidos IS NULL OR (${orClauses.join(' OR ')}))`;
+      sql += ` AND (roles_permitidos IS NULL OR roles_permitidos = '' OR (${orClauses.join(' OR ')}))`;
     }
 
-    sql += ` LIMIT ${topK}`;
+    if (categoriaPref) {
+      const p = `$${params.length + 1}`;
+      sql += ` ORDER BY CASE WHEN categoria = ${p} THEN 0 ELSE 1 END ASC LIMIT ${topK}`;
+      params.push(categoriaPref);
+    } else {
+      sql += ` LIMIT ${topK}`;
+    }
     return this.dataSource.query(sql, params);
   }
 }

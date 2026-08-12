@@ -48,6 +48,7 @@ export class DocumentosComponent implements OnInit, OnDestroy {
   // Test RAG
   testQuery    = '';
   testRol      = 'estudiante';
+  testColegio  = '';
   testResultado: any = null;
   testCargando = false;
 
@@ -269,7 +270,7 @@ export class DocumentosComponent implements OnInit, OnDestroy {
     if (!this.testQuery.trim()) return;
     this.testCargando  = true;
     this.testResultado = null;
-    this.docService.buscar(this.testQuery, undefined, this.testRol).pipe(takeUntil(this.destroy$)).subscribe({
+    this.docService.buscar(this.testQuery, this.testColegio.trim() || undefined, this.testRol).pipe(takeUntil(this.destroy$)).subscribe({
       next : (res) => { this.testResultado = res; this.testCargando = false; this.cdr.detectChanges(); },
       error: ()    => { this.testCargando = false; this.cdr.detectChanges(); },
     });

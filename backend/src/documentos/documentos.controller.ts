@@ -155,6 +155,15 @@ export class DocumentosController {
     return this.docService.repararEmbeddingVec();
   }
 
+  // ── Reparar roles canónicos, colegio_norm y embeddings (admin) ─────────────
+  @Post('reparar-metadata')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @HttpCode(HttpStatus.OK)
+  repararMetadata() {
+    return this.docService.repararMetadata();
+  }
+
   // ── Buscar documentos relevantes (para testing) ───────────────────────────
   @Post('search')
   @UseGuards(JwtAuthGuard)

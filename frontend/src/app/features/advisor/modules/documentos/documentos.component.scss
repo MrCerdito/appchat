@@ -299,6 +299,16 @@
   svg { width: 16px; height: 16px; stroke: var(--text-muted); }
 }
 
+.test-rol-select {
+  padding: 0.6rem; border: 1px solid var(--border-strong);
+  border-radius: 8px; font-family: var(--font); font-size: 0.875rem;
+  color: var(--text); outline: none; background: var(--surface);
+}
+
+.test-colegio-input {
+  width: 150px;
+}
+
 .test-input {
   display: flex; gap: 0.6rem;
   input {

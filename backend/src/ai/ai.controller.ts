@@ -165,6 +165,8 @@ export class AiController {
         onPartial,
       );
 
+      // Si contiene TRANSFER_TO_ADVISOR, no persistimos el mensaje literal al cliente en BD,
+      // sino que gatillamos la transferencia limpia a un asesor.
       if (
         sessionId &&
         reply &&

@@ -212,6 +212,7 @@ export class SessionsService {
     colegio: string;
     tipoSolicitud: string;
     clientName: string;
+    rol: string;
   }> {
     const session = await this.sessionRepo.findOne({
       where: { id },
@@ -227,6 +228,7 @@ export class SessionsService {
       colegio: session.colegio ?? '',
       tipoSolicitud: session.tipoSolicitud ?? '',
       clientName: session.clientName ?? '',
+      rol: session.rol ?? '',
     };
   }
 

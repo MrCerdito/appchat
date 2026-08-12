@@ -355,6 +355,7 @@
         <option [value]="r.value">{{ r.label }}</option>
         }
       </select>
+      <input type="text" [(ngModel)]="testColegio" class="test-colegio-input" placeholder="Colegio (opcional)..." title="Filtrar por colegio"/>
       <input type="text" [(ngModel)]="testQuery"
         placeholder="Escribe una pregunta para ver qué documentos encuentra la IA para este rol..."
         (keyup.enter)="testBusqueda()"/>

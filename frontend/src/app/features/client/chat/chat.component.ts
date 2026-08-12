@@ -334,8 +334,9 @@ get rolLabel(): string {
             this.aiHistory  = savedHistory  ? JSON.parse(savedHistory)  : [];
             this.messages   = savedMessages ? JSON.parse(savedMessages) : [];
             this.aiMsgCount = this.messages.filter(m => m.senderType === 'advisor').length;
-            this.colegio       = (s as any).colegio       ?? '';
-            this.tipoSolicitud = (s as any).tipoSolicitud ?? '';
+            this.rol           = (s as any).rol           ?? savedData.rol           ?? '';
+            this.colegio       = (s as any).colegio       ?? savedData.colegio       ?? '';
+            this.tipoSolicitud = (s as any).tipoSolicitud ?? savedData.tipoSolicitud ?? '';
             localStorage.setItem(SESSION_KEY, JSON.stringify({ ...this.session, aiMode: true }));
             this.step = 'chat';
             this.iniciarTimerInactividadIa();
@@ -349,6 +350,7 @@ get rolLabel(): string {
 
           if (s.status === 'active' && advisor) {
             this.advisorName = (advisor as any).name;
+            this.advisorPhotoUrl = (advisor as any).profilePhotoUrl ? `${environment.apiUrl}${(advisor as any).profilePhotoUrl}` : '';
             this.fueraDeHorario = false;
             this.step = 'chat';
           } else {
@@ -1453,7 +1455,10 @@ get rolLabel(): string {
           // Detectar transfer dentro del stream
           if (data.text.includes('TRANSFER_TO_ADVISOR')) {
             this.isStreaming = false;
-            this.messages.splice(botMsgIndex, 1);
+            // Remover la burbuja del bot vacía para que no se muestre ningún texto literal de transferencia
+            if (this.messages[botMsgIndex]) {
+              this.messages.splice(botMsgIndex, 1);
+            }
             setTimeout(() => this.transferToAdvisor(), 1000);
             return;
           }
@@ -1466,6 +1471,15 @@ get rolLabel(): string {
         if (event === 'end') {
         this.isStreaming = false;
         if (this.step === 'blocked' || this.sesionFinalizando) return;
+
+        // Si la respuesta final contiene la señal de transferencia, no mostrar la burbuja
+        if (this.streamingText.includes('TRANSFER_TO_ADVISOR')) {
+          if (this.messages[botMsgIndex]) {
+            this.messages.splice(botMsgIndex, 1);
+          }
+          this.transferToAdvisor();
+          return;
+        }
 
         // Limpiar la etiqueta de feedback y marcadores del texto visible
         const textoLimpio = this.streamingText

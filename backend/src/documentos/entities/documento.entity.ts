@@ -37,6 +37,9 @@ export class Documento {
   @Column({ type: 'text', nullable: true })
   colegio: string | null;
 
+  @Column({ name: 'colegio_norm', type: 'text', nullable: true })
+  colegioNorm: string | null;
+
   @Column({ type: 'text', nullable: true })
   categoria: string | null;
 

@@ -476,10 +476,33 @@ export class AiService {
 
   // Query de RAG con referencia al hilo: combina la pregunta actual con los
   // últimos mensajes del usuario para resolver referencias ("¿y cuándo es?").
+  // Además, expande intenciones críticas como contraseñas, claves o ingresos
+  // para asegurar la recuperación de documentos de la plataforma del colegio.
   private construirConsultaRag(
     message: string,
     history: AiMessage[],
   ): string {
+    const msgLower = message.toLowerCase();
+    let expansion = '';
+
+    if (
+      msgLower.includes('contras') ||
+      msgLower.includes('clave') ||
+      msgLower.includes('pass') ||
+      msgLower.includes('olvid')
+    ) {
+      expansion += ' restablecer recuperar cambiar contraseña clave password plataforma';
+    }
+    if (
+      msgLower.includes('entr') ||
+      msgLower.includes('ingres') ||
+      msgLower.includes('acced') ||
+      msgLower.includes('login') ||
+      msgLower.includes('plataform')
+    ) {
+      expansion += ' plataforma ingresar acceder iniciar sesion usuario error acceso';
+    }
+
     const previos = (history ?? [])
       .filter(
         (h) =>
@@ -490,7 +513,8 @@ export class AiService {
       )
       .slice(-2)
       .map((h) => h.text.trim());
-    return [...previos, message.trim()].join(' ');
+    
+    return [...previos, message.trim() + expansion].join(' ').trim();
   }
 
   // Comprime turnos que quedaron fuera de la ventana del modelo, guardando el
@@ -646,9 +670,12 @@ export class AiService {
 
     // ── RAG (con referencia al hilo: el usuario pregunta "¿cuándo es?" y
     //    la búsqueda debe incluir el tema previo) ───────────────────────────
+    const { mapearTipoSolicitudACategoria } = require('../documentos/roles.util');
+    const categoriaPref = mapearTipoSolicitudACategoria(tipoSolicitud);
+
     const ragQuery = this.construirConsultaRag(message, history);
     const ragResult = await this.documentosService
-      .buscarRelevantes(ragQuery, colegio || undefined, rolNormalizado, 5)
+      .buscarRelevantes(ragQuery, colegio || undefined, rolNormalizado, 6, categoriaPref)
       .catch(() => ({ contexto: '', documentos: [], chunks: [] }));
 
     const { contexto, documentos } = ragResult;
@@ -761,7 +788,7 @@ export class AiService {
     }
 
     // ── Transfer ─────────────────────────────────────────────────────────────
-    if (raw === 'TRANSFER_TO_ADVISOR') {
+    if (raw.includes('TRANSFER_TO_ADVISOR')) {
       this.aiLogs.guardar({
         colegio,
         rol: rolNormalizado,
@@ -1280,9 +1307,12 @@ ${transcript}`;
 
     // ── RAG (con referencia al hilo: el usuario pregunta "¿cuándo es?" y
     //    la búsqueda debe incluir el tema previo) ───────────────────────────
+    const { mapearTipoSolicitudACategoria: mapearTS } = require('../documentos/roles.util');
+    const categoriaPrefStream = mapearTS(tipoSolicitud);
+
     const ragQuery = this.construirConsultaRag(message, history);
     const ragResult = await this.documentosService
-      .buscarRelevantes(ragQuery, colegio || undefined, rolNormalizado, 5)
+      .buscarRelevantes(ragQuery, colegio || undefined, rolNormalizado, 6, categoriaPrefStream)
       .catch(() => ({ contexto: '', documentos: [], chunks: [] }));
 
     const { contexto, documentos } = ragResult;
@@ -1681,6 +1711,9 @@ ${transcript}`;
       '',
       'Reglas importantes:',
       `- ${instrucciones}`,
+      `- CONTEXTO IMPLÍCITO DE LA PLATAFORMA EDUCATIVA (CRÍTICO): Tu mundo entero y el único sistema del que se habla es la Plataforma Educativa Institucional del colegio "${colegio}".`,
+      `  Si el usuario pregunta por "contraseña", "usuario", "clave", "ingreso", "acceso", "olvido", "restablecer" o "entrar", asume de inmediato al 100% que se refiere al acceso de la Plataforma Educativa del Colegio.`,
+      `  NUNCA le preguntes al usuario cosas como "¿a qué te refieres?", "¿en dónde quieres restablecerlo?", o "¿de qué sistema hablas?". Trata de inmediato de guiarlo usando las instrucciones que tengas en la base de conocimiento para ese rol.`,
       `- NO uses emojis en ninguna respuesta.`,
       tieneContexto
         ? '- Basa tu respuesta PRINCIPALMENTE en la información de la base de conocimiento.'
