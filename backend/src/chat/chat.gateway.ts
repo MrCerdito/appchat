@@ -1308,6 +1308,7 @@ export class ChatGateway
         session.colegio ?? '',
         session.tipoSolicitud ?? '',
         session.rol ?? 'estudiante',
+        sessionId,
       );
       this.server.to(sessionId).emit('typing_stop', { sessionId });
 

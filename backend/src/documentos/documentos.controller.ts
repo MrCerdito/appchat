@@ -146,6 +146,15 @@ export class DocumentosController {
     return this.docService.eliminar(decodeURIComponent(nombre));
   }
 
+  // ── Reparar embedding_vec desde el JSON guardado (admin) ──────────────────
+  @Post('reparar-embeddings')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @HttpCode(HttpStatus.OK)
+  repararEmbeddings() {
+    return this.docService.repararEmbeddingVec();
+  }
+
   // ── Buscar documentos relevantes (para testing) ───────────────────────────
   @Post('search')
   @UseGuards(JwtAuthGuard)

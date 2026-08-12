@@ -1064,11 +1064,35 @@
               </button>
               }
             </div>
+            @if (improveTone === 'custom') {
+            <input
+              class="improve-custom-tone"
+              type="text"
+              [(ngModel)]="improveCustomTone"
+              placeholder="Ej: cordial, motivador, serio..."
+              (keydown.enter)="generateImprovedText()"
+            />
+            }
+            <div class="improve-length">
+              <span class="improve-length-label">Extensión</span>
+              <div class="improve-length-opts">
+                @for (l of improveLengths; track l.id) {
+                <button
+                  type="button"
+                  class="improve-length-opt"
+                  [class.active]="improveLength === l.id"
+                  (click)="improveLength = l.id"
+                >
+                  {{ l.label }}
+                </button>
+                }
+              </div>
+            </div>
             <button
               class="improve-generate"
               type="button"
               (click)="generateImprovedText()"
-              [disabled]="isImproving || !messageText.trim()"
+              [disabled]="isImproving || !messageText.trim() || (improveTone === 'custom' && !improveCustomTone.trim())"
             >
               @if (isImproving) {
               <span class="improve-spinner"></span>

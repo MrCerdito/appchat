@@ -244,6 +244,14 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
     }
   }
 
+  irA(g: ConfigGrupo, t: ConfigTab): void {
+    this.grupo = g;
+    this.tab = t;
+    if (t === 'colegios') {
+      this.loadColegios();
+    }
+  }
+
   getDiaNombre(dia: number): string {
     return this.dias.find(d => d.value === dia)?.label ?? '';
   }

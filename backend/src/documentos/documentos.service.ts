@@ -65,6 +65,7 @@ export class DocumentosService implements OnApplicationBootstrap {
         `ALTER TABLE documentos ADD COLUMN IF NOT EXISTS embedding_vec vector(${this.EMBEDDING_DIM})`,
       );
       this.logger.log('[RAG] pgvector inicializado (extensión + columna embedding_vec)');
+      await this.repararEmbeddingVec();
     } catch (error) {
       this.logger.error(
         '[RAG] No se pudo inicializar pgvector:',
@@ -220,6 +221,15 @@ export class DocumentosService implements OnApplicationBootstrap {
       rows = await this.buscarPorTexto(query, colegio, rol, topK);
     }
 
+    // Fallback: si la búsqueda semántica no encontró nada (umbral muy estricto
+    // o preguntas generales/cortas), se usa búsqueda por texto sobre el contenido.
+    if (!rows.length) {
+      this.logger.warn(
+        `[RAG] 0 chunks semánticos para: "${query}" | colegio=${colegio} | rol=${rol} | aliases=${JSON.stringify(aliases)} → fallback por texto`,
+      );
+      rows = await this.buscarPorTexto(query, colegio, rol, topK);
+    }
+
     if (!rows.length) {
       this.logger.warn(
         `[RAG] 0 chunks para: "${query}" | colegio=${colegio} | rol=${rol} | aliases=${JSON.stringify(aliases)}`,
@@ -239,7 +249,7 @@ export class DocumentosService implements OnApplicationBootstrap {
     >();
 
     rows.forEach((r) => {
-      const dist = r.distancia ? parseFloat(r.distancia) : 1;
+      const dist = r.distancia != null ? parseFloat(r.distancia) : 1;
       if (
         !docsUnicos.has(r.nombre) ||
         dist < docsUnicos.get(r.nombre)!.mejorDistancia
@@ -487,7 +497,8 @@ export class DocumentosService implements OnApplicationBootstrap {
     const aliases = resolverAliases(rol);
 
     let sql = `
-      SELECT nombre, contenido, pdf_url, categoria, chunk_index, roles_permitidos
+      SELECT nombre, contenido, pdf_url, categoria, chunk_index, roles_permitidos,
+             0 AS distancia
       FROM documentos
       WHERE activo = true
         AND (${words.map((_, i) => `LOWER(contenido) LIKE $${i + 1}`).join(' OR ')})

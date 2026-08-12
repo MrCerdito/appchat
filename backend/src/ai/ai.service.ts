@@ -88,9 +88,7 @@ function normalizarRol(rol: string): string {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '');
   // Seguridad: el chat público es anónimo y el rol lo auto-reporta el cliente.
-  // El rol 'admin/administrador' da acceso a documentos con acceso completo, por
-  // lo que NO se reconoce para sesiones públicas (siempre cae a 'estudiante').
-  if (r.includes('admin') || r.includes('administrador')) return 'estudiante';
+  if (r.includes('admin') || r.includes('administrador')) return 'administrador';
   if (r.includes('docente') || r.includes('profesor')) return 'docente';
   if (r.includes('padre') || r.includes('madre') || r.includes('acudiente'))
     return 'padre';
@@ -184,28 +182,82 @@ const DEFAULT_MENSAJE_SESION_TERMINADA =
   'Esta conversación ha sido finalizada por el uso continuado de lenguaje ofensivo. Si necesitas ayuda, inicia una nueva conversación manteniendo un trato respetuoso.';
 
 const DEFAULT_MENSAJE_SIN_INFORMACION =
-  'No tengo información registrada sobre eso por el momento. ¿Necesitas un agente para una mejor ayuda?';
+  'Por el momento no tengo información específica sobre eso en los documentos de tu rol. ¿Puedo ayudarte con otra cosa? Si lo prefieres, un asesor humano puede apoyarte mejor.';
 
-const SALUDOS: string[] = [
-  'hola',
-  'buen dia',
-  'buenos dias',
-  'buenas tardes',
-  'buenas noches',
-  'buenas',
-  'saludos',
-  'que tal',
-  'hey',
-  'que mas',
-  'holi',
-  'hello',
-  'hi',
-  'como estas',
-  'como estas?',
-  'bienvenido',
-  'gracias',
-  'muchas gracias',
-];
+interface ToneRule {
+  regla: string;
+  saludo: string;
+  despedida: string;
+}
+
+const toneRulesImprove: Record<string, ToneRule> = {
+  formal: {
+    regla: 'FORMAL: serio, institucional y profesional; usa vocabulario formal.',
+    saludo:
+      'saludo formal como "Estimado/a {cliente}:" o "Respetado/a {cliente}:"',
+    despedida: 'despedida formal como "Atentamente," o "Cordialmente,"',
+  },
+  educado: {
+    regla:
+      'EDUCADO: amable, cortes y respetuoso; demuestra consideracion y calidez.',
+    saludo:
+      'saludo amable como "Hola {cliente}, espero te encuentres muy bien:" o "Hola {cliente}:"',
+    despedida:
+      'despedida amable como "Muchas gracias por tu paciencia," o "Con aprecio,"',
+  },
+  directo: {
+    regla: 'DIRECTO: claro, conciso y sin rodeos; va al punto sin perder la amabilidad.',
+    saludo: 'saludo breve como "Hola {cliente}:" o "Buen dia {cliente}:"',
+    despedida: 'despedida breve como "Quedo atento," o "Cualquier duda, me avisas."',
+  },
+};
+
+type CharlaTipo =
+  | 'saludo'
+  | 'como_estas'
+  | 'agradecimiento'
+  | 'despedida'
+  | 'confirmacion';
+
+// Vocabulario de charla/cortesía que NO debe tratarse como consulta real.
+const RELLENO_CHARLA = new Set([
+  // saludos
+  'hola', 'holi', 'hello', 'hi', 'hey', 'ey', 'buen', 'buena', 'buenas',
+  'buenos', 'dia', 'dias', 'tardes', 'noches', 'saludos', 'saludo',
+  'bienvenido', 'bienvenida', 'bienvenidos',
+  // "cómo estás" / pequeña charla
+  'como', 'estas', 'esta', 'andas', 'vas', 'va', 'encuentras', 'sigues',
+  'tal', 'mas', 'hubo', 'todo', 'genial', 'bien', 'cuentas',
+  // agradecimientos
+  'gracias', 'muchas', 'muchisimas', 'mil', 'agradezco', 'agradecido',
+  'agradecida', 'se', 'por', 'de', 'verdad', 'realmente', 'siempre',
+  'ayuda', 'apoyo', 'con', 'gusto', 'atencion',
+  // despedidas
+  'adios', 'chao', 'chau', 'bye', 'hasta', 'luego', 'pronto', 'manana',
+  'despues', 'nos', 'vemos', 'cuidate', 'cuidese', 'hablamos', 'exito',
+  'feliz',
+  // confirmaciones
+  'ok', 'okey', 'oka', 'listo', 'listaa', 'entendido', 'perfecto',
+  'acuerdo', 'dale', 'muy', 'super', 'excelente', 'claro', 'bueno',
+  'si', 'estoy', 'asombroso', 'joya', 'bacan',
+  // relleno sin significado
+  'la', 'el', 'en', 'y', 'o', 'a', 'un', 'una', 'mi', 'lo', 'que',
+  'me', 'no', 'pues', 'eh', 'ah', 'este',
+]);
+
+function esPalabraCharlaRelleno(w: string): boolean {
+  if (RELLENO_CHARLA.has(w)) return true;
+  // Variantes tipeadas de saludos: "holaaa", "holaaaasdasd", "hooola", "hey"
+  return /^(hol+|hey+|halo|ey+|holi)/.test(w);
+}
+
+// Palabras del mensaje que NO son cortesía/relleno (posible contenido real).
+function palabrasReales(mensaje: string): string[] {
+  return mensaje
+    .split(' ')
+    .filter(Boolean)
+    .filter((w) => !esPalabraCharlaRelleno(w));
+}
 
 function normalizarTexto(texto: string): string {
   return (texto ?? '')
@@ -215,11 +267,50 @@ function normalizarTexto(texto: string): string {
     .replace(/[\u0300-\u036f]/g, '');
 }
 
-function esSaludo(mensaje: string): boolean {
-  const m = normalizarTexto(mensaje).replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
-  if (!m) return false;
-  if (m.length > 40) return false;
-  return SALUDOS.some((s) => m.includes(s));
+// Detecta si un mensaje es SOLO cortesía (saludo, "cómo estás", gracias, etc.)
+// y devuelve el tipo de charla. Devuelve null si contiene una consulta real,
+// que debe pasar a RAG/Gemini para entregar la información.
+function clasificarCharla(mensaje: string): CharlaTipo | null {
+  const m = normalizarTexto(mensaje)
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!m || m.length > 40) return null;
+
+  // Solo se considera charla si no quedan palabras con contenido real.
+  const esCharla = () => palabrasReales(m).length === 0;
+
+  if (
+    /(^|\s)(adios|chao|chau|bye|nos vemos|hasta luego|hasta pronto|hasta manana|hasta despues|cuida(te|se)|nos hablamos)\b/.test(m) &&
+    esCharla()
+  )
+    return 'despedida';
+
+  if (
+    /(^|\s)(gracias|muchas gracias|muchisimas gracias|mil gracias|te agradezco|agradecido|agradecida|gracias por todo|gracias por la ayuda|se agradece)\b/.test(m) &&
+    esCharla()
+  )
+    return 'agradecimiento';
+
+  if (
+    /(^|\s)(como estas|como esta|como andas|como vas|como va|como te va|como te encuentras|como sigues|como esta todo|como te ha ido|que tal|que mas|que hubo|que cuentas)\b/.test(m) &&
+    esCharla()
+  )
+    return 'como_estas';
+
+  if (
+    /(^|\s)(ok|okey|oka|listo|entendido|perfecto|de acuerdo|dale|muy bien|super bien|todo bien|estoy bien|excelente|genial|claro|bueno|bien|asombroso)\b/.test(m) &&
+    esCharla()
+  )
+    return 'confirmacion';
+
+  if (esCharla()) return 'saludo';
+  return null;
+}
+
+// ¿El mensaje es solo charla (sin consulta real)?
+function esSoloCharla(mensaje: string): boolean {
+  return clasificarCharla(mensaje) !== null;
 }
 
 @Injectable()
@@ -263,6 +354,187 @@ export class AiService {
     };
   }
 
+  // Memoria de conversación por sesión (en memoria; se reinicia al reiniciar)
+  private readonly resumenSesion = new Map<
+    string,
+    { resumen: string; procesados: number }
+  >();
+
+  // ¿El usuario aún no ha hecho ningún turno real (solo el [CONTEXTO] inicial)?
+  private esPrimeraInteraccion(history: AiMessage[]): boolean {
+    return !(history ?? []).some(
+      (h) =>
+        h.role === 'user' &&
+        h?.text &&
+        !h.text.trim().startsWith('[CONTEXTO]'),
+    );
+  }
+
+  // Última consulta real del usuario (sin el [CONTEXTO] inicial), para que la
+  // charla a mitad de conversación retome el tema en curso sin repetir saludos.
+  private temaReciente(history: AiMessage[]): string {
+    const previos = (history ?? []).filter(
+      (h) =>
+        h?.role === 'user' &&
+        h?.text &&
+        !h.text.trim().startsWith('[CONTEXTO]'),
+    );
+    const ultimo = previos[previos.length - 1];
+    if (!ultimo?.text) return '';
+    return this.compactText(ultimo.text, 32);
+  }
+
+  // Última cortesía usada por sesión/tipo, para no repetir la misma frase.
+  private readonly ultimaCortesia = new Map<
+    string,
+    { tipo: CharlaTipo; idx: number }
+  >();
+
+  private elegirCortesia(
+    sessionId: string,
+    tipo: CharlaTipo,
+    opciones: string[],
+  ): string {
+    const key = sessionId || 'anonima';
+    const previo = this.ultimaCortesia.get(key);
+    let idx = Math.floor(Math.random() * opciones.length);
+    if (
+      previo &&
+      previo.tipo === tipo &&
+      previo.idx === idx &&
+      opciones.length > 1
+    ) {
+      idx = (idx + 1) % opciones.length;
+    }
+    this.ultimaCortesia.set(key, { tipo, idx });
+    return opciones[idx];
+  }
+
+  // Respuesta conversacional breve para charla pura (0 tokens de Gemini):
+  // cálida y natural, pero sin alargar la conversación.
+  private respuestaCortesia(
+    tipo: CharlaTipo,
+    sessionId: string,
+    clientName: string,
+    history: AiMessage[],
+  ): string {
+    const nombre = clientName?.trim() || '';
+    const ref = nombre ? `, ${nombre}` : '';
+    const primera = this.esPrimeraInteraccion(history);
+    const tema = this.temaReciente(history);
+
+    switch (tipo) {
+      case 'agradecimiento':
+        return this.elegirCortesia(sessionId, tipo, [
+          `¡Con gusto${ref}! Para eso estoy. Cuando necesites algo más, aquí sigo.`,
+          `¡De nada${ref}! Siempre a la orden.`,
+          `Un placer ayudarte${ref}. ¿Necesitas saber algo más?`,
+          `¡Con gusto! Lo que necesites, aquí estoy.`,
+        ]);
+      case 'despedida':
+        return this.elegirCortesia(sessionId, tipo, [
+          `¡Hasta luego${ref}! Si vuelves a necesitar algo, aquí estaré.`,
+          `¡Nos vemos${ref}! Cuídate mucho.`,
+          `¡Hasta pronto${ref}! Fue un gusto atenderte.`,
+          `¡Adiós${ref}! Que tengas un excelente día.`,
+        ]);
+      case 'como_estas':
+        return this.elegirCortesia(sessionId, tipo, [
+          `¡Muy bien, gracias por preguntar${ref}! Aquí para ayudarte. ¿Qué necesitas hoy?`,
+          `¡Excelente, siempre a tu servicio! ¿En qué te ayudo${ref}?`,
+          `¡Genial, gracias por preguntar! ¿Qué te cuento hoy${ref}?`,
+          `¡De maravilla, listo para ayudarte! ¿En qué puedo apoyarte${ref}?`,
+        ]);
+      case 'confirmacion':
+        return this.elegirCortesia(sessionId, tipo, [
+          `¡Perfecto! Aquí sigo por si necesitas algo más.`,
+          `¡Listo! Cuando quieras, continuamos.`,
+          `¡Genial! Avísame si necesitas otra cosa.`,
+        ]);
+      case 'saludo':
+      default:
+        if (primera) {
+          return this.elegirCortesia(sessionId, tipo, [
+            `¡Hola${ref}! Encantado de ayudarte. Cuéntame, ¿en qué te ayudo hoy?`,
+            `¡Hola${ref}! Bienvenido. ¿Qué necesitas hoy?`,
+            `¡Hola${ref}! Estoy aquí para lo que necesites. ¿Cuál es tu consulta?`,
+          ]);
+        }
+        if (tema) {
+          return this.elegirCortesia(sessionId, tipo, [
+            `¡Hola${ref}! ¿Avanzo con lo de "${tema}" o necesitas algo más?`,
+            `¡Hola${ref}! Seguimos con "${tema}". ¿En qué más te ayudo?`,
+          ]);
+        }
+        return this.elegirCortesia(sessionId, tipo, [
+          `¡Hola${ref}! Aquí sigo. Dime, ¿en qué te ayudo?`,
+          `¡Hola${ref}! Con gusto te atiendo. ¿Qué necesitas?`,
+          `¡Hola${ref}! Cuéntame en qué te puedo colaborar.`,
+        ]);
+    }
+  }
+
+  // Query de RAG con referencia al hilo: combina la pregunta actual con los
+  // últimos mensajes del usuario para resolver referencias ("¿y cuándo es?").
+  private construirConsultaRag(
+    message: string,
+    history: AiMessage[],
+  ): string {
+    const previos = (history ?? [])
+      .filter(
+        (h) =>
+          h?.role === 'user' &&
+          h?.text &&
+          !h.text.trim().startsWith('[CONTEXTO]') &&
+          h.text.trim() !== message.trim(),
+      )
+      .slice(-2)
+      .map((h) => h.text.trim());
+    return [...previos, message.trim()].join(' ');
+  }
+
+  // Comprime turnos que quedaron fuera de la ventana del modelo, guardando el
+  // resumen por sesión para no perder contexto en conversaciones largas.
+  private async comprimirHistorial(
+    sessionId: string,
+    sobrantes: AiMessage[],
+  ): Promise<string> {
+    if (!sessionId || !sobrantes.length) return '';
+    const previo = this.resumenSesion.get(sessionId);
+    if (previo && previo.procesados >= sobrantes.length) {
+      return previo.resumen;
+    }
+
+    const nuevos = previo ? sobrantes.slice(previo.procesados) : sobrantes;
+    const linea = nuevos
+      .map((h) =>
+        `${h.role === 'user' ? 'Cliente' : 'Asistente'}: ${this.compactText(h.text, 150)}`,
+      )
+      .join('\n');
+
+    let resumen = previo?.resumen ?? '';
+    if (linea.trim()) {
+      try {
+        const extra = await this.generateCompactText(
+          `Eres la memoria de una conversación de atención al cliente. Resume de forma compacta (máximo 100 palabras) lo esencial para mantener el hilo: el tema, los datos clave (fechas, montos, nombres, promesas) y dónde quedó la conversación. Usa SOLO la información dada.\n\nConversación:\n${linea}`,
+          300,
+          0.2,
+        );
+        if (extra.trim()) {
+          resumen = resumen ? `${resumen}\n${extra.trim()}` : extra.trim();
+        }
+      } catch {
+        /* si el resumen falla, continuar sin él */
+      }
+    }
+
+    this.resumenSesion.set(sessionId, {
+      resumen,
+      procesados: sobrantes.length,
+    });
+    return resumen;
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
   // chat() — respuesta completa
   // ─────────────────────────────────────────────────────────────────────────
@@ -273,6 +545,7 @@ export class AiService {
     colegio: string,
     tipoSolicitud: string,
     rol: string = 'estudiante',
+    sessionId?: string,
   ): Promise<AiResult> {
     if (!message?.trim())
       return {
@@ -325,9 +598,16 @@ export class AiService {
       };
     }
 
-    // ── D2: saludos / cortesías → respuesta breve sin asesor ────────────────
-    if (esSaludo(message)) {
-      const saludo = `¡Hola ${clientName}! Soy el asistente virtual del colegio "${colegio}". ¿En qué puedo ayudarte hoy?`;
+    // ── D2: charla pura (saludos / cortesías) → respuesta breve y cálida,
+    //    sin consumir tokens. Las consultas reales pasan a RAG + Gemini. ──
+    const charla = clasificarCharla(message);
+    if (charla) {
+      const saludo = this.respuestaCortesia(
+        charla,
+        sessionId ?? '',
+        clientName,
+        history,
+      );
       this.aiLogs.guardar({
         colegio,
         rol: rolNormalizado,
@@ -364,9 +644,11 @@ export class AiService {
       };
     }
 
-    // ── RAG ─────────────────────────────────────────────────────────────────
+    // ── RAG (con referencia al hilo: el usuario pregunta "¿cuándo es?" y
+    //    la búsqueda debe incluir el tema previo) ───────────────────────────
+    const ragQuery = this.construirConsultaRag(message, history);
     const ragResult = await this.documentosService
-      .buscarRelevantes(message, colegio || undefined, rolNormalizado, 5)
+      .buscarRelevantes(ragQuery, colegio || undefined, rolNormalizado, 5)
       .catch(() => ({ contexto: '', documentos: [], chunks: [] }));
 
     const { contexto, documentos } = ragResult;
@@ -377,24 +659,13 @@ export class AiService {
       `[RAG] tuvoContexto=${tieneContexto} | chunks=${chunks.length} | colegio=${colegio} | rol=${rolNormalizado}`,
     );
 
-    // ── D2: sin documentos del rol → no inventar, sugerir asesor ────────────
-    if (!tieneContexto && conducta.sugerirAsesorAutomatico) {
-      this.aiLogs.guardar({
-        colegio,
-        rol: rolNormalizado,
-        tipoSolicitud,
-        clientName,
-        pregunta: message,
-        respuesta: conducta.mensajeSinInformacion,
-        chunksUsados: [],
-        tuvoContexto: false,
-      });
-      return {
-        reply: conducta.mensajeSinInformacion,
-        transfer: false,
-        showFeedback: false,
-        documentos: [],
-      };
+    // D2: sin documentos del rol → la IA responde de forma conversacional.
+    // El systemPrompt (con tieneContexto=false) le prohíbe inventar datos
+    // institucionales y la orienta a ofrecer asesor solo si corresponde.
+    if (!tieneContexto) {
+      this.logger.debug(
+        `[IA] Sin contexto RAG (rol=${rolNormalizado}) → respuesta conversacional`,
+      );
     }
 
     const systemPrompt = this.buildSystemPrompt(
@@ -408,9 +679,26 @@ export class AiService {
     );
 
     const historyFiltered = filtrarHistorial(history);
+    const sobrantes = (history ?? []).slice(
+      0,
+      history.length - historyFiltered.length,
+    );
+    let systemPromptFinal = systemPrompt;
+    if (sobrantes.length > 0) {
+      const resumen = await this.comprimirHistorial(
+        sessionId ?? '',
+        sobrantes,
+      );
+      if (resumen) {
+        this.logger.debug(
+          `[IA] Memoria de sesión aplicada (${sobrantes.length} turnos comprimidos)`,
+        );
+        systemPromptFinal = `${systemPrompt}\n\nRESUMEN DE LA CONVERSACIÓN ANTERIOR:\n${resumen}\nFIN DEL RESUMEN.`;
+      }
+    }
 
     const contents = [
-      { role: 'user', parts: [{ text: systemPrompt }] },
+      { role: 'user', parts: [{ text: systemPromptFinal }] },
       {
         role: 'model',
         parts: [
@@ -437,7 +725,7 @@ export class AiService {
       },
       body: JSON.stringify({
         contents,
-        generationConfig: { temperature: 0.3, maxOutputTokens: 1024 },
+        generationConfig: { temperature: 0.7, maxOutputTokens: 1200 },
       }),
       signal: controller.signal,
     }).finally(() => clearTimeout(timeout));
@@ -455,7 +743,9 @@ export class AiService {
         chunksUsados: [],
       });
       this.logger.error(`Gemini API error: ${response.status} - ${err}`);
-      throw new Error('Error al procesar tu mensaje. Intenta de nuevo.');
+      throw new Error(
+        'Ups, se me interrumpió la conexión. Por favor intenta de nuevo.',
+      );
     }
 
     const data = await response.json();
@@ -531,29 +821,66 @@ export class AiService {
   // ─────────────────────────────────────────────────────────────────────────
   async improveWhatsappDraft(
     draft: string,
-    profile: { clientName?: string; institution?: string; role?: string } = {},
+    profile: {
+      clientName?: string;
+      institution?: string;
+      role?: string;
+      context?: string;
+    } = {},
     tone: string = 'formal',
+    length: 'short' | 'medium' | 'long' = 'medium',
   ): Promise<{ replies: string[] }> {
     const cleanDraft = this.compactText(draft, 900);
     if (!cleanDraft) return { replies: [] };
 
-    const toneRules: Record<string, string> = {
-      formal:   'Tono FORMAL: serio, institucional y profesional; trata al cliente de usted y evita expresiones coloquiales.',
-      educado:  'Tono EDUCADO: amable, cortes y respetuoso; demuestra consideracion por el cliente.',
-      directo:  'Tono DIRECTO: claro, conciso y sin rodeos; va al punto sin perder la amabilidad.',
-    };
+    const tonoElegido =
+      toneRulesImprove[tone] ??
+      {
+        regla: `TONO PERSONALIZADO: "${tone}". Interpreta y aplica ese tono de forma consistente en las 3 variantes.`,
+        saludo: `saludo acorde al tono "${tone}"`,
+        despedida: `despedida acorde al tono "${tone}"`,
+      };
+    const usoUsted =
+      tone === 'formal' ||
+      /usted|formal|respet|institucional/i.test(tone);
 
-    const prompt = `Mejora la redaccion del siguiente borrador para enviarlo por WhatsApp a un cliente y genera 3 variantes distintas.
+    const limitePalabras =
+      length === 'short' ? 45 : length === 'long' ? 140 : 90;
+    const maxOutput = length === 'long' ? 3200 : 2600;
 
-Reglas por variante:
+    const basePrompt = (correccion?: string): string => {
+      const correccionBloque = correccion
+        ? `\nCORRECCION IMPORTANTE: ${correccion}\n`
+        : '';
+
+      const contextoConversacion = this.compactText(profile.context, 500);
+
+      return `Eres un experto en redaccion de mensajes para WhatsApp. Toma el borrador de abajo y REESCRIBELO por completo, generando 3 variantes de mensaje distintas entre si.
+
+TONO: ${tonoElegido.regla}
+- ${tonoElegido.saludo}
+- ${tonoElegido.despedida}
+- Trata al cliente de "${usoUsted ? 'usted' : 'tu'}".
+
+Reglas de contenido (iguales en las 3 variantes):
 - Corrige ortografia, tildes, puntuacion, capitalizacion y errores de digitacion.
 - Conserva exactamente la intencion, datos, promesas, fechas, precios, nombres y preguntas del texto original.
-- No agregues informacion nueva.
-- No respondas por el cliente ni inventes solucion.
-- ${toneRules[tone] ?? toneRules.formal}
-- Hazlo claro, amable, profesional y natural.
-- Maximo 90 palabras.
+- No agregues informacion nueva ni respondas por el cliente.
+- Maximo ${limitePalabras} palabras por variante.
+- NO uses emojis ni emoticones.
+- Evita frases corporativas vacias ("Estamos encantados de...", "Esperamos que este mensaje te encuentre bien", "Para nosotros es un placer") y rellenos genericos.
 
+Reglas de VARIACION (clave):
+- Las 3 variantes deben ser MUY distintas entre si y del borrador: cada una con un SALUDO diferente, un ORDEN de la informacion diferente y una DESPEDIDA diferente.
+- Cambia por completo el registro de lenguaje: elige palabras, frases y estructura propias del tono ${tone} en lugar de copiar las del borrador.
+- Si una variante te quedaria igual o casi igual al borrador, REESCRIBELA desde cero.
+- No repitas la misma oracion en dos variantes distintas.
+
+Estructura por variante (usa una estructura distinta en cada una):
+- VARIANTE 1: saludo -> contexto/motivo -> dato clave -> cierre o llamado a la accion (estructura clasica).
+- VARIANTE 2: empieza por el dato o motivo mas importante (enganche directo), luego el detalle, y cierra con una despedida breve.
+- VARIANTE 3: version breve estilo mensaje de texto, solo lo esencial, sin relleno.
+${correccionBloque}
 Formato de salida: EXACTAMENTE 3 bloques, cada uno encabezado por una linea de solo "=" (sin texto adyacente), seguida de "VARIANTE N", un salto de linea y el texto de esa variante:
 
 =====
@@ -568,35 +895,160 @@ VARIANTE 2
 VARIANTE 3
 (texto de la variante 3)
 
-Las 3 variantes deben ser realmente distintas entre si: cambia la estructura, el orden de la informacion, el saludo o la forma de expresion, pero manteniendo el mismo tono, el mismo contenido y la misma longitud aproximada.
 Dentro de cada bloque usa SOLO el texto, sin comillas, sin markdown, sin prefijos como "Texto mejorado:" ni ninguna otra etiqueta.
 
 Perfil breve:
 Cliente: ${this.compactText(profile.clientName, 80) || 'Cliente WhatsApp'}
 Institucion: ${this.compactText(profile.institution, 90) || 'No registrada'}
 Rol: ${this.compactText(profile.role, 60) || 'Cliente'}
+Contexto de la conversacion (mensaje del cliente al que se responde):
+${contextoConversacion || 'No se proporciona'}
 
 Borrador:
 ${cleanDraft}`;
+    };
 
-    const raw = this.cleanAiPlainText(
-      await this.generateCompactText(prompt, 1400, 0.8),
+    // Intento 1
+    const raw1 = this.cleanAiPlainText(
+      await this.generateCompactText(basePrompt(), maxOutput, 0.9),
     );
-    const replies = this.splitImproveVariants(raw);
-    return { replies: replies.length ? replies : [raw || cleanDraft] };
+    let replies = this.filtrarVariantes(this.parseImproveVariants(raw1), cleanDraft);
+
+    // Reintento si quedaron menos de 3 variantes distintas (NO se rellena con
+    // el borrador original: eso producia opciones identicas).
+    if (replies.length < 3) {
+      const correccion =
+        replies.length === 0
+          ? 'No seguiste el formato ni generaste variantes. Devuelve EXACTAMENTE 3 bloques separados por lineas de "=" con "VARIANTE N".'
+          : 'Las variantes anteriores quedaron iguales o casi iguales entre si o al borrador. Reescribe cada una de forma CLARAMENTE distinta: cambia el saludo, el orden de la informacion, el vocabulario y la despedida. No repitas frases.';
+      const raw2 = this.cleanAiPlainText(
+        await this.generateCompactText(basePrompt(correccion), maxOutput, 1.0),
+      );
+      const reintento = this.filtrarVariantes(
+        this.parseImproveVariants(raw2),
+        cleanDraft,
+      );
+      // Fusionar sin duplicar
+      for (const v of reintento) {
+        if (replies.length >= 3) break;
+        if (
+          replies.some(
+            (u) => this.similitudTexto(u, v) >= 0.92,
+          )
+        ) {
+          continue;
+        }
+        replies.push(v);
+      }
+    }
+
+    return { replies: replies.slice(0, 3) };
   }
 
-  private splitImproveVariants(text: string): string[] {
-    return text
+  private parseImproveVariants(text: string): string[] {
+    if (!text) return [];
+    const clean = this.cleanAiPlainText(text);
+
+    // 1) Intentar JSON: ["a","b","c"] o {"variantes":[...]}
+    try {
+      const json = clean
+        .replace(/```json/gi, '')
+        .replace(/```/g, '')
+        .trim();
+      const obj = JSON.parse(json);
+      const arr = Array.isArray(obj)
+        ? obj
+        : obj && Array.isArray((obj as any).variantes)
+          ? (obj as any).variantes
+          : null;
+      if (Array.isArray(arr)) {
+        const v = arr
+          .filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+          .map((x) => x.trim());
+        if (v.length >= 3) return v.slice(0, 3);
+      }
+    } catch {
+      /* no era JSON válido */
+    }
+
+    // 2) Formato canónico: bloques separados por líneas de "="
+    let blocks = clean
       .split(/={3,}/)
-      .map((block) =>
-        block
-          .replace(/^\s*VARIANTE\s*\d+\s*:?\s*/i, '')
-          .replace(/\s+/g, ' ')
-          .trim(),
-      )
-      .filter((block) => block.length > 0)
-      .slice(0, 3);
+      .map((block) => this.limpiaVariante(block))
+      .filter((block) => block.length > 0);
+
+    // 3) Formato "VARIANTE N" como encabezado de línea
+    if (blocks.length < 2) {
+      blocks = clean
+        .split(/^VARIANTE\s*\d+\s*[:.\-]?\s*$/gim)
+        .map((block) => this.limpiaVariante(block))
+        .filter((block) => block.length > 0);
+    }
+
+    return blocks.slice(0, 3);
+  }
+
+  private limpiaVariante(block: string): string {
+    return block
+      .replace(/^\s*VARIANTE\s*\d+\s*[:.\-]?\s*/i, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  // Descarta variantes vacias, muy cortas, iguales al borrador original o
+  // duplicadas (o casi-iguales) entre si. Máximo 3.
+  private filtrarVariantes(variantes: string[], borrador: string): string[] {
+    const unicas: string[] = [];
+    for (const v of variantes) {
+      const texto = (v ?? '').trim();
+      if (!texto) continue;
+      if (this.normalizarVariante(texto).length < 20) continue;
+      if (this.similitudTexto(texto, borrador) >= 0.92) continue;
+      if (unicas.some((u) => this.similitudTexto(u, texto) >= 0.92)) continue;
+      unicas.push(texto);
+      if (unicas.length >= 3) break;
+    }
+    return unicas;
+  }
+
+  // Normaliza para comparar: minúsculas, sin tildes, sin puntuación.
+  private normalizarVariante(text: string): string {
+    return text
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  // Similitud 0..1 por distancia de Levenshtein sobre texto normalizado.
+  private similitudTexto(a: string, b: string): number {
+    const na = this.normalizarVariante(a);
+    const nb = this.normalizarVariante(b);
+    const max = Math.max(na.length, nb.length);
+    if (!max) return 1;
+    return 1 - this.levenshtein(na, nb) / max;
+  }
+
+  private levenshtein(a: string, b: string): number {
+    if (a === b) return 0;
+    if (!a.length) return b.length;
+    if (!b.length) return a.length;
+    let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+    for (let i = 1; i <= a.length; i++) {
+      const curr = new Array<number>(b.length + 1);
+      curr[0] = i;
+      for (let j = 1; j <= b.length; j++) {
+        curr[j] = Math.min(
+          prev[j] + 1,
+          curr[j - 1] + 1,
+          prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1),
+        );
+      }
+      prev = curr;
+    }
+    return prev[b.length];
   }
 
   async summarizeWhatsappConversation(input: {
@@ -781,9 +1233,16 @@ ${transcript}`;
       return conducta.mensajeGroseria;
     }
 
-    // ── D2: saludos / cortesías → respuesta breve sin asesor ────────────────
-    if (esSaludo(message)) {
-      const saludo = `¡Hola ${clientName}! Soy el asistente virtual del colegio "${colegio}". ¿En qué puedo ayudarte hoy?`;
+    // ── D2: charla pura (saludos / cortesías) → respuesta breve y cálida,
+    //    sin consumir tokens. Las consultas reales pasan a RAG + Gemini. ──
+    const charla = clasificarCharla(message);
+    if (charla) {
+      const saludo = this.respuestaCortesia(
+        charla,
+        sessionId ?? '',
+        clientName,
+        history,
+      );
       this.aiLogs.guardar({
         sessionId,
         colegio,
@@ -819,9 +1278,11 @@ ${transcript}`;
       return msgRestringido;
     }
 
-    // ── RAG ─────────────────────────────────────────────────────────────────
+    // ── RAG (con referencia al hilo: el usuario pregunta "¿cuándo es?" y
+    //    la búsqueda debe incluir el tema previo) ───────────────────────────
+    const ragQuery = this.construirConsultaRag(message, history);
     const ragResult = await this.documentosService
-      .buscarRelevantes(message, colegio || undefined, rolNormalizado, 5)
+      .buscarRelevantes(ragQuery, colegio || undefined, rolNormalizado, 5)
       .catch(() => ({ contexto: '', documentos: [], chunks: [] }));
 
     const { contexto, documentos } = ragResult;
@@ -832,24 +1293,13 @@ ${transcript}`;
       `[RAG] tuvoContexto=${tieneContexto} | chunks=${chunks.length} | colegio=${colegio} | rol=${rolNormalizado}`,
     );
 
-    // ── D2: sin documentos del rol → no inventar, sugerir asesor ────────────
+    // D2: sin documentos del rol → la IA responde de forma conversacional.
+    // El systemPrompt (con tieneContexto=false) le prohíbe inventar datos
+    // institucionales y la orienta a ofrecer asesor solo si corresponde.
     if (!tieneContexto) {
-      this.aiLogs.guardar({
-        sessionId,
-        colegio,
-        rol: rolNormalizado,
-        tipoSolicitud,
-        clientName,
-        pregunta: message,
-        respuesta: conducta.mensajeSinInformacion,
-        chunksUsados: [],
-        tuvoContexto: false,
-      });
-      if (conducta.sugerirAsesorAutomatico) {
-        emit('metadata', { documentos: [], sugerirAsesor: true });
-      }
-      emit('chunk', { text: conducta.mensajeSinInformacion });
-      return conducta.mensajeSinInformacion;
+      this.logger.debug(
+        `[IA] Sin contexto RAG (rol=${rolNormalizado}) → respuesta conversacional`,
+      );
     }
 
     const systemPrompt = this.buildSystemPrompt(
@@ -863,9 +1313,26 @@ ${transcript}`;
     );
 
     const historyFiltered = filtrarHistorial(history);
+    const sobrantes = (history ?? []).slice(
+      0,
+      history.length - historyFiltered.length,
+    );
+    let systemPromptFinal = systemPrompt;
+    if (sobrantes.length > 0) {
+      const resumen = await this.comprimirHistorial(
+        sessionId ?? '',
+        sobrantes,
+      );
+      if (resumen) {
+        this.logger.debug(
+          `[IA] Memoria de sesión aplicada (${sobrantes.length} turnos comprimidos)`,
+        );
+        systemPromptFinal = `${systemPrompt}\n\nRESUMEN DE LA CONVERSACIÓN ANTERIOR:\n${resumen}\nFIN DEL RESUMEN.`;
+      }
+    }
 
     const contents = [
-      { role: 'user', parts: [{ text: systemPrompt }] },
+      { role: 'user', parts: [{ text: systemPromptFinal }] },
       {
         role: 'model',
         parts: [{ text: `Entendido. Listo para ayudar a ${clientName}.` }],
@@ -900,7 +1367,7 @@ ${transcript}`;
         },
         body: JSON.stringify({
           contents,
-          generationConfig: { temperature: 0.3, maxOutputTokens: 1000 },
+          generationConfig: { temperature: 0.7, maxOutputTokens: 1200 },
         }),
         signal: controller.signal,
       });
@@ -927,7 +1394,9 @@ ${transcript}`;
         chunksUsados: [],
       });
       this.logger.error(`Gemini stream error: ${response.status} - ${err}`);
-      throw new Error('Error al procesar tu mensaje. Intenta de nuevo.');
+      throw new Error(
+        'Ups, se me interrumpió la conexión. Por favor intenta de nuevo.',
+      );
     }
 
     const reader = response.body!.getReader();
@@ -990,7 +1459,7 @@ ${transcript}`;
     // [FEEDBACK:YES] indica que la IA resolvió una pregunta real.
     // Solo se envía el documento con mejor distancia (documentos[0] ya viene
     // ordenado por relevancia desde documentos.service.ts).
-    const respondioAlgo = textoAcumulado.includes('[FEEDBACK:YES]');
+    const respondioAlgo = /\[FEEDBACK:YES\]\s*$/.test(textoAcumulado);
 
     if (respondioAlgo && tieneContexto && documentos.length > 0) {
       emit('metadata', {
@@ -1003,8 +1472,13 @@ ${transcript}`;
         ],
         sugerirAsesor: false,
       });
-    } else if (!respondioAlgo && conducta.sugerirAsesorAutomatico) {
-      // La IA no resolvió con los documentos → ofrecer asesor humano
+    } else if (
+      !respondioAlgo &&
+      conducta.sugerirAsesorAutomatico &&
+      !esSoloCharla(message)
+    ) {
+      // La IA no resolvió con los documentos → ofrecer asesor humano.
+      // Se excluyen saludos/charla trivial, donde basta la conversación.
       emit('metadata', { documentos: [], sugerirAsesor: true });
     }
 
@@ -1066,9 +1540,11 @@ ${transcript}`;
       }
 
       const data = await response.json();
-      const text = (
-        data.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
-      ).trim();
+      const text = (data.candidates?.[0]?.content?.parts ?? [])
+        .filter((part: any) => !part.thought)
+        .map((part: any) => part.text ?? '')
+        .join('')
+        .trim();
       const finishReason: string | undefined =
         data.candidates?.[0]?.finishReason;
       const usage = data.usageMetadata;
@@ -1079,9 +1555,9 @@ ${transcript}`;
       }
       if (finishReason === 'MAX_TOKENS') {
         this.logger.warn(
-          `Gemini truncado (MAX_TOKENS, ${text.length} chars). Devolviendo borrador original.`,
+          `Gemini truncado (MAX_TOKENS, ${text.length} chars). Usando salida parcial.`,
         );
-        return '';
+        return text;
       }
       return text;
     } catch (err: any) {
@@ -1154,7 +1630,7 @@ ${transcript}`;
     const nombre = aiPromptConfig?.nombreAsistente || 'asistente virtual de atención al cliente';
     const especialidad = aiPromptConfig?.especialidad || 'colegios';
     const instrucciones = aiPromptConfig?.instruccionesGenerales ||
-      'Responde de forma clara, amable y concisa en español. NO uses emojis. Adapta el lenguaje al rol: técnico para administradores/docentes, sencillo para estudiantes y padres.';
+      'Responde de forma natural y conversacional, como un asistente humano cálido y profesional: frases fluidas y breves, en español, y sin repetir la bienvenida ni frases enlatadas. Mantén el hilo de la conversación refiriéndote a lo que ya se ha hablado cuando venga al caso. Trata al usuario por su nombre de forma natural y sin exagerar. Adapta el lenguaje al rol: técnico para administradores/docentes, sencillo para estudiantes y padres.';
     const frasesTransferencia = aiPromptConfig?.frasesTransferencia?.length
       ? aiPromptConfig.frasesTransferencia.join('", "')
       : 'asesor", "humano", "persona", "agente';
@@ -1208,13 +1684,14 @@ ${transcript}`;
       `- NO uses emojis en ninguna respuesta.`,
       tieneContexto
         ? '- Basa tu respuesta PRINCIPALMENTE en la información de la base de conocimiento.'
-        : '- NO tienes documentos oficiales para este rol sobre esta consulta.',
+        : '- No tienes documentos oficiales de este rol sobre esta consulta, así que responde de forma natural.',
       tieneContexto
         ? '- NO inventes nada que no esté en los documentos provistos.'
-        : '- NO inventes información ni uses conocimiento general ni datos de otros roles.',
+        : '- NO inventes datos institucionales concretos (fechas, montos, requisitos, trámites) que no estén en los documentos.',
       tieneContexto
         ? ''
-        : '- Si la consulta requiere información institucional, responde que no tienes esa información registrada por el momento.',
+        : '- Si la consulta es de un tema institucional (pagos, notas, calendario, trámites, admisiones, etc.) y no tienes la información, responde con naturalidad que por el momento no está registrada y ofrece pasar la consulta a un asesor humano.',
+      '- Si la consulta es charla trivial o conversación cotidiana (saludos, agradecimientos, preguntas personales o de cultura general), responde breve y naturalmente SIN ofrecer transferencia a asesor.',
       `- Si el cliente menciona "${frasesTransferencia}" o pide hablar con alguien, responde ÚNICAMENTE: TRANSFER_TO_ADVISOR`,
       `- Si la pregunta toca temas restringidos para el rol ${config.label}, redirige amablemente.`,
       '',

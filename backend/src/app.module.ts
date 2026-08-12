@@ -120,6 +120,13 @@ import { AppService } from './app.service';
           idleTimeoutMillis: 30000,
           connectionTimeoutMillis: 10000,
         },
+        // Evita que un error puntual del pool (timeout, red, reinicio de DB)
+        // tumbe todo el proceso Node con una excepción no capturada.
+        poolErrorHandler: (err: Error) => {
+          console.error(
+            `[DB] Error en pool de conexiones (no fatal): ${err?.message ?? err}`,
+          );
+        },
         entities: [
           User,
           Session,

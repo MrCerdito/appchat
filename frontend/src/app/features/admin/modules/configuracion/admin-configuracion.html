@@ -55,109 +55,184 @@
     </div>
   </header>
 
-  <!-- ═══════════ NAV GRUPOS (sticky) ═══════════ -->
-  <nav class="cfg-nav">
-    <div class="cfg-container cfg-nav-inner">
-      <div class="cfg-tabs">
-        <button class="cfg-tab" [class.cfg-tab--active]="grupo === 'chat'" (click)="setGrupo('chat')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-          </svg>
-          Chat en línea
-        </button>
-        <button class="cfg-tab" [class.cfg-tab--active]="grupo === 'whatsapp'" (click)="setGrupo('whatsapp')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 11.5a8.4 8.4 0 0 1-12.6 7.3L3 20l1.4-5A8.4 8.4 0 1 1 21 11.5z"/>
-            <path d="M9.5 8.5c.3 3 2 4.8 5 5"/>
-          </svg>
-          WhatsApp
-        </button>
-        <button class="cfg-tab" [class.cfg-tab--active]="grupo === 'general'" (click)="setGrupo('general')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="3"/>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06
-              a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09
-              A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83
-              l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09
-              A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83
-              l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09
-              a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83
-              l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09
-              a1.65 1.65 0 0 0-1.51 1z"/>
-          </svg>
-          General
-        </button>
-      </div>
-    </div>
-  </nav>
+  <!-- ═══════════ LAYOUT: SIDEBAR CANALES + CONTENIDO ═══════════ -->
+  <div class="cfg-layout">
 
-  <!-- ═══════════ SUB-NAV (sticky) ═══════════ -->
-  <div class="cfg-nav-sub">
-    <div class="cfg-container">
-      @if (grupo === 'chat') {
-      <div class="cfg-tabs cfg-tabs--sub">
-        <button class="cfg-tab--sub" [class.cfg-tab--sub-active]="tab === 'bienvenida'" (click)="tab = 'bienvenida'">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-          </svg>
-          Mensaje de bienvenida
-        </button>
-        <button class="cfg-tab--sub" [class.cfg-tab--sub-active]="tab === 'inactividad'" (click)="tab = 'inactividad'">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="8" r="4"/><path d="M6 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
-          </svg>
-          Tiempos de espera
-        </button>
-        <button class="cfg-tab--sub" [class.cfg-tab--sub-active]="tab === 'reconexion'" (click)="tab = 'reconexion'">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-          </svg>
-          Reconexión
-        </button>
+    <!-- ── SIDEBAR CANALES ── -->
+    <aside class="cfg-panel-side">
+      <div class="cfg-panel-side__inner">
+
+        <div class="cfg-side-brand">
+          <span class="cfg-side-brand__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06
+                a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09
+                A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83
+                l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09
+                A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83
+                l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09
+                a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83
+                l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09
+                a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+          </span>
+          <div>
+            <strong>Configuración</strong>
+            <small>Canales y plataforma</small>
+          </div>
+        </div>
+
+        <div class="cfg-side-section">
+          <span class="cfg-side-label">Canales</span>
+
+          <button class="cfg-side-item cfg-side-item--lg cfg-side-item--chat"
+            [class.active]="grupo === 'chat'" (click)="setGrupo('chat')">
+            <span class="cfg-side-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+            </span>
+            <span class="cfg-side-text">
+              <strong>Chat en línea</strong>
+              <small>Mensajes y tiempos de espera</small>
+            </span>
+            <svg class="cfg-side-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          </button>
+
+          <button class="cfg-side-item cfg-side-item--lg cfg-side-item--wa"
+            [class.active]="grupo === 'whatsapp'" (click)="setGrupo('whatsapp')">
+            <span class="cfg-side-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 11.5a8.4 8.4 0 0 1-12.6 7.3L3 20l1.4-5A8.4 8.4 0 1 1 21 11.5z"/>
+                <path d="M9.5 8.5c.3 3 2 4.8 5 5"/>
+              </svg>
+            </span>
+            <span class="cfg-side-text">
+              <strong>WhatsApp</strong>
+              <small>Mensajes automáticos</small>
+            </span>
+            <svg class="cfg-side-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="cfg-side-section">
+          <span class="cfg-side-label">General</span>
+
+          <button class="cfg-side-item" [class.active]="grupo === 'general' && tab === 'jornada'" (click)="irA('general','jornada')">
+            <span class="cfg-side-icon cfg-side-icon--jornada">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </span>
+            <span class="cfg-side-text"><strong>Jornada laboral</strong></span>
+          </button>
+
+          <button class="cfg-side-item" [class.active]="grupo === 'general' && tab === 'sonidos'" (click)="irA('general','sonidos')">
+            <span class="cfg-side-icon cfg-side-icon--sonidos">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+              </svg>
+            </span>
+            <span class="cfg-side-text"><strong>Sonidos</strong></span>
+          </button>
+
+          <button class="cfg-side-item" [class.active]="grupo === 'general' && tab === 'ia'" (click)="irA('general','ia')">
+            <span class="cfg-side-icon cfg-side-icon--ia">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.58-3.25 3.93"/><path d="M8 12a4 4 0 0 1 8 0"/>
+                <path d="M4 18c0-2.2 3.6-4 8-4s8 1.8 8 4"/><circle cx="8" cy="6" r="1" fill="currentColor"/>
+                <circle cx="16" cy="6" r="1" fill="currentColor"/>
+              </svg>
+            </span>
+            <span class="cfg-side-text"><strong>Prompt IA</strong></span>
+          </button>
+
+          <button class="cfg-side-item" [class.active]="grupo === 'general' && tab === 'colegios'" (click)="irA('general','colegios')">
+            <span class="cfg-side-icon cfg-side-icon--colegios">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/>
+              </svg>
+            </span>
+            <span class="cfg-side-text"><strong>Colegios</strong></span>
+          </button>
+        </div>
+
       </div>
-      } @else if (grupo === 'whatsapp') {
-      <div class="cfg-tabs cfg-tabs--sub">
-        <button class="cfg-tab--sub" [class.cfg-tab--sub-active]="tab === 'whatsapp'" (click)="tab = 'whatsapp'">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 11.5a8.4 8.4 0 0 1-12.6 7.3L3 20l1.4-5A8.4 8.4 0 1 1 21 11.5z"/>
-            <path d="M9.5 8.5c.3 3 2 4.8 5 5"/>
-          </svg>
-          Mensajes automáticos
-        </button>
+    </aside>
+
+    <!-- ── CONTENIDO ── -->
+    <div class="cfg-content">
+
+      <div class="cfg-content-tabs">
+        @if (grupo === 'chat') {
+        <div class="cfg-seg">
+          <button class="cfg-seg__btn" [class.active]="tab === 'bienvenida'" (click)="tab = 'bienvenida'">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            Mensaje de bienvenida
+          </button>
+          <button class="cfg-seg__btn" [class.active]="tab === 'inactividad'" (click)="tab = 'inactividad'">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="8" r="4"/><path d="M6 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
+            </svg>
+            Tiempos de espera
+          </button>
+          <button class="cfg-seg__btn" [class.active]="tab === 'reconexion'" (click)="tab = 'reconexion'">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+            </svg>
+            Reconexión
+          </button>
+        </div>
+        } @else if (grupo === 'whatsapp') {
+        <div class="cfg-seg">
+          <button class="cfg-seg__btn" [class.active]="tab === 'whatsapp'">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 11.5a8.4 8.4 0 0 1-12.6 7.3L3 20l1.4-5A8.4 8.4 0 1 1 21 11.5z"/>
+              <path d="M9.5 8.5c.3 3 2 4.8 5 5"/>
+            </svg>
+            Mensajes automáticos
+          </button>
+        </div>
+        } @else {
+        <div class="cfg-seg">
+          <button class="cfg-seg__btn" [class.active]="tab === 'jornada'" (click)="tab = 'jornada'">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+            Jornada laboral
+          </button>
+          <button class="cfg-seg__btn" [class.active]="tab === 'sonidos'" (click)="tab = 'sonidos'">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+            </svg>
+            Sonidos
+          </button>
+          <button class="cfg-seg__btn" [class.active]="tab === 'ia'" (click)="tab = 'ia'">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.58-3.25 3.93"/><path d="M8 12a4 4 0 0 1 8 0"/>
+              <path d="M4 18c0-2.2 3.6-4 8-4s8 1.8 8 4"/><circle cx="8" cy="6" r="1" fill="currentColor"/>
+              <circle cx="16" cy="6" r="1" fill="currentColor"/>
+            </svg>
+            Prompt IA
+          </button>
+          <button class="cfg-seg__btn" [class.active]="tab === 'colegios'" (click)="tab = 'colegios'; loadColegios()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/>
+            </svg>
+            Colegios
+          </button>
+        </div>
+        }
       </div>
-      } @else {
-      <div class="cfg-tabs cfg-tabs--sub">
-        <button class="cfg-tab--sub" [class.cfg-tab--sub-active]="tab === 'jornada'" (click)="tab = 'jornada'">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-          </svg>
-          Jornada laboral
-        </button>
-        <button class="cfg-tab--sub" [class.cfg-tab--sub-active]="tab === 'sonidos'" (click)="tab = 'sonidos'">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
-          </svg>
-          Sonidos
-        </button>
-        <button class="cfg-tab--sub" [class.cfg-tab--sub-active]="tab === 'ia'" (click)="tab = 'ia'">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.58-3.25 3.93"/><path d="M8 12a4 4 0 0 1 8 0"/>
-            <path d="M4 18c0-2.2 3.6-4 8-4s8 1.8 8 4"/><circle cx="8" cy="6" r="1" fill="currentColor"/>
-            <circle cx="16" cy="6" r="1" fill="currentColor"/>
-          </svg>
-          Prompt IA
-        </button>
-        <button class="cfg-tab--sub" [class.cfg-tab--sub-active]="tab === 'colegios'" (click)="tab = 'colegios'; loadColegios()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/>
-          </svg>
-          Colegios
-        </button>
-      </div>
-      }
-    </div>
-  </div>
 
   <!-- ═══════════ CONTENIDO ═══════════ -->
   <div class="cfg-container cfg-body-container">
@@ -486,7 +561,27 @@
 
             <div class="cfg-preview">
               <span class="cfg-preview__label">Vista previa para el cliente</span>
-              <div class="cfg-bubble">{{ config.mensajeBienvenida || placeholderBienvenida }}</div>
+              <div class="cfg-mock cfg-mock--chat">
+                <div class="cfg-mock__header">
+                  <span class="cfg-mock__avatar">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    </svg>
+                  </span>
+                  <span class="cfg-mock__meta">
+                    <strong>Chat en línea</strong>
+                    <small>Agente de atención</small>
+                  </span>
+                  <span class="cfg-mock__live"><i></i> En línea</span>
+                </div>
+                <div class="cfg-mock__body">
+                  <span class="cfg-mock__date">Hoy</span>
+                  <div class="cfg-mock__bubble cfg-mock__bubble--agent">
+                    {{ config.mensajeBienvenida || placeholderBienvenida }}
+                  </div>
+                  <div class="cfg-mock__typing"><i></i><i></i><i></i></div>
+                </div>
+              </div>
             </div>
 
           </div>
@@ -638,8 +733,25 @@
               </div>
               <div class="cfg-field">
                 <label class="cfg-field__label">Vista previa</label>
-                <div class="cfg-preview cfg-preview--fill">
-                  <div class="cfg-bubble">{{ previewWhatsappAssignment() }}</div>
+                <div class="cfg-mock cfg-mock--fill cfg-mock--wa">
+                  <div class="cfg-mock__header cfg-mock__header--wa">
+                    <span class="cfg-mock__avatar">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 11.5a8.4 8.4 0 0 1-12.6 7.3L3 20l1.4-5A8.4 8.4 0 1 1 21 11.5z"/>
+                        <path d="M9.5 8.5c.3 3 2 4.8 5 5"/>
+                      </svg>
+                    </span>
+                    <span class="cfg-mock__meta">
+                      <strong>WhatsApp</strong>
+                      <small>Asignación de agente</small>
+                    </span>
+                  </div>
+                  <div class="cfg-mock__body">
+                    <div class="cfg-mock__bubble cfg-mock__bubble--wa">
+                      {{ previewWhatsappAssignment() }}
+                      <span class="cfg-mock__time">ahora</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -650,8 +762,25 @@
               </div>
               <div class="cfg-field">
                 <label class="cfg-field__label">Vista previa</label>
-                <div class="cfg-preview cfg-preview--fill">
-                  <div class="cfg-bubble">{{ config.whatsappQueueMsg || '(vacio)' }}</div>
+                <div class="cfg-mock cfg-mock--fill cfg-mock--wa">
+                  <div class="cfg-mock__header cfg-mock__header--wa">
+                    <span class="cfg-mock__avatar">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 11.5a8.4 8.4 0 0 1-12.6 7.3L3 20l1.4-5A8.4 8.4 0 1 1 21 11.5z"/>
+                        <path d="M9.5 8.5c.3 3 2 4.8 5 5"/>
+                      </svg>
+                    </span>
+                    <span class="cfg-mock__meta">
+                      <strong>WhatsApp</strong>
+                      <small>Posición en la cola</small>
+                    </span>
+                  </div>
+                  <div class="cfg-mock__body">
+                    <div class="cfg-mock__bubble cfg-mock__bubble--wa">
+                      {{ config.whatsappQueueMsg || '(vacio)' }}
+                      <span class="cfg-mock__time">ahora</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -663,8 +792,25 @@
               </div>
               <div class="cfg-field">
                 <label class="cfg-field__label">Vista previa</label>
-                <div class="cfg-preview cfg-preview--fill">
-                  <div class="cfg-bubble">{{ previewWhatsappOutOfHours() }}</div>
+                <div class="cfg-mock cfg-mock--fill cfg-mock--wa">
+                  <div class="cfg-mock__header cfg-mock__header--wa">
+                    <span class="cfg-mock__avatar">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 11.5a8.4 8.4 0 0 1-12.6 7.3L3 20l1.4-5A8.4 8.4 0 1 1 21 11.5z"/>
+                        <path d="M9.5 8.5c.3 3 2 4.8 5 5"/>
+                      </svg>
+                    </span>
+                    <span class="cfg-mock__meta">
+                      <strong>WhatsApp</strong>
+                      <small>Fuera de servicio</small>
+                    </span>
+                  </div>
+                  <div class="cfg-mock__body">
+                    <div class="cfg-mock__bubble cfg-mock__bubble--wa">
+                      {{ previewWhatsappOutOfHours() }}
+                      <span class="cfg-mock__time">ahora</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -676,8 +822,25 @@
               </div>
               <div class="cfg-field">
                 <label class="cfg-field__label">Vista previa</label>
-                <div class="cfg-preview cfg-preview--fill">
-                  <div class="cfg-bubble">{{ config.whatsappCallUnavailableMsg || '(vacio)' }}</div>
+                <div class="cfg-mock cfg-mock--fill cfg-mock--wa">
+                  <div class="cfg-mock__header cfg-mock__header--wa">
+                    <span class="cfg-mock__avatar">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 11.5a8.4 8.4 0 0 1-12.6 7.3L3 20l1.4-5A8.4 8.4 0 1 1 21 11.5z"/>
+                        <path d="M9.5 8.5c.3 3 2 4.8 5 5"/>
+                      </svg>
+                    </span>
+                    <span class="cfg-mock__meta">
+                      <strong>WhatsApp</strong>
+                      <small>Llamada entrante</small>
+                    </span>
+                  </div>
+                  <div class="cfg-mock__body">
+                    <div class="cfg-mock__bubble cfg-mock__bubble--wa">
+                      {{ config.whatsappCallUnavailableMsg || '(vacio)' }}
+                      <span class="cfg-mock__time">ahora</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -903,7 +1066,32 @@
 
             <div class="cfg-preview">
               <span class="cfg-preview__label">Vista previa del mensaje</span>
-              <div class="cfg-bubble">{{ config.asesorReconexionMsg || '(sin mensaje definido)' }}</div>
+              <div class="cfg-mock cfg-mock--chat">
+                <div class="cfg-mock__header">
+                  <span class="cfg-mock__avatar">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    </svg>
+                  </span>
+                  <span class="cfg-mock__meta">
+                    <strong>Chat en línea</strong>
+                    <small>Esperando reconexión</small>
+                  </span>
+                  <span class="cfg-mock__live cfg-mock__live--off"><i></i> Reconectando</span>
+                </div>
+                <div class="cfg-mock__body">
+                  <span class="cfg-mock__date">Hoy</span>
+                  <div class="cfg-mock__bubble cfg-mock__bubble--agent">
+                    {{ config.asesorReconexionMsg || '(sin mensaje definido)' }}
+                  </div>
+                  <div class="cfg-mock__status">
+                    <svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                    </svg>
+                    Reconectando agente...
+                  </div>
+                </div>
+              </div>
             </div>
 
           </div>
@@ -1489,5 +1677,8 @@
 
     </div>
     }
+  </div>
+
+  </div>
   </div>
 </div>

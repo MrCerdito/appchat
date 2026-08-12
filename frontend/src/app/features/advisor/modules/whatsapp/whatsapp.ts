@@ -194,6 +194,8 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   showImprovePanel = false;
   isImproving      = false;
   improveTone      = 'formal';
+  improveCustomTone = '';
+  improveLength: 'short' | 'medium' | 'long' = 'medium';
   improveStep: 'tones' | 'variants' = 'tones';
   improveVariants: string[] = [];
   improveVariantIndex = -1;
@@ -201,6 +203,12 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     { id: 'formal',  label: 'Formal',  desc: 'Serio e institucional' },
     { id: 'educado', label: 'Educado', desc: 'Amable y respetuoso' },
     { id: 'directo', label: 'Directo', desc: 'Claro y sin rodeos' },
+    { id: 'custom',  label: 'Personalizado', desc: 'Escribe el tono que quieras' },
+  ] as const;
+  readonly improveLengths = [
+    { id: 'short',  label: 'Corta' },
+    { id: 'medium', label: 'Normal' },
+    { id: 'long',   label: 'Extensa' },
   ] as const;
 
   ghostSuggestion = '';
@@ -2475,6 +2483,9 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
   }
 
   get improveToneLabel(): string {
+    if (this.improveTone === 'custom') {
+      return this.improveCustomTone?.trim() || 'Personalizado';
+    }
     return (
       this.improveTones.find(t => t.id === this.improveTone)?.label ??
       this.improveTone
@@ -2497,6 +2508,17 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     if (!draft || this.isImproving || !this.activeContact) return;
 
     const c = this.activeContact;
+    const tone =
+      this.improveTone === 'custom'
+        ? (this.improveCustomTone?.trim() || 'formal')
+        : this.improveTone;
+    const ultimoCliente = [...(c.messages ?? [])]
+      .reverse()
+      .find(m => !m.fromMe);
+    const context = ultimoCliente?.body
+      ? ultimoCliente.body.slice(0, 500)
+      : undefined;
+
     this.isImproving = true;
     try {
       const res = await firstValueFrom(
@@ -2505,12 +2527,15 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
           clientName: c.name,
           institution: c.institution,
           role: c.role,
-          tone: this.improveTone,
+          tone,
+          length: this.improveLength,
+          context,
         }),
       );
       const variants = (res.replies ?? [])
         .map(v => (v ?? '').trim())
         .filter(Boolean)
+        .filter((v, i, arr) => arr.findIndex(x => x === v) === i)
         .slice(0, 3);
       if (variants.length) {
         this.improveVariants = variants;

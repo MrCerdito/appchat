@@ -133,10 +133,11 @@ private streamSub: any;
   private horarioPollInterval: any = null;
   readonly nombresDias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
   readonly rolesLabels: Record<string, string> = {
-  estudiante: 'Estudiante',
-  docente    : 'Docente',
-  padre      : 'Padre / Madre',
-  admin      : 'Administrativo',
+  estudiante   : 'Estudiante',
+  docente      : 'Docente',
+  administrador: 'Administrador',
+  padre        : 'Padre / Madre',
+  admin        : 'Administrativo',
 };
 
 get rolLabel(): string {
@@ -1472,7 +1473,7 @@ get rolLabel(): string {
           .replace(/\[FEEDBACK:(YES|NO)\]\s*$/, '')
           .trim();
 
-        const mostrarEncuesta = this.streamingText.includes('[FEEDBACK:YES]');
+        const mostrarEncuesta = /\[FEEDBACK:YES\]\s*$/.test(this.streamingText);
 
         (this.messages[botMsgIndex] as any).content   = textoLimpio;
         (this.messages[botMsgIndex] as any).documentos = this.streamDocumentos;

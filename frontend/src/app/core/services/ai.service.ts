@@ -26,7 +26,9 @@ export interface WhatsappDraftImproveRequest {
   clientName?: string;
   institution?: string;
   role?: string;
+  context?: string;
   tone?: string;
+  length?: 'short' | 'medium' | 'long';
 }
 
 export interface WhatsappSummaryRequest {

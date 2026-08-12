@@ -43,6 +43,7 @@ export class AiController {
       dto.colegio ?? '',
       dto.tipoSolicitud ?? '',
       dto.rol ?? 'estudiante',
+      dto.sessionId,
     );
   }
 
@@ -54,7 +55,9 @@ export class AiController {
       clientName?: string;
       institution?: string;
       role?: string;
+      context?: string;
       tone?: string;
+      length?: 'short' | 'medium' | 'long';
     },
   ) {
     if (!body.draft?.trim()) return { replies: [] };
@@ -62,7 +65,8 @@ export class AiController {
       clientName: body.clientName ?? '',
       institution: body.institution ?? '',
       role: body.role ?? '',
-    }, body.tone ?? 'formal');
+      context: body.context ?? '',
+    }, body.tone ?? 'formal', body.length ?? 'medium');
   }
 
   @Post('whatsapp/summary')
