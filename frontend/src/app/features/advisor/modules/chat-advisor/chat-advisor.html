@@ -125,12 +125,29 @@
             <polyline points="15 18 9 12 15 6"></polyline>
           </svg>
         </button>
-        <div class="header-avatar">{{ safeInitial(activeSession.clientName) }}</div>
+        <div class="header-avatar">
+          {{ safeInitial(activeSession.clientName) }}
+          <span class="presence-dot" [ngClass]="clientPresenceClass(activeSession)"
+                [title]="clientPresenceLabel(activeSession)"></span>
+        </div>
         <div class="header-meta">
           <span class="header-name">{{ sessionFullName(activeSession) }}</span>
-          <span class="client-presence-pill" [ngClass]="clientPresenceClass(activeSession)">
-            {{ clientPresenceLabel(activeSession) }}
-          </span>
+          <div class="header-info-row">
+            <span class="info-status" [ngClass]="clientPresenceClass(activeSession)"
+                  [title]="clientPresenceLabel(activeSession)"></span>
+            @if (activeSession.rol) {
+            <span class="info-chip" title="Rol">
+              <wa-icon name="id" size="13"></wa-icon>
+              <span class="info-text">{{ activeSession.rol }}</span>
+            </span>
+            }
+            @if (activeSession.colegio) {
+            <span class="info-chip" title="Colegio">
+              <wa-icon name="building" size="13"></wa-icon>
+              <span class="info-text">{{ activeSession.colegio }}</span>
+            </span>
+            }
+          </div>
         </div>
       </div>
       <div class="header-actions">
@@ -530,6 +547,26 @@
         <div class="panel-ava">{{ safeInitial(activeSession.clientName) }}</div>
         <div class="panel-name">{{ sessionFullName(activeSession) }}</div>
         <div class="panel-req-label">{{ activeSession.identificacion || 'Sin identificacion' }}</div>
+        @if (activeSession.email || activeSession.celular) {
+        <div class="panel-contact">
+          @if (activeSession.email) {
+          <div class="panel-contact-item" title="Correo electrónico">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="4" width="20" height="16" rx="2"></rect><path d="M22 6l-10 7L2 6"></path>
+            </svg>
+            <span>{{ activeSession.email }}</span>
+          </div>
+          }
+          @if (activeSession.celular) {
+          <div class="panel-contact-item" title="Número celular">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 4h4l2 5l-2.5 1.5a11 11 0 0 0 5 5l1.5 -2.5l5 2v4a2 2 0 0 1 -2 2a16 16 0 0 1 -15 -15a2 2 0 0 1 2 -2"></path>
+            </svg>
+            <span>{{ activeSession.celular }}</span>
+          </div>
+          }
+        </div>
+        }
         <span class="req-tag">{{ activeSession.tipoSolicitud || 'Solicitud general' }}</span>
       </section>
 

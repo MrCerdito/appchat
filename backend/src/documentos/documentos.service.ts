@@ -2,6 +2,7 @@ import {
   Injectable,
   Logger,
   OnApplicationBootstrap,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
@@ -20,6 +21,35 @@ export function normalizarColegio(value?: string | null): string {
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+// Palabras genéricas sin carga informativa (saludos, muletillas, verbos vacíos).
+// Si una consulta solo contiene estas, no hay tema que buscar en la base.
+const STOPWORDS = new Set([
+  'hola', 'buenas', 'buenos', 'buen', 'dias', 'tardes', 'noches', 'saludos',
+  'hello', 'hey', 'hi', 'oye', 'mira', 'que', 'como', 'para', 'por', 'con',
+  'los', 'las', 'un', 'una', 'unos', 'unas', 'el', 'la', 'lo', 'del', 'al',
+  'quiero', 'quieres', 'necesito', 'necesita', 'puedes', 'puedo', 'puede',
+  'podrias', 'podria', 'ayudar', 'ayudame', 'ayuda', 'preguntar', 'pregunta',
+  'saber', 'sabe', 'sabes', 'decir', 'dime', 'dame', 'cuentame', 'cuenta',
+  'tengo', 'tienes', 'tiene', 'hacer', 'haces', 'hago', 'estoy', 'estas',
+  'esta', 'estas', 'mucho', 'mucha', 'muchas', 'muchos', 'gracias', 'favor',
+  'porfavor', 'pues', 'entonces', 'asi', 'tambien', 'también', 'pero', 'ser',
+  'sea', 'sido', 'podria', 'pueden', 'pasame', 'envia', 'enviar', 'mandar',
+  'manda', 'revisa', 'revisar', 'buscar', 'busca', 'informacion',
+]);
+
+// Extrae los tokens con carga informativa de una consulta: normaliza
+// (minúsculas, sin tildes), divide y descarta stopwords y palabras cortas.
+function tokensInformativos(query: string): string[] {
+  const limpio = (query ?? '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+  return limpio
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((w) => w.length >= 4 && !STOPWORDS.has(w))
+    .slice(0, 8);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -55,11 +85,12 @@ export class DocumentosService implements OnApplicationBootstrap {
   private readonly CHUNK_SIZE = 1200;
   private readonly CHUNK_OVERLAP = 150;
   private readonly EMBEDDING_DIM = 768;
-  // Umbral de recuperación: por debajo de 0.60 el chunk se trae de la BD.
-  private readonly RETRIEVAL_THRESHOLD = 0.60;
-  // Umbral de "match fuerte": solo documentos con distancia menor a este valor
-  // se adjuntan a la respuesta / contexto de la IA (evita ruido de matches débiles).
-  private readonly DOC_MATCH_THRESHOLD = 0.45;
+  // Umbral de recuperación semántica (0.66: balancea recall y precisión; los
+  // matches por palabras/título garantizan los instructivos sin depender de él).
+  private readonly RETRIEVAL_THRESHOLD = 0.66;
+  // Umbral de "match fuerte" (0.52): los keyword matches por título/descripción
+  // usan distancia sintética 0.05/0.40, así que caen en este tier.
+  private readonly DOC_MATCH_THRESHOLD = 0.52;
 
   constructor(
     @InjectRepository(Documento)
@@ -78,6 +109,9 @@ export class DocumentosService implements OnApplicationBootstrap {
       );
       await this.dataSource.query(
         `ALTER TABLE documentos ADD COLUMN IF NOT EXISTS colegio_norm text`,
+      );
+      await this.dataSource.query(
+        `ALTER TABLE documentos ADD COLUMN IF NOT EXISTS instructivo boolean NOT NULL DEFAULT false`,
       );
       this.logger.log('[RAG] pgvector inicializado (extensión + columnas embedding_vec/colegio_norm)');
       await this.repararEmbeddingVec();
@@ -98,6 +132,7 @@ export class DocumentosService implements OnApplicationBootstrap {
     categoria: string;
     colegio?: string;
     rolesPermitidos: string[];
+    instructivo?: boolean;
     pdfBuffer: Buffer;
     pdfPath: string;
     pdfUrl: string;
@@ -130,6 +165,7 @@ export class DocumentosService implements OnApplicationBootstrap {
           colegioNorm: normalizarColegio(data.colegio) || null,
           categoria: data.categoria,
           rolesPermitidos: data.rolesPermitidos.join(','),
+          instructivo: data.instructivo ?? false,
           activo: true,
         });
 
@@ -161,16 +197,17 @@ export class DocumentosService implements OnApplicationBootstrap {
   // ─────────────────────────────────────────────────────────────────────────
   async buscarRelevantes(
     query: string,
-    colegio?: string,
     rol?: string,
-    topK = 3,
-    categoriaPref?: string,
+    topK = 8,
   ): Promise<{
     contexto: string;
     documentos: {
       nombre: string;
       pdfUrl: string | null;
       categoria: string | null;
+      descripcion: string | null;
+      instructivo: boolean | null;
+      distancia: number;
     }[];
     chunks: {
       nombre: string;
@@ -183,87 +220,68 @@ export class DocumentosService implements OnApplicationBootstrap {
   }> {
     if (!query.trim()) return { contexto: '', documentos: [], chunks: [] };
 
-    const queryEmbedding = await this.generarEmbedding(query);
-    const vectorStr = `[${queryEmbedding.join(',')}]`;
-
     const aliases = resolverAliases(rol);
+    const tokens = tokensInformativos(query);
+
+    // Gate de informatividad: sin tokens con carga informativa ("hola", "que
+    // tal", "gracias"...) no hay tema que buscar → nada que recuperar.
+    if (!tokens.length) {
+      this.logger.log(
+        `[RAG] consulta no informativa ("${query}") → sin documentos | rol=${rol}`,
+      );
+      return { contexto: '', documentos: [], chunks: [] };
+    }
+
     this.logger.log(
-      `[RAG] rol="${rol}" → aliases=${JSON.stringify(aliases)} | colegio="${colegio}" | catPref="${categoriaPref}"`,
+      `[RAG] rol="${rol}" → aliases=${JSON.stringify(aliases)} | tokens=${JSON.stringify(tokens)}`,
     );
 
-    let sql = `
-      SELECT
-        id, nombre, contenido, pdf_url, categoria, chunk_index, roles_permitidos,
-        embedding_vec <=> $1::vector AS distancia
-      FROM documentos
-      WHERE activo = true
-        AND embedding_vec IS NOT NULL
-        AND embedding_vec <=> $1::vector < ${this.RETRIEVAL_THRESHOLD}
-    `;
-    const params: any[] = [vectorStr];
+    // ── FAST PATH: búsqueda por palabras (sin llamadas externas). Si encuentra
+    // un match FUERTE (título/descripción 0.05 o contenido con ≥2 tokens 0.40),
+    // se usa directamente y se omite la API de embeddings → respuesta inmediata
+    // e inmune a fallas de la API de embeddings.
+    const porTexto = await this.buscarPorTexto(tokens, rol, topK);
+    const fuerte = porTexto.filter(
+      (r) => parseFloat(r.distancia ?? 1) < this.DOC_MATCH_THRESHOLD,
+    );
 
-    // Filtro colegio: acepta NULL (documentos para todos los colegios).
-    // Se compara con el valor normalizado (colegio_norm) para que no importen
-    // mayúsculas, espacios ni tildes; fallback a texto limpio para registros
-    // legacy todavía sin colegio_norm.
-    if (colegio) {
-      const norm = normalizarColegio(colegio);
-      sql +=
-        ` AND (colegio IS NULL OR colegio_norm = $${params.length + 1}` +
-        ` OR (colegio_norm IS NULL AND LOWER(TRIM(colegio)) = LOWER(TRIM($${params.length + 2}))))`;
-      params.push(norm, colegio);
-    }
-
-    // Filtro rol: acepta NULL (documentos públicos) y CSV vacío (público por
-    // defecto). Solo roles cuyo token coincida EXACTAMENTE dentro del CSV
-    // (evita matches parciales tipo "padre" dentro de "compadres" o
-    // "estudiante" dentro de "estudiantil").
-    if (aliases.length > 0) {
-      const orClauses: string[] = [];
-      for (const alias of aliases) {
-        const p = (n: number) => `$${params.length + n}`;
-        orClauses.push(
-          `roles_permitidos = ${p(1)}` +
-            ` OR roles_permitidos LIKE ${p(2)} || ',%'` +
-            ` OR roles_permitidos LIKE '%,' || ${p(3)} || ',%'` +
-            ` OR roles_permitidos LIKE '%,' || ${p(4)}`,
-        );
-        params.push(alias, `${alias},%`, `%,${alias},%`, `%,${alias}`);
-      }
-      sql += ` AND (roles_permitidos IS NULL OR roles_permitidos = '' OR (${orClauses.join(' OR ')}))`;
-    }
-
-    // Priorizar o dar boost (ORDER BY) si coincide con la categoría preferida mapeada
-    if (categoriaPref) {
-      const p = `$${params.length + 1}`;
-      sql += ` ORDER BY CASE WHEN categoria = ${p} THEN 0 ELSE 1 END ASC, distancia ASC LIMIT ${topK}`;
-      params.push(categoriaPref);
+    let rows: any[];
+    if (fuerte.length > 0) {
+      rows = porTexto;
     } else {
-      sql += ` ORDER BY distancia ASC LIMIT ${topK}`;
+      // Solo se recurre a la semántica si el fast path no dio match fuerte.
+      // El ÚNICO filtro es el rol (ni categoría ni colegio condicionan).
+      let semanticos: any[] = [];
+      try {
+        const queryEmbedding = await this.generarEmbedding(query);
+        const vectorStr = `[${queryEmbedding.join(',')}]`;
+        semanticos = await this.dataSource.query(
+          `
+          SELECT
+            id, nombre, contenido, pdf_url, categoria, chunk_index, roles_permitidos,
+            instructivo, descripcion,
+            embedding_vec <=> $1::vector AS distancia
+          FROM documentos
+          WHERE activo = true
+            AND embedding_vec IS NOT NULL
+            AND embedding_vec <=> $1::vector < ${this.RETRIEVAL_THRESHOLD}
+            ${this.sqlFiltroRol(aliases)}
+          ORDER BY distancia ASC
+          LIMIT ${topK}
+          `,
+          [vectorStr],
+        );
+      } catch (err) {
+        this.logger.warn(
+          `[RAG] embeddings no disponible (${(err as Error)?.message}) → solo búsqueda por palabras`,
+        );
+      }
+      rows = this.fusionarResultados(semanticos, porTexto);
     }
 
-    let rows: any[] = [];
-    try {
-      rows = await this.dataSource.query(sql, params);
-    } catch (err) {
-      this.logger.warn(
-        '[RAG] pgvector no disponible, usando búsqueda por texto',
-      );
-      rows = await this.buscarPorTexto(query, colegio, rol, topK, categoriaPref);
-    }
-
-    // Fallback: si la búsqueda semántica no encontró nada (umbral muy estricto
-    // o preguntas generales/cortas), se usa búsqueda por texto sobre el contenido.
     if (!rows.length) {
       this.logger.warn(
-        `[RAG] 0 chunks semánticos para: "${query}" | colegio=${colegio} | rol=${rol} | aliases=${JSON.stringify(aliases)} → fallback por texto`,
-      );
-      rows = await this.buscarPorTexto(query, colegio, rol, topK, categoriaPref);
-    }
-
-    if (!rows.length) {
-      this.logger.warn(
-        `[RAG] 0 chunks para: "${query}" | colegio=${colegio} | rol=${rol} | aliases=${JSON.stringify(aliases)}`,
+        `[RAG] 0 chunks para: "${query}" | rol=${rol} | aliases=${JSON.stringify(aliases)}`,
       );
       return { contexto: '', documentos: [], chunks: [] };
     }
@@ -275,6 +293,8 @@ export class DocumentosService implements OnApplicationBootstrap {
         nombre: string;
         pdfUrl: string | null;
         categoria: string | null;
+        descripcion: string | null;
+        instructivo: boolean | null;
         mejorDistancia: number;
       }
     >();
@@ -289,6 +309,8 @@ export class DocumentosService implements OnApplicationBootstrap {
           nombre: r.nombre,
           pdfUrl: r.pdf_url,
           categoria: r.categoria,
+          descripcion: r.descripcion ?? null,
+          instructivo: r.instructivo ?? null,
           mejorDistancia: dist,
         });
       }
@@ -297,37 +319,37 @@ export class DocumentosService implements OnApplicationBootstrap {
     const distanciaDe = (row: any): number =>
       row.distancia != null ? parseFloat(row.distancia) : 1;
 
-    // Tier 1: "matches fuertes" (distancia < DOC_MATCH_THRESHOLD). Tier 2:
-    // si no hay ninguno fuerte, se usan los mejores chunks dentro del umbral
-    // de recuperación marcados como "posiblemente relacionado". Esto evita
-    // que la IA responda "no tengo información" cuando el documento del rol
-    // existe pero la similitud quedó entre 0.45 y 0.60 (consultas cortas,
-    // sinónimos, etc.).
+    // Tier 1: "matches fuertes" (distancia < DOC_MATCH_THRESHOLD, incluye los
+    // keyword matches por título/descripción con distancia sintética).
+    // Tier 2: si no hay ninguno fuerte, mejor chunk de cada documento débil
+    // (hasta 4) para no ensuciar el contexto.
     const strong = rows.filter((r) => distanciaDe(r) < this.DOC_MATCH_THRESHOLD);
     const weak = rows.filter((r) => distanciaDe(r) >= this.DOC_MATCH_THRESHOLD);
 
     const usarStrong = strong.length > 0;
     const rowsFiltrados: any[] = usarStrong
       ? strong
-      : // Tier 2: mejor chunk de cada documento débil, máx. 2 para no ensuciar.
-        Object.values(
+      : Object.values(
           weak.reduce<Record<string, any>>((acc, r) => {
             if (!acc[r.nombre] || distanciaDe(r) < distanciaDe(acc[r.nombre])) {
               acc[r.nombre] = r;
             }
             return acc;
           }, {}),
-        ).slice(0, 2);
+        ).slice(0, 4);
 
     // Documentos que la IA usará (ordenados por relevancia)
     const documentos = [...docsUnicos.values()]
       .filter((d) => rowsFiltrados.some((r) => r.nombre === d.nombre))
       .sort((a, b) => a.mejorDistancia - b.mejorDistancia)
-      .map(({ mejorDistancia, ...d }) => d);
+      .map(({ mejorDistancia, ...d }) => ({
+        ...d,
+        distancia: mejorDistancia,
+      }));
 
     // Contexto con etiqueta por chunk. En tier 2 se advierte que la relación
     // es posible (la IA decide no inventar sobre ella).
-    const MAX_CONTEXT_CHARS = 2500;
+    const MAX_CONTEXT_CHARS = 4500;
     const contexto = rowsFiltrados
       .map((r, i) => {
         const header = `[Documento ${i + 1}: ${r.nombre} — roles permitidos: ${
@@ -367,18 +389,56 @@ export class DocumentosService implements OnApplicationBootstrap {
     };
   }
 
+  // Filtro SQL de rol (ÚNICA condición de entrega). Acepta NULL/CSV vacío como
+  // público y exige coincidencia EXACTA de token dentro del CSV.
+  private sqlFiltroRol(aliases: string[]): string {
+    if (!aliases.length) return '';
+    const clauses = aliases.map(
+      (a) =>
+        `roles_permitidos = '${a}'` +
+        ` OR roles_permitidos LIKE '${a},%'` +
+        ` OR roles_permitidos LIKE '%,${a},%'` +
+        ` OR roles_permitidos LIKE '%,${a}'`,
+    );
+    return ` AND (roles_permitidos IS NULL OR roles_permitidos = '' OR (${clauses.join(
+      ' OR ',
+    )}))`;
+  }
+
+  // Fusiona resultados semánticos + de texto por id de chunk conservando la
+  // MEJOR (menor) distancia de cada chunk. Así un match por título/descripción
+  // (distancia sintética 0.05) gana aunque el embedding de ese chunk esté débil.
+  private fusionarResultados(semanticos: any[], porTexto: any[]): any[] {
+    const porId = new Map<number, any>();
+    const poner = (r: any) => {
+      const prev = porId.get(r.id);
+      if (
+        !prev ||
+        parseFloat(r.distancia ?? 1) < parseFloat(prev.distancia ?? 1)
+      ) {
+        porId.set(r.id, r);
+      }
+    };
+    for (const r of semanticos) poner(r);
+    for (const r of porTexto) poner(r);
+    return [...porId.values()].sort(
+      (a, b) =>
+        parseFloat(a.distancia ?? 1) - parseFloat(b.distancia ?? 1),
+    );
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
   // LISTAR
   // ─────────────────────────────────────────────────────────────────────────
   async listar(): Promise<any[]> {
     const rows = await this.dataSource.query(`
       SELECT
-        nombre, descripcion, categoria, colegio, pdf_url, activo,
+        nombre, descripcion, categoria, colegio, pdf_url, activo, instructivo,
         MAX(total_chunks)     as total_chunks,
         MIN(created_at)       as created_at,
         MAX(roles_permitidos) as roles_permitidos
       FROM documentos
-      GROUP BY nombre, descripcion, categoria, colegio, pdf_url, activo
+      GROUP BY nombre, descripcion, categoria, colegio, pdf_url, activo, instructivo
       ORDER BY MIN(created_at) DESC
     `);
     return rows;
@@ -388,28 +448,60 @@ export class DocumentosService implements OnApplicationBootstrap {
   // ACTUALIZAR ROLES
   // ─────────────────────────────────────────────────────────────────────────
   async actualizarRoles(
-    nombre: string,
+    nombreOriginal: string,
     data: {
+      nombre?: string;
       descripcion: string;
-      categoria: string;
+      categoria?: string;
       colegio: string | null;
       rolesPermitidos: string;
+      instructivo?: boolean;
     },
   ): Promise<{ ok: boolean }> {
+    const nombreNuevo = data.nombre?.trim();
+
+    // Renombrar: verificar que el nuevo nombre no esté en uso (nombre es PK).
+    if (
+      nombreNuevo &&
+      nombreNuevo.toLowerCase() !== nombreOriginal.toLowerCase()
+    ) {
+      const dup = await this.dataSource.query(
+        `
+        SELECT 1 FROM documentos
+        WHERE LOWER(nombre) = LOWER($1)
+          AND LOWER(nombre) <> LOWER($2)
+        LIMIT 1
+      `,
+        [nombreNuevo, nombreOriginal],
+      );
+      if (dup.length) {
+        throw new BadRequestException(
+          `Ya existe un documento llamado "${nombreNuevo}"`,
+        );
+      }
+    }
+
     await this.dataSource.query(
       `
       UPDATE documentos
-      SET descripcion = $1, categoria = $2, colegio = $3, colegio_norm = $4,
-          roles_permitidos = $5
-      WHERE nombre = $6
+      SET nombre = COALESCE($1, nombre),
+          descripcion = $2,
+          categoria = COALESCE($3, categoria),
+          colegio = $4,
+          colegio_norm = $5,
+          roles_permitidos = $6,
+          instructivo = $7
+      WHERE nombre = $8
     `,
       [
+        nombreNuevo || null,
         data.descripcion || null,
-        data.categoria,
+        data.categoria ?? null,
         data.colegio || null,
         normalizarColegio(data.colegio) || null,
         normalizarRolesCsv(data.rolesPermitidos),
-        nombre,
+        data.instructivo ?? false,
+        nombreOriginal,
       ],
     );
     return { ok: true };
@@ -568,82 +660,87 @@ export class DocumentosService implements OnApplicationBootstrap {
   }
 
   private async generarEmbedding(texto: string): Promise<number[]> {
-    const response = await fetch(this.embedUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': this.apiKey,
-      },
-      body: JSON.stringify({
-        model: 'models/gemini-embedding-001',
-        content: { parts: [{ text: texto.slice(0, 2000) }] },
-        outputDimensionality: this.EMBEDDING_DIM,
-      }),
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10_000);
+    try {
+      const response = await fetch(this.embedUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': this.apiKey,
+        },
+        body: JSON.stringify({
+          model: 'models/gemini-embedding-001',
+          content: { parts: [{ text: texto.slice(0, 2000) }] },
+          outputDimensionality: this.EMBEDDING_DIM,
+        }),
+        signal: controller.signal,
+      });
 
-    if (!response.ok) {
-      const err = await response.text();
-      throw new Error(`Gemini embedding error: ${response.status} - ${err}`);
+      if (!response.ok) {
+        const err = await response.text();
+        throw new Error(`Gemini embedding error: ${response.status} - ${err}`);
+      }
+
+      const data = await response.json();
+      return data.embedding?.values ?? [];
+    } catch (err: any) {
+      if (err?.name === 'AbortError') {
+        throw new Error('Gemini embedding timeout (10s)');
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeoutId);
     }
-
-    const data = await response.json();
-    return data.embedding?.values ?? [];
   }
 
+  // Búsqueda por palabras sobre nombre, descripción y contenido. Los matches
+  // en TÍTULO/descripción reciben distancia sintética baja (0.05) y los de solo
+  // contenido 0.40, para que queden en el tier fuerte y arriba en el ranking.
+  // Búsqueda por palabras sobre título, descripción y contenido. Escalera de
+  // relevancia (distancia sintética):
+  //   0.05 → match en TÍTULO/descripción (evidencia fuerte de tema)
+  //   0.40 → match en contenido con ≥2 tokens (relacionado)
+  //   0.60 → match en contenido con 1 solo token (débil, solo entra si no hay
+  //          nada fuerte: tier "posiblemente relacionado")
+  // Los tokens ya vienen filtrados por `tokensInformativos` (sin stopwords).
   private async buscarPorTexto(
-    query: string,
-    colegio?: string,
+    tokens: string[],
     rol?: string,
-    topK = 4,
-    categoriaPref?: string,
+    topK = 8,
   ): Promise<any[]> {
-    const words = query
-      .toLowerCase()
-      .split(' ')
-      .filter((w) => w.length > 3);
-    if (!words.length) return [];
+    if (!tokens.length) return [];
 
-    const aliases = resolverAliases(rol);
+    const n = tokens.length;
+    const likes = tokens.map((w) => `%${w}%`);
+    const contentLikes = tokens
+      .map((_, i) => `LOWER(contenido) LIKE $${i + 1}`)
+      .join(' + ');
+    const nombreClause = `(${tokens
+      .map((_, i) => `LOWER(nombre) LIKE $${n + i + 1}`)
+      .join(' OR ')})`;
+    const descripcionClause = `(${tokens
+      .map((_, i) => `LOWER(COALESCE(descripcion, '')) LIKE $${2 * n + i + 1}`)
+      .join(' OR ')})`;
+    const tituloODesc = `${nombreClause} OR ${descripcionClause}`;
 
-    let sql = `
-      SELECT nombre, contenido, pdf_url, categoria, chunk_index, roles_permitidos,
-             0 AS distancia
+    const params: any[] = [...likes, ...likes, ...likes];
+    const sql = `
+      SELECT
+        id, nombre, contenido, pdf_url, categoria, chunk_index, roles_permitidos,
+        instructivo, descripcion,
+        CASE
+          WHEN ${tituloODesc} THEN 0.05
+          WHEN (${tokens.map((_, i) => `(LOWER(contenido) LIKE $${i + 1})::int`).join(' + ')}) >= 2 THEN 0.40
+          ELSE 0.60
+        END AS distancia
       FROM documentos
       WHERE activo = true
-        AND (${words.map((_, i) => `LOWER(contenido) LIKE $${i + 1}`).join(' OR ')})
+        AND (${tituloODesc} OR (${tokens.map((_, i) => `(LOWER(contenido) LIKE $${i + 1})::int`).join(' + ')}) >= 1)
+        ${this.sqlFiltroRol(resolverAliases(rol))}
+      ORDER BY distancia ASC
+      LIMIT ${topK}
     `;
-    const params = words.map((w) => `%${w}%`);
-
-    if (colegio) {
-      const norm = normalizarColegio(colegio);
-      sql +=
-        ` AND (colegio IS NULL OR colegio_norm = $${params.length + 1}` +
-        ` OR (colegio_norm IS NULL AND LOWER(TRIM(colegio)) = LOWER(TRIM($${params.length + 2}))))`;
-      params.push(norm, colegio);
-    }
-
-    if (aliases.length > 0) {
-      const orClauses: string[] = [];
-      for (const alias of aliases) {
-        const p = (n: number) => `$${params.length + n}`;
-        orClauses.push(
-          `roles_permitidos = ${p(1)}` +
-            ` OR roles_permitidos LIKE ${p(2)} || ',%'` +
-            ` OR roles_permitidos LIKE '%,' || ${p(3)} || ',%'` +
-            ` OR roles_permitidos LIKE '%,' || ${p(4)}`,
-        );
-        params.push(alias, `${alias},%`, `%,${alias},%`, `%,${alias}`);
-      }
-      sql += ` AND (roles_permitidos IS NULL OR roles_permitidos = '' OR (${orClauses.join(' OR ')}))`;
-    }
-
-    if (categoriaPref) {
-      const p = `$${params.length + 1}`;
-      sql += ` ORDER BY CASE WHEN categoria = ${p} THEN 0 ELSE 1 END ASC LIMIT ${topK}`;
-      params.push(categoriaPref);
-    } else {
-      sql += ` LIMIT ${topK}`;
-    }
     return this.dataSource.query(sql, params);
   }
 }

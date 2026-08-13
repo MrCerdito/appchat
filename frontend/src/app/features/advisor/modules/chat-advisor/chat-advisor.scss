@@ -579,6 +579,22 @@ a {
   font-size: 18px;
   font-weight: 600;
   flex-shrink: 0;
+  position: relative;
+}
+
+.presence-dot {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2.5px solid $surface;
+  box-sizing: border-box;
+
+  &.presence-active { background: $success; }
+  &.presence-open   { background: $primary; }
+  &.presence-offline{ background: $text-faint; }
 }
 
 .header-meta {
@@ -598,38 +614,43 @@ a {
   text-overflow: ellipsis;
 }
 
-.client-presence-pill {
+.header-info-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.info-status {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+
+  &.presence-active { background: $success; box-shadow: 0 0 0 3px rgba($success, 0.18); }
+  &.presence-open   { background: $primary; }
+  &.presence-offline{ background: $text-faint; }
+}
+
+.info-chip {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 2px 8px;
-  border-radius: $radius-pill;
+  gap: 4px;
+  min-width: 0;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
+  color: $text-faint;
 
-  &::before {
-    content: '';
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-  }
-
-  &.presence-active {
-    color: $success;
-    background: $success-soft;
-    &::before { background: $success; box-shadow: 0 0 0 3px rgba($success, 0.2); }
-  }
-
-  &.presence-open {
-    color: $primary;
-    background: $primary-soft;
-    &::before { background: $primary; }
-  }
-
-  &.presence-offline {
+  wa-icon {
     color: $text-faint;
-    background: $surface-hover;
-    &::before { background: $text-faint; }
+    opacity: 0.75;
+    flex-shrink: 0;
+  }
+
+  .info-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }
 
@@ -1624,6 +1645,39 @@ a {
   margin-top: 6px;
 }
 
+.panel-contact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+  text-align: left;
+}
+
+.panel-contact-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+  color: $text-secondary;
+  background: $surface-hover;
+  border-radius: 8px;
+  padding: 5px 8px;
+
+  svg {
+    width: 13px;
+    height: 13px;
+    flex-shrink: 0;
+    color: $text-faint;
+  }
+
+  span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
 // Panel actions
 .panel-actions {
   display: flex;
@@ -2423,7 +2477,8 @@ a {
   .chat-header { padding: 10px 12px; gap: 10px; }
   .header-avatar { width: 38px; height: 38px; font-size: 14px; }
   .header-name { font-size: 13px; }
-  .client-presence-pill { font-size: 10px; padding: 1px 6px; }
+  .info-chip { font-size: 10px; gap: 3px; }
+  .presence-dot { width: 11px; height: 11px; border-width: 2px; }
   .chat-messages { padding: 12px; gap: 12px; }
   .msg { width: 100%; max-width: 100%; }
   .chat-input { padding: 8px 12px 10px; gap: 8px; }

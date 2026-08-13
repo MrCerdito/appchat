@@ -98,7 +98,13 @@ export class ChatComponent implements OnInit, OnDestroy {
   // ── SSE Streaming ──────────────────────────────────────────────────────────
 streamingText    = '';
 isStreaming      = false;
-  streamDocumentos : any[] = [];
+  streamDocumentos : {
+    nombre: string;
+    pdfUrl: string | null;
+    categoria: string | null;
+    descripcion?: string | null;
+    instructivo?: boolean | null;
+  }[] = [];
 
 
 
@@ -112,7 +118,11 @@ isStreaming      = false;
   rol            = '';
   colegio        = '';
   colegioLink    = '';
+  email          = '';
+  celular        = '';
   tipoSolicitud  = '';
+  aceptaTratamiento = false;
+  showTratamientoDatos = false;
   submitted      = false;
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -143,14 +153,44 @@ get rolLabel(): string {
 }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // COLEGIOS
+  // COLEGIOS (detección automática por URL de la página donde está el widget)
   // ══════════════════════════════════════════════════════════════════════════
 
   colegios            : Colegio[] = [];
-  colegiosFiltrados   : Colegio[] = [];
-  colegioQuery        = '';
-  colegioSeleccionado : Colegio | null = null;
-  showDropdown        = false;
+  colegioDetectado    : Colegio | null = null;
+  private pageUrl     = '';
+
+  get emailValido(): boolean {
+    const e = this.email.trim().toLowerCase();
+    return e.length > 0 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
+  }
+
+  get celularValido(): boolean {
+    return /^[0-9]{7,15}$/.test(this.celular.trim());
+  }
+
+  private detectarColegio(): void {
+    if (!this.pageUrl || !this.colegios.length) return;
+    let page: URL;
+    try { page = new URL(this.pageUrl); } catch { return; }
+    const pageHost = page.hostname.toLowerCase().replace(/^www\./, '');
+    const pagePath = page.pathname.replace(/\/+$/, '') || '/';
+
+    const match = this.colegios.find((c) => {
+      if (!c.link) return false;
+      try {
+        const l = new URL(c.link);
+        if (l.hostname.toLowerCase().replace(/^www\./, '') !== pageHost) return false;
+        const lPath = l.pathname.replace(/\/+$/, '') || '/';
+        return lPath === '/' || pagePath === lPath || pagePath.startsWith(lPath + '/');
+      } catch {
+        return false;
+      }
+    });
+
+    this.colegioDetectado = match ?? null;
+    this.cdr.detectChanges();
+  }
 
   // ══════════════════════════════════════════════════════════════════════════
   // MENSAJES Y SESIÓN
@@ -302,9 +342,12 @@ get rolLabel(): string {
     // actualice solo cuando el admin guarda cambios o inicia la jornada.
     this.horarioPollInterval = setInterval(() => this.verificarJornada(), 30_000);
 
+    this.pageUrl = document.referrer || '';
+
     this.sessionService.getColegios().subscribe({
       next: (c) => {
         this.colegios = c.map(co => ({ ...co, nombre: this.sanitizeText(co.nombre), link: this.sanitizeText(co.link) }));
+        this.detectarColegio();
         this.cdr.detectChanges();
       },
       error: (err) => console.error('HTTP Error:', err),
@@ -533,62 +576,6 @@ get rolLabel(): string {
     }
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // COLEGIOS
-  // ══════════════════════════════════════════════════════════════════════════
-
-  onColegioInput(): void {
-    const q = this.colegioQuery.trim().toLowerCase();
-    if (!q) { this.colegiosFiltrados = []; this.showDropdown = false; this.colegioSeleccionado = null; return; }
-    this.colegiosFiltrados = this.colegios.filter(c => c.nombre.toLowerCase().includes(q)).slice(0, 8);
-    this.showDropdown = true;
-    const exactMatch = this.colegios.some(c => c.nombre.toLowerCase() === q);
-    if (exactMatch) {
-      const match = this.colegios.find(c => c.nombre.toLowerCase() === q)!;
-      this.colegioSeleccionado = match;
-      this.colegio = match.nombre;
-      this.colegioLink = match.link;
-    } else {
-      this.colegioSeleccionado = null;
-      this.colegio = this.colegioQuery.trim();
-      this.colegioLink = '';
-    }
-  }
-
-  onColegioBlur(): void {
-    this.showDropdown = false;
-    const q = this.colegioQuery.trim();
-    if (q && !this.colegioSeleccionado) {
-      this.colegio = q;
-      this.colegioLink = '';
-    }
-  }
-
-  selectColegio(c: Colegio): void {
-    this.colegioSeleccionado = c;
-    this.colegioQuery = c.nombre;
-    this.colegio      = c.nombre;
-    this.colegioLink  = c.link;
-    this.showDropdown = false;
-    this.cdr.detectChanges();
-  }
-
-  selectCustomColegio(): void {
-    this.colegioSeleccionado = null;
-    this.colegio = this.colegioQuery.trim();
-    this.colegioLink = '';
-    this.showDropdown = false;
-    this.cdr.detectChanges();
-  }
-
-  clearColegio(): void {
-    this.colegioSeleccionado = null;
-    this.colegioQuery = '';
-    this.colegio      = '';
-    this.colegioLink  = '';
-    this.showDropdown = false;
-  }
-
   sanitizeText(str: string): string {
     if (!str) return '';
     const el = document.createElement('textarea');
@@ -603,6 +590,21 @@ get rolLabel(): string {
       input.value = cleaned;
       this.identificacion = cleaned;
     }
+  }
+
+  onCelularInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const cleaned = input.value.replace(/[^0-9]/g, '');
+    if (input.value !== cleaned) {
+      input.value = cleaned;
+      this.celular = cleaned;
+    }
+  }
+
+  verTratamientoDatos(event: Event): void {
+    event.preventDefault();
+    this.showTratamientoDatos = true;
+    this.cdr.detectChanges();
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -632,16 +634,21 @@ get rolLabel(): string {
   startChat(): void {
     this.submitted = true;
     const valid = this.identificacion.trim() && this.clientName.trim() &&
-      this.apellido.trim() && this.rol && this.colegio.trim() && this.tipoSolicitud;
+      this.apellido.trim() && this.rol && this.colegioDetectado &&
+      this.emailValido && this.celularValido && this.tipoSolicitud && this.aceptaTratamiento;
     if (!valid) return;
+
+    const colegio = this.colegioDetectado!;
 
     this.sessionService.create({
       clientName    : this.clientName.trim(),
       identificacion: this.identificacion.trim(),
       apellido      : this.apellido.trim(),
       rol           : this.rol,
-      colegio       : this.colegio.trim(),
-      colegioLink   : this.colegioLink || null,
+      colegio       : colegio.nombre,
+      colegioLink   : colegio.link || null,
+      email         : this.email.trim().toLowerCase(),
+      celular       : this.celular.trim(),
       tipoSolicitud : this.tipoSolicitud,
     }).subscribe({
       next: (session) => {
@@ -666,10 +673,10 @@ get rolLabel(): string {
   // ★ Contexto inicial del usuario para que la IA siempre lo recuerde
   this.aiHistory = [{
     role: 'user',
-    text: `[CONTEXTO] Mi nombre es ${this.clientName}, soy ${this.rolLabel} del colegio "${this.colegio}". Mi consulta es sobre: ${this.tipoSolicitud}.`
+    text: `[CONTEXTO] Mi nombre es ${this.clientName}, soy ${this.rolLabel}${colegio.nombre ? ` del colegio "${colegio.nombre}"` : ''}. Correo: ${this.email}. Celular: ${this.celular}. Mi consulta es sobre: ${this.tipoSolicitud}.`
   }, {
     role: 'model',
-    text: `Entendido. Hola ${this.clientName}, como ${this.rolLabel} del colegio "${this.colegio}", estoy aquí para ayudarte.`
+    text: `Entendido. Hola ${this.clientName}, como ${this.rolLabel}${colegio.nombre ? ` del colegio "${colegio.nombre}"` : ''}, estoy aquí para ayudarte.`
   }];
 
   const bienvenida = `Hola ${this.clientName}, soy el asistente virtual. Estoy aquí para ayudarte con tu consulta sobre "${this.tipoSolicitud}". ¿En qué puedo ayudarte?`;
@@ -741,6 +748,10 @@ get rolLabel(): string {
         if (d.chatBubbleColor) { root.style.setProperty('--chat-bubble', d.chatBubbleColor); root.style.setProperty('--chat-bubble-text', getContrastColor(d.chatBubbleColor)); }
         if (d.chatBubbleUserColor) { root.style.setProperty('--chat-bubble-user', d.chatBubbleUserColor); root.style.setProperty('--chat-bubble-user-text', getContrastColor(d.chatBubbleUserColor)); }
         if (d.chatMarca) this.marcaChat = d.chatMarca;
+        if (d.pageUrl && d.pageUrl !== this.pageUrl) {
+          this.pageUrl = d.pageUrl;
+          this.detectarColegio();
+        }
         this.cdr.detectChanges();
       }
     });
@@ -1424,7 +1435,37 @@ get rolLabel(): string {
   this.isStreaming      = true;
   this.aiTyping         = true;
   let streamSugerirAsesor = false;
+  let guardCerro = false;
   this.cdr.detectChanges();
+
+  // Guard de finalización: si el stream nunca llega a "end" (red, Gemini lento,
+  // etc.), se cierra la burbuja con lo que haya llegado (texto + tarjetas) para
+  // que el chat nunca quede colgado en "pensando".
+  const guardTimer = setTimeout(() => {
+    if (!this.isStreaming || guardCerro) return;
+    guardCerro = true;
+    this.isStreaming = false;
+    this.aiTyping    = false;
+    const respaldo = this.streamingText
+      .replace(/SESSION_TERMINATED/g, '')
+      .replace(/TRANSFER_TO_ADVISOR/g, '')
+      .replace(/\[DOCUMENTO:[^\]]*\]/gi, '')
+      .replace(/\[FEEDBACK:(YES|NO)\]\s*$/, '')
+      .trim();
+    (this.messages[botMsgIndex] as any).content =
+      respaldo ||
+      (this.streamDocumentos?.length
+        ? 'Encontré este instructivo que te puede ayudar:'
+        : 'La respuesta se está demorando. Intenta de nuevo o escribe "agente".');
+    (this.messages[botMsgIndex] as any).documentos = this.streamDocumentos;
+    this.aiHistory.push({
+      role: 'model',
+      text: (this.messages[botMsgIndex] as any).content,
+    });
+    localStorage.setItem(AI_HISTORY_KEY,  JSON.stringify(this.aiHistory));
+    localStorage.setItem(AI_MESSAGES_KEY, JSON.stringify(this.messages));
+    this.cdr.detectChanges();
+  }, 75_000);
 
   this.aiService
     .chatStream(userMsg, historySnapshot, this.clientName, this.colegio, this.tipoSolicitud, this.rol, this.session?.id, this.bienvenidaIa)
@@ -1437,6 +1478,7 @@ get rolLabel(): string {
         }
 
         if (event === 'session_terminated') {
+          clearTimeout(guardTimer);
           this.isStreaming = false;
           this.aiTyping    = false;
           this.sesionFinalizando = true;
@@ -1451,6 +1493,7 @@ get rolLabel(): string {
           this.aiTyping = false;
           // Detectar cierre por groserías dentro del stream
           if (data.text.includes('SESSION_TERMINATED')) {
+            clearTimeout(guardTimer);
             this.isStreaming = false;
             this.step = 'blocked';
             if (this.session?.id) {
@@ -1461,6 +1504,7 @@ get rolLabel(): string {
           }
           // Detectar transfer dentro del stream → ofrecer transferencia al asesor
           if (data.text.includes('TRANSFER_TO_ADVISOR')) {
+            clearTimeout(guardTimer);
             this.isStreaming = false;
             this.aiTyping    = false;
             this.ofertasAsesorPendientes.add(botMsgIndex);
@@ -1474,6 +1518,9 @@ get rolLabel(): string {
         }
 
         if (event === 'end') {
+        clearTimeout(guardTimer);
+        if (guardCerro) return;
+        guardCerro = true;
         this.isStreaming = false;
         this.aiTyping    = false;
         if (this.step === 'blocked' || this.sesionFinalizando) return;
@@ -1486,6 +1533,7 @@ get rolLabel(): string {
         const textoLimpio = this.streamingText
           .replace(/SESSION_TERMINATED/g, '')
           .replace(/TRANSFER_TO_ADVISOR/g, '')
+          .replace(/\[DOCUMENTO:[^\]]*\]/gi, '')
           .replace(/\[FEEDBACK:(YES|NO)\]\s*$/, '')
           .trim();
 
@@ -1494,18 +1542,30 @@ get rolLabel(): string {
         // Si la IA no dio ninguna respuesta, mostrar un texto de respaldo
         // y ofrecer pasar con un asesor para que la burbuja nunca quede vacía.
         if (!textoLimpio) {
+          const respaldo = this.streamDocumentos?.length
+            ? 'Encontré este instructivo que te puede ayudar:'
+            : 'No tengo una respuesta para eso en este momento.';
           this.messages[botMsgIndex] = {
             ...this.messages[botMsgIndex],
-            content: 'No tengo una respuesta para eso en este momento.',
+            content: respaldo,
           } as any;
-          this.ofertasAsesorPendientes.add(botMsgIndex);
+          if (!this.streamDocumentos?.length) {
+            this.ofertasAsesorPendientes.add(botMsgIndex);
+          }
         } else {
           (this.messages[botMsgIndex] as any).content = textoLimpio;
         }
         (this.messages[botMsgIndex] as any).documentos = this.streamDocumentos;
 
         // Guardar texto limpio en historial
-        this.aiHistory.push({ role: 'model', text: textoLimpio || 'No tengo una respuesta para eso en este momento.' });
+        this.aiHistory.push({
+          role: 'model',
+          text:
+            textoLimpio ||
+            (this.streamDocumentos?.length
+              ? 'Encontré este instructivo que te puede ayudar:'
+              : 'No tengo una respuesta para eso en este momento.'),
+        });
 
         if (huboTransfer) {
           this.ofertasAsesorPendientes.add(botMsgIndex);
@@ -1522,18 +1582,38 @@ get rolLabel(): string {
       }
 
         if (event === 'error') {
+          clearTimeout(guardTimer);
           this.isStreaming = false;
           this.aiTyping    = false;
           (this.messages[botMsgIndex] as any).content =
-            'Lo siento, tuve un problema. Intenta de nuevo o escribe "agente".';
+            this.streamDocumentos?.length
+              ? 'Encontré este instructivo que te puede ayudar:'
+              : 'Lo siento, tuve un problema. Intenta de nuevo o escribe "agente".';
+          (this.messages[botMsgIndex] as any).documentos = this.streamDocumentos;
+          this.aiHistory.push({
+            role: 'model',
+            text: (this.messages[botMsgIndex] as any).content,
+          });
+          localStorage.setItem(AI_HISTORY_KEY,  JSON.stringify(this.aiHistory));
+          localStorage.setItem(AI_MESSAGES_KEY, JSON.stringify(this.messages));
           this.cdr.detectChanges();
         }
       },
       error: () => {
+        clearTimeout(guardTimer);
         this.isStreaming = false;
         this.aiTyping    = false;
         (this.messages[botMsgIndex] as any).content =
-          'Lo siento, tuve un problema. Intenta de nuevo o escribe "agente".';
+          this.streamDocumentos?.length
+            ? 'Encontré este instructivo que te puede ayudar:'
+            : 'Lo siento, tuve un problema. Intenta de nuevo o escribe "agente".';
+        (this.messages[botMsgIndex] as any).documentos = this.streamDocumentos;
+        this.aiHistory.push({
+          role: 'model',
+          text: (this.messages[botMsgIndex] as any).content,
+        });
+        localStorage.setItem(AI_HISTORY_KEY,  JSON.stringify(this.aiHistory));
+        localStorage.setItem(AI_MESSAGES_KEY, JSON.stringify(this.messages));
         this.cdr.detectChanges();
       },
     });
@@ -1679,6 +1759,10 @@ private normalizePhotoUrl(url: string): string {
     return `${h12}:${pad(m)} ${ampm}`;
   }
 
+  docDescripcion(doc: any): string {
+    return doc?.descripcion?.trim() || 'Documento oficial de tu institución.';
+  }
+
   copiarTexto(texto: string): void {
     navigator.clipboard.writeText(texto);
   }
@@ -1771,8 +1855,9 @@ private normalizePhotoUrl(url: string): string {
     this.step = 'faq'; this.clientName = ''; this.submitted = false;
     this.sesionFinalizando = false;
     this.identificacion = ''; this.apellido = ''; this.rol = '';
-    this.colegio = ''; this.colegioLink = ''; this.colegioQuery = '';
-    this.colegioSeleccionado = null; this.tipoSolicitud = '';
+    this.colegio = ''; this.colegioLink = ''; this.colegioDetectado = null;
+    this.email = ''; this.celular = ''; this.tipoSolicitud = '';
+    this.aceptaTratamiento = false; this.showTratamientoDatos = false;
     this.ratingEstrellas = 0; this.ratingHover = 0; this.ratingComentario = '';
     this.ratingEtiquetas = []; this.ratingEnviado = false; this.sessionIdParaRating = null;
     this.mostrarAsesoresOcupados = false; this.queuePosition = -1; this.queueTotal = null; this.clientTimer = null;

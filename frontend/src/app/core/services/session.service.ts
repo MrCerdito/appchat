@@ -64,6 +64,8 @@ export class SessionService {
     rol:            string;
     colegio:        string;
     colegioLink?:   string | null;
+    email?:         string;
+    celular?:       string;
     tipoSolicitud:  string;
   }): Observable<Session> {
     return this.http.post<Session>(`${environment.apiUrl}/sessions`, data);

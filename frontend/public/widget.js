@@ -559,6 +559,7 @@
             chatBubbleUserColor: c.chatBubbleUserColor,
             chatMarca         : c.chatMarca,
             chatAvatar        : c.chatAvatar,
+            pageUrl           : location.href,
           }, targetOrigin);
         } catch (_) {}
       });

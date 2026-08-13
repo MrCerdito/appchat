@@ -26,7 +26,7 @@ import { Message } from '../chat/entities/message.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { RolesGuard, Roles } from '../auth/roles.guard';
-import { IsString, IsNotEmpty, Length, IsOptional, IsEmail, MaxLength } from 'class-validator';
+import { IsString, IsNotEmpty, Length, IsOptional, IsEmail, MaxLength, Matches } from 'class-validator';
 import { ChatGateway } from '../chat/chat.gateway';
 
 export class CreateSessionDto {
@@ -51,13 +51,25 @@ export class CreateSessionDto {
   rol: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @Length(1, 100)
-  colegio: string;
+  colegio?: string;
 
   @IsString()
   @IsOptional()
   colegioLink?: string | null;
+
+  @IsEmail()
+  @IsOptional()
+  @MaxLength(200)
+  email?: string;
+
+  @IsString()
+  @IsOptional()
+  @Matches(/^[0-9]{7,15}$/, {
+    message: 'celular debe contener entre 7 y 15 dígitos',
+  })
+  celular?: string;
 
   @IsString()
   @IsNotEmpty()

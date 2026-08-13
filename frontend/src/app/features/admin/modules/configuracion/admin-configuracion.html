@@ -1425,7 +1425,7 @@
                 <div class="cfg-field">
                   <label class="cfg-field__label">Prompt completo</label>
                   <textarea class="cfg-textarea ia-textarea" [(ngModel)]="aiPromptPersonalizado" rows="12"
-                    placeholder="Escribe el prompt completo aqui. Puedes usar variables como CLIENT_NAME, COLEGIO, ROL, MOTIVO, DESCRIPCION_ROL, TEMAS_RESTRINGIDOS, MENSAJE_RESTRINGIDO, CONTEXTO_RAG."></textarea>
+                    placeholder="Escribe el prompt completo aqui. Puedes usar variables como CLIENT_NAME, COLEGIO, ROL, MOTIVO, DESCRIPCION_ROL, TEMAS_RESTRINGIDOS, MENSAJE_RESTRINGIDO, CONTEXTO_RAG, DOCUMENTOS_ENTREGABLES."></textarea>
                   <span class="cfg-field__hint">Variables disponibles:
                     <code [innerHTML]="'{{' + 'CLIENT_NAME' + '}}'"></code>
                     <code [innerHTML]="'{{' + 'COLEGIO' + '}}'"></code>
@@ -1435,6 +1435,7 @@
                     <code [innerHTML]="'{{' + 'TEMAS_RESTRINGIDOS' + '}}'"></code>
                     <code [innerHTML]="'{{' + 'MENSAJE_RESTRINGIDO' + '}}'"></code>
                     <code [innerHTML]="'{{' + 'CONTEXTO_RAG' + '}}'"></code>
+                    <code [innerHTML]="'{{' + 'DOCUMENTOS_ENTREGABLES' + '}}'"></code>
                   </span>
                 </div>
                 }

@@ -16,5 +16,11 @@ export interface Message {
   readAt    : string | null;
   deliveredAt?: string | null;
   attachments?: Attachment[];
-  documentos?: { nombre: string; pdfUrl: string | null; categoria: string | null }[];
+  documentos?: {
+    nombre: string;
+    pdfUrl: string | null;
+    categoria: string | null;
+    descripcion?: string | null;
+    instructivo?: boolean | null;
+  }[];
 }

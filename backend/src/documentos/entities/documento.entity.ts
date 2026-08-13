@@ -49,6 +49,10 @@ export class Documento {
   @Column({ name: 'roles_permitidos', type: 'text', nullable: true })
   rolesPermitidos: string | null;
 
+  // Instructivo: la IA lo entrega de forma proactiva y breve al cliente
+  @Column({ default: false })
+  instructivo: boolean;
+
   @Column({ default: true })
   activo: boolean;
 

@@ -106,6 +106,59 @@ function coincideTema(mensaje: string, tema: string): boolean {
   return new RegExp(`(^|\\W)${escaped}(\\W|$)`, 'i').test(msg);
 }
 
+// ── Marcadores de entrega de documentos ─────────────────────────────────────
+// La IA marca al final de la respuesta: [DOCUMENTO: <nombre exacto>]
+// (puede repetirse para entregar varios). Se parsean y validan contra los
+// documentos del RAG del rol para adjuntar los PDFs correspondientes.
+function parseDocumentoMarkers(text: string): string[] {
+  const nombres: string[] = [];
+  const re = /\[DOCUMENTO:\s*([^\]]+)\]/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    const n = m[1].trim().replace(/^["'“”`]+|["'“”`]+$/g, '');
+    if (n) nombres.push(n);
+  }
+  return [...new Set(nombres)];
+}
+
+function normalizarNombreDoc(nombre: string): string {
+  return (nombre ?? '')
+    .toLowerCase()
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ');
+}
+
+// Resuelve los documentos marcados por la IA contra los disponibles del RAG.
+// Si no hay marcadores, usa el fallback (mejores del RAG) siempre que la IA
+// haya respondido algo concreto con contexto.
+function resolverDocumentosEntregados(
+  marcados: string[],
+  disponibles: any[],
+  fallback: any[],
+  max = 3,
+): any[] {
+  if (marcados.length > 0) {
+    const resolved = marcados
+      .map((name) => {
+        const norm = normalizarNombreDoc(name);
+        return (
+          disponibles.find(
+            (d) => d?.nombre && normalizarNombreDoc(d.nombre) === norm,
+          ) ?? null
+        );
+      })
+      .filter(Boolean);
+    if (resolved.length) return resolved.slice(0, max);
+  }
+  return (fallback ?? []).slice(0, max);
+}
+
+function limpiarMarcadoresDocumento(text: string): string {
+  return (text ?? '').replace(/\[DOCUMENTO:[^\]]*\]/gi, '').trim();
+}
+
 const MAX_HISTORY_MESSAGES = 20; // ~10 turnos cliente↔IA hacia Gemini
 
 function filtrarHistorial(history: AiMessage[]): AiMessage[] {
@@ -669,13 +722,10 @@ export class AiService {
     }
 
     // ── RAG (con referencia al hilo: el usuario pregunta "¿cuándo es?" y
-    //    la búsqueda debe incluir el tema previo) ───────────────────────────
-    const { mapearTipoSolicitudACategoria } = require('../documentos/roles.util');
-    const categoriaPref = mapearTipoSolicitudACategoria(tipoSolicitud);
-
+    //    la búsqueda debe incluir el tema previo). Entrega SOLO por roles. ──
     const ragQuery = this.construirConsultaRag(message, history);
     const ragResult = await this.documentosService
-      .buscarRelevantes(ragQuery, colegio || undefined, rolNormalizado, 6, categoriaPref)
+      .buscarRelevantes(ragQuery, rolNormalizado, 12)
       .catch(() => ({ contexto: '', documentos: [], chunks: [] }));
 
     const { contexto, documentos } = ragResult;
@@ -703,6 +753,9 @@ export class AiService {
       contexto,
       tieneContexto,
       aiCfg,
+      this.buildDocumentosEntregables(documentos),
+      conducta.mensajeSinInformacion,
+      conducta.sugerirAsesorAutomatico,
     );
 
     const historyFiltered = filtrarHistorial(history);
@@ -743,7 +796,7 @@ export class AiService {
 
     const t0 = Date.now();
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30_000);
+    const timeout = setTimeout(() => controller.abort(), 60_000);
     const response = await fetch(this.apiUrl, {
       method: 'POST',
       headers: {
@@ -804,7 +857,10 @@ export class AiService {
 
     const feedbackMatch = raw.match(/\[FEEDBACK:(YES|NO)\]\s*$/);
     const showFeedback = feedbackMatch?.[1] === 'YES';
-    const reply = raw.replace(/\[FEEDBACK:(YES|NO)\]\s*$/, '').trim();
+    const marcados = parseDocumentoMarkers(raw);
+    const reply = limpiarMarcadoresDocumento(
+      raw.replace(/\[FEEDBACK:(YES|NO)\]\s*$/, ''),
+    );
     const tokens = Math.round((systemPrompt.length + message.length) / 4);
 
     this.aiLogs.guardar({
@@ -828,11 +884,12 @@ export class AiService {
       esRestringido: false,
     });
 
-    // Solo devolver el documento más relevante (ya viene ordenado por distancia)
-    // y solo si la IA realmente respondió algo concreto
+    // Documentos a entregar: los marcados por la IA (validados contra el RAG
+    // del rol) o, si no marcó ninguno, fallback con los mejores documentos.
+    // Se entregan de forma PROACTIVA cada vez que hubo contexto del rol.
     const docsParaDevolver =
-      showFeedback && tieneContexto && documentos.length > 0
-        ? [documentos[0]]
+      tieneContexto && documentos.length > 0
+        ? resolverDocumentosEntregados(marcados, documentos, documentos)
         : [];
 
     return {
@@ -1306,13 +1363,10 @@ ${transcript}`;
     }
 
     // ── RAG (con referencia al hilo: el usuario pregunta "¿cuándo es?" y
-    //    la búsqueda debe incluir el tema previo) ───────────────────────────
-    const { mapearTipoSolicitudACategoria: mapearTS } = require('../documentos/roles.util');
-    const categoriaPrefStream = mapearTS(tipoSolicitud);
-
+    //    la búsqueda debe incluir el tema previo). Entrega SOLO por roles. ──
     const ragQuery = this.construirConsultaRag(message, history);
     const ragResult = await this.documentosService
-      .buscarRelevantes(ragQuery, colegio || undefined, rolNormalizado, 6, categoriaPrefStream)
+      .buscarRelevantes(ragQuery, rolNormalizado, 12)
       .catch(() => ({ contexto: '', documentos: [], chunks: [] }));
 
     const { contexto, documentos } = ragResult;
@@ -1330,6 +1384,21 @@ ${transcript}`;
       this.logger.debug(
         `[IA] Sin contexto RAG (rol=${rolNormalizado}) → respuesta conversacional`,
       );
+    } else {
+      // ── ENTREGA PROACTIVA INMEDIATA ──────────────────────────────────────
+      // Emitir las tarjetas de los documentos del rol AHORA, antes de llamar
+      // a Gemini: el instructivo aparece aunque la generación tarde o falle.
+      // La emisión final (con marcadores) la refina después.
+      emit('metadata', {
+        documentos: documentos.slice(0, 3).map((d: any) => ({
+          nombre: d.nombre,
+          pdfUrl: d.pdfUrl,
+          categoria: d.categoria,
+          descripcion: d.descripcion ?? null,
+          instructivo: d.instructivo ?? false,
+        })),
+        sugerirAsesor: false,
+      });
     }
 
     const systemPrompt = this.buildSystemPrompt(
@@ -1340,6 +1409,9 @@ ${transcript}`;
       contexto,
       tieneContexto,
       aiCfg,
+      this.buildDocumentosEntregables(documentos),
+      conducta.mensajeSinInformacion,
+      conducta.sugerirAsesorAutomatico,
     );
 
     const historyFiltered = filtrarHistorial(history);
@@ -1380,7 +1452,7 @@ ${transcript}`;
       '?alt=sse';
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30_000);
+    const timeout = setTimeout(() => controller.abort(), 60_000);
     const onExternalAbort = () => controller.abort();
     if (signal) {
       if (signal.aborted) controller.abort();
@@ -1485,21 +1557,29 @@ ${transcript}`;
       this.logger.warn('Gemini truncado por MAX_TOKENS en chatStream()');
     }
 
-    // ── Emitir documento solo si la IA respondió algo concreto ─────────────
-    // [FEEDBACK:YES] indica que la IA resolvió una pregunta real.
-    // Solo se envía el documento con mejor distancia (documentos[0] ya viene
-    // ordenado por relevancia desde documentos.service.ts).
+    // ── Emitir documentos: los que la IA marcó con [DOCUMENTO: <nombre>] ──
+    // (validados contra el RAG del rol) o, si no marcó ninguno, fallback con
+    // los mejores documentos. Se emiten de forma PROACTIVA siempre que haya
+    // contexto del rol (no depende de [FEEDBACK:YES]).
     const respondioAlgo = /\[FEEDBACK:YES\]\s*$/.test(textoAcumulado);
+    const marcados = parseDocumentoMarkers(textoAcumulado);
+    const esTransferencia = textoAcumulado.includes('TRANSFER_TO_ADVISOR');
 
-    if (respondioAlgo && tieneContexto && documentos.length > 0) {
+    if (tieneContexto && documentos.length > 0 && !esTransferencia) {
+      const docsEntregar = resolverDocumentosEntregados(
+        marcados,
+        documentos,
+        documentos,
+        3,
+      );
       emit('metadata', {
-        documentos: [
-          {
-            nombre: documentos[0].nombre,
-            pdfUrl: documentos[0].pdfUrl,
-            categoria: documentos[0].categoria,
-          },
-        ],
+        documentos: docsEntregar.map((d: any) => ({
+          nombre: d.nombre,
+          pdfUrl: d.pdfUrl,
+          categoria: d.categoria,
+          descripcion: d.descripcion ?? null,
+          instructivo: d.instructivo ?? false,
+        })),
         sugerirAsesor: false,
       });
     } else if (
@@ -1512,6 +1592,9 @@ ${transcript}`;
       emit('metadata', { documentos: [], sugerirAsesor: true });
     }
 
+    // Limpiar marcadores [DOCUMENTO: ...] del texto devuelto
+    const textoFinal = limpiarMarcadoresDocumento(textoAcumulado);
+
     // ── Guardar log al finalizar ────────────────────────────────────────────
     this.aiLogs.guardar({
       sessionId,
@@ -1520,7 +1603,7 @@ ${transcript}`;
       tipoSolicitud,
       clientName,
       pregunta: message,
-      respuesta: textoAcumulado,
+      respuesta: textoFinal,
       chunksUsados: chunks.map((c: any) => ({
         nombre: c.nombre,
         categoria: c.categoria,
@@ -1533,7 +1616,7 @@ ${transcript}`;
       tokensEstimados: Math.round((systemPrompt.length + message.length) / 4),
     });
 
-    return textoAcumulado;
+    return textoFinal;
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -1615,6 +1698,20 @@ ${transcript}`;
       .trim();
   }
 
+  private buildDocumentosEntregables(documentos: any[]): string {
+    if (!Array.isArray(documentos) || documentos.length === 0) return '';
+    return documentos
+      .map((d) => {
+        const cat = d?.categoria ? ` (categoría: ${d.categoria})` : '';
+        const tipo = d?.instructivo
+          ? ' — INSTRUCTIVO: se entrega de forma proactiva y breve'
+          : '';
+        return `- ${d?.nombre ?? ''}${cat}${tipo}`;
+      })
+      .filter((s) => s !== '-')
+      .join('\n');
+  }
+
   private buildSystemPrompt(
     clientName: string,
     colegio: string,
@@ -1623,6 +1720,9 @@ ${transcript}`;
     contexto: string,
     tieneContexto: boolean,
     aiPromptConfig?: Record<string, any> | null,
+    documentosEntregables = '',
+    mensajeSinInformacion = '',
+    sugerirAsesorAutomatico = true,
   ): string {
     // Si hay prompt personalizado, usarlo directamente con variables reemplazadas
     if (aiPromptConfig?.promptPersonalizado) {
@@ -1645,13 +1745,25 @@ ${transcript}`;
       } else {
         prompt = prompt.replace(/\{\{CONTEXTO_RAG\}\}/g, '');
       }
+      prompt = prompt.replace(/\{\{DOCUMENTOS_ENTREGABLES\}\}/g, documentosEntregables);
       prompt +=
         '\n\nREGLA DE ROL: La información de la base de conocimiento es EXCLUSIVA para el rol ' +
         config.label +
         '. Responde SOLO con ella y nunca con datos de documentos de otros roles.';
       if (tieneContexto) {
         prompt +=
-          '\nCITAS: Cuando uses información de un documento, menciona su nombre entre corchetes (ej: [Documento 1: <nombre>]) para que el cliente sepa de dónde proviene.';
+          '\nCITAS Y ENTREGA DE DOCUMENTOS: Cuando uses información de un documento, cita su nombre exacto. Si el documento resuelve la consulta, responde en 1-3 frases y al final escribe SOLO el marcador [DOCUMENTO: <nombre exacto del documento>] (repite el marcador por cada documento que entregues). NUNCA incluyas URLs ni enlaces.';
+      } else {
+        const aviso =
+          mensajeSinInformacion || DEFAULT_MENSAJE_SIN_INFORMACION;
+        prompt +=
+          '\n\nSIN DOCUMENTOS DISPONIBLES: Si la consulta es de un tema institucional (pagos, notas, calendario, trámites, admisiones, contraseñas, acceso, etc.) y no tienes información para responderla, responde textualmente: "' +
+          aviso +
+          '"' +
+          (sugerirAsesorAutomatico
+            ? ' Solo si el usuario insiste o pide ayuda humana, responde TRANSFER_TO_ADVISOR.'
+            : '') +
+          '. No inventes datos ni procedimientos.';
       }
       return prompt;
     }
@@ -1694,8 +1806,9 @@ ${transcript}`;
         'INFORMACIÓN DE LA BASE DE CONOCIMIENTO:',
         'La siguiente información proviene de documentos oficiales del sistema.',
         'Úsala para responder con precisión. NO inventes información que no esté aquí.',
-        'Cuando uses datos de un documento, cita su nombre tal como aparece,',
-        'ej. [Documento 1: Manual de convivencia], para que el cliente sepa la fuente.',
+        'Cuando uses datos de un documento, cita su nombre EXACTO tal como aparece.',
+        'Cada fragmento trae su etiqueta [Documento N: <nombre>] como referencia interna;',
+        'no la uses como cita literal, usa el <nombre> real del documento.',
         '',
         contexto,
         '',
@@ -1705,6 +1818,14 @@ ${transcript}`;
         'NUNCA respondas con información de documentos destinados a otros roles,',
         'ni mezcles datos que no correspondan a este rol.',
       );
+      if (documentosEntregables) {
+        partes.push(
+          '',
+          'DOCUMENTOS DISPONIBLES PARA ENTREGAR A ESTE ROL:',
+          documentosEntregables,
+          'Los marcados como INSTRUCTIVO deben entregarse de forma proactiva y breve.',
+        );
+      }
     }
 
     partes.push(
@@ -1719,21 +1840,26 @@ ${transcript}`;
         ? '- Basa tu respuesta PRINCIPALMENTE en la información de la base de conocimiento.'
         : '- No tienes documentos oficiales de este rol sobre esta consulta, así que responde de forma natural.',
       tieneContexto
+        ? '- ENTREGA DE DOCUMENTOS: si un documento (sobre todo un INSTRUCTIVO) resuelve la consulta, responde en 1-3 frases (el paso o dato clave) y entrega el documento con el marcador [DOCUMENTO: <nombre exacto>] al final. NO expliques todo el documento: la tarjeta PDF se muestra debajo.'
+        : '',
+      tieneContexto
         ? '- NO inventes nada que no esté en los documentos provistos.'
         : '- NO inventes datos institucionales concretos (fechas, montos, requisitos, trámites) que no estén en los documentos.',
       tieneContexto
         ? ''
-        : '- Si la consulta es de un tema institucional (pagos, notas, calendario, trámites, admisiones, etc.) y no tienes la información, responde con naturalidad que por el momento no está registrada y ofrece pasar la consulta a un asesor humano.',
+        : `- Si la consulta es de un tema institucional (pagos, notas, calendario, trámites, admisiones, contraseñas, acceso, etc.) y no tienes la información, responde textualmente: "${mensajeSinInformacion || DEFAULT_MENSAJE_SIN_INFORMACION}"${sugerirAsesorAutomatico ? ' y ofrece pasar la consulta a un asesor humano SOLO si el usuario insiste o lo pide' : ' sin ofrecer un asesor humano a menos que el usuario lo pida'}. No inventes datos ni procedimientos.`,
       '- Si la consulta es charla trivial o conversación cotidiana (saludos, agradecimientos, preguntas personales o de cultura general), responde breve y naturalmente SIN ofrecer transferencia a asesor.',
       `- Si el cliente menciona "${frasesTransferencia}" o pide hablar con alguien, responde ÚNICAMENTE: TRANSFER_TO_ADVISOR`,
       `- Si la pregunta toca temas restringidos para el rol ${config.label}, redirige amablemente.`,
       '',
       '────────────────────────────────────────',
-      'CONTROL DE FEEDBACK',
+      'CONTROL DE FEEDBACK Y ENTREGA DE DOCUMENTOS',
       '────────────────────────────────────────',
       `Usa [FEEDBACK:YES] ${feedbackReglas}.`,
       'Usa [FEEDBACK:NO] en cualquier otro caso (saludos, ambigüedades, redirects, etc).',
-      'Agrega SIEMPRE al final exactamente uno: [FEEDBACK:YES] o [FEEDBACK:NO]',
+      'Si entregas uno o más documentos, escribe los marcadores [DOCUMENTO: <nombre exacto>]',
+      'después de la respuesta y ANTES del marcador de feedback (uno por documento).',
+      'Agrega SIEMPRE al final, en la ÚLTIMA línea, exactamente uno: [FEEDBACK:YES] o [FEEDBACK:NO]',
     );
 
     return partes.join('\n');

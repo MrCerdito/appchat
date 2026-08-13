@@ -1,11 +1,12 @@
 <!-- documentos.component.html -->
 
-<div class="docs-page">
+<div class="docs-shell" [class.detalle-open]="detalleActivo">
 
-  <!-- Header -->
-  <div class="docs-header">
-    <div class="docs-title">
-      <div class="docs-icon">
+  <!-- ── Sidebar: lista de documentos (tipo chat) ─────────────────────────── -->
+  <aside class="docs-sidebar">
+
+    <div class="sidebar-header">
+      <div class="brand-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
           stroke-linecap="round" stroke-linejoin="round">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -14,355 +15,424 @@
           <line x1="16" y1="17" x2="8" y2="17"/>
         </svg>
       </div>
-      <div>
+      <div class="sidebar-titulo">
         <h1>Base de Conocimiento</h1>
-        <p>{{ documentos.length }} documento{{ documentos.length !== 1 ? 's' : '' }} indexado{{ documentos.length !== 1 ? 's' : '' }}</p>
+        <p>{{ documentosFiltrados.length }} documento{{ documentosFiltrados.length !== 1 ? 's' : '' }}</p>
       </div>
     </div>
-    <button class="btn-primary" (click)="showForm = true; uploadResult = null; resetForm()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+
+    <div class="sidebar-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
         stroke-linecap="round" stroke-linejoin="round">
-        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
       </svg>
-      Subir documento
-    </button>
-  </div>
-
-  <!-- Éxito -->
-  @if (uploadResult) {
-  <div class="upload-success">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-      stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-    <span><strong>{{ uploadResult.nombre }}</strong> procesado — {{ uploadResult.chunks }} fragmentos indexados.</span>
-    <button class="close-success" (click)="uploadResult = null">✕</button>
-  </div>
-  }
-
-  <!-- Form subida -->
-  @if (showForm) {
-  <div class="upload-form">
-    <div class="form-header">
-      <span>{{ editMode ? 'Editar documento' : 'Subir nuevo documento' }}</span>
-      <button class="form-close" (click)="showForm = false; resetForm()">✕</button>
-    </div>
-    <div class="form-grid">
-
-      <!-- Zona archivo (solo en modo subida) -->
-      @if (!editMode) {
-      <div class="file-zone"
-        [class.has-file]="archivoSeleccionado"
-        (click)="fileInput.click()">
-        <input #fileInput type="file" accept=".pdf" (change)="onFileChange($event)" hidden/>
-        @if (!archivoSeleccionado) {
-        <svg viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-          <polyline points="17 8 12 3 7 8"/>
-          <line x1="12" y1="3" x2="12" y2="15"/>
-        </svg>
-        }
-        @if (archivoSeleccionado) {
-        <svg viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-          <polyline points="14 2 14 8 20 8"/>
-        </svg>
-        }
-        <span class="file-label">{{ archivoSeleccionado ? archivoNombre : 'Toca para seleccionar PDF' }}</span>
-        @if (!archivoSeleccionado) {
-        <span class="file-sub">Máximo 20MB</span>
-        }
-      </div>
+      <input type="text" [(ngModel)]="busqueda"
+        placeholder="Buscar por nombre, descripción o colegio..."/>
+      @if (busqueda) {
+      <button class="search-clear" (click)="busqueda = ''" title="Limpiar búsqueda">✕</button>
       }
-
-      <div class="form-fields">
-        <div class="field" [class.error]="submitted && !form.nombre.trim()">
-          <label>Nombre <span class="req">*</span></label>
-          <input type="text" [(ngModel)]="form.nombre" placeholder="Ej: Manual de Matrícula 2025" maxlength="200"/>
-          <span class="err-msg">Campo requerido</span>
-        </div>
-
-        <div class="field">
-          <label>Descripción</label>
-          <input type="text" [(ngModel)]="form.descripcion" placeholder="Breve descripción" maxlength="300"/>
-        </div>
-
-        <div class="field-row">
-          <div class="field">
-            <label>Categoría</label>
-            <select [(ngModel)]="form.categoria">
-              @for (c of categorias; track trackByIndex($index)) {
-              <option [value]="c.value">{{ c.label }}</option>
-              }
-            </select>
-          </div>
-          <div class="field">
-            <label>Colegio <span class="optional">(vacío = todos)</span></label>
-            <input type="text" [(ngModel)]="form.colegio" placeholder="Nombre del colegio"/>
-          </div>
-        </div>
-
-        <!-- Selector de roles -->
-        <div class="field">
-          <label>Roles que pueden ver este documento</label>
-          <div class="roles-check">
-            @for (r of rolesDisponibles; track trackByIndex($index)) {
-            <label class="role-opt"
-              [class.active]="tieneRol(r.value)"
-              (click)="toggleRol(r.value)">
-              @if (tieneRol(r.value)) {
-              <svg viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
-              }
-              {{ r.label }}
-            </label>
-            }
-          </div>
-        </div>
-
-        @if (uploadError) {
-        <div class="upload-error">{{ uploadError }}</div>
-        }
-
-        <div class="form-actions">
-          <button class="btn-cancel" (click)="showForm = false; resetForm()">Cancelar</button>
-          <button class="btn-submit" [disabled]="uploading"
-            (click)="editMode ? guardarEdicion() : subirDocumento()">
-            @if (uploading) {
-            <svg class="spin" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
-            </svg>
-            }
-            {{ uploading ? 'Procesando...' : editMode ? 'Guardar cambios' : 'Subir y procesar' }}
-          </button>
-        </div>
-      </div>
     </div>
-  </div>
-  }
 
-  <!-- Loading -->
-  @if (loading) {
-  <div class="loading-state">
-    <div class="spinner"></div>
-    <span>Cargando documentos...</span>
-  </div>
-  }
-
-  <!-- ── Tabla (tablet/desktop) ────────────────────────────────────── -->
-  @if (!loading && documentos.length > 0) {
-  <div class="table-wrap">
-    <table class="docs-table">
-      <thead>
-        <tr>
-          <th>Documento</th>
-          <th>Categoría</th>
-          <th>Colegio</th>
-          <th>Roles</th>
-          <th>Fragmentos</th>
-          <th>Fecha</th>
-          <th>Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (doc of documentos; track trackById($index, doc)) {
-        <tr>
-          <td>
-            <div class="doc-name-cell">
-              <div class="doc-icon-sm">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-                  stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                  <polyline points="14 2 14 8 20 8"/>
-                </svg>
-              </div>
-              <div>
-                <span class="doc-nombre">{{ doc.nombre }}</span>
-                @if (doc.descripcion) {
-                <span class="doc-desc">{{ doc.descripcion }}</span>
-                }
-              </div>
-            </div>
-          </td>
-          <td><span class="tag tag-cat">{{ getCategoriaLabel(doc.categoria) }}</span></td>
-          <td>
-            @if (doc.colegio) {
-            <span class="tag tag-colegio">{{ doc.colegio }}</span>
-            } @else {
-            <span class="tag tag-global">Todos</span>
-            }
-          </td>
-          <td>
-            <div class="roles-tags">
-              @for (r of getRolesArray(doc.roles_permitidos); track trackByIndex($index)) {
-              <span class="tag tag-rol">
-                {{ getRolLabel(r) }}
-              </span>
-              }
-              @if (!doc.roles_permitidos) {
-              <span class="tag tag-global">Todos</span>
-              }
-            </div>
-          </td>
-          <td class="center"><span class="tag tag-chunks">{{ doc.total_chunks }}</span></td>
-          <td class="muted">{{ fmtDateFull(doc.created_at) }}</td>
-          <td>
-            <div class="actions-cell">
-              @if (doc.pdf_url) {
-              <button class="action-btn action-btn--view" title="Ver PDF"
-                (click)="abrirPdf(doc.pdf_url!)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                  <circle cx="12" cy="12" r="3"/>
-                </svg>
-                Ver
-              </button>
-              }
-              <button class="action-btn action-btn--edit" (click)="abrirEdicion(doc)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                </svg>
-                Editar
-              </button>
-              <button class="action-btn action-btn--delete" (click)="confirmarEliminar(doc)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="3 6 5 6 21 6"/>
-                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                  <path d="M10 11v6M14 11v6"/>
-                </svg>
-                Eliminar
-              </button>
-            </div>
-          </td>
-        </tr>
+    <div class="sidebar-filters">
+      <select [(ngModel)]="filtroRol" title="Filtrar por rol">
+        <option value="">Todos los roles</option>
+        @for (r of rolesDisponibles; track trackByIndex($index)) {
+        <option [value]="r.value">{{ r.label }}</option>
         }
-      </tbody>
-    </table>
-  </div>
-  }
+      </select>
+      <label class="instr-pill" [class.active]="soloInstructivos" title="Solo instructivos">
+        <input type="checkbox" [(ngModel)]="soloInstructivos"/>
+        <span>Instructivos</span>
+      </label>
+      @if (tieneFiltros) {
+      <button class="clear-filters" (click)="busqueda=''; filtroRol=''; soloInstructivos=false"
+        title="Limpiar filtros">✕</button>
+      }
+    </div>
 
-  <!-- ── Cards (mobile) ────────────────────────────────────────────── -->
-  @if (!loading && documentos.length > 0) {
-  <div class="mobile-cards">
-    @for (doc of documentos; track trackById($index, doc)) {
-    <div class="mobile-card">
-
-      <div class="mobile-card-header">
-        <div class="doc-icon-sm">
+    <div class="sidebar-list">
+      @if (loading) {
+      <div class="list-loading"><div class="spinner"></div></div>
+      } @else if (documentosFiltrados.length === 0) {
+      <div class="list-empty">
+        @if (documentos.length === 0) {
+        <span>No hay documentos todavía. Sube el primero.</span>
+        } @else {
+        <span>Sin resultados para la búsqueda.</span>
+        }
+      </div>
+      } @else {
+      @for (doc of documentosFiltrados; track trackById($index, doc)) {
+      <button type="button" class="chat-item"
+        [class.active]="docSeleccionado?.nombre === doc.nombre"
+        (click)="abrirDetalle(doc)">
+        <span class="chat-avatar" [class.instr]="doc.instructivo">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
             stroke-linecap="round" stroke-linejoin="round">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
             <polyline points="14 2 14 8 20 8"/>
           </svg>
-        </div>
-        <div class="mobile-card-title">
-          <span class="doc-nombre">{{ doc.nombre }}</span>
-          @if (doc.descripcion) {
-          <span class="doc-desc">{{ doc.descripcion }}</span>
-          }
-        </div>
-        <span class="mobile-card-date">{{ fmtDateShort(doc.created_at) }}</span>
-      </div>
-
-      <div class="mobile-card-meta">
-        <span class="tag tag-cat">{{ getCategoriaLabel(doc.categoria) }}</span>
-        @if (doc.colegio) {
-        <span class="tag tag-colegio">{{ doc.colegio }}</span>
-        } @else {
-        <span class="tag tag-global">Todos</span>
-        }
-        <span class="tag tag-chunks">{{ doc.total_chunks }} fragmentos</span>
-      </div>
-
-      <div class="roles-tags">
-        @for (r of getRolesArray(doc.roles_permitidos); track trackByIndex($index)) {
-        <span class="tag tag-rol">
-          {{ getRolLabel(r) }}
         </span>
-        }
-        @if (!doc.roles_permitidos) {
-        <span class="tag tag-global">Todos los roles</span>
-        }
-      </div>
+        <span class="chat-body">
+          <span class="chat-nombre">{{ doc.nombre }}</span>
+          <span class="chat-desc">{{ doc.descripcion || 'Sin descripción' }}</span>
+          <span class="chat-meta">
+            @if (doc.instructivo) { <span class="meta-instr">● Instructivo</span> }
+            <span>{{ doc.colegio || 'Todos los colegios' }}</span>
+          </span>
+        </span>
+        <span class="chat-side">
+          <span class="chat-date">{{ fmtDateShort(doc.created_at) }}</span>
+          <span class="chat-chunks">{{ doc.total_chunks }} frg</span>
+        </span>
+      </button>
+      }
+      }
+    </div>
 
-      <div class="mobile-card-actions">
-        @if (doc.pdf_url) {
-        <button class="action-btn action-btn--view" (click)="abrirPdf(doc.pdf_url!)">
+    <div class="sidebar-footer">
+      <button type="button" class="btn-nuevo" (click)="nuevoDocumento()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+          stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        Nuevo documento
+      </button>
+    </div>
+  </aside>
+
+  <!-- ── Panel principal (detalle / formulario) ───────────────────────────── -->
+  <main class="docs-main">
+
+    @if (uploadResult) {
+    <div class="upload-success">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+        stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      <span><strong>{{ uploadResult.nombre }}</strong> procesado — {{ uploadResult.chunks }} fragmentos indexados.</span>
+      <button class="close-success" (click)="uploadResult = null" title="Cerrar">✕</button>
+    </div>
+    }
+
+    <!-- Estado vacío tipo chat -->
+    @if (!docSeleccionado && !showForm) {
+    <div class="chat-empty">
+      <div class="chat-empty-bubble">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+      </div>
+      <h2>{{ documentos.length === 0 ? 'Empieza a construir tu base de conocimiento' : 'Selecciona un documento' }}</h2>
+      <p>{{ documentos.length === 0
+            ? 'Sube un PDF para que la IA pueda usarlo al responder preguntas.'
+            : 'Elige un documento de la lista para verlo o editarlo.' }}</p>
+      @if (documentos.length === 0) {
+      <button type="button" class="btn-nuevo" (click)="nuevoDocumento()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+          stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        Subir el primer documento
+      </button>
+      }
+    </div>
+    }
+
+    <!-- Cabecera nuevo documento -->
+    @if (showForm && !editMode) {
+    <div class="thread-header">
+      <button type="button" class="back-btn" (click)="cancelarForm()" title="Volver">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+          stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      </button>
+      <span class="thread-avatar accent">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+          stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+      </span>
+      <div class="thread-title">
+        <strong>Nuevo documento</strong>
+        <span class="thread-sub">Sube un PDF para indexarlo en la base</span>
+      </div>
+    </div>
+    }
+
+    <!-- Cabecera edición -->
+    @if (docSeleccionado && showForm && editMode) {
+    <div class="thread-header">
+      <button type="button" class="back-btn" (click)="cancelarForm()" title="Volver">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+          stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      </button>
+      <span class="thread-avatar" [class.instr]="docSeleccionado.instructivo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>
+      </span>
+      <div class="thread-title">
+        <strong>{{ docSeleccionado.nombre }}</strong>
+        <span class="thread-sub">Editando documento</span>
+      </div>
+    </div>
+    }
+
+    <!-- Cabecera detalle -->
+    @if (docSeleccionado && !showForm) {
+    <div class="thread-header">
+      <button type="button" class="back-btn" (click)="cerrarDetalle()" title="Volver">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+          stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      </button>
+      <span class="thread-avatar" [class.instr]="docSeleccionado.instructivo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+        </svg>
+      </span>
+      <div class="thread-title">
+        <strong>{{ docSeleccionado.nombre }}</strong>
+        <span class="thread-sub">
+          @if (docSeleccionado.instructivo) { <span class="chip chip-instr">Instructivo</span> }
+          @if (docSeleccionado.colegio) { <span class="chip chip-colegio">{{ docSeleccionado.colegio }}</span> }
+          <span class="chip chip-muted">{{ docSeleccionado.total_chunks }} fragmentos</span>
+        </span>
+      </div>
+      <div class="thread-actions">
+        @if (docSeleccionado.pdf_url) {
+        <button type="button" class="icon-btn" (click)="abrirPdf(docSeleccionado.pdf_url!)" title="Ver PDF">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round">
             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
             <circle cx="12" cy="12" r="3"/>
           </svg>
-          Ver PDF
         </button>
         }
-        <button class="action-btn action-btn--edit" (click)="abrirEdicion(doc)">
+        <button type="button" class="icon-btn" (click)="abrirEdicion(docSeleccionado)" title="Editar">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
           </svg>
-          Editar
         </button>
-        <button class="action-btn action-btn--delete" (click)="confirmarEliminar(doc)">
+        <button type="button" class="icon-btn danger" (click)="confirmarEliminar(docSeleccionado)" title="Eliminar">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round">
             <polyline points="3 6 5 6 21 6"/>
             <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
             <path d="M10 11v6M14 11v6"/>
           </svg>
-          Eliminar
         </button>
       </div>
     </div>
     }
-  </div>
-  }
 
-  <!-- Empty state -->
-  @if (!loading && documentos.length === 0) {
-  <div class="empty-state">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"
-      stroke-linecap="round" stroke-linejoin="round">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-      <polyline points="14 2 14 8 20 8"/>
-    </svg>
-    <h3>Sin documentos aún</h3>
-    <p>Sube un PDF para que la IA pueda usarlo al responder preguntas.</p>
-    <button class="btn-primary" (click)="showForm = true">Subir primer documento</button>
-  </div>
-  }
+    <div class="thread-scroll">
 
-  <!-- Panel de prueba RAG -->
-  <div class="test-panel">
-    <div class="test-header">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-        stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-      </svg>
-      <span>Probar búsqueda semántica</span>
+      <!-- Detalle -->
+      @if (docSeleccionado && !showForm) {
+      <div class="chat-bubble doc-bubble">
+        <div class="doc-bubble-head">
+          <span class="bubble-avatar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+            </svg>
+          </span>
+          <div class="bubble-title">
+            <strong>{{ docSeleccionado.nombre }}</strong>
+            <span>Publicado {{ fmtDateFull(docSeleccionado.created_at) }}</span>
+          </div>
+          @if (docSeleccionado.pdf_url) {
+          <button type="button" class="btn-pdf" (click)="abrirPdf(docSeleccionado.pdf_url!)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Ver PDF
+          </button>
+          }
+        </div>
+
+        <div class="bubble-section">
+          <span class="bubble-label">Descripción</span>
+          <p>{{ docSeleccionado.descripcion || 'Sin descripción.' }}</p>
+        </div>
+
+        <div class="bubble-grid">
+          <div>
+            <span class="bubble-label">Roles que pueden verlo</span>
+            <div class="roles-tags">
+              @for (r of getRolesArray(docSeleccionado.roles_permitidos); track trackByIndex($index)) {
+              <span class="tag tag-rol">{{ getRolLabel(r) }}</span>
+              }
+            </div>
+          </div>
+          <div>
+            <span class="bubble-label">Colegio</span>
+            <p class="bubble-value">{{ docSeleccionado.colegio || 'Todos (sin restricción)' }}</p>
+          </div>
+        </div>
+
+        <div class="bubble-footer">
+          <span class="dot" [class.on]="docSeleccionado.instructivo"></span>
+          {{ docSeleccionado.instructivo
+              ? 'Entregado de forma proactiva por la IA'
+              : 'Se entrega solo si la IA lo encuentra relevante' }}
+        </div>
+      </div>
+      }
+
+      <!-- Formulario (subir / editar) -->
+      @if (showForm) {
+      <ng-container *ngTemplateOutlet="formBubble"></ng-container>
+      }
+
     </div>
+  </main>
+</div>
+
+<!-- ── Plantilla del formulario ──────────────────────────────────────────────── -->
+<ng-template #formBubble>
+  <div class="chat-bubble form-bubble">
+
+    @if (!editMode) {
+    <div class="file-zone" [class.has-file]="archivoSeleccionado" (click)="fileInput.click()">
+      <input #fileInput type="file" accept=".pdf" (change)="onFileChange($event)" hidden/>
+      <span class="file-zone-icon">
+        @if (!archivoSeleccionado) {
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        } @else {
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+        </svg>
+        }
+      </span>
+      <span class="file-zone-text">
+        <span class="file-label">{{ archivoSeleccionado ? archivoNombre : 'Toca para seleccionar un PDF' }}</span>
+        <span class="file-sub">{{ archivoSeleccionado ? 'Listo para procesar' : 'Máximo 20MB · solo PDF' }}</span>
+      </span>
+      @if (archivoSeleccionado) {
+      <span class="file-ok">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+          stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </span>
+      }
+    </div>
+    }
+
+    <div class="field" [class.error]="submitted && !form.nombre.trim()">
+      <label>Nombre <span class="req">*</span></label>
+      <input type="text" [(ngModel)]="form.nombre" placeholder="Ej: Manual de Matrícula 2025" maxlength="200"/>
+      <span class="err-msg">El nombre es requerido</span>
+    </div>
+
+    <div class="field">
+      <label>Descripción</label>
+      <textarea [(ngModel)]="form.descripcion" rows="2"
+        placeholder="Breve descripción de lo que contiene este documento" maxlength="300"></textarea>
+    </div>
+
+    <div class="field">
+      <label>Colegio <span class="optional">(solo referencia — la entrega se decide por roles)</span></label>
+      <input type="text" [(ngModel)]="form.colegio" placeholder="Nombre del colegio (opcional)"/>
+    </div>
+
+    <div class="field">
+      <label>Roles que pueden ver este documento</label>
+      <div class="roles-check">
+        @for (r of rolesDisponibles; track trackByIndex($index)) {
+        <button type="button" class="role-opt" [class.active]="tieneRol(r.value)"
+          (click)="toggleRol(r.value)">
+          @if (tieneRol(r.value)) {
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+            stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          }
+          {{ r.label }}
+        </button>
+        }
+      </div>
+    </div>
+
+    <label class="instructivo-toggle">
+      <input type="checkbox" [(ngModel)]="form.instructivo"/>
+      <span class="instructivo-box">
+        @if (form.instructivo) {
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+          stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        }
+      </span>
+      <span>
+        <strong>Es un instructivo</strong>
+        <span class="instructivo-sub">La IA lo entrega de forma proactiva: responde en 1-3 frases y muestra la tarjeta del PDF.</span>
+      </span>
+    </label>
+
+    @if (uploadError) {
+    <div class="upload-error">{{ uploadError }}</div>
+    }
+
+    <div class="form-actions">
+      <button type="button" class="btn-cancel" (click)="cancelarForm()">Cancelar</button>
+      <button type="button" class="btn-submit" [disabled]="uploading"
+        (click)="editMode ? guardarEdicion() : subirDocumento()">
+        @if (uploading) {
+        <svg class="spin" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+        </svg>
+        }
+        {{ uploading ? 'Procesando...' : editMode ? 'Guardar cambios' : 'Subir y procesar' }}
+      </button>
+    </div>
+  </div>
+</ng-template>
+
+<!-- ── Panel de prueba RAG (colapsable) ─────────────────────────────────────── -->
+<div class="test-panel" [class.open]="testAbierto">
+  <button type="button" class="test-toggle" (click)="testAbierto = !testAbierto">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+    <span>Probar búsqueda RAG</span>
+    <svg class="chevron" [class.rot]="testAbierto" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="6 9 12 15 18 9"/>
+    </svg>
+  </button>
+
+  @if (testAbierto) {
+  <div class="test-body">
     <div class="test-input">
-      <select [(ngModel)]="testRol" class="test-rol-select" title="Filtrar por rol">
+      <select [(ngModel)]="testRol" class="test-rol-select" title="Probar como rol">
         @for (r of rolesDisponibles; track trackByIndex($index)) {
         <option [value]="r.value">{{ r.label }}</option>
         }
       </select>
-      <input type="text" [(ngModel)]="testColegio" class="test-colegio-input" placeholder="Colegio (opcional)..." title="Filtrar por colegio"/>
       <input type="text" [(ngModel)]="testQuery"
-        placeholder="Escribe una pregunta para ver qué documentos encuentra la IA para este rol..."
+        placeholder="Ej: quiero restablecer mi contraseña..."
         (keyup.enter)="testBusqueda()"/>
       <button (click)="testBusqueda()" [disabled]="testCargando || !testQuery.trim()">
         {{ testCargando ? 'Buscando...' : 'Buscar' }}
       </button>
     </div>
+
     @if (testResultado) {
     <div class="test-resultado">
       @if (testResultado.documentos?.length > 0) {
@@ -371,7 +441,12 @@
         @for (d of testResultado.documentos; track trackByIndex($index)) {
         <div class="test-doc">
           <span class="test-doc-nombre">{{ d.nombre }}</span>
-          <span class="test-doc-cat">{{ d.categoria }}</span>
+          @if (d.distancia != null) {
+          <span class="test-doc-dist" [title]="'Menor distancia = más relevante'">d: {{ d.distancia.toFixed(3) }}</span>
+          }
+          @if (d.instructivo) {
+          <span class="test-doc-dist instructivo">Instructivo</span>
+          }
         </div>
         }
         <details class="test-contexto">
@@ -380,33 +455,31 @@
         </details>
       </div>
       } @else {
-      <div class="test-empty">
-        No se encontraron documentos relevantes para esa pregunta.
-      </div>
+      <div class="test-empty">No se encontraron documentos relevantes para esa pregunta.</div>
       }
     </div>
     }
   </div>
+  }
+</div>
 
-  <!-- Modal confirmar borrado -->
-  @if (docAEliminar) {
-  <div class="modal-backdrop" (click)="docAEliminar = null">
-    <div class="modal" (click)="$event.stopPropagation()">
-      <div class="modal-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="3 6 5 6 21 6"/>
-          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-        </svg>
-      </div>
-      <p class="modal-text">¿Eliminar <strong>{{ docAEliminar.nombre }}</strong>?</p>
-      <span class="modal-sub">Se eliminarán todos los fragmentos indexados. Esta acción no se puede deshacer.</span>
-      <div class="modal-actions">
-        <button class="btn-cancel" (click)="docAEliminar = null">Cancelar</button>
-        <button class="btn-danger" (click)="eliminar()">Eliminar</button>
-      </div>
+<!-- ── Modal confirmar borrado ──────────────────────────────────────────────── -->
+@if (docAEliminar) {
+<div class="modal-backdrop" (click)="docAEliminar = null">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="3 6 5 6 21 6"/>
+        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+      </svg>
+    </div>
+    <p class="modal-text">¿Eliminar <strong>{{ docAEliminar.nombre }}</strong>?</p>
+    <span class="modal-sub">Se eliminarán todos los fragmentos indexados. Esta acción no se puede deshacer.</span>
+    <div class="modal-actions">
+      <button type="button" class="btn-cancel" (click)="docAEliminar = null">Cancelar</button>
+      <button type="button" class="btn-danger" (click)="eliminar()">Eliminar</button>
     </div>
   </div>
-  }
-
 </div>
+}

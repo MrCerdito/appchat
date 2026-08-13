@@ -36,30 +36,27 @@ export class DocumentosComponent implements OnInit, OnDestroy {
   form = {
     nombre         : '',
     descripcion    : '',
-    categoria      : 'general',
     colegio        : '',
     rolesPermitidos: ['administrador', 'docente', 'estudiante', 'padre'] as string[],
+    instructivo    : false,
   };
 
-  // Documento en edición
-  docEnEdicion: DocumentoItem | null = null;
-  docAEliminar: DocumentoItem | null = null;
+  // Filtros / búsqueda de la lista (tipo chat)
+  busqueda         = '';
+  filtroRol        = '';
+  soloInstructivos = false;
 
-  // Test RAG
+  // Documento activo (panel derecho) y documento en edición / a eliminar
+  docSeleccionado: DocumentoItem | null = null;
+  docEnEdicion  : DocumentoItem | null = null;
+  docAEliminar  : DocumentoItem | null = null;
+
+  // Test RAG (panel colapsable)
+  testAbierto  = false;
   testQuery    = '';
   testRol      = 'estudiante';
-  testColegio  = '';
   testResultado: any = null;
   testCargando = false;
-
-  readonly categorias = [
-    { value: 'general',    label: 'General' },
-    { value: 'matricula',  label: 'Matrícula' },
-    { value: 'pagos',      label: 'Pagos' },
-    { value: 'soporte',    label: 'Soporte técnico' },
-    { value: 'reglamento', label: 'Reglamento' },
-    { value: 'academico',  label: 'Académico' },
-  ];
 
   readonly rolesDisponibles = [
     { value: 'administrador', label: 'Administrador' },
@@ -67,6 +64,28 @@ export class DocumentosComponent implements OnInit, OnDestroy {
     { value: 'estudiante',    label: 'Estudiante' },
     { value: 'padre',         label: 'Padre/Madre' },
   ];
+
+  get detalleActivo(): boolean { return !!this.docSeleccionado || this.showForm; }
+
+  get tieneFiltros(): boolean {
+    return !!(this.busqueda.trim() || this.filtroRol || this.soloInstructivos);
+  }
+
+  get documentosFiltrados(): DocumentoItem[] {
+    const rol = this.filtroRol.toLowerCase().trim();
+    const q   = this.busqueda.trim().toLowerCase();
+    return this.documentos.filter((d) => {
+      if (this.soloInstructivos && !d.instructivo) return false;
+      if (rol && !(this.getRolesArray(d.roles_permitidos) || []).includes(rol)) return false;
+      if (q) {
+        const hay = `${d.nombre} ${d.descripcion ?? ''} ${d.colegio ?? ''}`
+          .toLowerCase()
+          .includes(q);
+        if (!hay) return false;
+      }
+      return true;
+    });
+  }
 
   private destroy$ = new Subject<void>();
 
@@ -83,12 +102,52 @@ export class DocumentosComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  cargarDocumentos(): void {
+  cargarDocumentos(despues?: () => void): void {
     this.loading = true;
     this.docService.listar().pipe(takeUntil(this.destroy$)).subscribe({
-      next : (docs) => { this.documentos = docs; this.loading = false; this.cdr.detectChanges(); },
-      error: ()     => { this.loading = false; this.notification.error('Error', 'No se pudieron cargar los documentos.'); this.cdr.detectChanges(); },
+      next : (docs) => {
+        this.documentos = docs; this.loading = false;
+        despues?.();
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.loading = false;
+        this.notification.error('Error', 'No se pudieron cargar los documentos.');
+        this.cdr.detectChanges();
+      },
     });
+  }
+
+  // ── Navegación tipo chat ─────────────────────────────────────────────────
+  abrirDetalle(doc: DocumentoItem): void {
+    this.docSeleccionado = doc;
+    this.showForm        = false;
+    this.editMode        = false;
+    this.uploadResult    = null;
+    this.cdr.detectChanges();
+  }
+
+  nuevoDocumento(): void {
+    this.resetForm();
+    this.showForm        = true;
+    this.editMode        = false;
+    this.uploadResult    = null;
+    this.cdr.detectChanges();
+  }
+
+  cerrarDetalle(): void {
+    this.docSeleccionado = null;
+    this.showForm        = false;
+    this.editMode        = false;
+    this.resetForm();
+    this.cdr.detectChanges();
+  }
+
+  cancelarForm(): void {
+    this.showForm = false;
+    this.editMode = false;
+    this.resetForm();
+    this.cdr.detectChanges();
   }
 
   // ── Archivo ───────────────────────────────────────────────────────────────
@@ -133,8 +192,8 @@ export class DocumentosComponent implements OnInit, OnDestroy {
     formData.append('file',            this.archivoSeleccionado);
     formData.append('nombre',          this.form.nombre.trim());
     formData.append('descripcion',     this.form.descripcion.trim());
-    formData.append('categoria',       this.form.categoria);
     formData.append('rolesPermitidos', this.form.rolesPermitidos.join(','));
+    formData.append('instructivo',     this.form.instructivo ? 'true' : 'false');
     if (this.form.colegio.trim()) formData.append('colegio', this.form.colegio.trim());
 
     this.uploading = true;
@@ -144,7 +203,10 @@ export class DocumentosComponent implements OnInit, OnDestroy {
         this.uploadResult = res;
         this.showForm     = false;
         this.resetForm();
-        this.cargarDocumentos();
+        this.cargarDocumentos(() => {
+          const subido = this.documentos.find(d => d.nombre === res.nombre);
+          if (subido) this.docSeleccionado = subido;
+        });
         this.notification.success('Documento subido', `${res.nombre} se subió correctamente.`);
         this.cdr.detectChanges();
       },
@@ -160,6 +222,7 @@ export class DocumentosComponent implements OnInit, OnDestroy {
   // ── Editar ────────────────────────────────────────────────────────────────
   abrirEdicion(doc: DocumentoItem): void {
     this.docEnEdicion = doc;
+    this.docSeleccionado = doc;
     this.editMode     = true;
     this.showForm     = true;
     this.uploadError  = '';
@@ -175,24 +238,30 @@ export class DocumentosComponent implements OnInit, OnDestroy {
     this.form = {
       nombre         : doc.nombre,
       descripcion    : doc.descripcion ?? '',
-      categoria      : doc.categoria ?? 'general',
       colegio        : doc.colegio ?? '',
       rolesPermitidos: roles,
+      instructivo    : !!doc.instructivo,
     };
     this.cdr.detectChanges();
   }
 
   guardarEdicion(): void {
     if (!this.docEnEdicion) return;
+    const nombreNuevo = this.form.nombre.trim();
+    if (!nombreNuevo) {
+      this.submitted = true;
+      return;
+    }
     this.uploading = true;
 
     this.docService.actualizarRoles(
       this.docEnEdicion.nombre,
       {
+        nombre         : nombreNuevo,
         descripcion    : this.form.descripcion.trim(),
-        categoria      : this.form.categoria,
         colegio        : this.form.colegio.trim() || null,
         rolesPermitidos: this.form.rolesPermitidos.join(','),
+        instructivo    : this.form.instructivo,
       }
     ).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
@@ -200,7 +269,10 @@ export class DocumentosComponent implements OnInit, OnDestroy {
         this.showForm  = false;
         this.editMode  = false;
         this.resetForm();
-        this.cargarDocumentos();
+        this.cargarDocumentos(() => {
+          const guardado = this.documentos.find(d => d.nombre === nombreNuevo);
+          if (guardado) this.docSeleccionado = guardado;
+        });
         this.notification.success('Cambios guardados', 'El documento se actualizó correctamente.');
         this.cdr.detectChanges();
       },
@@ -223,6 +295,7 @@ export class DocumentosComponent implements OnInit, OnDestroy {
     this.docService.eliminar(nombre).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
         this.documentos = this.documentos.filter(d => d.nombre !== nombre);
+        if (this.docSeleccionado?.nombre === nombre) this.docSeleccionado = null;
         this.notification.success('Documento eliminado', '');
         this.cdr.detectChanges();
       },
@@ -270,19 +343,15 @@ export class DocumentosComponent implements OnInit, OnDestroy {
     if (!this.testQuery.trim()) return;
     this.testCargando  = true;
     this.testResultado = null;
-    this.docService.buscar(this.testQuery, this.testColegio.trim() || undefined, this.testRol).pipe(takeUntil(this.destroy$)).subscribe({
+    this.docService.buscar(this.testQuery, this.testRol).pipe(takeUntil(this.destroy$)).subscribe({
       next : (res) => { this.testResultado = res; this.testCargando = false; this.cdr.detectChanges(); },
       error: ()    => { this.testCargando = false; this.cdr.detectChanges(); },
     });
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
-  getCategoriaLabel(value: string): string {
-    return this.categorias.find(c => c.value === value)?.label ?? value;
-  }
-
   resetForm(): void {
-    this.form = { nombre: '', descripcion: '', categoria: 'general', colegio: '', rolesPermitidos: ['administrador','docente','estudiante','padre'] };
+    this.form = { nombre: '', descripcion: '', colegio: '', rolesPermitidos: ['administrador','docente','estudiante','padre'], instructivo: false };
     this.archivoSeleccionado = null;
     this.archivoNombre       = '';
     this.submitted           = false;

@@ -180,39 +180,18 @@
           <span class="err-msg">Campo requerido</span>
         </div>
 
-        <div class="field colegio-field" [class.error]="submitted && !colegio.trim()">
-          <label>Colegio <span class="req">*</span></label>
-          <div class="search-wrap">
-            <span class="s-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-              </svg>
-            </span>
-            <input type="text" [(ngModel)]="colegioQuery" (ngModelChange)="onColegioInput()"
-              (blur)="onColegioBlur()" placeholder="Busca o escribe tu colegio..."
-              [class.selected]="colegioSeleccionado" autocomplete="off"/>
-            @if (colegioSeleccionado) {
-            <span class="clear-colegio" (click)="clearColegio()">✕</span>
-            }
-          </div>
-          @if (showDropdown) {
-          <div class="colegio-dropdown">
-            @for (c of colegiosFiltrados; track trackById($index, c)) {
-            <div class="colegio-option" (mousedown)="selectColegio(c)">
-              {{ sanitizeText(c.nombre) }}
-            </div>
-            }
-            @if (colegiosFiltrados.length === 0 && colegioQuery.trim()) {
-            <div class="colegio-option coleccion-option" (mousedown)="selectCustomColegio()">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-              </svg>
-              Usar "<strong>{{ colegioQuery.trim() }}</strong>"
-            </div>
-            }
-          </div>
-          }
-          <span class="err-msg">Campo requerido</span>
+        <div class="field" [class.error]="submitted && !emailValido">
+          <label>Correo electrónico <span class="req">*</span></label>
+          <input type="email" inputmode="email" [(ngModel)]="email"
+            placeholder="Ej: juan.perez@correo.com" maxlength="100"/>
+          <span class="err-msg">Ingresa un correo válido</span>
+        </div>
+
+        <div class="field" [class.error]="submitted && !celularValido">
+          <label>Número celular <span class="req">*</span></label>
+          <input type="tel" inputmode="numeric" pattern="[0-9]*" [(ngModel)]="celular"
+            placeholder="Ej: 3001234567" (input)="onCelularInput($event)" maxlength="15"/>
+          <span class="err-msg">Ingresa un número válido (7 a 15 dígitos)</span>
         </div>
 
         <div class="field" [class.error]="submitted && !tipoSolicitud">
@@ -234,6 +213,30 @@
           </div>
           <span class="err-msg">Campo requerido</span>
         </div>
+
+        <div class="consent-field" [class.error]="submitted && !aceptaTratamiento">
+          <label class="consent-check">
+            <input type="checkbox" [(ngModel)]="aceptaTratamiento"/>
+            <span class="consent-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 6L9 17l-5-5"/>
+              </svg>
+            </span>
+            <span class="consent-text">
+              He leído y acepto el <a href="#" (click)="verTratamientoDatos($event)">tratamiento de datos personales</a>
+            </span>
+          </label>
+          <span class="err-msg">Debes aceptar el tratamiento de datos para continuar</span>
+        </div>
+
+        @if (submitted && !colegioDetectado) {
+        <div class="form-error-banner">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <span>No se pudo identificar tu institución desde este sitio. Intenta desde el portal de tu colegio.</span>
+        </div>
+        }
 
         <button class="btn-submit" (click)="startChat()">
           Iniciar chat
@@ -442,6 +445,7 @@
              [class.msg--advisor]="msg.senderType === 'client'"
              [class.msg--client]="msg.senderType === 'advisor' && !aiMode"
              [class.msg--ai]="msg.senderType === 'advisor' && aiMode"
+             [class.msg--with-docs]="!!msg.documentos?.length"
              [class.streaming]="isStreaming && msg.content === streamingText">
 
           @if (msg.content) {
@@ -503,28 +507,49 @@
                 <polyline points="14 2 14 8 20 8"/>
               </svg>
               Documentos relacionados
+              <span class="doc-adjuntos-count">{{ msg.documentos.length }}</span>
             </div>
             @for (doc of msg.documentos; track trackById($index, doc)) {
-            <a class="doc-adjunto-item"
-               [href]="doc.pdfUrl" target="_blank" rel="noopener noreferrer">
-              <div class="doc-adjunto-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                  <polyline points="14 2 14 8 20 8"/>
-                </svg>
+            <div class="doc-card">
+              <div class="doc-card-top">
+                <div class="doc-card-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                  </svg>
+                </div>
+                <div class="doc-card-info">
+                  <span class="doc-card-nombre">{{ doc.nombre }}</span>
+                  <div class="doc-card-badges">
+                    @if (doc.instructivo) {
+                    <span class="doc-card-badge doc-card-badge--instructivo">Instructivo</span>
+                    }
+                  </div>
+                </div>
               </div>
-              <div class="doc-adjunto-info">
-                <span class="doc-adjunto-nombre">{{ doc.nombre }}</span>
-                @if (doc.categoria) {
-                <span class="doc-adjunto-cat">{{ doc.categoria }}</span>
+              <p class="doc-card-desc">{{ docDescripcion(doc) }}</p>
+              <div class="doc-card-actions">
+                @if (doc.pdfUrl) {
+                <a class="doc-card-btn doc-card-btn--primary"
+                   [href]="doc.pdfUrl" target="_blank" rel="noopener noreferrer">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                  Abrir PDF
+                </a>
+                <a class="doc-card-btn doc-card-btn--ghost"
+                   [href]="doc.pdfUrl" [attr.download]="doc.nombre + '.pdf'" rel="noopener noreferrer">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                  </svg>
+                  Descargar
+                </a>
                 }
               </div>
-              <svg class="doc-adjunto-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                <polyline points="17 8 12 3 7 8"/>
-                <line x1="12" y1="3" x2="12" y2="15"/>
-              </svg>
-            </a>
+            </div>
             }
           </div>
           }
@@ -934,6 +959,29 @@
         </svg>
       </button>
     </figure>
+  </div>
+  }
+
+  <!-- ═══ MODAL TRATAMIENTO DE DATOS ════════════════════════════════════════ -->
+  @if (showTratamientoDatos) {
+  <div class="terms-backdrop" (click)="showTratamientoDatos = false">
+    <div class="terms-modal" (click)="$event.stopPropagation()">
+      <button class="terms-close" type="button" (click)="showTratamientoDatos = false" aria-label="Cerrar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+      <h3>Tratamiento de datos personales</h3>
+      <div class="terms-body">
+        <p>Al iniciar esta conversación, autorizas de manera libre, previa, expresa e informada el tratamiento de tus datos personales conforme a la normativa vigente de protección de datos, con la finalidad de gestionar y atender tu solicitud a través de este canal de atención.</p>
+        <p>Los datos recopilados serán utilizados exclusivamente para la prestación del servicio de atención al usuario, garantizando la confidencialidad, seguridad y reserva de la información, y no serán compartidos con terceros sin tu autorización.</p>
+        <p>Puedes ejercer tus derechos de acceso, rectificación, actualización, supresión y revocación de la autorización contactando a tu institución educativa.</p>
+      </div>
+      <button class="terms-accept" type="button" (click)="showTratamientoDatos = false; aceptaTratamiento = true">
+        Entendido
+      </button>
+    </div>
   </div>
   }
 

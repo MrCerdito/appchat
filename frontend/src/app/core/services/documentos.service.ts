@@ -10,6 +10,7 @@ export interface DocumentoItem {
   colegio          : string | null;
   pdf_url          : string | null;
   activo           : boolean;
+  instructivo      : boolean;
   total_chunks     : number;
   created_at       : string;
   roles_permitidos : string | null;
@@ -42,18 +43,19 @@ export class DocumentosService {
     );
   }
 
-  buscar(query: string, colegio?: string, rol?: string): Observable<any> {
-    return this.http.post(`${this.url}/search`, { query, colegio, rol, topK: 4 });
+  buscar(query: string, rol?: string): Observable<any> {
+    return this.http.post(`${this.url}/search`, { query, rol, topK: 8 });
   }
 
-  actualizarRoles(nombre: string, data: {
+  actualizarRoles(nombreOriginal: string, data: {
+    nombre         : string;
     descripcion    : string;
-    categoria      : string;
     colegio        : string | null;
     rolesPermitidos: string;
+    instructivo    : boolean;
   }): Observable<{ ok: boolean }> {
     return this.http.patch<{ ok: boolean }>(
-      `${this.url}/${encodeURIComponent(nombre)}/roles`,
+      `${this.url}/${encodeURIComponent(nombreOriginal)}/roles`,
       data,
     );
   }

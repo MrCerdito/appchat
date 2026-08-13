@@ -76,6 +76,7 @@ export class DocumentosController {
       categoria: string;
       colegio?: string;
       rolesPermitidos?: string; // string separado por comas
+      instructivo?: string; // 'true' | 'false' desde FormData
     },
   ) {
     if (!file) throw new BadRequestException('Archivo PDF requerido');
@@ -108,6 +109,8 @@ export class DocumentosController {
         categoria: body.categoria?.trim() ?? 'general',
         colegio: body.colegio?.trim() || undefined,
         rolesPermitidos,
+        instructivo:
+          body.instructivo === 'true' || body.instructivo === '1' || body.instructivo === 'on',
         pdfBuffer,
         pdfPath: file.path,
         pdfUrl,
@@ -128,10 +131,12 @@ export class DocumentosController {
     @Param('nombre') nombre: string,
     @Body()
     body: {
+      nombre?: string; // nuevo nombre (para renombrar)
       descripcion: string;
-      categoria: string;
+      categoria?: string;
       colegio: string | null;
       rolesPermitidos: string;
+      instructivo?: boolean;
     },
   ) {
     return this.docService.actualizarRoles(decodeURIComponent(nombre), body);
@@ -169,13 +174,12 @@ export class DocumentosController {
   @UseGuards(JwtAuthGuard)
   buscar(
     @Body()
-    body: { query: string; colegio?: string; rol?: string; topK?: number },
+    body: { query: string; rol?: string; topK?: number },
   ) {
     return this.docService.buscarRelevantes(
       body.query,
-      body.colegio,
       body.rol || undefined,
-      body.topK ? Number(body.topK) : 4,
+      body.topK ? Number(body.topK) : 8,
     );
   }
 }

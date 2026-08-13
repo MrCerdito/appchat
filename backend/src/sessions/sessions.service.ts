@@ -60,8 +60,10 @@ export class SessionsService {
     identificacion: string;
     apellido: string;
     rol: string;
-    colegio: string;
+    colegio?: string;
     colegioLink?: string | null;
+    email?: string | null;
+    celular?: string | null;
     tipoSolicitud: string;
   }): Promise<Session> {
     let codigo = this.generarCodigo();
@@ -75,8 +77,10 @@ export class SessionsService {
       identificacion: data.identificacion,
       apellido: data.apellido,
       rol: data.rol,
-      colegio: data.colegio,
+      colegio: data.colegio ?? '',
       colegioLink: data.colegioLink,
+      email: data.email,
+      celular: data.celular,
       tipoSolicitud: data.tipoSolicitud,
       codigo,
       status: 'ai',

@@ -60,6 +60,20 @@ export class Session {
   colegioLink: string | null;
 
   @Column({
+    type: 'text',
+    nullable: true,
+    transformer: encryptedTextTransformer,
+  })
+  email: string | null;
+
+  @Column({
+    type: 'text',
+    nullable: true,
+    transformer: encryptedTextTransformer,
+  })
+  celular: string | null;
+
+  @Column({
     name: 'tipo_solicitud',
     type: 'varchar',
     length: 100,

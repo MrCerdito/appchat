@@ -32,6 +32,7 @@ import {
   VoiceRecordingResult,
 } from '../../../../shared/components/voice-recorder/voice-recorder.component';
 import { VoicePlayerComponent } from '../../../../shared/components/voice-player/voice-player.component';
+import { WaIconComponent } from '../../../../shared/components/wa-icon/wa-icon.component';
 
 // ── Payload exacto que emite el backend ──────────────────────────────────────
 export interface TimerUpdatePayload {
@@ -62,7 +63,7 @@ const AVATAR_COLORS = ['ava-blue', 'ava-green', 'ava-amber', 'ava-purple'];
 @Component({
   selector   : 'app-chat-advisor',
   standalone : true,
-  imports    : [CommonModule, FormsModule, VoiceRecorderComponent, VoicePlayerComponent],
+  imports    : [CommonModule, FormsModule, VoiceRecorderComponent, VoicePlayerComponent, WaIconComponent],
   templateUrl: './chat-advisor.html',
   styleUrl   : './chat-advisor.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -1530,17 +1531,17 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   }
 
   clientPresenceLabel(session?: Session | null): string {
-    if (!session) return 'Sin actividad';
+    if (!session) return 'Cerrado';
     const presence = this.clientPresenceMap.get(session.id);
-    if (!presence?.online) return 'Cliente desconectado';
+    if (session.status === 'closed' || !presence?.online) return 'Cerrado';
     if (presence.active) return 'Cliente activo en el chat';
-    return 'Cliente con chat abierto';
+    return 'Cliente fuera del chat';
   }
 
   clientPresenceClass(session?: Session | null): string {
     if (!session) return 'presence-offline';
     const presence = this.clientPresenceMap.get(session.id);
-    if (!presence?.online) return 'presence-offline';
+    if (session.status === 'closed' || !presence?.online) return 'presence-offline';
     return presence.active ? 'presence-active' : 'presence-open';
   }
 
