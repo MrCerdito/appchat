@@ -50,6 +50,13 @@ import { NotificationService } from '../../core/services/notification.service';
       height: 22px;
       margin-top: 1px;
     }
+    .toast-icon img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      border-radius: 4px;
+    }
     .toast-icon svg {
       display: block;
       width: 100%;
@@ -94,7 +101,10 @@ import { NotificationService } from '../../core/services/notification.service';
       @for (toast of notification.toasts(); track toast.id) {
         <div class="toast toast-{{ toast.type }}" (click)="notification.remove(toast.id)">
           <div class="toast-icon">
-            @switch (toast.type) {
+            @if (toast.icon) {
+              <img [src]="toast.icon" alt="">
+            } @else {
+              @switch (toast.type) {
               @case ('success') {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <polyline points="20 6 9 17 4 12"/>
@@ -114,6 +124,7 @@ import { NotificationService } from '../../core/services/notification.service';
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
                 </svg>
+              }
               }
             }
           </div>

@@ -22,7 +22,12 @@ export class WidgetConfigController {
   // ── GET /widget-config — público ─────────────────────────────────────────
   // Sin guard: el widget.js embebido en páginas externas llama este endpoint
   // para obtener la config al momento de renderizarse.
+  // ACAO:* : el widget debe funcionar en CUALQUIER página externa (colegios,
+  // portales, etc.). La config es pública (solo apariencia/textos), sin
+  // credenciales, por lo que abrir el origen es seguro y evita editar
+  // CORS_ORIGINS por cada sitio donde se incruste.
   @Header('Cache-Control', 'public, max-age=60')
+  @Header('Access-Control-Allow-Origin', '*')
   @Get()
   get(): Promise<WidgetConfig> {
     return this.svc.get();

@@ -161,6 +161,11 @@ export class ChatGateway
           await this.redisState.addConnectedAdvisor(payload.sub);
           client.join(`advisor:${payload.sub}`);
         }
+        if (fullUser?.role === 'admin') {
+          // Los admins se unen a la sala 'admins' para recibir notificaciones
+          // globales de asignaciones y mensajes de chat en línea.
+          client.join('admins');
+        }
 
         this.logger.log(
           `[WS] ${isAdvisor ? 'Asesor' : 'Usuario no-asesor'} conectado: ${payload.name} (PID: ${process.pid})`,
@@ -1026,6 +1031,10 @@ export class ChatGateway
       sessionId: data.sessionId,
       clientName: session.clientName,
     });
+    this.server.to('admins').emit('session_assigned', {
+      sessionId: data.sessionId,
+      clientName: session.clientName,
+    });
 
     this.server.to(data.sessionId).emit('advisor_joined', {
       name: session.advisor?.name ?? 'Nuevo asesor',
@@ -1879,6 +1888,10 @@ export class ChatGateway
       sessionId,
       clientName,
     });
+    this.server.to('admins').emit('session_assigned', {
+      sessionId,
+      clientName,
+    });
     this.server.emit('session_updated', { sessionId, status: 'active' });
     this.server.emit('metrics_updated', {
       type: 'session_status',
@@ -2201,6 +2214,17 @@ export class ChatGateway
     // Un inicio (manual o automático) invalida una supresión anterior.
     await this.redisState.removeLunchSkipped(advisorId);
 
+    // Marcar el asesor como ocupado mientras dure el almuerzo para que ningún
+    // motor de asignación (chat en línea o WhatsApp) le asigne chats.
+    await this.sessionsService
+      .setAdvisorStatus(advisorId, 'busy')
+      .catch(() => null);
+    await this.redisState.setAdvisorStatus(advisorId, 'busy');
+    this.server.emit('advisor_status_changed', {
+      advisorId,
+      status: 'busy',
+    });
+
     await this.emitLunchStarted(advisorId);
     this.server.emit('lunch_status_changed', {
       advisorId,
@@ -2417,6 +2441,11 @@ export class ChatGateway
           this.server
             .to(`advisor:${advisorId}`)
             .emit('new_message', { ...msg, sessionId });
+        }
+        // Los admins también reciben mensajes del cliente para notificarles
+        // en tiempo real quién escribe y qué escribió.
+        if (msg?.senderType === 'client') {
+          this.server.to('admins').emit('new_message', { ...msg, sessionId });
         }
       })
       .catch((err) =>

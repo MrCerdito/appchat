@@ -1,4 +1,11 @@
 import { Injectable } from '@angular/core';
+import { BehaviorSubject, Subject } from 'rxjs';
+
+export type NotificationPermissionState =
+  | 'granted'
+  | 'denied'
+  | 'default'
+  | 'unsupported';
 
 @Injectable({ providedIn: 'root' })
 export class SoundService {
@@ -12,6 +19,25 @@ export class SoundService {
   soundAsesor = 'asesor1';
   soundCliente = 'cliente1';
   soundAsignacion = 'asignacion1';
+
+  private readonly notificationPermissionSubject =
+    new BehaviorSubject<NotificationPermissionState>(
+      this.currentNotificationPermission(),
+    );
+
+  readonly notificationPermission$ =
+    this.notificationPermissionSubject.asObservable();
+
+  getNotificationPermission(): NotificationPermissionState {
+    return this.notificationPermissionSubject.getValue();
+  }
+
+  private currentNotificationPermission(): NotificationPermissionState {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      return 'unsupported';
+    }
+    return Notification.permission;
+  }
 
   init(): void {
     this.enableDesktopNotifications();
@@ -1003,27 +1029,85 @@ export class SoundService {
   }
 
   enableDesktopNotifications(): void {
-    if (!('Notification' in window)) return;
+    if (!('Notification' in window)) {
+      this.notificationPermissionSubject.next('unsupported');
+      return;
+    }
     if (Notification.permission === 'default') {
-      Notification.requestPermission().catch(() => undefined);
+      Notification.requestPermission()
+        .then((p) => this.notificationPermissionSubject.next(p))
+        .catch(() => undefined);
+    } else {
+      this.notificationPermissionSubject.next(Notification.permission);
     }
   }
 
+  /** Solicita el permiso de notificaciones del sistema. Debe llamarse desde
+   *  un gesto del usuario (click) para que el navegador muestre la ventana. */
+  async requestNotifications(): Promise<NotificationPermissionState> {
+    if (!('Notification' in window)) {
+      this.notificationPermissionSubject.next('unsupported');
+      return 'unsupported';
+    }
+    if (Notification.permission === 'default') {
+      try {
+        const result = await Notification.requestPermission();
+        this.notificationPermissionSubject.next(result);
+        return result;
+      } catch {
+        const current = this.currentNotificationPermission();
+        this.notificationPermissionSubject.next(current);
+        return current;
+      }
+    }
+    const current = Notification.permission;
+    this.notificationPermissionSubject.next(current);
+    return current;
+  }
+
+  private readonly notificationFallbackSubject = new Subject<{
+    title: string;
+    body: string;
+    tag: string;
+    icon?: string;
+  }>();
+
+  /** Emite cuando no se puede mostrar una notificación real del sistema
+   *  (permiso denegado o API no disponible) para que la app muestre un aviso
+   *  interno como respaldo. */
+  readonly notificationFallback$ = this.notificationFallbackSubject.asObservable();
+
+  private channelIcon(title: string): string {
+    const t = (title || '').toUpperCase();
+    if (t.includes('WHATSAPP')) return 'whatsapp.png';
+    if (t.includes('CHAT EN LINEA')) return 'chat_en_linea.png';
+    if (t.includes('CHAT INTERNO')) return 'chat_interno.png';
+    return 'icon.jpg';
+  }
+
   notify(title: string, body: string, tag = 'chat-notification'): void {
-    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const icon = this.channelIcon(title);
+    if (!('Notification' in window)) {
+      this.emitNotificationFallback(title, body, tag, icon);
+      return;
+    }
+    if (Notification.permission !== 'granted') {
+      this.emitNotificationFallback(title, body, tag, icon);
+      return;
+    }
     const now = Date.now();
     const lastForTag = this.lastNotificationByTag.get(tag) ?? 0;
     if (now - lastForTag < 350) return;
     this.lastNotificationByTag.set(tag, now);
 
     try {
-      const notification = new Notification('\u{1F514} ' + title, {
+      const notification = new Notification(title, {
         body,
         tag,
         silent: false,
         requireInteraction: false,
-        icon: 'icon.jpg',
-        badge: 'icon.jpg',
+        icon,
+        badge: icon,
       });
       notification.onclick = () => {
         window.focus();
@@ -1031,8 +1115,22 @@ export class SoundService {
       };
       setTimeout(() => notification.close(), 5500);
     } catch {
-      // ignore
+      this.emitNotificationFallback(title, body, tag, icon);
     }
+  }
+
+  private emitNotificationFallback(
+    title: string,
+    body: string,
+    tag: string,
+    icon?: string,
+  ): void {
+    this.notificationFallbackSubject.next({
+      title: title.replace(/^\u{1F514}\s*/u, ''),
+      body,
+      tag,
+      icon,
+    });
   }
 
   setUnreadBadge(count: number): void {

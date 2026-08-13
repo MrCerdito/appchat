@@ -17,7 +17,7 @@
       </div>
       <div class="header-text">
         <h1>Widget de Chat</h1>
-        <span class="meta-label">Botón embebible para sitios externos</span>
+        <span class="meta-label">Botón flotante para tu sitio web</span>
       </div>
     </div>
     <div class="header-actions">
@@ -67,41 +67,59 @@
   <!-- ══ Main layout ══ -->
   <div class="main-layout">
 
-    <!-- ── Config panel ── -->
+    <!-- ── Config ── -->
     <section class="config-panel">
-      <nav class="tabs">
-        <button class="tab" [class.active]="activeTab === 'apariencia'" (click)="activeTab = 'apariencia'">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="3"/>
-            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
-          </svg>
-          Apariencia
-        </button>
-        <button class="tab" [class.active]="activeTab === 'comportamiento'" (click)="activeTab = 'comportamiento'">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-          </svg>
-          Comportamiento
-        </button>
-        <button class="tab" [class.active]="activeTab === 'chat'" (click)="activeTab = 'chat'">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 20h9"/>
-            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-          </svg>
-          Diseño chat
-        </button>
-        <button class="tab" [class.active]="activeTab === 'integracion'" (click)="activeTab = 'integracion'">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="16 18 22 12 16 6"/>
-            <polyline points="8 6 2 12 8 18"/>
-          </svg>
-          Integración
-        </button>
-      </nav>
 
-      <!-- ══ TAB: APARIENCIA ══ -->
-      @if (activeTab === 'apariencia') {
-      <div class="tab-body">
+      <!-- 1 · INTEGRACIÓN — snippet fijo -->
+      <section class="section">
+        <div class="section-head">
+          <span class="section-n">1</span>
+          <div class="section-head-text">
+            <h2 class="section-title">Copia esto en tu sitio</h2>
+            <p class="section-hint">Pega este código en tu página web y listo. No necesitas nada más.</p>
+          </div>
+        </div>
+        <div class="code-block">
+          <div class="code-header">
+            <div class="code-lang">
+              <span class="lang-dot"></span>
+              <span class="lang-label">HTML</span>
+            </div>
+            <button class="btn-copy" [class.done]="copiado" (click)="copiarScript()">
+              @if (!copiado) {
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2"/>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+              }
+              @if (copiado) {
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              }
+              {{ copiado ? '¡Copiado!' : 'Copiar' }}
+            </button>
+          </div>
+          <pre class="code-pre"><code>{{ scriptIntegracion }}</code></pre>
+        </div>
+        <div class="integration-tip">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+          </svg>
+          <span>El código se actualiza solo al cambiar la <strong>URL del sistema</strong> (sección Avanzado).</span>
+        </div>
+      </section>
+
+      <!-- 2 · BOTÓN -->
+      <section class="section">
+        <div class="section-head">
+          <span class="section-n">2</span>
+          <div class="section-head-text">
+            <h2 class="section-title">Botón</h2>
+            <p class="section-hint">Apariencia del botón flotante en tu sitio.</p>
+          </div>
+        </div>
 
         <div class="field-block">
           <div class="field-header">
@@ -207,10 +225,10 @@
         </div>
 
         <div class="field-block">
-          <div class="field-header"><span class="field-title">Textos del widget</span></div>
+          <div class="field-header"><span class="field-title">Texto junto al ícono</span></div>
           <div class="toggle-row">
             <div class="toggle-info">
-              <span class="sub-label">Texto junto al ícono</span>
+              <span class="sub-label">Mostrar texto</span>
               <span class="toggle-hint">Muestra una etiqueta al lado del botón</span>
             </div>
             <label class="toggle">
@@ -222,30 +240,24 @@
           <input type="text" class="text-field"
             [(ngModel)]="config.textoBoton" placeholder="Ej: ¿Necesitas ayuda?" maxlength="30"/>
           }
-          <div class="sub-field" style="margin-top:1rem">
-            <label class="sub-label">Título del panel</label>
-            <input type="text" class="text-field" [(ngModel)]="config.tituloPanelChat"
-              placeholder="Soporte en línea" maxlength="50"/>
-          </div>
-          <div class="sub-field">
-            <label class="sub-label">Subtítulo del panel</label>
-            <input type="text" class="text-field" [(ngModel)]="config.subtituloPanelChat"
-              placeholder="Estamos aquí para ayudarte" maxlength="80"/>
+        </div>
+      </section>
+
+      <!-- 3 · MENSAJE DE BIENVENIDA -->
+      <section class="section">
+        <div class="section-head">
+          <span class="section-n">3</span>
+          <div class="section-head-text">
+            <h2 class="section-title">Mensaje de bienvenida</h2>
+            <p class="section-hint">Burbuja flotante que invita a chatear.</p>
           </div>
         </div>
-      </div>
-      }
-
-      <!-- ══ TAB: COMPORTAMIENTO ══ -->
-      @if (activeTab === 'comportamiento') {
-      <div class="tab-body">
         <div class="field-block">
-          <div class="field-header">
-            <span class="field-title">Burbuja de bienvenida</span>
-            <span class="field-hint">Mensaje flotante que invita a chatear</span>
-          </div>
           <div class="toggle-row">
-            <div class="toggle-info"><span class="sub-label">Activar burbuja</span></div>
+            <div class="toggle-info">
+              <span class="sub-label">Mostrar burbuja</span>
+              <span class="toggle-hint">Aparece junto al botón con un mensaje</span>
+            </div>
             <label class="toggle">
               <input type="checkbox" [(ngModel)]="config.mostrarBurbuja"/>
               <span class="track"></span>
@@ -257,76 +269,51 @@
             placeholder="¿Necesitas ayuda? ¡Chatea con nosotros!" maxlength="100"/>
           }
         </div>
+      </section>
 
-        <div class="field-block">
-          <div class="field-header">
-            <span class="field-title">Apertura automática</span>
-            <span class="field-hint">Abre el chat tras unos segundos en la página</span>
-          </div>
-          <div class="toggle-row">
-            <div class="toggle-info"><span class="sub-label">Activar apertura automática</span></div>
-            <label class="toggle">
-              <input type="checkbox" [(ngModel)]="config.abrirAutomatico"/>
-              <span class="track"></span>
-            </label>
-          </div>
-          @if (config.abrirAutomatico) {
-          <div class="slider-wrap">
-            <div class="slider-header">
-              <span class="sub-label">Esperar antes de abrir</span>
-              <span class="slider-val">{{ config.delayAutoAbrir }}s</span>
-            </div>
-            <input type="range" min="2" max="30" step="1"
-              [(ngModel)]="config.delayAutoAbrir" class="slider"/>
-            <div class="slider-ticks">
-              <span>2s</span><span>10s</span><span>20s</span><span>30s</span>
-            </div>
-          </div>
-          }
-        </div>
-
-        <div class="field-block">
-          <div class="field-header">
-            <span class="field-title">URL del sistema de chat</span>
-            <span class="field-hint">Dirección donde está desplegado el chat</span>
-          </div>
-          <div class="url-wrap">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-            </svg>
-            <input type="url" class="text-field" [(ngModel)]="config.chatUrl"
-              placeholder="https://innoovacloud.com/korvix"/>
+      <!-- 4 · TEXTOS DEL CHAT -->
+      <section class="section">
+        <div class="section-head">
+          <span class="section-n">4</span>
+          <div class="section-head-text">
+            <h2 class="section-title">Textos del chat</h2>
+            <p class="section-hint">Lo que ve el cliente al abrir el chat.</p>
           </div>
         </div>
-      </div>
-      }
-
-      <!-- ══ TAB: DISEÑO DEL CHAT ══ -->
-      @if (activeTab === 'chat') {
-      <div class="tab-body">
-
-        <!-- Nombre/Marca -->
         <div class="field-block">
-          <div class="field-header">
-            <span class="field-title">Nombre de la marca</span>
-            <span class="field-hint">Aparece en el header del chat</span>
+          <div class="sub-field">
+            <label class="sub-label">Nombre de la marca</label>
+            <input type="text" class="text-field" [(ngModel)]="config.chatMarca"
+              placeholder="Soporte en línea" maxlength="80"/>
           </div>
-          <input type="text" class="text-field" [(ngModel)]="config.chatMarca"
-            placeholder="Soporte en línea" maxlength="80"/>
+          <div class="sub-field">
+            <label class="sub-label">Título del panel</label>
+            <input type="text" class="text-field" [(ngModel)]="config.tituloPanelChat"
+              placeholder="Soporte en línea" maxlength="50"/>
+          </div>
+          <div class="sub-field">
+            <label class="sub-label">Subtítulo del panel</label>
+            <input type="text" class="text-field" [(ngModel)]="config.subtituloPanelChat"
+              placeholder="Estamos aquí para ayudarte" maxlength="80"/>
+          </div>
+          <div class="sub-field">
+            <label class="sub-label">Avatar / Logo</label>
+            <input type="text" class="text-field" [(ngModel)]="config.chatAvatar"
+              placeholder="https://tudominio.com/logo.png" maxlength="500"/>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5 · COLORES DEL CHAT -->
+      <section class="section">
+        <div class="section-head">
+          <span class="section-n">5</span>
+          <div class="section-head-text">
+            <h2 class="section-title">Colores del chat</h2>
+            <p class="section-hint">Personaliza el panel una vez abierto.</p>
+          </div>
         </div>
 
-        <!-- Avatar / Logo -->
-        <div class="field-block">
-          <div class="field-header">
-            <span class="field-title">Avatar / Logo</span>
-            <span class="field-hint">Imagen circular en el header del chat y en la burbuja</span>
-          </div>
-          <input type="text" class="text-field" [(ngModel)]="config.chatAvatar"
-            placeholder="https://tudominio.com/logo.png" maxlength="500"/>
-        </div>
-
-        <!-- Color header -->
         <div class="field-block">
           <div class="field-header">
             <span class="field-title">Color del header</span>
@@ -352,7 +339,6 @@
           </div>
         </div>
 
-        <!-- Color fondo -->
         <div class="field-block">
           <div class="field-header">
             <span class="field-title">Fondo del chat</span>
@@ -380,7 +366,6 @@
           </div>
         </div>
 
-        <!-- Burbujas asesor -->
         <div class="field-block">
           <div class="field-header">
             <span class="field-title">Burbujas del asistente</span>
@@ -408,7 +393,6 @@
           </div>
         </div>
 
-        <!-- Burbujas usuario -->
         <div class="field-block">
           <div class="field-header">
             <span class="field-title">Burbujas del usuario</span>
@@ -433,81 +417,65 @@
             </label>
           </div>
         </div>
+      </section>
 
-      </div>
-      }
-
-      <!-- ══ TAB: INTEGRACIÓN ══ -->
-      @if (activeTab === 'integracion') {
-      <div class="tab-body">
-        <div class="info-banner">
-          <div class="info-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"/>
-              <path d="M12 16v-4M12 8h.01"/>
-            </svg>
-          </div>
-          <div>
-            <p class="info-title">Cómo instalar el widget</p>
-            <p class="info-body">
-              Pega la URL del script <code>widget.js</code> y el sistema genera el código de integración automáticamente.
-            </p>
+      <!-- 6 · APERTURA AUTOMÁTICA -->
+      <section class="section">
+        <div class="section-head">
+          <span class="section-n">6</span>
+          <div class="section-head-text">
+            <h2 class="section-title">Apertura automática</h2>
+            <p class="section-hint">Abre el chat solo una vez tras unos segundos.</p>
           </div>
         </div>
-
-        <!-- Input: URL del script -->
         <div class="field-block">
-          <div class="field-header">
-            <span class="field-title">URL del script widget.js</span>
-            <span class="field-hint">Pega la ruta completa del script en tu servidor</span>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <span class="sub-label">Abrir automáticamente</span>
+              <span class="toggle-hint">Recomendado solo si quieres llamar la atención del visitante</span>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" [(ngModel)]="config.abrirAutomatico"/>
+              <span class="track"></span>
+            </label>
           </div>
+          @if (config.abrirAutomatico) {
+          <div class="slider-wrap">
+            <div class="slider-header">
+              <span class="sub-label">Esperar antes de abrir</span>
+              <span class="slider-val">{{ config.delayAutoAbrir }}s</span>
+            </div>
+            <input type="range" min="2" max="30" step="1"
+              [(ngModel)]="config.delayAutoAbrir" class="slider"/>
+            <div class="slider-ticks">
+              <span>2s</span><span>10s</span><span>20s</span><span>30s</span>
+            </div>
+          </div>
+          }
+        </div>
+      </section>
+
+      <!-- 7 · AVANZADO -->
+      <section class="section">
+        <div class="section-head">
+          <span class="section-n">7</span>
+          <div class="section-head-text">
+            <h2 class="section-title">Avanzado</h2>
+            <p class="section-hint">URL donde está desplegado el chat. Solo cambia si lo mueves de dominio.</p>
+          </div>
+        </div>
+        <div class="field-block">
           <div class="url-wrap">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
               <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
             </svg>
-            <input type="url" class="text-field"
-              [ngModel]="srcUrl"
-              (ngModelChange)="onSrcInput($event)"
-              placeholder="https://reportacasos.innovacloud.co/korvix/widget.js"/>
+            <input type="url" class="text-field" [(ngModel)]="config.chatUrl"
+              placeholder="https://innoovacloud.com/korvix"/>
           </div>
         </div>
+      </section>
 
-        <!-- Script generado -->
-        @if (srcUrl) {
-        <div class="code-block">
-          <div class="code-header">
-            <div class="code-lang">
-              <span class="lang-dot"></span>
-              <span class="lang-label">HTML</span>
-            </div>
-            <button class="btn-copy" [class.done]="copiado" (click)="copiarScript()">
-              @if (!copiado) {
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="9" y="9" width="13" height="13" rx="2"/>
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-              </svg>
-              }
-              @if (copiado) {
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
-              }
-              {{ copiado ? 'Copiado' : 'Copiar' }}
-            </button>
-          </div>
-          <pre class="code-pre"><code>{{ scriptIntegracion }}</code></pre>
-        </div>
-        }
-
-        <ol class="steps">
-          <li class="step"><span class="step-n">1</span><div><strong>Pega la URL</strong> — coloca la ruta completa del <code>widget.js</code> en el campo de arriba.</div></li>
-          <li class="step"><span class="step-n">2</span><div><strong>Configura</strong> — ajusta apariencia, comportamiento y diseño del chat.</div></li>
-          <li class="step"><span class="step-n">3</span><div><strong>Guarda</strong> — pulsa <em>Guardar</em> para confirmar los cambios.</div></li>
-          <li class="step"><span class="step-n">4</span><div><strong>Copia el script</strong> — pégalo antes de <code>&lt;/body&gt;</code> en tu página HTML.</div></li>
-        </ol>
-      </div>
-      }
     </section>
 
     <!-- ── Preview panel ── -->
@@ -518,7 +486,6 @@
       </div>
 
       <!-- Preview botón flotante -->
-      @if (activeTab !== 'chat') {
       <div class="browser">
         <div class="browser-bar">
           <div class="browser-dots"><span></span><span></span><span></span></div>
@@ -577,78 +544,8 @@
           </div>
         </div>
       </div>
-      }
 
-      <!-- ══ Preview chat en tiempo real (tab diseño) ══ -->
-      @if (activeTab === 'chat') {
-      <div class="chat-preview-full">
-        <div class="cp-header" [style.background]="config.chatHeaderColor">
-          <div class="cp-avatar" [style.background]="'rgba(255,255,255,0.18)'">
-            <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-            </svg>
-          </div>
-          <div class="cp-info">
-            <span class="cp-name" [style.color]="'white'">{{ config.chatMarca || 'Soporte en línea' }}</span>
-            <span class="cp-status">
-              <span class="cp-dot"></span>
-              <span style="color:rgba(255,255,255,0.8);font-size:0.65rem">IA activa</span>
-            </span>
-          </div>
-          <div class="cp-close-btn" [style.background]="'rgba(255,255,255,0.15)'">
-            <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-            <span style="color:white;font-size:0.68rem;font-weight:500">Cerrar</span>
-          </div>
-        </div>
-
-        <div class="cp-messages" [style.background]="config.chatBgColor">
-          <div class="cp-msg cp-msg--them">
-            <div class="cp-bubble cp-bubble--them"
-              [style.background]="config.chatBubbleColor"
-              [style.color]="contrastColor(config.chatBubbleColor)"
-              [style.border]="'1px solid rgba(0,0,0,0.07)'">
-              Hola, soy el asistente virtual. ¿En qué puedo ayudarte hoy?
-            </div>
-            <span class="cp-time">09:00</span>
-          </div>
-          <div class="cp-msg cp-msg--me">
-            <div class="cp-bubble cp-bubble--me"
-              [style.background]="config.chatBubbleUserColor"
-              [style.color]="contrastColor(config.chatBubbleUserColor)">
-              Necesito ayuda con mi matrícula
-            </div>
-            <span class="cp-time">09:01</span>
-          </div>
-          <div class="cp-msg cp-msg--them">
-            <div class="cp-bubble cp-bubble--them"
-              [style.background]="config.chatBubbleColor"
-              [style.color]="contrastColor(config.chatBubbleColor)"
-              [style.border]="'1px solid rgba(0,0,0,0.07)'">
-              Con gusto te ayudo con el proceso de matrícula. ¿Puedes indicarme tu colegio?
-            </div>
-            <span class="cp-time">09:01</span>
-          </div>
-          <div class="cp-typing">
-            <span></span><span></span><span></span>
-          </div>
-        </div>
-
-        <div class="cp-input-bar">
-          <input class="cp-input" type="text" placeholder="Escribe un mensaje..." readonly/>
-          <button class="cp-send" [style.background]="config.chatHeaderColor">
-            <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="22" y1="2" x2="11" y2="13"/>
-              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-            </svg>
-          </button>
-        </div>
-      </div>
-      }
-
-      <!-- Preview panel de chat (tabs no-chat) -->
-      @if (activeTab !== 'chat') {
+      <!-- Preview panel del chat -->
       <div class="chat-prev">
         <div class="chat-prev-header" [style.background]="config.chatHeaderColor">
           <div class="chat-prev-avatar">
@@ -689,8 +586,6 @@
           </div>
         </div>
       </div>
-      }
-
     </aside>
   </div>
 </div>

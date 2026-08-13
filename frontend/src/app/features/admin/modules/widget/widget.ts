@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../../../environments/environment';
 import { NotificationService } from '../../../../core/services/notification.service';
-import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
+import { trackByIndex } from '../../../../shared/utils/track-by';
 
 export interface WidgetConfig {
   // ── Botón flotante
@@ -66,14 +66,11 @@ const DEFAULT_CONFIG: WidgetConfig = {
 })
 export class WidgetComponent implements OnInit, OnDestroy {
   protected readonly trackByIndex = trackByIndex;
-  protected readonly trackById = trackById;
   config   : WidgetConfig = { ...DEFAULT_CONFIG };
-  srcUrl   = '';
   saved    = false;
   saving   = false;
   loading  = true;
   copiado  = false;
-  activeTab: 'apariencia' | 'comportamiento' | 'chat' | 'integracion' = 'apariencia';
 
   private savedTimer  : ReturnType<typeof setTimeout> | null = null;
   private copiadoTimer: ReturnType<typeof setTimeout> | null = null;
@@ -141,7 +138,7 @@ export class WidgetComponent implements OnInit, OnDestroy {
   cargar(): void {
     this.loading = true;
     this.http.get<any>(this.apiUrl).subscribe({
-      next : (res) => { this.config = this.mapConfig(res); this.srcUrl = this.config.chatUrl ? `${this.config.chatUrl}/widget.js` : ''; this.loading = false; this.cdr.detectChanges(); },
+      next : (res) => { this.config = this.mapConfig(res); this.loading = false; this.cdr.detectChanges(); },
       error: ()    => { this.config = { ...DEFAULT_CONFIG }; this.loading = false; this.cdr.detectChanges(); },
     });
   }
@@ -204,22 +201,10 @@ export class WidgetComponent implements OnInit, OnDestroy {
     });
   }
 
-  onSrcInput(url: string): void {
-    this.srcUrl = url.trim();
-    try {
-      const u = new URL(this.srcUrl);
-      const path = u.pathname;
-      const lastSlash = path.lastIndexOf('/');
-      const dir = lastSlash > 0 ? path.substring(0, lastSlash) : '';
-      this.config.chatUrl = (u.origin + dir).replace(/\/+$/, '');
-    } catch (_) {}
-    this.cdr.detectChanges();
-  }
-
   // ── Computed ──────────────────────────────────────────────────────────────
   get scriptIntegracion(): string {
-    const url = this.srcUrl || `${this.config.chatUrl}/widget.js`;
-    return `<!-- Widget de Chat -->\n<script src="${url}" defer><\/script>`;
+    const url = `${this.config.chatUrl}/widget.js`;
+    return `<script src="${url}" defer></script>`;
   }
 
   get previewSize(): number {

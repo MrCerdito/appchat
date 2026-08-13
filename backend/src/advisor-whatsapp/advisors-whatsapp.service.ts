@@ -414,8 +414,13 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
   async onModuleInit(): Promise<void> {
     await this.ensureWhatsappSchema();
     this.logger.log(
-      'WhatsApp Baileys diferido — se conectara al primer request o QR.',
+      'WhatsApp Baileys: iniciando conexion automatica al arranque del servidor.',
     );
+    this.ensureBaileysConnection().catch((err) => {
+      this.logger.warn(
+        `No se pudo conectar WhatsApp al arranque: ${err?.message ?? err}. Se reintentara automaticamente.`,
+      );
+    });
   }
 
   async onModuleDestroy(): Promise<void> {
@@ -3911,13 +3916,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
         id: In(uniqueConnected),
         role: 'advisor',
         active: true,
-        status: In([
-          'online',
-          'busy',
-          'offline',
-          'Disponible',
-          'En chat',
-        ]) as any,
+        status: In(['online', 'Disponible']) as any,
       },
     });
 
@@ -4068,7 +4067,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
         id: fixedId,
         role: 'advisor',
         active: true,
-        status: In(['online', 'busy', 'Disponible', 'En chat']) as any,
+        status: In(['online', 'Disponible']) as any,
       },
     });
     if (!advisor) return null;

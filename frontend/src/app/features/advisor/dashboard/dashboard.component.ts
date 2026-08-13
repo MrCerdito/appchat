@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ToastContainerComponent } from '../../../shared/components/toast-container.component';
 import { NavigationEnd, Router, RouterModule } from '@angular/router';
-import { Subject } from 'rxjs';
+import { interval, Subject } from 'rxjs';
 import { filter, takeUntil } from 'rxjs/operators';
 
 import { SocketService } from '../../../core/services/socket.service';
@@ -107,6 +107,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   enAlmuerzo = false;
   almuerzoPendiente = false;
+  notificationPermission: 'granted' | 'denied' | 'default' | 'unsupported' = 'default';
+
+  get notificationPermissionTitle(): string {
+    switch (this.notificationPermission) {
+      case 'granted':
+        return 'Notificaciones de Windows activadas';
+      case 'denied':
+        return 'Notificaciones bloqueadas por el navegador. Haz clic para ver cómo activarlas.';
+      case 'unsupported':
+        return 'Este navegador no soporta notificaciones de escritorio';
+      default:
+        return 'Activar notificaciones de Windows';
+    }
+  }
   almuerzoModalVisible = true;
   almuerzoRestante = '';
   almuerzoFinHora = '';
@@ -130,6 +144,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private readonly STATUS_KEY = 'advisor_status';
   private readonly LUNCH_STATE_KEY = 'advisor_lunch_state';
   private fixedAdvisorCache = new Map<string, string | null | undefined>();
+  private fallbackToastAt = new Map<string, number>();
   private readonly teamBreakpoint = window.matchMedia('(max-width: 900px)');
   private readonly smallScreenBreakpoint = window.matchMedia('(max-width: 1268px)');
 
@@ -175,6 +190,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
     this.sound.init();
     this.sound.ping();
+    this.sound.notificationPermission$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(p => {
+        this.notificationPermission = p;
+        this.cdr.detectChanges();
+      });
     this.socket.connect(this.auth.getToken() ?? undefined);
     if (this.currentAdvisor?.id) {
       this.whatsapp.joinAsAdvisor(this.currentAdvisor.id);
@@ -359,6 +380,28 @@ export class DashboardComponent implements OnInit, OnDestroy {
       });
   }
 
+  requestNotifications(): void {
+    this.sound.requestNotifications().then(permission => {
+      this.notificationPermission = permission;
+      if (permission === 'granted') {
+        this.notification.success(
+          'Notificaciones activadas',
+          'Recibirás avisos de mensajes y asignaciones.',
+        );
+      } else if (permission === 'denied') {
+        this.notification.warning(
+          'Notificaciones bloqueadas',
+          'Habilita el permiso de notificaciones para este sitio en la configuración del navegador.',
+        );
+      } else if (permission === 'unsupported') {
+        this.notification.info(
+          'Notificaciones no disponibles',
+          'Este navegador no soporta notificaciones de escritorio.',
+        );
+      }
+    });
+  }
+
   private registerGlobalNotificationListeners(): void {
     this.socket.on<{ sessionId: string; clientName: string }>('session_assigned')
       .pipe(takeUntil(this.destroy$))
@@ -382,6 +425,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.internalChat.onNewMessage()
       .pipe(takeUntil(this.destroy$))
       .subscribe(message => this.handleGlobalInternalMessage(message));
+
+    this.sound.notificationFallback$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(ev => {
+        const key = `fb-${ev.tag}`;
+        const last = this.fallbackToastAt.get(key) ?? 0;
+        if (Date.now() - last < 4000) return;
+        this.fallbackToastAt.set(key, Date.now());
+        this.notification.info(ev.title, ev.body.replace(/\n/g, ' · '), ev.icon);
+      });
 
     this.whatsapp.onChatAssigned()
       .pipe(takeUntil(this.destroy$))
@@ -486,6 +539,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.whatsapp.loadChats().subscribe({
       error: (err) => console.error('HTTP Error:', err),
     });
+    interval(30_000)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        if (this.router.url.includes('/dashboard/whatsapp')) return;
+        this.whatsapp.refreshUnreadTotal().subscribe();
+        this.whatsapp.loadChats(1).subscribe();
+      });
     document.addEventListener('visibilitychange', this.handleVisibilityChange);
   }
 
@@ -517,6 +577,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   private handleGlobalWhatsappMessage(message: AwNewMessage): void {
     if (message.fromMe) return;
+    if (message.chatId === this.whatsapp.getActiveChatId()) return;
     this.sound.playWhatsappAssignedMessage();
     const chat = this.whatsapp.getChatsSnapshot().find(item => item.id === message.chatId);
     this.sound.notify(
@@ -872,6 +933,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (!document.hidden) {
       this.sound.stopTitleBlink();
       this.sound.setUnreadBadge(this.totalUnreadCount);
+      this.whatsapp.refreshUnreadTotal().subscribe();
+      if (!this.router.url.includes('/dashboard/whatsapp')) {
+        this.whatsapp.loadChats(1).subscribe();
+      }
     }
   };
 

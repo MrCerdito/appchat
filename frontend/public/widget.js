@@ -137,7 +137,10 @@
 
   function getScriptTag() {
     if (_scriptTag) return _scriptTag;
-    var re = /\/widget(\.min)?\.js$/;
+    // Acepta src absoluto (https://dominio.com/korvix/widget.js) y relativo
+    // (widget.js o /korvix/widget.js). No captura widgets.js (el sufijo
+    // .js final no coincide porque el nombre termina en 's.js').
+    var re = /widget(\.min)?\.js$/;
     var tags = document.querySelectorAll('script[src]');
     for (var i = 0; i < tags.length; i++) {
       var s = tags[i].getAttribute('src') || '';
@@ -288,11 +291,14 @@
      Incluye header completo con marca, título y subtítulo.
   ═══════════════════════════════════════════════════════════ */
   function buildDOM() {
+    // Solo se elimina una instancia creada por el propio widget (data-sian-widget).
+    // Si la página del host ya tiene un elemento con este id, no se toca.
     var old = document.getElementById(ROOT_ID);
-    if (old) old.remove();
+    if (old && old.getAttribute('data-sian-widget')) old.remove();
 
     var root = document.createElement('div');
     root.id  = ROOT_ID;
+    root.setAttribute('data-sian-widget', '1');
 
     // ── Burbuja ──
     var bubble = document.createElement('div');
@@ -772,7 +778,14 @@
   ═══════════════════════════════════════════════════════════ */
   window.addEventListener('resize', function () { if (inited) paint(cfg); });
 
+  var BOOTED = false;
+
   function init() {
+    // El script puede cargarse más de una vez en la misma página: solo la
+    // primera ejecución construye el widget para no duplicar el botón.
+    if (BOOTED) return;
+    BOOTED = true;
+
     buildDOM();
 
     if (IS_PREVIEW) {

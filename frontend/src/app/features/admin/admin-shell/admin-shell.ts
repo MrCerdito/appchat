@@ -2,11 +2,14 @@ import { Component, OnDestroy, OnInit, ChangeDetectionStrategy, ChangeDetectorRe
 import { CommonModule } from '@angular/common';
 import { NavigationEnd, Router, RouterModule } from '@angular/router';
 import { ToastContainerComponent } from '../../../shared/components/toast-container.component';
-import { filter, Subscription } from 'rxjs';
+import { filter, Subject, Subscription, takeUntil } from 'rxjs';
 
 import { AuthService } from '../../../core/services/auth.service';
 import { SocketService } from '../../../core/services/socket.service';
 import { InternalChatService } from '../../../core/services/internal-chat.service';
+import { WhatsappChatService } from '../../../core/services/whatsapp-chat.service';
+import { SoundService } from '../../../core/services/sound.service';
+import { NotificationService } from '../../../core/services/notification.service';
 import { ThemeService } from '../../../core/services/theme.service';
 import { LayoutService } from '../../../core/services/layout.service';
 import { User } from '../../../core/models/user.model';
@@ -29,15 +32,39 @@ export class AdminShellComponent implements OnInit, OnDestroy {
   sidebarCollapsed = false;
   appearanceOpen = false;
   internalUnread = 0;
+  notificationPermission: 'granted' | 'denied' | 'default' | 'unsupported' = 'default';
+
+  get notificationPermissionTitle(): string {
+    switch (this.notificationPermission) {
+      case 'granted': return 'Notificaciones activadas';
+      case 'denied': return 'Notificaciones bloqueadas';
+      case 'unsupported': return 'No soportadas';
+      default: return 'Activar notificaciones';
+    }
+  }
+
+  get notificationPermissionDetail(): string {
+    switch (this.notificationPermission) {
+      case 'granted': return 'Recibirás avisos de asignaciones y mensajes.';
+      case 'denied': return 'Haz clic y habilita el permiso en tu navegador.';
+      case 'unsupported': return 'Tu navegador no soporta notificaciones.';
+      default: return 'Actívalas para no perderte ninguna novedad.';
+    }
+  }
 
   private routerSub?: Subscription;
   private layoutSub?: Subscription;
   private internalUnreadSub?: Subscription;
+  private destroy$ = new Subject<void>();
+  private recentEventIds = new Map<string, number>();
 
   constructor(
     private auth: AuthService,
     private socket: SocketService,
     private internalChat: InternalChatService,
+    private whatsapp: WhatsappChatService,
+    private sound: SoundService,
+    private notifications: NotificationService,
     protected themeService: ThemeService,
     private router: Router,
     private layoutService: LayoutService,
@@ -48,12 +75,25 @@ export class AdminShellComponent implements OnInit, OnDestroy {
     this.auth.user$.subscribe({
       next: (user) => {
         this.currentAdmin = user;
+        if (user?.id) {
+          this.whatsapp.joinAsAdvisor(user.id);
+        }
         this.cdr.markForCheck();
       },
       error: (err) => console.error('HTTP Error:', err),
     });
     this.socket.connect(this.auth.getToken() ?? undefined);
     this.internalChat.connect();
+    this.sound.init();
+    this.sound.notificationPermission$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (permission) => {
+          this.notificationPermission = permission;
+          this.cdr.markForCheck();
+        },
+        error: (err) => console.error('HTTP Error:', err),
+      });
     this.internalUnreadSub = this.internalChat.getUnreadTotalStream().subscribe({
       next: total => {
         this.internalUnread = total;
@@ -61,6 +101,7 @@ export class AdminShellComponent implements OnInit, OnDestroy {
       },
       error: (err) => console.error('HTTP Error:', err),
     });
+    this.registerGlobalNotificationListeners();
     this.syncSidebarMode();
     this.routerSub = this.router.events
       .pipe(filter(event => event instanceof NavigationEnd))
@@ -77,10 +118,108 @@ export class AdminShellComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
     this.routerSub?.unsubscribe();
     this.layoutSub?.unsubscribe();
     this.internalUnreadSub?.unsubscribe();
+    this.whatsapp.disconnect();
     this.internalChat.disconnect();
+  }
+
+  requestNotifications(): void {
+    this.sound.requestNotifications().then(permission => {
+      this.notificationPermission = permission;
+      if (permission === 'granted') {
+        this.notifications.success(
+          'Notificaciones activadas',
+          'Recibirás avisos de mensajes y asignaciones.',
+        );
+      } else if (permission === 'denied') {
+        this.notifications.warning(
+          'Notificaciones bloqueadas',
+          'Habilita el permiso de notificaciones para este sitio en la configuración del navegador.',
+        );
+      } else if (permission === 'unsupported') {
+        this.notifications.info(
+          'Notificaciones no disponibles',
+          'Este navegador no soporta notificaciones de escritorio.',
+        );
+      }
+      this.cdr.markForCheck();
+    });
+  }
+
+  private registerGlobalNotificationListeners(): void {
+    this.socket.on<{ sessionId: string; clientName: string }>('session_assigned')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        this.sound.playWhatsappAssignment();
+        this.sound.notify(
+          'CHAT EN LINEA',
+          `${data.clientName || 'Cliente'}\nNuevo chat asignado`,
+          `assigned-${data.sessionId}`,
+        );
+      });
+
+    this.socket.on<{ id?: string; senderType?: string; senderName?: string; content?: string; sessionId?: string }>('new_message')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(message => {
+        if (message.senderType !== 'client') return;
+        if (!this.isRecentEvent(message.id ?? `msg-${message.sessionId}`)) return;
+        this.sound.playCriticalMessage();
+        this.sound.notify(
+          'CHAT EN LINEA',
+          `${message.senderName || 'Cliente'}\n${message.content || 'Nuevo mensaje del cliente'}`,
+          `oc-message-${message.sessionId}`,
+        );
+      });
+
+    this.whatsapp.onNewMessage()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(message => {
+        if (message.fromMe) return;
+        this.sound.playWhatsappAssignedMessage();
+        const chat = this.whatsapp.getChatsSnapshot().find(item => item.id === message.chatId);
+        this.sound.notify(
+          'WHATSAPP',
+          `${chat?.name || 'WhatsApp'}\n${message.body || 'Nuevo mensaje de WhatsApp'}`,
+          `wa-message-${message.chatId}`,
+        );
+      });
+
+    this.internalChat.onNewMessage()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(message => {
+        if (message.senderId === this.currentAdmin?.id) return;
+        if (message.type === 'system') return;
+        this.sound.playWhatsappAssignedMessage();
+        this.sound.notify(
+          'CHAT INTERNO',
+          `${message.senderName}\n${message.body || 'Nuevo mensaje interno'}`,
+          `internal-message-${message.conversationId}`,
+        );
+      });
+
+    this.sound.notificationFallback$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(ev => {
+        const key = `fb-${ev.tag}`;
+        const last = this.recentEventIds.get(key) ?? 0;
+        if (Date.now() - last < 4000) return;
+        this.recentEventIds.set(key, Date.now());
+        this.notifications.info(ev.title, ev.body.replace(/\n/g, ' · '), ev.icon);
+      });
+  }
+
+  /** Evita duplicar notificaciones cuando el admin está dentro de la sala de
+   *  una sesión y además recibe la emisión global a la sala 'admins'. */
+  private isRecentEvent(key: string): boolean {
+    const now = Date.now();
+    const last = this.recentEventIds.get(key) ?? 0;
+    if (now - last < 2000) return false;
+    this.recentEventIds.set(key, now);
+    return true;
   }
 
   get isOperacionesRoute(): boolean {
