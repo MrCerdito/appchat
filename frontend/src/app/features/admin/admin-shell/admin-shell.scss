@@ -153,6 +153,7 @@
   text-decoration: none;
 
   svg { width: 17px; height: 17px; flex-shrink: 0; }
+  img { width: 17px; height: 17px; flex-shrink: 0; object-fit: contain; }
 
   &:hover  { background: var(--sidebar-hover); color: var(--sidebar-text); }
   &.active { background: var(--sidebar-accent);   color: var(--sidebar-text); font-weight: 600; }

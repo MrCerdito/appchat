@@ -487,6 +487,25 @@ a{text-decoration:none;color:inherit}
     flex: 0 0 38px;
     font-size: 15px;
   }
+
+  .ic-new-chat-btn {
+    width: 38px;
+    height: 38px;
+    flex: 0 0 38px;
+    border-radius: 50%;
+    border: none;
+    background: var(--wa-green);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 18px;
+    transition: transform 0.12s ease, opacity 0.12s ease;
+
+    &:hover { transform: scale(1.06); }
+    &:active { opacity: 0.8; }
+  }
 }
 
 .compact-filter-dropdown {
@@ -621,6 +640,7 @@ a{text-decoration:none;color:inherit}
     input{flex:1; border:0; outline:0; background:transparent; color:var(--wa-text); font-size:14px}
   }
   .ic-list{flex:1; overflow-y:auto; min-height:0}
+  .ic-new-chat-btn{display:none}
   .ic-item{
     display:flex; align-items:center; gap:12px; width:100%; padding:10px 14px;
     text-align:left; border-bottom:1px solid var(--wa-line); cursor:pointer;
@@ -1409,7 +1429,6 @@ a{text-decoration:none;color:inherit}
 
     &.open {
       transform: translateX(0);
-      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.18);
     }
   }
 

@@ -70,10 +70,7 @@
       <span class="nav-label section-spacer">Comunicación</span>
 
       <a class="nav-item" routerLink="operaciones/chats" [queryParams]="{ modo: 'asesores' }" (click)="closeSidebarOnMobile()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-        </svg>
+        <img src="chat_interno.png" alt="">
         <span>Chat interno</span>
         @if (internalUnread > 0) {
         <b class="nav-item-badge">{{ internalUnread > 99 ? '99+' : internalUnread }}</b>

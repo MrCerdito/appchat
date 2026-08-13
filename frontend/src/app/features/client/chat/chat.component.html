@@ -593,7 +593,7 @@
         <!-- Oferta de transferencia a asesor -->
         @if (mostrarOfertaAsesorEn(i)) {
         <div class="inline-survey">
-          <div class="survey-question">¿Necesitas un agente para una mejor ayuda?</div>
+          <div class="survey-question">¿Deseas que te transfiera con un asesor?</div>
           <div class="survey-actions">
             <button class="survey-btn positive" (click)="responderOfertaAsesor(i, true)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
@@ -635,19 +635,6 @@
       <span class="typing-name">
         {{ aiTyping ? 'Asistente escribiendo' : typingName + ' esta escribiendo' }}
       </span>
-    </div>
-    }
-
-    <!-- Botón detener streaming -->
-    @if (isStreaming) {
-    <div class="detener-wrap">
-      <button class="btn-detener" (click)="detenerStream()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-        </svg>
-        Detener respuesta
-      </button>
     </div>
     }
 

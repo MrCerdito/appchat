@@ -1216,33 +1216,6 @@ textarea {
   50%       { opacity: 0; }
 }
 
-.detener-wrap {
-  display        : flex;
-  justify-content: center;
-  padding        : 4px 0 2px;
-}
-
-.btn-detener {
-  display    : flex;
-  align-items: center;
-  gap        : 6px;
-  font-size  : 0.78rem;
-  padding    : 5px 14px;
-  border     : 1px solid #d1d5db;
-  border-radius: 20px;
-  background : white;
-  color      : #6b7280;
-  cursor     : pointer;
-  transition : all 0.2s;
-
-  svg { width: 13px; height: 13px; }
-
-  &:hover {
-    border-color: #9ca3af;
-    color        : #374151;
-  }
-}
-
 .client-timer-strip {
   position: relative;
   display: grid;

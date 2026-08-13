@@ -1232,6 +1232,30 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     );
   }
 
+  async getUnreadTotal(
+    advisorId: string,
+    role: string,
+  ): Promise<{ total: number }> {
+    const qb = this.chatRepo
+      .createQueryBuilder('chat')
+      .leftJoin('chat.assignedAdvisor', 'advisor')
+      .leftJoin('chat.fixedAdvisor', 'fixedAdvisor');
+
+    // Mismo scope que listChats: chats asignados/fijos y la cola sin asesor.
+    if (role !== 'admin') {
+      qb.andWhere(
+        '(advisor.id = :advisorId OR fixedAdvisor.id = :advisorId OR advisor.id IS NULL)',
+        { advisorId },
+      );
+    }
+
+    const row = await qb
+      .select('COALESCE(SUM(chat.unread_count), 0)', 'total')
+      .getRawOne();
+
+    return { total: Number(row?.total ?? 0) };
+  }
+
   async getAdminDashboard(role: string): Promise<WhatsappAdminDashboardDto> {
     this.assertAdminRole(role);
     await this.releaseExpiredActiveChats();

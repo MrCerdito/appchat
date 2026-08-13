@@ -144,17 +144,20 @@ export class SessionsService {
   }
 
   async findAll(advisorId?: string): Promise<Session[]> {
+    let sessions: Session[];
     if (advisorId) {
-      return this.sessionRepo.find({
+      sessions = await this.sessionRepo.find({
         where: { advisor: { id: advisorId } },
         order: { createdAt: 'DESC' },
         relations: ['advisor'],
       });
+    } else {
+      sessions = await this.sessionRepo.find({
+        order: { createdAt: 'DESC' },
+        relations: ['advisor'],
+      });
     }
-    return this.sessionRepo.find({
-      order: { createdAt: 'DESC' },
-      relations: ['advisor'],
-    });
+    return this.attachUnreadCounts(sessions);
   }
 
   /** Sesiones propias del asesor + las de la cola (sin asesor) para que
@@ -168,7 +171,7 @@ export class SessionsService {
     const mine = sessions.filter(
       (s) => s.advisor?.id === advisorId || s.status === 'waiting',
     );
-    return this.attachLastMessages(mine);
+    return this.attachUnreadCounts(await this.attachLastMessages(mine));
   }
 
   async findAllPaginated(
@@ -246,7 +249,10 @@ export class SessionsService {
   //   carrera (join_session + request_advisor + polling simultáneos). Si
   //   affected = 0, otra llamada ya asignó la sesión y NO debemos continuar
   //   (esto evitaba que la bienvenida se guardara dos veces).
-  async assignAdvisor(sessionId: string, advisorId: string): Promise<Session> {
+  async assignAdvisor(
+    sessionId: string,
+    advisorId: string,
+  ): Promise<{ session: Session; won: boolean }> {
     const result = await this.sessionRepo
       .createQueryBuilder()
       .update(Session)
@@ -255,12 +261,11 @@ export class SessionsService {
       .andWhere("status = 'waiting'")
       .execute();
 
-    if ((result.affected ?? 0) === 0) {
-      return this.findOne(sessionId);
-    }
+    const won = (result.affected ?? 0) > 0;
 
-    await this.syncAdvisorActiveChats(advisorId);
-    return this.findOne(sessionId);
+    if (won) await this.syncAdvisorActiveChats(advisorId);
+
+    return { session: await this.findOne(sessionId), won };
   }
   async findAvailableAdvisor(): Promise<User | null> {
     const advisors = await this.userRepo.find({
@@ -683,6 +688,35 @@ export class SessionsService {
       take: 500,
     });
     return this.attachLastMessages(sessions);
+  }
+
+  /** Añade `unreadCount` por sesión: mensajes del cliente sin leer (read_at IS
+   *  NULL) para que el contador de "chat en línea" sea consistente al refrescar
+   *  y entre navegadores, en lugar de depender solo de localStorage. */
+  private async attachUnreadCounts(sessions: Session[]): Promise<Session[]> {
+    if (sessions.length === 0) return sessions;
+    const ids = sessions.map((s) => s.id);
+
+    const rows: Array<{ session_id: string; unread: string }> =
+      await this.dataSource.query(
+        `SELECT "session_id", COUNT(*)::int AS unread
+         FROM "messages"
+         WHERE "session_id" = ANY($1)
+           AND "sender_type" = 'client'
+           AND "read_at" IS NULL
+         GROUP BY "session_id"`,
+        [ids],
+      );
+
+    const bySession = new Map<string, number>();
+    for (const row of rows) {
+      bySession.set(row.session_id, Number(row.unread));
+    }
+
+    return sessions.map((s) => ({
+      ...s,
+      unreadCount: bySession.get(s.id) ?? 0,
+    })) as Session[];
   }
 
   /** Añade `lastMessage` (último mensaje de la sesión, sea del cliente, la IA

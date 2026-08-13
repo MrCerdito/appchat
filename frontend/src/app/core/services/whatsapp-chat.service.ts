@@ -1,7 +1,7 @@
 import { Injectable, OnDestroy } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable, Subject, of, BehaviorSubject } from 'rxjs';
-import { catchError, tap } from 'rxjs/operators';
+import { catchError, map, tap } from 'rxjs/operators';
 import { io, Socket } from 'socket.io-client';
 import { environment } from '../../../environments/environment';
 import { formatBogotaTime } from '../../shared/utils/date';
@@ -58,6 +58,7 @@ export class WhatsappChatService implements OnDestroy {
   private queueUpdated$ = new Subject<AwQueueUpdated>();
   private adminDashboard$ = new BehaviorSubject<WaAdminDashboard | null>(null);
   private chats$ = new BehaviorSubject<WaChat[]>([]);
+  private unreadTotal$ = new BehaviorSubject<number>(0);
   private myAdvisorId = '';
   private activeChatId: string | null = null;
   private connection$ = new BehaviorSubject<WaConnectionStatus>({
@@ -85,6 +86,7 @@ export class WhatsappChatService implements OnDestroy {
       this.connectionLoaded = false;
       this.loadConnection().subscribe();
       this.scheduleChatListRefresh();
+      this.refreshUnreadTotal();
       if (this.activeChatId) this.socket.emit('aw_open_chat', this.activeChatId);
     });
 
@@ -106,6 +108,7 @@ export class WhatsappChatService implements OnDestroy {
     this.socket.on('aw_new_message', (data: AwNewMessage) => {
       if (this.updateChatOnNewMessage(data)) {
         this.newMessage$.next(data);
+        this.refreshUnreadTotal();
       }
     });
 
@@ -117,17 +120,20 @@ export class WhatsappChatService implements OnDestroy {
     this.socket.on('aw_chat_assigned', (data: AwChatAssigned) => {
       this.chatAssigned$.next(data);
       this.upsertChat(data.chat);
+      this.refreshUnreadTotal();
     });
 
     this.socket.on('aw_chat_updated', (chat: WaChat) => {
       this.upsertChat(chat);
       this.chatUpdated$.next(chat);
+      this.refreshUnreadTotal();
     });
 
     this.socket.on('aw_queue_updated', (data: AwQueueUpdated = {}) => {
       if (data.chat) {
         this.queueUpdated$.next(data);
         this.upsertChat(data.chat);
+        this.refreshUnreadTotal();
       }
     });
 
@@ -264,6 +270,7 @@ export class WhatsappChatService implements OnDestroy {
             this.chats$.next([...current, ...res.chats]);
           }
         }
+        if (page === 1) this.refreshUnreadTotal().subscribe();
       }),
       catchError(() => {
         return of([] as WaChat[]);
@@ -280,6 +287,25 @@ export class WhatsappChatService implements OnDestroy {
       tap(() => { this.loadingMore = false; }),
       catchError(() => { this.loadingMore = false; return of([] as WaChat[]); }),
     );
+  }
+
+  refreshUnreadTotal(): Observable<number> {
+    return this.http.get<{ total: number }>(
+      `${this.apiUrl}/chats/unread-total`,
+      { headers: this.headers() },
+    ).pipe(
+      map(res => Number(res?.total ?? 0)),
+      tap(total => this.unreadTotal$.next(total)),
+      catchError(() => of(this.unreadTotal$.getValue())),
+    );
+  }
+
+  getUnreadTotalStream(): Observable<number> {
+    return this.unreadTotal$.asObservable();
+  }
+
+  getUnreadTotal(): number {
+    return this.unreadTotal$.getValue();
   }
 
   get hasMore(): boolean {
@@ -441,7 +467,10 @@ export class WhatsappChatService implements OnDestroy {
       {},
       { headers: this.headers() },
     ).pipe(
-      tap(() => this.setUnread(chatId, 0)),
+      tap(() => {
+        this.setUnread(chatId, 0);
+        this.refreshUnreadTotal().subscribe();
+      }),
       catchError(() => of(undefined as any)),
     );
   }
@@ -619,11 +648,9 @@ export class WhatsappChatService implements OnDestroy {
 
     chat.preview = this.isReactionMessage(msg) ? chat.preview : this.messagePreview(msg);
     chat.time = this.formatBogotaTime(now);
-    // Solo los chats asignados a este asesor acumulan no-leídos; la cola
-    // (sin asesor) actualiza el preview sin "notificar" al contador.
-    const isMine = chat.assignedTo === this.myAdvisorId;
-    const isOpen = msg.chatId === this.activeChatId;
-    if (!msg.fromMe && isNewMessage && !this.isReactionMessage(msg) && isMine && !isOpen) chat.unread = (chat.unread ?? 0) + 1;
+    // El conteo de no-leídos lo mantiene el backend (chat.unreadCount) y llega
+    // vía `aw_chat_updated`; no se incrementa localmente para que el contador
+    // coincida al refrescar la página.
     if (!msg.fromMe) chat.lastClientMsg = now;
     chat.messages = messages;
 

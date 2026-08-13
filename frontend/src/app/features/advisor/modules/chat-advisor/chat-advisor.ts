@@ -186,22 +186,31 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     return this.state.getMessages(this.activeSession.id);
   }
 
+  /** ¿Esta sesión puede aparecer en la lista propia del asesor? */
+  private isMineOrQueue(s: Session): boolean {
+    if (this.currentAdvisor?.role === 'admin') return true;
+    if (s.status === 'waiting') return true;
+    return s.advisor?.id === this.currentAdvisor?.id;
+  }
+
   get activeSessions(): Session[] {
-    return this.sessions.filter(s => s.status === 'waiting' || s.status === 'active');
+    return this.sessions.filter(
+      s => this.isMineOrQueue(s) && (s.status === 'waiting' || s.status === 'active'),
+    );
   }
 
   get waitingCount(): number {
-    return this.sessions.filter(s => s.status === 'waiting').length;
+    return this.sessions.filter(s => this.isMineOrQueue(s) && s.status === 'waiting').length;
   }
 
   get assignedCount(): number {
-    return this.sessions.filter(s => s.status === 'active').length;
+    return this.sessions.filter(s => this.isMineOrQueue(s) && s.status === 'active').length;
   }
 
   get recentSessions(): Session[] {
     const activeIds = new Set(this.activeSessions.map(s => s.id));
     return this.sessions
-      .filter(s => !activeIds.has(s.id))
+      .filter(s => this.isMineOrQueue(s) && !activeIds.has(s.id))
       .sort((a, b) => this.lastActivityMs(b) - this.lastActivityMs(a))
       .slice(0, 4);
   }
@@ -366,10 +375,11 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
           if (joined) {
             this.joinSession(joined);
           } else {
-            // Puede ser un chat de otro asesor al que entramos por apoyo
+            // Puede ser un chat de otro asesor al que entramos por apoyo.
+            // Se abre sin contaminar la lista propia.
             this.sessionService.findOne(sessionId).subscribe({
               next: (s) => {
-                this.mergeSession(s);
+                if (this.isMineOrQueue(s)) this.mergeSession(s);
                 this.collaboratorSessions.add(s.id);
                 this.joinRoom(s.id);
                 this.joinSession(s);
@@ -401,7 +411,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
           this.loadSessions();
           this.sessionService.findOne(data.sessionId).subscribe({
             next: (joined) => {
-              this.mergeSession(joined);
+              if (this.isMineOrQueue(joined)) this.mergeSession(joined);
               this.joinRoom(joined.id);
               this.joinSession(joined);
               this.cdr.detectChanges();

@@ -93,6 +93,12 @@ export class AdvisorsWhatsappController {
     return this.whatsappService.listChats(req.user.id, req.user.role, p, l);
   }
 
+  @Get('chats/unread-total')
+  @UseGuards(JwtAuthGuard)
+  getUnreadTotal(@Req() req: Request & { user: any }) {
+    return this.whatsappService.getUnreadTotal(req.user.id, req.user.role);
+  }
+
   @Get('admin/dashboard')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')

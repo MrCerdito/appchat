@@ -66,6 +66,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   allAdvisors: ConnectedAdvisor[] = [];
   teamPanelOpen = false;
   compactTeamView = window.matchMedia('(max-width: 900px)').matches;
+  smallScreen = window.matchMedia('(max-width: 1268px)').matches;
 
   get maxVisibleCapsules(): number {
     return this.compactTeamView ? 2 : this.allAdvisors.length;
@@ -130,9 +131,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private readonly LUNCH_STATE_KEY = 'advisor_lunch_state';
   private fixedAdvisorCache = new Map<string, string | null | undefined>();
   private readonly teamBreakpoint = window.matchMedia('(max-width: 900px)');
+  private readonly smallScreenBreakpoint = window.matchMedia('(max-width: 1268px)');
 
   private onTeamBreakpoint = (e: MediaQueryListEvent): void => {
     this.compactTeamView = e.matches;
+    this.cdr.detectChanges();
+  };
+
+  private onSmallScreenBreakpoint = (e: MediaQueryListEvent): void => {
+    this.smallScreen = e.matches;
     this.cdr.detectChanges();
   };
 
@@ -152,6 +159,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private elementRef: ElementRef,
     private notification: NotificationService,
   ) {}
+
+  whatsappMode: 'clients' | 'advisors' | null = null;
 
   ngOnInit(): void {
     this.auth.user$.pipe(takeUntil(this.destroy$)).subscribe((user) => {
@@ -183,6 +192,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.socket.emit('get_lunch_state');
     this.syncUnreadIndicators();
     this.teamBreakpoint.addEventListener('change', this.onTeamBreakpoint);
+    this.smallScreenBreakpoint.addEventListener('change', this.onSmallScreenBreakpoint);
     this.sessionService.findAdvisors().subscribe({
       next: (users) => {
         this.allAdvisors = users.map(u => ({
@@ -196,6 +206,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       error: (err) => console.error('HTTP Error:', err),
     });
     this.syncShellMode(this.router.url);
+    this.syncWhatsappMode(this.router.url);
     this.topbarTitle = this.router.url.includes('/dashboard/whatsapp')
       ? 'CHAT WHATSAPP'
       : 'CHAT EN LINEA';
@@ -437,6 +448,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
           this.chatState.setActiveSession(null);
         }
         this.syncShellMode(url);
+        this.syncWhatsappMode(url);
         this.cdr.detectChanges();
       });
   }
@@ -457,17 +469,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.cdr.detectChanges();
       });
 
-    this.whatsapp.getChatsStream()
+    this.whatsapp.getUnreadTotalStream()
       .pipe(takeUntil(this.destroy$))
-      .subscribe(chats => {
-        const myId = this.currentAdvisor?.id;
-        const myChats = myId ? chats.filter(c =>
-          c.assignedTo === myId ||
-          c.fixedAdvisorId === myId ||
-          c.tag === 'pendiente' ||
-          c.assignmentStatus === 'waiting'
-        ) : chats;
-        this.whatsappUnreadCount = this.countWhatsappUnread(myChats);
+      .subscribe(total => {
+        this.whatsappUnreadCount = total;
         this.refreshGlobalBadge();
       });
 
@@ -534,6 +539,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   get whatsappTotalUnread(): number {
     return this.whatsappUnreadCount + this.internalUnreadCount;
+  }
+
+  get showTopbarTitle(): boolean {
+    const url = this.router.url;
+    return url.includes('/dashboard/chats') || url.includes('/dashboard/whatsapp');
+  }
+
+  get showHamburger(): boolean {
+    return this.showTopbarTitle || this.smallScreen;
   }
 
   get whatsappUnreadTitle(): string {
@@ -705,6 +719,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.sessionService.findAll().subscribe({
       next: (sessions) => {
         this.chatState.reconcileSessions(sessions);
+        // Sembrar el conteo desde el servidor (readAt) para que al refrescar
+        // la página el contador de "chat en línea" sea consistente.
+        sessions.forEach(s => {
+          if (typeof s.unreadCount === 'number') {
+            this.chatState.setUnread(s.id, s.unreadCount);
+          }
+        });
         this.chatState.sessions$.next(sessions);
         const myId = this.currentAdvisor?.id;
         const mySessions = myId
@@ -737,6 +758,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.appearanceOpen = false;
     }
     this.cdr.detectChanges();
+  }
+
+  private syncWhatsappMode(url: string): void {
+    this.whatsappMode = url.includes('/dashboard/whatsapp')
+      ? (url.includes('modo=advisors') ? 'advisors' : 'clients')
+      : null;
   }
 
   setStatus(status: 'online' | 'busy' | 'offline'): void {
@@ -811,10 +838,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.auth.logout();
       this.router.navigate(['/login']);
     }, 300);
-  }
-
-  private countWhatsappUnread(chats: WaChat[]): number {
-    return chats.reduce((total, chat) => total + Math.max(0, chat.unread ?? 0), 0);
   }
 
   private sessionFullName(session?: Session | null): string {
@@ -1033,6 +1056,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
     this.stopLunchCountdown();
     this.teamBreakpoint.removeEventListener('change', this.onTeamBreakpoint);
+    this.smallScreenBreakpoint.removeEventListener('change', this.onSmallScreenBreakpoint);
     document.removeEventListener('visibilitychange', this.handleVisibilityChange);
     window.removeEventListener('message', this.handleTeamsAuthMessage);
     this.internalChat.disconnect();

@@ -1836,9 +1836,13 @@ export class ChatGateway
       sessionId,
       advisor.id,
     );
+    // ★ Solo el ganador del UPDATE atómico continúa: si otra llamada
+    //   concurrente (join_session / request_advisor / assignPendingSessions)
+    //   ya asignó y envió la bienvenida, el perdedor NO debe reenviar nada.
+    if (!assigned.won) return true;
     if (
-      assigned.status !== 'active' ||
-      assigned.advisor?.id !== advisor.id
+      assigned.session.status !== 'active' ||
+      assigned.session.advisor?.id !== advisor.id
     ) {
       return false;
     }

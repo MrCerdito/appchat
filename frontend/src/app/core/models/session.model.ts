@@ -20,6 +20,7 @@ export interface Session {
   colegioLink?: string;
   tipoSolicitud?: string;
   status:        string;
+  unreadCount?:  number;
   advisor?:      { id?: string; name: string } | null;
   createdAt?:    string;
   closedAt?:     string | null;

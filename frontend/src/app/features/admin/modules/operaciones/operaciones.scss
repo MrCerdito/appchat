@@ -68,6 +68,7 @@
   height: 24px;
   color: #10B981;
   flex-shrink: 0;
+  object-fit: contain;
 }
 
 .op-nav-title {
@@ -111,6 +112,7 @@
   white-space: nowrap;
 
   svg { width: 14px; height: 14px; opacity: 0.6; }
+  img { width: 14px; height: 14px; opacity: 0.6; object-fit: contain; }
 
   &:hover {
     border-color: #2563EB;

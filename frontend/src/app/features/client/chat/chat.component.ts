@@ -99,8 +99,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   // ── SSE Streaming ──────────────────────────────────────────────────────────
 streamingText    = '';
 isStreaming      = false;
-streamDocumentos : any[] = [];
-private streamSub: any;
+  streamDocumentos : any[] = [];
 
 
 
@@ -349,8 +348,10 @@ get rolLabel(): string {
           localStorage.setItem(SESSION_KEY, JSON.stringify({ ...this.session, aiMode: false }));
 
           if (s.status === 'active' && advisor) {
-            this.advisorName = (advisor as any).name;
-            this.advisorPhotoUrl = (advisor as any).profilePhotoUrl ? `${environment.apiUrl}${(advisor as any).profilePhotoUrl}` : '';
+            this.advisorName = (advisor as any).name ?? (savedData as any).advisorName ?? '';
+            this.advisorPhotoUrl = this.normalizePhotoUrl(
+              (advisor as any).profilePhotoUrl ?? (savedData as any).advisorPhotoUrl ?? ''
+            );
             this.fueraDeHorario = false;
             this.step = 'chat';
           } else {
@@ -812,7 +813,7 @@ get rolLabel(): string {
       .pipe(takeUntil(this.socketDestroy$))
       .subscribe((data) => {
         this.advisorName = data.name;
-        this.advisorPhotoUrl = data.profilePhotoUrl ?? '';
+        this.advisorPhotoUrl = this.normalizePhotoUrl(data.profilePhotoUrl ?? '');
         this.sound.playNotification();
         this.clearWaitingTimer();
         this.mostrarAsesoresOcupados = false;
@@ -821,6 +822,11 @@ get rolLabel(): string {
         this.fueraDeHorario = false;
         this.step = 'chat';
         this.socket.emit('set_active', { sessionId: this.session!.id, active: true });
+
+        if (this.session) {
+          const persistido = { ...this.session, aiMode: false, advisorName: data.name, advisorPhotoUrl: this.advisorPhotoUrl };
+          localStorage.setItem(SESSION_KEY, JSON.stringify(persistido));
+        }
 
         if (this.pendingAttachments.length > 0) {
           const attachments = [...this.pendingAttachments];
@@ -1418,11 +1424,11 @@ get rolLabel(): string {
   this.streamingText    = '';
   this.streamDocumentos = [];
   this.isStreaming      = true;
-  this.aiTyping         = false;
+  this.aiTyping         = true;
   let streamSugerirAsesor = false;
   this.cdr.detectChanges();
 
-  this.streamSub = this.aiService
+  this.aiService
     .chatStream(userMsg, historySnapshot, this.clientName, this.colegio, this.tipoSolicitud, this.rol, this.session?.id, this.bienvenidaIa)
     .subscribe({
       next: ({ event, data }) => {
@@ -1434,6 +1440,7 @@ get rolLabel(): string {
 
         if (event === 'session_terminated') {
           this.isStreaming = false;
+          this.aiTyping    = false;
           this.sesionFinalizando = true;
           this.scrollToBottom();
           this.cdr.detectChanges();
@@ -1442,6 +1449,8 @@ get rolLabel(): string {
         }
 
         if (event === 'chunk' && data.text) {
+          // Ya llegó el primer fragmento: ocultar indicador de "pensando"
+          this.aiTyping = false;
           // Detectar cierre por groserías dentro del stream
           if (data.text.includes('SESSION_TERMINATED')) {
             this.isStreaming = false;
@@ -1452,14 +1461,12 @@ get rolLabel(): string {
             this.cdr.detectChanges();
             return;
           }
-          // Detectar transfer dentro del stream
+          // Detectar transfer dentro del stream → ofrecer transferencia al asesor
           if (data.text.includes('TRANSFER_TO_ADVISOR')) {
             this.isStreaming = false;
-            // Remover la burbuja del bot vacía para que no se muestre ningún texto literal de transferencia
-            if (this.messages[botMsgIndex]) {
-              this.messages.splice(botMsgIndex, 1);
-            }
-            setTimeout(() => this.transferToAdvisor(), 1000);
+            this.aiTyping    = false;
+            this.ofertasAsesorPendientes.add(botMsgIndex);
+            this.cdr.detectChanges();
             return;
           }
           this.streamingText += data.text;
@@ -1470,32 +1477,41 @@ get rolLabel(): string {
 
         if (event === 'end') {
         this.isStreaming = false;
+        this.aiTyping    = false;
         if (this.step === 'blocked' || this.sesionFinalizando) return;
 
-        // Si la respuesta final contiene la señal de transferencia, no mostrar la burbuja
-        if (this.streamingText.includes('TRANSFER_TO_ADVISOR')) {
-          if (this.messages[botMsgIndex]) {
-            this.messages.splice(botMsgIndex, 1);
-          }
-          this.transferToAdvisor();
-          return;
-        }
+        // Si la respuesta final contiene la señal de transferencia,
+        // limpiar la marca y ofrecer pasar al asesor (no vaciar la burbuja).
+        const huboTransfer = this.streamingText.includes('TRANSFER_TO_ADVISOR');
 
         // Limpiar la etiqueta de feedback y marcadores del texto visible
         const textoLimpio = this.streamingText
           .replace(/SESSION_TERMINATED/g, '')
+          .replace(/TRANSFER_TO_ADVISOR/g, '')
           .replace(/\[FEEDBACK:(YES|NO)\]\s*$/, '')
           .trim();
 
         const mostrarEncuesta = /\[FEEDBACK:YES\]\s*$/.test(this.streamingText);
 
-        (this.messages[botMsgIndex] as any).content   = textoLimpio;
+        // Si la IA no dio ninguna respuesta, mostrar un texto de respaldo
+        // y ofrecer pasar con un asesor para que la burbuja nunca quede vacía.
+        if (!textoLimpio) {
+          this.messages[botMsgIndex] = {
+            ...this.messages[botMsgIndex],
+            content: 'No tengo una respuesta para eso en este momento.',
+          } as any;
+          this.ofertasAsesorPendientes.add(botMsgIndex);
+        } else {
+          (this.messages[botMsgIndex] as any).content = textoLimpio;
+        }
         (this.messages[botMsgIndex] as any).documentos = this.streamDocumentos;
 
         // Guardar texto limpio en historial
-        this.aiHistory.push({ role: 'model', text: textoLimpio });
+        this.aiHistory.push({ role: 'model', text: textoLimpio || 'No tengo una respuesta para eso en este momento.' });
 
-        if (mostrarEncuesta) {
+        if (huboTransfer) {
+          this.ofertasAsesorPendientes.add(botMsgIndex);
+        } else if (mostrarEncuesta) {
           this.encuestasPendientes.add(botMsgIndex);
         } else if (streamSugerirAsesor) {
           this.ofertasAsesorPendientes.add(botMsgIndex);
@@ -1509,6 +1525,7 @@ get rolLabel(): string {
 
         if (event === 'error') {
           this.isStreaming = false;
+          this.aiTyping    = false;
           (this.messages[botMsgIndex] as any).content =
             'Lo siento, tuve un problema. Intenta de nuevo o escribe "agente".';
           this.cdr.detectChanges();
@@ -1516,6 +1533,7 @@ get rolLabel(): string {
       },
       error: () => {
         this.isStreaming = false;
+        this.aiTyping    = false;
         (this.messages[botMsgIndex] as any).content =
           'Lo siento, tuve un problema. Intenta de nuevo o escribe "agente".';
         this.cdr.detectChanges();
@@ -1523,17 +1541,6 @@ get rolLabel(): string {
     });
 }
 
-// Botón "Detener respuesta"
-detenerStream(): void {
-  this.streamSub?.unsubscribe();
-  this.isStreaming = false;
-  if (this.streamingText) {
-    this.aiHistory.push({ role: 'model', text: this.streamingText });
-    localStorage.setItem(AI_HISTORY_KEY, JSON.stringify(this.aiHistory));
-    localStorage.setItem(AI_MESSAGES_KEY, JSON.stringify(this.messages));
-  }
-  this.cdr.detectChanges();
-}
   formatMessage(text: string): string {
   if (!text) return '';
   return this.escapeHtml(text)
@@ -1572,6 +1579,11 @@ private escapeHtml(value: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+private normalizePhotoUrl(url: string): string {
+  if (!url) return '';
+  return /^https?:\/\//i.test(url) ? url : `${environment.apiUrl}${url}`;
 }
 
   transferToAdvisor(): void {

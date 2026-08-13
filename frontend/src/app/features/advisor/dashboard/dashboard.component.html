@@ -139,23 +139,28 @@
 
       <a class="nav-item" routerLink="chats" routerLinkActive="active"
          data-label="Chats" (click)="closeSidebarOnMobile()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-        </svg>
+        <img src="chat_en_linea.png" alt="">
         <span>Chats</span>
         @if (misChatsNoLeidos > 0) {
         <span class="nav-badge">{{ misChatsNoLeidos }}</span>
         }
       </a>
 
-      <a class="nav-item" routerLink="whatsapp" routerLinkActive="active"
+      <a class="nav-item" routerLink="whatsapp"
+         [class.active]="whatsappMode === 'clients'"
          data-label="Whatsapp" (click)="closeSidebarOnMobile()">
-        <svg viewBox="0 0 32 32" fill="currentColor" width="24" height="24">
-          <path d="M19.11 17.205c-.29-.145-1.71-.845-1.97-.94-.265-.095-.46-.145-.655.145-.195.29-.755.94-.925 1.13-.17.195-.34.21-.63.07-.29-.145-1.225-.45-2.335-1.43-.86-.765-1.44-1.71-1.61-2-.17-.29-.02-.45.125-.595.13-.13.29-.34.435-.51.145-.17.195-.29.29-.485.095-.195.05-.365-.025-.51-.075-.145-.655-1.57-.895-2.15-.235-.565-.475-.49-.655-.5h-.56c-.195 0-.51.07-.78.365-.265.29-1.02 1-1.02 2.43s1.045 2.81 1.19 3.005c.145.195 2.035 3.11 4.93 4.36.69.295 1.23.47 1.65.6.695.22 1.325.19 1.825.115.56-.085 1.71-.7 1.95-1.38.24-.68.24-1.26.17-1.38-.07-.12-.265-.195-.555-.34z"/>
-          <path d="M16.02 3C9.39 3 4 8.39 4 15.02c0 2.63.86 5.07 2.32 7.05L5 29l7.12-1.87c1.92 1.05 4.1 1.64 6.42 1.64 6.63 0 12.02-5.39 12.02-12.02C30.56 8.39 25.65 3 19.02 3h-3z"/>
-        </svg>
+        <img src="whatsapp.png" alt="">
         <span>Whatsapp</span>
+      </a>
+
+      <a class="nav-item" routerLink="whatsapp" [queryParams]="{ modo: 'advisors' }"
+         [class.active]="whatsappMode === 'advisors'"
+         data-label="Chat interno" (click)="closeSidebarOnMobile()">
+        <img src="chat_interno.png" alt="">
+        <span>Chat interno</span>
+        @if (internalUnreadCount > 0) {
+        <span class="nav-badge">{{ internalUnreadCount }}</span>
+        }
       </a>
 
       <!-- Gestión -->
@@ -266,6 +271,7 @@
 
     <!-- Topbar móvil -->
     <header class="mobile-topbar">
+      @if (showHamburger) {
       <button class="hamburger" (click)="sidebarOpen = true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
@@ -274,9 +280,12 @@
           <line x1="3" y1="18" x2="21" y2="18"/>
         </svg>
       </button>
+      }
 
         <div class="topbar-logo">
+          @if (showTopbarTitle) {
           <span>{{ topbarTitle }}</span>
+          }
           @if (totalUnreadCount > 0) {
           <span class="topbar-badge" role="button" tabindex="0" (click)="openWebChat()"
                 (keydown.enter)="openWebChat()">{{ totalUnreadCount }}</span>
@@ -361,20 +370,17 @@
 
         <div class="topbar-metrics">
           <div class="metric-item chat-metric" [class.has-unread]="misChatsNoLeidos > 0"
-               title="Mensajes pendientes de chat"
+               title="Mensajes sin leer de chat en línea"
              role="button" tabindex="0"
              (click)="openWebChat()" (keydown.enter)="openWebChat()">
             <div class="chat-metric-icon" [class.has-unread]="misChatsNoLeidos > 0">
-              <svg class="metric-icon--chat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-              </svg>
+              <img class="metric-icon--chat" src="chat_en_linea.png" alt="">
             </div>
             <div class="chat-metric-info">
               <div class="chat-metric-head">
                 <span class="metric-value" [class.metric-zero]="misChatsNoLeidos === 0"
                   [class.chat-has-unread]="misChatsNoLeidos > 0">{{ misChatsNoLeidos }}</span>
-                <span class="metric-label">pendientes</span>
+                <span class="metric-label">chat en línea</span>
               </div>
             </div>
           </div>
@@ -382,10 +388,7 @@
                (click)="openWhatsapp('clients')" role="button" tabindex="0"
                (keydown.enter)="openWhatsapp('clients')">
             <div class="wa-metric-icon" [class.has-unread]="whatsappTotalUnread > 0">
-              <svg class="metric-icon--wa" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
-              </svg>
+              <img class="metric-icon--wa" src="whatsapp.png" alt="">
             </div>
             <div class="wa-metric-info">
               <div class="wa-metric-head">

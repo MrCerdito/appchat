@@ -363,8 +363,11 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     this.advisorPhotoUrl = user?.profilePhotoUrl || '';
     this.theme = this.themeService.currentTheme;
 
-    const modo = this.route.snapshot.queryParamMap.get('modo');
-    if (modo === 'advisors') this.chatMode = 'advisors';
+    this.subs.add(
+      this.route.queryParamMap.subscribe(params => {
+        this.setChatMode(params.get('modo') === 'advisors' ? 'advisors' : 'clients');
+      }),
+    );
 
     this.subs.add(
       this.themeService.currentTheme$.subscribe(t => {
