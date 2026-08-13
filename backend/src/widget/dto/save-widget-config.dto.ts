@@ -118,7 +118,7 @@ export class SaveWidgetConfigDto {
   chatMarca?: string;
 
   @IsOptional()
-  @IsUrl()
+  @IsString()
   @MaxLength(500)
-  chatAvatar?: string;
+  burbujaImagen?: string;
 }

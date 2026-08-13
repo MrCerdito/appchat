@@ -128,13 +128,9 @@
           </svg>
         </button>
         <div class="brand-mark">
-          @if (chatAvatar) {
-          <img [src]="chatAvatar" [alt]="marcaChat" class="brand-avatar-img" />
-          } @else {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
           </svg>
-          }
         </div>
         <div class="hd-text">
           <h2>Iniciar conversación</h2>
@@ -364,8 +360,6 @@
           } @else {
             @if (advisorPhotoUrl) {
             <img [src]="advisorPhotoUrl" [alt]="advisorName" class="advisor-avatar-img" />
-            } @else if (chatAvatar) {
-            <img [src]="chatAvatar" [alt]="marcaChat" class="advisor-avatar-img" />
             } @else {
             {{ advisorName.charAt(0) }}
             }

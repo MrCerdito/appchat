@@ -1,588 +1,1217 @@
 <div class="page" [class.loading]="loading">
-
   @if (loading) {
-  <div class="skeleton-overlay">
-    <div class="skeleton-spinner"></div>
-  </div>
+    <div class="skeleton-overlay">
+      <div class="skeleton-spinner"></div>
+    </div>
   }
 
   <!-- ══ Header ══ -->
   <header class="header">
     <div class="header-identity">
-      <div class="avatar">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-          stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      <div class="brand-icon">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
         </svg>
       </div>
       <div class="header-text">
         <h1>Widget de Chat</h1>
-        <span class="meta-label">Botón flotante para tu sitio web</span>
+        <span class="header-sub">Personaliza tu widget para tu sitio web</span>
       </div>
     </div>
+
     <div class="header-actions">
-      <button class="btn-ghost" (click)="resetear()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-          <path d="M3 3v5h5"/>
+      @if (errorMsg) {
+        <span class="error-msg">{{ errorMsg }}</span>
+      }
+      <button class="btn-ghost" (click)="resetear()" title="Restablecer configuración">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+          <path d="M3 3v5h5" />
         </svg>
-        <span>Restaurar</span>
+        <span>Restablecer</span>
       </button>
-      <button class="btn-outline" (click)="abrirPreview()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-          <polyline points="15 3 21 3 21 9"/>
-          <line x1="10" y1="14" x2="21" y2="3"/>
+      <button
+        class="btn-outline"
+        (click)="abrirPreview()"
+        title="Abrir vista previa en otra pestaña"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+          <polyline points="15 3 21 3 21 9" />
+          <line x1="10" y1="14" x2="21" y2="3" />
         </svg>
         <span>Vista previa</span>
       </button>
-      @if (errorMsg) {
-      <span class="error-msg">{{ errorMsg }}</span>
-      }
       <button class="btn-primary" [disabled]="saving" (click)="guardar()">
         @if (saving) {
-        <svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-          <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4"/>
-        </svg>
+          <svg
+            class="spin"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+          >
+            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4" />
+          </svg>
         }
         @if (!saving && !saved) {
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-          <polyline points="17 21 17 13 7 13 7 21"/>
-          <polyline points="7 3 7 8 15 8"/>
-        </svg>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+            <polyline points="17 21 17 13 7 13 7 21" />
+            <polyline points="7 3 7 8 15 8" />
+          </svg>
         }
         @if (saved) {
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="20 6 9 17 4 12"/>
-        </svg>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
         }
-        <span>{{ saving ? 'Guardando…' : saved ? '¡Guardado!' : 'Guardar' }}</span>
+        <span>{{ saving ? 'Guardando…' : saved ? '¡Guardado!' : 'Guardar cambios' }}</span>
       </button>
     </div>
   </header>
 
-  <!-- ══ Main layout ══ -->
-  <div class="main-layout">
+  <!-- ══ Builder ══ -->
+  <div class="builder">
+    <!-- ── Panel lateral izquierdo · Configuración ── -->
+    <aside class="side">
+      <div class="mode-toggle" role="group" aria-label="Modo de configuración">
+        <button [class.active]="modo === 'basico'" (click)="cambiarModo('basico')">
+          Modo Básico
+        </button>
+        <button [class.active]="modo === 'avanzado'" (click)="cambiarModo('avanzado')">
+          Modo Avanzado
+        </button>
+      </div>
 
-    <!-- ── Config ── -->
-    <section class="config-panel">
-
-      <!-- 1 · INTEGRACIÓN — snippet fijo -->
-      <section class="section">
-        <div class="section-head">
-          <span class="section-n">1</span>
-          <div class="section-head-text">
-            <h2 class="section-title">Copia esto en tu sitio</h2>
-            <p class="section-hint">Pega este código en tu página web y listo. No necesitas nada más.</p>
-          </div>
-        </div>
-        <div class="code-block">
-          <div class="code-header">
-            <div class="code-lang">
-              <span class="lang-dot"></span>
-              <span class="lang-label">HTML</span>
-            </div>
-            <button class="btn-copy" [class.done]="copiado" (click)="copiarScript()">
-              @if (!copiado) {
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="9" y="9" width="13" height="13" rx="2"/>
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-              </svg>
-              }
-              @if (copiado) {
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
-              }
-              {{ copiado ? '¡Copiado!' : 'Copiar' }}
+      <nav class="side-nav">
+        @for (s of secciones; track trackByIndex($index)) {
+          @if (seccionVisible(s.id)) {
+            <button class="nav-item" [class.active]="seccion === s.id" (click)="seccion = s.id">
+              <span class="nav-icon">
+                @switch (s.id) {
+                  @case ('apariencia') {
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M9.06 11.9l8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08z" />
+                      <path
+                        d="M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1.08 1.1 2.49 2.02 4 2.02 2.2 0 4-1.8 4-4.04a3.01 3.01 0 0 0-3-3.02z"
+                      />
+                    </svg>
+                  }
+                  @case ('identidad') {
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                  }
+                  @case ('mensajes') {
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path
+                        d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
+                      />
+                    </svg>
+                  }
+                  @case ('chat') {
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                    </svg>
+                  }
+                  @case ('comportamiento') {
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                    </svg>
+                  }
+                  @case ('instalacion') {
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <polyline points="16 18 22 12 16 6" />
+                      <polyline points="8 6 2 12 8 18" />
+                    </svg>
+                  }
+                  @case ('avanzado') {
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <line x1="4" y1="21" x2="4" y2="14" />
+                      <line x1="4" y1="10" x2="4" y2="3" />
+                      <line x1="12" y1="21" x2="12" y2="12" />
+                      <line x1="12" y1="8" x2="12" y2="3" />
+                      <line x1="20" y1="21" x2="20" y2="16" />
+                      <line x1="20" y1="12" x2="20" y2="3" />
+                      <line x1="1" y1="14" x2="7" y2="14" />
+                      <line x1="9" y1="8" x2="15" y2="8" />
+                      <line x1="17" y1="16" x2="23" y2="16" />
+                    </svg>
+                  }
+                }
+              </span>
+              <span class="nav-label">{{ s.label }}</span>
             </button>
-          </div>
-          <pre class="code-pre"><code>{{ scriptIntegracion }}</code></pre>
-        </div>
-        <div class="integration-tip">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-          </svg>
-          <span>El código se actualiza solo al cambiar la <strong>URL del sistema</strong> (sección Avanzado).</span>
-        </div>
-      </section>
-
-      <!-- 2 · BOTÓN -->
-      <section class="section">
-        <div class="section-head">
-          <span class="section-n">2</span>
-          <div class="section-head-text">
-            <h2 class="section-title">Botón</h2>
-            <p class="section-hint">Apariencia del botón flotante en tu sitio.</p>
-          </div>
-        </div>
-
-        <div class="field-block">
-          <div class="field-header">
-            <span class="field-title">Color principal</span>
-            <span class="field-hint">Color del botón flotante</span>
-          </div>
-          <div class="color-section">
-            <div class="color-swatches">
-              @for (c of coloresPredefinidos; track trackByIndex($index)) {
-              <button class="swatch"
-                [class.active]="config.color === c" [style.background]="c"
-                (click)="config.color = c" [title]="c"></button>
-              }
-            </div>
-            <label class="color-custom">
-              <input type="color" [(ngModel)]="config.color"/>
-              <span class="color-preview" [style.background]="config.color">
-                <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round">
-                  <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-                </svg>
-              </span>
-              <code class="color-hex">{{ config.color }}</code>
-            </label>
-          </div>
-        </div>
-
-        <div class="field-block">
-          <div class="field-header">
-            <span class="field-title">Posición en pantalla</span>
-            <span class="field-hint">Esquina donde aparece el botón</span>
-          </div>
-          <div class="pos-grid">
-            @for (p of posiciones; track trackByIndex($index)) {
-            <button class="pos-card"
-              [class.active]="config.posicion === p.value" (click)="config.posicion = p.value">
-              <div class="pos-screen">
-                <span class="pos-dot" [class]="p.value"
-                  [style.background]="config.posicion === p.value ? config.color : ''"></span>
-              </div>
-              {{ p.label }}
-            </button>
-            }
-          </div>
-        </div>
-
-        <div class="field-block">
-          <div class="field-header"><span class="field-title">Forma y tamaño</span></div>
-          <div class="two-col">
-            <div class="sub-field">
-              <label class="sub-label">Forma</label>
-              <div class="pill-group">
-                @for (f of formas; track trackByIndex($index)) {
-                <button class="pill"
-                  [class.active]="config.forma === f.value" (click)="config.forma = f.value">
-                  {{ f.label }}
-                </button>
-                }
-              </div>
-            </div>
-            <div class="sub-field">
-              <label class="sub-label">Tamaño</label>
-              <div class="pill-group">
-                @for (t of tamanos; track trackByIndex($index)) {
-                <button class="pill"
-                  [class.active]="config.tamano === t.value" (click)="config.tamano = t.value">
-                  {{ t.label }}
-                </button>
-                }
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="field-block">
-          <div class="field-header"><span class="field-title">Ícono del botón</span></div>
-          <div class="icon-grid">
-            @for (ic of iconos; track trackByIndex($index)) {
-            <button class="icon-card"
-              [class.active]="config.icono === ic.value" (click)="config.icono = ic.value">
-              <div class="icon-bubble" [style.background]="config.icono === ic.value ? config.color : ''">
-                @if (ic.value === 'chat') {
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                </svg>
-                }
-                @if (ic.value === 'help') {
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="12" r="10"/>
-                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
-                  <line x1="12" y1="17" x2="12.01" y2="17"/>
-                </svg>
-                }
-                @if (ic.value === 'support') {
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
-                </svg>
-                }
-              </div>
-              <span>{{ ic.label }}</span>
-            </button>
-            }
-          </div>
-        </div>
-
-        <div class="field-block">
-          <div class="field-header"><span class="field-title">Texto junto al ícono</span></div>
-          <div class="toggle-row">
-            <div class="toggle-info">
-              <span class="sub-label">Mostrar texto</span>
-              <span class="toggle-hint">Muestra una etiqueta al lado del botón</span>
-            </div>
-            <label class="toggle">
-              <input type="checkbox" [(ngModel)]="config.mostrarTexto"/>
-              <span class="track"></span>
-            </label>
-          </div>
-          @if (config.mostrarTexto) {
-          <input type="text" class="text-field"
-            [(ngModel)]="config.textoBoton" placeholder="Ej: ¿Necesitas ayuda?" maxlength="30"/>
           }
-        </div>
-      </section>
+        }
+      </nav>
+    </aside>
 
-      <!-- 3 · MENSAJE DE BIENVENIDA -->
-      <section class="section">
-        <div class="section-head">
-          <span class="section-n">3</span>
-          <div class="section-head-text">
-            <h2 class="section-title">Mensaje de bienvenida</h2>
-            <p class="section-hint">Burbuja flotante que invita a chatear.</p>
-          </div>
-        </div>
-        <div class="field-block">
-          <div class="toggle-row">
-            <div class="toggle-info">
-              <span class="sub-label">Mostrar burbuja</span>
-              <span class="toggle-hint">Aparece junto al botón con un mensaje</span>
-            </div>
-            <label class="toggle">
-              <input type="checkbox" [(ngModel)]="config.mostrarBurbuja"/>
-              <span class="track"></span>
-            </label>
-          </div>
-          @if (config.mostrarBurbuja) {
-          <input type="text" class="text-field"
-            [(ngModel)]="config.mensajeBurbuja"
-            placeholder="¿Necesitas ayuda? ¡Chatea con nosotros!" maxlength="100"/>
+    <!-- ── Panel central · Editor ── -->
+    <main class="editor">
+      <div class="editor-head">
+        <h2>{{ seccionInfo[seccion].titulo }}</h2>
+        <p>{{ seccionInfo[seccion].desc }}</p>
+      </div>
+
+      <div class="editor-body">
+        @switch (seccion) {
+          @case ('apariencia') {
+            <!-- Estilos predefinidos -->
+            <section class="card">
+              <div class="card-head">
+                <span class="card-title">Estilos predefinidos</span>
+                <span class="card-hint">Paletas listas para tu marca</span>
+              </div>
+              <div class="style-grid">
+                @for (e of estilos; track e.id) {
+                  <button
+                    class="style-card"
+                    [class.active]="estiloActivo === e.id"
+                    (click)="aplicarEstilo(e)"
+                  >
+                    <span
+                      class="style-swatch"
+                      [style.background]="
+                        'linear-gradient(135deg, ' +
+                        e.color +
+                        ' 0%, ' +
+                        e.chatHeaderColor +
+                        ' 100%)'
+                      "
+                    ></span>
+                    <span class="style-name">{{ e.nombre }}</span>
+                    @if (estiloActivo === e.id) {
+                      <span class="style-check">
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="3"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        >
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      </span>
+                    }
+                  </button>
+                }
+              </div>
+            </section>
+
+            <!-- Color principal -->
+            <section class="card">
+              <div class="card-head">
+                <span class="card-title">Color principal</span>
+                <span class="card-hint">Color del botón flotante</span>
+              </div>
+              <div class="picker">
+                <div class="color-swatches">
+                  @for (c of coloresPredefinidos; track trackByIndex($index)) {
+                    <button
+                      class="swatch"
+                      [class.active]="config.color === c"
+                      [style.background]="c"
+                      (click)="config.color = c"
+                      [title]="c"
+                    ></button>
+                  }
+                </div>
+                <label class="color-custom">
+                  <input type="color" [(ngModel)]="config.color" />
+                  <span class="color-preview" [style.background]="config.color">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="white"
+                      stroke-width="2.5"
+                      stroke-linecap="round"
+                    >
+                      <path d="M12 20h9" />
+                      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                    </svg>
+                  </span>
+                  <code class="color-hex">{{ config.color }}</code>
+                </label>
+              </div>
+            </section>
+
+            <!-- Botón -->
+            <section class="card">
+              <div class="card-head">
+                <span class="card-title">Botón</span>
+                <span class="card-hint">Forma, tamaño, ícono y texto</span>
+              </div>
+
+              <div class="form-grid">
+                <div class="form-cell">
+                  <label class="cell-label">Forma</label>
+                  <div class="seg-group">
+                    <button
+                      class="seg-btn"
+                      [class.active]="config.forma === 'circle'"
+                      (click)="config.forma = 'circle'"
+                    >
+                      <span class="shape-dot circle" [style.background]="config.color"></span>
+                      Circular
+                    </button>
+                    <button
+                      class="seg-btn"
+                      [class.active]="config.forma === 'rounded'"
+                      (click)="config.forma = 'rounded'"
+                    >
+                      <span class="shape-dot rounded" [style.background]="config.color"></span>
+                      Redondeado
+                    </button>
+                  </div>
+                </div>
+                <div class="form-cell">
+                  <label class="cell-label">Tamaño</label>
+                  <div class="seg-group">
+                    @for (t of tamanos; track trackByIndex($index)) {
+                      <button
+                        class="seg-btn"
+                        [class.active]="config.tamano === t.value"
+                        (click)="config.tamano = t.value"
+                      >
+                        <span
+                          class="size-dot"
+                          [class]="t.value"
+                          [style.background]="config.color"
+                        ></span>
+                        {{ t.label }}
+                      </button>
+                    }
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-field">
+                <label class="cell-label">Ícono del botón</label>
+                <div class="icon-grid">
+                  @for (ic of iconos; track trackByIndex($index)) {
+                    <button
+                      class="icon-card"
+                      [class.active]="config.icono === ic.value"
+                      (click)="config.icono = ic.value"
+                    >
+                      <span
+                        class="icon-bubble"
+                        [style.background]="config.icono === ic.value ? config.color : ''"
+                      >
+                        @if (ic.value === 'chat') {
+                          <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          >
+                            <path
+                              d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+                            />
+                          </svg>
+                        }
+                        @if (ic.value === 'help') {
+                          <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          >
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                            <line x1="12" y1="17" x2="12.01" y2="17" />
+                          </svg>
+                        }
+                        @if (ic.value === 'support') {
+                          <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          >
+                            <path
+                              d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"
+                            />
+                          </svg>
+                        }
+                      </span>
+                      <span>{{ ic.label }}</span>
+                    </button>
+                  }
+                </div>
+              </div>
+
+              <div class="form-field">
+                <div class="toggle-row">
+                  <div class="toggle-info">
+                    <span class="sub-label">Mostrar texto junto al ícono</span>
+                    <span class="toggle-hint">Muestra una etiqueta al lado del botón</span>
+                  </div>
+                  <label class="toggle">
+                    <input type="checkbox" [(ngModel)]="config.mostrarTexto" />
+                    <span class="track"></span>
+                  </label>
+                </div>
+                @if (config.mostrarTexto) {
+                  <input
+                    type="text"
+                    class="text-field"
+                    [(ngModel)]="config.textoBoton"
+                    placeholder="Ej: ¿Necesitas ayuda?"
+                    maxlength="30"
+                  />
+                }
+              </div>
+            </section>
+
+            <!-- Posición -->
+            <section class="card">
+              <div class="card-head">
+                <span class="card-title">Posición en pantalla</span>
+                <span class="card-hint">Esquina donde aparece el botón</span>
+              </div>
+              <div class="pos-grid">
+                @for (p of posiciones; track trackByIndex($index)) {
+                  <button
+                    class="pos-card"
+                    [class.active]="config.posicion === p.value"
+                    (click)="config.posicion = p.value"
+                  >
+                    <span class="pos-screen">
+                      <span
+                        class="pos-dot"
+                        [class]="p.value"
+                        [style.background]="config.posicion === p.value ? config.color : ''"
+                      ></span>
+                    </span>
+                    {{ p.label }}
+                  </button>
+                }
+              </div>
+            </section>
           }
-        </div>
-      </section>
 
-      <!-- 4 · TEXTOS DEL CHAT -->
-      <section class="section">
-        <div class="section-head">
-          <span class="section-n">4</span>
-          <div class="section-head-text">
-            <h2 class="section-title">Textos del chat</h2>
-            <p class="section-hint">Lo que ve el cliente al abrir el chat.</p>
-          </div>
-        </div>
-        <div class="field-block">
-          <div class="sub-field">
-            <label class="sub-label">Nombre de la marca</label>
-            <input type="text" class="text-field" [(ngModel)]="config.chatMarca"
-              placeholder="Soporte en línea" maxlength="80"/>
-          </div>
-          <div class="sub-field">
-            <label class="sub-label">Título del panel</label>
-            <input type="text" class="text-field" [(ngModel)]="config.tituloPanelChat"
-              placeholder="Soporte en línea" maxlength="50"/>
-          </div>
-          <div class="sub-field">
-            <label class="sub-label">Subtítulo del panel</label>
-            <input type="text" class="text-field" [(ngModel)]="config.subtituloPanelChat"
-              placeholder="Estamos aquí para ayudarte" maxlength="80"/>
-          </div>
-          <div class="sub-field">
-            <label class="sub-label">Avatar / Logo</label>
-            <input type="text" class="text-field" [(ngModel)]="config.chatAvatar"
-              placeholder="https://tudominio.com/logo.png" maxlength="500"/>
-          </div>
-        </div>
-      </section>
-
-      <!-- 5 · COLORES DEL CHAT -->
-      <section class="section">
-        <div class="section-head">
-          <span class="section-n">5</span>
-          <div class="section-head-text">
-            <h2 class="section-title">Colores del chat</h2>
-            <p class="section-hint">Personaliza el panel una vez abierto.</p>
-          </div>
-        </div>
-
-        <div class="field-block">
-          <div class="field-header">
-            <span class="field-title">Color del header</span>
-            <span class="field-hint">Header, botón enviar y elementos de acción</span>
-          </div>
-          <div class="color-section">
-            <div class="color-swatches">
-              @for (c of chatColores; track trackByIndex($index)) {
-              <button class="swatch"
-                [class.active]="config.chatHeaderColor === c" [style.background]="c"
-                (click)="config.chatHeaderColor = c" [title]="c"></button>
-              }
-            </div>
-            <label class="color-custom">
-              <input type="color" [(ngModel)]="config.chatHeaderColor"/>
-              <span class="color-preview" [style.background]="config.chatHeaderColor">
-                <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round">
-                  <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-                </svg>
-              </span>
-              <code class="color-hex">{{ config.chatHeaderColor }}</code>
-            </label>
-          </div>
-        </div>
-
-        <div class="field-block">
-          <div class="field-header">
-            <span class="field-title">Fondo del chat</span>
-            <span class="field-hint">Color de fondo detrás de los mensajes</span>
-          </div>
-          <div class="color-section">
-            <div class="color-swatches">
-              @for (c of chatFondos; track trackByIndex($index)) {
-              <button class="swatch"
-                [class.active]="config.chatBgColor === c" [style.background]="c"
-                (click)="config.chatBgColor = c" [title]="c"
-                [style.border]="c === '#f9fafb' || c === '#ffffff' ? '1px solid #e2e8f0' : 'none'"></button>
-              }
-            </div>
-            <label class="color-custom">
-              <input type="color" [(ngModel)]="config.chatBgColor"/>
-              <span class="color-preview" [style.background]="config.chatBgColor"
-                [style.border]="'1px solid rgba(0,0,0,0.1)'">
-                <svg viewBox="0 0 24 24" fill="none" [attr.stroke]="contrastColor(config.chatBgColor)" stroke-width="2.5" stroke-linecap="round">
-                  <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-                </svg>
-              </span>
-              <code class="color-hex">{{ config.chatBgColor }}</code>
-            </label>
-          </div>
-        </div>
-
-        <div class="field-block">
-          <div class="field-header">
-            <span class="field-title">Burbujas del asistente</span>
-            <span class="field-hint">Color de fondo de los mensajes del agente / IA</span>
-          </div>
-          <div class="color-section">
-            <div class="color-swatches">
-              @for (c of chatBurbujas; track trackByIndex($index)) {
-              <button class="swatch"
-                [class.active]="config.chatBubbleColor === c" [style.background]="c"
-                (click)="config.chatBubbleColor = c" [title]="c"
-                [style.border]="c === '#ffffff' || c === '#f8fafc' ? '1px solid #e2e8f0' : 'none'"></button>
-              }
-            </div>
-            <label class="color-custom">
-              <input type="color" [(ngModel)]="config.chatBubbleColor"/>
-              <span class="color-preview" [style.background]="config.chatBubbleColor"
-                [style.border]="'1px solid rgba(0,0,0,0.1)'">
-                <svg viewBox="0 0 24 24" fill="none" [attr.stroke]="contrastColor(config.chatBubbleColor)" stroke-width="2.5" stroke-linecap="round">
-                  <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-                </svg>
-              </span>
-              <code class="color-hex">{{ config.chatBubbleColor }}</code>
-            </label>
-          </div>
-        </div>
-
-        <div class="field-block">
-          <div class="field-header">
-            <span class="field-title">Burbujas del usuario</span>
-            <span class="field-hint">Color de fondo de los mensajes del cliente</span>
-          </div>
-          <div class="color-section">
-            <div class="color-swatches">
-              @for (c of chatColores; track trackByIndex($index)) {
-              <button class="swatch"
-                [class.active]="config.chatBubbleUserColor === c" [style.background]="c"
-                (click)="config.chatBubbleUserColor = c" [title]="c"></button>
-              }
-            </div>
-            <label class="color-custom">
-              <input type="color" [(ngModel)]="config.chatBubbleUserColor"/>
-              <span class="color-preview" [style.background]="config.chatBubbleUserColor">
-                <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round">
-                  <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-                </svg>
-              </span>
-              <code class="color-hex">{{ config.chatBubbleUserColor }}</code>
-            </label>
-          </div>
-        </div>
-      </section>
-
-      <!-- 6 · APERTURA AUTOMÁTICA -->
-      <section class="section">
-        <div class="section-head">
-          <span class="section-n">6</span>
-          <div class="section-head-text">
-            <h2 class="section-title">Apertura automática</h2>
-            <p class="section-hint">Abre el chat solo una vez tras unos segundos.</p>
-          </div>
-        </div>
-        <div class="field-block">
-          <div class="toggle-row">
-            <div class="toggle-info">
-              <span class="sub-label">Abrir automáticamente</span>
-              <span class="toggle-hint">Recomendado solo si quieres llamar la atención del visitante</span>
-            </div>
-            <label class="toggle">
-              <input type="checkbox" [(ngModel)]="config.abrirAutomatico"/>
-              <span class="track"></span>
-            </label>
-          </div>
-          @if (config.abrirAutomatico) {
-          <div class="slider-wrap">
-            <div class="slider-header">
-              <span class="sub-label">Esperar antes de abrir</span>
-              <span class="slider-val">{{ config.delayAutoAbrir }}s</span>
-            </div>
-            <input type="range" min="2" max="30" step="1"
-              [(ngModel)]="config.delayAutoAbrir" class="slider"/>
-            <div class="slider-ticks">
-              <span>2s</span><span>10s</span><span>20s</span><span>30s</span>
-            </div>
-          </div>
+          @case ('identidad') {
+            <!-- Perfil del chat -->
+            <section class="card">
+              <div class="card-head">
+                <span class="card-title">Perfil del chat</span>
+                <span class="card-hint">Lo que ve el visitante al abrir el chat</span>
+              </div>
+              <div class="form-stack">
+                <label class="field">
+                  <span class="field-label">Nombre de la marca</span>
+                  <input
+                    type="text"
+                    class="text-field"
+                    [(ngModel)]="config.chatMarca"
+                    placeholder="Soporte en línea"
+                    maxlength="80"
+                  />
+                </label>
+                <label class="field">
+                  <span class="field-label">Título del panel</span>
+                  <input
+                    type="text"
+                    class="text-field"
+                    [(ngModel)]="config.tituloPanelChat"
+                    placeholder="Soporte en línea"
+                    maxlength="50"
+                  />
+                </label>
+                <label class="field">
+                  <span class="field-label">Subtítulo del panel</span>
+                  <input
+                    type="text"
+                    class="text-field"
+                    [(ngModel)]="config.subtituloPanelChat"
+                    placeholder="Estamos aquí para ayudarte"
+                    maxlength="80"
+                  />
+                </label>
+              </div>
+            </section>
           }
-        </div>
-      </section>
 
-      <!-- 7 · AVANZADO -->
-      <section class="section">
-        <div class="section-head">
-          <span class="section-n">7</span>
-          <div class="section-head-text">
-            <h2 class="section-title">Avanzado</h2>
-            <p class="section-hint">URL donde está desplegado el chat. Solo cambia si lo mueves de dominio.</p>
-          </div>
-        </div>
-        <div class="field-block">
-          <div class="url-wrap">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+          @case ('mensajes') {
+            <!-- Burbuja de bienvenida -->
+            <section class="card">
+              <div class="card-head">
+                <span class="card-title">Burbuja de bienvenida</span>
+                <span class="card-hint">Aparece junto al botón para invitar a chatear</span>
+              </div>
+              <div class="form-field">
+                <div class="toggle-row">
+                  <div class="toggle-info">
+                    <span class="sub-label">Mostrar burbuja</span>
+                    <span class="toggle-hint">Recomendado para llamar la atención</span>
+                  </div>
+                  <label class="toggle">
+                    <input type="checkbox" [(ngModel)]="config.mostrarBurbuja" />
+                    <span class="track"></span>
+                  </label>
+                </div>
+                @if (config.mostrarBurbuja) {
+                  <div class="bubble-live" [style.border-left-color]="config.color">
+                    @if (config.burbujaImagen) {
+                      <img
+                        class="bubble-live-img"
+                        [src]="config.burbujaImagen"
+                        alt=""
+                        (error)="config.burbujaImagen = ''"
+                      />
+                    }
+                    <span class="bubble-live-text">{{
+                      config.mensajeBurbuja || '¿Necesitas ayuda? ¡Chatea con nosotros!'
+                    }}</span>
+                  </div>
+                  <input
+                    type="text"
+                    class="text-field"
+                    [(ngModel)]="config.mensajeBurbuja"
+                    placeholder="¿Necesitas ayuda? ¡Chatea con nosotros!"
+                    maxlength="100"
+                  />
+                  <div class="form-field">
+                    <label class="sub-label">Imagen de la burbuja (opcional)</label>
+                    <div class="avatar-field">
+                      <span class="avatar-thumb">
+                        @if (config.burbujaImagen) {
+                          <img
+                            [src]="config.burbujaImagen"
+                            alt="Imagen burbuja"
+                            (error)="config.burbujaImagen = ''"
+                          />
+                        } @else {
+                          <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.8"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          >
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                            <circle cx="8.5" cy="8.5" r="1.5" />
+                            <polyline points="21 15 16 10 5 21" />
+                          </svg>
+                        }
+                      </span>
+                      <input
+                        type="url"
+                        class="text-field"
+                        [(ngModel)]="config.burbujaImagen"
+                        placeholder="https://tudominio.com/logo.png"
+                        maxlength="500"
+                      />
+                    </div>
+                  </div>
+                }
+              </div>
+            </section>
+          }
+
+          @case ('chat') {
+            <!-- Colores del chat -->
+            <section class="card">
+              <div class="card-head">
+                <span class="card-title">Colores del chat</span>
+                <span class="card-hint">Personaliza el panel una vez abierto</span>
+              </div>
+
+              <div class="color-row">
+                <div class="color-row-head">
+                  <span class="row-title">Color del header</span>
+                  <span class="row-hint">Header y botón de enviar</span>
+                </div>
+                <div class="picker">
+                  <div class="color-swatches">
+                    @for (c of chatColores; track trackByIndex($index)) {
+                      <button
+                        class="swatch"
+                        [class.active]="config.chatHeaderColor === c"
+                        [style.background]="c"
+                        (click)="config.chatHeaderColor = c"
+                        [title]="c"
+                      ></button>
+                    }
+                  </div>
+                  <label class="color-custom">
+                    <input type="color" [(ngModel)]="config.chatHeaderColor" />
+                    <span class="color-preview" [style.background]="config.chatHeaderColor">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="white"
+                        stroke-width="2.5"
+                        stroke-linecap="round"
+                      >
+                        <path d="M12 20h9" />
+                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                      </svg>
+                    </span>
+                    <code class="color-hex">{{ config.chatHeaderColor }}</code>
+                  </label>
+                </div>
+              </div>
+
+              <div class="color-row">
+                <div class="color-row-head">
+                  <span class="row-title">Fondo del chat</span>
+                  <span class="row-hint">Detrás de los mensajes</span>
+                </div>
+                <div class="picker">
+                  <div class="color-swatches">
+                    @for (c of chatFondos; track trackByIndex($index)) {
+                      <button
+                        class="swatch"
+                        [class.active]="config.chatBgColor === c"
+                        [style.background]="c"
+                        [style.border]="
+                          c === '#f9fafb' || c === '#ffffff' ? '1px solid #e2e8f0' : 'none'
+                        "
+                        (click)="config.chatBgColor = c"
+                        [title]="c"
+                      ></button>
+                    }
+                  </div>
+                  <label class="color-custom">
+                    <input type="color" [(ngModel)]="config.chatBgColor" />
+                    <span
+                      class="color-preview"
+                      [style.background]="config.chatBgColor"
+                      [style.border]="'1px solid rgba(0,0,0,0.1)'"
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        [attr.stroke]="contrastColor(config.chatBgColor)"
+                        stroke-width="2.5"
+                        stroke-linecap="round"
+                      >
+                        <path d="M12 20h9" />
+                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                      </svg>
+                    </span>
+                    <code class="color-hex">{{ config.chatBgColor }}</code>
+                  </label>
+                </div>
+              </div>
+
+              <div class="color-row">
+                <div class="color-row-head">
+                  <span class="row-title">Burbujas del asistente</span>
+                  <span class="row-hint">Mensajes del agente / IA</span>
+                </div>
+                <div class="picker">
+                  <div class="color-swatches">
+                    @for (c of chatBurbujas; track trackByIndex($index)) {
+                      <button
+                        class="swatch"
+                        [class.active]="config.chatBubbleColor === c"
+                        [style.background]="c"
+                        [style.border]="
+                          c === '#ffffff' || c === '#f8fafc' ? '1px solid #e2e8f0' : 'none'
+                        "
+                        (click)="config.chatBubbleColor = c"
+                        [title]="c"
+                      ></button>
+                    }
+                  </div>
+                  <label class="color-custom">
+                    <input type="color" [(ngModel)]="config.chatBubbleColor" />
+                    <span
+                      class="color-preview"
+                      [style.background]="config.chatBubbleColor"
+                      [style.border]="'1px solid rgba(0,0,0,0.1)'"
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        [attr.stroke]="contrastColor(config.chatBubbleColor)"
+                        stroke-width="2.5"
+                        stroke-linecap="round"
+                      >
+                        <path d="M12 20h9" />
+                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                      </svg>
+                    </span>
+                    <code class="color-hex">{{ config.chatBubbleColor }}</code>
+                  </label>
+                </div>
+              </div>
+
+              <div class="color-row">
+                <div class="color-row-head">
+                  <span class="row-title">Burbujas del usuario</span>
+                  <span class="row-hint">Mensajes del cliente</span>
+                </div>
+                <div class="picker">
+                  <div class="color-swatches">
+                    @for (c of chatColores; track trackByIndex($index)) {
+                      <button
+                        class="swatch"
+                        [class.active]="config.chatBubbleUserColor === c"
+                        [style.background]="c"
+                        (click)="config.chatBubbleUserColor = c"
+                        [title]="c"
+                      ></button>
+                    }
+                  </div>
+                  <label class="color-custom">
+                    <input type="color" [(ngModel)]="config.chatBubbleUserColor" />
+                    <span class="color-preview" [style.background]="config.chatBubbleUserColor">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="white"
+                        stroke-width="2.5"
+                        stroke-linecap="round"
+                      >
+                        <path d="M12 20h9" />
+                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                      </svg>
+                    </span>
+                    <code class="color-hex">{{ config.chatBubbleUserColor }}</code>
+                  </label>
+                </div>
+              </div>
+            </section>
+          }
+
+          @case ('comportamiento') {
+            <!-- Apertura automática -->
+            <section class="card">
+              <div class="card-head">
+                <span class="card-title">Apertura automática</span>
+                <span class="card-hint">Abre el chat solo una vez tras unos segundos</span>
+              </div>
+              <div class="form-field">
+                <div class="toggle-row">
+                  <div class="toggle-info">
+                    <span class="sub-label">Abrir automáticamente</span>
+                    <span class="toggle-hint"
+                      >Recomendado solo si quieres llamar la atención del visitante</span
+                    >
+                  </div>
+                  <label class="toggle">
+                    <input type="checkbox" [(ngModel)]="config.abrirAutomatico" />
+                    <span class="track"></span>
+                  </label>
+                </div>
+                @if (config.abrirAutomatico) {
+                  <div class="slider-wrap">
+                    <div class="slider-header">
+                      <span class="sub-label">Esperar antes de abrir</span>
+                      <span class="slider-val">{{ config.delayAutoAbrir }}s</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="2"
+                      max="30"
+                      step="1"
+                      [(ngModel)]="config.delayAutoAbrir"
+                      class="slider"
+                    />
+                    <div class="slider-ticks">
+                      <span>2s</span><span>10s</span><span>20s</span><span>30s</span>
+                    </div>
+                  </div>
+                }
+              </div>
+            </section>
+          }
+
+          @case ('instalacion') {
+            <!-- Código de instalación -->
+            <section class="card">
+              <div class="card-head">
+                <span class="card-title">Código para tu sitio</span>
+                <span class="card-hint">Pega este snippet en tu página web y listo.</span>
+              </div>
+              <div class="code-block">
+                <div class="code-header">
+                  <div class="code-lang">
+                    <span class="lang-dot"></span>
+                    <span class="lang-label">HTML</span>
+                  </div>
+                  <button class="btn-copy" [class.done]="copiado" (click)="copiarScript()">
+                    @if (!copiado) {
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <rect x="9" y="9" width="13" height="13" rx="2" />
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                      </svg>
+                    }
+                    @if (copiado) {
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.5"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    }
+                    {{ copiado ? '¡Copiado!' : 'Copiar' }}
+                  </button>
+                </div>
+                <pre class="code-pre"><code>{{ scriptIntegracion }}</code></pre>
+              </div>
+              <div class="integration-tip">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                </svg>
+                <span
+                  >El código se actualiza solo al cambiar la
+                  <strong>URL del sistema</strong> (sección Avanzado).</span
+                >
+              </div>
+            </section>
+          }
+
+          @case ('avanzado') {
+            <!-- Avanzado -->
+            <section class="card">
+              <div class="card-head">
+                <span class="card-title">URL del sistema</span>
+                <span class="card-hint"
+                  >Solo cambia si mueves el widget a otro dominio o servidor.</span
+                >
+              </div>
+              <div class="url-wrap">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                </svg>
+                <input
+                  type="url"
+                  class="text-field"
+                  [(ngModel)]="config.chatUrl"
+                  placeholder="https://innoovacloud.com/korvix"
+                />
+              </div>
+            </section>
+          }
+        }
+
+        <!-- Consejo contextual -->
+        <div class="tip-card">
+          <div class="tip-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="16" x2="12" y2="12" />
+              <line x1="12" y1="8" x2="12.01" y2="8" />
             </svg>
-            <input type="url" class="text-field" [(ngModel)]="config.chatUrl"
-              placeholder="https://innoovacloud.com/korvix"/>
+          </div>
+          <div class="tip-text">
+            <strong>{{ consejos[seccion].titulo }}</strong>
+            <span>{{ consejos[seccion].texto }}</span>
           </div>
         </div>
-      </section>
+      </div>
 
-    </section>
+      <!-- Instalación rápida -->
+      @if (seccion !== 'instalacion') {
+        <div class="install-cta">
+          <div class="install-cta-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="16 18 22 12 16 6" />
+              <polyline points="8 6 2 12 8 18" />
+            </svg>
+          </div>
+          <div class="install-cta-text">
+            <strong>Instalación rápida</strong>
+            <span>Una vez termines, copia el código e instálalo en tu sitio web.</span>
+          </div>
+          <button class="btn-cta" (click)="seccion = 'instalacion'">Ir a instalación</button>
+        </div>
+      }
+    </main>
 
-    <!-- ── Preview panel ── -->
+    <!-- ── Panel derecho · Vista previa en vivo ── -->
     <aside class="preview-panel">
-      <div class="preview-header">
-        <span class="preview-title">Vista previa</span>
-        <span class="live-badge"><span class="live-dot"></span>En vivo</span>
+      <div class="preview-top">
+        <div class="preview-head">
+          <span class="preview-title">Vista previa</span>
+          <span class="live-badge"><span class="live-dot"></span>En vivo</span>
+        </div>
+        <div class="device-toggle" role="group" aria-label="Dispositivo de vista previa">
+          <button
+            [class.active]="device === 'desktop'"
+            (click)="cambiarDevice('desktop')"
+            title="Escritorio"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect x="2" y="3" width="20" height="14" rx="2" />
+              <line x1="8" y1="21" x2="16" y2="21" />
+              <line x1="12" y1="17" x2="12" y2="21" />
+            </svg>
+          </button>
+          <button
+            [class.active]="device === 'mobile'"
+            (click)="cambiarDevice('mobile')"
+            title="Móvil"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect x="5" y="2" width="14" height="20" rx="2" />
+              <line x1="12" y1="18" x2="12.01" y2="18" />
+            </svg>
+          </button>
+        </div>
       </div>
 
-      <!-- Preview botón flotante -->
-      <div class="browser">
-        <div class="browser-bar">
-          <div class="browser-dots"><span></span><span></span><span></span></div>
-          <div class="browser-url">tudominio.com</div>
-        </div>
-        <div class="browser-body">
-          <div class="fake-page">
-            <div class="fake-nav"></div>
-            <div class="fake-hero"></div>
-            <div class="fake-lines">
-              <div class="fake-line" style="width:70%"></div>
-              <div class="fake-line" style="width:50%"></div>
-              <div class="fake-line" style="width:85%"></div>
+      <div class="preview-stage">
+        <div class="screen" [class.phone]="device === 'mobile'" [class.chat-open]="previewOpen">
+          @if (device === 'desktop') {
+            <div class="browser-bar">
+              <div class="browser-dots"><span></span><span></span><span></span></div>
+              <div class="browser-url">tudominio.com</div>
             </div>
-            <div class="fake-cards">
-              <div class="fake-card"></div>
-              <div class="fake-card"></div>
-              <div class="fake-card"></div>
+          } @else {
+            <div class="phone-status">
+              <span>9:41</span>
+              <div class="phone-status-icons">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M2 15h18v3H2zM4 11h14v3H4zM6 7h10v3H6zM8 3h6v3H8z" />
+                </svg>
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="1" y="7" width="14" height="10" rx="2" />
+                  <path d="M17 9.5v5a4 4 0 0 0 0-5z" />
+                </svg>
+              </div>
             </div>
-          </div>
-          @if (config.mostrarBurbuja && config.mensajeBurbuja) {
-          <div class="prev-bubble" [class]="config.posicion">
-            {{ config.mensajeBurbuja }}
-          </div>
           }
-          <div class="prev-btn-wrap" [class]="config.posicion">
-            <div class="prev-btn"
-              [style.background]="config.color"
-              [style.width.px]="config.mostrarTexto && config.textoBoton ? null : previewSize"
-              [style.height.px]="previewSize"
-              [style.border-radius]="config.mostrarTexto && config.textoBoton ? '999px' : previewRadius"
-              [style.padding]="config.mostrarTexto && config.textoBoton ? '0 12px' : null">
-              @if (config.icono === 'chat') {
-              <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:42%;height:42%">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-              </svg>
-              }
-              @if (config.icono === 'help') {
-              <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:42%;height:42%">
-                <circle cx="12" cy="12" r="10"/>
-                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
-                <line x1="12" y1="17" x2="12.01" y2="17"/>
-              </svg>
-              }
-              @if (config.icono === 'support') {
-              <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:42%;height:42%">
-                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
-              </svg>
-              }
-              @if (config.mostrarTexto && config.textoBoton) {
-              <span style="color:white;font-size:0.6rem;font-weight:600;white-space:nowrap">
-                {{ config.textoBoton }}
-              </span>
-              }
-            </div>
-          </div>
-        </div>
-      </div>
 
-      <!-- Preview panel del chat -->
-      <div class="chat-prev">
-        <div class="chat-prev-header" [style.background]="config.chatHeaderColor">
-          <div class="chat-prev-avatar">
-            @if (config.chatAvatar) {
-            <img [src]="config.chatAvatar" alt="Logo" class="chat-prev-avatar-img" />
-            } @else {
-            <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-            </svg>
-            }
-          </div>
-          <div class="chat-prev-info">
-            <span class="chat-prev-title">{{ config.chatMarca || config.tituloPanelChat || 'Soporte en línea' }}</span>
-            <span class="chat-prev-sub">
-              <span class="online-dot"></span>
-              {{ config.subtituloPanelChat || 'Estamos aquí para ayudarte' }}
-            </span>
-          </div>
-        </div>
-        <div class="chat-prev-body" [style.background]="config.chatBgColor">
-          <div class="chat-bubble-wrap">
-            <div class="chat-bubble"
-              [style.background]="config.chatBubbleColor"
-              [style.color]="contrastColor(config.chatBubbleColor)"
-              [style.border]="'1px solid rgba(0,0,0,0.07)'">
-              Hola, ¿en qué te puedo ayudar hoy?
+          <div class="screen-body">
+            <div class="fake-page">
+              <div class="fake-nav"></div>
+              <div class="fake-hero"></div>
+              <div class="fake-lines">
+                <div class="fake-line" style="width: 70%"></div>
+                <div class="fake-line" style="width: 50%"></div>
+                <div class="fake-line" style="width: 85%"></div>
+              </div>
+              <div class="fake-cards">
+                <div class="fake-card"></div>
+                <div class="fake-card"></div>
+                <div class="fake-card"></div>
+              </div>
             </div>
-            <span class="chat-time">ahora</span>
-          </div>
-        </div>
-        <div class="chat-prev-input">
-          <span>Escribe un mensaje…</span>
-          <div class="chat-send" [style.background]="config.chatHeaderColor">
-            <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="22" y1="2" x2="11" y2="13"/>
-              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-            </svg>
+
+            @if (!previewOpen && config.mostrarBurbuja && config.mensajeBurbuja) {
+              <div
+                class="prev-bubble"
+                [style]="bubbleStyle(config.posicion)"
+                [class.arrow-right]="bubbleArrow(config.posicion) === 'right'"
+                [class.arrow-left]="bubbleArrow(config.posicion) === 'left'"
+              >
+                @if (config.burbujaImagen) {
+                  <img
+                    class="prev-bubble-img"
+                    [src]="config.burbujaImagen"
+                    alt=""
+                    (error)="config.burbujaImagen = ''"
+                  />
+                }
+                {{ config.mensajeBurbuja }}
+              </div>
+            }
+
+            @if (previewOpen) {
+              <div
+                class="prev-chat"
+                [style]="chatPanelStyle(config.posicion)"
+                [class.top]="isTop(config.posicion)"
+              >
+                <div class="prev-chat-header" [style.background]="config.chatHeaderColor">
+                  <div class="prev-chat-avatar">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="white"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                    </svg>
+                  </div>
+                  <div class="prev-chat-info">
+                    <span class="prev-chat-title">{{
+                      config.chatMarca || config.tituloPanelChat || 'Soporte en línea'
+                    }}</span>
+                    <span class="prev-chat-sub">
+                      <span class="online-dot"></span>
+                      {{ config.subtituloPanelChat || 'Estamos aquí para ayudarte' }}
+                    </span>
+                  </div>
+                </div>
+                <div class="prev-chat-messages" [style.background]="config.chatBgColor">
+                  <div class="msg-wrap">
+                    <div
+                      class="msg agent"
+                      [style.background]="config.chatBubbleColor"
+                      [style.color]="contrastColor(config.chatBubbleColor)"
+                      [style.border]="'1px solid rgba(0,0,0,0.06)'"
+                    >
+                      Hola, ¿en qué te puedo ayudar hoy?
+                    </div>
+                    <div
+                      class="msg user"
+                      [style.background]="config.chatBubbleUserColor"
+                      [style.color]="contrastColor(config.chatBubbleUserColor)"
+                    >
+                      Quiero más información, por favor.
+                    </div>
+                  </div>
+                </div>
+                <div class="prev-chat-input">
+                  <span>Escribe un mensaje…</span>
+                  <div class="prev-send" [style.background]="config.chatHeaderColor">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="white"
+                      stroke-width="2.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <line x1="22" y1="2" x2="11" y2="13" />
+                      <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            }
+
+            <div class="prev-btn-wrap" [style]="btnWrapStyle(config.posicion)">
+              <button
+                class="prev-btn"
+                (click)="togglePreview()"
+                [attr.aria-label]="previewOpen ? 'Cerrar chat' : 'Abrir chat'"
+                [style.background]="config.color"
+                [style.width.px]="
+                  !previewOpen && config.mostrarTexto && config.textoBoton ? null : previewSize
+                "
+                [style.height.px]="previewSize"
+                [style.border-radius]="
+                  !previewOpen && config.mostrarTexto && config.textoBoton ? '999px' : previewRadius
+                "
+                [style.padding]="
+                  !previewOpen && config.mostrarTexto && config.textoBoton ? '0 14px' : null
+                "
+              >
+                @switch (iconoPreview) {
+                  @case ('chat') {
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="white"
+                      stroke-width="2.2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      class="prev-btn-icon"
+                    >
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                    </svg>
+                  }
+                  @case ('help') {
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="white"
+                      stroke-width="2.2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      class="prev-btn-icon"
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                      <line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg>
+                  }
+                  @case ('support') {
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="white"
+                      stroke-width="2.2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      class="prev-btn-icon"
+                    >
+                      <path
+                        d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"
+                      />
+                    </svg>
+                  }
+                  @case ('close') {
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="white"
+                      stroke-width="2.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      class="prev-btn-icon"
+                    >
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  }
+                }
+                @if (!previewOpen && config.mostrarTexto && config.textoBoton) {
+                  <span class="prev-btn-text">{{ config.textoBoton }}</span>
+                }
+              </button>
+            </div>
           </div>
         </div>
       </div>

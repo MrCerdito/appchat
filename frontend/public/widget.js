@@ -43,7 +43,7 @@
     chatBubbleColor    : '#ffffff',
     chatBubbleUserColor: '#1a1a1a',
     chatMarca          : 'Soporte en línea',
-    chatAvatar         : '',
+    burbujaImagen      : '',
   };
 
   /* ═══════════════════════════════════════════════════════════
@@ -228,7 +228,7 @@
         'tituloPanelChat', 'subtituloPanelChat',
         'chatHeaderColor', 'chatBgColor',
         'chatBubbleColor', 'chatBubbleUserColor', 'chatMarca',
-        'chatAvatar',
+        'burbujaImagen',
       ];
       fields.forEach(function (f) {
         var v = p.get(f);
@@ -276,7 +276,7 @@
       chatBubbleColor    : sanitizeHex(res.chatBubbleColor)     || DEF.chatBubbleColor,
       chatBubbleUserColor: sanitizeHex(res.chatBubbleUserColor) || DEF.chatBubbleUserColor,
       chatMarca          : res.chatMarca           || DEF.chatMarca,
-      chatAvatar         : res.chatAvatar          || DEF.chatAvatar,
+      burbujaImagen      : res.burbujaImagen       || DEF.burbujaImagen,
     };
   }
 
@@ -305,9 +305,10 @@
     bubble.id  = 'sian-bubble';
     bubble.style.display = 'none';
     bubble.addEventListener('click', openPanel);
-    var bubbleAvatar = document.createElement('span');
-    bubbleAvatar.className = 'sian-bubble-avatar';
-    bubble.appendChild(bubbleAvatar);
+    var bubbleImg = document.createElement('img');
+    bubbleImg.className = 'sian-bubble-img';
+    bubbleImg.alt = '';
+    bubble.appendChild(bubbleImg);
     var bubbleText = document.createElement('span');
     bubbleText.className = 'sian-bubble-text';
     bubble.appendChild(bubbleText);
@@ -398,8 +399,20 @@
     return styles[posicion] || styles['bottom-right'];
   }
 
-  function getBubblePos(posicion, size) {
+  function getBubblePos(posicion, size, btn) {
   var gap = 10; // espacio entre botón y burbuja
+
+  // Ancla la burbuja al centro vertical del botón y al lado interior de la
+  // pantalla: con posicion -right nace a la izquierda del icono, con -left a
+  // la derecha. Queda pegada al icono y parece "salir" desde él.
+  var r = (btn && typeof btn.getBoundingClientRect === 'function') ? btn.getBoundingClientRect() : null;
+  if (r && r.width > 0) {
+    var cy = r.top + r.height / 2;
+    var side = posicion.indexOf('-right') !== -1
+      ? { right: (window.innerWidth - r.left + gap) + 'px' }
+      : { left: (r.right + gap) + 'px' };
+    return Object.assign({ top: cy + 'px', transform: 'translateY(-50%)' }, side);
+  }
 
   return {
     'bottom-right': { 
@@ -424,7 +437,7 @@
   }[posicion] || { bottom: '24px', right: (size + gap + 24) + 'px' };
 }
   function applyPos(el, map) {
-    ['top', 'bottom', 'left', 'right'].forEach(function (k) { el.style[k] = ''; });
+    ['top', 'bottom', 'left', 'right', 'transform'].forEach(function (k) { el.style[k] = ''; });
     Object.keys(map).forEach(function (k) { el.style[k] = typeof map[k] === 'number' ? map[k] + 'px' : map[k]; });
   }
 
@@ -473,19 +486,16 @@
     var bubble = document.getElementById('sian-bubble');
     if (bubble) {
       if (cfg.mostrarBurbuja && cfg.mensajeBurbuja && !isOpen) {
-        var bAvatar = bubble.querySelector('.sian-bubble-avatar');
-        var bText   = bubble.querySelector('.sian-bubble-text');
-        if (bAvatar) {
-          if (cfg.chatAvatar) {
-            bAvatar.style.background = '#fff';
-            bAvatar.innerHTML = '<img src="' + cfg.chatAvatar + '" alt="" />';
-          } else {
-            bAvatar.style.background = cfg.color;
-            bAvatar.innerHTML = '<span aria-hidden="true">\u{1F44B}</span>';
-          }
+        var bImg  = bubble.querySelector('.sian-bubble-img');
+        var bText = bubble.querySelector('.sian-bubble-text');
+        if (bImg) {
+          bImg.style.display = cfg.burbujaImagen ? 'block' : 'none';
+          bImg.src = cfg.burbujaImagen || '';
         }
         if (bText) bText.textContent = cfg.mensajeBurbuja;
-        applyPos(bubble, getBubblePos(cfg.posicion, size));
+        bubble.classList.remove('sian-bubble-left', 'sian-bubble-right');
+        bubble.classList.add(cfg.posicion.indexOf('-right') !== -1 ? 'sian-bubble-left' : 'sian-bubble-right');
+        applyPos(bubble, getBubblePos(cfg.posicion, size, btn));
         bubble.style.display = 'flex';
       } else {
         bubble.style.display = 'none';
@@ -644,10 +654,10 @@
   position: fixed;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   background: #fff;
   border-radius: 16px;
-  padding: 8px 16px 8px 8px;
+  padding: 8px 16px;
   box-shadow: 0 4px 16px rgba(0,0,0,0.12);
   font-size: 14px;
   line-height: 1.4;
@@ -656,26 +666,14 @@
   z-index: 2147483646;
   max-width: 280px;
   font-family: inherit;
-  animation: sianFloat 3s ease-in-out infinite;
 }
-#sian-bubble .sian-bubble-avatar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
+#sian-bubble .sian-bubble-img {
+  display: none;
+  width: auto;
+  max-width: 60px;
+  max-height: 26px;
+  object-fit: contain;
   flex-shrink: 0;
-  overflow: hidden;
-  color: #fff;
-  font-size: 17px;
-  line-height: 1;
-}
-#sian-bubble .sian-bubble-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
 }
 #sian-bubble .sian-bubble-text {
   min-width: 0;
@@ -686,15 +684,30 @@
   width: 12px;
   height: 12px;
   background: #fff;
-  transform: rotate(45deg);
 }
-#sian-bubble::after {
-  bottom: -5px;
-  right: 20px;
+#sian-bubble.sian-bubble-left::after {
+  right: -6px;
+  top: 50%;
+  transform: translateY(-50%) rotate(45deg);
 }
-@keyframes sianFloat {
-  0%,100% { transform: translateY(0); }
-  50% { transform: translateY(-4px); }
+#sian-bubble.sian-bubble-right::after {
+  left: -6px;
+  top: 50%;
+  transform: translateY(-50%) rotate(45deg);
+}
+@keyframes sianBubbleInLeft {
+  from { opacity: 0; transform: translateX(30px) translateY(-50%); }
+  to   { opacity: 1; transform: translateX(0) translateY(-50%); }
+}
+@keyframes sianBubbleInRight {
+  from { opacity: 0; transform: translateX(-30px) translateY(-50%); }
+  to   { opacity: 1; transform: translateX(0) translateY(-50%); }
+}
+#sian-bubble.sian-bubble-left {
+  animation: sianBubbleInLeft 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+#sian-bubble.sian-bubble-right {
+  animation: sianBubbleInRight 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 #sian-iframe {
   flex: 1;

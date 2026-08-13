@@ -122,14 +122,15 @@ export class WidgetConfig {
   })
   chatMarca: string;
 
-  // Avatar/logo de la empresa que aparece en el header del chat y en la burbuja
+  // Imagen que se muestra directamente dentro de la burbuja de bienvenida
+  // (pegada junto al texto, sin círculo de avatar)
   @Column({
-    name: 'chat_avatar',
+    name: 'burbuja_imagen',
     type: 'varchar',
     length: 500,
     default: '',
   })
-  chatAvatar: string;
+  burbujaImagen: string;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
