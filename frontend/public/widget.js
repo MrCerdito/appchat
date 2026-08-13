@@ -801,6 +801,9 @@
 
     buildDOM();
 
+    var overlay = document.getElementById('loading-overlay');
+    if (overlay) overlay.style.display = 'none';
+
     if (IS_PREVIEW) {
       var previewCfg = getPreviewConfig();
       if (previewCfg) {
