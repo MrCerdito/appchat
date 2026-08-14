@@ -43,6 +43,16 @@ export interface ConfiguracionData {
   aiPromptConfig: Record<string, any> | null;
   asesorReconexionSeg: number;
   asesorReconexionMsg: string;
+  ticketEmailActivo: boolean;
+  ticketEmailAsunto: string;
+  ticketEmailCuerpo: string;
+  ticketEmailDesign: unknown[] | null;
+  smtpHost: string;
+  smtpPort: number;
+  smtpSecure: boolean;
+  smtpUser: string;
+  smtpPass: string;
+  mailFrom: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -65,6 +75,18 @@ export class ConfiguracionFrontendService {
 
   guardarGlobal(data: Partial<ConfiguracionData>): Observable<ConfiguracionData> {
     return this.http.post<ConfiguracionData>(`${this.url}/global`, data);
+  }
+
+  probarMail(
+    data: Partial<ConfiguracionData> & { to: string; asunto?: string; cuerpo?: string },
+  ): Observable<{ ok: boolean; message: string }> {
+    return this.http.post<{ ok: boolean; message: string }>(`${this.url}/global/mail-test`, data);
+  }
+
+  uploadMailImage(file: File): Observable<{ url: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<{ url: string }>(`${this.url}/global/mail-image`, formData);
   }
 
   getQuickRepliesConfig(): Observable<any[]> {

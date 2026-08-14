@@ -1,0 +1,264 @@
+.mb {
+  position: relative;
+  margin: 6px 0;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &.mb--selected {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.18);
+  }
+
+  &.cdk-drag-dragging {
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+    opacity: 0.95;
+    z-index: 20;
+  }
+
+  &.cdk-drag-preview {
+    opacity: 0.9;
+  }
+
+  &.cdk-drop-list-dragging .mb {
+    &:not(.cdk-drag-placeholder) {
+      transition: transform 0.2s ease;
+    }
+  }
+
+  &.cdk-drag-placeholder {
+    background: #eef2ff;
+    border: 2px dashed #6366f1;
+    min-height: 44px;
+    opacity: 0.6;
+  }
+}
+
+.mb__bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px;
+  background: #f8fafc;
+  border-bottom: 1px solid #eef2f7;
+  border-radius: 7px 7px 0 0;
+  font-size: 12px;
+  color: #64748b;
+  cursor: default;
+  user-select: none;
+}
+
+.mb__drag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  cursor: grab;
+  padding: 2px 2px;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.mb__type {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 11px;
+}
+
+.mb__tools {
+  margin-left: auto;
+  display: flex;
+  gap: 2px;
+}
+
+.mb__tool {
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 4px 7px;
+  border-radius: 5px;
+
+  &:hover {
+    background: #e2e8f0;
+    color: #334155;
+  }
+
+  &--del:hover {
+    background: #fee2e2;
+    color: #dc2626;
+  }
+
+  &--fmt {
+    color: #64748b;
+
+    &:hover {
+      background: #e0e7ff;
+      color: #4338ca;
+    }
+
+    strong,
+    em,
+    u {
+      font-size: 13px;
+    }
+  }
+}
+
+.mb__content {
+  position: relative;
+  cursor: text;
+  min-height: 12px;
+
+  &--center {
+    cursor: pointer;
+  }
+}
+
+.mb__editable {
+  outline: none;
+  line-height: 1.6;
+  word-break: break-word;
+
+  &:empty::before {
+    content: 'Escribe aqui...';
+    color: #cbd5e1;
+  }
+
+  &--heading {
+    font-weight: 700;
+    line-height: 1.4;
+  }
+}
+
+.mb__placeholder {
+  padding: 26px 24px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 13px;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 6px;
+}
+
+.mb__button {
+  display: inline-block;
+  padding: 12px 24px;
+  text-decoration: none;
+  font-weight: 600;
+  box-sizing: border-box;
+  max-width: 100%;
+  cursor: pointer;
+}
+
+.mb__divider {
+  border-top-style: solid;
+  margin: 8px 24px;
+}
+
+.mb__spacer {
+  width: 100%;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(99, 102, 241, 0.18) 0 8px,
+    transparent 8px 16px
+  );
+  cursor: ns-resize;
+}
+
+.mb__token {
+  display: inline-block;
+  background: #eef2ff;
+  border: 1px dashed #6366f1;
+  color: #4338ca;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-family: Consolas, Monaco, monospace;
+  font-size: 13px;
+}
+
+.mb__rawhtml {
+  padding: 8px 24px;
+  overflow-x: auto;
+  font-size: 13px;
+  color: #475569;
+}
+
+.mb__cols {
+  position: relative;
+  display: flex;
+  padding: 4px 24px;
+  gap: 0;
+}
+
+.mb__col {
+  min-height: 40px;
+  box-sizing: border-box;
+}
+
+.mb__inlist {
+  min-height: 34px;
+  border-radius: 6px;
+}
+
+.mb__colsplit {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  margin-left: -3px;
+  background: transparent;
+  cursor: col-resize;
+  z-index: 5;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 2px;
+    width: 2px;
+    background: #c7d2fe;
+    border-radius: 2px;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+
+  &:hover::after {
+    opacity: 1;
+  }
+}
+
+.mb__resize {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: #6366f1;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.35);
+  z-index: 10;
+
+  &--right {
+    right: -7px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: ew-resize;
+  }
+
+  &--corner {
+    right: -7px;
+    bottom: -7px;
+    cursor: nwse-resize;
+  }
+}
+
+.cdk-drop-list-dragging .cdk-drag {
+  cursor: grabbing;
+}

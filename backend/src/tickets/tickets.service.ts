@@ -10,12 +10,14 @@ import { User } from '../auth/entities/user.entity';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { UpdateTicketDto } from './dto/update-ticket.dto';
 import { QueryTicketDto } from './dto/query-ticket.dto';
+import { TicketMailService } from './ticket-mail.service';
 
 @Injectable()
 export class TicketsService {
   constructor(
     @InjectRepository(Ticket) private readonly repo: Repository<Ticket>,
     @InjectRepository(User) private readonly userRepo: Repository<User>,
+    private readonly ticketMail: TicketMailService,
   ) {}
 
   private async generarCodigo(): Promise<string> {
@@ -89,7 +91,13 @@ export class TicketsService {
     ticket.assignedToName = assignedTo?.name ?? null;
     ticket.createdBy = createdBy;
 
-    return this.repo.save(ticket);
+    const saved = await this.repo.save(ticket);
+
+    if (dto.sourceType === 'web' && dto.email) {
+      void this.ticketMail.enviarTicket(saved, dto.email);
+    }
+
+    return saved;
   }
 
   async findAll(query: QueryTicketDto): Promise<{

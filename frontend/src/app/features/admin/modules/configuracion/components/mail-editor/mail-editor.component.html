@@ -1,0 +1,324 @@
+<div class="mled">
+  <div class="mled__toolbar">
+    <div class="mled__seg">
+      <button
+        type="button"
+        class="mled__seg-btn"
+        [class.mled__seg-btn--active]="mode === 'visual'"
+        (click)="setMode('visual')"
+      >Visual</button>
+      <button
+        type="button"
+        class="mled__seg-btn"
+        [class.mled__seg-btn--active]="mode === 'html'"
+        (click)="setMode('html')"
+      >HTML</button>
+    </div>
+
+    @if (mode === 'visual') {
+      <select class="mled__select" (change)="addFromSelect($any($event.target).value)">
+        <option value="" selected disabled>+ Agregar bloque</option>
+        <option value="heading">Titulo</option>
+        <option value="text">Texto</option>
+        <option value="image">Imagen</option>
+        <option value="button">Boton</option>
+        <option value="columns">2 columnas</option>
+        <option value="divider">Separador</option>
+        <option value="spacer">Espacio</option>
+        <option value="token">Variable</option>
+        <option value="html">HTML libre</option>
+      </select>
+
+      <span class="mled__vars">
+        <span class="mled__vars-label">Variables</span>
+        <select class="mled__select" (change)="addToken($event)">
+          <option value="" selected disabled>Insertar</option>
+          @for (v of variables; track v.name) {
+            <option [value]="v.name" [title]="v.desc">{{ '{{' + v.name + '}}' }}</option>
+          }
+        </select>
+      </span>
+
+      <button type="button" class="mled__btn mled__btn--ghost" (click)="cargarPlantillaEjemplo()">
+        Plantilla de ejemplo
+      </button>
+    }
+  </div>
+
+  @if (mode === 'visual') {
+    <div class="mled__main">
+      <div class="mled__canvas">
+        @if (uploading) {
+          <div class="mled__toast">Subiendo imagen...</div>
+        }
+        @if (uploadError) {
+          <div class="mled__toast mled__toast--err">{{ uploadError }}</div>
+        }
+
+        <div
+          cdkDropList
+          [cdkDropListData]="blocks"
+          (cdkDropListDropped)="onDrop($event, blocks)"
+          class="mled__list"
+        >
+          @for (b of blocks; track b.id) {
+            <mail-block-view
+              [block]="b"
+              [selectedId]="selectedId"
+              [level]="0"
+              (selectBlock)="selectBlock($event)"
+              (removeBlock)="removeBlock($event)"
+              (moveBlock)="moveBlock($event)"
+              (textChange)="textChange($event)"
+              (resizeStart)="onResizeStart($event)"
+              (dropBlocks)="onInnerDrop($event)"
+            />
+          } @empty {
+            <div class="mled__empty">
+              <p>Tu plantilla esta vacia. Agrega bloques desde el menu <strong>+ Agregar bloque</strong> o carga la <strong>Plantilla de ejemplo</strong>.</p>
+            </div>
+          }
+        </div>
+      </div>
+
+      @if (selectedBlock) {
+        <aside class="mled__pp" [style.top.px]="popoverStyle?.top ?? 90" [style.left.px]="popoverStyle?.left ?? 20">
+          <div class="mled__pp-head">
+            <strong>{{ blockLabel(selectedBlock.type) }}</strong>
+            <span class="mled__pp-hint">Configuracion</span>
+            <button type="button" class="mled__pp-close" (click)="deselect()" title="Cerrar">&times;</button>
+          </div>
+          <div class="mled__pp-body">
+            @switch (selectedBlock.type) {
+              @case ('text') {
+                <div class="mled__fld">
+                  <label class="mled__fld-label">Alineacion</label>
+                  <select class="mled__select mled__select--full" [(ngModel)]="selectedBlock.align" (ngModelChange)="panelChanged()">
+                    @for (a of aligns; track a.value) {
+                      <option [value]="a.value">{{ a.label }}</option>
+                    }
+                  </select>
+                </div>
+                <div class="mled__fld">
+                  <label class="mled__fld-label">Tipografia</label>
+                  <select class="mled__select mled__select--full" [(ngModel)]="selectedBlock.fontFamily" (ngModelChange)="panelChanged()">
+                    @for (f of fonts; track f.value) {
+                      <option [value]="f.value">{{ f.label }}</option>
+                    }
+                  </select>
+                </div>
+                <div class="mled__fld">
+                  <label class="mled__fld-label">Tamano de fuente ({{ selectedBlock.fontSize ?? 15 }}px)</label>
+                  <input class="mled__range" type="range" min="10" max="34" [(ngModel)]="selectedBlock.fontSize" (ngModelChange)="panelChanged()"/>
+                </div>
+                <div class="mled__grid">
+                  <div class="mled__fld">
+                    <label class="mled__fld-label">Color texto</label>
+                    <input class="mled__color" type="color" [ngModel]="hexColor(selectedBlock.color, '#1e293b')" (ngModelChange)="selectedBlock.color = $event; panelChanged()"/>
+                  </div>
+                  <div class="mled__fld">
+                    <label class="mled__fld-label">Fondo</label>
+                    <input class="mled__color" type="color" [ngModel]="hexColor(selectedBlock.bg, '#ffffff')" (ngModelChange)="selectedBlock.bg = $event; panelChanged()"/>
+                  </div>
+                </div>
+                <div class="mled__fld">
+                  <label class="mled__fld-label">Separacion ({{ selectedBlock.padding ?? 14 }}px)</label>
+                  <input class="mled__range" type="range" min="0" max="48" [(ngModel)]="selectedBlock.padding" (ngModelChange)="panelChanged()"/>
+                </div>
+              }
+              @case ('heading') {
+                <div class="mled__fld">
+                  <label class="mled__fld-label">Alineacion</label>
+                  <select class="mled__select mled__select--full" [(ngModel)]="selectedBlock.align" (ngModelChange)="panelChanged()">
+                    @for (a of aligns; track a.value) {
+                      <option [value]="a.value">{{ a.label }}</option>
+                    }
+                  </select>
+                </div>
+                <div class="mled__fld">
+                  <label class="mled__fld-label">Tipografia</label>
+                  <select class="mled__select mled__select--full" [(ngModel)]="selectedBlock.fontFamily" (ngModelChange)="panelChanged()">
+                    @for (f of fonts; track f.value) {
+                      <option [value]="f.value">{{ f.label }}</option>
+                    }
+                  </select>
+                </div>
+                <div class="mled__fld">
+                  <label class="mled__fld-label">Tamano de fuente ({{ selectedBlock.fontSize ?? 22 }}px)</label>
+                  <input class="mled__range" type="range" min="14" max="46" [(ngModel)]="selectedBlock.fontSize" (ngModelChange)="panelChanged()"/>
+                </div>
+                <div class="mled__grid">
+                  <div class="mled__fld">
+                    <label class="mled__fld-label">Color texto</label>
+                    <input class="mled__color" type="color" [ngModel]="hexColor(selectedBlock.color, '#111827')" (ngModelChange)="selectedBlock.color = $event; panelChanged()"/>
+                  </div>
+                  <div class="mled__fld">
+                    <label class="mled__fld-label">Fondo</label>
+                    <input class="mled__color" type="color" [ngModel]="hexColor(selectedBlock.bg, '#ffffff')" (ngModelChange)="selectedBlock.bg = $event; panelChanged()"/>
+                  </div>
+                </div>
+                <div class="mled__fld">
+                  <label class="mled__fld-label">Separacion ({{ selectedBlock.padding ?? 14 }}px)</label>
+                  <input class="mled__range" type="range" min="0" max="48" [(ngModel)]="selectedBlock.padding" (ngModelChange)="panelChanged()"/>
+                </div>
+              }
+              @case ('image') {
+                <div class="mled__fld">
+                  <label class="mled__fld-label">URL de la imagen</label>
+                  <input class="mled__input" type="text" [(ngModel)]="selectedBlock.src" (ngModelChange)="panelChanged()"/>
+                  <span class="mled__hint">Usa el boton "Imagen" del toolbar para subir un archivo.</span>
+                </div>
+                <div class="mled__fld">
+                  <label class="mled__fld-label">Texto alternativo</label>
+                  <input class="mled__input" type="text" [(ngModel)]="selectedBlock.alt" (ngModelChange)="panelChanged()"/>
+                </div>
+                <div class="mled__fld">
+                  <label class="mled__fld-label">Ancho ({{ selectedBlock.width ?? 480 }}px) - arrastra el punto derecho del bloque</label>
+                  <input class="mled__range" type="range" min="40" max="640" [(ngModel)]="selectedBlock.width" (ngModelChange)="panelChanged()"/>
+                </div>
+                <div class="mled__fld">
+                  <label class="mled__fld-label">Alto ({{ selectedBlock.height ? selectedBlock.height + 'px' : 'auto' }}) - arrastra la esquina del bloque</label>
+                  <input class="mled__range" type="range" min="0" max="800" [ngModel]="selectedBlock.height ?? 0" (ngModelChange)="selectedBlock.height = $event || undefined; panelChanged()"/>
+                  <span class="mled__hint">En 0 el alto es automatico (conserva la proporcion).</span>
+                </div>
+                <div class="mled__fld">
+                  <label class="mled__fld-label">Esquinas redondeadas ({{ selectedBlock.radius ?? 8 }}px)</label>
+                  <input class="mled__range" type="range" min="0" max="40" [(ngModel)]="selectedBlock.radius" (ngModelChange)="panelChanged()"/>
+                </div>
+                <div class="mled__fld">
+                  <label class="mled__fld-label">Alineacion</label>
+                  <select class="mled__select mled__select--full" [(ngModel)]="selectedBlock.align" (ngModelChange)="panelChanged()">
+                    @for (a of aligns; track a.value) {
+                      <option [value]="a.value">{{ a.label }}</option>
+                    }
+                  </select>
+                </div>
+                <div class="mled__fld">
+                  <label class="mled__fld-label">Enlace (opcional)</label>
+                  <input class="mled__input" type="text" [(ngModel)]="selectedBlock.link" (ngModelChange)="panelChanged()"/>
+                </div>
+              }
+              @case ('button') {
+                <div class="mled__fld">
+                  <label class="mled__fld-label">Texto del boton</label>
+                  <input class="mled__input" type="text" [(ngModel)]="selectedBlock.text" (ngModelChange)="panelChanged()"/>
+                </div>
+                <div class="mled__fld">
+                  <label class="mled__fld-label">Enlace</label>
+                  <input class="mled__input" type="text" [(ngModel)]="selectedBlock.href" (ngModelChange)="panelChanged()"/>
+                </div>
+                <div class="mled__grid">
+                  <div class="mled__fld">
+                    <label class="mled__fld-label">Fondo</label>
+                    <input class="mled__color" type="color" [ngModel]="hexColor(selectedBlock.bg, '#2563eb')" (ngModelChange)="selectedBlock.bg = $event; panelChanged()"/>
+                  </div>
+                  <div class="mled__fld">
+                    <label class="mled__fld-label">Texto</label>
+                    <input class="mled__color" type="color" [ngModel]="hexColor(selectedBlock.color, '#ffffff')" (ngModelChange)="selectedBlock.color = $event; panelChanged()"/>
+                  </div>
+                </div>
+                <div class="mled__fld">
+                  <label class="mled__fld-label">Ancho ({{ selectedBlock.width ?? 180 }}px) - arrastra el punto derecho del bloque</label>
+                  <input class="mled__range" type="range" min="40" max="592" [(ngModel)]="selectedBlock.width" (ngModelChange)="panelChanged()"/>
+                </div>
+                <div class="mled__fld">
+                  <label class="mled__fld-label">Alto ({{ selectedBlock.height ? selectedBlock.height + 'px' : 'auto' }}) - arrastra la esquina del bloque</label>
+                  <input class="mled__range" type="range" min="0" max="200" [ngModel]="selectedBlock.height ?? 0" (ngModelChange)="selectedBlock.height = $event || undefined; panelChanged()"/>
+                  <span class="mled__hint">En 0 el alto se ajusta al texto.</span>
+                </div>
+                <div class="mled__grid">
+                  <div class="mled__fld">
+                    <label class="mled__fld-label">Tamano texto ({{ selectedBlock.fontSize ?? 15 }}px)</label>
+                    <input class="mled__range" type="range" min="11" max="26" [(ngModel)]="selectedBlock.fontSize" (ngModelChange)="panelChanged()"/>
+                  </div>
+                  <div class="mled__fld">
+                    <label class="mled__fld-label">Esquinas ({{ selectedBlock.radius ?? 8 }}px)</label>
+                    <input class="mled__range" type="range" min="0" max="40" [(ngModel)]="selectedBlock.radius" (ngModelChange)="panelChanged()"/>
+                  </div>
+                </div>
+                <div class="mled__fld">
+                  <label class="mled__fld-label">Alineacion</label>
+                  <select class="mled__select mled__select--full" [(ngModel)]="selectedBlock.align" (ngModelChange)="panelChanged()">
+                    @for (a of aligns; track a.value) {
+                      <option [value]="a.value">{{ a.label }}</option>
+                    }
+                  </select>
+                </div>
+              }
+              @case ('divider') {
+                <div class="mled__fld">
+                  <label class="mled__fld-label">Grosor ({{ selectedBlock.thickness ?? 1 }}px) - arrastra el punto del bloque</label>
+                  <input class="mled__range" type="range" min="1" max="20" [(ngModel)]="selectedBlock.thickness" (ngModelChange)="panelChanged()"/>
+                </div>
+                <div class="mled__fld">
+                  <label class="mled__fld-label">Color</label>
+                  <input class="mled__color" type="color" [ngModel]="hexColor(selectedBlock.color, '#e2e8f0')" (ngModelChange)="selectedBlock.color = $event; panelChanged()"/>
+                </div>
+                <div class="mled__fld">
+                  <label class="mled__fld-label">Separacion ({{ selectedBlock.padding ?? 14 }}px)</label>
+                  <input class="mled__range" type="range" min="0" max="48" [(ngModel)]="selectedBlock.padding" (ngModelChange)="panelChanged()"/>
+                </div>
+              }
+              @case ('spacer') {
+                <div class="mled__fld">
+                  <label class="mled__fld-label">Altura ({{ selectedBlock.height }}px) - arrastra el punto del bloque</label>
+                  <input class="mled__range" type="range" min="4" max="320" [(ngModel)]="selectedBlock.height" (ngModelChange)="panelChanged()"/>
+                </div>
+              }
+              @case ('columns') {
+                <div class="mled__fld">
+                  <label class="mled__fld-label">Ancho de columnas (izquierda {{ selectedBlock.cols[0].width }}%)</label>
+                  <div class="mled__colsbar">
+                    <div class="mled__colsbar-track">
+                      <div class="mled__colsbar-fill" [style.width.%]="selectedBlock.cols[0].width"></div>
+                    </div>
+                  </div>
+                  <span class="mled__hint">Arrastra la barra vertical entre las columnas en el canvas para ajustarlas.</span>
+                </div>
+                <div class="mled__fld">
+                  <label class="mled__fld-label">Espacio entre columnas ({{ selectedBlock.gap ?? 16 }}px)</label>
+                  <input class="mled__range" type="range" min="0" max="48" [(ngModel)]="selectedBlock.gap" (ngModelChange)="panelChanged()"/>
+                </div>
+                <div class="mled__fld">
+                  <label class="mled__fld-label">Separacion ({{ selectedBlock.padding ?? 14 }}px)</label>
+                  <input class="mled__range" type="range" min="0" max="48" [(ngModel)]="selectedBlock.padding" (ngModelChange)="panelChanged()"/>
+                </div>
+                <p class="mled__note">Dentro de cada columna puedes agregar bloques con el menu "+ Agregar bloque" (se insertan al final de la lista) o editando el contenido directamente.</p>
+              }
+              @case ('token') {
+                <div class="mled__fld">
+                  <label class="mled__fld-label">Variable</label>
+                  <select class="mled__select mled__select--full" [(ngModel)]="selectedBlock.token" (ngModelChange)="panelChanged()">
+                    @for (v of variables; track v.name) {
+                      <option [value]="v.name" [title]="v.desc">{{ '{{' + v.name + '}}' }}</option>
+                    }
+                  </select>
+                  <span class="mled__hint">Al enviar el correo, esta variable se reemplaza con los datos reales del ticket.</span>
+                </div>
+              }
+              @case ('html') {
+                <div class="mled__fld">
+                  <label class="mled__fld-label">HTML libre</label>
+                  <textarea class="mled__textarea" rows="8" [(ngModel)]="selectedBlock.html" (ngModelChange)="panelChanged()" spellcheck="false"></textarea>
+                  <span class="mled__hint">Pega aqui tu propio HTML. Tambien puedes usar las variables, por ejemplo {{ '{{codigo}}' }}.</span>
+                </div>
+              }
+            }
+          </div>
+        </aside>
+      }
+    </div>
+  } @else {
+    <div class="mled__html">
+      <textarea
+        class="mled__htmlarea"
+        [value]="htmlDraft"
+        (input)="onHtmlInput($event)"
+        spellcheck="false"
+      ></textarea>
+      <span class="mled__html-hint">
+        Editando HTML directamente. Los bloques se regeneran al volver a la vista Visual. Guarda siempre desde la vista Visual si quieres conservar el diseno por bloques.
+      </span>
+    </div>
+  }
+</div>

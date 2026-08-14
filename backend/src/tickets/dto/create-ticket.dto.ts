@@ -3,6 +3,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsIn,
+  IsEmail,
   Length,
 } from 'class-validator';
 
@@ -42,6 +43,10 @@ export class CreateTicketDto {
 
   @IsOptional()
   clientInfo?: Record<string, any>;
+
+  @IsOptional()
+  @IsEmail()
+  email?: string;
 
   @IsString()
   @IsOptional()

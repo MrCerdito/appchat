@@ -4,11 +4,20 @@ import { Repository } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import {
+  createSmtpTransport,
+  friendlySmtpError,
+} from '../common/mail/smtp.helper';
+import { embedInlineImages } from '../common/mail/email-assets.helper';
+import {
   Configuracion,
   HorarioAlmuerzo,
   HorarioSlot,
 } from './entities/configuracion.entity';
-import { cleanText, normalizeText } from '../common/security/sanitize.helper';
+import {
+  cleanText,
+  normalizeText,
+  sanitizeEmailHtml,
+} from '../common/security/sanitize.helper';
 
 export interface HorarioEstado {
   enJornada: boolean;
@@ -95,6 +104,54 @@ export class ConfiguracionService implements OnModuleInit {
     await this.repo.query(`
       ALTER TABLE IF EXISTS public.configuracion
       ADD COLUMN IF NOT EXISTS whatsapp_max_active_chats_per_advisor int NOT NULL DEFAULT 3
+    `);
+    await this.repo.query(`
+      ALTER TABLE IF EXISTS public.configuracion
+      ADD COLUMN IF NOT EXISTS ticket_email_activo boolean NOT NULL DEFAULT true
+    `);
+    await this.repo.query(`
+      ALTER TABLE IF EXISTS public.configuracion
+      ADD COLUMN IF NOT EXISTS ticket_email_asunto text
+      DEFAULT 'Tu caso {{codigo}} fue registrado'
+    `);
+    await this.repo.query(`
+      ALTER TABLE IF EXISTS public.configuracion
+      ADD COLUMN IF NOT EXISTS ticket_email_cuerpo text
+      DEFAULT 'Hola {{nombre}},\n\nRecibimos tu solicitud y quedo registrada con el codigo {{codigo}}. Este numero te servira para consultar el estado de tu caso cuando quieras.\n\nDatos del caso:\n- Titulo: {{titulo}}\n- Descripcion: {{descripcion}}\n- Prioridad: {{prioridad}}\n- Fecha: {{fecha}}\n\nInformacion que registraste:\n\n{{informacion}}\n\nConversacion de tu solicitud:\n\n{{conversacion}}\n\nSi necesitas agregar algo o tienes alguna duda, puedes responder este correo o volver a escribirnos por el chat. Quedamos atentos.\n\nAtentamente,\nEquipo de Soporte'
+    `);
+    await this.repo.query(`
+      ALTER TABLE IF EXISTS public.configuracion
+      ADD COLUMN IF NOT EXISTS ticket_email_design jsonb DEFAULT NULL
+    `);
+    await this.repo.query(`
+      ALTER TABLE IF EXISTS public.configuracion
+      ADD COLUMN IF NOT EXISTS smtp_host text DEFAULT ''
+    `);
+    await this.repo.query(`
+      ALTER TABLE IF EXISTS public.configuracion
+      ADD COLUMN IF NOT EXISTS smtp_port int NOT NULL DEFAULT 465
+    `);
+    await this.repo.query(`
+      ALTER TABLE IF EXISTS public.configuracion
+      ADD COLUMN IF NOT EXISTS smtp_secure boolean NOT NULL DEFAULT true
+    `);
+    await this.repo.query(`
+      ALTER TABLE IF EXISTS public.configuracion
+      ADD COLUMN IF NOT EXISTS smtp_user text DEFAULT ''
+    `);
+    await this.repo.query(`
+      ALTER TABLE IF EXISTS public.configuracion
+      ADD COLUMN IF NOT EXISTS smtp_pass text DEFAULT ''
+    `);
+    await this.repo.query(`
+      ALTER TABLE IF EXISTS public.configuracion
+      ADD COLUMN IF NOT EXISTS mail_from text DEFAULT ''
+    `);
+
+    await this.repo.query(`
+      UPDATE public.configuracion
+      SET ticket_email_cuerpo = REPLACE(ticket_email_cuerpo, 'ReportaCasos', 'Soporte')
+      WHERE ticket_email_cuerpo LIKE '%ReportaCasos%'
     `);
 
     const count = await this.repo.count({ where: { advisorId: null as any } });
@@ -314,6 +371,17 @@ export class ConfiguracionService implements OnModuleInit {
       sonidoCliente: 'cliente1',
       sonidoAsignacion: 'asignacion1',
       whatsappMaxActiveChatsPerAdvisor: 3,
+      ticketEmailActivo: true,
+      ticketEmailAsunto: 'Tu caso {{codigo}} fue registrado',
+      ticketEmailCuerpo:
+        'Hola {{nombre}},\n\nRecibimos tu solicitud y quedo registrada con el codigo {{codigo}}. Este numero te servira para consultar el estado de tu caso cuando quieras.\n\nDatos del caso:\n- Titulo: {{titulo}}\n- Descripcion: {{descripcion}}\n- Prioridad: {{prioridad}}\n- Fecha: {{fecha}}\n\nInformacion que registraste:\n\n{{informacion}}\n\nConversacion de tu solicitud:\n\n{{conversacion}}\n\nSi necesitas agregar algo o tienes alguna duda, puedes responder este correo o volver a escribirnos por el chat. Quedamos atentos.\n\nAtentamente,\nEquipo de Soporte',
+      ticketEmailDesign: null,
+      smtpHost: '',
+      smtpPort: 465,
+      smtpSecure: true,
+      smtpUser: '',
+      smtpPass: '',
+      mailFrom: '',
     };
     const nueva = this.repo.create({ ...defaults, advisorId: null });
     const saved = await this.repo.save(nueva);
@@ -365,6 +433,13 @@ export class ConfiguracionService implements OnModuleInit {
     advisorId?: string,
   ): Promise<Configuracion> {
     this.sanitizeConfigText(data);
+
+    if (data.smtpPort !== undefined) {
+      data.smtpPort = Math.max(1, Math.min(65535, Number(data.smtpPort) || 465));
+    }
+    if (typeof data.smtpSecure === 'string') {
+      data.smtpSecure = data.smtpSecure !== 'false';
+    }
 
     if (Array.isArray(data.almuerzos)) {
       data.almuerzos = this.normalizeAlmuerzos(data.almuerzos);
@@ -432,6 +507,81 @@ export class ConfiguracionService implements OnModuleInit {
     return saved;
   }
 
+  /**
+   * Prueba la conexion SMTP con las credenciales recibidas (todavia no se
+   * guardan) enviando un correo de prueba. Devuelve { ok, message }.
+   */
+  async probarConexionSmtp(body: {
+    smtpHost?: string;
+    smtpPort?: number;
+    smtpSecure?: boolean;
+    smtpUser?: string;
+    smtpPass?: string;
+    mailFrom?: string;
+    to?: string;
+    cuerpo?: string;
+    asunto?: string;
+  }): Promise<{ ok: boolean; message: string }> {
+    const to = String(body.to ?? '').trim();
+    if (!to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+      throw new BadRequestException('Indica un correo valido para recibir la prueba.');
+    }
+    const host = String(body.smtpHost ?? '').trim();
+    const user = String(body.smtpUser ?? '').trim();
+    const pass = String(body.smtpPass ?? '');
+    if (!host || !user || !pass) {
+      throw new BadRequestException('Completa el servidor SMTP, el correo de la cuenta y su contrasena.');
+    }
+
+    const from = String(body.mailFrom ?? '').trim() || user;
+    const port = Math.max(1, Math.min(65535, Number(body.smtpPort) || 465));
+    const secure = body.smtpSecure !== false;
+
+    // Si llega el cuerpo del editor visual, la prueba envia el diseno real
+    // (con las imagenes incrustadas) para que el admin vea exactamente lo que
+    // recibira el cliente. Si no, envia el mensaje simple de conexion.
+    let html = '';
+    let attachments: Array<{ filename: string; path: string; cid: string; contentType?: string }> | undefined;
+    if (typeof body.cuerpo === 'string' && body.cuerpo.trim()) {
+      const { html: htmlFinal, smtpAttachments } = await embedInlineImages(body.cuerpo);
+      html = htmlFinal;
+      attachments = smtpAttachments.length ? smtpAttachments : undefined;
+    }
+
+    const { transporter, connectHost, resolved } = await createSmtpTransport({
+      host,
+      port,
+      secure,
+      user,
+      pass,
+    });
+
+    try {
+      await transporter.verify();
+      const info = await transporter.sendMail({
+        from: `"Soporte" <${from}>`,
+        to,
+        subject:
+          String(body.asunto ?? '').trim() || 'Prueba de conexion de correo',
+        text: html
+          ? 'Si recibes este correo, la conexion de correo para los tickets esta funcionando correctamente.'
+          : undefined,
+        html: html
+          ? html
+          : '<p>Si recibes este correo, la conexion de correo para los tickets esta funcionando correctamente.</p>',
+        attachments,
+      });
+      transporter.close();
+      return {
+        ok: true,
+        message: `Conexion exitosa con ${host}${resolved ? ` (IPv4 ${connectHost})` : ''}. Correo de prueba enviado a ${to}${info.messageId ? ` (${info.messageId})` : ''}.`,
+      };
+    } catch (err: any) {
+      transporter.close();
+      return { ok: false, message: friendlySmtpError(err, host, port) };
+    }
+  }
+
   private sanitizeConfigText(data: Partial<Configuracion>): void {
     const textKeys: (keyof Configuracion)[] = [
       'mensajeBienvenida',
@@ -444,13 +594,26 @@ export class ConfiguracionService implements OnModuleInit {
       'whatsappQueueMsg',
       'whatsappOutOfHoursMsg',
       'whatsappCallUnavailableMsg',
+      'ticketEmailAsunto',
+      'ticketEmailCuerpo',
+      'smtpHost',
+      'smtpUser',
+      'mailFrom',
     ];
 
     for (const key of textKeys) {
       const value = data[key];
       if (typeof value === 'string') {
-        (data as any)[key] = cleanText(value, 4096);
+        if (key === 'ticketEmailCuerpo') {
+          (data as any)[key] = sanitizeEmailHtml(value, 200000);
+        } else {
+          (data as any)[key] = cleanText(value, 4096);
+        }
       }
+    }
+
+    if (data.ticketEmailDesign !== undefined && !Array.isArray(data.ticketEmailDesign)) {
+      data.ticketEmailDesign = null;
     }
 
     if (Array.isArray(data.ticketCategories)) {

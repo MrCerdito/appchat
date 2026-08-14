@@ -1,0 +1,208 @@
+<div
+  cdkDrag
+  class="mb"
+  [attr.data-block-id]="block.id"
+  [class.mb--selected]="block.id === selectedId"
+  [class.mb--no-drag]="block.type === 'html'"
+>
+  <div class="mb__bar" (click)="selectBlock.emit(block)" (mousedown)="$event.stopPropagation()">
+    <span class="mb__drag" cdkDragHandle title="Arrastrar para reordenar">
+      <svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor" aria-hidden="true">
+        <circle cx="2" cy="2" r="1.4"/><circle cx="8" cy="2" r="1.4"/>
+        <circle cx="2" cy="8" r="1.4"/><circle cx="8" cy="8" r="1.4"/>
+        <circle cx="2" cy="14" r="1.4"/><circle cx="8" cy="14" r="1.4"/>
+      </svg>
+    </span>
+    <span class="mb__type">{{ label }}</span>
+    <span class="mb__tools">
+      @if (block.type === 'text' || block.type === 'heading') {
+        <button type="button" class="mb__tool mb__tool--fmt" title="Negrita" (mousedown)="$event.preventDefault()" (click)="onFormat('bold', $event)"><strong>B</strong></button>
+        <button type="button" class="mb__tool mb__tool--fmt" title="Cursiva" (mousedown)="$event.preventDefault()" (click)="onFormat('italic', $event)"><em>I</em></button>
+        <button type="button" class="mb__tool mb__tool--fmt" title="Subrayado" (mousedown)="$event.preventDefault()" (click)="onFormat('underline', $event)"><u>U</u></button>
+        <button type="button" class="mb__tool mb__tool--fmt" title="Lista con vinetas" (mousedown)="$event.preventDefault()" (click)="onFormat('insertUnorderedList', $event)">&bull;</button>
+        <button type="button" class="mb__tool mb__tool--fmt" title="Lista numerada" (mousedown)="$event.preventDefault()" (click)="onFormat('insertOrderedList', $event)">1.</button>
+      }
+      <button type="button" class="mb__tool" title="Subir" (click)="moveBlock.emit({ block, dir: -1 })">&uarr;</button>
+      <button type="button" class="mb__tool" title="Bajar" (click)="moveBlock.emit({ block, dir: 1 })">&darr;</button>
+      <button type="button" class="mb__tool mb__tool--del" title="Eliminar" (click)="removeBlock.emit(block)">&times;</button>
+    </span>
+  </div>
+
+  @switch (block.type) {
+    @case ('text') {
+      <div class="mb__content" (click)="selectBlock.emit(block)">
+        <div
+          class="mb__editable mb__editable--text"
+          contenteditable="true"
+          [innerHTML]="innerHtml"
+          [style.color]="block.color || '#1e293b'"
+          [style.textAlign]="block.align || 'left'"
+          [style.fontSize.px]="block.fontSize || 15"
+          [style.fontFamily]="block.fontFamily || 'Arial,Helvetica,sans-serif'"
+          [style.backgroundColor]="block.bg || 'transparent'"
+          [style.padding.px]="block.padding ?? 14"
+          (input)="onTextInput($event)"
+          (blur)="onTextBlur($event)"
+        ></div>
+      </div>
+    }
+    @case ('heading') {
+      <div class="mb__content" (click)="selectBlock.emit(block)">
+        <div
+          class="mb__editable mb__editable--heading"
+          contenteditable="true"
+          [innerHTML]="innerHtml"
+          [style.color]="block.color || '#111827'"
+          [style.textAlign]="block.align || 'left'"
+          [style.fontSize.px]="block.fontSize || 22"
+          [style.fontFamily]="block.fontFamily || 'Arial,Helvetica,sans-serif'"
+          [style.backgroundColor]="block.bg || 'transparent'"
+          [style.padding.px]="block.padding ?? 14"
+          (input)="onTextInput($event)"
+          (blur)="onTextBlur($event)"
+        ></div>
+      </div>
+    }
+    @case ('image') {
+      <div class="mb__content mb__content--center" (click)="selectBlock.emit(block)">
+        @if (block.src) {
+          <img
+            [src]="block.src"
+            [alt]="block.alt || ''"
+            [style.width.px]="block.width || 480"
+            [style.maxWidth]="'100%'"
+            [style.borderRadius.px]="block.radius ?? 8"
+            [style.display]="'inline-block'"
+            [style.height]="block.height ? block.height + 'px' : 'auto'"
+          />
+        } @else {
+          <div class="mb__placeholder">
+            Sube una imagen o pega la URL en el panel de la derecha.
+          </div>
+        }
+      </div>
+    }
+    @case ('button') {
+      <div
+        class="mb__content"
+        (click)="selectBlock.emit(block)"
+        [style.textAlign]="block.align || 'center'"
+      >
+        <a
+          class="mb__button"
+          [style.backgroundColor]="block.bg || '#2563eb'"
+          [style.color]="block.color || '#ffffff'"
+          [style.borderRadius.px]="block.radius ?? 8"
+          [style.fontSize.px]="block.fontSize || 15"
+          [style.width.px]="block.width || undefined"
+          [style.height]="block.height ? block.height + 'px' : undefined"
+          [style.lineHeight]="block.height ? block.height + 'px' : undefined"
+          [style.padding]="block.height ? '0 24px' : undefined"
+        >{{ block.text }}</a>
+      </div>
+    }
+    @case ('divider') {
+      <div class="mb__content" (click)="selectBlock.emit(block)">
+        <div
+          class="mb__divider"
+          [style.borderTopWidth.px]="block.thickness ?? 1"
+          [style.borderTopColor]="block.color || '#e2e8f0'"
+        ></div>
+      </div>
+    }
+    @case ('spacer') {
+      <div class="mb__content" (click)="selectBlock.emit(block)">
+        <div class="mb__spacer" [style.height.px]="block.height"></div>
+      </div>
+    }
+    @case ('token') {
+      <div
+        class="mb__content"
+        (click)="selectBlock.emit(block)"
+        [style.textAlign]="block.align || 'left'"
+      >
+        <span class="mb__token">{{ '{{' + block.token + '}}' }}</span>
+      </div>
+    }
+    @case ('html') {
+      <div class="mb__content" (click)="selectBlock.emit(block)">
+        <div class="mb__rawhtml" [innerHTML]="block.html"></div>
+      </div>
+    }
+    @case ('columns') {
+      <div class="mb__content" (click)="selectBlock.emit(block)">
+        <div class="mb__cols">
+          <div class="mb__col" [style.width.%]="block.cols[0].width">
+            <div
+              cdkDropList
+              [cdkDropListData]="block.cols[0].blocks"
+              (cdkDropListDropped)="dropBlocks.emit($event)"
+              class="mb__inlist"
+            >
+              @for (inner of block.cols[0].blocks; track inner.id) {
+                <mail-block-view
+                  [block]="inner"
+                  [selectedId]="selectedId"
+                  [level]="level + 1"
+                  (selectBlock)="selectBlock.emit($event)"
+                  (removeBlock)="removeBlock.emit($event)"
+                  (moveBlock)="moveBlock.emit($event)"
+                  (textChange)="textChange.emit($event)"
+                  (resizeStart)="resizeStart.emit($event)"
+                  (dropBlocks)="dropBlocks.emit($event)"
+                />
+              }
+            </div>
+          </div>
+          <div class="mb__col" [style.width.%]="block.cols[1].width">
+            <div
+              cdkDropList
+              [cdkDropListData]="block.cols[1].blocks"
+              (cdkDropListDropped)="dropBlocks.emit($event)"
+              class="mb__inlist"
+            >
+              @for (inner of block.cols[1].blocks; track inner.id) {
+                <mail-block-view
+                  [block]="inner"
+                  [selectedId]="selectedId"
+                  [level]="level + 1"
+                  (selectBlock)="selectBlock.emit($event)"
+                  (removeBlock)="removeBlock.emit($event)"
+                  (moveBlock)="moveBlock.emit($event)"
+                  (textChange)="textChange.emit($event)"
+                  (resizeStart)="resizeStart.emit($event)"
+                  (dropBlocks)="dropBlocks.emit($event)"
+                />
+              }
+            </div>
+          </div>
+          <div
+            class="mb__colsplit"
+            [style.left.%]="block.cols[0].width"
+            (mousedown)="resizeStart.emit({ event: $event, block, kind: 'columns' })"
+            title="Arrastrar para ajustar el ancho de las columnas"
+          ></div>
+        </div>
+      </div>
+    }
+  }
+
+  @if (block.id === selectedId) {
+    @switch (block.type) {
+      @case ('image') {
+        <div class="mb__resize mb__resize--right" title="Arrastrar para cambiar el ancho" (mousedown)="resizeStart.emit({ event: $event, block, kind: 'width' })"></div>
+        <div class="mb__resize mb__resize--corner" title="Arrastrar para cambiar el alto" (mousedown)="resizeStart.emit({ event: $event, block, kind: 'height' })"></div>
+      }
+      @case ('button') {
+        <div class="mb__resize mb__resize--right" title="Arrastrar para cambiar el ancho" (mousedown)="resizeStart.emit({ event: $event, block, kind: 'width' })"></div>
+        <div class="mb__resize mb__resize--corner" title="Arrastrar para cambiar el alto" (mousedown)="resizeStart.emit({ event: $event, block, kind: 'height' })"></div>
+      }
+      @case ('divider') {
+        <div class="mb__resize mb__resize--right" title="Arrastrar para cambiar el grosor" (mousedown)="resizeStart.emit({ event: $event, block, kind: 'thickness' })"></div>
+      }
+      @case ('spacer') {
+        <div class="mb__resize mb__resize--right" title="Arrastrar para cambiar la altura" (mousedown)="resizeStart.emit({ event: $event, block, kind: 'thickness' })"></div>
+      }
+    }
+  }
+</div>

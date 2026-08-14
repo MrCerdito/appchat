@@ -129,6 +129,56 @@ export class GuardarConfigGlobalDto {
   sonidoActivado?: boolean;
 
   @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  ticketEmailActivo?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  ticketEmailAsunto?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200000)
+  ticketEmailCuerpo?: string;
+
+  @IsOptional()
+  @IsArray()
+  ticketEmailDesign?: unknown[] | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  smtpHost?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(65535)
+  smtpPort?: number;
+
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  smtpSecure?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  smtpUser?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  smtpPass?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  mailFrom?: string;
+
+  @IsOptional()
   @IsString()
   @MaxLength(30)
   sonidoWhatsapp?: string;

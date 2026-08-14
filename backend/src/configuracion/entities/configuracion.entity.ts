@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { encryptedTextTransformer } from '../../common/security/encrypted-text.transformer';
 
 export interface HorarioSlot {
   dia: number; // 0=dom, 1=lun ... 6=sáb
@@ -148,6 +149,57 @@ export class Configuracion {
 
   @Column({ name: 'sonido_asignacion', length: 30, nullable: true, default: 'asignacion1' })
   sonidoAsignacion: string;
+
+  // ── Correo de tickets (chat en linea) ───────────────────────────────────────
+  @Column({ name: 'ticket_email_activo', type: 'boolean', default: true })
+  ticketEmailActivo: boolean;
+
+  @Column({
+    name: 'ticket_email_asunto',
+    type: 'text',
+    nullable: true,
+    default: 'Tu caso {{codigo}} fue registrado',
+  })
+  ticketEmailAsunto: string;
+
+  @Column({
+    name: 'ticket_email_cuerpo',
+    type: 'text',
+    nullable: true,
+    default:
+      'Hola {{nombre}},\n\nRecibimos tu solicitud y quedo registrada con el codigo {{codigo}}. Este numero te servira para consultar el estado de tu caso cuando quieras.\n\nDatos del caso:\n- Titulo: {{titulo}}\n- Descripcion: {{descripcion}}\n- Prioridad: {{prioridad}}\n- Fecha: {{fecha}}\n\nInformacion que registraste:\n\n{{informacion}}\n\nConversacion de tu solicitud:\n\n{{conversacion}}\n\nSi necesitas agregar algo o tienes alguna duda, puedes responder este correo o volver a escribirnos por el chat. Quedamos atentos.\n\nAtentamente,\nEquipo de Soporte',
+  })
+  ticketEmailCuerpo: string;
+
+  // Modelo de bloques del editor visual de correo (round-trip del admin).
+  // Si es NULL, el cuerpo se trata como HTML/plano legacy.
+  @Column({ name: 'ticket_email_design', type: 'jsonb', nullable: true })
+  ticketEmailDesign: any | null;
+
+  // ── Remitente SMTP (correo propio que envia los tickets) ──────────────────
+  @Column({ name: 'smtp_host', type: 'text', nullable: true, default: '' })
+  smtpHost: string;
+
+  @Column({ name: 'smtp_port', type: 'int', default: 465 })
+  smtpPort: number;
+
+  @Column({ name: 'smtp_secure', type: 'boolean', default: true })
+  smtpSecure: boolean;
+
+  @Column({ name: 'smtp_user', type: 'text', nullable: true, default: '' })
+  smtpUser: string;
+
+  @Column({
+    name: 'smtp_pass',
+    type: 'text',
+    nullable: true,
+    default: '',
+    transformer: encryptedTextTransformer,
+  })
+  smtpPass: string;
+
+  @Column({ name: 'mail_from', type: 'text', nullable: true, default: '' })
+  mailFrom: string;
 
   // ── IA Prompt ──────────────────────────────────────────────────────────────
   @Column({ name: 'ai_prompt_config', type: 'jsonb', nullable: true })
