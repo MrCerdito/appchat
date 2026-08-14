@@ -156,7 +156,6 @@ get rolLabel(): string {
   // COLEGIOS (detección automática por URL de la página donde está el widget)
   // ══════════════════════════════════════════════════════════════════════════
 
-  colegios            : Colegio[] = [];
   colegioDetectado    : Colegio | null = null;
   private pageUrl     = '';
 
@@ -169,27 +168,39 @@ get rolLabel(): string {
     return /^[0-9]{7,15}$/.test(this.celular.trim());
   }
 
+  private obtenerUrlPagina(): string {
+    if (this.pageUrl) return this.pageUrl;
+    const ref = document.referrer || '';
+    if (ref) return ref;
+    try {
+      if (window.parent !== window) return window.parent.location.href;
+    } catch {}
+    return '';
+  }
+
+  private obtenerOrigen(url: string): string {
+    try { return new URL(url).origin; } catch { return ''; }
+  }
+
   private detectarColegio(): void {
-    if (!this.pageUrl || !this.colegios.length) return;
-    let page: URL;
-    try { page = new URL(this.pageUrl); } catch { return; }
-    const pageHost = page.hostname.toLowerCase().replace(/^www\./, '');
-    const pagePath = page.pathname.replace(/\/+$/, '') || '/';
-
-    const match = this.colegios.find((c) => {
-      if (!c.link) return false;
-      try {
-        const l = new URL(c.link);
-        if (l.hostname.toLowerCase().replace(/^www\./, '') !== pageHost) return false;
-        const lPath = l.pathname.replace(/\/+$/, '') || '/';
-        return lPath === '/' || pagePath === lPath || pagePath.startsWith(lPath + '/');
-      } catch {
-        return false;
-      }
+    const url = this.obtenerUrlPagina();
+    if (!url) {
+      this.colegioDetectado = null;
+      this.cdr.detectChanges();
+      return;
+    }
+    this.sessionService.detectarColegio(url).subscribe({
+      next: (res) => {
+        this.colegioDetectado = res
+          ? { id: res.id, nombre: res.nombre, link: this.obtenerOrigen(url) }
+          : null;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.colegioDetectado = null;
+        this.cdr.detectChanges();
+      },
     });
-
-    this.colegioDetectado = match ?? null;
-    this.cdr.detectChanges();
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -344,14 +355,7 @@ get rolLabel(): string {
 
     this.pageUrl = document.referrer || '';
 
-    this.sessionService.getColegios().subscribe({
-      next: (c) => {
-        this.colegios = c.map(co => ({ ...co, nombre: this.sanitizeText(co.nombre), link: this.sanitizeText(co.link) }));
-        this.detectarColegio();
-        this.cdr.detectChanges();
-      },
-      error: (err) => console.error('HTTP Error:', err),
-    });
+    this.detectarColegio();
 
     const savedSession = localStorage.getItem(SESSION_KEY);
     const savedName    = localStorage.getItem(CLIENT_NAME_KEY);
@@ -574,13 +578,6 @@ get rolLabel(): string {
       this.socket.connect();
       this.socket.emit('join_session', { sessionId: this.session.id, clientName: this.clientName });
     }
-  }
-
-  sanitizeText(str: string): string {
-    if (!str) return '';
-    const el = document.createElement('textarea');
-    el.innerHTML = str;
-    return el.textContent || '';
   }
 
   onIdentificacionInput(event: Event): void {

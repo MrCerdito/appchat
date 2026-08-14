@@ -362,7 +362,11 @@ export class MailEditorComponent implements OnChanges, OnInit, OnDestroy {
     } else {
       const draft = this.htmlDraft || this.cuerpo || '';
       const parsed = this.parseCorreo(draft);
-      this.blocks = parsed ? parsed : this.plainToTextBlock(draft);
+      if (parsed) {
+        this.blocks = parsed;
+      } else if (!this.blocks?.length) {
+        this.blocks = this.plainToTextBlock(draft);
+      }
       this.mode = 'visual';
       this.selectedId = null;
       this.emitCambios();
@@ -439,12 +443,121 @@ export class MailEditorComponent implements OnChanges, OnInit, OnDestroy {
     const token = select.value;
     select.value = '';
     if (!token) return;
+    this.addTokenBlock(token);
+  }
+
+  private addTokenBlock(token: string): void {
     const block: MailTokenBlock = { id: uid(), type: 'token', token, align: 'left' };
     this.blocks.push(block);
     this.selectedId = block.id;
     this.emitCambios();
     this.cdr.detectChanges();
     this.schedulePos();
+  }
+
+  // ── Formato y variables (insertan en el cursor) ───────────────────────────
+  get canFormat(): boolean {
+    return !!(this.focusedEditable() ?? this.selectedEditable());
+  }
+
+  format(cmd: string, value?: string): void {
+    const el = this.focusedEditable() ?? this.selectedEditable();
+    if (!el) return;
+    const pos = this.caretPath(el);
+    el.focus();
+    if (pos) this.setCaret(el, pos);
+    document.execCommand(cmd, false, value);
+    el.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
+    this.cdr.detectChanges();
+    if (pos) this.setCaret(el, pos);
+  }
+
+  insertLink(): void {
+    const el = this.focusedEditable() ?? this.selectedEditable();
+    if (!el) return;
+    const url = window.prompt('URL del enlace:', 'https://');
+    if (url === null) return;
+    const pos = this.caretPath(el);
+    el.focus();
+    if (pos) this.setCaret(el, pos);
+    document.execCommand('createLink', false, url);
+    el.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
+    this.cdr.detectChanges();
+    if (pos) this.setCaret(el, pos);
+  }
+
+  clearFormat(): void {
+    this.format('removeFormat');
+  }
+
+  insertVariableAtCaret(name: string): void {
+    const el = this.focusedEditable();
+    if (!el) {
+      this.addTokenBlock(name);
+      return;
+    }
+    const pos = this.caretPath(el);
+    el.focus();
+    if (pos) this.setCaret(el, pos);
+    const varText = `{{${name}}}`;
+    document.execCommand('insertText', false, varText);
+    el.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
+    this.cdr.detectChanges();
+    if (pos) {
+      pos.offset = Math.min(el.textContent?.length ?? 0, pos.offset + varText.length);
+      this.setCaret(el, pos);
+    }
+  }
+
+  private focusedEditable(): HTMLElement | null {
+    const a = document.activeElement as HTMLElement | null;
+    if (a && a.classList && a.classList.contains('mb__editable')) return a;
+    return null;
+  }
+
+  private selectedEditable(): HTMLElement | null {
+    if (!this.selectedId) return null;
+    return document.querySelector(
+      `[data-block-id="${this.selectedId}"] .mb__editable`,
+    ) as HTMLElement | null;
+  }
+
+  private caretPath(el: HTMLElement): { path: number[]; offset: number } | null {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return null;
+    const range = sel.getRangeAt(0);
+    const node = range.startContainer;
+    if (!el.contains(node)) return null;
+    const path: number[] = [];
+    let n: Node | null = node;
+    while (n && n !== el) {
+      if (!n.parentNode) break;
+      path.unshift(Array.prototype.indexOf.call(n.parentNode.childNodes, n));
+      n = n.parentNode;
+    }
+    if (n !== el) return null;
+    return { path, offset: range.startOffset };
+  }
+
+  private setCaret(el: HTMLElement, pos: { path: number[]; offset: number } | null): void {
+    if (!pos) return;
+    let node: Node = el;
+    for (const idx of pos.path) {
+      const next = node.childNodes[idx];
+      if (!next) return;
+      node = next;
+    }
+    try {
+      const range = document.createRange();
+      range.setStart(node, Math.min(pos.offset, node.textContent?.length ?? 0));
+      range.collapse(true);
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+      el.focus();
+    } catch {
+      /* posicion no disponible */
+    }
   }
 
   cargarPlantillaEjemplo(): void {
@@ -692,7 +805,7 @@ export class MailEditorComponent implements OnChanges, OnInit, OnDestroy {
       '<meta charset="utf-8"/>\n' +
       '<meta name="viewport" content="width=device-width, initial-scale=1.0"/>\n' +
       '</head>\n' +
-      '<body style="margin:0;padding:0;background-color:#eef1f6;">\n' +
+      '<body style="margin:0;padding:0;background-color:#eef1f6;overflow-wrap:break-word;word-break:break-word;">\n' +
       '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#eef1f6;padding:32px 12px;">\n' +
       '<tr>\n' +
       '<td align="center" style="padding:0;">\n' +

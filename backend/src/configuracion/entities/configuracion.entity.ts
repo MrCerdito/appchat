@@ -176,6 +176,28 @@ export class Configuracion {
   @Column({ name: 'ticket_email_design', type: 'jsonb', nullable: true })
   ticketEmailDesign: any | null;
 
+  // Nombre visible del remitente que recibe el cliente (ej. "Soporte").
+  @Column({
+    name: 'ticket_email_sender_name',
+    type: 'text',
+    nullable: true,
+    default: 'Soporte',
+  })
+  ticketEmailSenderName: string;
+
+  // Si se muestran las secciones {{informacion}} y {{conversacion}} del ticket.
+  @Column({ name: 'ticket_email_include_info', type: 'boolean', default: true })
+  ticketEmailIncludeInfo: boolean;
+
+  // Enviar el correo tambien en tickets creados por el asesor
+  // (manual / WhatsApp). El correo del chat web siempre se envia si esta activo.
+  @Column({ name: 'ticket_email_send_copy', type: 'boolean', default: false })
+  ticketEmailSendCopy: boolean;
+
+  // Adjuntar archivos al correo del ticket (preferencia; sin envio real aun).
+  @Column({ name: 'ticket_email_attachments', type: 'boolean', default: false })
+  ticketEmailAttachments: boolean;
+
   // ── Remitente SMTP (correo propio que envia los tickets) ──────────────────
   @Column({ name: 'smtp_host', type: 'text', nullable: true, default: '' })
   smtpHost: string;

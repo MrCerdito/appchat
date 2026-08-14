@@ -608,6 +608,16 @@
           </span>
           <svg class="op-rapida-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
         </button>
+        <button class="op-rapida" (click)="openEstadoActividad()">
+          <span class="op-rapida-icon purple">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          </span>
+          <span class="op-rapida-info">
+            <strong>Estado de actividad</strong>
+            <small>Reporte de presencia de asesores</small>
+          </span>
+          <svg class="op-rapida-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </button>
       </div>
     </div>
 
@@ -801,6 +811,107 @@
       (confirm)="confirmUnassign()"
       (cancel)="cancelUnassign()"
     ></app-confirm-modal>
+    }
+
+    <!-- Estado de actividad -->
+    @if (estadoOpen) {
+    <div class="op-estado-overlay" (click)="closeEstadoActividad()">
+      <div class="op-estado-panel" (click)="$event.stopPropagation()">
+        <div class="op-estado-head">
+          <div class="op-estado-head-text">
+            <span>Estado de actividad</span>
+            <small>Genera una imagen con la presencia de los asesores y envíala a los chats seleccionados</small>
+          </div>
+          <button class="op-estado-close" (click)="closeEstadoActividad()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+
+        <div class="op-estado-body">
+          <div class="op-estado-preview-col">
+            <div class="op-estado-preview-title">
+              <strong>Vista previa</strong>
+              <button class="op-estado-refresh" [disabled]="estadoGenerando || estadoEnviando" (click)="regenerarPreviewEstado()">Regenerar</button>
+            </div>
+            <div class="op-estado-preview-wrap">
+              @if (estadoGenerando) {
+              <div class="op-estado-generating">
+                <span class="op-estado-spinner"></span>
+                Generando imagen...
+              </div>
+              } @else if (estadoPreviewDataUrl) {
+              <img class="op-estado-preview-img" [src]="estadoPreviewDataUrl" alt="Estado de actividad de asesores" />
+              } @else {
+              <div class="op-estado-generating">
+                <span class="op-estado-spinner"></span>
+                Generando imagen...
+              </div>
+              }
+            </div>
+          </div>
+
+          <div class="op-estado-chats-col">
+            <div class="op-estado-chats-toolbar">
+              <div class="op-estado-chats-search">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <input type="text" placeholder="Buscar chat..." [(ngModel)]="estadoSearch" />
+              </div>
+              <select [(ngModel)]="estadoFiltro">
+                <option value="todos">Todos</option>
+                <option value="activos">Solo activos</option>
+                <option value="grupos">Grupos</option>
+              </select>
+              <button class="op-estado-select-all" (click)="toggleEstadoTodos()">
+                {{ estadoTodosSeleccionados ? 'Quitar todos' : 'Seleccionar todos' }}
+              </button>
+            </div>
+            <div class="op-estado-chats-list">
+              @for (chat of estadoChatsFiltrados; track trackByChatId($index, chat)) {
+              <label class="op-estado-chat" [class.selected]="estadoSeleccionado(chat.id)">
+                <input type="checkbox" [checked]="estadoSeleccionado(chat.id)" (change)="toggleEstadoChat(chat.id)" />
+                <div class="op-cliente-avatar op-estado-chat-avatar" [style.background]="getAvatarColor(chat.name)">{{ getInitials(chat.name) }}</div>
+                <div class="op-estado-chat-info">
+                  <strong>{{ chat.name }}</strong>
+                  <small>{{ chat.phone }}{{ chat.isGroup ? ' · Grupo' : '' }}</small>
+                </div>
+                <span class="op-estado-chat-tag" [class.closed]="chat.assignmentStatus === 'closed' || chat.operationalStatus === 'closed'">
+                  {{ chat.assignmentStatus === 'closed' || chat.operationalStatus === 'closed' ? 'Cerrado' : (chat.operationalStatusLabel || 'Activo') }}
+                </span>
+              </label>
+              } @empty {
+              <div class="op-estado-chats-empty">No hay chats con los filtros seleccionados</div>
+              }
+            </div>
+            <div class="op-estado-chats-count">{{ estadoSeleccionadosCount }} seleccionados · {{ estadoChatsFiltrados.length }} chats</div>
+          </div>
+        </div>
+
+        <div class="op-estado-footer">
+          @if (estadoError) {
+          <div class="op-estado-error" (click)="estadoError = null">{{ estadoError }}</div>
+          }
+          @if (estadoEnviando) {
+          <div class="op-estado-progress">
+            <span class="op-estado-spinner"></span>
+            Enviando {{ estadoEnviandoIdx + 1 }} de {{ estadoSeleccionadosCount }} · Enviados {{ estadoEnviados }} · Fallidos {{ estadoFallidos }}
+          </div>
+          }
+          @if (!estadoEnviando && (estadoEnviados > 0 || estadoFallidos > 0)) {
+          <div class="op-estado-progress done">
+            Enviado a {{ estadoEnviados }} chat(s){{ estadoFallidos > 0 ? ` · ${estadoFallidos} con error` : '' }}
+          </div>
+          }
+          <div class="op-estado-footer-actions">
+            <button class="op-btn op-btn-secondary" (click)="closeEstadoActividad()">Cerrar</button>
+            <button class="op-btn op-btn-primary op-estado-send" [disabled]="estadoEnviando || estadoSeleccionadosCount === 0" (click)="enviarEstadoActividad()">
+              {{ estadoEnviando ? 'Enviando...' : `Enviar a ${estadoSeleccionadosCount} chat(s)` }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
     }
   }
 </div>

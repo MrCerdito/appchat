@@ -17,6 +17,7 @@ import {
   cleanText,
   normalizeText,
   sanitizeEmailHtml,
+  sanitizeSenderName,
 } from '../common/security/sanitize.helper';
 
 export interface HorarioEstado {
@@ -122,6 +123,22 @@ export class ConfiguracionService implements OnModuleInit {
     await this.repo.query(`
       ALTER TABLE IF EXISTS public.configuracion
       ADD COLUMN IF NOT EXISTS ticket_email_design jsonb DEFAULT NULL
+    `);
+    await this.repo.query(`
+      ALTER TABLE IF EXISTS public.configuracion
+      ADD COLUMN IF NOT EXISTS ticket_email_sender_name text DEFAULT 'Soporte'
+    `);
+    await this.repo.query(`
+      ALTER TABLE IF EXISTS public.configuracion
+      ADD COLUMN IF NOT EXISTS ticket_email_include_info boolean NOT NULL DEFAULT true
+    `);
+    await this.repo.query(`
+      ALTER TABLE IF EXISTS public.configuracion
+      ADD COLUMN IF NOT EXISTS ticket_email_send_copy boolean NOT NULL DEFAULT false
+    `);
+    await this.repo.query(`
+      ALTER TABLE IF EXISTS public.configuracion
+      ADD COLUMN IF NOT EXISTS ticket_email_attachments boolean NOT NULL DEFAULT false
     `);
     await this.repo.query(`
       ALTER TABLE IF EXISTS public.configuracion
@@ -376,6 +393,10 @@ export class ConfiguracionService implements OnModuleInit {
       ticketEmailCuerpo:
         'Hola {{nombre}},\n\nRecibimos tu solicitud y quedo registrada con el codigo {{codigo}}. Este numero te servira para consultar el estado de tu caso cuando quieras.\n\nDatos del caso:\n- Titulo: {{titulo}}\n- Descripcion: {{descripcion}}\n- Prioridad: {{prioridad}}\n- Fecha: {{fecha}}\n\nInformacion que registraste:\n\n{{informacion}}\n\nConversacion de tu solicitud:\n\n{{conversacion}}\n\nSi necesitas agregar algo o tienes alguna duda, puedes responder este correo o volver a escribirnos por el chat. Quedamos atentos.\n\nAtentamente,\nEquipo de Soporte',
       ticketEmailDesign: null,
+      ticketEmailSenderName: 'Soporte',
+      ticketEmailIncludeInfo: true,
+      ticketEmailSendCopy: false,
+      ticketEmailAttachments: false,
       smtpHost: '',
       smtpPort: 465,
       smtpSecure: true,
@@ -439,6 +460,16 @@ export class ConfiguracionService implements OnModuleInit {
     }
     if (typeof data.smtpSecure === 'string') {
       data.smtpSecure = data.smtpSecure !== 'false';
+    }
+
+    for (const key of [
+      'ticketEmailIncludeInfo',
+      'ticketEmailSendCopy',
+      'ticketEmailAttachments',
+    ] as const) {
+      if (data[key] !== undefined) {
+        (data as any)[key] = Boolean(data[key]);
+      }
     }
 
     if (Array.isArray(data.almuerzos)) {
@@ -518,6 +549,7 @@ export class ConfiguracionService implements OnModuleInit {
     smtpUser?: string;
     smtpPass?: string;
     mailFrom?: string;
+    senderName?: string;
     to?: string;
     cuerpo?: string;
     asunto?: string;
@@ -558,8 +590,11 @@ export class ConfiguracionService implements OnModuleInit {
 
     try {
       await transporter.verify();
+      const senderName = body.senderName
+        ? sanitizeSenderName(body.senderName, 80)
+        : 'Soporte';
       const info = await transporter.sendMail({
-        from: `"Soporte" <${from}>`,
+        from: `"${senderName}" <${from}>`,
         to,
         subject:
           String(body.asunto ?? '').trim() || 'Prueba de conexion de correo',
@@ -610,6 +645,13 @@ export class ConfiguracionService implements OnModuleInit {
           (data as any)[key] = cleanText(value, 4096);
         }
       }
+    }
+
+    if (typeof data.ticketEmailSenderName === 'string') {
+      data.ticketEmailSenderName = sanitizeSenderName(
+        data.ticketEmailSenderName,
+        80,
+      );
     }
 
     if (data.ticketEmailDesign !== undefined && !Array.isArray(data.ticketEmailDesign)) {

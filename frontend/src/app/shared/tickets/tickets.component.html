@@ -458,6 +458,12 @@
               <span>{{ selectedTicket.clientInfo!['phone'] }}</span>
             </div>
             }
+            @if (selectedTicket.clientInfo!['email']) {
+            <div class="ts-detail-client-row">
+              <span>Correo</span>
+              <span>{{ selectedTicket.clientInfo!['email'] }}</span>
+            </div>
+            }
           </div>
         </div>
         }

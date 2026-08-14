@@ -9,6 +9,7 @@ import { User } from 'src/auth/entities/user.entity';
 import { Message } from '../chat/entities/message.entity';
 import { Colegio } from './entities/colegio.entity';
 import { Rating } from './entities/rating.entity';
+import { matchColegio } from '../common/url/url-match.util';
 
 @Injectable()
 export class SessionsService {
@@ -802,6 +803,12 @@ export class SessionsService {
     } catch {}
 
     return result;
+  }
+
+  async detectarColegio(url: string): Promise<{ id: string; nombre: string } | null> {
+    const colegios = await this.findAllColegios();
+    const match = matchColegio(colegios, url);
+    return match ? { id: match.id, nombre: match.nombre } : null;
   }
 
   async createColegio(data: { nombre: string; link: string; email?: string }): Promise<Colegio> {

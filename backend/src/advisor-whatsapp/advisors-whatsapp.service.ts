@@ -180,6 +180,7 @@ export interface WhatsappAdvisorStatsDto {
   id: string;
   name: string;
   email: string;
+  profilePhotoUrl?: string | null;
   status: string;
   active: boolean;
   activeChats: number;
@@ -4130,6 +4131,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       id: advisor.id,
       name: advisor.name,
       email: advisor.email,
+      profilePhotoUrl: advisor.profilePhotoUrl ?? null,
       status: advisor.status,
       active: advisor.active,
       activeChats,

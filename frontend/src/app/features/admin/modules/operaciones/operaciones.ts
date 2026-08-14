@@ -2,13 +2,14 @@ import { Component, ChangeDetectionStrategy, ChangeDetectorRef, OnDestroy, OnIni
 import { DecimalPipe, TitleCasePipe } from '@angular/common';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { Subscription, interval, switchMap } from 'rxjs';
+import { Subscription, interval, switchMap, firstValueFrom } from 'rxjs';
 import { WhatsappChatService } from '../../../../core/services/whatsapp-chat.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { WaChat, WaAdvisorStats, WaConnectionStatus, WaAdminAlert, WaAdminDashboard } from '../../../../core/models/whatsapp.models';
 import { getInitials, getAvatarColor } from '../../../../shared/utils/avatar';
 import { formatDuration, minutesSince, timeAgo } from '../../../../shared/utils/duration';
+import { fmtDateFull, fmtTime12 } from '../../../../shared/utils/date';
 import { InfoTooltipDirective } from '../../../../shared/directives/info-tooltip.directive';
 import { ConfirmModalComponent } from './components/confirm-modal/confirm-modal.component';
 
@@ -69,6 +70,20 @@ export class OperacionesComponent implements OnInit, OnDestroy {
   pendingUnassignId: string | null = null;
   unassignError: string | null = null;
   isLoggingOut = false;
+
+  // ────────── Estado de actividad ─────────────────────────
+  estadoOpen = false;
+  estadoGenerando = false;
+  estadoEnviando = false;
+  estadoEnviandoIdx = -1;
+  estadoEnviados = 0;
+  estadoFallidos = 0;
+  estadoError: string | null = null;
+  estadoSearch = '';
+  estadoFiltro: 'todos' | 'activos' | 'grupos' = 'todos';
+  estadoSeleccionados = new Set<string>();
+  estadoPreviewDataUrl: string | null = null;
+  estadoResultado: { id: string; name: string; estado: 'ok' | 'fail' }[] = [];
 
   private dashboardLoaded = false;
   private progressTimer: ReturnType<typeof setInterval> | null = null;
@@ -563,6 +578,9 @@ export class OperacionesComponent implements OnInit, OnDestroy {
     this.whatsappChat.syncChats(d.chats);
     this.lastSync = wsTime ?? new Date().toISOString();
     this.dashboardLoaded = true;
+    if (this.estadoOpen && !this.estadoGenerando && !this.estadoEnviando) {
+      this.regenerarPreviewEstado();
+    }
     this.cdr.markForCheck();
   }
 
@@ -579,6 +597,279 @@ export class OperacionesComponent implements OnInit, OnDestroy {
   statusClass(advisor: WaAdvisorStats): string {
     if (!advisor.active) return 'away';
     return advisor.status;
+  }
+
+  // ────────── Estado de actividad ─────────────────────────
+
+  get estadoChatsFiltrados(): WaChat[] {
+    const q = this.estadoSearch.trim().toLowerCase();
+    return this.chats.filter(c => {
+      const cerrado = c.assignmentStatus === 'closed' || c.operationalStatus === 'closed';
+      if (this.estadoFiltro === 'activos' && (cerrado || c.isGroup)) return false;
+      if (this.estadoFiltro === 'grupos' && !c.isGroup) return false;
+      if (q) {
+        const haystack = `${c.name} ${c.phone} ${c.institution || ''}`.toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      return true;
+    });
+  }
+
+  get estadoSeleccionadosCount(): number {
+    return this.estadoSeleccionados.size;
+  }
+
+  get estadoTodosSeleccionados(): boolean {
+    const ids = this.estadoChatsFiltrados.map(c => c.id);
+    return ids.length > 0 && ids.every(id => this.estadoSeleccionados.has(id));
+  }
+
+  estadoSeleccionado(id: string): boolean {
+    return this.estadoSeleccionados.has(id);
+  }
+
+  toggleEstadoChat(id: string): void {
+    if (this.estadoSeleccionados.has(id)) {
+      this.estadoSeleccionados.delete(id);
+    } else {
+      this.estadoSeleccionados.add(id);
+    }
+  }
+
+  toggleEstadoTodos(): void {
+    const ids = this.estadoChatsFiltrados.map(c => c.id);
+    if (this.estadoTodosSeleccionados) {
+      ids.forEach(id => this.estadoSeleccionados.delete(id));
+    } else {
+      ids.forEach(id => this.estadoSeleccionados.add(id));
+    }
+  }
+
+  openEstadoActividad(): void {
+    this.estadoOpen = true;
+    this.estadoError = null;
+    this.estadoSeleccionados = new Set();
+    this.estadoSearch = '';
+    this.estadoFiltro = 'todos';
+    this.regenerarPreviewEstado();
+  }
+
+  closeEstadoActividad(): void {
+    this.estadoOpen = false;
+    this.estadoEnviando = false;
+  }
+
+  async regenerarPreviewEstado(): Promise<void> {
+    if (this.estadoGenerando || this.estadoEnviando) return;
+    this.estadoGenerando = true;
+    this.estadoError = null;
+    try {
+      this.estadoPreviewDataUrl = await this.generarImagenEstado();
+    } catch (err: any) {
+      this.estadoError = err?.message || 'No se pudo generar la imagen del estado.';
+    } finally {
+      this.estadoGenerando = false;
+      this.cdr.markForCheck();
+    }
+  }
+
+  async enviarEstadoActividad(): Promise<void> {
+    if (this.estadoEnviando) return;
+    const chats = this.chats.filter(c => this.estadoSeleccionados.has(c.id));
+    if (chats.length === 0) {
+      this.estadoError = 'Selecciona al menos un chat para enviar el estado.';
+      return;
+    }
+    this.estadoEnviando = true;
+    this.estadoEnviandoIdx = -1;
+    this.estadoEnviados = 0;
+    this.estadoFallidos = 0;
+    this.estadoResultado = [];
+    this.estadoError = null;
+    try {
+      const dataUrl = this.estadoPreviewDataUrl || (await this.generarImagenEstado());
+      const file = this.dataUrlToFile(dataUrl, `estado-actividad-${Date.now()}.png`);
+      const caption = `Estado de actividad de asesores - ${fmtDateFull(new Date())} ${fmtTime12(new Date())}`;
+      for (let i = 0; i < chats.length; i++) {
+        const chat = chats[i];
+        this.estadoEnviandoIdx = i;
+        const to = chat.jid || chat.phone;
+        const res = await firstValueFrom(this.whatsappChat.sendMedia(to, file, caption));
+        if (res && res.ok) {
+          this.estadoEnviados++;
+          this.estadoResultado.push({ id: chat.id, name: chat.name, estado: 'ok' });
+        } else {
+          this.estadoFallidos++;
+          this.estadoResultado.push({ id: chat.id, name: chat.name, estado: 'fail' });
+        }
+        this.cdr.markForCheck();
+        await this.delay(250);
+      }
+    } catch (err: any) {
+      this.estadoError = err?.message || 'Error al enviar el estado de actividad.';
+    } finally {
+      this.estadoEnviando = false;
+      this.estadoEnviandoIdx = -1;
+      this.cdr.markForCheck();
+    }
+  }
+
+  private advisorEstado(a: WaAdvisorStats): { label: string; color: string; key: string } {
+    if (!a.active) return { label: 'Inactivo', color: '#94A3B8', key: 'inactivo' };
+    const map: Record<string, { label: string; color: string; key: string }> = {
+      online: { label: 'Disponible', color: '#10B981', key: 'online' },
+      busy: { label: 'En chat', color: '#3B82F6', key: 'busy' },
+      away: { label: 'Ausente', color: '#F59E0B', key: 'away' },
+    };
+    return map[a.status] ?? { label: 'Ausente', color: '#F59E0B', key: 'away' };
+  }
+
+  private async generarImagenEstado(): Promise<string> {
+    const W = 800;
+    const advisors = [...this.advisors].sort((a, b) => a.name.localeCompare(b.name));
+    const headerH = 120;
+    const rowH = 82;
+    const footerH = 44;
+    const H = headerH + advisors.length * rowH + footerH;
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Canvas no soportado');
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, W, H);
+
+    const grad = ctx.createLinearGradient(0, 0, W, 0);
+    grad.addColorStop(0, '#0B1219');
+    grad.addColorStop(1, '#123B4F');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, headerH);
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 32px Segoe UI, Arial, sans-serif';
+    ctx.textBaseline = 'top';
+    ctx.fillText('Estado de actividad de asesores', 32, 30);
+
+    ctx.fillStyle = '#9FB0BD';
+    ctx.font = '15px Segoe UI, Arial, sans-serif';
+    ctx.fillText(`${fmtDateFull(new Date())} · ${fmtTime12(new Date())}`, 32, 78);
+
+    const photos = await Promise.all(advisors.map(a => this.loadPhoto(a.profilePhotoUrl)));
+    for (let i = 0; i < advisors.length; i++) {
+      const a = advisors[i];
+      const y = headerH + i * rowH;
+      if (i > 0) {
+        ctx.fillStyle = '#EEF2F6';
+        ctx.fillRect(32, y, W - 64, 1);
+      }
+      const cy = y + rowH / 2;
+      const r = 26;
+      const ax = 44;
+      ctx.fillStyle = this.getAvatarColor(a.name);
+      ctx.beginPath();
+      ctx.arc(ax, cy, r, 0, Math.PI * 2);
+      ctx.fill();
+      const photo = photos[i];
+      if (photo) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(ax, cy, r, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.drawImage(photo, ax - r, cy - r, r * 2, r * 2);
+        ctx.restore();
+        ctx.strokeStyle = 'rgba(15,23,42,0.10)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(ax, cy, r, 0, Math.PI * 2);
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 16px Segoe UI, Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(this.getInitials(a.name), ax, cy + 1);
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+      }
+      ctx.fillStyle = '#0F172A';
+      ctx.font = 'bold 18px Segoe UI, Arial, sans-serif';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillText(a.name, 88, cy - 12);
+      ctx.fillStyle = '#64748B';
+      ctx.font = '13px Segoe UI, Arial, sans-serif';
+      ctx.fillText(`${a.activeChats} chat(s) activo(s)`, 88, cy + 14);
+      const st = this.advisorEstado(a);
+      const badgeW = 150;
+      const badgeH = 34;
+      const badgeX = W - 32 - badgeW;
+      const badgeY = cy - badgeH / 2;
+      ctx.fillStyle = `${st.color}1A`;
+      this.roundRectPath(ctx, badgeX, badgeY, badgeW, badgeH, 17);
+      ctx.fill();
+      ctx.fillStyle = st.color;
+      ctx.beginPath();
+      ctx.arc(badgeX + 26, cy, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.font = 'bold 15px Segoe UI, Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(st.label, badgeX + badgeW / 2 + 10, cy + 1);
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'alphabetic';
+    }
+
+    const fy = headerH + advisors.length * rowH;
+    ctx.fillStyle = '#F1F5F9';
+    ctx.fillRect(0, fy, W, footerH);
+    ctx.fillStyle = '#94A3B8';
+    ctx.font = '12px Segoe UI, Arial, sans-serif';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Generado desde el Centro de operaciones · ReportaCasos', 32, fy + footerH / 2);
+    ctx.textBaseline = 'alphabetic';
+
+    return canvas.toDataURL('image/png');
+  }
+
+  private roundRectPath(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    r: number,
+  ): void {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  private loadPhoto(url?: string | null): Promise<HTMLImageElement | null> {
+    if (!url) return Promise.resolve(null);
+    return new Promise<HTMLImageElement | null>((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null);
+      img.src = url;
+    });
+  }
+
+  private dataUrlToFile(dataUrl: string, fileName: string): File {
+    const [meta, b64] = dataUrl.split(',');
+    const mime = /:(.*?);/.exec(meta)?.[1] || 'image/png';
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new File([bytes], fileName, { type: mime });
+  }
+
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   // ────────── Navegación ──────────────────────────────────

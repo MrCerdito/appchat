@@ -149,6 +149,26 @@ export class GuardarConfigGlobalDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(80)
+  ticketEmailSenderName?: string;
+
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  ticketEmailIncludeInfo?: boolean;
+
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  ticketEmailSendCopy?: boolean;
+
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  ticketEmailAttachments?: boolean;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(255)
   smtpHost?: string;
 

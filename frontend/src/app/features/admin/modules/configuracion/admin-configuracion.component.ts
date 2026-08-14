@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, OnDestroy, OnInit, ChangeDetectionStrategy, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { DecimalPipe, SlicePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
@@ -14,7 +14,7 @@ import { WhatsappChatService } from '../../../../core/services/whatsapp-chat.ser
 import { WaConnectionStatus } from '../../../../core/models/whatsapp.models';
 import { trackByIndex } from '../../../../shared/utils/track-by';
 import { Colegio, SessionService } from '../../../../core/services/session.service';
-import { MailEditorComponent } from './components/mail-editor/mail-editor.component';
+import { TicketMailConfigComponent } from './components/ticket-mail-config/ticket-mail-config.component';
 
 type ConfigGrupo = 'chat' | 'whatsapp' | 'general';
 type ConfigTab =
@@ -31,7 +31,7 @@ type ConfigTab =
 @Component({
   selector: 'app-admin-configuracion',
   standalone: true,
-  imports: [FormsModule, SlicePipe, DecimalPipe, MailEditorComponent],
+  imports: [FormsModule, SlicePipe, DecimalPipe, TicketMailConfigComponent],
   templateUrl: './admin-configuracion.html',
   styleUrl: './admin-configuracion.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -46,13 +46,6 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
   grupo: ConfigGrupo = 'chat';
   tab: ConfigTab = 'bienvenida';
   diaSeleccionado: number | null = null;
-  mailTestEmail = '';
-  mailTesting = false;
-  mailTestResult: { ok: boolean; message: string } | null = null;
-  smtpPreset: string = 'custom';
-  previewDevice: 'desktop' | 'mobile' = 'desktop';
-
-  @ViewChild(MailEditorComponent) mailEditor?: MailEditorComponent;
 
   readonly grupos: Array<{ key: ConfigGrupo; label: string; tabInicial: ConfigTab }> = [
     { key: 'chat', label: 'Chat en línea', tabInicial: 'bienvenida' },
@@ -123,16 +116,6 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
   readonly placeholderTicketEmailAsunto = 'Tu caso {{codigo}} fue registrado';
   readonly placeholderTicketEmailCuerpo =
     'Hola {{nombre}},\n\nRecibimos tu solicitud y quedo registrada con el codigo {{codigo}}. Este numero te servira para consultar el estado de tu caso cuando quieras.\n\nDatos del caso:\n- Titulo: {{titulo}}\n- Descripcion: {{descripcion}}\n- Prioridad: {{prioridad}}\n- Fecha: {{fecha}}\n\nInformacion que registraste:\n\n{{informacion}}\n\nConversacion de tu solicitud:\n\n{{conversacion}}\n\nSi necesitas agregar algo o tienes alguna duda, puedes responder este correo o volver a escribirnos por el chat. Quedamos atentos.\n\nAtentamente,\nEquipo de ReportaCasos';
-  readonly ticketEmailVariables = [
-    { name: 'codigo', desc: 'Codigo del ticket (ej. TKT-2026-0001)' },
-    { name: 'titulo', desc: 'Titulo del caso' },
-    { name: 'descripcion', desc: 'Descripcion del caso' },
-    { name: 'prioridad', desc: 'Prioridad (baja, media, alta, critica)' },
-    { name: 'fecha', desc: 'Fecha y hora del registro' },
-    { name: 'nombre', desc: 'Nombre del cliente' },
-    { name: 'informacion', desc: 'Informacion del cliente (identificacion, rol, colegio, telefono, correo)' },
-    { name: 'conversacion', desc: 'Conversacion tal como se guarda en el ticket' },
-  ];
 
   readonly sonidoWhatsappOptions = [
     { value: 'whatsapp1', label: 'WhatsApp 1' },
@@ -405,60 +388,13 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
       .replace(/\{\{\s*horaApertura\s*\}\}/gi, '08:00');
   }
 
-  previewTicketAsunto(): string {
-    return (this.config?.ticketEmailAsunto || this.placeholderTicketEmailAsunto)
-      .replace(/\{\{\s*codigo\s*\}\}/g, 'TKT-2026-0001')
-      .replace(/\{\{\s*titulo\s*\}\}/g, 'Solicitud de soporte academico')
-      .replace(/\{\{\s*nombre\s*\}\}/g, 'Laura Gomez')
-      .replace(/\{\{\s*prioridad\s*\}\}/g, 'Media')
-      .replace(/\{\{\s*fecha\s*\}\}/g, '14/08/2026 09:35');
+  // ── Correo de tickets: estado centralizado en TicketMailConfigComponent ─────
+  onMailConfigChange(updated: ConfiguracionData): void {
+    if (!this.config) return;
+    this.config = { ...this.config, ...updated };
   }
 
-  onCuerpoChange(v: string): void {
-    if (this.config) this.config.ticketEmailCuerpo = v;
-  }
-
-  onDesignChange(v: unknown[] | null): void {
-    if (this.config) this.config.ticketEmailDesign = v;
-  }
-
-  previewCorreo(): string {
-    if (this.mailEditor) {
-      const p = this.mailEditor.previewHtml();
-      if (p) return p;
-    }
-    return this.previewTicketCuerpo();
-  }
-
-  previewTicketCuerpo(): string {
-    const cuerpo = this.config?.ticketEmailCuerpo || this.placeholderTicketEmailCuerpo;
-    const infoHtml =
-      '<table style="width:100%;border-collapse:collapse;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">' +
-      '<tr><td style="padding:7px 12px;color:#475569;font-weight:bold;border-bottom:1px solid #e2e8f0;">Identificacion</td><td style="padding:7px 12px;color:#1e293b;border-bottom:1px solid #e2e8f0;">1098701234</td></tr>' +
-      '<tr><td style="padding:7px 12px;color:#475569;font-weight:bold;border-bottom:1px solid #e2e8f0;">Rol</td><td style="padding:7px 12px;color:#1e293b;border-bottom:1px solid #e2e8f0;">Estudiante</td></tr>' +
-      '<tr><td style="padding:7px 12px;color:#475569;font-weight:bold;border-bottom:1px solid #e2e8f0;">Colegio</td><td style="padding:7px 12px;color:#1e293b;border-bottom:1px solid #e2e8f0;">Colegio San Jose</td></tr>' +
-      '<tr><td style="padding:7px 12px;color:#475569;font-weight:bold;border-bottom:1px solid #e2e8f0;">Tipo de solicitud</td><td style="padding:7px 12px;color:#1e293b;border-bottom:1px solid #e2e8f0;">Soporte tecnico</td></tr>' +
-      '<tr><td style="padding:7px 12px;color:#475569;font-weight:bold;border-bottom:1px solid #e2e8f0;">Telefono</td><td style="padding:7px 12px;color:#1e293b;border-bottom:1px solid #e2e8f0;">3001234567</td></tr>' +
-      '<tr><td style="padding:7px 12px;color:#475569;font-weight:bold;">Correo</td><td style="padding:7px 12px;color:#1e293b;">cliente@ejemplo.com</td></tr>' +
-      '</table>';
-    const convHtml =
-      '<div>' +
-      '<div style="margin:10px 0;padding:10px 12px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;"><div style="margin-bottom:4px;font-size:13px;color:#64748b;"><strong>Laura Gomez</strong> · 14/08/2026 09:32</div><div style="font-size:14px;color:#1e293b;">Hola, necesito ayuda con mi matricula porque no aparece registrada.</div></div>' +
-      '<div style="margin:10px 0;padding:10px 12px;background:#e0e7ff;border:1px solid #a5b4fc;border-radius:8px;"><div style="margin-bottom:4px;font-size:13px;color:#64748b;"><strong>Asesor</strong> · 14/08/2026 09:34</div><div style="font-size:14px;color:#1e293b;">Hola Laura, con gusto reviso tu caso y quedo pendiente de validar la informacion.</div></div>' +
-      '</div>';
-    return cuerpo
-      .replace(/\{\{\s*codigo\s*\}\}/g, 'TKT-2026-0001')
-      .replace(/\{\{\s*titulo\s*\}\}/g, 'Solicitud de soporte academico')
-      .replace(/\{\{\s*descripcion\s*\}\}/g, 'Consulta sobre el estado de mi matricula.')
-      .replace(/\{\{\s*prioridad\s*\}\}/g, 'Media')
-      .replace(/\{\{\s*fecha\s*\}\}/g, '14/08/2026 09:35')
-      .replace(/\{\{\s*nombre\s*\}\}/g, 'Laura Gomez')
-      .replace(/\{\{\s*informacion\s*\}\}/g, infoHtml)
-      .replace(/\{\{\s*conversacion\s*\}\}/g, convHtml)
-      .replace(/\{\{\s*firma\s*\}\}/g, 'Atentamente,<br/>Equipo de ReportaCasos')
-      .replace(/\n/g, '<br>');
-  }
-
+  // ── IA Prompt methods ──────────────────────────────────────────────────────
   private extractError(err: any): string {
     const body = err.error;
     if (Array.isArray(body?.message)) {
@@ -511,6 +447,10 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
       ticketEmailAsunto: config.ticketEmailAsunto || this.placeholderTicketEmailAsunto,
       ticketEmailCuerpo: config.ticketEmailCuerpo || this.placeholderTicketEmailCuerpo,
       ticketEmailDesign: Array.isArray(config.ticketEmailDesign) ? config.ticketEmailDesign : null,
+      ticketEmailSenderName: config.ticketEmailSenderName || 'Soporte',
+      ticketEmailIncludeInfo: config.ticketEmailIncludeInfo ?? true,
+      ticketEmailSendCopy: config.ticketEmailSendCopy ?? false,
+      ticketEmailAttachments: config.ticketEmailAttachments ?? false,
       smtpHost: config.smtpHost || '',
       smtpPort: config.smtpPort || 465,
       smtpSecure: config.smtpSecure ?? true,
@@ -518,64 +458,6 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
       smtpPass: config.smtpPass || '',
       mailFrom: config.mailFrom || '',
     };
-  }
-
-  aplicarPresetSmtp(preset: string): void {
-    if (!this.config) return;
-    if (preset === 'gmail') {
-      this.config.smtpHost = 'smtp.gmail.com';
-      this.config.smtpPort = 465;
-      this.config.smtpSecure = true;
-    } else if (preset === 'outlook') {
-      this.config.smtpHost = 'smtp-mail.outlook.com';
-      this.config.smtpPort = 587;
-      this.config.smtpSecure = false;
-    }
-    this.cdr.detectChanges();
-  }
-
-  probarCorreo(): void {
-    if (!this.config) return;
-    if (!this.mailTestEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.mailTestEmail)) {
-      this.notification.warning('Correo de prueba', 'Escribe un correo valido que recibira la prueba.');
-      return;
-    }
-    this.mailTesting = true;
-    this.mailTestResult = null;
-    this.svc
-      .probarMail({
-        smtpHost: this.config.smtpHost,
-        smtpPort: this.config.smtpPort,
-        smtpSecure: this.config.smtpSecure,
-        smtpUser: this.config.smtpUser,
-        smtpPass: this.config.smtpPass,
-        mailFrom: this.config.mailFrom,
-        to: this.mailTestEmail.trim(),
-        asunto: this.previewTicketAsunto(),
-        cuerpo: this.previewCorreo(),
-      })
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (res) => {
-          this.mailTesting = false;
-          this.mailTestResult = res;
-          if (res.ok) {
-            this.notification.success('Conexion SMTP OK', 'Correo de prueba enviado correctamente.');
-          } else {
-            this.notification.error('Fallo la conexion SMTP', res.message);
-          }
-          this.cdr.detectChanges();
-        },
-        error: (err) => {
-          this.mailTesting = false;
-          const msg = Array.isArray(err.error?.message)
-            ? err.error.message.join('. ')
-            : err.error?.message || 'No se pudo probar la conexion.';
-          this.mailTestResult = { ok: false, message: msg };
-          this.notification.error('Error al probar la conexion', msg);
-          this.cdr.detectChanges();
-        },
-      });
   }
 
   // ── IA Prompt methods ──────────────────────────────────────────────────────

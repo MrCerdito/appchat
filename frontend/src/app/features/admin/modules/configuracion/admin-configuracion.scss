@@ -326,7 +326,7 @@
 // ── Correo de tickets: configuracion (izq) + vista previa (der, sticky) ──────
 .cfg-panel--mail {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(360px, 44%);
+  grid-template-columns: minmax(0, 1fr) minmax(440px, 52%);
   align-items: start;
   gap: 1.4rem;
 }
@@ -346,7 +346,7 @@
   gap: 1.4rem;
   min-width: 0;
 
-  .cfg-mock__iframe { height: 560px; }
+  .cfg-mock__iframe { height: min(68vh, 640px); }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

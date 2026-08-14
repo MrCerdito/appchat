@@ -201,8 +201,18 @@ export class SessionsController {
   }
 
   @Get('colegios/list')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
   findColegios() {
     return this.sessionsService.findAllColegios();
+  }
+
+  @Post('colegios/detectar')
+  detectarColegio(@Body('url') url?: string) {
+    const raw = typeof url === 'string' ? url.trim() : '';
+    if (!raw) return null;
+    if (raw.length > 1000) throw new BadRequestException('URL demasiado larga');
+    return this.sessionsService.detectarColegio(raw);
   }
 
   @Get('metrics/ranking')
@@ -386,7 +396,10 @@ export class SessionsController {
         rol: session.rol,
         colegio: session.colegio,
         tipoSolicitud: session.tipoSolicitud,
+        phone: session.celular,
+        email: session.email,
       },
+      email: session.email ?? undefined,
       conversation,
     };
     return this.ticketsService.create(dto, req.user.id);

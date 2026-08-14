@@ -952,8 +952,16 @@
 
 .op-acciones-rapidas-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 10px;
+
+  @media (max-width: 1280px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
 }
 
 .op-rapida {
@@ -989,6 +997,7 @@
   &.blue { background: #DBEAFE; color: #2563EB; }
   &.amber { background: #FEF3C7; color: #B45309; }
   &.green { background: #D1FAE5; color: #047857; }
+  &.purple { background: #EDE9FE; color: #6D28D9; }
 }
 
 .op-rapida-info {
@@ -1884,5 +1893,397 @@
 
   .op-chats-search input {
     width: 100%;
+  }
+}
+
+// ────────────────────────────────────────────────────────────
+//   ESTADO DE ACTIVIDAD (panel)
+// ────────────────────────────────────────────────────────────
+
+.op-estado-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(9, 14, 22, 0.55);
+  backdrop-filter: blur(3px);
+  padding: 20px;
+}
+
+.op-estado-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(1080px, 100%);
+  max-height: calc(100vh - 40px);
+  background: #FFFFFF;
+  border-radius: 16px;
+  box-shadow: 0 24px 64px rgba(9, 14, 22, 0.28);
+  overflow: hidden;
+}
+
+.op-estado-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px;
+  border-bottom: 1px solid #E7EAF0;
+  background: #0B1219;
+
+  .op-estado-head-text {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+
+    span {
+      font-size: 16px;
+      font-weight: 700;
+      color: #FFFFFF;
+    }
+
+    small {
+      font-size: 12px;
+      color: #93A4AF;
+    }
+  }
+}
+
+.op-estado-close {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: transparent;
+  color: #93A4AF;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  svg { width: 17px; height: 17px; }
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #FFFFFF;
+  }
+}
+
+.op-estado-body {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  gap: 16px;
+  padding: 16px 20px;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.op-estado-preview-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.op-estado-preview-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  strong {
+    font-size: 13px;
+    font-weight: 700;
+    color: #0F172A;
+  }
+}
+
+.op-estado-refresh {
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid #E7EAF0;
+  background: #FFFFFF;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover:not(:disabled) { border-color: #2563EB; color: #2563EB; }
+  &:disabled { opacity: 0.5; cursor: default; }
+}
+
+.op-estado-preview-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #E7EAF0;
+  border-radius: 12px;
+  background: #F8FAFC;
+  overflow: auto;
+  padding: 12px;
+}
+
+.op-estado-preview-img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
+  display: block;
+}
+
+.op-estado-generating {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #64748B;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.op-estado-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid #E7EAF0;
+  border-top-color: #2563EB;
+  animation: op-estado-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes op-estado-spin {
+  to { transform: rotate(360deg); }
+}
+
+.op-estado-chats-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.op-estado-chats-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.op-estado-chats-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 160px;
+
+  svg {
+    position: absolute;
+    left: 10px;
+    width: 15px;
+    height: 15px;
+    color: #94A3B8;
+    pointer-events: none;
+  }
+
+  input {
+    width: 100%;
+    height: 34px;
+    padding: 0 10px 0 32px;
+    border: 1px solid #E7EAF0;
+    border-radius: 9px;
+    font-size: 12px;
+    color: #0F172A;
+    background: #FFFFFF;
+    outline: none;
+    transition: border-color 0.15s ease;
+
+    &:focus { border-color: #2563EB; }
+  }
+}
+
+.op-estado-chats-toolbar select {
+  height: 34px;
+  padding: 0 8px;
+  border: 1px solid #E7EAF0;
+  border-radius: 9px;
+  font-size: 12px;
+  color: #475569;
+  background: #FFFFFF;
+  outline: none;
+  cursor: pointer;
+}
+
+.op-estado-select-all {
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid #E7EAF0;
+  border-radius: 9px;
+  background: #FFFFFF;
+  color: #2563EB;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+
+  &:hover { border-color: #2563EB; }
+}
+
+.op-estado-chats-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  border: 1px solid #E7EAF0;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+.op-estado-chat {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+  border-bottom: 1px solid #F1F5F9;
+
+  &:last-child { border-bottom: none; }
+
+  &:hover { background: #F8FAFC; }
+
+  &.selected { background: #EFF6FF; }
+
+  input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: #2563EB;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+}
+
+.op-estado-chat-avatar {
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  font-size: 12px;
+}
+
+.op-estado-chat-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+
+  strong {
+    font-size: 13px;
+    font-weight: 600;
+    color: #0F172A;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  small {
+    font-size: 11px;
+    color: #94A3B8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.op-estado-chat-tag {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #D1FAE5;
+  color: #047857;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+
+  &.closed { background: #F1F5F9; color: #64748B; }
+}
+
+.op-estado-chats-empty {
+  padding: 32px 16px;
+  text-align: center;
+  color: #94A3B8;
+  font-size: 13px;
+}
+
+.op-estado-chats-count {
+  font-size: 11px;
+  color: #94A3B8;
+  font-weight: 600;
+}
+
+.op-estado-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 14px 20px;
+  border-top: 1px solid #E7EAF0;
+  background: #F8FAFC;
+}
+
+.op-estado-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.op-estado-error {
+  flex: 1;
+  min-width: 200px;
+  padding: 8px 12px;
+  border-radius: 9px;
+  background: #FEF2F2;
+  color: #B91C1C;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.op-estado-progress {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+
+  &.done { color: #047857; }
+}
+
+.op-estado-send:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+@media (max-width: 860px) {
+  .op-estado-body {
+    grid-template-columns: 1fr;
+    overflow: auto;
+  }
+
+  .op-estado-preview-wrap {
+    min-height: 260px;
+  }
+
+  .op-estado-chats-list {
+    max-height: 260px;
   }
 }

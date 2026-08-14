@@ -240,6 +240,25 @@ $radius-pill: 999px;
 
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
 
+.colegio-found {
+  display: flex; align-items: center; gap: 0.6rem;
+  margin-top: 0.25rem; padding: 0.6rem 0.8rem;
+  border: 1px solid rgba($success, 0.35);
+  border-radius: $radius-sm;
+  background: $success-soft;
+  user-select: none;
+  &__icon {
+    flex-shrink: 0; width: 26px; height: 26px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%; background: $success; color: #fff;
+    svg { width: 14px; height: 14px; }
+  }
+  &__text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+  &__label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.4px; color: $success; font-weight: 600; }
+  &__name { font-size: 0.88rem; font-weight: 600; color: $text; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  &__lock { flex-shrink: 0; color: rgba($success, 0.8); svg { width: 14px; height: 14px; display: block; } }
+}
+
 .select-wrap {
   position: relative;
   select { padding-right: 2.2rem; cursor: pointer; }

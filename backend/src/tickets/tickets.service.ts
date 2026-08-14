@@ -93,7 +93,10 @@ export class TicketsService {
 
     const saved = await this.repo.save(ticket);
 
-    if (dto.sourceType === 'web' && dto.email) {
+    // El envio real se decide dentro de TicketMailService: los tickets del
+    // chat web se envian si el correo esta activo; los creados por el asesor
+    // (manual/WhatsApp) solo si ademas esta "Enviar copia al cliente".
+    if (dto.email) {
       void this.ticketMail.enviarTicket(saved, dto.email);
     }
 

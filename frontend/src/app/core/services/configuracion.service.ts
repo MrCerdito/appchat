@@ -47,6 +47,10 @@ export interface ConfiguracionData {
   ticketEmailAsunto: string;
   ticketEmailCuerpo: string;
   ticketEmailDesign: unknown[] | null;
+  ticketEmailSenderName: string;
+  ticketEmailIncludeInfo: boolean;
+  ticketEmailSendCopy: boolean;
+  ticketEmailAttachments: boolean;
   smtpHost: string;
   smtpPort: number;
   smtpSecure: boolean;
@@ -78,7 +82,7 @@ export class ConfiguracionFrontendService {
   }
 
   probarMail(
-    data: Partial<ConfiguracionData> & { to: string; asunto?: string; cuerpo?: string },
+    data: Partial<ConfiguracionData> & { to: string; asunto?: string; cuerpo?: string; senderName?: string },
   ): Observable<{ ok: boolean; message: string }> {
     return this.http.post<{ ok: boolean; message: string }>(`${this.url}/global/mail-test`, data);
   }

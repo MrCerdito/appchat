@@ -37,6 +37,12 @@ export class TicketMailService {
       const cfg = await this.configuracion.getGlobal();
       if (cfg.ticketEmailActivo === false) return;
 
+      // Los tickets creados por el asesor (manual / WhatsApp, sourceType != web)
+      // solo se envian si el admin activo "Enviar copia al cliente".
+      if (ticket.sourceType !== 'web' && cfg.ticketEmailSendCopy !== true) {
+        return;
+      }
+
       const subject = this.resolveSubject(ticket, cfg);
       const html = this.buildHtml(ticket, cfg);
       const { html: htmlFinal, smtpAttachments, resendAttachments } =
@@ -45,8 +51,11 @@ export class TicketMailService {
       const smtpUser = cfg.smtpUser?.trim() || '';
       const smtpHost = cfg.smtpHost?.trim() || '';
       const smtpPass = cfg.smtpPass?.trim() || '';
-      const from =
-        cfg.mailFrom?.trim() || smtpUser || String(this.config.get('MAIL_FROM') ?? '');
+      const rawFrom =
+        cfg.mailFrom?.trim() ||
+        smtpUser ||
+        String(this.config.get('MAIL_FROM') ?? '');
+      const from = this.resolveFrom(rawFrom, cfg.ticketEmailSenderName);
 
       if (smtpHost && smtpUser && smtpPass) {
         await this.sendSmtp(cfg, smtpHost, smtpUser, smtpPass, from, ticket, email, subject, htmlFinal, smtpAttachments);
@@ -131,8 +140,9 @@ export class TicketMailService {
   }
 
   private buildHtml(ticket: Ticket, cfg: Configuracion): string {
-    const infoHtml = this.buildInfoSection(ticket);
-    const convHtml = this.buildConversationSection(ticket);
+    const includeInfo = cfg.ticketEmailIncludeInfo !== false;
+    const infoHtml = includeInfo ? this.buildInfoSection(ticket) : '';
+    const convHtml = includeInfo ? this.buildConversationSection(ticket) : '';
 
     const raw = cfg.ticketEmailCuerpo ?? '';
     const filled = this.fill(raw, {
@@ -202,6 +212,22 @@ export class TicketMailService {
       /(src|href)="(\/uploads\/[^"]+)"/g,
       (match, attr: string, path: string) => `${attr}="${base}${path}"`,
     );
+  }
+
+  /**
+   * Compone el remitente como "Nombre visible" <email>. Si `raw` ya trae
+   * formato "Nombre" <email> se extrae solo la direccion y se recompone con
+   * el nombre configurado (que gana).
+   */
+  private resolveFrom(raw: string, senderName?: string): string {
+    const trimmed = raw.trim();
+    if (!trimmed) return '';
+    const email = trimmed.replace(/^.*<([^<>]+)>.*$/, '$1').trim();
+    const name = String(senderName ?? '')
+      .replace(/["\\<>]/g, '')
+      .trim();
+    if (!email) return trimmed;
+    return name ? `${name} <${email}>` : email;
   }
 
   private buildInfoSection(ticket: Ticket): string {

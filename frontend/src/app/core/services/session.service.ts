@@ -117,6 +117,13 @@ export class SessionService {
     return this.http.get<Colegio[]>(`${environment.apiUrl}/sessions/colegios/list`);
   }
 
+  detectarColegio(url: string): Observable<{ id: string; nombre: string } | null> {
+    return this.http.post<{ id: string; nombre: string } | null>(
+      `${environment.apiUrl}/sessions/colegios/detectar`,
+      { url },
+    );
+  }
+
   createColegio(data: { nombre: string; link: string; email?: string }): Observable<Colegio> {
     return this.http.post<Colegio>(`${environment.apiUrl}/sessions/colegios`, data);
   }

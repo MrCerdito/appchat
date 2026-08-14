@@ -99,6 +99,7 @@ export interface WaAdvisorStats {
   id: string;
   name: string;
   email: string;
+  profilePhotoUrl?: string | null;
   status: string;
   active: boolean;
   activeChats: number;

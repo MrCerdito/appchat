@@ -41,6 +41,11 @@ export class MailTestDto {
   @MaxLength(255)
   mailFrom?: string;
 
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  senderName?: string;
+
   @IsString()
   @MaxLength(255)
   to: string;
