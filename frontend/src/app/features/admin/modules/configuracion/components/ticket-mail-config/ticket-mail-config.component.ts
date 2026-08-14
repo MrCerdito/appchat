@@ -78,8 +78,8 @@ export class TicketMailConfigComponent implements OnChanges, OnDestroy {
   dirty = false;
   status: SaveStatus = 'idle';
   saveError = '';
+  smtpOpen = false;
 
-  previewDevice: 'desktop' | 'mobile' = 'desktop';
   smtpPreset = 'custom';
   mailTestEmail = '';
   mailTesting = false;
@@ -299,7 +299,7 @@ export class TicketMailConfigComponent implements OnChanges, OnDestroy {
       });
   }
 
-  // ── Preview del cliente de correo ──────────────────────────────────────────
+  // ── Vista previa del correo ──────────────────────────────────────────────
   get statusLabel(): string {
     switch (this.status) {
       case 'saving':
@@ -313,38 +313,6 @@ export class TicketMailConfigComponent implements OnChanges, OnDestroy {
       default:
         return 'Al dia';
     }
-  }
-
-  get previewFromName(): string {
-    return this.mail.senderName || 'Soporte';
-  }
-
-  get previewFromEmail(): string {
-    return (
-      this.mail.mailFrom ||
-      this.mail.smtpUser ||
-      'correo-corporativo@empresa.com'
-    );
-  }
-
-  get previewInitials(): string {
-    const parts = this.previewFromName.split(/\s+/).filter(Boolean);
-    const initials = parts
-      .slice(0, 2)
-      .map((p) => p[0]?.toUpperCase() ?? '')
-      .join('');
-    return initials || 'S';
-  }
-
-  get previewTo(): string {
-    return 'cliente@ejemplo.com';
-  }
-
-  previewFecha(): string {
-    const d = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
-    const mes = d.toLocaleDateString('es', { month: 'short' }).replace('.', '');
-    return `${pad(d.getDate())} ${mes} ${d.getFullYear()}, ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
 
   previewAsunto(): string {

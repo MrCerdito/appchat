@@ -271,7 +271,7 @@
     </header>
 
     <div class="shell-outlet">
-      @if (sidebarCollapsed) {
+      @if (sidebarCollapsed && !sidebarForcedCollapsed) {
       <button
         class="sidebar-toggle-btn"
         [class.operaciones-hidden]="isOperacionesRoute"

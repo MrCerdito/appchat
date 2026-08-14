@@ -45,17 +45,29 @@
   min-width: 0;
 }
 
-.cfg-header-icon {
-  width: 46px;
-  height: 46px;
-  border-radius: 13px;
+.cfg-hamburger {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
   flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, var(--primary), color-mix(in srgb, var(--primary) 62%, #4c1d95));
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--primary) 40%, transparent);
-  svg { width: 23px; height: 23px; stroke: #fff; }
+  transition: background 0.15s, color 0.15s;
+
+  svg { width: 20px; height: 20px; }
+
+  &:hover {
+    background: var(--sidebar-hover);
+    color: var(--text);
+  }
+
+  @media (max-width: 768px) {
+    display: none;
+  }
 }
 
 .cfg-header-text {
@@ -126,29 +138,6 @@
   display: flex;
   flex-direction: column;
   gap: 1.3rem;
-}
-
-.cfg-side-brand {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.1rem 0.35rem 1rem;
-  border-bottom: 1px solid var(--border);
-
-  .cfg-side-brand__icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 12px;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(135deg, var(--primary), color-mix(in srgb, var(--primary) 58%, #4c1d95));
-    box-shadow: 0 4px 14px var(--primary-soft);
-    svg { width: 19px; height: 19px; stroke: #fff; }
-  }
-  strong { display: block; font-size: 0.92rem; font-weight: 800; color: var(--text); letter-spacing: -0.01em; }
-  small  { display: block; font-size: 0.7rem; color: var(--text-muted); }
 }
 
 .cfg-side-section {
@@ -321,7 +310,18 @@
 .cfg-panel { display: flex; flex-direction: column; gap: 1.4rem; }
 
 // ── Variante "ancho completo": el sidebar queda oculto ───────────────────────
+.cfg-layout--wide {
+  max-width: none;
+  width: 100%;
+}
+
 .cfg-layout--wide .cfg-panel-side { display: none; }
+
+.cfg-layout--wide .cfg-body-container {
+  max-width: none;
+  margin: 0;
+  width: 100%;
+}
 
 // ── Correo de tickets: configuracion (izq) + vista previa (der, sticky) ──────
 .cfg-panel--mail {
@@ -1664,7 +1664,6 @@ input[type="time"] {
     gap: 0.8rem 1rem;
     padding: 0.85rem;
   }
-  .cfg-side-brand { display: none; }
   .cfg-side-section { flex: 1; min-width: 220px; }
   .cfg-content-tabs { padding: 0 1.25rem; }
   .cfg-container { padding: 0 1.25rem; }

@@ -14,6 +14,7 @@ import { WhatsappChatService } from '../../../../core/services/whatsapp-chat.ser
 import { WaConnectionStatus } from '../../../../core/models/whatsapp.models';
 import { trackByIndex } from '../../../../shared/utils/track-by';
 import { Colegio, SessionService } from '../../../../core/services/session.service';
+import { LayoutService } from '../../../../core/services/layout.service';
 import { TicketMailConfigComponent } from './components/ticket-mail-config/ticket-mail-config.component';
 
 type ConfigGrupo = 'chat' | 'whatsapp' | 'general';
@@ -44,7 +45,17 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
   saved = false;
   error = '';
   grupo: ConfigGrupo = 'chat';
-  tab: ConfigTab = 'bienvenida';
+  private _tab: ConfigTab = 'bienvenida';
+
+  get tab(): ConfigTab {
+    return this._tab;
+  }
+
+  set tab(value: ConfigTab) {
+    this._tab = value;
+    this.layoutService.setSidebarForcedCollapsed(value === 'correoTickets');
+  }
+
   diaSeleccionado: number | null = null;
 
   readonly grupos: Array<{ key: ConfigGrupo; label: string; tabInicial: ConfigTab }> = [
@@ -183,6 +194,7 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
     private readonly sound: SoundService,
     private readonly cdr: ChangeDetectorRef,
     private readonly sessionService: SessionService,
+    private readonly layoutService: LayoutService,
   ) {}
 
   ngOnInit(): void {
@@ -206,7 +218,7 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
   }
 
   guardar(): void {
-    if (!this.config) return;
+    if (!this.config || this.saving) return;
 
     if (this.errorHorarioVisible) {
       this.error = 'Corrige los horarios donde el cierre no es mayor que la apertura antes de guardar.';
@@ -256,6 +268,10 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
     if (t === 'colegios') {
       this.loadColegios();
     }
+  }
+
+  toggleAdminSidebar(): void {
+    this.layoutService.requestSidebarToggle();
   }
 
   getDiaNombre(dia: number): string {
@@ -889,6 +905,7 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.layoutService.setSidebarForcedCollapsed(false);
     this.destroy$.next();
     this.destroy$.complete();
   }

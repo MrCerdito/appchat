@@ -9,6 +9,8 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+  width: 100%;
+  min-width: 0;
 }
 
 /* ─── Barra superior ─────────────────────────────────────── */
@@ -42,6 +44,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  flex: 0 0 auto;
 }
 
 .tmc-status {
@@ -139,12 +142,14 @@
   cursor: not-allowed;
 }
 
-/* ─── Cuerpo en dos columnas ─────────────────────────────── */
+/* ─── Cuerpo a pantalla completa ─────────────────────────── */
 .tmc-body {
   display: grid;
-  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.12fr);
   gap: 22px;
   align-items: start;
+  width: 100%;
+  min-width: 0;
 }
 
 .tmc-left {
@@ -157,7 +162,10 @@
 .tmc-right {
   min-width: 0;
   position: sticky;
-  top: calc(var(--cfg-h, 76px) + 90px);
+  top: calc(var(--cfg-h, 76px) + 16px);
+  height: calc(100vh - var(--cfg-h, 76px) - 40px);
+  display: flex;
+  flex-direction: column;
 }
 
 /* ─── Tarjetas de edicion ────────────────────────────────── */
@@ -170,8 +178,22 @@
 }
 
 .tmc-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
   padding: 14px 18px;
   border-bottom: 1px solid var(--border);
+}
+
+.tmc-card-head--collapsible {
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--transition);
+}
+
+.tmc-card-head--collapsible:hover {
+  background: var(--bg-subtle);
 }
 
 .tmc-card-head h3 {
@@ -186,11 +208,35 @@
   color: var(--text-muted);
 }
 
+.tmc-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  border-radius: 7px;
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  transition: transform var(--transition), background var(--transition), color var(--transition);
+}
+
+.tmc-chevron svg {
+  width: 15px;
+  height: 15px;
+}
+
+.tmc-chevron--open {
+  transform: rotate(180deg);
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
 .tmc-card-body {
-  padding: 18px;
+  padding: 16px 18px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 .tmc-card--editor .tmc-card-body {
@@ -198,13 +244,19 @@
   background: var(--bg-subtle);
 }
 
-/* ─── Filas de toggle ────────────────────────────────────── */
+/* ─── Toggles compactos ──────────────────────────────────── */
+.tmc-toggles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
 .tmc-toggle-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 12px 14px;
+  gap: 12px;
+  padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface);
@@ -216,16 +268,16 @@
 
 .tmc-toggle-text strong {
   display: block;
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text);
 }
 
 .tmc-toggle-text p {
   margin-top: 2px;
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--text-muted);
-  line-height: 1.45;
+  line-height: 1.4;
 }
 
 .tmc-switch {
@@ -292,6 +344,8 @@
 
 .tmc-field input,
 .tmc-field select {
+  width: 100%;
+  box-sizing: border-box;
   padding: 9px 12px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
@@ -442,7 +496,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 10px;
+  padding-bottom: 10px;
 }
 
 .tmc-preview-title {
@@ -469,281 +523,77 @@
   100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
 }
 
-.tmc-device-toggle {
-  display: inline-flex;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  background: var(--surface);
-}
-
-.tmc-device-toggle button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border: none;
-  background: transparent;
+.tmc-preview-sub {
+  font-size: 11.5px;
   color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 500;
-  transition: background var(--transition), color var(--transition);
-}
-
-.tmc-device-toggle button svg {
-  width: 14px;
-  height: 14px;
-}
-
-.tmc-device-toggle button + button {
-  border-left: 1px solid var(--border);
-}
-
-.tmc-device-toggle .tmc-device-active {
-  background: var(--primary-soft);
-  color: var(--primary);
 }
 
 /* ─── Marco de vista previa ──────────────────────────────── */
 .tmc-preview {
   position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  overflow: hidden;
-  background: var(--bg-subtle);
+  background:
+    radial-gradient(circle at 20% 10%, rgba(124, 58, 237, 0.05), transparent 40%),
+    var(--bg-subtle);
   box-shadow: var(--shadow-md);
-}
-
-.tmc-preview--mobile {
-  max-width: 420px;
-  margin: 0 auto;
-}
-
-.tmc-chrome {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 12px;
-  background: var(--surface-hover);
-  border-bottom: 1px solid var(--border);
-}
-
-.tmc-chrome-dots {
-  display: inline-flex;
-  gap: 6px;
-}
-
-.tmc-chrome-dot {
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-}
-
-.tmc-chrome-dot--r { background: #f87171; }
-.tmc-chrome-dot--y { background: #fbbf24; }
-.tmc-chrome-dot--g { background: #34d399; }
-
-.tmc-chrome-url {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  padding: 3px 12px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 11.5px;
-  color: var(--text-muted);
-}
-
-.tmc-chrome-url svg {
-  width: 12px;
-  height: 12px;
-  color: var(--success);
-}
-
-.tmc-chrome-actions {
-  display: inline-flex;
-  gap: 8px;
-}
-
-.tmc-chrome-a,
-.tmc-chrome-b {
-  width: 16px;
-  height: 16px;
-  border-radius: 4px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-}
-
-.tmc-chrome-b {
-  height: 8px;
-  border-top: none;
-}
-
-/* ─── Cliente de correo ──────────────────────────────────── */
-.tmc-client {
-  background: var(--surface);
-}
-
-.tmc-client-bar {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 6px 10px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-subtle);
-}
-
-.tmc-ico {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text-muted);
-  transition: background var(--transition), color var(--transition);
-}
-
-.tmc-ico:hover {
-  background: var(--primary-soft);
-  color: var(--primary);
-}
-
-.tmc-ico svg {
-  width: 16px;
-  height: 16px;
-}
-
-.tmc-ico--left {
-  margin-left: auto;
-}
-
-.tmc-client-spacer {
-  flex: 1;
+  padding: 22px;
 }
 
 .tmc-mail {
   max-width: 720px;
   margin: 0 auto;
-  padding: 20px 28px 28px;
-}
-
-.tmc-mail-head {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.tmc-mail-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  color: #ffffff;
-  font-size: 13px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-}
-
-.tmc-mail-meta {
-  flex: 1;
-  min-width: 0;
-}
-
-.tmc-mail-fromline {
-  font-size: 13.5px;
-  color: var(--text);
-  white-space: nowrap;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-sm);
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.tmc-mail-fromemail {
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--text-muted);
+.tmc-mail-subjectbar {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 14px 24px;
+  background: #fafafa;
+  border-bottom: 1px solid var(--border);
 }
 
-.tmc-mail-to {
-  margin-top: 2px;
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.tmc-mail-date {
-  font-size: 12px;
-  color: var(--text-muted);
-  white-space: nowrap;
+.tmc-mail-subjectbar-label {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
 }
 
 .tmc-mail-subject {
-  margin-top: 18px;
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--text);
   word-break: break-word;
 }
 
-.tmc-mail-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 14px;
-}
-
-.tmc-mail-actions .tmc-mail-date--right {
-  margin-left: auto;
-}
-
-.tmc-act {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 14px;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  background: var(--surface);
-  color: var(--text-muted);
-  font-size: 12.5px;
-  font-weight: 500;
-  transition: background var(--transition), color var(--transition);
-}
-
-.tmc-act:hover {
-  background: var(--bg-subtle);
-  color: var(--text);
-}
-
-.tmc-act svg {
-  width: 14px;
-  height: 14px;
-}
-
-.tmc-mail-divider {
-  border-top: 1px solid var(--border);
-  margin: 18px 0 4px;
-}
-
 .tmc-mail-body {
-  min-height: 60px;
+  min-height: 80px;
 }
 
 .tmc-mail-frame {
   display: block;
   width: 100%;
-  height: 220px;
+  height: 260px;
+  min-height: 80px;
   border: 0;
 }
 
 .tmc-mail-attachments {
-  margin-top: 16px;
+  margin-top: 4px;
+  padding: 16px 24px 20px;
+  border-top: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -816,26 +666,16 @@
   color: var(--text-muted);
 }
 
-.tmc-mail-footer {
-  margin-top: 20px;
-  padding-top: 12px;
-  border-top: 1px dashed var(--border-strong);
-  text-align: center;
-  font-size: 11px;
-  color: var(--text-faint);
-  line-height: 1.5;
-}
-
 /* ─── Aviso de envio desactivado ─────────────────────────── */
 .tmc-preview-off {
   position: absolute;
-  inset: 40px 0 0;
+  inset: 0;
   z-index: 5;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: color-mix(in srgb, var(--bg) 55%, transparent);
-  backdrop-filter: blur(2px);
+  background: color-mix(in srgb, var(--bg) 58%, transparent);
+  backdrop-filter: blur(3px);
 }
 
 .tmc-preview-off-card {
@@ -881,12 +721,31 @@
 }
 
 /* ─── Responsive ─────────────────────────────────────────── */
-@media (max-width: 1150px) {
+@media (max-width: 1240px) {
   .tmc-body {
     grid-template-columns: 1fr;
   }
 
   .tmc-right {
     position: static;
+    height: auto;
+  }
+
+  .tmc-preview {
+    max-height: calc(100vh - var(--cfg-h, 76px) - 180px);
+  }
+}
+
+@media (max-width: 640px) {
+  .tmc-toggles {
+    grid-template-columns: 1fr;
+  }
+
+  .tmc-grid2 {
+    grid-template-columns: 1fr;
+  }
+
+  .tmc-preview {
+    padding: 14px;
   }
 }

@@ -306,11 +306,24 @@ export class ConfiguracionService implements OnModuleInit {
 
   private async invalidateAll(): Promise<void> {
     try {
-      const store = (this.cache as any).store;
-      const keys =
-        typeof store?.keys === 'function' ? ((await store.keys()) as string[]) : [];
-      for (const k of keys) {
-        if (String(k).startsWith(this.CACHE_PREFIX)) {
+      const cache = this.cache as any;
+      // La clave global se borra siempre (respuesta garantizada).
+      await this.cache.del(this.cacheKey());
+      // El adaptador de Redis no expone store.keys(): se enumeran las claves
+      // a traves del iterador SCAN de Keyv y se borran las de este servicio.
+      const keyv = cache.store;
+      const store = keyv?.opts?.store;
+      if (store && typeof store.iterator === 'function') {
+        const keys: string[] = [];
+        for await (const [k] of store.iterator()) {
+          if (
+            String(k).startsWith(this.CACHE_PREFIX) &&
+            String(k) !== this.cacheKey()
+          ) {
+            keys.push(String(k));
+          }
+        }
+        for (const k of keys) {
           await this.cache.del(k);
         }
       }

@@ -165,10 +165,11 @@ const readAlign = (v: string | null | undefined): MailAlign => {
   styleUrl: './mail-block-view.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class MailBlockViewComponent {
+export class MailBlockViewComponent implements OnDestroy {
   @Input() block!: MailBlock;
   @Input() selectedId: string | null = null;
   @Input() level = 0;
+  @Input() variables: Array<{ name: string; desc: string }> = [];
 
   @Output() selectBlock = new EventEmitter<MailBlock>();
   @Output() removeBlock = new EventEmitter<MailBlock>();
@@ -176,6 +177,22 @@ export class MailBlockViewComponent {
   @Output() textChange = new EventEmitter<MailTextChangeEvent>();
   @Output() resizeStart = new EventEmitter<MailResizeEvent>();
   @Output() dropBlocks = new EventEmitter<CdkDragDrop<MailBlock[]>>();
+
+  variablesOpen = false;
+  varMenuStyle: { top: number; left: number } | null = null;
+
+  private varMenuRaf = 0;
+  private readonly varMenuListenersBound = {
+    mousedown: (ev: MouseEvent) => this.onVarDocMouseDown(ev),
+    scroll: () => this.varReposition(),
+    resize: () => this.varReposition(),
+  };
+
+  constructor(private readonly cdr: ChangeDetectorRef) {}
+
+  ngOnDestroy(): void {
+    this.varMenuCleanup();
+  }
 
   // HTML ya confirmado por el bloque: el binding [innerHTML] usa este valor,
   // que solo se actualiza en blur, para que escribir en contenteditable no
@@ -217,13 +234,167 @@ export class MailBlockViewComponent {
 
   onFormat(cmd: string, event: Event): void {
     event.preventDefault();
-    const el = document.querySelector(`[data-block-id="${this.block.id}"] .mb__editable`) as HTMLElement | null;
+    const el = this.editable();
     if (!el) return;
     el.focus();
     document.execCommand(cmd, false);
-    const html = el.innerHTML;
+    if (cmd === 'insertUnorderedList' || cmd === 'insertOrderedList') {
+      this.limpiarListas(el);
+    }
+    this.commit(el.innerHTML);
+  }
+
+  onLink(event: Event): void {
+    event.preventDefault();
+    const el = this.editable();
+    if (!el) return;
+    const url = window.prompt('URL del enlace:', 'https://');
+    if (url === null) return;
+    el.focus();
+    document.execCommand('createLink', false, url);
+    this.commit(el.innerHTML);
+  }
+
+  onClearFormat(event: Event): void {
+    event.preventDefault();
+    const el = this.editable();
+    if (!el) return;
+    el.focus();
+    document.execCommand('removeFormat', false);
+    this.commit(el.innerHTML);
+  }
+
+  private editable(): HTMLElement | null {
+    return document.querySelector(
+      `[data-block-id="${this.block.id}"] .mb__editable`,
+    ) as HTMLElement | null;
+  }
+
+  private commit(html: string): void {
     this.committed.set(this.block.id, html);
     this.textChange.emit({ block: this.block, html });
+  }
+
+  private limpiarListas(el: HTMLElement): void {
+    el.querySelectorAll('ul, ol').forEach((ul) => {
+      Array.from(ul.childNodes).forEach((n) => {
+        if (n.nodeType === Node.TEXT_NODE && (n as Text).data.trim() === '>') {
+          ul.removeChild(n);
+        }
+      });
+      ul.querySelectorAll('li').forEach((li) => {
+        li.querySelectorAll('div').forEach((div) => {
+          while (div.firstChild) li.insertBefore(div.firstChild, div);
+          li.removeChild(div);
+        });
+        Array.from(li.childNodes).forEach((n) => {
+          if (n.nodeType === Node.TEXT_NODE && (n as Text).data.trim() === '>') {
+            li.removeChild(n);
+          }
+        });
+        const first = li.firstChild;
+        if (first?.nodeType === Node.TEXT_NODE) {
+          (first as Text).data = (first as Text).data.replace(/^\s*>\s*/, '');
+        }
+        const last = li.lastChild;
+        if (last?.nodeType === Node.TEXT_NODE) {
+          (last as Text).data = (last as Text).data.replace(/\s*>\s*$/, '');
+        }
+      });
+      ul.querySelectorAll('li').forEach((li) => {
+        if (!li.textContent?.trim() && !li.querySelector('img, br, a, ul, ol, table')) {
+          li.remove();
+        }
+      });
+    });
+  }
+
+  toggleVariables(event: Event): void {
+    event.preventDefault();
+    this.variablesOpen = !this.variablesOpen;
+    this.cdr.detectChanges();
+    if (this.variablesOpen) {
+      this.varMenuSetup();
+      this.varReposition();
+    } else {
+      this.varMenuCleanup();
+    }
+  }
+
+  insertVariable(name: string): void {
+    const el = this.editable();
+    if (el) {
+      el.focus();
+      const sel = window.getSelection();
+      let hasCaret = false;
+      if (sel && sel.rangeCount > 0) {
+        hasCaret = el.contains(sel.getRangeAt(0).startContainer);
+      }
+      if (!hasCaret) {
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        range.collapse(false);
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+      }
+      document.execCommand('insertText', false, `{{${name}}}`);
+      this.commit(el.innerHTML);
+    }
+    this.variablesOpen = false;
+    this.varMenuCleanup();
+    this.cdr.detectChanges();
+  }
+
+  private varMenuSetup(): void {
+    document.addEventListener('mousedown', this.varMenuListenersBound.mousedown, true);
+    document.addEventListener('scroll', this.varMenuListenersBound.scroll, true);
+    window.addEventListener('resize', this.varMenuListenersBound.resize);
+  }
+
+  private varMenuCleanup(): void {
+    document.removeEventListener('mousedown', this.varMenuListenersBound.mousedown, true);
+    document.removeEventListener('scroll', this.varMenuListenersBound.scroll, true);
+    window.removeEventListener('resize', this.varMenuListenersBound.resize);
+    if (this.varMenuRaf) {
+      cancelAnimationFrame(this.varMenuRaf);
+      this.varMenuRaf = 0;
+    }
+  }
+
+  private onVarDocMouseDown(ev: MouseEvent): void {
+    const target = ev.target as Node | null;
+    const host = document.querySelector(`[data-block-id="${this.block.id}"]`);
+    const menu = document.querySelector('.mb__vmenu');
+    if (target && (host?.contains(target) || menu?.contains(target))) return;
+    this.variablesOpen = false;
+    this.varMenuCleanup();
+    this.cdr.detectChanges();
+  }
+
+  private varReposition(): void {
+    if (this.varMenuRaf) return;
+    this.varMenuRaf = requestAnimationFrame(() => {
+      this.varMenuRaf = 0;
+      this.positionVarMenu();
+    });
+  }
+
+  private positionVarMenu(): void {
+    const host = document.querySelector(`[data-block-id="${this.block.id}"]`) as HTMLElement | null;
+    if (!host) return;
+    const menu = document.querySelector('.mb__vmenu') as HTMLElement | null;
+    const w = menu?.offsetWidth ?? 300;
+    const h = menu?.offsetHeight ?? 420;
+    const gap = 16;
+    const margin = 10;
+    const rect = host.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    const left = Math.max(margin, Math.min(rect.right + gap, vw - w - margin));
+    const top = Math.min(Math.max(margin, rect.top), Math.max(margin, vh - h - margin));
+
+    this.varMenuStyle = { top, left };
   }
 }
 
@@ -284,6 +455,7 @@ export class MailEditorComponent implements OnChanges, OnInit, OnDestroy {
   private designJSON: string | null = null;
   private resizeState: { id: string; kind: string; startX: number; value: number } | null = null;
   private posRaf = 0;
+  private emitTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     private readonly svc: ConfiguracionFrontendService,
@@ -320,6 +492,7 @@ export class MailEditorComponent implements OnChanges, OnInit, OnDestroy {
   ngOnInit(): void {
     document.addEventListener('scroll', this.onDocScroll, true);
     window.addEventListener('resize', this.onWinResize);
+    document.addEventListener('mousedown', this.onDocMouseDown, true);
   }
 
   ngOnDestroy(): void {
@@ -327,7 +500,9 @@ export class MailEditorComponent implements OnChanges, OnInit, OnDestroy {
     document.removeEventListener('mouseup', this.onResizeEnd);
     document.removeEventListener('scroll', this.onDocScroll, true);
     window.removeEventListener('resize', this.onWinResize);
+    document.removeEventListener('mousedown', this.onDocMouseDown, true);
     if (this.posRaf) cancelAnimationFrame(this.posRaf);
+    if (this.emitTimer) clearTimeout(this.emitTimer);
   }
 
   get selectedBlock(): MailBlock | null {
@@ -455,111 +630,6 @@ export class MailEditorComponent implements OnChanges, OnInit, OnDestroy {
     this.schedulePos();
   }
 
-  // ── Formato y variables (insertan en el cursor) ───────────────────────────
-  get canFormat(): boolean {
-    return !!(this.focusedEditable() ?? this.selectedEditable());
-  }
-
-  format(cmd: string, value?: string): void {
-    const el = this.focusedEditable() ?? this.selectedEditable();
-    if (!el) return;
-    const pos = this.caretPath(el);
-    el.focus();
-    if (pos) this.setCaret(el, pos);
-    document.execCommand(cmd, false, value);
-    el.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
-    this.cdr.detectChanges();
-    if (pos) this.setCaret(el, pos);
-  }
-
-  insertLink(): void {
-    const el = this.focusedEditable() ?? this.selectedEditable();
-    if (!el) return;
-    const url = window.prompt('URL del enlace:', 'https://');
-    if (url === null) return;
-    const pos = this.caretPath(el);
-    el.focus();
-    if (pos) this.setCaret(el, pos);
-    document.execCommand('createLink', false, url);
-    el.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
-    this.cdr.detectChanges();
-    if (pos) this.setCaret(el, pos);
-  }
-
-  clearFormat(): void {
-    this.format('removeFormat');
-  }
-
-  insertVariableAtCaret(name: string): void {
-    const el = this.focusedEditable();
-    if (!el) {
-      this.addTokenBlock(name);
-      return;
-    }
-    const pos = this.caretPath(el);
-    el.focus();
-    if (pos) this.setCaret(el, pos);
-    const varText = `{{${name}}}`;
-    document.execCommand('insertText', false, varText);
-    el.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
-    this.cdr.detectChanges();
-    if (pos) {
-      pos.offset = Math.min(el.textContent?.length ?? 0, pos.offset + varText.length);
-      this.setCaret(el, pos);
-    }
-  }
-
-  private focusedEditable(): HTMLElement | null {
-    const a = document.activeElement as HTMLElement | null;
-    if (a && a.classList && a.classList.contains('mb__editable')) return a;
-    return null;
-  }
-
-  private selectedEditable(): HTMLElement | null {
-    if (!this.selectedId) return null;
-    return document.querySelector(
-      `[data-block-id="${this.selectedId}"] .mb__editable`,
-    ) as HTMLElement | null;
-  }
-
-  private caretPath(el: HTMLElement): { path: number[]; offset: number } | null {
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) return null;
-    const range = sel.getRangeAt(0);
-    const node = range.startContainer;
-    if (!el.contains(node)) return null;
-    const path: number[] = [];
-    let n: Node | null = node;
-    while (n && n !== el) {
-      if (!n.parentNode) break;
-      path.unshift(Array.prototype.indexOf.call(n.parentNode.childNodes, n));
-      n = n.parentNode;
-    }
-    if (n !== el) return null;
-    return { path, offset: range.startOffset };
-  }
-
-  private setCaret(el: HTMLElement, pos: { path: number[]; offset: number } | null): void {
-    if (!pos) return;
-    let node: Node = el;
-    for (const idx of pos.path) {
-      const next = node.childNodes[idx];
-      if (!next) return;
-      node = next;
-    }
-    try {
-      const range = document.createRange();
-      range.setStart(node, Math.min(pos.offset, node.textContent?.length ?? 0));
-      range.collapse(true);
-      const sel = window.getSelection();
-      sel?.removeAllRanges();
-      sel?.addRange(range);
-      el.focus();
-    } catch {
-      /* posicion no disponible */
-    }
-  }
-
   cargarPlantillaEjemplo(): void {
     this.blocks = this.defaultBlocks();
     this.selectedId = null;
@@ -579,6 +649,16 @@ export class MailEditorComponent implements OnChanges, OnInit, OnDestroy {
     this.popoverStyle = null;
     this.cdr.detectChanges();
   }
+
+  private readonly onDocMouseDown = (ev: MouseEvent): void => {
+    if (!this.selectedId) return;
+    const target = ev.target as Node | null;
+    if (!target) return;
+    const block = document.querySelector(`[data-block-id="${this.selectedId}"]`);
+    const pp = document.querySelector('.mled__pp');
+    if (block?.contains(target) || pp?.contains(target)) return;
+    this.deselect();
+  };
 
   private readonly onDocScroll = (): void => this.schedulePos();
 
@@ -602,26 +682,21 @@ export class MailEditorComponent implements OnChanges, OnInit, OnDestroy {
       this.popoverStyle = { top: 90, left: 20 };
       return;
     }
-    const rect = el.getBoundingClientRect();
-    const w = 340;
-    const h = 600;
+    const pp = document.querySelector('.mled__pp') as HTMLElement | null;
+    const w = pp?.offsetWidth ?? 340;
+    const h = pp?.offsetHeight ?? 600;
     const gap = 16;
     const margin = 10;
-    const maxLeft = window.innerWidth - w - margin;
+    const rect = el.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
 
-    let left = rect.right + gap;
-    if (left > maxLeft) {
-      left = rect.left - gap - w;
-      if (left < margin) {
-        const above = rect.top - gap - h;
-        if (above >= margin) {
-          this.popoverStyle = { top: above, left: Math.max(margin, Math.min(maxLeft, rect.left)) };
-          return;
-        }
-        left = Math.max(margin, Math.min(maxLeft, rect.right - w));
-      }
+    let left = rect.left - gap - w;
+    if (left < margin) {
+      left = Math.max(margin, Math.min(rect.right + gap, vw - w - margin));
     }
-    const top = Math.min(Math.max(margin, rect.top), window.innerHeight - 70);
+    const top = Math.min(Math.max(margin, rect.top), Math.max(margin, vh - h - margin));
+
     this.popoverStyle = { top, left };
   }
 
@@ -704,7 +779,16 @@ export class MailEditorComponent implements OnChanges, OnInit, OnDestroy {
       b.cols[1].width = 100 - w1;
     }
     this.cdr.detectChanges();
+    this.scheduleEmit();
   };
+
+  private scheduleEmit(): void {
+    if (this.emitTimer) return;
+    this.emitTimer = setTimeout(() => {
+      this.emitTimer = null;
+      this.emitCambios();
+    }, 120);
+  }
 
   private readonly onResizeEnd = (): void => {
     document.removeEventListener('mousemove', this.onResizeMove);
@@ -885,7 +969,7 @@ export class MailEditorComponent implements OnChanges, OnInit, OnDestroy {
       }
       case 'spacer': {
         const h = b.height || 16;
-        return `<div data-sb="spacer" data-sb-id="${b.id}" style="height:${h}px;font-size:0;line-height:0;">&nbsp;</div>`;
+        return `<div data-sb="spacer" data-sb-id="${b.id}" style="display:block;width:100%;height:${h}px;font-size:0;line-height:0;">&nbsp;</div>`;
       }
       case 'token': {
         const align = b.align || 'left';

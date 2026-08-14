@@ -115,6 +115,18 @@ export class AdminShellComponent implements OnInit, OnDestroy {
       },
       error: (err) => console.error('HTTP Error:', err),
     });
+    this.layoutService.sidebarForcedCollapsed$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => this.syncSidebarMode(),
+        error: (err) => console.error('HTTP Error:', err),
+      });
+    this.layoutService.toggleSidebarRequested$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => this.toggleSidebar(),
+        error: (err) => console.error('HTTP Error:', err),
+      });
   }
 
   ngOnDestroy(): void {
@@ -226,16 +238,28 @@ export class AdminShellComponent implements OnInit, OnDestroy {
     return this.router.url.includes('/admin/operaciones');
   }
 
+  get sidebarForcedCollapsed(): boolean {
+    return this.layoutService.sidebarForcedCollapsed;
+  }
+
   openSidebar(): void {
     this.sidebarCollapsed = false;
     this.sidebarOpen = true;
   }
 
   collapseSidebar(): void {
-    if (this.isOperacionesRoute) {
+    if (this.isOperacionesRoute || this.sidebarForcedCollapsed) {
       this.sidebarCollapsed = true;
     }
     this.sidebarOpen = false;
+  }
+
+  toggleSidebar(): void {
+    if (this.sidebarCollapsed) {
+      this.openSidebar();
+    } else {
+      this.collapseSidebar();
+    }
   }
 
   closeSidebarOnMobile(): void {
@@ -255,7 +279,9 @@ export class AdminShellComponent implements OnInit, OnDestroy {
   }
 
   private syncSidebarMode(): void {
-    if (this.layoutService.sidebarForcedVisible) {
+    if (this.layoutService.sidebarForcedCollapsed) {
+      this.sidebarCollapsed = true;
+    } else if (this.layoutService.sidebarForcedVisible) {
       this.sidebarCollapsed = false;
     } else {
       this.sidebarCollapsed = this.isOperacionesRoute;
