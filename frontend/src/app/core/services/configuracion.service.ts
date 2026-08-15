@@ -73,12 +73,20 @@ export class ConfiguracionFrontendService {
     return this.http.get<ConfiguracionData>(`${this.url}/global`);
   }
 
+  getTicketMail(): Observable<ConfiguracionData> {
+    return this.http.get<ConfiguracionData>(`${this.url}/global/ticket-mail`);
+  }
+
   guardar(data: Partial<ConfiguracionData>): Observable<ConfiguracionData> {
     return this.http.post<ConfiguracionData>(this.url, data);
   }
 
   guardarGlobal(data: Partial<ConfiguracionData>): Observable<ConfiguracionData> {
     return this.http.post<ConfiguracionData>(`${this.url}/global`, data);
+  }
+
+  guardarTicketMail(data: Partial<ConfiguracionData>): Observable<ConfiguracionData> {
+    return this.http.post<ConfiguracionData>(`${this.url}/global/ticket-mail`, data);
   }
 
   probarMail(

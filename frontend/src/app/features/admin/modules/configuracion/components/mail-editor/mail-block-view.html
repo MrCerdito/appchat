@@ -43,6 +43,35 @@
       <span class="mb__fmtgroup">
         <button
           type="button"
+          class="mb__tool mb__tool--fmt mb__tool--pick"
+          [class.mb__tool--active]="toolPop === 'size'"
+          title="Tamano del texto"
+          (mousedown)="$event.preventDefault()"
+          (click)="toggleToolPop('size', $event)"
+        >A-</button>
+        <button
+          type="button"
+          class="mb__tool mb__tool--fmt mb__tool--pick"
+          [class.mb__tool--active]="toolPop === 'font'"
+          title="Tipografia"
+          (mousedown)="$event.preventDefault()"
+          (click)="toggleToolPop('font', $event)"
+        >Aa</button>
+        <button
+          type="button"
+          class="mb__tool mb__tool--fmt mb__tool--pick mb__tool--colorbtn"
+          [class.mb__tool--active]="toolPop === 'color'"
+          title="Color del texto"
+          (mousedown)="$event.preventDefault()"
+          (click)="toggleToolPop('color', $event)"
+        >
+          <span class="mb__tool--colordot" [style.backgroundColor]="blockColor"></span>A
+        </button>
+      </span>
+      <span class="mb__fmtdivider"></span>
+      <span class="mb__fmtgroup">
+        <button
+          type="button"
           class="mb__tool mb__tool--fmt mb__tool--var"
           [class.mb__tool--active]="variablesOpen"
           title="Insertar variable"
@@ -68,6 +97,7 @@
           [style.padding.px]="block.padding ?? 14"
           (input)="onTextInput($event)"
           (blur)="onTextBlur($event)"
+          (click)="onEditableClick($event)"
         ></div>
       </div>
     }
@@ -85,6 +115,7 @@
           [style.padding.px]="block.padding ?? 14"
           (input)="onTextInput($event)"
           (blur)="onTextBlur($event)"
+          (click)="onEditableClick($event)"
         ></div>
       </div>
     }
@@ -169,6 +200,7 @@
                   [block]="inner"
                   [selectedId]="selectedId"
                   [variables]="variables"
+                  [fonts]="fonts"
                   [level]="level + 1"
                   (selectBlock)="selectBlock.emit($event)"
                   (removeBlock)="removeBlock.emit($event)"
@@ -177,6 +209,7 @@
                   (alignChange)="alignChange.emit($event)"
                   (resizeStart)="resizeStart.emit($event)"
                   (dropBlocks)="dropBlocks.emit($event)"
+                  (styleChange)="styleChange.emit($event)"
                 />
               }
             </div>
@@ -193,6 +226,7 @@
                   [block]="inner"
                   [selectedId]="selectedId"
                   [variables]="variables"
+                  [fonts]="fonts"
                   [level]="level + 1"
                   (selectBlock)="selectBlock.emit($event)"
                   (removeBlock)="removeBlock.emit($event)"
@@ -201,6 +235,7 @@
                   (alignChange)="alignChange.emit($event)"
                   (resizeStart)="resizeStart.emit($event)"
                   (dropBlocks)="dropBlocks.emit($event)"
+                  (styleChange)="styleChange.emit($event)"
                 />
               }
             </div>
@@ -250,6 +285,53 @@
           <span class="mb__vmenu-desc">{{ v.desc }}</span>
         </button>
       }
+    </div>
+  }
+
+  @if (toolPop === 'size') {
+    <div class="mb__tpop" [style.top.px]="toolPopStyle?.top ?? 0" [style.left.px]="toolPopStyle?.left ?? 0">
+      <div class="mb__tpop-title">Tamano</div>
+      @for (s of fontSizes; track s) {
+        <button
+          type="button"
+          class="mb__tpop-item mb__tpop-item--size"
+          [class.mb__tpop-item--active]="blockSize === s"
+          (mousedown)="$event.preventDefault()"
+          (click)="pickSize(s)"
+        >{{ s }}px</button>
+      }
+    </div>
+  }
+  @if (toolPop === 'font') {
+    <div class="mb__tpop" [style.top.px]="toolPopStyle?.top ?? 0" [style.left.px]="toolPopStyle?.left ?? 0">
+      <div class="mb__tpop-title">Tipografia</div>
+      @for (f of fonts; track f.value) {
+        <button
+          type="button"
+          class="mb__tpop-item"
+          [class.mb__tpop-item--active]="blockFont === f.value"
+          (mousedown)="$event.preventDefault()"
+          (click)="pickFont(f.value)"
+        >{{ f.label }}</button>
+      }
+    </div>
+  }
+  @if (toolPop === 'color') {
+    <div class="mb__tpop" [style.top.px]="toolPopStyle?.top ?? 0" [style.left.px]="toolPopStyle?.left ?? 0">
+      <div class="mb__tpop-title">Color del texto</div>
+      <div class="mb__tpop-swatches">
+        @for (c of textColors; track c) {
+          <button
+            type="button"
+            class="mb__tpop-swatch"
+            [style.backgroundColor]="c"
+            [class.mb__tpop-swatch--active]="blockColor === c"
+            [title]="c"
+            (mousedown)="$event.preventDefault()"
+            (click)="pickColor(c)"
+          ></button>
+        }
+      </div>
     </div>
   }
 </div>

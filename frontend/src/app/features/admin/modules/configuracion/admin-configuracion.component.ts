@@ -15,7 +15,7 @@ import { WaConnectionStatus } from '../../../../core/models/whatsapp.models';
 import { trackByIndex } from '../../../../shared/utils/track-by';
 import { Colegio, SessionService } from '../../../../core/services/session.service';
 import { LayoutService } from '../../../../core/services/layout.service';
-import { TicketMailConfigComponent } from './components/ticket-mail-config/ticket-mail-config.component';
+import { SmtpConfigComponent } from './components/smtp-config/smtp-config.component';
 
 type ConfigGrupo = 'chat' | 'whatsapp' | 'general';
 type ConfigTab =
@@ -32,7 +32,7 @@ type ConfigTab =
 @Component({
   selector: 'app-admin-configuracion',
   standalone: true,
-  imports: [FormsModule, SlicePipe, DecimalPipe, TicketMailConfigComponent],
+  imports: [FormsModule, SlicePipe, DecimalPipe, SmtpConfigComponent],
   templateUrl: './admin-configuracion.html',
   styleUrl: './admin-configuracion.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -404,7 +404,7 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
       .replace(/\{\{\s*horaApertura\s*\}\}/gi, '08:00');
   }
 
-  // ── Correo de tickets: estado centralizado en TicketMailConfigComponent ─────
+  // ── Correo SMTP: estado centralizado en SmtpConfigComponent ─────────────
   onMailConfigChange(updated: ConfiguracionData): void {
     if (!this.config) return;
     this.config = { ...this.config, ...updated };

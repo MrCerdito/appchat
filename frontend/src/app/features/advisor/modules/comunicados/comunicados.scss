@@ -407,43 +407,85 @@
 // ── Editor ────────────────────────────────────────────────────
 .editor-wrapper {
   flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
+  border: 1px solid var(--border-strong); border-radius: 10px; background: var(--surface);
+  margin: 0.75rem 1.5rem 0;
 }
 
-.editor-toolbar {
-  display: flex; align-items: center; flex-wrap: wrap; gap: 2px;
-  padding: 0.5rem 1rem; border-bottom: 1px solid var(--border-strong);
-  background: var(--bg); flex-shrink: 0;
+.editor-wrapper ::ng-deep .mled {
+  flex: 1; min-height: 0; display: flex; flex-direction: column; border: none; border-radius: 0;
+}
+.editor-wrapper ::ng-deep .mled__toolbar {
+  border-top-left-radius: 9px; border-top-right-radius: 9px; flex-shrink: 0;
+}
+.editor-wrapper ::ng-deep .mled__canvas {
+  flex: 1 1 auto; min-height: 0; max-height: none; overflow-y: auto;
 }
 
-.tb-btn {
-  width: 30px; height: 30px; border-radius: 6px; border: none;
-  background: transparent; color: var(--text-muted); cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  font-family: var(--font); font-size: 0.88rem; transition: all 0.15s;
-  svg { width: 14px; height: 14px; }
-  &:hover  { background: var(--border-strong); color: var(--text); }
-  &.active { background: #eff6ff; color: #2563eb; }
+// ── Compose: edición + vista previa ───────────────────────────
+.compose-grid {
+  flex: 1; min-height: 0; display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  overflow: hidden;
 }
 
-.tb-sep { width: 1px; height: 20px; background: var(--border-strong); margin: 0 2px; flex-shrink: 0; }
-
-.tb-select {
-  padding: 0.25rem 0.5rem; border: 1.5px solid var(--border-strong); border-radius: 6px;
-  font-family: var(--font); font-size: 0.78rem; color: var(--text); background: var(--surface);
-  outline: none; cursor: pointer;
-  &:focus { border-color: #2563eb; }
+.compose-left {
+  min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
 }
 
-.editor-body {
-  flex: 1; overflow-y: auto; padding: 1.2rem 1.5rem;
-  font-family: var(--font); font-size: 0.92rem; line-height: 1.8;
-  color: var(--text); outline: none; min-height: 200px;
-  &:empty::before { content: attr(data-placeholder); color: #aab4c0; pointer-events: none; }
-  ul, ol { padding-left: 1.5rem; }
-  li { margin: 0.2rem 0; }
-  b, strong { font-weight: 700; }
-  i, em { font-style: italic; }
-  u { text-decoration: underline; }
+.compose-right {
+  min-width: 0; min-height: 0; display: flex; flex-direction: column;
+  background: var(--bg); border-left: 1px solid var(--border-strong); overflow: hidden;
+}
+
+// ── Vista previa en vivo ──────────────────────────────────────
+.preview-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+  padding: 0.9rem 1.25rem; border-bottom: 1px solid var(--border-strong); flex-shrink: 0;
+}
+
+.preview-title {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-size: 0.9rem; font-weight: 700; color: var(--text);
+}
+
+.preview-pulse {
+  width: 8px; height: 8px; border-radius: 50%; background: #22c55e; flex-shrink: 0;
+  animation: preview-pulse 2s infinite;
+}
+
+@keyframes preview-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.55); }
+  70%  { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+
+.preview-sub { font-size: 0.72rem; color: var(--text-muted); }
+
+.preview-mail {
+  flex: 1; min-height: 0; margin: 1rem 1.25rem; display: flex; flex-direction: column;
+  border: 1px solid var(--border-strong); border-radius: 12px; overflow: hidden;
+  background: var(--surface);
+}
+
+.preview-subjectbar {
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 0.8rem 1.1rem; border-bottom: 1px solid var(--border-strong); flex-shrink: 0;
+  background: var(--surface);
+}
+
+.preview-recipients {
+  font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+  color: #2563eb;
+}
+
+.preview-subject { font-size: 0.9rem; font-weight: 600; color: var(--text); word-break: break-word; }
+
+.preview-mail-body {
+  flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; background: #eef1f6;
+}
+
+.preview-frame {
+  display: block; width: 100%; border: none; min-height: 400px;
 }
 
 .compose-actions {
@@ -475,6 +517,15 @@
 }
 
 // ── Responsive ────────────────────────────────────────────────
+@media (max-width: 1100px) {
+  .compose-grid { display: flex; flex-direction: column; overflow-y: auto; }
+  .compose-left { flex: none; }
+  .editor-wrapper { flex: none; min-height: 480px; }
+  .compose-right { border-left: 0; border-top: 1px solid var(--border-strong); min-height: 520px; }
+  .preview-mail { flex: none; margin: 1rem 1rem; }
+  .preview-frame { min-height: 460px; }
+}
+
 @media (max-width: 900px) {
   .mail-list    { width: 260px; min-width: 260px; }
   .mail-sidebar { width: 56px; min-width: 56px; padding: 0.75rem 0.4rem; }

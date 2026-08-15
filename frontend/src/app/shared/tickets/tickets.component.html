@@ -1,5 +1,5 @@
 <div class="tickets-layout">
-  <aside class="ts-sidebar">
+  <aside class="ts-sidebar" [class.ts-sidebar--hidden]="activeView === 'mail'">
     <div class="ts-sidebar-header">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -119,6 +119,40 @@
     </div>
     }
 
+    @if (activeView === 'mail') {
+    <div class="ts-view ts-view--mail">
+      <div class="ts-mail-header">
+        <button class="ts-btn ts-btn-ghost ts-btn-sm" (click)="closeMailConfig()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+            <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+          </svg>
+          Volver a tickets
+        </button>
+        <div class="ts-mail-actions">
+          <span
+            class="ts-mail-status"
+            [class.ts-mail-status--dirty]="mailTemplate?.status === 'dirty'"
+            [class.ts-mail-status--saving]="mailTemplate?.status === 'saving'"
+            [class.ts-mail-status--saved]="mailTemplate?.status === 'saved'"
+            [class.ts-mail-status--error]="mailTemplate?.status === 'error'"
+          >
+            <span class="ts-mail-status-dot"></span>
+            {{ mailTemplate?.statusLabel ?? 'Al dia' }}
+          </span>
+          <button
+            class="ts-mail-save"
+            [disabled]="!mailTemplate?.dirty || mailTemplate?.status === 'saving'"
+            (click)="mailTemplate?.guardar()"
+          >
+            <svg *ngIf="mailTemplate?.status !== 'saving'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            {{ mailTemplate?.status === 'saving' ? 'Guardando...' : 'Guardar cambios' }}
+          </button>
+        </div>
+      </div>
+      <app-ticket-mail-template #mailTemplate (stateChange)="onMailStateChange()"></app-ticket-mail-template>
+    </div>
+    }
+
     @if (activeView === 'list') {
     <div class="ts-view">
       <div class="ts-content-header">
@@ -131,6 +165,13 @@
         @if (search || sidebarFilter !== 'all') {
         <button class="ts-btn ts-btn-ghost ts-btn-sm" (click)="clearFilters()">Limpiar</button>
         }
+        <button class="ts-btn ts-btn-ghost ts-btn-sm ts-gear-btn" (click)="openMailConfig()" title="Configurar correo de tickets">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+          Correo de tickets
+        </button>
         <div class="ts-view-toggle">
           <button class="ts-toggle-btn" [class.active]="viewMode === 'table'" (click)="switchView('table')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">

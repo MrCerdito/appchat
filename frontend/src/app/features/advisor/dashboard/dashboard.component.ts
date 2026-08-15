@@ -17,6 +17,7 @@ import { ChatStateService } from '../../../core/services/chat-state.service';
 import { InternalChatService } from '../../../core/services/internal-chat.service';
 import { ThemeService } from '../../../core/services/theme.service';
 import { NotificationService } from '../../../core/services/notification.service';
+import { LayoutService } from '../../../core/services/layout.service';
 import { User } from '../../../core/models/user.model';
 import { Session } from '../../../core/models/session.model';
 import { Message } from '../../../core/models/message.model';
@@ -49,6 +50,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   advisorStatus: 'online' | 'busy' | 'offline' = 'offline';
   profileOpen = false;
   sidebarOpen = false;
+  forceSidebarHidden = false;
   appearanceOpen = false;
   compactShellMode = false;
   misChatsNoLeidos = 0;
@@ -173,11 +175,23 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private admin: AdminService,
     private elementRef: ElementRef,
     private notification: NotificationService,
+    private layout: LayoutService,
   ) {}
 
   whatsappMode: 'clients' | 'advisors' | null = null;
 
   ngOnInit(): void {
+    this.layout.sidebarForcedCollapsed$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((collapsed) => {
+        this.forceSidebarHidden = collapsed;
+        if (collapsed) {
+          this.sidebarOpen = false;
+          this.profileOpen = false;
+          this.appearanceOpen = false;
+        }
+        this.cdr.detectChanges();
+      });
     this.auth.user$.pipe(takeUntil(this.destroy$)).subscribe((user) => {
       this.currentAdvisor = user;
       if (user?.id) {
@@ -608,7 +622,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   get showHamburger(): boolean {
-    return this.showTopbarTitle || this.smallScreen;
+    return this.showTopbarTitle || this.smallScreen || this.layout.sidebarForcedCollapsed;
   }
 
   get whatsappUnreadTitle(): string {
@@ -803,7 +817,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   closeSidebarOnMobile(): void {
-    if (window.innerWidth <= 768 || this.compactShellMode) {
+    if (window.innerWidth <= 768 || this.compactShellMode || this.layout.sidebarForcedCollapsed) {
       this.sidebarOpen = false;
     }
   }

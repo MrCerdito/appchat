@@ -1,16 +1,23 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+  Logger,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
-import { Resend } from 'resend';
 import { Comunicado, Destinatario } from './entities/comunicado.entity';
 import { Colegio } from '../sessions/entities/colegio.entity';
 import { User } from '../auth/entities/user.entity';
 import { ComunicadoEvento } from './entities/comunicado-evento.entity';
+import { ConfiguracionService } from '../configuracion/configuracion.service';
+import { createSmtpTransport } from '../common/mail/smtp.helper';
 
 @Injectable()
 export class ComunicadosService {
-  private resend: Resend;
+  private readonly logger = new Logger(ComunicadosService.name);
 
   constructor(
     @InjectRepository(ComunicadoEvento)
@@ -20,9 +27,8 @@ export class ComunicadosService {
     @InjectRepository(Colegio)
     private readonly colegioRepo: Repository<Colegio>,
     private readonly config: ConfigService,
-  ) {
-    this.resend = new Resend(config.get('RESEND_API_KEY'));
-  }
+    private readonly configuracion: ConfiguracionService,
+  ) {}
 
   async findAll(userId: string, role: string): Promise<Comunicado[]> {
     if (role === 'admin') {
@@ -35,9 +41,20 @@ export class ComunicadosService {
   }
 
   async findOne(id: string): Promise<Comunicado> {
-    const c = await this.comunicadoRepo.findOne({ where: { id } });
+    const c = await this.comunicadoRepo.findOne({
+      where: { id },
+      relations: { sender: true },
+    });
     if (!c) throw new NotFoundException('Comunicado no encontrado');
     return c;
+  }
+
+  private assertCanManage(c: Comunicado, user: User): void {
+    if (user.role !== 'admin' && c.sender?.id !== user.id) {
+      throw new ForbiddenException(
+        'Acceso denegado: solo puedes gestionar tus propios comunicados',
+      );
+    }
   }
 
   async saveDraft(
@@ -45,10 +62,12 @@ export class ComunicadosService {
     cuerpo: string,
     destinatarios: Destinatario[],
     user: User,
+    design: unknown[] | null = null,
   ): Promise<Comunicado> {
     const c = this.comunicadoRepo.create({
       asunto,
       cuerpo,
+      design,
       destinatarios,
       sender: user,
       senderName: user.name,
@@ -62,12 +81,16 @@ export class ComunicadosService {
     asunto: string,
     cuerpo: string,
     destinatarios: Destinatario[],
+    design: unknown[] | null = null,
+    user: User,
   ): Promise<Comunicado> {
     const c = await this.findOne(id);
+    this.assertCanManage(c, user);
     if (c.status === 'sent')
       throw new BadRequestException('No se puede editar un comunicado enviado');
     c.asunto = asunto;
     c.cuerpo = cuerpo;
+    c.design = design;
     c.destinatarios = destinatarios.map((d) => ({
       email: d.email,
       nombre: d.nombre,
@@ -75,52 +98,52 @@ export class ComunicadosService {
     return this.comunicadoRepo.save(c);
   }
 
-  async send(id: string): Promise<Comunicado> {
+  async send(id: string, user: User): Promise<Comunicado> {
     const c = await this.findOne(id);
+    this.assertCanManage(c, user);
     if (c.status === 'sent') throw new BadRequestException('Ya fue enviado');
     if (!c.destinatarios.length) throw new BadRequestException('Sin destinatarios');
 
     const baseUrl = this.config.get('APP_URL') ?? 'http://localhost:3001';
-    const from = this.config.get('MAIL_FROM');
+    const cfg = await this.configuracion.getGlobal();
 
-    // ── Modo desarrollo: redirige todos los emails a tu cuenta ──
+    const smtpHost = cfg.smtpHost?.trim() || '';
+    const smtpUser = cfg.smtpUser?.trim() || '';
+    const smtpPass = cfg.smtpPass?.trim() || '';
+    const rawFrom =
+      cfg.mailFrom?.trim() ||
+      smtpUser ||
+      String(this.config.get('MAIL_FROM') ?? '');
+
+    if (!smtpHost || !smtpUser || !smtpPass || !rawFrom) {
+      throw new BadRequestException(
+        'Configura el correo SMTP (servidor, usuario, clave y remitente) en Configuración antes de enviar.',
+      );
+    }
+
+    const from = this.resolveFrom(rawFrom, c.senderName);
+
+    const { transporter } = await createSmtpTransport({
+      host: smtpHost,
+      port: Number(cfg.smtpPort) || 465,
+      secure: cfg.smtpSecure !== false,
+      user: smtpUser,
+      pass: smtpPass,
+    });
+
     const isDev = process.env.NODE_ENV !== 'production';
 
-    const results = await Promise.allSettled(
-      c.destinatarios.map(async (dest) => {
-        const emailDestino = isDev ? 'jeanpfmunozv@gmail.com' : dest.email;
+    // ── Modo desarrollo: redirige todos los emails a tu cuenta ──
+    const destinos = c.destinatarios.map((d) => ({
+      ...d,
+      emailFinal: isDev ? 'jeanpfmunozv@gmail.com' : d.email,
+    }));
 
-        const pixelUrl = `${baseUrl}/track/open/${id}/${encodeURIComponent(dest.email)}`;
-        const cuerpoFinal = `
-          ${this.injectTracking(c.cuerpo, id, dest.email, baseUrl)}
-          <img src="${pixelUrl}" width="1" height="1" style="display:none" alt=""/>
-        `;
-
-        const { data, error } = await this.resend.emails.send({
-          from,
-          to: emailDestino,
-          subject: isDev ? `[TEST → ${dest.email}] ${c.asunto}` : c.asunto,
-          html: cuerpoFinal,
-        });
-
-        if (error) throw new BadRequestException(error.message);
-        return data;
-      }),
-    );
-
-    c.destinatarios = c.destinatarios.map((dest, i): Destinatario => {
-      const result = results[i];
-      if (result.status === 'fulfilled') {
-        return { email: dest.email, nombre: dest.nombre, sendStatus: 'ok' };
-      }
-      const msg = String(result.reason?.message ?? 'Error desconocido');
-      return {
-        email: dest.email,
-        nombre: dest.nombre,
-        sendStatus: 'failed',
-        sendError: msg,
-      };
-    });
+    try {
+      await this.sendWithPool(destinos, c, baseUrl, from, transporter);
+    } finally {
+      transporter.close();
+    }
 
     const enviados = c.destinatarios.filter(
       (d) => d.sendStatus === 'ok',
@@ -130,6 +153,60 @@ export class ComunicadosService {
     c.totalEnviados = enviados;
 
     return this.comunicadoRepo.save(c);
+  }
+
+  private async sendWithPool(
+    destinos: Array<Destinatario & { emailFinal: string }>,
+    c: Comunicado,
+    baseUrl: string,
+    from: string,
+    transporter: Awaited<ReturnType<typeof createSmtpTransport>>['transporter'],
+  ): Promise<void> {
+    const CONCURRENCIA = 15;
+    let index = 0;
+    const dev = process.env.NODE_ENV !== 'production';
+
+    const trabajadores = Array.from(
+      { length: Math.min(CONCURRENCIA, destinos.length) },
+      async () => {
+        while (index < destinos.length) {
+          const pos = index++;
+          const dest = destinos[pos];
+
+          try {
+            const pixelUrl = `${baseUrl}/track/open/${c.id}/${encodeURIComponent(dest.email)}`;
+            const cuerpoFinal = `
+              ${this.injectTracking(c.cuerpo, c.id, dest.email, baseUrl)}
+              <img src="${pixelUrl}" width="1" height="1" style="display:none" alt=""/>
+            `;
+
+            await transporter.sendMail({
+              from,
+              to: dest.emailFinal,
+              subject: dev
+                ? `[TEST → ${dest.email}] ${c.asunto}`
+                : c.asunto,
+              html: cuerpoFinal,
+            });
+
+            c.destinatarios[pos] = {
+              email: dest.email,
+              nombre: dest.nombre,
+              sendStatus: 'ok',
+            };
+          } catch (err: any) {
+            c.destinatarios[pos] = {
+              email: dest.email,
+              nombre: dest.nombre,
+              sendStatus: 'failed',
+              sendError: String(err?.message ?? 'Error de envio'),
+            };
+          }
+        }
+      },
+    );
+
+    await Promise.all(trabajadores);
   }
 
   async getStats(id: string) {
@@ -177,8 +254,9 @@ export class ComunicadosService {
     };
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(id: string, user: User): Promise<void> {
     const c = await this.findOne(id);
+    this.assertCanManage(c, user);
     await this.comunicadoRepo.remove(c);
   }
 
@@ -206,28 +284,6 @@ export class ComunicadosService {
       'totalAperturas',
       1,
     );
-  }
-
-  async markBounced(email: string, reason: string): Promise<void> {
-    const comunicados = await this.comunicadoRepo.find({
-      where: { status: 'sent' },
-      order: { sentAt: 'DESC' },
-      take: 10,
-    });
-
-    for (const c of comunicados) {
-      const idx = c.destinatarios.findIndex(
-        (d) => d.email === email && d.sendStatus === 'ok',
-      );
-      if (idx !== -1) {
-        c.destinatarios[idx] = {
-          ...c.destinatarios[idx],
-          sendStatus: 'failed',
-          sendError: `Rebote: ${reason}`,
-        };
-        await this.comunicadoRepo.save(c);
-      }
-    }
   }
 
   async registrarClic(
@@ -261,5 +317,16 @@ export class ComunicadosService {
       const tracked = `${baseUrl}/track/click/${comunicadoId}/${encodeURIComponent(email)}?url=${encodeURIComponent(url)}`;
       return `<a href="${tracked}"`;
     });
+  }
+
+  private resolveFrom(raw: string, senderName?: string): string {
+    const trimmed = raw.trim();
+    if (!trimmed) return '';
+    const email = trimmed.replace(/^.*<([^<>]+)>.*$/, '$1').trim();
+    const name = String(senderName ?? '')
+      .replace(/["\\<>]/g, '')
+      .trim();
+    if (!email) return trimmed;
+    return name ? `${name} <${email}>` : email;
   }
 }

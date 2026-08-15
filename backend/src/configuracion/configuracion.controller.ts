@@ -26,6 +26,7 @@ import { Roles, RolesGuard } from '../auth/roles.guard';
 import { Public } from '../auth/public.decorator';
 import { ConfiguracionService } from './configuracion.service';
 import { GuardarConfigGlobalDto } from './dto/guardar-config-global.dto';
+import { GuardarConfigTicketMailDto } from './dto/guardar-config-ticket-mail.dto';
 import { GuardarConfigAdvisorDto } from './dto/guardar-config-advisor.dto';
 import { MailTestDto } from './dto/mail-test.dto';
 
@@ -55,6 +56,23 @@ export class ConfiguracionController {
     return this.svc.getGlobal();
   }
 
+  @Get('global/ticket-mail')
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'advisor')
+  async getTicketMail() {
+    const config = await this.svc.getGlobal();
+    return {
+      ticketEmailActivo: config.ticketEmailActivo,
+      ticketEmailAsunto: config.ticketEmailAsunto,
+      ticketEmailCuerpo: config.ticketEmailCuerpo,
+      ticketEmailDesign: config.ticketEmailDesign,
+      ticketEmailSenderName: config.ticketEmailSenderName,
+      ticketEmailIncludeInfo: config.ticketEmailIncludeInfo,
+      ticketEmailSendCopy: config.ticketEmailSendCopy,
+      ticketEmailAttachments: config.ticketEmailAttachments,
+    };
+  }
+
   @Post()
   @HttpCode(HttpStatus.OK)
   guardar(@Body() body: GuardarConfigAdvisorDto, @Request() req: any) {
@@ -69,6 +87,14 @@ export class ConfiguracionController {
     return this.svc.guardar(body, undefined);
   }
 
+  @Post('global/ticket-mail')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(RolesGuard)
+  @Roles('admin', 'advisor')
+  guardarTicketMail(@Body() body: GuardarConfigTicketMailDto) {
+    return this.svc.guardar(body, undefined);
+  }
+
   @Post('global/mail-test')
   @HttpCode(HttpStatus.OK)
   @UseGuards(RolesGuard)
@@ -79,7 +105,7 @@ export class ConfiguracionController {
 
   @Post('global/mail-image')
   @UseGuards(RolesGuard)
-  @Roles('admin')
+  @Roles('admin', 'advisor')
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({

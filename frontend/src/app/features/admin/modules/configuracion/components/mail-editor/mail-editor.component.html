@@ -62,6 +62,7 @@
               [block]="b"
               [selectedId]="selectedId"
               [variables]="variables"
+              [fonts]="fonts"
               [level]="0"
               (selectBlock)="selectBlock($event)"
               (removeBlock)="removeBlock($event)"
@@ -70,6 +71,7 @@
               (alignChange)="onAlignChange($event)"
               (resizeStart)="onResizeStart($event)"
               (dropBlocks)="onInnerDrop($event)"
+              (styleChange)="onStyleChange($event)"
             />
           } @empty {
             <div class="mled__empty">
@@ -90,26 +92,8 @@
             @switch (selectedBlock.type) {
               @case ('text') {
                 <div class="mled__fld">
-                  <label class="mled__fld-label">Tipografia</label>
-                  <select class="mled__select mled__select--full" [(ngModel)]="selectedBlock.fontFamily" (ngModelChange)="panelChanged()">
-                    @for (f of fonts; track f.value) {
-                      <option [value]="f.value">{{ f.label }}</option>
-                    }
-                  </select>
-                </div>
-                <div class="mled__fld">
-                  <label class="mled__fld-label">Tamano de fuente ({{ selectedBlock.fontSize ?? 15 }}px)</label>
-                  <input class="mled__range" type="range" min="10" max="34" [(ngModel)]="selectedBlock.fontSize" (ngModelChange)="panelChanged()"/>
-                </div>
-                <div class="mled__grid">
-                  <div class="mled__fld">
-                    <label class="mled__fld-label">Color texto</label>
-                    <input class="mled__color" type="color" [ngModel]="hexColor(selectedBlock.color, '#1e293b')" (ngModelChange)="selectedBlock.color = $event; panelChanged()"/>
-                  </div>
-                  <div class="mled__fld">
-                    <label class="mled__fld-label">Fondo</label>
-                    <input class="mled__color" type="color" [ngModel]="hexColor(selectedBlock.bg, '#ffffff')" (ngModelChange)="selectedBlock.bg = $event; panelChanged()"/>
-                  </div>
+                  <label class="mled__fld-label">Fondo</label>
+                  <input class="mled__color" type="color" [ngModel]="hexColor(selectedBlock.bg, '#ffffff')" (ngModelChange)="selectedBlock.bg = $event; panelChanged()"/>
                 </div>
                 <div class="mled__fld">
                   <label class="mled__fld-label">Separacion ({{ selectedBlock.padding ?? 14 }}px)</label>
@@ -118,26 +102,8 @@
               }
               @case ('heading') {
                 <div class="mled__fld">
-                  <label class="mled__fld-label">Tipografia</label>
-                  <select class="mled__select mled__select--full" [(ngModel)]="selectedBlock.fontFamily" (ngModelChange)="panelChanged()">
-                    @for (f of fonts; track f.value) {
-                      <option [value]="f.value">{{ f.label }}</option>
-                    }
-                  </select>
-                </div>
-                <div class="mled__fld">
-                  <label class="mled__fld-label">Tamano de fuente ({{ selectedBlock.fontSize ?? 22 }}px)</label>
-                  <input class="mled__range" type="range" min="14" max="46" [(ngModel)]="selectedBlock.fontSize" (ngModelChange)="panelChanged()"/>
-                </div>
-                <div class="mled__grid">
-                  <div class="mled__fld">
-                    <label class="mled__fld-label">Color texto</label>
-                    <input class="mled__color" type="color" [ngModel]="hexColor(selectedBlock.color, '#111827')" (ngModelChange)="selectedBlock.color = $event; panelChanged()"/>
-                  </div>
-                  <div class="mled__fld">
-                    <label class="mled__fld-label">Fondo</label>
-                    <input class="mled__color" type="color" [ngModel]="hexColor(selectedBlock.bg, '#ffffff')" (ngModelChange)="selectedBlock.bg = $event; panelChanged()"/>
-                  </div>
+                  <label class="mled__fld-label">Fondo</label>
+                  <input class="mled__color" type="color" [ngModel]="hexColor(selectedBlock.bg, '#ffffff')" (ngModelChange)="selectedBlock.bg = $event; panelChanged()"/>
                 </div>
                 <div class="mled__fld">
                   <label class="mled__fld-label">Separacion ({{ selectedBlock.padding ?? 14 }}px)</label>

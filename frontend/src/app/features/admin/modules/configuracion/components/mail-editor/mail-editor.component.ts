@@ -18,6 +18,26 @@ import { ConfiguracionFrontendService } from '../../../../../../core/services/co
 
 export type MailAlign = 'left' | 'center' | 'right' | 'justify';
 
+export const TICKET_MAIL_VARIABLES = [
+  { name: 'codigo', desc: 'Codigo del ticket (ej. TKT-2026-0001)' },
+  { name: 'titulo', desc: 'Titulo del caso' },
+  { name: 'descripcion', desc: 'Descripcion del caso' },
+  { name: 'prioridad', desc: 'Prioridad (baja, media, alta, critica)' },
+  { name: 'fecha', desc: 'Fecha y hora del registro' },
+  { name: 'nombre', desc: 'Nombre del cliente' },
+  { name: 'informacion', desc: 'Informacion del cliente (identificacion, rol, colegio, telefono, correo)' },
+  { name: 'conversacion', desc: 'Conversacion tal como se guarda en el ticket' },
+  { name: 'firma', desc: 'Firma del correo (Equipo de Soporte)' },
+];
+
+export const COMUNICADO_MAIL_VARIABLES = [
+  { name: 'nombre', desc: 'Nombre del destinatario' },
+  { name: 'colegio', desc: 'Nombre del colegio del destinatario' },
+  { name: 'email', desc: 'Correo del destinatario' },
+  { name: 'fecha', desc: 'Fecha y hora del envio' },
+  { name: 'firma', desc: 'Firma del correo (nombre del remitente)' },
+];
+
 export interface MailBlockBase {
   id: string;
 }
@@ -151,6 +171,53 @@ function escHtml(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
+export function limpiarHTML(html: string): string {
+  if (!html) return html;
+  const esDocCompleto = /<html[\s>]/i.test(html);
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const body = doc.body;
+  if (!body) return html;
+
+  body.querySelectorAll('a').forEach((a) => {
+    if (!(a.getAttribute('href') || '').trim()) {
+      a.replaceWith(...Array.from(a.childNodes));
+    }
+  });
+
+  body.querySelectorAll('ul, ol').forEach((lista) => {
+    Array.from(lista.childNodes).forEach((n) => {
+      if (n.nodeType === Node.TEXT_NODE && (n as Text).data.trim() === '>') {
+        lista.removeChild(n);
+      }
+    });
+    lista.querySelectorAll('li').forEach((li) => {
+      li.normalize();
+      const walker = doc.createTreeWalker(li, NodeFilter.SHOW_TEXT);
+      const remover: Text[] = [];
+      const textos: Text[] = [];
+      while (walker.nextNode()) {
+        const t = walker.currentNode as Text;
+        if (/^\s*>\s*$/.test(t.data)) {
+          remover.push(t);
+        } else {
+          textos.push(t);
+        }
+      }
+      remover.forEach((t) => t.parentNode?.removeChild(t));
+      if (textos.length) {
+        textos[0].data = textos[0].data.replace(/^\s*>\s*/, '');
+        const ultimo = textos[textos.length - 1];
+        ultimo.data = ultimo.data.replace(/\s*>\s*$/, '').replace(/\s+$/, '');
+      }
+      if (!li.textContent?.trim() && !li.querySelector('img, br, a, ul, ol, table')) {
+        li.remove();
+      }
+    });
+  });
+
+  return esDocCompleto ? doc.documentElement.outerHTML : body.innerHTML;
+}
+
 const readInt = (v: string | null | undefined, d: number): number => {
   if (!v) return d;
   const n = parseInt(v, 10);
@@ -170,11 +237,12 @@ const readAlign = (v: string | null | undefined): MailAlign => {
   styleUrl: './mail-block-view.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class MailBlockViewComponent implements OnDestroy {
+export class MailBlockViewComponent implements OnChanges, OnDestroy {
   @Input() block!: MailBlock;
   @Input() selectedId: string | null = null;
   @Input() level = 0;
   @Input() variables: Array<{ name: string; desc: string }> = [];
+  @Input() fonts: Array<{ value: string; label: string }> = [];
 
   @Output() selectBlock = new EventEmitter<MailBlock>();
   @Output() removeBlock = new EventEmitter<MailBlock>();
@@ -183,12 +251,28 @@ export class MailBlockViewComponent implements OnDestroy {
   @Output() alignChange = new EventEmitter<MailAlignChangeEvent>();
   @Output() resizeStart = new EventEmitter<MailResizeEvent>();
   @Output() dropBlocks = new EventEmitter<CdkDragDrop<MailBlock[]>>();
+  @Output() styleChange = new EventEmitter<{
+    block: MailBlock;
+    patch: Partial<MailTextBlock | MailHeadingBlock>;
+  }>();
 
   variablesOpen = false;
   varMenuStyle: { top: number; left: number } | null = null;
+  toolPop: 'size' | 'font' | 'color' | null = null;
+  toolPopStyle: { top: number; left: number } | null = null;
+
+  readonly fontSizes = [10, 12, 13, 14, 15, 16, 17, 18, 20, 22, 24, 26, 28, 32, 36];
+  readonly textColors = [
+    '#0f172a', '#1e293b', '#475569', '#64748b', '#94a3b8',
+    '#ef4444', '#f97316', '#f59e0b', '#22c55e', '#10b981',
+    '#06b6d4', '#3b82f6', '#6366f1', '#8b5cf6', '#d946ef',
+    '#ec4899', '#ffffff',
+  ];
 
   private varMenuRaf = 0;
   private listCleanRaf = 0;
+  private toolPopAnchor: HTMLElement | null = null;
+  private toolPopRaf = 0;
   private readonly varMenuListenersBound = {
     mousedown: (ev: MouseEvent) => this.onVarDocMouseDown(ev),
     scroll: () => this.varReposition(),
@@ -197,8 +281,24 @@ export class MailBlockViewComponent implements OnDestroy {
 
   constructor(private readonly cdr: ChangeDetectorRef) {}
 
+  ngOnChanges(changes: SimpleChanges): void {
+    const ch = changes['block'];
+    if (!ch) return;
+    const b = this.block as { html?: string } | undefined;
+    const html = b?.html ?? '';
+    const el = this.editable();
+    const focused = !!el && !!document.activeElement && el.contains(document.activeElement);
+    if (!focused) {
+      this.committed.set(this.block.id, html);
+      if (ch.previousValue && (ch.previousValue as MailBlock).id !== this.block.id) {
+        this.committed.delete((ch.previousValue as MailBlock).id);
+      }
+    }
+  }
+
   ngOnDestroy(): void {
     this.varMenuCleanup();
+    this.toolPopCleanup();
   }
 
   // HTML ya confirmado por el bloque: el binding [innerHTML] usa este valor,
@@ -236,11 +336,8 @@ export class MailBlockViewComponent implements OnDestroy {
   }
 
   onTextInput(event: Event): void {
-    this.textChange.emit({
-      block: this.block,
-      html: (event.target as HTMLElement).innerHTML,
-    });
     const el = event.target as HTMLElement;
+    this.textChange.emit({ block: this.block, html: el.innerHTML });
     if (el.querySelector('ul, ol')) this.scheduleListClean(el);
   }
 
@@ -269,11 +366,26 @@ export class MailBlockViewComponent implements OnDestroy {
     event.preventDefault();
     const el = this.editable();
     if (!el) return;
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
+    const range = sel.getRangeAt(0);
+    if (!el.contains(range.commonAncestorContainer)) return;
     const url = window.prompt('URL del enlace:', 'https://');
     if (url === null) return;
-    el.focus();
-    document.execCommand('createLink', false, url);
-    this.commit(el.innerHTML);
+    let href = url.trim();
+    if (!href) return;
+    if (!/^(https?:|mailto:|#)/i.test(href)) href = 'https://' + href;
+    const a = document.createElement('a');
+    a.href = href;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    if (!this.surroundRange(range, a)) return;
+    this.textChange.emit({ block: this.block, html: el.innerHTML });
+  }
+
+  onEditableClick(event: Event): void {
+    const t = event.target as HTMLElement | null;
+    if (t && t.closest('a')) event.preventDefault();
   }
 
   onClearFormat(event: Event): void {
@@ -283,6 +395,149 @@ export class MailBlockViewComponent implements OnDestroy {
     el.focus();
     document.execCommand('removeFormat', false);
     this.commit(el.innerHTML);
+  }
+
+  get blockColor(): string {
+    const b = this.block as MailTextBlock | MailHeadingBlock;
+    return b.color || '#1e293b';
+  }
+
+  get blockSize(): number {
+    const b = this.block as MailTextBlock | MailHeadingBlock;
+    return b.fontSize || 0;
+  }
+
+  get blockFont(): string {
+    const b = this.block as MailTextBlock | MailHeadingBlock;
+    return b.fontFamily || '';
+  }
+
+  toggleToolPop(kind: 'size' | 'font' | 'color', event: Event): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.toolPop = this.toolPop === kind ? null : kind;
+    this.cdr.detectChanges();
+    if (this.toolPop) {
+      this.toolPopAnchor = event.currentTarget as HTMLElement;
+      this.toolPopSetup();
+      this.positionToolPop();
+    } else {
+      this.toolPopCleanup();
+    }
+  }
+
+  pickSize(px: number): void {
+    if (!this.applyInlineStyle(`font-size:${px}px;`)) {
+      this.styleChange.emit({ block: this.block, patch: { fontSize: px } });
+    }
+    this.closeToolPop();
+  }
+
+  pickFont(fam: string): void {
+    if (
+      !this.applyInlineStyle(
+        fam ? `font-family:${fam};` : 'font-family:Arial,Helvetica,sans-serif;',
+      )
+    ) {
+      this.styleChange.emit({ block: this.block, patch: { fontFamily: fam || undefined } });
+    }
+    this.closeToolPop();
+  }
+
+  pickColor(color: string): void {
+    if (!this.applyInlineStyle(`color:${color};`)) {
+      this.styleChange.emit({ block: this.block, patch: { color } });
+    }
+    this.closeToolPop();
+  }
+
+  private applyInlineStyle(styleAttr: string): boolean {
+    const el = this.editable();
+    if (!el) return false;
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return false;
+    const range = sel.getRangeAt(0);
+    if (!el.contains(range.commonAncestorContainer)) return false;
+    const span = document.createElement('span');
+    span.setAttribute('style', styleAttr);
+    if (!this.surroundRange(range, span)) return false;
+    this.textChange.emit({ block: this.block, html: el.innerHTML });
+    return true;
+  }
+
+  // Envuelve el contenido del rango en el nodo dado sin depender de execCommand,
+  // para que el enlace/estilo quede siempre sobre el texto seleccionado.
+  private surroundRange(range: Range, node: HTMLElement): boolean {
+    try {
+      range.surroundContents(node);
+      return true;
+    } catch {
+      try {
+        const frag = range.extractContents();
+        node.appendChild(frag);
+        range.insertNode(node);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+  }
+
+  private closeToolPop(): void {
+    this.toolPop = null;
+    this.toolPopStyle = null;
+    this.toolPopCleanup();
+    this.cdr.detectChanges();
+  }
+
+  private readonly toolPopListenersBound = {
+    mousedown: (ev: MouseEvent) => this.onToolDocMouseDown(ev),
+    scroll: () => this.toolPopReposition(),
+    resize: () => this.toolPopReposition(),
+  };
+
+  private toolPopSetup(): void {
+    document.addEventListener('mousedown', this.toolPopListenersBound.mousedown, true);
+    document.addEventListener('scroll', this.toolPopListenersBound.scroll, true);
+    window.addEventListener('resize', this.toolPopListenersBound.resize);
+  }
+
+  private toolPopCleanup(): void {
+    document.removeEventListener('mousedown', this.toolPopListenersBound.mousedown, true);
+    document.removeEventListener('scroll', this.toolPopListenersBound.scroll, true);
+    window.removeEventListener('resize', this.toolPopListenersBound.resize);
+    if (this.toolPopRaf) {
+      cancelAnimationFrame(this.toolPopRaf);
+      this.toolPopRaf = 0;
+    }
+  }
+
+  private onToolDocMouseDown(ev: MouseEvent): void {
+    const target = ev.target as Node | null;
+    const pop = document.querySelector('.mb__tpop');
+    if (target && pop?.contains(target)) return;
+    this.closeToolPop();
+  }
+
+  private toolPopReposition(): void {
+    if (this.toolPopRaf) return;
+    this.toolPopRaf = requestAnimationFrame(() => {
+      this.toolPopRaf = 0;
+      this.positionToolPop();
+    });
+  }
+
+  private positionToolPop(): void {
+    const anchor = this.toolPopAnchor;
+    if (!anchor) return;
+    const pop = document.querySelector('.mb__tpop') as HTMLElement | null;
+    const w = pop?.offsetWidth ?? 210;
+    const margin = 10;
+    const rect = anchor.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const left = Math.max(margin, Math.min(rect.left, vw - w - margin));
+    this.toolPopStyle = { top: rect.bottom + 6, left };
+    this.cdr.detectChanges();
   }
 
   private editable(): HTMLElement | null {
@@ -302,9 +557,35 @@ export class MailBlockViewComponent implements OnDestroy {
       this.listCleanRaf = 0;
       const current = this.editable();
       if (current && current.querySelector('ul, ol')) {
-        this.limpiarListas(current);
-        this.commit(current.innerHTML);
+        this.limpiarListasSuave(current);
       }
+    });
+  }
+
+  private limpiarListasSuave(el: HTMLElement): void {
+    el.querySelectorAll('ul, ol').forEach((ul) => {
+      Array.from(ul.childNodes).forEach((n) => {
+        if (n.nodeType === Node.TEXT_NODE && (n as Text).data.trim() === '>') {
+          (n as Text).data = '';
+        }
+      });
+      ul.querySelectorAll('li').forEach((li) => {
+        const walker = document.createTreeWalker(li, NodeFilter.SHOW_TEXT);
+        const textos: Text[] = [];
+        while (walker.nextNode()) {
+          const t = walker.currentNode as Text;
+          if (/^\s*>\s*$/.test(t.data)) {
+            t.data = '';
+          } else {
+            textos.push(t);
+          }
+        }
+        if (textos.length) {
+          textos[0].data = textos[0].data.replace(/^\s*>\s*/, '');
+          const ultimo = textos[textos.length - 1];
+          ultimo.data = ultimo.data.replace(/\s*>\s*$/, '');
+        }
+      });
     });
   }
 
@@ -320,18 +601,23 @@ export class MailBlockViewComponent implements OnDestroy {
           while (div.firstChild) li.insertBefore(div.firstChild, div);
           li.removeChild(div);
         });
-        Array.from(li.childNodes).forEach((n) => {
-          if (n.nodeType === Node.TEXT_NODE && (n as Text).data.trim() === '>') {
-            li.removeChild(n);
+        li.normalize();
+        const walker = document.createTreeWalker(li, NodeFilter.SHOW_TEXT);
+        const remover: Text[] = [];
+        const textos: Text[] = [];
+        while (walker.nextNode()) {
+          const t = walker.currentNode as Text;
+          if (/^\s*>\s*$/.test(t.data)) {
+            remover.push(t);
+          } else {
+            textos.push(t);
           }
-        });
-        const first = li.firstChild;
-        if (first?.nodeType === Node.TEXT_NODE) {
-          (first as Text).data = (first as Text).data.replace(/^\s*>\s*/, '');
         }
-        const last = li.lastChild;
-        if (last?.nodeType === Node.TEXT_NODE) {
-          (last as Text).data = (last as Text).data.replace(/\s*>\s*$/, '');
+        remover.forEach((t) => t.parentNode?.removeChild(t));
+        if (textos.length) {
+          textos[0].data = textos[0].data.replace(/^\s*>\s*/, '');
+          const ultimo = textos[textos.length - 1];
+          ultimo.data = ultimo.data.replace(/\s*>\s*$/, '');
         }
       });
       ul.querySelectorAll('li').forEach((li) => {
@@ -442,21 +728,10 @@ export class MailBlockViewComponent implements OnDestroy {
 export class MailEditorComponent implements OnChanges, OnInit, OnDestroy {
   @Input() cuerpo = '';
   @Input() design: unknown[] | null = null;
+  @Input() variables: Array<{ name: string; desc: string }> = TICKET_MAIL_VARIABLES;
 
   @Output() cuerpoChange = new EventEmitter<string>();
   @Output() designChange = new EventEmitter<unknown[] | null>();
-
-  readonly variables = [
-    { name: 'codigo', desc: 'Codigo del ticket (ej. TKT-2026-0001)' },
-    { name: 'titulo', desc: 'Titulo del caso' },
-    { name: 'descripcion', desc: 'Descripcion del caso' },
-    { name: 'prioridad', desc: 'Prioridad (baja, media, alta, critica)' },
-    { name: 'fecha', desc: 'Fecha y hora del registro' },
-    { name: 'nombre', desc: 'Nombre del cliente' },
-    { name: 'informacion', desc: 'Informacion del cliente (identificacion, rol, colegio, telefono, correo)' },
-    { name: 'conversacion', desc: 'Conversacion tal como se guarda en el ticket' },
-    { name: 'firma', desc: 'Firma del correo (Equipo de Soporte)' },
-  ];
 
   readonly aligns: Array<{ value: MailAlign; label: string }> = [
     { value: 'left', label: 'Izquierda' },
@@ -773,6 +1048,13 @@ export class MailEditorComponent implements OnChanges, OnInit, OnDestroy {
     this.schedulePos();
   }
 
+  onStyleChange(e: { block: MailBlock; patch: Partial<MailTextBlock | MailHeadingBlock> }): void {
+    Object.assign(e.block, e.patch);
+    this.emitCambios();
+    this.cdr.detectChanges();
+    this.schedulePos();
+  }
+
   onDrop(event: CdkDragDrop<MailBlock[]>, list: MailBlock[]): void {
     moveItemInArray(list, event.previousIndex, event.currentIndex);
     this.emitCambios();
@@ -922,7 +1204,7 @@ export class MailEditorComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   private compilarCorreo(): string {
-    const body = this.emailificar(this.blocks.map(b => this.bloqueHtml(b)).join('\n'));
+    const body = limpiarHTML(this.emailificar(this.blocks.map(b => this.bloqueHtml(b)).join('\n')));
     return (
       '<!DOCTYPE html>\n' +
       '<html lang="es">\n' +
@@ -945,14 +1227,38 @@ export class MailEditorComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   private emailificar(html: string): string {
-    return html
-      .replace(/<p(?![^>]*\bstyle=)/g, '<p style="margin:0 0 12px;padding:0;line-height:1.6;font-family:Arial,Helvetica,sans-serif;">')
-      .replace(/<(h[1-6])(?![^>]*\bstyle=)/g, '<$1 style="margin:0 0 12px;padding:0;line-height:1.4;font-family:Arial,Helvetica,sans-serif;">')
-      .replace(/<ul(?![^>]*\bstyle=)/g, '<ul style="margin:0 0 12px;padding:0 0 0 20px;line-height:1.6;font-family:Arial,Helvetica,sans-serif;">')
-      .replace(/<ol(?![^>]*\bstyle=)/g, '<ol style="margin:0 0 12px;padding:0 0 0 20px;line-height:1.6;font-family:Arial,Helvetica,sans-serif;">')
-      .replace(/<li(?![^>]*\bstyle=)/g, '<li style="margin:0 0 6px;padding:0;line-height:1.6;">')
-      .replace(/<img(?![^>]*\bstyle=)/g, '<img style="border:0;display:inline-block;max-width:100%;height:auto;">')
-      .replace(/<a(?![^>]*\bstyle=)/g, '<a style="color:#2563eb;text-decoration:underline;">')
+    const addStyle = (tag: string, style: string) =>
+      (m: string, attrs: string): string =>
+        /\bstyle\s*=/.test(attrs) ? m : `<${tag}${attrs} style="${style}">`;
+    let h = html;
+    h = h.replace(
+      /<p\b([^>]*?)>/gi,
+      addStyle('p', 'margin:0 0 12px;padding:0;line-height:1.6;font-family:Arial,Helvetica,sans-serif;'),
+    );
+    h = h.replace(/<(h[1-6])\b([^>]*?)>/gi, (m, tag, attrs) =>
+      /\bstyle\s*=/.test(attrs)
+        ? m
+        : `<${tag}${attrs} style="margin:0 0 12px;padding:0;line-height:1.4;font-family:Arial,Helvetica,sans-serif;">`,
+    );
+    h = h.replace(
+      /<ul\b([^>]*?)>/gi,
+      addStyle('ul', 'margin:0 0 12px;padding:0 0 0 20px;line-height:1.6;font-family:Arial,Helvetica,sans-serif;'),
+    );
+    h = h.replace(
+      /<ol\b([^>]*?)>/gi,
+      addStyle('ol', 'margin:0 0 12px;padding:0 0 0 20px;line-height:1.6;font-family:Arial,Helvetica,sans-serif;'),
+    );
+    h = h.replace(/<li\b([^>]*?)>/gi, addStyle('li', 'margin:0 0 6px;padding:0;line-height:1.6;'));
+    h = h.replace(
+      /<img\b([^>]*?)>/gi,
+      addStyle('img', 'border:0;display:inline-block;max-width:100%;height:auto;'),
+    );
+    h = h.replace(/<a\b([^>]*?)>/gi, (m, attrs) => {
+      if (!/\bhref\s*=\s*["'][^"']+["']/.test(attrs)) return m;
+      if (/\bstyle\s*=/.test(attrs)) return m;
+      return `<a${attrs} style="color:#2563eb;text-decoration:underline;">`;
+    });
+    return h
       .replace(/<li([^>]*)>\s*>/gi, '<li$1>')
       .replace(/>\s*<\/li>/gi, '</li>')
       .replace(/<\/p>\s*<br\/?>\s*/gi, '</p>')

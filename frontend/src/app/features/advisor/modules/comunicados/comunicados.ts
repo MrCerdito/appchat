@@ -1,4 +1,14 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy, ViewChild, ElementRef } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  OnDestroy,
+  AfterViewInit,
+  DoCheck,
+  ChangeDetectorRef,
+  ChangeDetectionStrategy,
+  ViewChild,
+  ElementRef,
+} from '@angular/core';
 import { SlicePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
@@ -6,24 +16,31 @@ import { takeUntil } from 'rxjs/operators';
 import { ComunicadosService, Colegio } from '../../../../core/services/comunicados.service';
 import { Comunicado, Destinatario } from '../../../../core/models/comunicado.model';
 import { NotificationService } from '../../../../core/services/notification.service';
+import { LayoutService } from '../../../../core/services/layout.service';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
 import { fmtDateFull, fmtDateTimeFull } from '../../../../shared/utils/date';
+import { MailEditorComponent, COMUNICADO_MAIL_VARIABLES, limpiarHTML } from '../../../../features/admin/modules/configuracion/components/mail-editor/mail-editor.component';
+import { environment } from '../../../../../environments/environment';
 
 type View = 'inbox' | 'sent' | 'drafts' | 'compose';
+
+const CUERPO_FALLBACK =
+  'Hola {{nombre}},\n\nQueremos informarte sobre la siguiente comunicacion oficial.\n\nSaludos cordiales,\n{{firma}}';
 
 @Component({
   selector: 'app-comunicados',
   standalone: true,
-  imports: [FormsModule, SlicePipe],
+  imports: [FormsModule, SlicePipe, MailEditorComponent],
   templateUrl: './comunicados.html',
   styleUrl: './comunicados.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ComunicadosComponent implements OnInit, OnDestroy {
+export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnDestroy {
   protected readonly trackByIndex = trackByIndex;
   protected readonly trackById = trackById;
   protected readonly fmtDateFull = fmtDateFull;
   protected readonly fmtDateTimeFull = fmtDateTimeFull;
+  protected readonly mailVariables = COMUNICADO_MAIL_VARIABLES;
   view: View = 'inbox';
   comunicados: Comunicado[] = [];
   colegios: Colegio[] = [];
@@ -41,18 +58,18 @@ export class ComunicadosComponent implements OnInit, OnDestroy {
   editingId: string | null = null;
   asunto = '';
   cuerpo = '';
+  design: unknown[] | null = null;
   destinatarios: Destinatario[] = [];
   emailInput = '';
   nombreInput = '';
   showColegiosPicker = false;
   colegioSearch = '';
 
-  // Editor
-  boldActive = false;
-  italicActive = false;
-  underlineActive = false;
-
-  @ViewChild('editor') editorRef!: ElementRef;
+  @ViewChild('composeFrame') private readonly composeFrame?: ElementRef<HTMLIFrameElement>;
+  private lastPreviewDoc = '';
+  private lastRawCuerpo = '';
+  private lastCleanCuerpo = '';
+  private readonly apiBase: string;
 
   private destroy$ = new Subject<void>();
 
@@ -60,9 +77,18 @@ export class ComunicadosComponent implements OnInit, OnDestroy {
     private service: ComunicadosService,
     private notification: NotificationService,
     private cdr: ChangeDetectorRef,
-  ) {}
+    private layout: LayoutService,
+  ) {
+    try {
+      this.apiBase = new URL(environment.apiUrl).origin;
+    } catch {
+      this.apiBase =
+        typeof window !== 'undefined' ? window.location.origin : '';
+    }
+  }
 
   ngOnInit(): void {
+    this.layout.setSidebarForcedCollapsed(true);
     this.loadAll();
     this.service.getColegios().pipe(takeUntil(this.destroy$)).subscribe({
       next: (c) => {
@@ -74,6 +100,7 @@ export class ComunicadosComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.layout.setSidebarForcedCollapsed(false);
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -143,10 +170,12 @@ export class ComunicadosComponent implements OnInit, OnDestroy {
     this.stats = null;
     this.error = '';
     this.success = '';
+    this.lastPreviewDoc = '';
     if (comunicado) {
       this.editingId = comunicado.id;
       this.asunto = comunicado.asunto;
       this.cuerpo = comunicado.cuerpo;
+      this.design = Array.isArray(comunicado.design) ? comunicado.design : null;
       this.destinatarios = comunicado.destinatarios.map(d => ({
         email: d.email,
         nombre: d.nombre,
@@ -154,14 +183,10 @@ export class ComunicadosComponent implements OnInit, OnDestroy {
     } else {
       this.editingId = null;
       this.asunto = '';
-      this.cuerpo = '';
+      this.cuerpo = CUERPO_FALLBACK;
+      this.design = null;
       this.destinatarios = [];
     }
-    setTimeout(() => {
-      if (this.editorRef) {
-        this.editorRef.nativeElement.innerHTML = this.cuerpo;
-      }
-    }, 50);
   }
 
   addEmailManual(): void {
@@ -192,33 +217,108 @@ export class ComunicadosComponent implements OnInit, OnDestroy {
     this.destinatarios = this.destinatarios.filter(d => d.email !== email);
   }
 
-  format(command: string, value?: string): void {
-    document.execCommand(command, false, value);
-    this.editorRef.nativeElement.focus();
-    this.updateFormatState();
+  onCuerpoChange(v: string): void {
+    this.cuerpo = v;
   }
 
-  updateFormatState(): void {
-    this.boldActive      = document.queryCommandState('bold');
-    this.italicActive    = document.queryCommandState('italic');
-    this.underlineActive = document.queryCommandState('underline');
-    this.cdr.detectChanges();
+  onDesignChange(v: unknown[] | null): void {
+    this.design = v;
   }
 
-  onEditorInput(): void {
-    this.cuerpo = this.editorRef.nativeElement.innerHTML;
-    this.updateFormatState();
+  ngDoCheck(): void {
+    if (this.view !== 'compose') return;
+    const frame = this.composeFrame?.nativeElement;
+    if (!frame) return;
+    const doc = this.previewDoc();
+    if (doc === this.lastPreviewDoc) return;
+    this.lastPreviewDoc = doc;
+    this.renderPreview(frame, doc);
+  }
+
+  ngAfterViewInit(): void {
+    const frame = this.composeFrame?.nativeElement;
+    if (!frame) return;
+    const doc = this.previewDoc();
+    this.lastPreviewDoc = doc;
+    this.renderPreview(frame, doc);
+  }
+
+  previewAsunto(): string {
+    return (this.asunto || '')
+      .replace(/\{\{\s*nombre\s*\}\}/g, 'Laura Gomez')
+      .replace(/\{\{\s*colegio\s*\}\}/g, 'Colegio San Jose')
+      .replace(/\{\{\s*email\s*\}\}/g, 'rectoria@colegio.edu.co')
+      .replace(/\{\{\s*fecha\s*\}\}/g, '14/08/2026')
+      .replace(/\{\{\s*firma\s*\}\}/g, 'Equipo de Soporte');
+  }
+
+  previewCuerpo(): string {
+    const raw = this.absolutizarUploads(this.cuerpo);
+    if (raw !== this.lastRawCuerpo) {
+      this.lastRawCuerpo = raw;
+      this.lastCleanCuerpo = limpiarHTML(raw);
+    }
+    return this.lastCleanCuerpo
+      .replace(/\{\{\s*nombre\s*\}\}/g, 'Laura Gomez')
+      .replace(/\{\{\s*colegio\s*\}\}/g, 'Colegio San Jose')
+      .replace(/\{\{\s*email\s*\}\}/g, 'rectoria@colegio.edu.co')
+      .replace(/\{\{\s*fecha\s*\}\}/g, '14/08/2026')
+      .replace(/\{\{\s*firma\s*\}\}/g, 'Equipo de Soporte');
+  }
+
+  private absolutizarUploads(html: string): string {
+    if (!this.apiBase) return html;
+    return html.replace(/("|\()\/(uploads\/[^")]+)/g, `$1${this.apiBase}/$2`);
+  }
+
+  previewDoc(): string {
+    const body = this.previewCuerpo();
+    if (/<html[\s>]/i.test(body)) return body;
+    return (
+      '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/></head>' +
+      '<body style="margin:0;padding:24px 0;background:#eef1f6;font-family:Arial,Helvetica,sans-serif;color:#1f2937;overflow-wrap:break-word;word-break:break-word;">' +
+      '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef1f6;"><tr><td align="center" style="padding:24px 12px;">' +
+      '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;"><tr><td style="padding:24px 28px;">' +
+      body.replace(/\r?\n/g, '<br/>') +
+      '</td></tr></table></td></tr></table>' +
+      '</body></html>'
+    );
+  }
+
+  private renderPreview(frame: HTMLIFrameElement, doc: string): void {
+    const cd = frame.contentDocument;
+    if (!cd) {
+      frame.srcdoc = doc;
+      return;
+    }
+    cd.open();
+    cd.write(doc);
+    cd.close();
+    this.syncFrameHeight(frame);
+  }
+
+  private syncFrameHeight(frame: HTMLIFrameElement): void {
+    try {
+      const h = frame.contentWindow?.document.body?.scrollHeight;
+      if (typeof h === 'number' && h > 0) frame.style.height = h + 'px';
+    } catch {
+      /* cross-origin no aplica: srcdoc y about:blank son del mismo documento */
+    }
+  }
+
+  frameLoad(): void {
+    const frame = this.composeFrame?.nativeElement;
+    if (frame) this.syncFrameHeight(frame);
   }
 
   saveDraft(): void {
     if (!this.asunto.trim()) { this.error = 'El asunto es obligatorio'; return; }
     this.saving = true;
     this.error = '';
-    const body = this.editorRef?.nativeElement.innerHTML ?? this.cuerpo;
 
     const obs = this.editingId
-      ? this.service.update(this.editingId, this.asunto, body, this.destinatarios)
-      : this.service.saveDraft(this.asunto, body, this.destinatarios);
+      ? this.service.update(this.editingId, this.asunto, this.cuerpo, this.destinatarios, this.design)
+      : this.service.saveDraft(this.asunto, this.cuerpo, this.destinatarios, this.design);
 
     obs.pipe(takeUntil(this.destroy$)).subscribe({
       next: (c) => {
@@ -241,12 +341,11 @@ export class ComunicadosComponent implements OnInit, OnDestroy {
     if (!this.destinatarios.length) { this.error = 'Agrega al menos un destinatario'; return; }
     this.sending = true;
     this.error = '';
-    const body = this.editorRef?.nativeElement.innerHTML ?? this.cuerpo;
     const totalDest = this.destinatarios.length;
 
     const save$ = this.editingId
-      ? this.service.update(this.editingId, this.asunto, body, this.destinatarios)
-      : this.service.saveDraft(this.asunto, body, this.destinatarios);
+      ? this.service.update(this.editingId, this.asunto, this.cuerpo, this.destinatarios, this.design)
+      : this.service.saveDraft(this.asunto, this.cuerpo, this.destinatarios, this.design);
 
     save$.pipe(takeUntil(this.destroy$)).subscribe({
       next: (c) => {

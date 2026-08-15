@@ -9,6 +9,7 @@ import { TicketService } from '../../core/services/ticket.service';
 import { AuthService } from '../../core/services/auth.service';
 import { SessionService } from '../../core/services/session.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { LayoutService } from '../../core/services/layout.service';
 import { Ticket, TicketQuery, TicketUpdateDto } from '../../core/models/ticket.model';
 import { User } from '../../core/models/user.model';
 import {
@@ -17,11 +18,12 @@ import {
 } from '../utils/ticket-categories';
 import { trackByIndex, trackById } from '../utils/track-by';
 import { fmtDateShort, fmtMedium, fmtDateTime } from '../utils/date';
+import { TicketMailTemplateComponent } from './components/ticket-mail-template/ticket-mail-template.component';
 
 @Component({
   selector: 'app-tickets',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, DragDropModule],
+  imports: [CommonModule, FormsModule, RouterModule, DragDropModule, TicketMailTemplateComponent],
   templateUrl: './tickets.component.html',
   styleUrl: './tickets.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -51,7 +53,7 @@ export class TicketsComponent implements OnInit, OnDestroy {
 
   sidebarFilter = 'all';
   sidebarFilterType: 'status' | 'priority' | 'source' | 'category' | 'all' = 'all';
-  activeView: 'list' | 'categories' = 'list';
+  activeView: 'list' | 'categories' | 'mail' = 'list';
 
   categories: string[] = [];
   newCategory = '';
@@ -120,6 +122,7 @@ export class TicketsComponent implements OnInit, OnDestroy {
     private auth: AuthService,
     private sessionService: SessionService,
     private notification: NotificationService,
+    private layout: LayoutService,
     private cdr: ChangeDetectorRef,
   ) {}
 
@@ -142,6 +145,23 @@ export class TicketsComponent implements OnInit, OnDestroy {
   onSearchChange(value: string): void {
     this.search = value;
     this.search$.next(value);
+  }
+
+  openMailConfig(): void {
+    this.activeView = 'mail';
+    this.selectedTicket = null;
+    this.layout.setSidebarForcedCollapsed(true);
+    this.cdr.detectChanges();
+  }
+
+  closeMailConfig(): void {
+    this.activeView = 'list';
+    this.layout.setSidebarForcedCollapsed(false);
+    this.cdr.detectChanges();
+  }
+
+  onMailStateChange(): void {
+    this.cdr.markForCheck();
   }
 
   selectFilter(id: string, type: string): void {
@@ -416,6 +436,7 @@ export class TicketsComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.layout.setSidebarForcedCollapsed(false);
     this.destroy$.next();
     this.destroy$.complete();
   }

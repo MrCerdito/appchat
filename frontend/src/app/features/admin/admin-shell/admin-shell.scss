@@ -43,7 +43,7 @@
   flex-direction: column;
   overflow: hidden;
   flex-shrink: 0;
-  transition: transform 0.25s ease;
+  transition: width 0.25s ease, transform 0.25s ease, min-width 0.25s ease;
 
   @media (max-width: 768px) {
     position: fixed;

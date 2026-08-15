@@ -377,6 +377,11 @@
     </div>
     }
 
+    <div class="compose-grid">
+
+      <!-- ── Columna de edición ─────────────────────────────────── -->
+      <div class="compose-left">
+
     <!-- Para -->
     <div class="compose-field compose-field--to">
       <span class="field-label">Para</span>
@@ -463,54 +468,13 @@
 
     <!-- Editor -->
     <div class="editor-wrapper">
-      <div class="editor-toolbar">
-        <button class="tb-btn" [class.active]="boldActive"
-          (mousedown)="$event.preventDefault(); format('bold')" title="Negrita">
-          <strong>B</strong>
-        </button>
-        <button class="tb-btn" [class.active]="italicActive"
-          (mousedown)="$event.preventDefault(); format('italic')" title="Cursiva">
-          <em>I</em>
-        </button>
-        <button class="tb-btn" [class.active]="underlineActive"
-          (mousedown)="$event.preventDefault(); format('underline')" title="Subrayado">
-          <u>U</u>
-        </button>
-        <div class="tb-sep"></div>
-        <button class="tb-btn" (mousedown)="$event.preventDefault(); format('justifyLeft')" title="Izquierda">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="18" y2="18"/></svg>
-        </button>
-        <button class="tb-btn" (mousedown)="$event.preventDefault(); format('justifyCenter')" title="Centro">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
-        </button>
-        <button class="tb-btn" (mousedown)="$event.preventDefault(); format('justifyRight')" title="Derecha">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="9" y1="12" x2="21" y2="12"/><line x1="6" y1="18" x2="21" y2="18"/></svg>
-        </button>
-        <div class="tb-sep"></div>
-        <button class="tb-btn" (mousedown)="$event.preventDefault(); format('insertUnorderedList')" title="Lista">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/></svg>
-        </button>
-        <button class="tb-btn" (mousedown)="$event.preventDefault(); format('insertOrderedList')" title="Lista numerada">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><text x="2" y="8" font-size="7" fill="currentColor" stroke="none">1.</text><text x="2" y="14" font-size="7" fill="currentColor" stroke="none">2.</text><text x="2" y="20" font-size="7" fill="currentColor" stroke="none">3.</text></svg>
-        </button>
-        <div class="tb-sep"></div>
-        <select class="tb-select" (change)="format('fontSize', $any($event.target).value)">
-          <option value="3" selected>Normal</option>
-          <option value="1">Pequeño</option>
-          <option value="4">Grande</option>
-          <option value="5">Muy grande</option>
-        </select>
-        <div class="tb-sep"></div>
-        <button class="tb-btn" (mousedown)="$event.preventDefault(); format('removeFormat')" title="Limpiar formato">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2L6 10l-4 12 12-4 8-8-8-8z"/><line x1="6" y1="18" x2="18" y2="6" stroke-width="1.5"/></svg>
-        </button>
-      </div>
-      <div #editor class="editor-body" contenteditable="true"
-        (input)="onEditorInput()"
-        (keyup)="updateFormatState()"
-        (mouseup)="updateFormatState()"
-        [attr.data-placeholder]="'Escribe el contenido del comunicado...'">
-      </div>
+      <app-mail-editor
+        [cuerpo]="cuerpo"
+        [design]="design"
+        [variables]="mailVariables"
+        (cuerpoChange)="onCuerpoChange($event)"
+        (designChange)="onDesignChange($event)"
+      ></app-mail-editor>
     </div>
 
     <!-- Acciones -->
@@ -531,6 +495,31 @@
         </svg>
         {{ sending ? 'Enviando...' : 'Enviar comunicado' }}
       </button>
+    </div>
+      </div>
+
+      <!-- ── Columna de vista previa ─────────────────────────────── -->
+      <div class="compose-right">
+        <div class="preview-head">
+          <span class="preview-title">
+            <span class="preview-pulse"></span>
+            Vista previa en vivo
+          </span>
+          <span class="preview-sub">El correo se actualiza con cada cambio</span>
+        </div>
+
+        <div class="preview-mail">
+          <div class="preview-subjectbar">
+            <span class="preview-recipients">Para ({{ destinatarios.length }})</span>
+            <strong class="preview-subject">{{ previewAsunto() }}</strong>
+          </div>
+          <div class="preview-mail-body">
+            <iframe #composeFrame class="preview-frame" title="Vista previa del comunicado"
+              (load)="frameLoad()"></iframe>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
   }

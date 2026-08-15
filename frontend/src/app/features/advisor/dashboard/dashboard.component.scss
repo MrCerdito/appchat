@@ -45,7 +45,7 @@
   overflow-y: auto;
   scrollbar-width: none;
   flex-shrink: 0;
-  transition: transform 0.25s ease;
+  transition: width 0.25s ease, transform 0.25s ease, min-width 0.25s ease;
 
   &::-webkit-scrollbar { display: none; }
 
@@ -64,6 +64,36 @@
   @media (min-width: 1269px) and (max-width: 1023px) {
     width: 68px;
     min-width: 68px;
+  }
+}
+
+// Sidebar oculto (forzado, p.ej. configuracion de correo de tickets / comunicados)
+.advisor-shell.sidebar-forced-collapsed {
+  .shell-sidebar {
+    width: 0;
+    min-width: 0;
+    transform: translateX(-100%);
+    border-right: 0;
+    overflow: hidden;
+
+    // Reabrir como overlay desde la hamburguesa de la topbar
+    &.open {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 300;
+      width: 240px;
+      min-width: 240px;
+      height: 100%;
+      transform: translateX(0);
+      overflow-y: auto;
+      border-right: 1px solid var(--sidebar-border);
+      box-shadow: 18px 0 42px rgba(0, 0, 0, 0.24);
+    }
+  }
+
+  .sidebar-overlay {
+    display: block;
   }
 }
 

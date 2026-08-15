@@ -9,6 +9,7 @@ export interface Comunicado {
   id: string;
   asunto: string;
   cuerpo: string;
+  design: unknown[] | null;
   senderName: string;
   status: 'sent' | 'draft' | 'failed';
   destinatarios: Destinatario[];

@@ -27,12 +27,33 @@ export class ComunicadosService {
     return this.http.get<Colegio[]>(`${environment.apiUrl}/comunicados/colegios`);
   }
 
-  saveDraft(asunto: string, cuerpo: string, destinatarios: Destinatario[]): Observable<Comunicado> {
-    return this.http.post<Comunicado>(`${environment.apiUrl}/comunicados/draft`, { asunto, cuerpo, destinatarios });
+  saveDraft(
+    asunto: string,
+    cuerpo: string,
+    destinatarios: Destinatario[],
+    design?: unknown[] | null,
+  ): Observable<Comunicado> {
+    return this.http.post<Comunicado>(`${environment.apiUrl}/comunicados/draft`, {
+      asunto,
+      cuerpo,
+      destinatarios,
+      design: design ?? null,
+    });
   }
 
-  update(id: string, asunto: string, cuerpo: string, destinatarios: Destinatario[]): Observable<Comunicado> {
-    return this.http.put<Comunicado>(`${environment.apiUrl}/comunicados/${id}`, { asunto, cuerpo, destinatarios });
+  update(
+    id: string,
+    asunto: string,
+    cuerpo: string,
+    destinatarios: Destinatario[],
+    design?: unknown[] | null,
+  ): Observable<Comunicado> {
+    return this.http.put<Comunicado>(`${environment.apiUrl}/comunicados/${id}`, {
+      asunto,
+      cuerpo,
+      destinatarios,
+      design: design ?? null,
+    });
   }
 
   send(id: string): Observable<Comunicado> {

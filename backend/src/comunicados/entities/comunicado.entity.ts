@@ -31,6 +31,9 @@ export class Comunicado {
   @Column({ type: 'text' })
   cuerpo: string;
 
+  @Column({ name: 'design', type: 'jsonb', nullable: true })
+  design: unknown[] | null;
+
   @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'sender_id' })
   sender: User;

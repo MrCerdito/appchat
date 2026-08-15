@@ -18,6 +18,15 @@
   background: var(--bg);
   border-right: 1px solid var(--border);
   overflow: hidden;
+  flex-shrink: 0;
+  transition: width 0.3s ease, transform 0.3s ease, min-width 0.3s ease;
+
+  &.ts-sidebar--hidden {
+    width: 0;
+    min-width: 0;
+    transform: translateX(-100%);
+    border-right: 0;
+  }
 }
 
 .ts-sidebar-header {
@@ -939,4 +948,134 @@
 .ts-kanban-column.cdk-drop-list-dragging {
   border-color: #6366f1;
   box-shadow: 0 0 0 1px rgba(99,102,241,0.2);
+}
+
+// ── Vista de correo de tickets ────────────────────────────
+.ts-view--mail {
+  overflow-y: auto;
+  animation: ts-mail-in 0.28s ease;
+}
+
+@keyframes ts-mail-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.ts-mail-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 20px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.ts-mail-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+.ts-mail-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.ts-mail-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-faint);
+  flex: 0 0 auto;
+}
+
+.ts-mail-status--dirty {
+  color: var(--warning);
+  border-color: rgba(245, 158, 11, 0.35);
+  background: var(--warning-soft);
+}
+.ts-mail-status--dirty .ts-mail-status-dot { background: var(--warning); }
+
+.ts-mail-status--saving {
+  color: var(--info);
+  border-color: rgba(59, 130, 246, 0.35);
+  background: var(--info-soft);
+}
+.ts-mail-status--saving .ts-mail-status-dot {
+  background: var(--info);
+  animation: ts-mail-pulse 1s ease-in-out infinite;
+}
+
+.ts-mail-status--saved {
+  color: var(--success);
+  border-color: rgba(16, 185, 129, 0.35);
+  background: var(--success-soft);
+}
+.ts-mail-status--saved .ts-mail-status-dot { background: var(--success); }
+
+.ts-mail-status--error {
+  color: var(--danger);
+  border-color: rgba(239, 68, 68, 0.35);
+  background: var(--danger-soft);
+}
+.ts-mail-status--error .ts-mail-status-dot { background: var(--danger); }
+
+@keyframes ts-mail-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.ts-mail-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 7px;
+  background: #6366f1;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+
+  svg { width: 15px; height: 15px; }
+
+  &:hover:not(:disabled) { background: #5455e0; }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
+@media (max-width: 640px) {
+  .ts-mail-header {
+    flex-wrap: wrap;
+  }
+}
+
+.ts-gear-btn {
+  color: var(--text-muted);
+  svg { flex-shrink: 0; }
+  &:hover {
+    color: var(--primary);
+    border-color: var(--primary);
+  }
 }

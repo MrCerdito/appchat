@@ -1,0 +1,101 @@
+<section class="tmc">
+  <header class="tmc-topbar">
+    <div class="tmc-topbar-info">
+      <h2>Correo SMTP</h2>
+      <p>Servidor de correo compartido por los tickets y los comunicados masivos. Esta configuracion se usa para todo el envio de correo de la plataforma.</p>
+    </div>
+    <div class="tmc-topbar-actions">
+      <span
+        class="tmc-status"
+        [class.tmc-status--dirty]="status === 'dirty'"
+        [class.tmc-status--saving]="status === 'saving'"
+        [class.tmc-status--saved]="status === 'saved'"
+        [class.tmc-status--error]="status === 'error'"
+      >
+        <span class="tmc-status-dot"></span>
+        {{ statusLabel }}
+      </span>
+      <button class="tmc-save" [disabled]="!dirty || status === 'saving'" (click)="guardar()">
+        <svg *ngIf="status !== 'saving'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        {{ status === 'saving' ? 'Guardando...' : 'Guardar cambios' }}
+      </button>
+    </div>
+  </header>
+
+  <div class="tmc-body">
+    <div class="tmc-left">
+      <!-- ── Servidor SMTP ─────────────────────────────────── -->
+      <section class="tmc-card">
+        <div class="tmc-card-head">
+          <div>
+            <h3>Servidor SMTP</h3>
+            <p>Servidor de correo usado para enviar los tickets y los comunicados</p>
+          </div>
+        </div>
+        <div class="tmc-card-body">
+          <div class="tmc-field">
+            <label for="smtp-preset">Preset</label>
+            <select id="smtp-preset" [(ngModel)]="smtpPreset" (ngModelChange)="aplicarPresetSmtp($event)">
+              <option *ngFor="let p of presets" [ngValue]="p.value">{{ p.label }}</option>
+            </select>
+          </div>
+
+          <div class="tmc-grid2">
+            <div class="tmc-field">
+              <label for="smtp-host">Host</label>
+              <input id="smtp-host" type="text" [(ngModel)]="smtp.smtpHost" (ngModelChange)="markDirty()" placeholder="smtp.tu-dominio.com" />
+            </div>
+            <div class="tmc-field">
+              <label for="smtp-port">Puerto</label>
+              <input id="smtp-port" type="number" [(ngModel)]="smtp.smtpPort" (ngModelChange)="markDirty()" />
+            </div>
+          </div>
+
+          <div class="tmc-toggle-row">
+            <div class="tmc-toggle-text">
+              <strong>Conexion segura (SSL/TLS)</strong>
+              <p>Activo para el puerto 465; desactivado para 587 con STARTTLS</p>
+            </div>
+            <label class="tmc-switch">
+              <input type="checkbox" [(ngModel)]="smtp.smtpSecure" (ngModelChange)="markDirty()" />
+              <span class="tmc-switch-slider"></span>
+            </label>
+          </div>
+
+          <div class="tmc-grid2">
+            <div class="tmc-field">
+              <label for="smtp-user">Usuario</label>
+              <input id="smtp-user" type="text" [(ngModel)]="smtp.smtpUser" (ngModelChange)="markDirty()" placeholder="no-reply&#64;tu-dominio.com" />
+            </div>
+            <div class="tmc-field">
+              <label for="smtp-pass">Clave / App password</label>
+              <input id="smtp-pass" type="password" [(ngModel)]="smtp.smtpPass" (ngModelChange)="markDirty()" placeholder="••••••••" autocomplete="new-password" />
+            </div>
+          </div>
+
+          <div class="tmc-field">
+            <label for="smtp-from">Correo remitente (De)</label>
+            <input id="smtp-from" type="text" [(ngModel)]="smtp.mailFrom" (ngModelChange)="markDirty()" placeholder="no-reply&#64;tu-dominio.com" />
+          </div>
+
+          <div class="tmc-test">
+            <div class="tmc-test-head">
+              <strong>Probar conexion</strong>
+              <span class="tmc-test-result" *ngIf="mailTestResult" [class.tmc-test-result--ok]="mailTestResult.ok" [class.tmc-test-result--err]="!mailTestResult.ok">
+                <span class="tmc-status-dot"></span>
+                {{ mailTestResult.ok ? 'Enviado correctamente' : 'Fallo la conexion' }}
+              </span>
+            </div>
+            <div class="tmc-test-row">
+              <input type="email" [(ngModel)]="mailTestEmail" placeholder="correo que recibira la prueba" />
+              <button class="tmc-test-btn" (click)="probarCorreo()" [disabled]="mailTesting">
+                {{ mailTesting ? 'Enviando...' : 'Enviar prueba' }}
+              </button>
+            </div>
+            <p class="tmc-hint" *ngIf="mailTestResult && !mailTestResult.ok">{{ mailTestResult.message }}</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</section>

@@ -171,7 +171,7 @@
               <rect x="2" y="4" width="20" height="16" rx="2" ry="2"/>
               <path d="M22 7l-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
             </svg>
-            Correo de tickets
+            Correo SMTP
           </button>
         </div>
         } @else if (grupo === 'whatsapp') {
@@ -574,10 +574,10 @@
       }
 
       <!-- ══════════════════════════════════════════════════════════
-           TAB — CORREO DE TICKETS (Chat en línea)
+           TAB — CORREO SMTP (Chat en línea)
       ══════════════════════════════════════════════════════════ -->
       @if (tab === 'correoTickets') {
-      <app-ticket-mail-config [config]="config" (configChange)="onMailConfigChange($event)"></app-ticket-mail-config>
+      <app-smtp-config [config]="config" (configChange)="onMailConfigChange($event)"></app-smtp-config>
       }
 
       <!-- ══════════════════════════════════════════════════════════

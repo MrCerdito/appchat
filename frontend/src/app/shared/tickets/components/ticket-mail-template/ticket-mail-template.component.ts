@@ -4,14 +4,12 @@ import {
   Component,
   ElementRef,
   EventEmitter,
-  Input,
-  DoCheck,
-  OnChanges,
+  Output,
+  ViewChild,
+  OnInit,
   OnDestroy,
   AfterViewInit,
-  Output,
-  SimpleChanges,
-  ViewChild,
+  DoCheck,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -20,14 +18,14 @@ import { takeUntil } from 'rxjs/operators';
 import {
   ConfiguracionData,
   ConfiguracionFrontendService,
-} from '../../../../../../core/services/configuracion.service';
-import { NotificationService } from '../../../../../../core/services/notification.service';
-import { MailEditorComponent } from '../mail-editor/mail-editor.component';
-import { environment } from '../../../../../../../environments/environment';
+} from '../../../../core/services/configuracion.service';
+import { NotificationService } from '../../../../core/services/notification.service';
+import { MailEditorComponent, limpiarHTML } from '../../../../features/admin/modules/configuracion/components/mail-editor/mail-editor.component';
+import { environment } from '../../../../../environments/environment';
 
 export type SaveStatus = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
 
-export interface MailState {
+export interface MailTemplateState {
   activo: boolean;
   asunto: string;
   cuerpo: string;
@@ -36,12 +34,6 @@ export interface MailState {
   includeInfo: boolean;
   sendCopy: boolean;
   attachments: boolean;
-  smtpHost: string;
-  smtpPort: number;
-  smtpSecure: boolean;
-  smtpUser: string;
-  smtpPass: string;
-  mailFrom: string;
 }
 
 const ASUNTO_FALLBACK = 'Tu caso {{codigo}} fue registrado';
@@ -50,20 +42,23 @@ const CUERPO_FALLBACK =
   'Hola {{nombre}},\n\nRecibimos tu solicitud y quedo registrada con el codigo {{codigo}}. Este numero te servira para consultar el estado de tu caso cuando quieras.\n\nDatos del caso:\n- Titulo: {{titulo}}\n- Descripcion: {{descripcion}}\n- Prioridad: {{prioridad}}\n- Fecha: {{fecha}}\n\nInformacion que registraste:\n\n{{informacion}}\n\nConversacion de tu solicitud:\n\n{{conversacion}}\n\nSi necesitas agregar algo o tienes alguna duda, puedes responder este correo o volver a escribirnos por el chat. Quedamos atentos.\n\nAtentamente,\nEquipo de Soporte';
 
 @Component({
-  selector: 'app-ticket-mail-config',
+  selector: 'app-ticket-mail-template',
   standalone: true,
   imports: [CommonModule, FormsModule, MailEditorComponent],
-  templateUrl: './ticket-mail-config.html',
-  styleUrl: './ticket-mail-config.scss',
+  templateUrl: './ticket-mail-template.html',
+  styleUrl: './ticket-mail-template.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class TicketMailConfigComponent implements OnChanges, DoCheck, AfterViewInit, OnDestroy {
+export class TicketMailTemplateComponent
+  implements OnInit, DoCheck, AfterViewInit, OnDestroy
+{
   @ViewChild('mailFrame') private readonly mailFrame?: ElementRef<HTMLIFrameElement>;
+  @Output() stateChange = new EventEmitter<void>();
   private lastPreviewDoc = '';
-  @Input() config: ConfiguracionData | null = null;
-  @Output() configChange = new EventEmitter<ConfiguracionData>();
+  private lastRawCuerpo = '';
+  private lastCleanCuerpo = '';
 
-  mail: MailState = {
+  mail: MailTemplateState = {
     activo: true,
     asunto: ASUNTO_FALLBACK,
     cuerpo: CUERPO_FALLBACK,
@@ -72,29 +67,12 @@ export class TicketMailConfigComponent implements OnChanges, DoCheck, AfterViewI
     includeInfo: true,
     sendCopy: false,
     attachments: false,
-    smtpHost: '',
-    smtpPort: 465,
-    smtpSecure: true,
-    smtpUser: '',
-    smtpPass: '',
-    mailFrom: '',
   };
 
   dirty = false;
   status: SaveStatus = 'idle';
   saveError = '';
-  smtpOpen = false;
-
-  smtpPreset = 'custom';
-  mailTestEmail = '';
-  mailTesting = false;
-  mailTestResult: { ok: boolean; message: string } | null = null;
-
-  readonly presets = [
-    { value: 'gmail', label: 'Gmail' },
-    { value: 'outlook', label: 'Outlook / Microsoft 365' },
-    { value: 'custom', label: 'Otro (configuracion manual)' },
-  ];
+  loading = true;
 
   private readonly apiBase: string;
   private destroy$ = new Subject<void>();
@@ -107,14 +85,27 @@ export class TicketMailConfigComponent implements OnChanges, DoCheck, AfterViewI
     try {
       this.apiBase = new URL(environment.apiUrl).origin;
     } catch {
-      this.apiBase = typeof window !== 'undefined' ? window.location.origin : '';
+      this.apiBase =
+        typeof window !== 'undefined' ? window.location.origin : '';
     }
   }
 
-  ngOnChanges(changes: SimpleChanges): void {
-    if (changes['config'] && this.config) {
-      if (!this.dirty) this.syncFromConfig();
-    }
+  ngOnInit(): void {
+    this.svc.getTicketMail().pipe(takeUntil(this.destroy$)).subscribe({
+      next: (config) => {
+        this.syncFromConfig(config);
+        this.loading = false;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.loading = false;
+        this.notification.error(
+          'Error',
+          'No se pudo cargar la configuracion del correo.',
+        );
+        this.cdr.detectChanges();
+      },
+    });
   }
 
   ngOnDestroy(): void {
@@ -139,27 +130,19 @@ export class TicketMailConfigComponent implements OnChanges, DoCheck, AfterViewI
     this.renderPreview(frame, doc);
   }
 
-  private syncFromConfig(): void {
-    if (!this.config) return;
+  private syncFromConfig(config: ConfiguracionData): void {
     this.mail = {
-      activo: this.config.ticketEmailActivo ?? true,
-      asunto: this.config.ticketEmailAsunto || ASUNTO_FALLBACK,
-      cuerpo: this.config.ticketEmailCuerpo || CUERPO_FALLBACK,
-      design: Array.isArray(this.config.ticketEmailDesign)
-        ? this.config.ticketEmailDesign
+      activo: config.ticketEmailActivo ?? true,
+      asunto: config.ticketEmailAsunto || ASUNTO_FALLBACK,
+      cuerpo: config.ticketEmailCuerpo || CUERPO_FALLBACK,
+      design: Array.isArray(config.ticketEmailDesign)
+        ? config.ticketEmailDesign
         : null,
-      senderName: this.config.ticketEmailSenderName || 'Soporte',
-      includeInfo: this.config.ticketEmailIncludeInfo ?? true,
-      sendCopy: this.config.ticketEmailSendCopy ?? false,
-      attachments: this.config.ticketEmailAttachments ?? false,
-      smtpHost: this.config.smtpHost || '',
-      smtpPort: this.config.smtpPort || 465,
-      smtpSecure: this.config.smtpSecure ?? true,
-      smtpUser: this.config.smtpUser || '',
-      smtpPass: this.config.smtpPass || '',
-      mailFrom: this.config.mailFrom || '',
+      senderName: config.ticketEmailSenderName || 'Soporte',
+      includeInfo: config.ticketEmailIncludeInfo ?? true,
+      sendCopy: config.ticketEmailSendCopy ?? false,
+      attachments: config.ticketEmailAttachments ?? false,
     };
-    this.detectPreset();
     this.dirty = false;
     this.saveError = '';
     this.cdr.detectChanges();
@@ -169,7 +152,7 @@ export class TicketMailConfigComponent implements OnChanges, DoCheck, AfterViewI
     this.dirty = true;
     this.status = 'dirty';
     this.saveError = '';
-    this.emitConfig();
+    this.stateChange.emit();
     this.cdr.detectChanges();
   }
 
@@ -183,144 +166,6 @@ export class TicketMailConfigComponent implements OnChanges, DoCheck, AfterViewI
     this.markDirty();
   }
 
-  private emitConfig(): void {
-    if (!this.config) return;
-    this.configChange.emit({
-      ...this.config,
-      ticketEmailActivo: this.mail.activo,
-      ticketEmailAsunto: this.mail.asunto,
-      ticketEmailCuerpo: this.mail.cuerpo,
-      ticketEmailDesign: this.mail.design,
-      ticketEmailSenderName: this.mail.senderName,
-      ticketEmailIncludeInfo: this.mail.includeInfo,
-      ticketEmailSendCopy: this.mail.sendCopy,
-      ticketEmailAttachments: this.mail.attachments,
-      smtpHost: this.mail.smtpHost,
-      smtpPort: this.mail.smtpPort,
-      smtpSecure: this.mail.smtpSecure,
-      smtpUser: this.mail.smtpUser,
-      smtpPass: this.mail.smtpPass,
-      mailFrom: this.mail.mailFrom,
-    });
-  }
-
-  guardar(): void {
-    if (!this.config || this.status === 'saving') return;
-    this.status = 'saving';
-    this.saveError = '';
-
-    const payload: Partial<ConfiguracionData> = {
-      ticketEmailActivo: this.mail.activo,
-      ticketEmailAsunto: this.mail.asunto,
-      ticketEmailCuerpo: this.mail.cuerpo,
-      ticketEmailDesign: this.mail.design,
-      ticketEmailSenderName: this.mail.senderName,
-      ticketEmailIncludeInfo: this.mail.includeInfo,
-      ticketEmailSendCopy: this.mail.sendCopy,
-      ticketEmailAttachments: this.mail.attachments,
-      smtpHost: this.mail.smtpHost,
-      smtpPort: this.mail.smtpPort,
-      smtpSecure: this.mail.smtpSecure,
-      smtpUser: this.mail.smtpUser,
-      smtpPass: this.mail.smtpPass,
-      mailFrom: this.mail.mailFrom,
-    };
-
-    this.svc.guardarGlobal(payload).pipe(takeUntil(this.destroy$)).subscribe({
-      next: (res) => {
-        this.status = 'saved';
-        this.dirty = false;
-        this.saveError = '';
-        this.configChange.emit(res);
-        this.notification.success(
-          'Configuración de correo guardada',
-          'El correo de tickets se actualizó correctamente.',
-        );
-        setTimeout(() => {
-          if (this.status === 'saved') this.status = 'idle';
-          this.cdr.detectChanges();
-        }, 3000);
-        this.cdr.detectChanges();
-      },
-      error: (err) => {
-        this.status = 'error';
-        this.saveError = this.extractError(err);
-        this.notification.error('Error al guardar', this.saveError);
-        this.cdr.detectChanges();
-      },
-    });
-  }
-
-  aplicarPresetSmtp(preset: string): void {
-    this.smtpPreset = preset;
-    if (preset === 'gmail') {
-      this.mail.smtpHost = 'smtp.gmail.com';
-      this.mail.smtpPort = 465;
-      this.mail.smtpSecure = true;
-    } else if (preset === 'outlook') {
-      this.mail.smtpHost = 'smtp-mail.outlook.com';
-      this.mail.smtpPort = 587;
-      this.mail.smtpSecure = false;
-    }
-    this.markDirty();
-  }
-
-  private detectPreset(): void {
-    const host = this.mail.smtpHost.toLowerCase();
-    if (host.includes('gmail')) {
-      this.smtpPreset = 'gmail';
-    } else if (host.includes('outlook') || host.includes('microsoft') || host.includes('office365')) {
-      this.smtpPreset = 'outlook';
-    } else {
-      this.smtpPreset = 'custom';
-    }
-  }
-
-  probarCorreo(): void {
-    if (!this.mailTestEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.mailTestEmail)) {
-      this.notification.warning('Correo de prueba', 'Escribe un correo valido que recibira la prueba.');
-      return;
-    }
-    this.mailTesting = true;
-    this.mailTestResult = null;
-    this.svc
-      .probarMail({
-        smtpHost: this.mail.smtpHost,
-        smtpPort: this.mail.smtpPort,
-        smtpSecure: this.mail.smtpSecure,
-        smtpUser: this.mail.smtpUser,
-        smtpPass: this.mail.smtpPass,
-        mailFrom: this.mail.mailFrom,
-        senderName: this.mail.senderName,
-        to: this.mailTestEmail.trim(),
-        asunto: this.previewAsunto(),
-        cuerpo: this.previewCuerpo(),
-      })
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (res) => {
-          this.mailTesting = false;
-          this.mailTestResult = res;
-          if (res.ok) {
-            this.notification.success('Conexion SMTP OK', 'Correo de prueba enviado correctamente.');
-          } else {
-            this.notification.error('Fallo la conexion SMTP', res.message);
-          }
-          this.cdr.detectChanges();
-        },
-        error: (err) => {
-          this.mailTesting = false;
-          const msg = Array.isArray(err.error?.message)
-            ? err.error.message.join('. ')
-            : err.error?.message || 'No se pudo probar la conexion.';
-          this.mailTestResult = { ok: false, message: msg };
-          this.notification.error('Error al probar la conexion', msg);
-          this.cdr.detectChanges();
-        },
-      });
-  }
-
-  // ── Vista previa del correo ──────────────────────────────────────────────
   get statusLabel(): string {
     switch (this.status) {
       case 'saving':
@@ -336,6 +181,53 @@ export class TicketMailConfigComponent implements OnChanges, DoCheck, AfterViewI
     }
   }
 
+  guardar(): void {
+    if (this.status === 'saving') return;
+    this.status = 'saving';
+    this.saveError = '';
+    this.stateChange.emit();
+
+    const payload: Partial<ConfiguracionData> = {
+      ticketEmailActivo: this.mail.activo,
+      ticketEmailAsunto: this.mail.asunto,
+      ticketEmailCuerpo: this.mail.cuerpo,
+      ticketEmailDesign: this.mail.design,
+      ticketEmailSenderName: this.mail.senderName,
+      ticketEmailIncludeInfo: this.mail.includeInfo,
+      ticketEmailSendCopy: this.mail.sendCopy,
+      ticketEmailAttachments: this.mail.attachments,
+    };
+
+    this.svc
+      .guardarTicketMail(payload)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.status = 'saved';
+          this.dirty = false;
+          this.saveError = '';
+          this.stateChange.emit();
+          this.notification.success(
+            'Plantilla de tickets guardada',
+            'El correo de tickets se actualizo correctamente.',
+          );
+          setTimeout(() => {
+            if (this.status === 'saved') this.status = 'idle';
+            this.stateChange.emit();
+            this.cdr.detectChanges();
+          }, 3000);
+          this.cdr.detectChanges();
+        },
+        error: (err) => {
+          this.status = 'error';
+          this.saveError = this.extractError(err);
+          this.stateChange.emit();
+          this.notification.error('Error al guardar', this.saveError);
+          this.cdr.detectChanges();
+        },
+      });
+  }
+
   previewAsunto(): string {
     return this.mail.asunto
       .replace(/\{\{\s*codigo\s*\}\}/g, 'TKT-2026-0001')
@@ -346,7 +238,12 @@ export class TicketMailConfigComponent implements OnChanges, DoCheck, AfterViewI
   }
 
   previewCuerpo(): string {
-    let html = this.absolutizarUploads(this.mail.cuerpo);
+    const raw = this.absolutizarUploads(this.mail.cuerpo);
+    if (raw !== this.lastRawCuerpo) {
+      this.lastRawCuerpo = raw;
+      this.lastCleanCuerpo = limpiarHTML(raw);
+    }
+    let html = this.lastCleanCuerpo;
     const includeInfo = this.mail.includeInfo;
     const infoHtml = includeInfo
       ? '<table style="width:100%;border-collapse:collapse;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">' +

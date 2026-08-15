@@ -6,11 +6,13 @@ import { Comunicado } from './entities/comunicado.entity';
 import { ComunicadoEvento } from './entities/comunicado-evento.entity';
 import { Colegio } from '../sessions/entities/colegio.entity';
 import { AuthModule } from '../auth/auth.module';
+import { ConfiguracionModule } from '../configuracion/configuracion.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Comunicado, ComunicadoEvento, Colegio]),
     AuthModule,
+    ConfiguracionModule,
   ],
   controllers: [ComunicadosController],
   providers: [ComunicadosService],
