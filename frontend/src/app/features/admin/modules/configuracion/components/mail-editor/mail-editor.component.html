@@ -67,6 +67,7 @@
               (removeBlock)="removeBlock($event)"
               (moveBlock)="moveBlock($event)"
               (textChange)="textChange($event)"
+              (alignChange)="onAlignChange($event)"
               (resizeStart)="onResizeStart($event)"
               (dropBlocks)="onInnerDrop($event)"
             />
@@ -88,14 +89,6 @@
           <div class="mled__pp-body">
             @switch (selectedBlock.type) {
               @case ('text') {
-                <div class="mled__fld">
-                  <label class="mled__fld-label">Alineacion</label>
-                  <select class="mled__select mled__select--full" [(ngModel)]="selectedBlock.align" (ngModelChange)="panelChanged()">
-                    @for (a of aligns; track a.value) {
-                      <option [value]="a.value">{{ a.label }}</option>
-                    }
-                  </select>
-                </div>
                 <div class="mled__fld">
                   <label class="mled__fld-label">Tipografia</label>
                   <select class="mled__select mled__select--full" [(ngModel)]="selectedBlock.fontFamily" (ngModelChange)="panelChanged()">
@@ -124,14 +117,6 @@
                 </div>
               }
               @case ('heading') {
-                <div class="mled__fld">
-                  <label class="mled__fld-label">Alineacion</label>
-                  <select class="mled__select mled__select--full" [(ngModel)]="selectedBlock.align" (ngModelChange)="panelChanged()">
-                    @for (a of aligns; track a.value) {
-                      <option [value]="a.value">{{ a.label }}</option>
-                    }
-                  </select>
-                </div>
                 <div class="mled__fld">
                   <label class="mled__fld-label">Tipografia</label>
                   <select class="mled__select mled__select--full" [(ngModel)]="selectedBlock.fontFamily" (ngModelChange)="panelChanged()">

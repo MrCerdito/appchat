@@ -2054,7 +2054,10 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
       next: (ticket) => {
         this.creatingTicket = false;
         this.sound.playTicketNotification();
-        this.ticketFeedback = { type: 'ok', text: 'Ticket generado correctamente' };
+        const okText = ticket.emailEnviado
+          ? 'Ticket generado y enviado al correo del cliente'
+          : 'Ticket generado correctamente';
+        this.ticketFeedback = { type: 'ok', text: okText };
         if (this.toastTimer) clearTimeout(this.toastTimer);
         this.toastTimer = setTimeout(() => {
           this.ticketFeedback = null;
@@ -2075,9 +2078,11 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
         const msg = err?.error?.message || err?.message || '';
         this.ticketFeedback = {
           type: 'error',
-          text: msg.includes('codigo') || msg.includes('duplicate')
-            ? 'El codigo del ticket ya existe. Intenta de nuevo.'
-            : 'Error al generar el ticket.',
+          text: msg.includes('No se pudo enviar el correo')
+            ? 'No se pudo enviar el correo de confirmacion. El ticket no fue generado.'
+            : msg.includes('codigo') || msg.includes('duplicate')
+              ? 'El codigo del ticket ya existe. Intenta de nuevo.'
+              : 'Error al generar el ticket.',
         };
         if (this.toastTimer) clearTimeout(this.toastTimer);
         this.toastTimer = setTimeout(() => {

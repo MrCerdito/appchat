@@ -27,6 +27,7 @@ export interface Ticket {
   updatedAt: string;
   closedAt: string | null;
   closedBy: { id: string; name: string } | null;
+  emailEnviado?: boolean;
 }
 
 export interface TicketCreateDto {

@@ -5,10 +5,13 @@ import {
   ElementRef,
   EventEmitter,
   Input,
+  DoCheck,
   OnChanges,
   OnDestroy,
+  AfterViewInit,
   Output,
   SimpleChanges,
+  ViewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -54,7 +57,9 @@ const CUERPO_FALLBACK =
   styleUrl: './ticket-mail-config.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class TicketMailConfigComponent implements OnChanges, OnDestroy {
+export class TicketMailConfigComponent implements OnChanges, DoCheck, AfterViewInit, OnDestroy {
+  @ViewChild('mailFrame') private readonly mailFrame?: ElementRef<HTMLIFrameElement>;
+  private lastPreviewDoc = '';
   @Input() config: ConfiguracionData | null = null;
   @Output() configChange = new EventEmitter<ConfiguracionData>();
 
@@ -98,12 +103,11 @@ export class TicketMailConfigComponent implements OnChanges, OnDestroy {
     private readonly svc: ConfiguracionFrontendService,
     private readonly notification: NotificationService,
     private readonly cdr: ChangeDetectorRef,
-    private readonly el: ElementRef,
   ) {
     try {
       this.apiBase = new URL(environment.apiUrl).origin;
     } catch {
-      this.apiBase = '';
+      this.apiBase = typeof window !== 'undefined' ? window.location.origin : '';
     }
   }
 
@@ -116,6 +120,23 @@ export class TicketMailConfigComponent implements OnChanges, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  ngDoCheck(): void {
+    const frame = this.mailFrame?.nativeElement;
+    if (!frame) return;
+    const doc = this.previewDoc();
+    if (doc === this.lastPreviewDoc) return;
+    this.lastPreviewDoc = doc;
+    this.renderPreview(frame, doc);
+  }
+
+  ngAfterViewInit(): void {
+    const frame = this.mailFrame?.nativeElement;
+    if (!frame) return;
+    const doc = this.previewDoc();
+    this.lastPreviewDoc = doc;
+    this.renderPreview(frame, doc);
   }
 
   private syncFromConfig(): void {
@@ -365,21 +386,39 @@ export class TicketMailConfigComponent implements OnChanges, OnDestroy {
     if (/<html[\s>]/i.test(body)) return body;
     return (
       '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/></head>' +
-      '<body style="margin:0;padding:24px 0;background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:#1f2937;overflow-wrap:break-word;word-break:break-word;">' +
+      '<body style="margin:0;padding:24px 0;background:#eef1f6;font-family:Arial,Helvetica,sans-serif;color:#1f2937;overflow-wrap:break-word;word-break:break-word;">' +
+      '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef1f6;"><tr><td align="center" style="padding:24px 12px;">' +
+      '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;"><tr><td style="padding:24px 28px;">' +
       body.replace(/\r?\n/g, '<br/>') +
+      '</td></tr></table></td></tr></table>' +
       '</body></html>'
     );
   }
 
-  frameLoad(): void {
-    const frame = this.el.nativeElement.querySelector('iframe.tmc-mail-frame') as HTMLIFrameElement | null;
-    if (!frame || !frame.contentWindow) return;
+  private renderPreview(frame: HTMLIFrameElement, doc: string): void {
+    const cd = frame.contentDocument;
+    if (!cd) {
+      frame.srcdoc = doc;
+      return;
+    }
+    cd.open();
+    cd.write(doc);
+    cd.close();
+    this.syncFrameHeight(frame);
+  }
+
+  private syncFrameHeight(frame: HTMLIFrameElement): void {
     try {
-      const h = frame.contentWindow.document.body?.scrollHeight;
+      const h = frame.contentWindow?.document.body?.scrollHeight;
       if (typeof h === 'number' && h > 0) frame.style.height = h + 'px';
     } catch {
-      /* cross-origin no aplica: srcdoc es del mismo documento */
+      /* cross-origin no aplica: srcdoc y about:blank son del mismo documento */
     }
+  }
+
+  frameLoad(): void {
+    const frame = this.mailFrame?.nativeElement;
+    if (frame) this.syncFrameHeight(frame);
   }
 
   private extractError(err: any): string {

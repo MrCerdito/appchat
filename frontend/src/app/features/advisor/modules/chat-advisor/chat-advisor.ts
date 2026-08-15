@@ -1482,7 +1482,13 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
         this.showTicketModal = false;
         this.creatingTicket = false;
         this.sound.playTicketNotification();
-        this.ticketFeedback = { type: 'ok', text: 'Ticket generado correctamente' };
+        const okText = ticket.emailEnviado
+          ? 'Ticket generado y enviado al correo del cliente'
+          : 'Ticket generado correctamente';
+        this.ticketFeedback = { type: 'ok', text: okText };
+        if (ticket.emailEnviado) {
+          this.notification.success('Ticket generado', okText);
+        }
         setTimeout(() => {
           this.ticketFeedback = null;
           this.cdr.detectChanges();
@@ -1499,9 +1505,11 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
       error: (err) => {
         this.creatingTicket = false;
         const msg = err?.error?.message || err?.message || '';
-        const text = msg.includes('codigo') || msg.includes('duplicate')
-          ? 'El codigo del ticket ya existe. Intenta de nuevo.'
-          : 'Error al generar el ticket.';
+        const text = msg.includes('No se pudo enviar el correo')
+          ? 'No se pudo enviar el correo de confirmacion. El ticket no fue generado. Revisa la configuracion del correo o la direccion del cliente.'
+          : msg.includes('codigo') || msg.includes('duplicate')
+            ? 'El codigo del ticket ya existe. Intenta de nuevo.'
+            : 'Error al generar el ticket.';
         this.ticketFeedback = { type: 'error', text };
         this.notification.error('Error al crear ticket', text);
         setTimeout(() => {

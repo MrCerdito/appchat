@@ -378,6 +378,7 @@ export class SessionsController {
       role: m.senderType === 'client' ? 'client' : 'advisor',
       name: m.senderName,
       content: m.content,
+      attachments: Array.isArray(m.attachments) ? m.attachments : [],
       timestamp: m.createdAt,
     }));
 

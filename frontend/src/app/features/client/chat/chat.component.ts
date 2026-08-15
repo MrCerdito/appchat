@@ -745,9 +745,14 @@ get rolLabel(): string {
         if (d.chatBubbleColor) { root.style.setProperty('--chat-bubble', d.chatBubbleColor); root.style.setProperty('--chat-bubble-text', getContrastColor(d.chatBubbleColor)); }
         if (d.chatBubbleUserColor) { root.style.setProperty('--chat-bubble-user', d.chatBubbleUserColor); root.style.setProperty('--chat-bubble-user-text', getContrastColor(d.chatBubbleUserColor)); }
         if (d.chatMarca) this.marcaChat = d.chatMarca;
-        if (d.pageUrl && d.pageUrl !== this.pageUrl) {
+        if (d.pageUrl) {
+          const changed = d.pageUrl !== this.pageUrl;
           this.pageUrl = d.pageUrl;
-          this.detectarColegio();
+          // Reintenta la detección si el widget reporta una URL de página nueva
+          // o si el primer intento aún no identificó ninguna institución.
+          if (changed || !this.colegioDetectado) {
+            this.detectarColegio();
+          }
         }
         this.cdr.detectChanges();
       }

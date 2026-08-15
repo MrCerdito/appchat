@@ -132,6 +132,11 @@ export interface MailMoveEvent {
   dir: -1 | 1;
 }
 
+export interface MailAlignChangeEvent {
+  block: MailBlock;
+  align: MailAlign;
+}
+
 function uid(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
@@ -175,6 +180,7 @@ export class MailBlockViewComponent implements OnDestroy {
   @Output() removeBlock = new EventEmitter<MailBlock>();
   @Output() moveBlock = new EventEmitter<MailMoveEvent>();
   @Output() textChange = new EventEmitter<MailTextChangeEvent>();
+  @Output() alignChange = new EventEmitter<MailAlignChangeEvent>();
   @Output() resizeStart = new EventEmitter<MailResizeEvent>();
   @Output() dropBlocks = new EventEmitter<CdkDragDrop<MailBlock[]>>();
 
@@ -182,6 +188,7 @@ export class MailBlockViewComponent implements OnDestroy {
   varMenuStyle: { top: number; left: number } | null = null;
 
   private varMenuRaf = 0;
+  private listCleanRaf = 0;
   private readonly varMenuListenersBound = {
     mousedown: (ev: MouseEvent) => this.onVarDocMouseDown(ev),
     scroll: () => this.varReposition(),
@@ -219,15 +226,28 @@ export class MailBlockViewComponent implements OnDestroy {
     return map[this.block.type] || 'Bloque';
   }
 
+  get blockAlign(): MailAlign {
+    const b = this.block as MailTextBlock | MailHeadingBlock;
+    return b.align || 'left';
+  }
+
+  setAlign(align: MailAlign): void {
+    this.alignChange.emit({ block: this.block, align });
+  }
+
   onTextInput(event: Event): void {
     this.textChange.emit({
       block: this.block,
       html: (event.target as HTMLElement).innerHTML,
     });
+    const el = event.target as HTMLElement;
+    if (el.querySelector('ul, ol')) this.scheduleListClean(el);
   }
 
   onTextBlur(event: Event): void {
-    const html = (event.target as HTMLElement).innerHTML;
+    const el = event.target as HTMLElement;
+    if (el.querySelector('ul, ol')) this.limpiarListas(el);
+    const html = el.innerHTML;
     this.committed.set(this.block.id, html);
     this.textChange.emit({ block: this.block, html });
   }
@@ -240,6 +260,7 @@ export class MailBlockViewComponent implements OnDestroy {
     document.execCommand(cmd, false);
     if (cmd === 'insertUnorderedList' || cmd === 'insertOrderedList') {
       this.limpiarListas(el);
+      this.scheduleListClean(el);
     }
     this.commit(el.innerHTML);
   }
@@ -273,6 +294,18 @@ export class MailBlockViewComponent implements OnDestroy {
   private commit(html: string): void {
     this.committed.set(this.block.id, html);
     this.textChange.emit({ block: this.block, html });
+  }
+
+  private scheduleListClean(el: HTMLElement): void {
+    if (this.listCleanRaf) return;
+    this.listCleanRaf = requestAnimationFrame(() => {
+      this.listCleanRaf = 0;
+      const current = this.editable();
+      if (current && current.querySelector('ul, ol')) {
+        this.limpiarListas(current);
+        this.commit(current.innerHTML);
+      }
+    });
   }
 
   private limpiarListas(el: HTMLElement): void {
@@ -464,7 +497,7 @@ export class MailEditorComponent implements OnChanges, OnInit, OnDestroy {
     try {
       this.apiBase = new URL(environment.apiUrl).origin;
     } catch {
-      this.apiBase = '';
+      this.apiBase = typeof window !== 'undefined' ? window.location.origin : '';
     }
   }
 
@@ -732,6 +765,14 @@ export class MailEditorComponent implements OnChanges, OnInit, OnDestroy {
     this.schedulePos();
   }
 
+  onAlignChange(e: MailAlignChangeEvent): void {
+    const b = e.block as MailTextBlock | MailHeadingBlock;
+    b.align = e.align;
+    this.emitCambios();
+    this.cdr.detectChanges();
+    this.schedulePos();
+  }
+
   onDrop(event: CdkDragDrop<MailBlock[]>, list: MailBlock[]): void {
     moveItemInArray(list, event.previousIndex, event.currentIndex);
     this.emitCambios();
@@ -909,8 +950,11 @@ export class MailEditorComponent implements OnChanges, OnInit, OnDestroy {
       .replace(/<(h[1-6])(?![^>]*\bstyle=)/g, '<$1 style="margin:0 0 12px;padding:0;line-height:1.4;font-family:Arial,Helvetica,sans-serif;">')
       .replace(/<ul(?![^>]*\bstyle=)/g, '<ul style="margin:0 0 12px;padding:0 0 0 20px;line-height:1.6;font-family:Arial,Helvetica,sans-serif;">')
       .replace(/<ol(?![^>]*\bstyle=)/g, '<ol style="margin:0 0 12px;padding:0 0 0 20px;line-height:1.6;font-family:Arial,Helvetica,sans-serif;">')
-      .replace(/<li(?![^>]*\bstyle=)/g, '<li style="margin:0 0 4px;padding:0;line-height:1.6;">')
+      .replace(/<li(?![^>]*\bstyle=)/g, '<li style="margin:0 0 6px;padding:0;line-height:1.6;">')
       .replace(/<img(?![^>]*\bstyle=)/g, '<img style="border:0;display:inline-block;max-width:100%;height:auto;">')
+      .replace(/<a(?![^>]*\bstyle=)/g, '<a style="color:#2563eb;text-decoration:underline;">')
+      .replace(/<li([^>]*)>\s*>/gi, '<li$1>')
+      .replace(/>\s*<\/li>/gi, '</li>')
       .replace(/<\/p>\s*<br\/?>\s*/gi, '</p>')
       .replace(/<br\/?>\s*<\/p>/gi, '</p>');
   }
@@ -969,7 +1013,7 @@ export class MailEditorComponent implements OnChanges, OnInit, OnDestroy {
       }
       case 'spacer': {
         const h = b.height || 16;
-        return `<div data-sb="spacer" data-sb-id="${b.id}" style="display:block;width:100%;height:${h}px;font-size:0;line-height:0;">&nbsp;</div>`;
+        return `<div data-sb="spacer" data-sb-id="${b.id}" style="display:block;width:100%;height:${h}px;line-height:${h}px;font-size:1px;mso-line-height-rule:exactly;">&nbsp;</div>`;
       }
       case 'token': {
         const align = b.align || 'left';

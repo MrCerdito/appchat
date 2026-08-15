@@ -277,9 +277,15 @@ export class TicketsComponent implements OnInit, OnDestroy {
       clientName: user?.name || 'Sistema',
     };
     this.ticketService.create(dto).subscribe({
-      next: () => {
+      next: (ticket: Ticket) => {
         this.showCreateModal = false;
         this.load();
+        this.notification.success(
+          'Ticket generado',
+          ticket.emailEnviado
+            ? 'Ticket generado y enviado al correo del cliente'
+            : 'Ticket generado correctamente',
+        );
       },
       error: (err) => {
         this.notification.error('Error al crear ticket', err.error?.message || 'Intenta de nuevo.');

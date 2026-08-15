@@ -761,14 +761,30 @@ export class AdvisorsWhatsappController {
     });
     messages.reverse();
 
-    const conversation = messages.map((m) => ({
-      role: m.fromMe ? 'advisor' : 'client',
-      name: m.senderName || (m.fromMe ? 'Asesor' : chat.name),
-      content: m.body,
-      type: m.type || 'text',
-      mediaUrl: m.mediaUrl || null,
-      timestamp: m.createdAt,
-    }));
+    const conversation = messages.map((m) => {
+      const mediaFileName =
+        m.fileName || (m.mediaUrl ? m.mediaUrl.split('/').pop() : '') || null;
+      return {
+        role: m.fromMe ? 'advisor' : 'client',
+        name: m.senderName || (m.fromMe ? 'Asesor' : chat.name),
+        content: m.body,
+        type: m.type || 'text',
+        mediaUrl: m.mediaUrl || null,
+        attachments: m.mediaUrl
+          ? [
+              {
+                id: m.mediaId || m.id,
+                url: m.mediaUrl,
+                fileName: mediaFileName,
+                originalName: mediaFileName,
+                mimeType: m.mimeType || 'application/octet-stream',
+                size: m.fileSize ?? null,
+              },
+            ]
+          : [],
+        timestamp: m.createdAt,
+      };
+    });
 
     const dto = {
       titulo: body.titulo ?? `Ticket desde WhatsApp - ${chat.name}`,

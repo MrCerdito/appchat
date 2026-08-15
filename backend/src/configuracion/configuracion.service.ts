@@ -1,6 +1,6 @@
 import { BadRequestException, Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import {
@@ -171,7 +171,7 @@ export class ConfiguracionService implements OnModuleInit {
       WHERE ticket_email_cuerpo LIKE '%ReportaCasos%'
     `);
 
-    const count = await this.repo.count({ where: { advisorId: null as any } });
+    const count = await this.repo.count({ where: { advisorId: IsNull() } });
     if (count === 0) {
       await this.getGlobal();
     }
@@ -366,7 +366,9 @@ export class ConfiguracionService implements OnModuleInit {
   }
 
   private async getGlobalRow(): Promise<Configuracion> {
-    const global = await this.repo.findOne({ where: { advisorId: null as any } });
+    const global = await this.repo.findOne({
+      where: { advisorId: IsNull() },
+    });
     if (global) return global;
 
     const defaults: Partial<Configuracion> = {
@@ -521,7 +523,7 @@ export class ConfiguracionService implements OnModuleInit {
     }
 
     const existing = await this.repo.findOne({
-      where: { advisorId: (advisorId ?? null) as any },
+      where: advisorId ? { advisorId } : { advisorId: IsNull() },
     });
 
     let saved: Configuracion;
@@ -534,7 +536,9 @@ export class ConfiguracionService implements OnModuleInit {
       Object.assign(existing, data);
       saved = await this.repo.save(existing);
     } else {
-      const global = await this.repo.findOne({ where: { advisorId: null as any } });
+      const global = await this.repo.findOne({
+        where: { advisorId: IsNull() },
+      });
       const defaults = global ? { ...global } : {};
       delete (defaults as any).id;
       delete (defaults as any).advisorId;

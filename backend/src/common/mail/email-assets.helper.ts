@@ -37,6 +37,7 @@ export function emailificarHtml(html: string): string {
   addStyle('ol', 'margin:0 0 12px;padding-left:22px;line-height:1.6;');
   addStyle('li', 'margin:0 0 6px;line-height:1.6;');
   addStyle('p', 'margin:0 0 12px;');
+  addStyle('a', 'color:#2563eb;text-decoration:underline;');
   addStyle('h1', 'margin:0 0 10px;');
   addStyle('h2', 'margin:0 0 10px;');
   addStyle('h3', 'margin:0 0 10px;');
@@ -64,7 +65,8 @@ export async function embedInlineImages(
       /(src|poster)="((?:https?:\/\/[^"]*\/uploads\/|\/uploads\/)([^"]+))"/g,
     ),
   ];
-  if (!matches.length) return { html, smtpAttachments: [], resendAttachments: [] };
+  if (!matches.length)
+    return { html, smtpAttachments: [], resendAttachments: [] };
 
   const seen = new Set<string>();
   const replacements = new Map<string, string>();
@@ -78,9 +80,13 @@ export async function embedInlineImages(
     if (seen.has(rel)) continue;
     seen.add(rel);
 
-    const safe = normalize(rel).replace(/^(\.\.[/\\])+/, '').replace(/^[/\\]+/, '');
+    const safe = normalize(rel)
+      .replace(/^(\.\.[/\\])+/, '')
+      .replace(/^[/\\]+/, '');
     const filePath = resolve(UPLOADS_ROOT, safe);
-    const rootWithSep = UPLOADS_ROOT.endsWith(sep) ? UPLOADS_ROOT : UPLOADS_ROOT + sep;
+    const rootWithSep = UPLOADS_ROOT.endsWith(sep)
+      ? UPLOADS_ROOT
+      : UPLOADS_ROOT + sep;
     if (!filePath.startsWith(rootWithSep)) continue;
 
     try {
@@ -99,7 +105,10 @@ export async function embedInlineImages(
     index += 1;
     const cid = `rc_email_img_${index}@reportacasos`;
     const filename = safe.split(/[\\/]/).pop() || 'imagen.png';
-    const ext = (filename.match(/\.([a-zA-Z0-9]+)$/) || ['', 'png'])[1].toLowerCase();
+    const ext = (filename.match(/\.([a-zA-Z0-9]+)$/) || [
+      '',
+      'png',
+    ])[1].toLowerCase();
     const contentType = ext === 'jpg' ? 'image/jpeg' : `image/${ext || 'png'}`;
 
     smtpAttachments.push({ filename, path: filePath, cid, contentType });

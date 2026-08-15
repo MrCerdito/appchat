@@ -212,7 +212,7 @@
           </div>
 
           <div class="tmc-mail-body">
-            <iframe class="tmc-mail-frame" title="Vista previa del correo" [srcdoc]="previewDoc()" (load)="frameLoad()"></iframe>
+            <iframe #mailFrame class="tmc-mail-frame" title="Vista previa del correo" (load)="frameLoad()"></iframe>
           </div>
 
           <div class="tmc-mail-attachments" *ngIf="mail.attachments">

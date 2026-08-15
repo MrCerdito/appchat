@@ -21,10 +21,29 @@ export function normalizeUrl(raw: string | null | undefined): UrlLike | null {
     return null;
   }
 
-  const host = url.hostname.toLowerCase().replace(/^www\./, '').replace(/\.$/, '');
+  const host = url.hostname
+    .toLowerCase()
+    .replace(/^www\./, '')
+    .replace(/\.$/, '');
   if (!host) return null;
-  const path = url.pathname.toLowerCase().replace(/\/+$/, '') || '/';
+  const path =
+    url.pathname
+      .toLowerCase()
+      .replace(/\/{2,}/g, '/')
+      .replace(/\/+$/, '') || '/';
   return { host, path };
+}
+
+/**
+ * Indica si `a` y `b` son el mismo host o uno es subdominio del otro.
+ * Se exige que el host "base" tenga al menos 2 etiquetas (dominio registrable)
+ * para no expandir la coincidencia a TLDs ni a dominios arbitrarios.
+ */
+function hostSubdomainOrEqual(a: string, b: string): boolean {
+  if (a === b) return true;
+  if (b.endsWith('.' + a) && a.split('.').length >= 2) return true; // b es subdominio de a
+  if (a.endsWith('.' + b) && b.split('.').length >= 2) return true; // a es subdominio de b
+  return false;
 }
 
 export function matchColegio<T extends LinkLike>(
@@ -34,25 +53,48 @@ export function matchColegio<T extends LinkLike>(
   const page = normalizeUrl(pageUrl);
   if (!page) return null;
 
-  const normalized: Array<{ item: T; host: string; path: string }> = [];
+  const normalized: Array<{
+    item: T;
+    host: string;
+    path: string;
+    exactHost: boolean;
+  }> = [];
   for (const item of items) {
     const link = normalizeUrl(item.link);
-    if (link) normalized.push({ item, host: link.host, path: link.path });
+    if (link)
+      normalized.push({
+        item,
+        host: link.host,
+        path: link.path,
+        exactHost: link.host === page.host,
+      });
   }
 
-  const candidates = normalized.filter((n) => n.host === page.host);
-  if (candidates.length === 0) return null;
+  // Candidatos por host: coincidencia exacta o relación de subdominio.
+  const byHost = normalized.filter((n) =>
+    hostSubdomainOrEqual(n.host, page.host),
+  );
+  if (byHost.length === 0) return null;
 
-  const exact = candidates.find((n) => n.path === page.path);
+  // Prioridad: host exacto primero y luego los subdominios más específicos.
+  const exactHost = byHost.filter((n) => n.exactHost);
+  const subdomains = byHost
+    .filter((n) => !n.exactHost)
+    .sort((a, b) => b.host.length - a.host.length);
+  const pool = [...exactHost, ...subdomains];
+
+  const exact = pool.find((n) => n.path === page.path);
   if (exact) return exact.item;
 
-  const prefix = candidates.find((n) => n.path !== '/' && page.path.startsWith(n.path + '/'));
+  const prefix = pool.find(
+    (n) => n.path !== '/' && page.path.startsWith(n.path + '/'),
+  );
   if (prefix) return prefix.item;
 
-  const hostOnly = candidates.find((n) => n.path === '/');
+  const hostOnly = pool.find((n) => n.path === '/');
   if (hostOnly) return hostOnly.item;
 
-  if (candidates.length === 1) return candidates[0].item;
+  if (pool.length === 1) return pool[0].item;
 
   return null;
 }

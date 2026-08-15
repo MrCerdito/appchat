@@ -251,7 +251,7 @@ describe('ConfiguracionService (horario)', () => {
     } as any;
 
     repoMock.findOne.mockImplementation((opts: any) => {
-      if (opts?.where?.advisorId) return Promise.resolve(null);
+      if (typeof opts?.where?.advisorId === 'string') return Promise.resolve(null);
       return Promise.resolve(global);
     });
 

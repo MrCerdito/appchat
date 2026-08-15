@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like } from 'typeorm';
@@ -36,7 +37,10 @@ export class TicketsService {
     return `${prefix}${String(nextNum).padStart(4, '0')}`;
   }
 
-  async create(dto: CreateTicketDto, userId?: string): Promise<Ticket> {
+  async create(
+    dto: CreateTicketDto,
+    userId?: string,
+  ): Promise<Ticket & { emailEnviado?: boolean }> {
     const MAX_RETRIES = 5;
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
@@ -62,7 +66,7 @@ export class TicketsService {
   private async createOnce(
     dto: CreateTicketDto,
     userId?: string,
-  ): Promise<Ticket> {
+  ): Promise<Ticket & { emailEnviado?: boolean }> {
     const codigo = await this.generarCodigo();
     let assignedTo: User | null = null;
     if (dto.assignedToId) {
@@ -96,11 +100,22 @@ export class TicketsService {
     // El envio real se decide dentro de TicketMailService: los tickets del
     // chat web se envian si el correo esta activo; los creados por el asesor
     // (manual/WhatsApp) solo si ademas esta "Enviar copia al cliente".
+    //
+    // Si el correo debia enviarse y fallo, el ticket NO se genera: se borra
+    // la fila guardada y se devuelve un error para que el cliente se entere.
+    let emailEnviado = false;
     if (dto.email) {
-      void this.ticketMail.enviarTicket(saved, dto.email);
+      const res = await this.ticketMail.enviarTicket(saved, dto.email);
+      emailEnviado = res.enviado;
+      if (!res.enviado && res.requerido) {
+        await this.repo.delete(saved.id).catch(() => undefined);
+        throw new ServiceUnavailableException(
+          'No se pudo enviar el correo de confirmacion del ticket, por lo que el ticket no fue generado. Revisa la configuracion del correo o la direccion del cliente e intenta de nuevo.',
+        );
+      }
     }
 
-    return saved;
+    return Object.assign(saved, { emailEnviado });
   }
 
   async findAll(query: QueryTicketDto): Promise<{

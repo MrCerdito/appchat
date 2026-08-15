@@ -1,5 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { access, readFile } from 'fs/promises';
+import { resolve, normalize, sep } from 'path';
 import { Resend } from 'resend';
 import { createSmtpTransport } from '../common/mail/smtp.helper';
 import {
@@ -9,6 +11,30 @@ import {
 import { ConfiguracionService } from '../configuracion/configuracion.service';
 import { Configuracion } from '../configuracion/entities/configuracion.entity';
 import { Ticket } from './ticket.entity';
+
+const UPLOADS_ROOT = resolve(process.cwd(), 'uploads');
+
+interface AdjuntoTicket {
+  id: string;
+  url: string;
+  fileName: string;
+  originalName: string;
+  mimeType: string;
+  size: number | null;
+  path: string;
+}
+
+interface AdjuntoEmail {
+  filename: string;
+  path: string;
+  contentType: string;
+}
+
+interface AdjuntoResend {
+  content: string;
+  filename: string;
+  contentId: string;
+}
 
 @Injectable()
 export class TicketMailService {
@@ -26,27 +52,76 @@ export class TicketMailService {
    * Envia el correo de confirmacion del ticket al email del cliente.
    * El asunto y el cuerpo se toman de la configuracion global del admin
    * (variables {{...}}). Si el admin configuro SMTP (correo propio) se envia
-   * por ahi; si no, se usa Resend con las variables de entorno. No se bloquea
-   * la creacion del ticket.
+   * por ahi; si no, se usa Resend con las variables de entorno.
+   *
+   * Devuelve `{ enviado, requerido }` para que el creador del ticket decida
+   * si la falta de envio debe bloquear la generacion:
+   *  - `enviado: true`  → el correo salio OK.
+   *  - `enviado: false` con `requerido: false` → envio omitido por diseno
+   *    (sin email del cliente, correo desactivado o ticket no-web sin copia).
+   *  - `enviado: false` con `requerido: true` → el correo debia enviarse pero
+   *    fallo (sin remitente configurado o error del proveedor).
    */
-  async enviarTicket(ticket: Ticket, to: string): Promise<void> {
+  async enviarTicket(
+    ticket: Ticket,
+    to: string,
+  ): Promise<{ enviado: boolean; requerido: boolean }> {
     try {
       const email = String(to ?? '').trim();
-      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return { enviado: false, requerido: false };
+      }
 
       const cfg = await this.configuracion.getGlobal();
-      if (cfg.ticketEmailActivo === false) return;
+      if (cfg.ticketEmailActivo === false) {
+        return { enviado: false, requerido: false };
+      }
 
       // Los tickets creados por el asesor (manual / WhatsApp, sourceType != web)
       // solo se envian si el admin activo "Enviar copia al cliente".
       if (ticket.sourceType !== 'web' && cfg.ticketEmailSendCopy !== true) {
-        return;
+        return { enviado: false, requerido: false };
       }
 
       const subject = this.resolveSubject(ticket, cfg);
       const html = this.buildHtml(ticket, cfg);
-      const { html: htmlFinal, smtpAttachments, resendAttachments } =
-        await embedInlineImages(html);
+      const {
+        html: htmlFinal,
+        smtpAttachments,
+        resendAttachments,
+      } = await embedInlineImages(html);
+
+      let extraSmtp: AdjuntoEmail[] = [];
+      let extraResend: AdjuntoResend[] = [];
+      if (cfg.ticketEmailAttachments === true) {
+        const adjuntos = await this.colectarAdjuntos(ticket);
+        extraSmtp = adjuntos.map((a) => ({
+          filename: this.sanitizarNombreArchivo(a.originalName || a.fileName),
+          path: a.path,
+          contentType: a.mimeType || 'application/octet-stream',
+        }));
+        for (const a of adjuntos) {
+          let buffer: Buffer | null = null;
+          try {
+            buffer = await readFile(a.path);
+          } catch {
+            buffer = null;
+          }
+          if (!buffer) continue;
+          extraResend.push({
+            content: buffer.toString('base64'),
+            filename: this.sanitizarNombreArchivo(a.originalName || a.fileName),
+            contentId: `ticket_${a.id}`,
+          });
+        }
+      }
+      const smtpFinal: Array<{
+        filename: string;
+        path: string;
+        cid?: string;
+        contentType?: string;
+      }> = [...smtpAttachments, ...extraSmtp];
+      const resendFinal = resendAttachments.concat(extraResend);
 
       const smtpUser = cfg.smtpUser?.trim() || '';
       const smtpHost = cfg.smtpHost?.trim() || '';
@@ -58,15 +133,26 @@ export class TicketMailService {
       const from = this.resolveFrom(rawFrom, cfg.ticketEmailSenderName);
 
       if (smtpHost && smtpUser && smtpPass) {
-        await this.sendSmtp(cfg, smtpHost, smtpUser, smtpPass, from, ticket, email, subject, htmlFinal, smtpAttachments);
-        return;
+        await this.sendSmtp(
+          cfg,
+          smtpHost,
+          smtpUser,
+          smtpPass,
+          from,
+          ticket,
+          email,
+          subject,
+          htmlFinal,
+          smtpFinal,
+        );
+        return { enviado: true, requerido: true };
       }
 
       if (!from) {
         this.logger.warn(
           `Sin remitente configurado (SMTP vacio y MAIL_FROM no configurado). No se envio el correo del ticket ${ticket.codigo}.`,
         );
-        return;
+        return { enviado: false, requerido: true };
       }
 
       const { data, error } = await this.resend.emails.send({
@@ -74,22 +160,25 @@ export class TicketMailService {
         to: email,
         subject,
         html: htmlFinal,
-        attachments: resendAttachments.length ? resendAttachments : undefined,
+        attachments: resendFinal.length ? resendFinal : undefined,
       });
 
       if (error) {
         this.logger.error(
           `Error enviando correo del ticket ${ticket.codigo}: ${error.message}`,
         );
-      } else {
-        this.logger.log(
-          `Correo del ticket ${ticket.codigo} enviado a ${email}${data?.id ? ` (${data.id})` : ''}`,
-        );
+        return { enviado: false, requerido: true };
       }
+
+      this.logger.log(
+        `Correo del ticket ${ticket.codigo} enviado a ${email}${data?.id ? ` (${data.id})` : ''}`,
+      );
+      return { enviado: true, requerido: true };
     } catch (err: any) {
       this.logger.error(
         `Error enviando correo del ticket ${ticket.codigo}: ${err?.message ?? err}`,
       );
+      return { enviado: false, requerido: true };
     }
   }
 
@@ -103,7 +192,12 @@ export class TicketMailService {
     to: string,
     subject: string,
     html: string,
-    attachments?: Array<{ filename: string; path: string; cid: string; contentType?: string }>,
+    attachments?: Array<{
+      filename: string;
+      path: string;
+      cid?: string;
+      contentType?: string;
+    }>,
   ): Promise<void> {
     const { transporter } = await createSmtpTransport({
       host,
@@ -129,7 +223,8 @@ export class TicketMailService {
   }
 
   private resolveSubject(ticket: Ticket, cfg: Configuracion): string {
-    const raw = cfg.ticketEmailAsunto?.trim() || 'Tu caso {{codigo}} fue registrado';
+    const raw =
+      cfg.ticketEmailAsunto?.trim() || 'Tu caso {{codigo}} fue registrado';
     return this.fill(raw, {
       codigo: this.escapeHtml(ticket.codigo),
       titulo: this.escapeHtml(ticket.titulo),
@@ -142,7 +237,9 @@ export class TicketMailService {
   private buildHtml(ticket: Ticket, cfg: Configuracion): string {
     const includeInfo = cfg.ticketEmailIncludeInfo !== false;
     const infoHtml = includeInfo ? this.buildInfoSection(ticket) : '';
-    const convHtml = includeInfo ? this.buildConversationSection(ticket) : '';
+    const convHtml = includeInfo
+      ? this.buildConversationSection(ticket, cfg.ticketEmailAttachments === true)
+      : '';
 
     const raw = cfg.ticketEmailCuerpo ?? '';
     const filled = this.fill(raw, {
@@ -167,7 +264,10 @@ export class TicketMailService {
     // Legacy: cuerpo de texto plano → envoltorio estandar.
     const blocks = filled.split(/\n{2,}/);
     const cuerpoHtml = blocks
-      .map((b) => `<p style="margin:0 0 14px;padding:0;">${b.replace(/\n/g, '<br/>')}</p>`)
+      .map(
+        (b) =>
+          `<p style="margin:0 0 14px;padding:0;">${b.replace(/\n/g, '<br/>')}</p>`,
+      )
       .join('');
 
     return `<!DOCTYPE html>
@@ -207,7 +307,10 @@ export class TicketMailService {
   }
 
   private absolutizarAssets(html: string): string {
-    const base = String(process.env.APP_URL ?? 'http://localhost:3001').replace(/\/+$/, '');
+    const base = String(process.env.APP_URL ?? 'http://localhost:3001').replace(
+      /\/+$/,
+      '',
+    );
     return html.replace(
       /(src|href)="(\/uploads\/[^"]+)"/g,
       (match, attr: string, path: string) => `${attr}="${base}${path}"`,
@@ -231,7 +334,7 @@ export class TicketMailService {
   }
 
   private buildInfoSection(ticket: Ticket): string {
-    const info = (ticket.clientInfo ?? {}) as Record<string, any>;
+    const info = ticket.clientInfo ?? {};
     const candidates: Array<[string, string]> = [
       ['Identificacion', info['identificacion']],
       ['Rol', info['rol']],
@@ -259,7 +362,10 @@ export class TicketMailService {
     return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">${rows}</table>`;
   }
 
-  private buildConversationSection(ticket: Ticket): string {
+  private buildConversationSection(
+    ticket: Ticket,
+    mostrarAdjuntos: boolean,
+  ): string {
     const conv = Array.isArray(ticket.conversation) ? ticket.conversation : [];
     if (!conv.length) return '';
 
@@ -270,12 +376,20 @@ export class TicketMailService {
           m?.name || (role === 'client' ? 'Cliente' : 'Asesor'),
         );
         const content = this.escapeHtml(String(m?.content ?? ''));
-        const time = m?.timestamp ? this.escapeHtml(this.formatFecha(m.timestamp)) : '';
+        const time = m?.timestamp
+          ? this.escapeHtml(this.formatFecha(m.timestamp))
+          : '';
+        const adjuntos = mostrarAdjuntos
+          ? this.renderAdjuntos(
+              Array.isArray(m?.attachments) ? m.attachments : [],
+            )
+          : '';
         const bg = role === 'client' ? '#f1f5f9' : '#e0e7ff';
         const border = role === 'client' ? '#cbd5e1' : '#a5b4fc';
         return `<div style="margin:10px 0;padding:10px 12px;background:${bg};border:1px solid ${border};border-radius:8px;">
   <div style="margin-bottom:4px;font-size:13px;color:#64748b;"><strong style="color:#334155;">${name}</strong>${time ? ` · ${time}` : ''}</div>
   <div style="font-size:14px;color:#1e293b;white-space:pre-wrap;">${content}</div>
+  ${adjuntos}
 </div>`;
       })
       .join('');
@@ -283,11 +397,156 @@ export class TicketMailService {
     return `<div>${items}</div>`;
   }
 
+  /**
+   * Renderiza los adjuntos de un mensaje dentro de la conversacion del correo:
+   * las imagenes se incrustan como miniatura (embedInlineImages las convierte
+   * a cid:) y el resto se muestra como chip con nombre y tamano, ambos
+   * enlazados al archivo original.
+   */
+  private renderAdjuntos(adjuntos: any[]): string {
+    const valids = adjuntos.filter(
+      (a: any) => a && typeof a.url === 'string' && a.url.trim() !== '',
+    );
+    if (!valids.length) return '';
+
+    return (
+      '<div style="margin-top:8px;">' +
+      valids
+        .map((a: any) => {
+          const url = this.escapeHtml(a.url);
+          const name = this.escapeHtml(
+            a.originalName || a.fileName || 'archivo',
+          );
+          const size = this.formatearTamaño(a.size);
+          const mime = String(a.mimeType || '');
+          if (/^image\//i.test(mime)) {
+            return `<div style="margin:0 0 8px;">
+  <a href="${url}" style="text-decoration:none;"><img src="${url}" alt="${name}" style="max-width:180px;height:auto;border:1px solid #e2e8f0;border-radius:6px;display:block;margin-bottom:2px;"/></a>
+  <a href="${url}" style="font-size:12px;color:#2563eb;text-decoration:underline;">${name}${size ? ` (${size})` : ''}</a>
+</div>`;
+          }
+          const ext = this.extensionDe(normalize(a.fileName || a.originalName || ''));
+          return `<div style="margin:0 0 6px;display:inline-flex;align-items:center;gap:8px;background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;max-width:100%;">
+  <span style="font-size:11px;font-weight:bold;color:#2563eb;">${this.escapeHtml(ext)}</span>
+  <div>
+    <a href="${url}" style="display:block;font-size:13px;color:#1e293b;text-decoration:none;font-weight:600;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</a>
+    ${size ? `<span style="font-size:11px;color:#64748b;">${size}</span>` : ''}
+  </div>
+</div>`;
+        })
+        .join('') +
+      '</div>'
+    );
+  }
+
+  /**
+   * Recolecta los adjuntos reales del ticket (conversacion) y resuelve su ruta
+   * local en disco. Deduplica por URL y omite archivos inexistentes para que
+   * nunca falle el envio por adjuntos borrados.
+   */
+  private async colectarAdjuntos(ticket: Ticket): Promise<AdjuntoTicket[]> {
+    const conv = Array.isArray(ticket.conversation) ? ticket.conversation : [];
+    const seen = new Set<string>();
+    const result: AdjuntoTicket[] = [];
+
+    for (const m of conv) {
+      let items: any[] = Array.isArray(m?.attachments) ? m.attachments : [];
+      if (!items.length && typeof m?.mediaUrl === 'string' && m.mediaUrl) {
+        items = [
+          {
+            url: m.mediaUrl,
+            fileName: m.mediaUrl.split('/').pop() || null,
+            originalName: m.mediaUrl.split('/').pop() || null,
+            mimeType: m.mimeType || 'application/octet-stream',
+            size: m.size ?? m.fileSize ?? null,
+          },
+        ];
+      }
+
+      for (const a of items) {
+        const url = a?.url;
+        if (!url || typeof url !== 'string' || seen.has(url)) continue;
+        seen.add(url);
+
+        const resuelto = this.resolverRutaAdjunto(url);
+        if (!resuelto) continue;
+
+        try {
+          await access(resuelto.path);
+        } catch {
+          continue;
+        }
+
+        result.push({
+          id: a.id || url,
+          url,
+          fileName: String(a.fileName || resuelto.fileName || 'archivo'),
+          originalName: String(a.originalName || a.fileName || 'archivo'),
+          mimeType: String(a.mimeType || 'application/octet-stream'),
+          size: a.size != null ? Number(a.size) : null,
+          path: resuelto.path,
+        });
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Convierte una URL de adjunto (/uploads/... o absoluta) en la ruta local
+   * bajo el directorio de uploads. Devuelve null si la URL no apunta a
+   * uploads o intenta escapar del directorio.
+   */
+  private resolverRutaAdjunto(url: string): {
+    path: string;
+    fileName: string;
+  } | null {
+    const cleanUrl = String(url).split(/[?#]/)[0];
+    const m = cleanUrl.match(/\/uploads\/(.+)$/);
+    if (!m) return null;
+    const safe = normalize(m[1])
+      .replace(/^(\.\.[/\\])+/, '')
+      .replace(/^[/\\]+/, '');
+    const filePath = resolve(UPLOADS_ROOT, safe);
+    const rootWithSep = UPLOADS_ROOT.endsWith(sep)
+      ? UPLOADS_ROOT
+      : UPLOADS_ROOT + sep;
+    if (!filePath.startsWith(rootWithSep)) return null;
+    return {
+      path: filePath,
+      fileName: safe.split(/[\\/]/).pop() || 'archivo',
+    };
+  }
+
+  private sanitizarNombreArchivo(value: string): string {
+    const clean = String(value ?? '')
+      .replace(/[/\\]/g, '_')
+      .replace(/[\u0000-\u001f\u007f]/g, '')
+      .trim();
+    return clean || 'archivo';
+  }
+
+  private extensionDe(fileName: string): string {
+    const m = String(fileName || '').match(/\.([a-zA-Z0-9]+)$/);
+    return m ? m[1].toUpperCase() : 'FILE';
+  }
+
+  private formatearTamaño(size: number | null | undefined): string {
+    if (size == null || Number.isNaN(Number(size))) return '';
+    const bytes = Number(size);
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
   private fill(text: string, tokens: Record<string, string>): string {
-    return text.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (match, key: string) => {
-      const value = tokens[key];
-      return value !== undefined ? value : match;
-    });
+    return text.replace(
+      /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g,
+      (match, key: string) => {
+        const value = tokens[key];
+        return value !== undefined ? value : match;
+      },
+    );
   }
 
   private escapeHtml(value: unknown): string {
