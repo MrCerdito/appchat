@@ -19,6 +19,7 @@ import { ComunicadosModule } from './comunicados/comunicados.module';
 import { Comunicado } from './comunicados/entities/comunicado.entity';
 import { TrackModule } from './track/track.module';
 import { ComunicadoEvento } from './comunicados/entities/comunicado-evento.entity';
+import { ComunicadoTemplate } from './comunicados/entities/comunicado-template.entity';
 import { Rating } from './sessions/entities/rating.entity';
 import { AiModule } from './ai/ai.module';
 import { DocumentosModule } from './documentos/documentos.module';
@@ -134,6 +135,7 @@ import { AppService } from './app.service';
           Colegio,
           Comunicado,
           ComunicadoEvento,
+          ComunicadoTemplate,
           Rating,
           Documento,
           Configuracion,

@@ -23,11 +23,15 @@
         <option value="heading">Titulo</option>
         <option value="text">Texto</option>
         <option value="image">Imagen</option>
-        <option value="button">Boton</option>
+        @if (allowButton) {
+          <option value="button">Boton</option>
+        }
         <option value="columns">2 columnas</option>
         <option value="divider">Separador</option>
         <option value="spacer">Espacio</option>
-        <option value="token">Variable (bloque)</option>
+        @if (allowVariables) {
+          <option value="token">Variable (bloque)</option>
+        }
         <option value="html">HTML libre</option>
       </select>
 
@@ -48,7 +52,7 @@
           <div class="mled__toast">Subiendo imagen...</div>
         }
         @if (uploadError) {
-          <div class="mled__toast mled__toast--err">{{ uploadError }}</div>
+          <div class="mled__toast mled__toast--err" style="cursor: pointer;" (click)="uploadError = ''" title="Click para cerrar">{{ uploadError }}</div>
         }
 
         <div
@@ -63,6 +67,7 @@
               [selectedId]="selectedId"
               [variables]="variables"
               [fonts]="fonts"
+              [allowVariables]="allowVariables"
               [level]="0"
               (selectBlock)="selectBlock($event)"
               (removeBlock)="removeBlock($event)"
@@ -234,15 +239,17 @@
                 <p class="mled__note">Dentro de cada columna puedes agregar bloques con el menu "+ Agregar bloque" (se insertan al final de la lista) o editando el contenido directamente.</p>
               }
               @case ('token') {
-                <div class="mled__fld">
-                  <label class="mled__fld-label">Variable</label>
-                  <select class="mled__select mled__select--full" [(ngModel)]="selectedBlock.token" (ngModelChange)="panelChanged()">
-                    @for (v of variables; track v.name) {
-                      <option [value]="v.name" [title]="v.desc">{{ '{{' + v.name + '}}' }}</option>
-                    }
-                  </select>
-                  <span class="mled__hint">Al enviar el correo, esta variable se reemplaza con los datos reales del ticket.</span>
-                </div>
+                @if (allowVariables) {
+                  <div class="mled__fld">
+                    <label class="mled__fld-label">Variable</label>
+                    <select class="mled__select mled__select--full" [(ngModel)]="selectedBlock.token" (ngModelChange)="panelChanged()">
+                      @for (v of variables; track v.name) {
+                        <option [value]="v.name" [title]="v.desc">{{ '{{' + v.name + '}}' }}</option>
+                      }
+                    </select>
+                    <span class="mled__hint">Al enviar el correo, esta variable se reemplaza con los datos reales del ticket.</span>
+                  </div>
+                }
               }
               @case ('html') {
                 <div class="mled__fld">

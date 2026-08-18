@@ -1,7 +1,16 @@
 <!-- ══════════════════════════════════════════════════════════════
+     CARGA SILENCIOSA: mientras se valida jornada + sesión no se pinta
+     nada más que el fondo temático, evitando parpadeos y que aparezca
+     por un instante la conversación anterior.
+══════════════════════════════════════════════════════════════════ -->
+@if (inicializando) {
+<div class="chat-loading"></div>
+}
+
+<!-- ══════════════════════════════════════════════════════════════
      FUERA DE JORNADA LABORAL
 ══════════════════════════════════════════════════════════════════ -->
-@if (fueraDeHorario) {
+@if (!inicializando && fueraDeHorario) {
 <div class="screen-center fuera-horario-screen">
   <div class="card fuera-horario-card">
     <div class="fh-icon-wrap">
@@ -59,7 +68,7 @@
 }
 
 
-@if (!fueraDeHorario) {
+@if (!inicializando && !fueraDeHorario) {
 <div class="chat-wrapper">
 
   <app-toast-container />
@@ -922,7 +931,7 @@
   <!-- ══════════════════════════════════════════════════════════════
        PASO BLOQUEADO POR OFENSAS
   ══════════════════════════════════════════════════════════════════ -->
-  @if (step === 'blocked') {
+  @if (!inicializando && step === 'blocked') {
   <div class="screen-center">
     <div class="card rating-card">
       <div class="rating-header">

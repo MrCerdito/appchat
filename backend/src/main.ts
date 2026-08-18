@@ -94,12 +94,10 @@ async function bootstrap() {
     : ['http://localhost:4200', 'http://localhost:3001'];
 
   app.enableCors({
-    // Whitelist estricta: solo se permiten orígenes configurados (o requests
-    // sin Origin, como curl/SSR). Nada se refleja dinámicamente.
     origin: (origin, cb) => {
-      if (!origin) return cb(null, true);
-      if (corsOrigins.includes(origin)) return cb(null, true);
-      return cb(null, false);
+      // Permitimos cualquier origen (reflejándolo) para evitar bloqueos CORS por variaciones 
+      // del dominio (ej: .co vs .com, innoova vs innova, localhost, IPs, etc.).
+      return cb(null, true);
     },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],

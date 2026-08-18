@@ -69,16 +69,18 @@
         </button>
       </span>
       <span class="mb__fmtdivider"></span>
-      <span class="mb__fmtgroup">
-        <button
-          type="button"
-          class="mb__tool mb__tool--fmt mb__tool--var"
-          [class.mb__tool--active]="variablesOpen"
-          title="Insertar variable"
-          (mousedown)="$event.preventDefault()"
-          (click)="toggleVariables($event)"
-        >V</button>
-      </span>
+      @if (allowVariables) {
+        <span class="mb__fmtgroup">
+          <button
+            type="button"
+            class="mb__tool mb__tool--fmt mb__tool--var"
+            [class.mb__tool--active]="variablesOpen"
+            title="Insertar variable"
+            (mousedown)="$event.preventDefault()"
+            (click)="toggleVariables($event)"
+          >V</button>
+        </span>
+      }
     </div>
   }
 
@@ -201,6 +203,7 @@
                   [selectedId]="selectedId"
                   [variables]="variables"
                   [fonts]="fonts"
+                  [allowVariables]="allowVariables"
                   [level]="level + 1"
                   (selectBlock)="selectBlock.emit($event)"
                   (removeBlock)="removeBlock.emit($event)"
@@ -227,6 +230,7 @@
                   [selectedId]="selectedId"
                   [variables]="variables"
                   [fonts]="fonts"
+                  [allowVariables]="allowVariables"
                   [level]="level + 1"
                   (selectBlock)="selectBlock.emit($event)"
                   (removeBlock)="removeBlock.emit($event)"
@@ -270,7 +274,7 @@
     }
   }
 
-  @if (variablesOpen) {
+  @if (allowVariables && variablesOpen) {
     <div class="mb__vmenu" [style.top.px]="varMenuStyle?.top ?? 80" [style.left.px]="varMenuStyle?.left ?? 20">
       <div class="mb__vmenu-title">Variables</div>
       @for (v of variables; track v.name) {

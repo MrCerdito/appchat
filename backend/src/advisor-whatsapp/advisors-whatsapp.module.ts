@@ -33,6 +33,6 @@ import { WhatsappMessage } from './entities/whatsapp-message.entity';
     RedisStateService,
     RolesGuard,
   ],
-  exports: [AdvisorsWhatsappService],
+  exports: [AdvisorsWhatsappService, AdvisorsWhatsappGateway],
 })
 export class AdvisorsWhatsappModule {}

@@ -243,6 +243,7 @@ export class MailBlockViewComponent implements OnChanges, OnDestroy {
   @Input() level = 0;
   @Input() variables: Array<{ name: string; desc: string }> = [];
   @Input() fonts: Array<{ value: string; label: string }> = [];
+  @Input() allowVariables = true;
 
   @Output() selectBlock = new EventEmitter<MailBlock>();
   @Output() removeBlock = new EventEmitter<MailBlock>();
@@ -729,6 +730,8 @@ export class MailEditorComponent implements OnChanges, OnInit, OnDestroy {
   @Input() cuerpo = '';
   @Input() design: unknown[] | null = null;
   @Input() variables: Array<{ name: string; desc: string }> = TICKET_MAIL_VARIABLES;
+  @Input() allowButton = true;
+  @Input() allowVariables = true;
 
   @Output() cuerpoChange = new EventEmitter<string>();
   @Output() designChange = new EventEmitter<unknown[] | null>();
@@ -915,8 +918,15 @@ export class MailEditorComponent implements OnChanges, OnInit, OnDestroy {
       },
       error: () => {
         this.uploading = false;
-        this.uploadError = 'No se pudo subir la imagen. Verifica el formato (jpg, png, webp, gif, avif) y el tamano (max 5MB).';
+        this.uploadError = 'No se pudo subir la imagen. Verifica el formato (jpg, png, webp, gif, avif) y el tamaño (max 20MB).';
         this.cdr.detectChanges();
+        // Auto-desvanecer la notificación de error después de 6 segundos
+        setTimeout(() => {
+          if (this.uploadError) {
+            this.uploadError = '';
+            this.cdr.detectChanges();
+          }
+        }, 6000);
       },
     });
   }
@@ -1191,6 +1201,15 @@ export class MailEditorComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   private defaultBlocks(): MailBlock[] {
+    if (!this.allowVariables) {
+      return [
+        { id: uid(), type: 'heading', html: 'Comunicado oficial', align: 'center', color: '#ffffff', bg: '#4338ca', fontSize: 22, padding: 26 },
+        { id: uid(), type: 'text', html: 'Estimado destinatario,<br/><br/>Queremos informarle lo siguiente:', align: 'left', fontSize: 15, padding: 18 },
+        { id: uid(), type: 'divider', color: '#e2e8f0', thickness: 1, padding: 12 },
+        { id: uid(), type: 'text', html: 'Si tiene alguna duda, puede responder este correo o escribirnos por el chat. Quedamos atentos.', align: 'left', fontSize: 14, padding: 18 },
+        { id: uid(), type: 'spacer', height: 12 },
+      ];
+    }
     return [
       { id: uid(), type: 'heading', html: 'Tu caso {{codigo}} fue registrado', align: 'center', color: '#ffffff', bg: '#4338ca', fontSize: 22, padding: 26 },
       { id: uid(), type: 'text', html: 'Hola {{nombre}},<br/><br/>Recibimos tu solicitud y quedo registrada con el codigo <strong>{{codigo}}</strong>. Este numero te servira para consultar el estado de tu caso cuando quieras.', align: 'left', fontSize: 15, padding: 18 },

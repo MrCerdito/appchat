@@ -120,7 +120,7 @@ export class ConfiguracionController {
           cb(null, `${randomUUID()}${ext}`);
         },
       }),
-      limits: { fileSize: 5 * 1024 * 1024 },
+      limits: { fileSize: 20 * 1024 * 1024 },
       fileFilter: (_req, file, cb) => {
         const allowed = [
           'image/jpeg',

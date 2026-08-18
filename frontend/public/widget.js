@@ -545,23 +545,34 @@
    * Envía el tema de colores al iframe del chat vía postMessage.
    * El chat (Angular/React/etc.) debe escuchar 'sian-theme' y aplicar los CSS vars.
    */
+  function chatTargetOrigin(c) {
+    return (c.chatUrl || '').replace(/\/chat\/?$/, '').replace(/\/+$/, '') || '*';
+  }
+
+  function themePayload(c) {
+    return {
+      type               : 'sian-theme',
+      chatHeaderColor    : c.chatHeaderColor,
+      chatBgColor        : c.chatBgColor,
+      chatBubbleColor    : c.chatBubbleColor,
+      chatBubbleUserColor: c.chatBubbleUserColor,
+      chatMarca          : c.chatMarca,
+      chatAvatar         : c.chatAvatar,
+      pageUrl            : location.href,
+    };
+  }
+
+  function postTheme(iframe, c) {
+    try {
+      iframe.contentWindow.postMessage(themePayload(c), chatTargetOrigin(c));
+    } catch (_) {}
+  }
+
   function sendThemeToIframe(iframe, c) {
     try {
-      var targetOrigin = (c.chatUrl || '').replace(/\/chat\/?$/, '').replace(/\/+$/, '') || '*';
       iframe.addEventListener('load', function onLoad() {
         iframe.removeEventListener('load', onLoad);
-        try {
-          iframe.contentWindow.postMessage({
-            type              : 'sian-theme',
-            chatHeaderColor   : c.chatHeaderColor,
-            chatBgColor       : c.chatBgColor,
-            chatBubbleColor   : c.chatBubbleColor,
-            chatBubbleUserColor: c.chatBubbleUserColor,
-            chatMarca         : c.chatMarca,
-            chatAvatar        : c.chatAvatar,
-            pageUrl           : location.href,
-          }, targetOrigin);
-        } catch (_) {}
+        postTheme(iframe, c);
       });
     } catch (_) {}
   }
@@ -600,6 +611,13 @@
     }
     if (event.data.type === 'sian-close-panel') {
       closePanel();
+    }
+    if (event.data.type === 'sian-ready') {
+      // El chat (lazy) avisa que ya escucha 'sian-theme'. Como el iframe
+      // pudo haberse cargado antes de que Angular registrara el listener,
+      // reenviamos el tema aquí para que no haya flash de colores.
+      var f = document.getElementById('sian-iframe');
+      if (f) postTheme(f, cfg);
     }
   });
 

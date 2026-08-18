@@ -14,7 +14,7 @@ import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { ComunicadosService, Colegio } from '../../../../core/services/comunicados.service';
-import { Comunicado, Destinatario } from '../../../../core/models/comunicado.model';
+import { Comunicado, ComunicadoTemplate, Destinatario } from '../../../../core/models/comunicado.model';
 import { NotificationService } from '../../../../core/services/notification.service';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
@@ -22,7 +22,7 @@ import { fmtDateFull, fmtDateTimeFull } from '../../../../shared/utils/date';
 import { MailEditorComponent, COMUNICADO_MAIL_VARIABLES, limpiarHTML } from '../../../../features/admin/modules/configuracion/components/mail-editor/mail-editor.component';
 import { environment } from '../../../../../environments/environment';
 
-type View = 'inbox' | 'sent' | 'drafts' | 'compose';
+type View = 'inbox' | 'sent' | 'drafts' | 'templates' | 'compose';
 
 const CUERPO_FALLBACK =
   'Hola {{nombre}},\n\nQueremos informarte sobre la siguiente comunicacion oficial.\n\nSaludos cordiales,\n{{firma}}';
@@ -43,6 +43,8 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
   protected readonly mailVariables = COMUNICADO_MAIL_VARIABLES;
   view: View = 'inbox';
   comunicados: Comunicado[] = [];
+  templates: ComunicadoTemplate[] = [];
+  templatesLoading = false;
   colegios: Colegio[] = [];
   selected: Comunicado | null = null;
   loading = false;
@@ -53,6 +55,10 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
   showStats = false;
   statsLoading = false;
   error = '';
+
+  // Modals
+  showSaveTemplateModal = false;
+  templateNameDraft = '';
 
   // Compose
   editingId: string | null = null;
@@ -90,6 +96,7 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
   ngOnInit(): void {
     this.layout.setSidebarForcedCollapsed(true);
     this.loadAll();
+    this.loadTemplates();
     this.service.getColegios().pipe(takeUntil(this.destroy$)).subscribe({
       next: (c) => {
         this.colegios = c;
@@ -114,6 +121,92 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
       this.notification.error('Error', 'No se pudieron cargar los comunicados.');
       this.cdr.detectChanges();
     },
+    });
+  }
+
+  loadTemplates(): void {
+    this.templatesLoading = true;
+    this.service.getTemplates().pipe(takeUntil(this.destroy$)).subscribe({
+      next: (t) => {
+        this.templates = t;
+        this.templatesLoading = false;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.templatesLoading = false;
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  saveAsTemplate(): void {
+    if (!this.asunto.trim()) {
+      this.error = 'El asunto es obligatorio para guardar la plantilla';
+      this.cdr.detectChanges();
+      return;
+    }
+    this.templateNameDraft = this.asunto.trim().slice(0, 80);
+    this.showSaveTemplateModal = true;
+    this.cdr.detectChanges();
+  }
+
+  cancelSaveTemplate(): void {
+    this.showSaveTemplateModal = false;
+    this.templateNameDraft = '';
+    this.cdr.detectChanges();
+  }
+
+  confirmSaveTemplate(): void {
+    const trimmed = this.templateNameDraft.trim();
+    if (!trimmed) {
+      this.notification.warning('Nombre requerido', 'El nombre de la plantilla es obligatorio');
+      return;
+    }
+
+    this.showSaveTemplateModal = false;
+    this.cdr.detectChanges();
+
+    this.service.saveTemplate(trimmed, this.asunto, this.cuerpo, this.design)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.loadTemplates();
+          this.showSuccessMsg('Plantilla guardada');
+        },
+        error: (err) => {
+          this.error = err.error?.message || 'Error al guardar la plantilla';
+          this.notification.error('Error al guardar la plantilla', this.error);
+          this.cdr.detectChanges();
+        },
+      });
+  }
+
+  applyTemplate(t: ComunicadoTemplate): void {
+    this.view = 'compose';
+    this.selected = null;
+    this.showStats = false;
+    this.stats = null;
+    this.error = '';
+    this.success = '';
+    this.lastPreviewDoc = '';
+    this.editingId = null;
+    this.asunto = t.asunto;
+    this.cuerpo = t.cuerpo;
+    this.design = Array.isArray(t.design) ? t.design : null;
+  }
+
+  deleteTemplate(t: ComunicadoTemplate): void {
+    if (!confirm(`¿Eliminar la plantilla "${t.name}"?`)) return;
+    this.service.deleteTemplate(t.id).pipe(takeUntil(this.destroy$)).subscribe({
+      next: () => {
+        this.templates = this.templates.filter((x) => x.id !== t.id);
+        this.cdr.detectChanges();
+        this.showSuccessMsg('Plantilla eliminada');
+      },
+      error: (err) => {
+        this.notification.error('Error', err.error?.message || 'No se pudo eliminar la plantilla');
+        this.cdr.detectChanges();
+      },
     });
   }
 

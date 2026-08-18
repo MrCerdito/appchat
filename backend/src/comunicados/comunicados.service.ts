@@ -9,11 +9,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { Comunicado, Destinatario } from './entities/comunicado.entity';
+import { ComunicadoTemplate } from './entities/comunicado-template.entity';
 import { Colegio } from '../sessions/entities/colegio.entity';
 import { User } from '../auth/entities/user.entity';
 import { ComunicadoEvento } from './entities/comunicado-evento.entity';
 import { ConfiguracionService } from '../configuracion/configuracion.service';
 import { createSmtpTransport } from '../common/mail/smtp.helper';
+import { embedInlineImages } from '../common/mail/email-assets.helper';
 
 @Injectable()
 export class ComunicadosService {
@@ -24,6 +26,8 @@ export class ComunicadosService {
     private readonly eventoRepo: Repository<ComunicadoEvento>,
     @InjectRepository(Comunicado)
     private readonly comunicadoRepo: Repository<Comunicado>,
+    @InjectRepository(ComunicadoTemplate)
+    private readonly templateRepo: Repository<ComunicadoTemplate>,
     @InjectRepository(Colegio)
     private readonly colegioRepo: Repository<Colegio>,
     private readonly config: ConfigService,
@@ -106,6 +110,14 @@ export class ComunicadosService {
 
     const baseUrl = this.config.get('APP_URL') ?? 'http://localhost:3001';
     const cfg = await this.configuracion.getGlobal();
+    const mailRedirectTo = String(
+      process.env.MAIL_REDIRECT_TO ?? this.config.get('MAIL_REDIRECT_TO') ?? '',
+    ).trim();
+    if (mailRedirectTo) {
+      this.logger.warn(
+        `MAIL_REDIRECT_TO activo: todos los correos de comunicados se redirigen a ${mailRedirectTo} en vez de a los destinatarios reales`,
+      );
+    }
 
     const smtpHost = cfg.smtpHost?.trim() || '';
     const smtpUser = cfg.smtpUser?.trim() || '';
@@ -131,12 +143,11 @@ export class ComunicadosService {
       pass: smtpPass,
     });
 
-    const isDev = process.env.NODE_ENV !== 'production';
-
-    // ── Modo desarrollo: redirige todos los emails a tu cuenta ──
+    // Redireccion de correos SOLO explicita y opt-in (MAIL_REDIRECT_TO).
+    // Sin esa variable se envia a los destinatarios reales ("Para") siempre.
     const destinos = c.destinatarios.map((d) => ({
       ...d,
-      emailFinal: isDev ? 'jeanpfmunozv@gmail.com' : d.email,
+      emailFinal: mailRedirectTo || d.email,
     }));
 
     try {
@@ -164,7 +175,6 @@ export class ComunicadosService {
   ): Promise<void> {
     const CONCURRENCIA = 15;
     let index = 0;
-    const dev = process.env.NODE_ENV !== 'production';
 
     const trabajadores = Array.from(
       { length: Math.min(CONCURRENCIA, destinos.length) },
@@ -179,15 +189,22 @@ export class ComunicadosService {
               ${this.injectTracking(c.cuerpo, c.id, dest.email, baseUrl)}
               <img src="${pixelUrl}" width="1" height="1" style="display:none" alt=""/>
             `;
+            const { html: htmlFinal, smtpAttachments } =
+              await embedInlineImages(cuerpoFinal);
 
-            await transporter.sendMail({
+            const info = await transporter.sendMail({
               from,
               to: dest.emailFinal,
-              subject: dev
-                ? `[TEST → ${dest.email}] ${c.asunto}`
-                : c.asunto,
-              html: cuerpoFinal,
+              subject: c.asunto,
+              html: htmlFinal,
+              attachments: smtpAttachments.length
+                ? smtpAttachments
+                : undefined,
             });
+
+            this.logger.log(
+              `Comunicado ${c.id} (${c.asunto}) enviado a ${dest.email}${dest.emailFinal !== dest.email ? ` (redirigido a ${dest.emailFinal})` : ''}${info.messageId ? ` (${info.messageId})` : ''}`,
+            );
 
             c.destinatarios[pos] = {
               email: dest.email,
@@ -195,6 +212,9 @@ export class ComunicadosService {
               sendStatus: 'ok',
             };
           } catch (err: any) {
+            this.logger.error(
+              `Comunicado ${c.id} (${c.asunto}): fallo envio a ${dest.email}${dest.emailFinal !== dest.email ? ` (redirigido a ${dest.emailFinal})` : ''}: ${String(err?.message ?? err)}`,
+            );
             c.destinatarios[pos] = {
               email: dest.email,
               nombre: dest.nombre,
@@ -262,6 +282,43 @@ export class ComunicadosService {
 
   async getColegios(): Promise<Colegio[]> {
     return this.colegioRepo.find({ order: { nombre: 'ASC' } });
+  }
+
+  async findTemplates(): Promise<ComunicadoTemplate[]> {
+    return this.templateRepo.find({ order: { name: 'ASC' } });
+  }
+
+  async createTemplate(
+    data: { name: string; asunto: string; cuerpo: string; design: unknown[] | null },
+    user: User,
+  ): Promise<ComunicadoTemplate> {
+    const t = this.templateRepo.create({
+      name: data.name,
+      asunto: data.asunto,
+      cuerpo: data.cuerpo,
+      design: data.design ?? null,
+      createdBy: user,
+    });
+    return this.templateRepo.save(t);
+  }
+
+  async updateTemplate(
+    id: string,
+    data: { name: string; asunto: string; cuerpo: string; design: unknown[] | null },
+  ): Promise<ComunicadoTemplate> {
+    const t = await this.templateRepo.findOneBy({ id });
+    if (!t) throw new NotFoundException('Plantilla no encontrada');
+    t.name = data.name;
+    t.asunto = data.asunto;
+    t.cuerpo = data.cuerpo;
+    t.design = data.design ?? null;
+    return this.templateRepo.save(t);
+  }
+
+  async deleteTemplate(id: string): Promise<void> {
+    const t = await this.templateRepo.findOneBy({ id });
+    if (!t) throw new NotFoundException('Plantilla no encontrada');
+    await this.templateRepo.remove(t);
   }
 
   async registrarApertura(

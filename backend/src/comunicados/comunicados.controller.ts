@@ -15,13 +15,20 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles, RolesGuard } from '../auth/roles.guard';
 import { ComunicadosService } from './comunicados.service';
-import { IsString, IsArray } from 'class-validator';
+import { IsString, IsArray, IsOptional, MaxLength } from 'class-validator';
 
 export class ComunicadoDto {
   @IsString() asunto: string;
   @IsString() cuerpo: string;
   @IsArray() destinatarios: { email: string; nombre: string }[];
-  design?: unknown[] | null;
+  @IsOptional() @IsArray() design?: unknown[] | null;
+}
+
+export class ComunicadoTemplateDto {
+  @IsString() @MaxLength(150) name: string;
+  @IsString() @MaxLength(300) asunto: string;
+  @IsString() cuerpo: string;
+  @IsOptional() @IsArray() design?: unknown[] | null;
 }
 
 @Controller('comunicados')
@@ -37,6 +44,44 @@ export class ComunicadosController {
   @Get('colegios')
   getColegios() {
     return this.service.getColegios();
+  }
+
+  @Get('templates')
+  getTemplates() {
+    return this.service.findTemplates();
+  }
+
+  @Post('templates')
+  @HttpCode(HttpStatus.CREATED)
+  saveTemplate(@Body() dto: ComunicadoTemplateDto, @Request() req: any) {
+    return this.service.createTemplate(
+      {
+        name: dto.name,
+        asunto: dto.asunto,
+        cuerpo: dto.cuerpo,
+        design: dto.design ?? null,
+      },
+      req.user,
+    );
+  }
+
+  @Put('templates/:id')
+  updateTemplate(
+    @Param('id') id: string,
+    @Body() dto: ComunicadoTemplateDto,
+  ) {
+    return this.service.updateTemplate(id, {
+      name: dto.name,
+      asunto: dto.asunto,
+      cuerpo: dto.cuerpo,
+      design: dto.design ?? null,
+    });
+  }
+
+  @Delete('templates/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteTemplate(@Param('id') id: string) {
+    return this.service.deleteTemplate(id);
   }
 
   @Get(':id')

@@ -1,7 +1,7 @@
 import { Injectable, OnDestroy } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable, Subject, of, BehaviorSubject } from 'rxjs';
-import { catchError, map, tap } from 'rxjs/operators';
+import { catchError, map, tap, finalize } from 'rxjs/operators';
 import { io, Socket } from 'socket.io-client';
 import { environment } from '../../../environments/environment';
 import { formatBogotaTime } from '../../shared/utils/date';
@@ -87,6 +87,10 @@ export class WhatsappChatService implements OnDestroy {
       this.loadConnection().subscribe();
       this.scheduleChatListRefresh();
       this.refreshUnreadTotal().subscribe();
+      // Re-validar membresía tras reconexión: el servidor re-une la room
+      // por JWT, pero re-emitir aw_join refuerza que el asesor no quede
+      // fuera de la room y pierda asignaciones.
+      if (this.myAdvisorId) this.socket.emit('aw_join', this.myAdvisorId);
       if (this.activeChatId) this.socket.emit('aw_open_chat', this.activeChatId);
     });
 
@@ -276,6 +280,45 @@ export class WhatsappChatService implements OnDestroy {
         return of([] as WaChat[]);
       }),
     );
+  }
+
+  private silentRefreshing = false;
+
+  /**
+   * Refresco silencioso de respaldo: si un evento WebSocket (aw_chat_assigned,
+   * aw_chat_updated, etc.) se pierde, la lista se auto-corrige. Hace upsert
+   * sobre el estado actual para no pisar chats cargados con paginación.
+   */
+  refreshChatsSilently(): Observable<void> {
+    if (this.silentRefreshing) return of(undefined);
+    this.silentRefreshing = true;
+    return this.http
+      .get<WaChat[] | { chats: WaChat[]; total: number; hasMore: boolean }>(
+        `${this.apiUrl}/chats`,
+        {
+          headers: this.headers(),
+          params: { page: '1', limit: String(this.chatsLimit) },
+        },
+      )
+      .pipe(
+        tap(res => {
+          const incoming = Array.isArray(res) ? res : res.chats;
+          const current = this.chats$.getValue();
+          const merged = new Map<string, WaChat>(
+            current.map(c => [c.id, c]),
+          );
+          for (const chat of incoming) {
+            merged.set(chat.id, chat);
+          }
+          this.chats$.next([...merged.values()]);
+          this.refreshUnreadTotal().subscribe();
+        }),
+        catchError(() => of(undefined)),
+        map(() => undefined),
+        finalize(() => {
+          this.silentRefreshing = false;
+        }),
+      );
   }
 
   loadMoreChats(): Observable<WaChat[] | { chats: WaChat[]; total: number; hasMore: boolean }> {

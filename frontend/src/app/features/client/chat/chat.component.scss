@@ -44,12 +44,21 @@ $radius-pill: 999px;
 :root {
   --chat-header          : #ffffff;
   --chat-header-text     : #111827;
-  --chat-bg              : #ffffff;
+  --chat-bg              : #f0ede9;
   --chat-bg-text         : #111827;
   --chat-bubble          : #ffffff;
   --chat-bubble-text     : #111827;
   --chat-bubble-user     : #2563eb;
   --chat-bubble-user-text: #ffffff;
+}
+
+// Pantalla de carga silenciosa: usa el fondo temático para que la
+// transición del iframe al chat no produzca un flash blanco.
+.chat-loading {
+  width: 100%;
+  height: 100%;
+  background: var(--chat-bg, #f0ede9);
+  transition: background 0.25s ease;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -65,7 +74,7 @@ $radius-pill: 999px;
 .chat-wrapper {
   font-family: var(--font);
   height: 100%;
-  background: var(--bg);
+  background: var(--chat-bg, var(--bg));
 }
 
 .screen-center {

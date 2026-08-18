@@ -410,6 +410,27 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     this.logger.log('WhatsApp usara Baileys con sesion unica por QR.');
   }
 
+  /** Máx. de ms que se espera a Baileys antes de liberar la asignación. */
+  private readonly whatsappSendTimeoutMs = 8_000;
+
+  private async withTimeout<T>(
+    promise: Promise<T>,
+    ms: number,
+    message: string,
+  ): Promise<T> {
+    let timer: NodeJS.Timeout | undefined;
+    try {
+      return await Promise.race([
+        promise,
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error(message)), ms);
+        }),
+      ]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
   private assignWaitQueue: Promise<unknown> = Promise.resolve();
 
   async onModuleInit(): Promise<void> {
@@ -2798,7 +2819,14 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     const jid = this.normalizeTargetJid(to);
     const cleanText = sanitizeOutboundText(text, this.maxTextLength);
     if (!cleanText) throw new BadRequestException('Mensaje requerido');
-    const sent = await sock.sendMessage(jid, { text: cleanText });
+    // Timeout para que una sesión de WhatsApp degradada no bloquee la
+    // respuesta de /take o /admin-assign (la asignación debe sentirse
+    // inmediata aunque el envío del mensaje de bienvenida tarde).
+    const sent = await this.withTimeout(
+      sock.sendMessage(jid, { text: cleanText }),
+      this.whatsappSendTimeoutMs,
+      'Timeout enviando mensaje por WhatsApp',
+    );
     this.logger.log(
       `Mensaje enviado por Baileys a ${jid}: "${this.compactLogText(cleanText)}"`,
     );

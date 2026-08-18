@@ -89,6 +89,13 @@ export class ChatComponent implements OnInit, OnDestroy {
   private reconexionInterval: any = null;
   Math = Math;
   
+  // Carga silenciosa: mientras true no se pinta ninguna pantalla (ni FAQ,
+  // ni chat, ni "fuera de horario") para evitar parpadeos y mostrar el chat
+  // equivocado al restaurar la sesión.
+  inicializando = true;
+  private jornadaResuelta = false;
+  private sesionResuelta  = false;
+  
   marcaChat = 'Soporte en línea';
 
   pqrsCodigo = '';
@@ -341,6 +348,7 @@ get rolLabel(): string {
   ngOnInit(): void {
     this.aplicarTemaWidget();
     this.escucharPostMessage();
+    this.enviarSianReady();
     this.solicitarPermisoNotificacion();
     this.isOnline = navigator.onLine;
     window.addEventListener('online',  this.onlineHandler);
@@ -360,16 +368,21 @@ get rolLabel(): string {
     const savedSession = localStorage.getItem(SESSION_KEY);
     const savedName    = localStorage.getItem(CLIENT_NAME_KEY);
 
-    if (savedSession && savedName) {
+    if (!savedSession || !savedName) {
+      this.sesionResuelta = true;
+      this.intentarMostrar();
+    } else {
       const savedData = JSON.parse(savedSession) as Session & { aiMode?: boolean };
       this.clientName = savedName;
 
       this.sessionService.findPublic(savedData.id).subscribe({
         next: (s) => {
-          if (s.status === 'closed') { this.clearSession(); return; }
+          if (s.status === 'closed') { this.clearSession(); this.sesionResuelta = true; this.intentarMostrar(); return; }
 
           const advisor = s.advisor ?? savedData.advisor;
           this.session  = { ...savedData, ...s, advisor };
+          this.sesionResuelta = true;
+          this.intentarMostrar();
 
           if (savedData.aiMode === true) {
             this.aiMode = true;
@@ -411,8 +424,38 @@ get rolLabel(): string {
         error: () => {
           this.notification.error('Error', 'No se pudo recuperar tu sesión anterior');
           this.clearSession();
+          this.sesionResuelta = true;
+          this.intentarMostrar();
         },
       });
+    }
+  }
+
+  /**
+   * Carga silenciosa: no se pinta ninguna pantalla (ni FAQ, ni chat, ni
+   * "fuera de horario") hasta que el servidor confirmó la jornada y se
+   * resolvió la restauración de la sesión. Evita el parpadeo inicial y que
+   * se muestre brevemente la conversación equivocada.
+   */
+  private intentarMostrar(): void {
+    if (this.inicializando && this.jornadaResuelta && this.sesionResuelta) {
+      this.inicializando = false;
+      this.cdr.detectChanges();
+    }
+  }
+
+  /**
+   * Avisa al widget (host) de que el chat está listo para recibir el tema.
+   * El iframe lazy se monta después del evento 'load' del host, por lo que
+   * el postMessage 'sian-theme' que manda el widget puede llegar antes de
+   * que este componente haya registrado su listener. Con 'sian-ready' el
+   * widget reenvía el tema y se elimina el flash de colores por defecto.
+   */
+  private enviarSianReady(): void {
+    try {
+      window.parent.postMessage({ type: 'sian-ready' }, '*');
+    } catch {
+      /* noop */
     }
   }
 
@@ -435,9 +478,13 @@ get rolLabel(): string {
         if (!this.session) {
           this.fueraDeHorario = !res.enJornada;
         }
+        this.jornadaResuelta = true;
+        this.intentarMostrar();
         this.cdr.detectChanges();
       },
       error: () => {
+        this.jornadaResuelta = true;
+        this.intentarMostrar();
         this.notification.error('Error', 'No se pudo verificar el horario de atención');
       },
     });
@@ -574,9 +621,10 @@ get rolLabel(): string {
   private handleOnline(): void {
     this.isOnline = true;
     this.cdr.detectChanges();
-    if (this.session && !this.aiMode && (this.step === 'chat' || this.step === 'waiting')) {
+    // Solo reconectar si el socket cayó; el join_session lo dispara el
+    // handler de 'connect'. Si ya está conectado no hay que unirse de nuevo.
+    if (this.session && !this.aiMode && (this.step === 'chat' || this.step === 'waiting') && !this.socket.isConnected()) {
       this.socket.connect();
-      this.socket.emit('join_session', { sessionId: this.session.id, clientName: this.clientName });
     }
   }
 
@@ -765,6 +813,7 @@ get rolLabel(): string {
 
   private connectSocket(): void {
     this.socketDestroy$.next();
+    const yaConectado = this.socket.isConnected();
     this.socket.connect();
 
     this.socket.on<string>('connect')
@@ -776,6 +825,13 @@ get rolLabel(): string {
         }
       });
 
+    // El socket de SocketService es un singleton: si ya estaba conectado
+    // (componente recreado en la misma pestaña), el evento 'connect' no
+    // volverá a dispararse, así que hay que unirse a la sesión ahora.
+    if (yaConectado) {
+      this.socket.emit('join_session', { sessionId: this.session!.id, clientName: this.clientName });
+    }
+
     this.registerSocketListeners();
   }
 
@@ -783,7 +839,14 @@ get rolLabel(): string {
     this.socket.on<Message[]>('message_history')
       .pipe(takeUntil(this.socketDestroy$))
       .subscribe((msgs) => {
-        this.messages = msgs;
+        // Evita el doble render por join repetido (reconexión + online):
+        // si el historial ya está pintado y es idéntico, no se reemplaza.
+        const historial = msgs ?? [];
+        const igual =
+          historial.length > 0 &&
+          historial.length === this.messages.length &&
+          historial.every((m, i) => !!m?.id && m.id === this.messages[i]?.id);
+        if (!igual) this.messages = historial;
         if (this.step === 'chat') {
           this.socket.emit('set_active', { sessionId: this.session!.id, active: true });
         }

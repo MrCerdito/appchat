@@ -423,6 +423,14 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
       ).subscribe(),
     );
 
+    // Respaldo por polling: si se pierde un evento de asignación o
+    // actualización del chat, la lista se auto-corrige sin recargar.
+    this.subs.add(
+      interval(15_000).pipe(
+        switchMap(() => this.waService.refreshChatsSilently()),
+      ).subscribe(),
+    );
+
     this.subs.add(
       this.configService.getEfectiva().subscribe(config => {
         this.queueCopy = config.whatsappQueueMsg || this.queueCopy;

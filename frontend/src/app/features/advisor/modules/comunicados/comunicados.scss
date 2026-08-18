@@ -96,6 +96,18 @@
   svg { width: 40px; height: 40px; opacity: 0.3; }
 }
 
+.mail-empty-sub {
+  font-size: 0.78rem; text-align: center; max-width: 240px; line-height: 1.4;
+}
+
+.template-del {
+  display: flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 8px; border: none; background: transparent;
+  color: #94a3b8; cursor: pointer; transition: all 0.15s; flex-shrink: 0; margin-right: 0.25rem;
+  svg { width: 15px; height: 15px; }
+  &:hover { background: #fff1f2; color: #ef4444; }
+}
+
 .spinner {
   width: 24px; height: 24px; border-radius: 50%;
   border: 2px solid var(--border-strong); border-top-color: #2563eb;
@@ -505,6 +517,17 @@
   &:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 
+.btn-template {
+  display: flex; align-items: center; gap: 6px;
+  padding: 0.6rem 1.1rem; background: transparent;
+  border: 1.5px dashed var(--border-strong); border-radius: 9px;
+  color: var(--text-muted); font-family: var(--font); font-size: 0.87rem; font-weight: 500;
+  cursor: pointer; transition: all 0.2s;
+  svg { width: 15px; height: 15px; }
+  &:hover:not(:disabled) { border-color: #7c3aed; border-style: solid; color: #7c3aed; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
 .btn-send {
   display: flex; align-items: center; gap: 6px;
   padding: 0.6rem 1.4rem; background: #2563eb; color: var(--text-inverse);
@@ -539,4 +562,158 @@
 @media (max-width: 640px) {
   .mail-list    { display: none; }
   .mail-sidebar { display: none; }
+}
+
+/* ── Modal Overlay & Dialog ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.modal-content {
+  background: #ffffff;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 480px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--border-soft);
+  animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border-soft);
+
+  h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+}
+
+.modal-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+
+  &:hover {
+    background: var(--bg-hover);
+    color: var(--text);
+  }
+}
+
+.modal-body {
+  padding: 1.5rem;
+}
+
+.modal-instruction {
+  margin: 0 0 1.25rem;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  label {
+    font-size: 0.82rem;
+    font-weight: 550;
+    color: var(--text-muted);
+  }
+}
+
+.modal-input {
+  width: 100%;
+  padding: 0.75rem 0.88rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  font-size: 0.92rem;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--bg);
+  transition: border-color 0.15s, box-shadow 0.15s;
+
+  &:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  }
+}
+
+.modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 1.25rem 1.5rem;
+  background: #f8fafc;
+  border-top: 1px solid var(--border-soft);
+
+  button {
+    font-family: inherit;
+    font-size: 0.88rem;
+    font-weight: 500;
+    padding: 0.625rem 1.125rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-cancel {
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    color: var(--text);
+
+    &:hover {
+      background: var(--bg-hover);
+    }
+  }
+
+  .btn-confirm {
+    background: #2563eb;
+    border: 1px solid #2563eb;
+    color: #ffffff;
+
+    &:hover:not(:disabled) {
+      background: #1d4ed8;
+      border-color: #1d4ed8;
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }

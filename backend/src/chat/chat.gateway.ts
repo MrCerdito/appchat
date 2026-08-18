@@ -16,6 +16,7 @@ import { SessionsService } from '../sessions/sessions.service';
 import { AiService } from '../ai/ai.service';
 import { ConfiguracionService } from '../configuracion/configuracion.service';
 import { AdvisorsWhatsappService } from '../advisor-whatsapp/advisors-whatsapp.service';
+import { AdvisorsWhatsappGateway } from '../advisor-whatsapp/advisors-whatsapp.gateway';
 import { Logger } from '@nestjs/common';
 import { RedisStateService } from '../common/redis/redis-state.service';
 import { Attachment } from './entities/message.entity';
@@ -40,9 +41,7 @@ interface TimerEntry {
 @WebSocketGateway({
   maxHttpBufferSize: 2_000_000,
   cors: {
-    origin: process.env.CORS_ORIGINS
-      ? process.env.CORS_ORIGINS.split(',')
-      : ['http://localhost:4200'],
+    origin: true,
     credentials: true,
   },
 })
@@ -79,6 +78,7 @@ export class ChatGateway
     private readonly configService: ConfigService,
     private readonly configuracionService: ConfiguracionService,
     private readonly advisorsWhatsappService: AdvisorsWhatsappService,
+    private readonly advisorsWhatsappGateway: AdvisorsWhatsappGateway,
     private readonly redisState: RedisStateService,
   ) {}
 
@@ -1780,7 +1780,11 @@ export class ChatGateway
   private async assignWaitingWhatsappChats(): Promise<void> {
     const waIds = this.advisorsWhatsappService.getConnectedAdvisorIds();
     if (!waIds.length) return;
-    await this.advisorsWhatsappService.assignWaitingChats(waIds);
+    const assignments =
+      await this.advisorsWhatsappService.assignWaitingChats(waIds);
+    if (assignments.length) {
+      this.advisorsWhatsappGateway.emitAssignments(assignments);
+    }
   }
 
   private async assignPendingSessions(): Promise<void> {

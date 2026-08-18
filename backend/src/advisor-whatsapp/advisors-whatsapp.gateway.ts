@@ -22,9 +22,7 @@ import {
   namespace: '/advisors-whatsapp',
   maxHttpBufferSize: 1_000_000,
   cors: {
-    origin: process.env.CORS_ORIGINS
-      ? process.env.CORS_ORIGINS.split(',')
-      : ['http://localhost:4200'],
+    origin: true,
     credentials: true,
   },
 })

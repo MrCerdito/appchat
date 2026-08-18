@@ -35,3 +35,13 @@ export interface ComunicadoStats {
     sendError?: string | null;
   }[];
 }
+
+export interface ComunicadoTemplate {
+  id: string;
+  name: string;
+  asunto: string;
+  cuerpo: string;
+  design: unknown[] | null;
+  createdAt: string;
+  updatedAt: string;
+}
