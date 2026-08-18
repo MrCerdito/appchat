@@ -1,0 +1,43 @@
+<div class="scm-overlay" (click)="cancel.emit()">
+  <div class="scm-modal" (click)="$event.stopPropagation()">
+    <div class="scm-header">
+      <div class="scm-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13"/>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+      </div>
+      <div>
+        <h3>Enviar comunicado</h3>
+        <p>Revisa los detalles antes de enviar.</p>
+      </div>
+    </div>
+
+    <div class="scm-body">
+      <div class="scm-detail">
+        <span class="scm-label">Asunto</span>
+        <span class="scm-value">{{ asunto || '(Sin asunto)' }}</span>
+      </div>
+      <div class="scm-detail">
+        <span class="scm-label">Destinatarios</span>
+        <span class="scm-value scm-value--highlight">{{ destinatarios.length }} destinatario{{ destinatarios.length === 1 ? '' : 's' }}</span>
+      </div>
+    </div>
+
+    <div class="scm-footer">
+      <button class="scm-btn scm-btn--ghost" (click)="cancel.emit()" [disabled]="saving">Cancelar</button>
+      <button class="scm-btn scm-btn--primary" (click)="confirm.emit()" [disabled]="saving">
+        @if (saving) {
+        <span class="scm-spinner"></span>
+        Enviando...
+        } @else {
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13"/>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+        Enviar comunicado
+        }
+      </button>
+    </div>
+  </div>
+</div>

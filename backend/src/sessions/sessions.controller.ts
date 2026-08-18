@@ -100,7 +100,7 @@ export class CreateColegioDto {
 
   @IsString()
   @IsOptional()
-  @IsIn(['Proyecto Sian365', 'Control Académico', ''])
+  @IsIn(['Sian365', 'ControlAcademic', ''])
   tipoColegio?: string;
 
   @IsUUID()
@@ -131,7 +131,7 @@ export class UpdateColegioDto {
 
   @IsString()
   @IsOptional()
-  @IsIn(['Proyecto Sian365', 'Control Académico', ''])
+  @IsIn(['Sian365', 'ControlAcademic', ''])
   tipoColegio?: string;
 
   @IsUUID()

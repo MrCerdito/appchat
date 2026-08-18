@@ -1,19 +1,21 @@
 <section class="tmc">
-  <header class="tmc-topbar">
-    <div class="tmc-topbar-info">
-      <h2>Gestión de Colegios</h2>
-      <p>Administra los colegios, categorías y asigna un asesor principal a cada uno.</p>
+
+  <!-- ═══════════ HEADER ═══════════ -->
+  <header class="tmc-header">
+    <div class="tmc-header__left">
+      <h2 class="tmc-header__title">Gestión de Colegios</h2>
+      <p class="tmc-header__subtitle">Administra los colegios, categorías y asigna un asesor principal a cada uno.</p>
     </div>
-    <div class="tmc-topbar-actions">
-      <button class="tmc-export" (click)="exportCsv()" title="Exportar CSV">
+    <div class="tmc-header__right">
+      <button class="tmc-btn tmc-btn--outline" (click)="exportCsv()" title="Exportar CSV">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
           <polyline points="7 10 12 15 17 10"/>
           <line x1="12" y1="15" x2="12" y2="3"/>
         </svg>
-        Exportar
+        Exportar CSV
       </button>
-      <label class="tmc-import">
+      <label class="tmc-btn tmc-btn--outline">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
           <polyline points="17 8 12 3 7 8"/>
@@ -22,42 +24,86 @@
         Importar CSV
         <input type="file" accept=".csv" hidden (change)="importCsv($event)"/>
       </label>
+      <button class="tmc-btn tmc-btn--primary" (click)="openForm()" [disabled]="showForm">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"/>
+          <line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        Agregar colegio
+      </button>
     </div>
-    <!-- Info de formato -->
-    <div class="tmc-info-bar">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"/>
-        <line x1="12" y1="16" x2="12" y2="12"/>
-        <line x1="12" y1="8" x2="12.01" y2="8"/>
-      </svg>
-      <div>
-        <strong>Formato de importación CSV</strong> (separador punto y coma <code>;</code>):<br/>
-        <code>nombre;link;email;calendario;tipo_colegio;asesor</code><br/>
-        <span class="tmc-hint-inline">
-          <b>calendario:</b> A o B &nbsp;|&nbsp;
-          <b>tipo_colegio:</b> Proyecto Sian365 o Control Académico &nbsp;|&nbsp;
-          <b>asesor:</b> nombre exacto del asesor en el sistema &nbsp;|&nbsp;
-          <b>email:</b> máximo 1 correo por colegio
-        </span>
-      </div>
-    </div>
-
   </header>
 
-  <div class="tmc-body">
-    <div class="tmc-left">
-
-      <!-- Toolbar -->
-      <div class="colegios-toolbar">
-        <div class="colegios-search">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="11" cy="11" r="8"/>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </svg>
-          <input type="text" [(ngModel)]="search" placeholder="Buscar por nombre, correo o asesor..." (ngModelChange)="page = 1"/>
+  <!-- ═══════════ CSV FORMAT CARD ═══════════ -->
+  <div class="tmc-csv-card">
+    <div class="tmc-csv-card__header">
+      <div class="tmc-csv-card__icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="16" x2="12" y2="12"/>
+          <line x1="12" y1="8" x2="12.01" y2="8"/>
+        </svg>
+      </div>
+      <div class="tmc-csv-card__titles">
+        <span class="tmc-csv-card__title">Formato de importación CSV</span>
+        <span class="tmc-csv-card__badge">Separador: punto y coma (;)</span>
+      </div>
+    </div>
+    <div class="tmc-csv-card__body">
+      <div class="tmc-csv-format">
+        <div class="tmc-csv-format__main">
+          <span class="tmc-csv-format__label">Columnas requeridas</span>
+          <code class="tmc-csv-format__code">nombre;link;email;calendario;tipo_colegio;asesor</code>
         </div>
+        <div class="tmc-csv-format__divider"></div>
+        <div class="tmc-csv-format__item">
+          <span class="tmc-csv-format__dot tmc-csv-format__dot--blue"></span>
+          <div>
+            <span class="tmc-csv-format__key">calendario</span>
+            <span class="tmc-csv-format__val">A o B</span>
+          </div>
+        </div>
+        <div class="tmc-csv-format__divider"></div>
+        <div class="tmc-csv-format__item">
+          <span class="tmc-csv-format__dot tmc-csv-format__dot--purple"></span>
+          <div>
+            <span class="tmc-csv-format__key">tipo_colegio</span>
+            <span class="tmc-csv-format__val">Sian365 o ControlAcademic</span>
+          </div>
+        </div>
+        <div class="tmc-csv-format__divider"></div>
+        <div class="tmc-csv-format__item">
+          <span class="tmc-csv-format__dot tmc-csv-format__dot--green"></span>
+          <div>
+            <span class="tmc-csv-format__key">asesor</span>
+            <span class="tmc-csv-format__val">Nombre exacto del asesor registrado en el sistema</span>
+          </div>
+        </div>
+        <div class="tmc-csv-format__divider"></div>
+        <div class="tmc-csv-format__item">
+          <span class="tmc-csv-format__dot tmc-csv-format__dot--amber"></span>
+          <div>
+            <span class="tmc-csv-format__key">email</span>
+            <span class="tmc-csv-format__val">Máximo 1 correo por colegio</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ TOOLBAR ═══════════ -->
+  <div class="tmc-toolbar">
+    <div class="tmc-toolbar__search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input type="text" [(ngModel)]="search" placeholder="Buscar por nombre, correo o asesor..." (ngModelChange)="page = 1"/>
+    </div>
+    <div class="tmc-toolbar__filters">
+      <div class="tmc-toolbar__filter-group">
         @if (selectedIds.size > 0) {
-        <button class="tmc-btn-danger" (click)="deleteSelected()" [disabled]="deletingBulk">
+        <button class="tmc-btn tmc-btn--danger" (click)="deleteSelected()" [disabled]="deletingBulk">
           @if (deletingBulk) {
           <span class="tmc-spinner"></span>
           } @else {
@@ -69,222 +115,228 @@
           Eliminar ({{ selectedIds.size }})
         </button>
         }
-        <button class="tmc-add-btn" (click)="openForm()" [disabled]="showForm">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19"/>
-            <line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>
-          Agregar colegio
-        </button>
       </div>
-
-      <!-- Formulario -->
-      @if (showForm) {
-      <section class="tmc-card tmc-card--form">
-        <div class="tmc-card-head">
-          <h3>{{ editingColegio ? 'Editar colegio' : 'Nuevo colegio' }}</h3>
-          <button class="tmc-close" (click)="closeForm()" type="button">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"/>
-              <line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
-        </div>
-        <div class="tmc-card-body">
-          <div class="tmc-field">
-            <label for="col-nombre">Nombre <span class="tmc-req">*</span></label>
-            <input id="col-nombre" type="text" [(ngModel)]="form.nombre" placeholder="Ej: Colegio San José" maxlength="200"/>
-          </div>
-          <div class="tmc-grid2">
-            <div class="tmc-field">
-              <label for="col-link">Link <span class="tmc-req">*</span></label>
-              <input id="col-link" type="url" [(ngModel)]="form.link" placeholder="https://ejemplo.com" maxlength="500"/>
-            </div>
-            <div class="tmc-field">
-              <label for="col-email">Correo electrónico</label>
-              <input id="col-email" type="email" [(ngModel)]="form.email" placeholder="contacto@colegio.com" maxlength="255"/>
-              <span class="tmc-hint">Un solo correo por colegio.</span>
-            </div>
-          </div>
-          <div class="tmc-grid2">
-            <div class="tmc-field">
-              <label for="col-calendario">Calendario</label>
-              <select id="col-calendario" [(ngModel)]="form.calendario">
-                <option value="">Sin definir</option>
-                <option value="A">Calendario A</option>
-                <option value="B">Calendario B</option>
-              </select>
-            </div>
-            <div class="tmc-field">
-              <label for="col-tipo">Tipo de colegio</label>
-              <select id="col-tipo" [(ngModel)]="form.tipoColegio">
-                <option value="">Sin definir</option>
-                <option value="Proyecto Sian365">Proyecto Sian365</option>
-                <option value="Control Académico">Control Académico</option>
-              </select>
-            </div>
-          </div>
-          <div class="tmc-field">
-            <label for="col-advisor">Asesor principal</label>
-            <select id="col-advisor" [(ngModel)]="form.advisorId">
-              <option value="">Sin asesor asignado</option>
-              @for (a of advisorsList; track a.id) {
-              <option [value]="a.id">{{ a.name }}</option>
-              }
-            </select>
-            <span class="tmc-hint">Si el asesor no está disponible, el chat se asignará a otro asesor automáticamente.</span>
-          </div>
-        </div>
-        <div class="tmc-card-footer">
-          <button class="tmc-btn-ghost" (click)="closeForm()" type="button">Cancelar</button>
-          <button class="tmc-save" (click)="saveColegio()" [disabled]="saving || !form.nombre.trim() || !form.link.trim()">
-            @if (saving) {
-            <span class="tmc-spinner"></span>
-            Guardando...
-            } @else {
-            {{ editingColegio ? 'Actualizar' : 'Crear colegio' }}
-            }
-          </button>
-        </div>
-      </section>
-      }
-
-      <!-- Loading -->
-      @if (loading) {
-      <section class="tmc-card">
-        <div class="tmc-loading">
-          <span class="tmc-spinner"></span>
-          <span>Cargando colegios...</span>
-        </div>
-      </section>
-      }
-
-      <!-- Tabla -->
-      @if (!loading) {
-      <section class="tmc-card">
-        @if (allFilteredColegios.length === 0) {
-        <div class="tmc-empty">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 21h18"/>
-            <path d="M5 21V7l7-4 7 4v14"/>
-            <path d="M9 21v-6h6v6"/>
-          </svg>
-          <p>{{ search ? 'No se encontraron colegios' : 'No hay colegios registrados' }}</p>
-          <span>{{ search ? 'Intenta con otro término de búsqueda' : 'Haz clic en "Agregar colegio" para comenzar' }}</span>
-        </div>
-        } @else {
-        <div class="tmc-table-wrap">
-          <table class="tmc-table">
-            <thead>
-              <tr>
-                <th class="tmc-th-check">
-                  <input type="checkbox" [checked]="allSelected" (change)="toggleAll()"/>
-                </th>
-                <th>Nombre</th>
-                <th>Link</th>
-                <th>Correo</th>
-                <th>Calendario</th>
-                <th>Tipo</th>
-                <th>Asesor Principal</th>
-                <th class="tmc-th-actions">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (c of filteredColegios; track c.id) {
-              <tr [class.selected]="selectedIds.has(c.id)">
-                <td class="tmc-td-check">
-                  <input type="checkbox" [checked]="selectedIds.has(c.id)" (change)="toggleSelection(c.id)"/>
-                </td>
-                <td class="tmc-td-name">
-                  <span class="tmc-avatar">{{ (c.nombre || '?').charAt(0).toUpperCase() }}</span>
-                  <span>{{ c.nombre }}</span>
-                </td>
-                <td class="tmc-td-link">
-                  <a [href]="c.link" target="_blank" rel="noopener noreferrer">{{ c.link }}</a>
-                </td>
-                <td class="tmc-td-email">{{ c.email || '—' }}</td>
-                <td class="tmc-td-calendario">
-                  @if (c.calendario) {
-                  <span class="tmc-pill tmc-pill--calendario">{{ c.calendario }}</span>
-                  } @else {
-                  <span class="tmc-no-data">—</span>
-                  }
-                </td>
-                <td class="tmc-td-tipo">
-                  @if (c.tipoColegio) {
-                  <span class="tmc-pill tmc-pill--tipo">{{ c.tipoColegio }}</span>
-                  } @else {
-                  <span class="tmc-no-data">—</span>
-                  }
-                </td>
-                <td class="tmc-td-advisor">
-                  @if (c.advisorName) {
-                  <span class="tmc-advisor-badge">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                      <circle cx="12" cy="7" r="4"/>
-                    </svg>
-                    {{ c.advisorName }}
-                  </span>
-                  } @else {
-                  <span class="tmc-no-advisor">Sin asignar</span>
-                  }
-                </td>
-                <td class="tmc-td-actions">
-                  @if (deletingId === c.id) {
-                  <span class="tmc-delete-confirm">
-                    <span>¿Eliminar?</span>
-                    <button class="tmc-btn-sm tmc-btn-danger-solid" (click)="deleteColegio(c.id)">Sí</button>
-                    <button class="tmc-btn-sm tmc-btn-ghost" (click)="cancelDelete()">No</button>
-                  </span>
-                  } @else {
-                  <button class="tmc-icon-btn" (click)="openForm(c)" title="Editar">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                      <path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                    </svg>
-                  </button>
-                  <button class="tmc-icon-btn tmc-icon-btn--danger" (click)="confirmDelete(c)" title="Eliminar">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="3 6 5 6 21 6"/>
-                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                      <path d="M10 11v6"/>
-                      <path d="M14 11v6"/>
-                      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-                    </svg>
-                  </button>
-                  }
-                </td>
-              </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Footer -->
-        <div class="tmc-table-footer">
-          <span class="tmc-count">{{ allFilteredColegios.length }} colegio{{ allFilteredColegios.length === 1 ? '' : 's' }}</span>
-          @if (totalFilteredPages > 1) {
-          <div class="tmc-paginator">
-            <button class="tmc-page-btn" (click)="setPage(1)" [disabled]="page === 1" title="Primera">&laquo;</button>
-            <button class="tmc-page-btn" (click)="setPage(page - 1)" [disabled]="page === 1" title="Anterior">&lsaquo;</button>
-            @for (p of pageRange(); track p) {
-            <button class="tmc-page-btn" [class.active]="p === page" (click)="setPage(p)">{{ p }}</button>
-            }
-            <button class="tmc-page-btn" (click)="setPage(page + 1)" [disabled]="page === totalFilteredPages" title="Siguiente">&rsaquo;</button>
-            <button class="tmc-page-btn" (click)="setPage(totalFilteredPages)" [disabled]="page === totalFilteredPages" title="Última">&raquo;</button>
-            <select class="tmc-page-size" [(ngModel)]="pageSize" (ngModelChange)="onPageSizeChange($event)">
-              @for (s of pageSizeOptions; track s) {
-              <option [value]="s">{{ s }} por pág.</option>
-              }
-            </select>
-          </div>
-          }
-        </div>
-        }
-      </section>
-      }
-
     </div>
   </div>
+
+  <!-- ═══════════ FORM ═══════════ -->
+  @if (showForm) {
+  <section class="tmc-form">
+    <div class="tmc-form__header">
+      <h3>{{ editingColegio ? 'Editar colegio' : 'Nuevo colegio' }}</h3>
+      <button class="tmc-form__close" (click)="closeForm()" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <div class="tmc-form__body">
+      <div class="tmc-field">
+        <label for="col-nombre">Nombre <span class="tmc-field__req">*</span></label>
+        <input id="col-nombre" type="text" [(ngModel)]="form.nombre" placeholder="Ej: Colegio San José" maxlength="200"/>
+      </div>
+      <div class="tmc-form__grid">
+        <div class="tmc-field">
+          <label for="col-link">Link <span class="tmc-field__req">*</span></label>
+          <input id="col-link" type="url" [(ngModel)]="form.link" placeholder="https://ejemplo.com" maxlength="500"/>
+        </div>
+        <div class="tmc-field">
+          <label for="col-email">Correo electrónico</label>
+          <input id="col-email" type="email" [(ngModel)]="form.email" placeholder="contacto@colegio.com" maxlength="255"/>
+          <span class="tmc-field__hint">Un solo correo por colegio.</span>
+        </div>
+      </div>
+      <div class="tmc-form__grid">
+        <div class="tmc-field">
+          <label for="col-calendario">Calendario</label>
+          <select id="col-calendario" [(ngModel)]="form.calendario">
+            <option value="">Sin definir</option>
+            <option value="A">Calendario A</option>
+            <option value="B">Calendario B</option>
+          </select>
+        </div>
+        <div class="tmc-field">
+          <label for="col-tipo">Proyecto</label>
+          <select id="col-tipo" [(ngModel)]="form.tipoColegio">
+            <option value="">Sin definir</option>
+            <option value="Sian365">Sian365</option>
+            <option value="ControlAcademic">ControlAcademic</option>
+          </select>
+        </div>
+      </div>
+      <div class="tmc-field">
+        <label for="col-advisor">Asesor principal</label>
+        <select id="col-advisor" [(ngModel)]="form.advisorId">
+          <option value="">Sin asesor asignado</option>
+          @for (a of advisorsList; track a.id) {
+          <option [value]="a.id">{{ a.name }}</option>
+          }
+        </select>
+        <span class="tmc-field__hint">Si el asesor no está disponible, el chat se asignará a otro asesor automáticamente.</span>
+      </div>
+    </div>
+    <div class="tmc-form__footer">
+      <button class="tmc-btn tmc-btn--ghost" (click)="closeForm()" type="button">Cancelar</button>
+      <button class="tmc-btn tmc-btn--primary" (click)="saveColegio()" [disabled]="saving || !form.nombre.trim() || !form.link.trim()">
+        @if (saving) {
+        <span class="tmc-spinner tmc-spinner--sm"></span>
+        Guardando...
+        } @else {
+        {{ editingColegio ? 'Actualizar' : 'Crear colegio' }}
+        }
+      </button>
+    </div>
+  </section>
+  }
+
+  <!-- ═══════════ LOADING ═══════════ -->
+  @if (loading) {
+  <div class="tmc-card tmc-card--loading">
+    <div class="tmc-loading">
+      <span class="tmc-spinner"></span>
+      <span>Cargando colegios...</span>
+    </div>
+  </div>
+  }
+
+  <!-- ═══════════ TABLE ═══════════ -->
+  @if (!loading) {
+  <div class="tmc-card">
+    @if (allFilteredColegios.length === 0) {
+    <div class="tmc-empty">
+      <div class="tmc-empty__icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 21h18"/>
+          <path d="M5 21V7l7-4 7 4v14"/>
+          <path d="M9 21v-6h6v6"/>
+        </svg>
+      </div>
+      <p class="tmc-empty__title">{{ search ? 'No se encontraron colegios' : 'No hay colegios registrados' }}</p>
+      <span class="tmc-empty__desc">{{ search ? 'Intenta con otro término de búsqueda' : 'Haz clic en "Agregar colegio" para comenzar' }}</span>
+    </div>
+    } @else {
+    <div class="tmc-table-wrap">
+      <table class="tmc-table">
+        <thead>
+          <tr>
+            <th class="tmc-th-check">
+              <input type="checkbox" [checked]="allSelected" (change)="toggleAll()"/>
+            </th>
+            <th>Colegio</th>
+            <th>Link</th>
+            <th>Correo</th>
+            <th>Calendario</th>
+            <th>Proyecto</th>
+            <th>Asesor Principal</th>
+            <th class="tmc-th-actions">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (c of filteredColegios; track c.id) {
+          <tr [class.tmc-tr--selected]="selectedIds.has(c.id)">
+            <td class="tmc-td-check">
+              <input type="checkbox" [checked]="selectedIds.has(c.id)" (change)="toggleSelection(c.id)"/>
+            </td>
+            <td class="tmc-td-name">
+              <span class="tmc-avatar">{{ (c.nombre || '?').charAt(0).toUpperCase() }}</span>
+              <span class="tmc-td-name__text">{{ c.nombre }}</span>
+            </td>
+            <td class="tmc-td-link">
+              <a [href]="c.link" target="_blank" rel="noopener noreferrer">{{ c.link }}</a>
+            </td>
+            <td class="tmc-td-email">{{ c.email || '—' }}</td>
+            <td class="tmc-td-calendario">
+              @if (c.calendario) {
+              <span class="tmc-pill tmc-pill--calendario">{{ c.calendario }}</span>
+              } @else {
+              <span class="tmc-no-data">—</span>
+              }
+            </td>
+            <td class="tmc-td-tipo">
+              @if (c.tipoColegio) {
+              <span class="tmc-pill tmc-pill--tipo">{{ c.tipoColegio }}</span>
+              } @else {
+              <span class="tmc-no-data">—</span>
+              }
+            </td>
+            <td class="tmc-td-advisor">
+              @if (c.advisorName) {
+              <span class="tmc-advisor-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                  <circle cx="12" cy="7" r="4"/>
+                </svg>
+                {{ c.advisorName }}
+              </span>
+              } @else {
+              <span class="tmc-no-advisor">Sin asignar</span>
+              }
+            </td>
+            <td class="tmc-td-actions">
+              @if (deletingId === c.id) {
+              <span class="tmc-delete-confirm">
+                <span>¿Eliminar?</span>
+                <button class="tmc-btn-sm tmc-btn-sm--danger" (click)="deleteColegio(c.id)">Sí</button>
+                <button class="tmc-btn-sm tmc-btn-sm--ghost" (click)="cancelDelete()">No</button>
+              </span>
+              } @else {
+              <div class="tmc-actions-row">
+                <button class="tmc-action-btn tmc-action-btn--edit" (click)="openForm(c)" title="Editar">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                  </svg>
+                </button>
+                <button class="tmc-action-btn tmc-action-btn--delete" (click)="confirmDelete(c)" title="Eliminar">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                    <path d="M10 11v6"/>
+                    <path d="M14 11v6"/>
+                    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                  </svg>
+                </button>
+              </div>
+              }
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ═══════════ PAGINATION ═══════════ -->
+    <div class="tmc-pagination">
+      <span class="tmc-pagination__info">Mostrando {{ ((page - 1) * pageSize) + 1 }} a {{ page * pageSize > allFilteredColegios.length ? allFilteredColegios.length : page * pageSize }} de {{ allFilteredColegios.length }} colegios</span>
+      @if (totalFilteredPages > 1) {
+      <div class="tmc-pagination__controls">
+        <button class="tmc-page-btn" (click)="setPage(1)" [disabled]="page === 1" title="Primera">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
+        </button>
+        <button class="tmc-page-btn" (click)="setPage(page - 1)" [disabled]="page === 1" title="Anterior">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        @for (p of pageRange(); track p) {
+        <button class="tmc-page-btn" [class.tmc-page-btn--active]="p === page" (click)="setPage(p)">{{ p }}</button>
+        }
+        <button class="tmc-page-btn" (click)="setPage(page + 1)" [disabled]="page === totalFilteredPages" title="Siguiente">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+        <button class="tmc-page-btn" (click)="setPage(totalFilteredPages)" [disabled]="page === totalFilteredPages" title="Última">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
+        </button>
+      </div>
+      <div class="tmc-pagination__size">
+        <select [(ngModel)]="pageSize" (ngModelChange)="onPageSizeChange($event)">
+          @for (s of pageSizeOptions; track s) {
+          <option [value]="s">{{ s }} por página</option>
+          }
+        </select>
+      </div>
+      }
+    </div>
+    }
+  </div>
+  }
 </section>

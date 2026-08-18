@@ -192,14 +192,20 @@ export class ColegiosConfigComponent implements OnInit, OnDestroy {
       : this.sessionService.createColegio(payload);
 
     req$.pipe(takeUntil(this.destroy$)).subscribe({
-      next: () => {
+      next: (res: any) => {
         this.saving = false;
-        this.notification.success(
-          this.editingColegio ? 'Colegio actualizado' : 'Colegio creado',
-          'Los cambios se guardaron correctamente.',
-        );
+        if (this.editingColegio) {
+          const updated = res as Colegio;
+          const idx = this.colegios.findIndex(c => c.id === updated.id);
+          if (idx !== -1) {
+            this.colegios[idx] = { ...this.colegios[idx], ...updated, advisorName: updated.advisor?.name || this.colegios[idx].advisorName };
+          }
+        } else {
+          const created = res as Colegio;
+          this.colegios = [{ ...created, advisorName: created.advisor?.name || null }, ...this.colegios];
+        }
         this.closeForm();
-        this.loadColegios();
+        this.cdr.detectChanges();
       },
       error: (err) => {
         this.saving = false;

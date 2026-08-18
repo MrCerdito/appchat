@@ -20,6 +20,7 @@ import { LayoutService } from '../../../../core/services/layout.service';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
 import { fmtDateFull, fmtDateTimeFull } from '../../../../shared/utils/date';
 import { MailEditorComponent, COMUNICADO_MAIL_VARIABLES, limpiarHTML } from '../../../../features/admin/modules/configuracion/components/mail-editor/mail-editor.component';
+import { SendConfirmModalComponent } from './components/send-confirm-modal/send-confirm-modal.component';
 import { environment } from '../../../../../environments/environment';
 
 type View = 'inbox' | 'sent' | 'drafts' | 'templates' | 'compose';
@@ -30,7 +31,7 @@ const CUERPO_FALLBACK =
 @Component({
   selector: 'app-comunicados',
   standalone: true,
-  imports: [FormsModule, SlicePipe, MailEditorComponent],
+  imports: [FormsModule, SlicePipe, MailEditorComponent, SendConfirmModalComponent],
   templateUrl: './comunicados.html',
   styleUrl: './comunicados.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -58,6 +59,7 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
 
   // Modals
   showSaveTemplateModal = false;
+  showSendConfirm = false;
   templateNameDraft = '';
 
   // Compose
@@ -70,7 +72,7 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
   nombreInput = '';
   showColegiosPicker = false;
   colegioSearch = '';
-  colegioFilter: '' | 'A' | 'B' | 'Proyecto Sian365' | 'Control Académico' = '';
+  colegioFilter: '' | 'A' | 'B' | 'Sian365' | 'ControlAcademic' = '';
 
   @ViewChild('composeFrame') private readonly composeFrame?: ElementRef<HTMLIFrameElement>;
   private lastPreviewDoc = '';
@@ -454,6 +456,7 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
     if (!this.destinatarios.length) { this.error = 'Agrega al menos un destinatario'; return; }
     this.sending = true;
     this.error = '';
+    this.showSendConfirm = false;
     const totalDest = this.destinatarios.length;
 
     const save$ = this.editingId
