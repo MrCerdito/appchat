@@ -36,10 +36,11 @@ export class ComunicadosService {
 
   async findAll(userId: string, role: string): Promise<Comunicado[]> {
     if (role === 'admin') {
-      return this.comunicadoRepo.find({ order: { createdAt: 'DESC' } });
+      return this.comunicadoRepo.find({ relations: { sender: true }, order: { createdAt: 'DESC' } });
     }
     return this.comunicadoRepo.find({
       where: { sender: { id: userId } },
+      relations: { sender: true },
       order: { createdAt: 'DESC' },
     });
   }

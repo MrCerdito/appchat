@@ -786,6 +786,7 @@ export class MailEditorComponent implements OnChanges, OnInit, OnDestroy {
         this.designJSON = json;
         this.blocks = this.cloneBlocks(this.design as MailBlock[]);
         this.selectedId = null;
+        this.lastEmitted = '';
         this.cdr.detectChanges();
       }
       return;
@@ -796,6 +797,7 @@ export class MailEditorComponent implements OnChanges, OnInit, OnDestroy {
       const parsed = this.parseCorreo(next);
       this.blocks = parsed ? parsed : this.plainToTextBlock(next);
       this.selectedId = null;
+      this.lastEmitted = '';
       this.cdr.detectChanges();
     }
   }

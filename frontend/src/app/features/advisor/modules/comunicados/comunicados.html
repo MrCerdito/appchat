@@ -1,43 +1,22 @@
-<div class="mail-shell">
+﻿<div class="mail-shell">
 
-  <!-- ═══════════════════ SIDEBAR ═══════════════════ -->
   <aside class="mc-sidebar">
-    <div class="mc-sidebar__brand">
-      <svg class="mc-sidebar__logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="22" y1="2" x2="11" y2="13"/>
-        <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-      </svg>
-      <span class="mc-sidebar__title">Comunicados</span>
-    </div>
-
-    <button class="mc-compose-btn" (click)="openCompose()">
+    <button class="mc-compose-btn" (click)="openCompose()" title="Redactar">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 5H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/>
         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
       </svg>
-      Redactar
+      <span class="mc-compose-btn__label">Redactar</span>
     </button>
-
     <nav class="mc-nav">
-      <button class="mc-nav__item" [class.active]="view === 'inbox'"
-        (click)="view = 'inbox'; selected = null; showStats = false">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/>
-          <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>
-        </svg>
-        <span>Bandeja</span>
-      </button>
-
       <button class="mc-nav__item" [class.active]="view === 'sent'"
         (click)="view = 'sent'; selected = null; showStats = false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="22" y1="2" x2="11" y2="13"/>
-          <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
         </svg>
         <span>Enviados</span>
         @if (failedCount > 0) { <span class="mc-badge mc-badge--error">{{ failedCount }}</span> }
       </button>
-
       <button class="mc-nav__item" [class.active]="view === 'drafts'"
         (click)="view = 'drafts'; selected = null; showStats = false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -48,7 +27,6 @@
         <span>Borradores</span>
         @if (draftCount > 0) { <span class="mc-badge">{{ draftCount }}</span> }
       </button>
-
       <button class="mc-nav__item" [class.active]="view === 'templates'"
         (click)="view = 'templates'; selected = null; showStats = false">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -60,35 +38,35 @@
     </nav>
   </aside>
 
-  <!-- ═══════════════════ LISTA ═══════════════════ -->
   @if (view !== 'compose') {
   <div class="mc-list">
     <div class="mc-list__header">
-      <h2>{{ view === 'inbox' ? 'Todos los comunicados' : view === 'sent' ? 'Enviados' : view === 'templates' ? 'Plantillas' : 'Borradores' }}</h2>
+      <h2>{{ view === 'sent' ? 'Enviados' : view === 'templates' ? 'Plantillas' : 'Borradores' }}</h2>
     </div>
     <div class="mc-list__body">
-
       @if (view === 'templates') {
         @if (templatesLoading) {
         <div class="mc-empty"><div class="mc-spinner"></div>Cargando...</div>
         }
         @for (t of templates; track trackById($index, t)) {
-        <div class="mc-item" (click)="applyTemplate(t)" [title]="'Usar plantilla: ' + t.name">
-          <div class="mc-item__avatar">{{ t.name.charAt(0).toUpperCase() }}</div>
-          <div class="mc-item__info">
-            <div class="mc-item__top">
-              <span class="mc-item__sender">{{ t.name }}</span>
-              <span class="mc-item__time">{{ fmtDateFull(t.updatedAt) }}</span>
+        <div class="mc-item mc-item--card"
+          (click)="applyTemplate(t)" [title]="t.name">
+          <div class="mc-item__top-row">
+            <div class="mc-item__avatar mc-item__avatar--template">{{ t.name.charAt(0).toUpperCase() }}</div>
+            <div class="mc-item__info">
+              <div class="mc-item__top">
+                <span class="mc-item__sender">{{ t.name }}</span>
+                <span class="mc-item__time">{{ fmtDateFull(t.updatedAt) }}</span>
+              </div>
+              <span class="mc-item__subject">{{ t.asunto || '(Sin asunto)' }}</span>
             </div>
-            <span class="mc-item__subject">{{ t.asunto }}</span>
-            <span class="mc-item__preview" [innerHTML]="t.cuerpo | slice:0:80"></span>
+            <button class="mc-item__del" type="button" title="Eliminar plantilla"
+              (click)="$event.stopPropagation(); deleteTemplate(t)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+              </svg>
+            </button>
           </div>
-          <button class="mc-item__del" type="button" title="Eliminar plantilla"
-            (click)="$event.stopPropagation(); deleteTemplate(t)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-            </svg>
-          </button>
         </div>
         }
         @if (!templatesLoading && templates.length === 0) {
@@ -101,21 +79,39 @@
       } @else {
         @if (loading) { <div class="mc-empty"><div class="mc-spinner"></div>Cargando...</div> }
         @for (c of filtered; track trackById($index, c)) {
-        <div class="mc-item" [class.selected]="selected?.id === c.id"
+        <div class="mc-item mc-item--card" [class.selected]="selected?.id === c.id"
           [class.draft]="c.status === 'draft'" [class.failed]="c.status === 'failed'"
           (click)="selectComunicado(c)">
-          <div class="mc-item__avatar" [class.avatar-failed]="c.status === 'failed'">{{ c.senderName.charAt(0) }}</div>
-          <div class="mc-item__info">
-            <div class="mc-item__top">
-              <span class="mc-item__sender">{{ c.senderName }}</span>
-              <span class="mc-item__time">{{ fmtDateFull(c.createdAt) }}</span>
+          <div class="mc-item__top-row">
+            <div class="mc-item__avatar" [class.avatar-failed]="c.status === 'failed'">{{ c.senderName.charAt(0) }}</div>
+            <div class="mc-item__info">
+              <div class="mc-item__top">
+                <span class="mc-item__sender">{{ c.senderName }}</span>
+                <span class="mc-item__time">{{ fmtDateFull(c.createdAt) }}</span>
+              </div>
+              <span class="mc-item__email">{{ c.senderEmail || '' }}</span>
+              <span class="mc-item__subject">{{ c.asunto }}</span>
             </div>
-            <span class="mc-item__subject">{{ c.asunto }}</span>
-            <span class="mc-item__preview" [innerHTML]="c.cuerpo | slice:0:80"></span>
+            <span class="mc-status" [class]="'mc-status--' + c.status">
+              {{ c.status === 'sent' ? 'Enviado' : c.status === 'failed' ? 'No enviado' : 'Borrador' }}
+            </span>
           </div>
-          <span class="mc-status" [class]="'mc-status--' + c.status">
-            {{ c.status === 'sent' ? 'Enviado' : c.status === 'failed' ? 'No enviado' : 'Borrador' }}
-          </span>
+
+          @if (c.destinatarios && c.destinatarios.length > 0) {
+          <div class="mc-item__recipients-row">
+            <div class="mc-item__avatar-group">
+              @for (d of c.destinatarios.slice(0, 5); track trackByIndex($index)) {
+              <div class="mc-item__mini-avatar" [title]="d.nombre">{{ d.nombre.charAt(0).toUpperCase() }}</div>
+              }
+              @if (c.destinatarios.length > 5) {
+              <div class="mc-item__mini-avatar mc-item__mini-avatar--overflow"
+                (click)="$event.stopPropagation(); detailRecipientPage = 1; detailRecipientSearch = ''; showDetailRecipientsModal = true"
+                title="Ver todos">+{{ c.destinatarios.length - 5 }}</div>
+              }
+            </div>
+            <span class="mc-item__dest-count">{{ c.destinatarios.length }} destinatario{{ c.destinatarios.length === 1 ? '' : 's' }}</span>
+          </div>
+          }
         </div>
         }
         @if (!loading && filtered.length === 0) {
@@ -128,8 +124,6 @@
     </div>
   </div>
   }
-
-  <!-- ═══════════════════ DETALLE ═══════════════════ -->
   @if (view !== 'compose') {
   <div class="mc-detail">
     @if (!selected) {
@@ -152,7 +146,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
           </svg>
-          Este comunicado no pudo ser entregado a ningún destinatario.
+          Este comunicado no pudo ser entregado a ningun destinatario.
           <button class="mc-alert__action" (click)="openCompose(selected)">Editar y reintentar</button>
         </div>
         }
@@ -162,8 +156,9 @@
             <div class="mc-sender-avatar">{{ selected.senderName.charAt(0) }}</div>
             <div>
               <span class="mc-sender-name">{{ selected.senderName }}</span>
+              <span class="mc-sender-email">{{ selected.senderEmail || '' }}</span>
               <span class="mc-sender-date">
-                {{ selected.status === 'sent' ? fmtDateTimeFull(selected.sentAt) : selected.status === 'failed' ? 'No enviado — ' + fmtDateFull(selected.createdAt) : 'Borrador — ' + fmtDateFull(selected.createdAt) }}
+                {{ selected.status === 'sent' ? fmtDateTimeFull(selected.sentAt) : selected.status === 'failed' ? 'No enviado - ' + fmtDateFull(selected.createdAt) : 'Borrador - ' + fmtDateFull(selected.createdAt) }}
               </span>
             </div>
           </div>
@@ -177,7 +172,7 @@
             @if (selected.status === 'sent') {
             <button class="mc-btn mc-btn--subtle mc-btn--success" (click)="loadStats(selected.id)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-              {{ statsLoading ? 'Cargando...' : 'Estadísticas' }}
+              {{ statsLoading ? 'Cargando...' : 'Estadisticas' }}
             </button>
             }
             <button class="mc-btn mc-btn--subtle mc-btn--error" (click)="deleteComunicado(selected.id)">
@@ -190,10 +185,10 @@
         <div class="mc-reader__recipients">
           <span class="mc-recipients__label">Para:</span>
           <div class="mc-recipients__list">
-            @for (d of selected.destinatarios; track trackByIndex($index)) {
+            @for (d of selected.destinatarios.slice(0, 5); track trackByIndex($index)) {
             <span class="mc-chip" [class.mc-chip--failed]="d.sendStatus === 'failed'" [class.mc-chip--ok]="d.sendStatus === 'ok'"
               [title]="d.sendStatus === 'failed' ? (d.sendError || 'No entregado') : ''">
-              {{ d.nombre }} &lt;{{ d.email }}&gt;
+              {{ d.nombre }}
               @if (d.sendStatus === 'failed') {
               <svg class="mc-chip__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
               }
@@ -202,19 +197,26 @@
               }
             </span>
             }
+            @if (selected.destinatarios.length > 5) {
+            <button class="mc-chip mc-chip--more" (click)="openDetailRecipientsModal()">
+              +{{ selected.destinatarios.length - 5 }} mas
+            </button>
+            }
             @if (!selected.destinatarios.length) { <span class="mc-chip mc-chip--empty">Sin destinatarios</span> }
           </div>
         </div>
       </div>
 
-      <div class="mc-reader__body" [innerHTML]="selected.cuerpo"></div>
+      <div class="mc-reader__preview">
+        <iframe #detailFrame class="mc-reader__frame" title="Vista previa del comunicado" (load)="detailFrameLoad()"></iframe>
+      </div>
 
       @if (showStats && stats) {
       <div class="mc-stats">
         <div class="mc-stats__header">
           <span class="mc-stats__title">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-            Estadísticas de envío
+            Estadisticas de envio
           </span>
           <button class="mc-stats__close" (click)="showStats = false">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -227,11 +229,11 @@
           </div>
           <div class="mc-stat-card mc-stat-card--green">
             <span class="mc-stat-card__num">{{ stats.totalAperturas }}</span>
-            <span class="mc-stat-card__lbl">Aperturas · {{ stats.tasaApertura }}%</span>
+            <span class="mc-stat-card__lbl">Aperturas - {{ stats.tasaApertura }}%</span>
           </div>
           <div class="mc-stat-card mc-stat-card--blue">
             <span class="mc-stat-card__num">{{ stats.totalClics }}</span>
-            <span class="mc-stat-card__lbl">Clics · {{ stats.tasaClics }}%</span>
+            <span class="mc-stat-card__lbl">Clics - {{ stats.tasaClics }}%</span>
           </div>
           @if (statsFailedCount > 0) {
           <div class="mc-stat-card mc-stat-card--red">
@@ -259,8 +261,8 @@
               <span class="mc-pill mc-pill--red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>No entregado</span>
               }
             </span>
-            <span class="mc-pill-cell">@if (d.aperturas > 0) { <span class="mc-pill mc-pill--blue">{{ d.aperturas }}</span> } @else { <span class="mc-pill-cell__zero">—</span> }</span>
-            <span class="mc-pill-cell">@if (d.clics > 0) { <span class="mc-pill mc-pill--purple">{{ d.clics }}</span> } @else { <span class="mc-pill-cell__zero">—</span> }</span>
+            <span class="mc-pill-cell">@if (d.aperturas > 0) { <span class="mc-pill mc-pill--blue">{{ d.aperturas }}</span> } @else { <span class="mc-pill-cell__zero">-</span> }</span>
+            <span class="mc-pill-cell">@if (d.clics > 0) { <span class="mc-pill mc-pill--purple">{{ d.clics }}</span> } @else { <span class="mc-pill-cell__zero">-</span> }</span>
           </div>
           }
         </div>
@@ -270,19 +272,8 @@
     }
   </div>
   }
-
-  <!-- ═══════════════════ COMPOSE ═══════════════════ -->
   @if (view === 'compose') {
   <div class="mc-compose">
-    <div class="mc-compose__top">
-      <button class="mc-back-btn" (click)="view = 'inbox'; selected = null">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="15 18 9 12 15 6"/>
-        </svg>
-      </button>
-      <h1 class="mc-compose__title">{{ editingId ? 'Editar comunicado' : 'Nuevo comunicado' }}</h1>
-    </div>
-
     @if (success) {
     <div class="mc-alert mc-alert--success">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -295,14 +286,11 @@
       {{ error }}
     </div>
     }
-
     <div class="mc-compose__grid">
 
-      <!-- ── Columna izquierda: formulario ──────────────────────── -->
       <div class="mc-compose__form">
 
-        <!-- Section: Destinatarios -->
-        <div class="mc-section">
+        <div class="mc-section mc-dest">
           <div class="mc-section__header">
             <div class="mc-section__icon mc-section__icon--teal">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -313,34 +301,62 @@
             </div>
             <div>
               <h3 class="mc-section__title">Destinatarios</h3>
-              <p class="mc-section__sub">Agrega correos manualmente o desde colegios</p>
+              <p class="mc-section__sub">Selecciona y filtra los destinatarios de tu comunicacion</p>
             </div>
           </div>
 
-          <!-- Chips -->
           @if (destinatarios.length > 0) {
-          <div class="mc-chips">
-            @for (d of destinatarios; track trackByIndex($index)) {
-            <div class="mc-chip mc-chip--removable">
-              <span class="mc-chip__name">{{ d.nombre || d.email }}</span>
-              @if (d.nombre) { <span class="mc-chip__email">{{ d.email }}</span> }
-              <button class="mc-chip__remove" (click)="removeDestinatario(d.email)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              </button>
+          <div class="mc-dest__selected-section">
+            <div class="mc-dest__counter">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              <span>{{ destinatarios.length }} destinatario{{ destinatarios.length === 1 ? '' : 's' }} seleccionado{{ destinatarios.length === 1 ? '' : 's' }}</span>
             </div>
-            }
+            <div class="mc-dest__selected-list">
+              @for (d of destinatarios.slice(0, 4); track trackByIndex($index)) {
+              <div class="mc-dest__selected-item">
+                <div class="mc-dest__selected-info">
+                  <span class="mc-dest__selected-name">{{ d.nombre }}</span>
+                  <span class="mc-dest__selected-email">{{ d.email }}</span>
+                  @if (d.colegio) {
+                  <span class="mc-dest__selected-meta">{{ d.colegio }}{{ d.tipo ? ' · ' + d.tipo : '' }}</span>
+                  }
+                </div>
+                <button class="mc-dest__selected-remove" (click)="removeDestinatario(d.email)" title="Quitar">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+              }
+              @if (destinatarios.length > 4) {
+              <button class="mc-dest__selected-more" (click)="openRecipientsModal()">
+                +{{ destinatarios.length - 4 }} mas destinatarios
+              </button>
+              }
+            </div>
           </div>
           }
 
-          <!-- Inputs manuales -->
-          <div class="mc-input-group">
-            <input type="text" [(ngModel)]="nombreInput" placeholder="Nombre (opcional)" class="mc-input"/>
-            <input type="email" [(ngModel)]="emailInput" placeholder="correo@ejemplo.com" class="mc-input mc-input--grow" (keyup.enter)="addEmailManual()"/>
-            <button class="mc-btn mc-btn--primary mc-btn--sm" (click)="addEmailManual()">Agregar</button>
+          <div class="mc-dest__manual">
+            <label class="mc-dest__manual-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              Agregar destinatario manualmente
+            </label>
+            <div class="mc-dest__manual-row">
+              <div class="mc-dest__manual-field">
+                <label class="mc-dest__field-label">Nombre</label>
+                <input type="text" [(ngModel)]="nombreInput" placeholder="Ej: Laura Gomez" class="mc-dest__field-input"/>
+              </div>
+              <div class="mc-dest__manual-field mc-dest__manual-field--grow">
+                <label class="mc-dest__field-label">Correo electronico</label>
+                <input type="email" [(ngModel)]="emailInput" placeholder="correo@ejemplo.com" class="mc-dest__field-input" (keyup.enter)="addEmailManual()"/>
+              </div>
+            </div>
+            <button class="mc-btn mc-btn--primary mc-btn--sm mc-dest__manual-btn" (click)="addEmailManual()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Agregar destinatario
+            </button>
           </div>
 
-          <!-- Filtros colegios -->
-          <div class="mc-school-actions">
+          <div class="mc-dest__actions">
             <button class="mc-btn mc-btn--outline mc-btn--sm" (click)="showColegiosPicker = !showColegiosPicker"
               [class.mc-btn--active]="showColegiosPicker">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -349,54 +365,181 @@
               </svg>
               Colegios
             </button>
-            @if (colegioFilter) {
-            <button class="mc-btn mc-btn--outline mc-btn--sm mc-btn--filtered" (click)="addFilteredColegios()">
-              + Filtrados ({{ filteredColegios.length }})
-            </button>
-            }
-            <button class="mc-btn mc-btn--outline mc-btn--sm" (click)="addAllColegios()">+ Todos</button>
+            <button class="mc-btn mc-btn--outline mc-btn--sm" (click)="addAllFilteredColegios()">+ Todos ({{ colegios.length }})</button>
           </div>
 
           @if (showColegiosPicker) {
-          <div class="mc-school-picker">
-            <div class="mc-filter-pills">
-              <button class="mc-pill-filter" [class.active]="colegioFilter === ''" (click)="colegioFilter = ''">Todos</button>
-              <button class="mc-pill-filter" [class.active]="colegioFilter === 'A'" (click)="colegioFilter = 'A'">Cal. A</button>
-              <button class="mc-pill-filter" [class.active]="colegioFilter === 'B'" (click)="colegioFilter = 'B'">Cal. B</button>
-              <button class="mc-pill-filter" [class.active]="colegioFilter === 'Sian365'" (click)="colegioFilter = 'Sian365'">Sian365</button>
-              <button class="mc-pill-filter" [class.active]="colegioFilter === 'ControlAcademic'" (click)="colegioFilter = 'ControlAcademic'">ControlAcademic</button>
+          <div class="mc-dest__picker">
+
+            <!-- Filtros colapsables -->
+            <div class="mc-dest__filters">
+              <button class="mc-dest__filters-toggle" (click)="showFiltersPanel = !showFiltersPanel"
+                [class.mc-dest__filters-toggle--active]="showFiltersPanel">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                Filtros
+                @if (activeFilterCount > 0) {
+                <span class="mc-dest__filters-badge">{{ activeFilterCount }}</span>
+                }
+                <svg class="mc-dest__filters-chevron" [class.open]="showFiltersPanel" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
             </div>
-            <input type="text" [(ngModel)]="colegioSearch" placeholder="Buscar colegio..." class="mc-school-picker__search"/>
-            <div class="mc-school-picker__list">
-              @for (c of filteredColegios; track trackById($index, c)) {
-              <div class="mc-school-row" [class.added]="destinatarios.some(d => d.email === c.email)"
-                (click)="addColegio(c)">
-                <div class="mc-school-row__info">
-                  <span class="mc-school-row__name">{{ c.nombre }}</span>
-                  <span class="mc-school-row__email">{{ c.email || 'Sin email' }}</span>
+
+            <!-- Dropdowns de filtro (colapsable) -->
+            @if (showFiltersPanel) {
+            <div class="mc-dest__filter-body">
+              <div class="mc-dest__filter-row">
+                <div class="mc-dest__filter-group">
+                  <label class="mc-dest__filter-label">Sistema / Producto</label>
+                  <select class="mc-dest__filter-select" [(ngModel)]="filterTipoColegio" (ngModelChange)="colegioPage = 1">
+                    <option value="">Todos</option>
+                    <option value="Sian365">Sian365</option>
+                    <option value="ControlAcademic">Control Academic</option>
+                  </select>
                 </div>
-                @if (destinatarios.some(d => d.email === c.email)) {
-                <svg class="mc-school-row__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                }
-                @if (!destinatarios.some(d => d.email === c.email) && c.email) {
-                <svg class="mc-school-row__add" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                }
+                <div class="mc-dest__filter-group">
+                  <label class="mc-dest__filter-label">Calendario</label>
+                  <select class="mc-dest__filter-select" [(ngModel)]="filterCalendario" (ngModelChange)="colegioPage = 1">
+                    <option value="">Todos</option>
+                    <option value="A">Calendario A</option>
+                    <option value="B">Calendario B</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            }
+
+            <!-- Chips de filtros activos -->
+            @if (activeFilterChips.length > 0) {
+            <div class="mc-dest__active-filters">
+              @for (chip of activeFilterChips; track chip.key) {
+              <span class="mc-dest__filter-chip">
+                {{ chip.label }}
+                <button class="mc-dest__filter-chip-x" (click)="removeFilterChip(chip.key)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </span>
+              }
+              <button class="mc-dest__clear-filters" (click)="clearAllFilters()">Limpiar filtros</button>
+            </div>
+            }
+
+            <!-- Busqueda -->
+            <div class="mc-dest__search">
+              <svg class="mc-dest__search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" [(ngModel)]="colegioSearch" placeholder="Buscar colegio por nombre o correo..." class="mc-dest__search-input" (ngModelChange)="colegioPage = 1"/>
+              @if (colegioSearch) {
+              <button class="mc-dest__search-clear" (click)="colegioSearch = ''; colegioPage = 1">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+              }
+            </div>
+
+            <!-- Barra de seleccion -->
+            <div class="mc-dest__select-bar">
+              <div class="mc-dest__select-bar-left">
+                <label class="mc-dest__checkbox-label">
+                  <input type="checkbox" class="mc-dest__checkbox" [checked]="allFilteredSelected" (change)="toggleSelectAllColegios()"/>
+                  <span class="mc-dest__checkbox-mark"></span>
+                  <span class="mc-dest__checkbox-text">Seleccionar todos</span>
+                </label>
+                <span class="mc-dest__select-count">{{ filteredColegios.length }} colegios</span>
+              </div>
+              @if (selectedColegioIds.size > 0) {
+              <div class="mc-dest__select-bar-right">
+                <span class="mc-dest__select-selected">{{ selectedColegioIds.size }} seleccionado{{ selectedColegioIds.size === 1 ? '' : 's' }}</span>
+                <button class="mc-btn mc-btn--primary mc-btn--xs" (click)="addSelectedColegios()">Agregar seleccionados</button>
+                <button class="mc-btn mc-btn--ghost mc-btn--xs" (click)="clearColegioSelection()">Quitar seleccion</button>
+              </div>
+              }
+              @if (selectedColegioIds.size === 0 && filteredColegios.length > 0) {
+              <div class="mc-dest__select-bar-right">
+                <button class="mc-btn mc-btn--ghost mc-btn--xs" (click)="addAllFilteredColegios()">+ Agregar todos los filtrados ({{ filteredColegios.length }})</button>
               </div>
               }
             </div>
-          </div>
-          }
 
-          <!-- Summary -->
-          @if (destinatarios.length > 0) {
-          <div class="mc-recipient-summary">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-            <span><strong>{{ destinatarios.length }}</strong> destinatario{{ destinatarios.length === 1 ? '' : 's' }} seleccionado{{ destinatarios.length === 1 ? '' : 's' }}</span>
+            <!-- Tabla de colegios -->
+            @if (filteredColegios.length > 0) {
+            <div class="mc-dest__table-wrap">
+              <table class="mc-dest__table">
+                <thead>
+                  <tr>
+                    <th class="mc-dest__th mc-dest__th--check"></th>
+                    <th class="mc-dest__th mc-dest__th--name">Nombre</th>
+                    <th class="mc-dest__th mc-dest__th--email">Correo</th>
+                    <th class="mc-dest__th mc-dest__th--cal">Calendario</th>
+                    <th class="mc-dest__th mc-dest__th--sys">Sistema</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (c of paginatedColegios; track trackById($index, c)) {
+                  <tr class="mc-dest__row"
+                    [class.mc-dest__row--selected]="isColegioSelected(c.id)"
+                    [class.mc-dest__row--added]="isColegioAdded(c)">
+                    <td class="mc-dest__td mc-dest__td--check">
+                      <label class="mc-dest__checkbox-label">
+                        <input type="checkbox" class="mc-dest__checkbox"
+                          [checked]="isColegioSelected(c.id)"
+                          (change)="toggleColegioSelection(c.id)"/>
+                        <span class="mc-dest__checkbox-mark"></span>
+                      </label>
+                    </td>
+                    <td class="mc-dest__td mc-dest__td--name">
+                      <span class="mc-dest__name">{{ c.nombre }}</span>
+                      @if (isColegioAdded(c)) {
+                      <span class="mc-dest__added-badge">Agregado</span>
+                      }
+                    </td>
+                    <td class="mc-dest__td mc-dest__td--email">{{ c.email || 'Sin email' }}</td>
+                    <td class="mc-dest__td mc-dest__td--cal">
+                      @if (c.calendario) {
+                      <span class="mc-dest__badge" [class.mc-dest__badge--a]="c.calendario === 'A'" [class.mc-dest__badge--b]="c.calendario === 'B'">
+                        Cal. {{ c.calendario }}
+                      </span>
+                      }
+                    </td>
+                    <td class="mc-dest__td mc-dest__td--sys">
+                      @if (c.tipoColegio) {
+                      <span class="mc-dest__badge" [class.mc-dest__badge--sian]="c.tipoColegio === 'Sian365'" [class.mc-dest__badge--ctrl]="c.tipoColegio === 'ControlAcademic'">
+                        {{ c.tipoColegio === 'Sian365' ? 'SIAN365' : 'ControlAcad.' }}
+                      </span>
+                      }
+                    </td>
+                  </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Paginador -->
+            <div class="mc-dest__paginator">
+              <span class="mc-dest__paginator-info">
+                Mostrando {{ (colegioPage - 1) * COLEGIO_PAGE_SIZE + 1 }}&ndash;{{ paginatedEnd }} de {{ filteredColegios.length }} colegios
+              </span>
+              <div class="mc-dest__paginator-btns">
+                <button class="mc-dest__page-btn" [disabled]="colegioPage === 1" (click)="onColegioPageChange(colegioPage - 1)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                @for (p of colegioPageNumbers; track p) {
+                <button class="mc-dest__page-btn" [class.active]="p === colegioPage" (click)="onColegioPageChange(p)">{{ p }}</button>
+                }
+                <button class="mc-dest__page-btn" [disabled]="colegioPage === colegioTotalPages" (click)="onColegioPageChange(colegioPage + 1)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+              </div>
+            </div>
+            } @else {
+            <div class="mc-dest__empty">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 15h8"/><circle cx="9" cy="9" r="1"/><circle cx="15" cy="9" r="1"/></svg>
+              <p>No encontramos colegios con estos filtros</p>
+              <button class="mc-btn mc-btn--outline mc-btn--sm" (click)="clearAllFilters()">Limpiar filtros</button>
+            </div>
+            }
+
           </div>
           }
         </div>
 
-        <!-- Section: Contenido -->
         <div class="mc-section">
           <div class="mc-section__header">
             <div class="mc-section__icon mc-section__icon--purple">
@@ -410,12 +553,10 @@
               <p class="mc-section__sub">Asunto y cuerpo del comunicado</p>
             </div>
           </div>
-
           <div class="mc-subject-input">
             <label class="mc-subject-input__label">Asunto</label>
             <input type="text" [(ngModel)]="asunto" placeholder="Asunto del comunicado" class="mc-subject-input__field"/>
           </div>
-
           <div class="mc-editor-wrap">
             <app-mail-editor
               [cuerpo]="cuerpo" [design]="design" [variables]="mailVariables"
@@ -425,7 +566,6 @@
           </div>
         </div>
 
-        <!-- Section: Acciones -->
         <div class="mc-section mc-section--actions">
           <div class="mc-action-bar">
             <div class="mc-action-bar__left">
@@ -448,7 +588,6 @@
         </div>
       </div>
 
-      <!-- ── Columna derecha: vista previa ──────────────────────── -->
       <div class="mc-compose__preview">
         <div class="mc-preview__header">
           <div class="mc-preview__title">
@@ -457,7 +596,6 @@
           </div>
           <span class="mc-preview__sub">Se actualiza con cada cambio</span>
         </div>
-
         <div class="mc-preview__email">
           <div class="mc-preview__subjectbar">
             <span class="mc-preview__recipients">Para ({{ destinatarios.length }})</span>
@@ -472,8 +610,130 @@
     </div>
   </div>
   }
+  @if (showRecipientsModal) {
+  <div class="mc-overlay" (click)="showRecipientsModal = false">
+    <div class="mc-dialog mc-dialog--wide" (click)="$event.stopPropagation()">
+      <div class="mc-dialog__header">
+        <div class="mc-dialog__header-group">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <h3>Destinatarios ({{ destinatarios.length }})</h3>
+        </div>
+        <button type="button" class="mc-dialog__close" (click)="showRecipientsModal = false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="mc-dialog__search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" [(ngModel)]="recipientSearch" (ngModelChange)="recipientPage = 1" placeholder="Buscar por nombre, correo, colegio..." class="mc-dialog__search-input"/>
+      </div>
+      <div class="mc-dialog__body mc-dialog__body--scroll">
+        <div class="mc-dest-table">
+          <div class="mc-dest-table__row mc-dest-table__row--header">
+            <span class="mc-dest-table__cell mc-dest-table__cell--num">#</span>
+            <span class="mc-dest-table__cell mc-dest-table__cell--name">Nombre</span>
+            <span class="mc-dest-table__cell mc-dest-table__cell--colegio">Colegio</span>
+            <span class="mc-dest-table__cell mc-dest-table__cell--email">Correo</span>
+            <span class="mc-dest-table__cell mc-dest-table__cell--tipo">Tipo</span>
+            <span class="mc-dest-table__cell mc-dest-table__cell--action"></span>
+          </div>
+          @for (d of paginatedDestinatarios; track trackByIndex($index)) {
+          <div class="mc-dest-table__row">
+            <span class="mc-dest-table__cell mc-dest-table__cell--num">{{ (recipientPage - 1) * RECIPIENT_PAGE_SIZE + $index + 1 }}</span>
+            <span class="mc-dest-table__cell mc-dest-table__cell--name">{{ d.nombre }}</span>
+            <span class="mc-dest-table__cell mc-dest-table__cell--colegio">{{ d.colegio || '-' }}</span>
+            <span class="mc-dest-table__cell mc-dest-table__cell--email">{{ d.email }}</span>
+            <span class="mc-dest-table__cell mc-dest-table__cell--tipo">
+              @if (d.tipo) { <span class="mc-dest-table__tag">{{ d.tipo }}</span> } @else { - }
+            </span>
+            <span class="mc-dest-table__cell mc-dest-table__cell--action">
+              <button class="mc-dest-table__remove" (click)="removeDestinatario(d.email)" title="Eliminar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </span>
+          </div>
+          }
+          @if (paginatedDestinatarios.length === 0) {
+          <div class="mc-dest-table__empty">No se encontraron destinatarios</div>
+          }
+        </div>
+      </div>
+      <div class="mc-dialog__footer">
+        <div class="mc-paginator">
+          <button class="mc-paginator__btn" [disabled]="recipientPage <= 1" (click)="recipientPageChange(recipientPage - 1)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <span class="mc-paginator__info">Pagina {{ recipientPage }} de {{ recipientTotalPages }}</span>
+          <button class="mc-paginator__btn" [disabled]="recipientPage >= recipientTotalPages" (click)="recipientPageChange(recipientPage + 1)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+        <button class="mc-btn mc-btn--outline" (click)="showRecipientsModal = false">Cerrar</button>
+      </div>
+    </div>
+  </div>
+  }
 
-  <!-- ═══════════════════ MODAL: GUARDAR PLANTILLA ═══════════════════ -->
+  @if (showDetailRecipientsModal) {
+  <div class="mc-overlay" (click)="showDetailRecipientsModal = false">
+    <div class="mc-dialog mc-dialog--wide" (click)="$event.stopPropagation()">
+      <div class="mc-dialog__header">
+        <div class="mc-dialog__header-group">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <h3>Destinatarios ({{ selected?.destinatarios?.length || 0 }})</h3>
+        </div>
+        <button type="button" class="mc-dialog__close" (click)="showDetailRecipientsModal = false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="mc-dialog__search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" [(ngModel)]="detailRecipientSearch" (ngModelChange)="detailRecipientPage = 1" placeholder="Buscar por nombre, correo..." class="mc-dialog__search-input"/>
+      </div>
+      <div class="mc-dialog__body mc-dialog__body--scroll">
+        <div class="mc-dest-table">
+          <div class="mc-dest-table__row mc-dest-table__row--header">
+            <span class="mc-dest-table__cell mc-dest-table__cell--num">#</span>
+            <span class="mc-dest-table__cell mc-dest-table__cell--name">Nombre</span>
+            <span class="mc-dest-table__cell mc-dest-table__cell--email">Correo</span>
+            <span class="mc-dest-table__cell mc-dest-table__cell--status">Estado</span>
+          </div>
+          @for (d of paginatedDetailDestinatarios; track trackByIndex($index)) {
+          <div class="mc-dest-table__row">
+            <span class="mc-dest-table__cell mc-dest-table__cell--num">{{ (detailRecipientPage - 1) * DETAIL_PAGE_SIZE + $index + 1 }}</span>
+            <span class="mc-dest-table__cell mc-dest-table__cell--name">{{ d.nombre }}</span>
+            <span class="mc-dest-table__cell mc-dest-table__cell--email">{{ d.email }}</span>
+            <span class="mc-dest-table__cell mc-dest-table__cell--status">
+              @if (d.sendStatus === 'ok') {
+              <span class="mc-pill mc-pill--green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Entregado</span>
+              }
+              @if (d.sendStatus === 'failed') {
+              <span class="mc-pill mc-pill--red" [title]="d.sendError || ''"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>No entregado</span>
+              }
+              @if (!d.sendStatus) { <span class="mc-pill-cell__zero">Pendiente</span> }
+            </span>
+          </div>
+          }
+          @if (paginatedDetailDestinatarios.length === 0) {
+          <div class="mc-dest-table__empty">No se encontraron destinatarios</div>
+          }
+        </div>
+      </div>
+      <div class="mc-dialog__footer">
+        <div class="mc-paginator">
+          <button class="mc-paginator__btn" [disabled]="detailRecipientPage <= 1" (click)="detailRecipientPageChange(detailRecipientPage - 1)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <span class="mc-paginator__info">Pagina {{ detailRecipientPage }} de {{ detailRecipientTotalPages }}</span>
+          <button class="mc-paginator__btn" [disabled]="detailRecipientPage >= detailRecipientTotalPages" (click)="detailRecipientPageChange(detailRecipientPage + 1)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+        <button class="mc-btn mc-btn--outline" (click)="showDetailRecipientsModal = false">Cerrar</button>
+      </div>
+    </div>
+  </div>
+  }
+
   @if (showSaveTemplateModal) {
   <div class="mc-overlay" (click)="cancelSaveTemplate()">
     <div class="mc-dialog" (click)="$event.stopPropagation()">
@@ -484,7 +744,7 @@
         </button>
       </div>
       <div class="mc-dialog__body">
-        <p class="mc-dialog__text">Asigna un nombre descriptivo para guardar esta configuración de correo como una plantilla reutilizable.</p>
+        <p class="mc-dialog__text">Asigna un nombre descriptivo para guardar esta configuracion como plantilla reutilizable.</p>
         <div class="mc-dialog__field">
           <label>Nombre de la plantilla</label>
           <input type="text" [(ngModel)]="templateNameDraft" placeholder="Ej: Plantilla Mensual, Comunicado de cobro..."
@@ -499,7 +759,6 @@
   </div>
   }
 
-  <!-- ═══════════════════ MODAL: CONFIRMAR ENVÍO ═══════════════════ -->
   @if (showSendConfirm) {
   <app-send-confirm-modal
     [asunto]="asunto"

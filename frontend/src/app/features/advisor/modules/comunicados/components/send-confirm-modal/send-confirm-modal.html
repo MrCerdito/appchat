@@ -8,19 +8,69 @@
         </svg>
       </div>
       <div>
-        <h3>Enviar comunicado</h3>
-        <p>Revisa los detalles antes de enviar.</p>
+        <h3>Confirmar envío</h3>
+        <p>Revisa los detalles antes de enviar el comunicado.</p>
       </div>
     </div>
 
     <div class="scm-body">
-      <div class="scm-detail">
-        <span class="scm-label">Asunto</span>
-        <span class="scm-value">{{ asunto || '(Sin asunto)' }}</span>
+      <!-- Asunto -->
+      <div class="scm-section">
+        <span class="scm-section__label">Asunto</span>
+        <span class="scm-section__value">{{ asunto || '(Sin asunto)' }}</span>
       </div>
-      <div class="scm-detail">
-        <span class="scm-label">Destinatarios</span>
-        <span class="scm-value scm-value--highlight">{{ destinatarios.length }} destinatario{{ destinatarios.length === 1 ? '' : 's' }}</span>
+
+      <!-- Destinatarios -->
+      <div class="scm-section">
+        <div class="scm-section__header">
+          <span class="scm-section__label">Destinatarios</span>
+          <span class="scm-section__count">{{ destinatarios.length }}</span>
+        </div>
+
+        @if (destinatarios.length <= 6) {
+        <div class="scm-dest-list">
+          @for (d of destinatarios; track $index) {
+          <div class="scm-dest-row">
+            <div class="scm-dest-avatar">{{ (d.nombre || d.email).charAt(0).toUpperCase() }}</div>
+            <div class="scm-dest-info">
+              <span class="scm-dest-name">{{ d.nombre }}</span>
+              <span class="scm-dest-email">{{ d.email }}</span>
+              @if (d.colegio || d.tipo) {
+              <span class="scm-dest-meta">
+                @if (d.colegio) { <span class="scm-dest-tag">{{ d.colegio }}</span> }
+                @if (d.tipo) { <span class="scm-dest-tag scm-dest-tag--type">{{ d.tipo }}</span> }
+              </span>
+              }
+            </div>
+          </div>
+          }
+        </div>
+        }
+
+        @if (destinatarios.length > 6) {
+        <div class="scm-dest-list scm-dest-list--compact">
+          @for (d of destinatarios.slice(0, 4); track $index) {
+          <div class="scm-dest-row">
+            <div class="scm-dest-avatar">{{ (d.nombre || d.email).charAt(0).toUpperCase() }}</div>
+            <div class="scm-dest-info">
+              <span class="scm-dest-name">{{ d.nombre }}</span>
+              <span class="scm-dest-email">{{ d.email }}</span>
+              @if (d.colegio || d.tipo) {
+              <span class="scm-dest-meta">
+                @if (d.colegio) { <span class="scm-dest-tag">{{ d.colegio }}</span> }
+                @if (d.tipo) { <span class="scm-dest-tag scm-dest-tag--type">{{ d.tipo }}</span> }
+              </span>
+              }
+            </div>
+          </div>
+          }
+          @if (destinatarios.length > 4) {
+          <div class="scm-dest-overflow">
+            +{{ destinatarios.length - 4 }} destinatario{{ destinatarios.length - 4 === 1 ? '' : 's' }} mas
+          </div>
+          }
+        </div>
+        }
       </div>
     </div>
 

@@ -1,6 +1,8 @@
 export interface Destinatario {
   email: string;
   nombre: string;
+  colegio?: string;
+  tipo?: string;
   sendStatus?: 'ok' | 'failed';
   sendError?: string;
 }
@@ -11,6 +13,7 @@ export interface Comunicado {
   cuerpo: string;
   design: unknown[] | null;
   senderName: string;
+  senderEmail?: string;
   status: 'sent' | 'draft' | 'failed';
   destinatarios: Destinatario[];
   createdAt: string;
