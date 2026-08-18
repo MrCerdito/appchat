@@ -105,4 +105,7 @@ export class Session {
 
   @OneToMany(() => Message, (message) => message.session)
   messages: Message[];
+
+  // Transient property: set by enrichment, not a DB column
+  colegioAdvisorName?: string | null;
 }
