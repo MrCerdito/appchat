@@ -71,7 +71,6 @@ async function bootstrap() {
           ? { maxAge: 31536000, includeSubDomains: true }
           : false,
       referrerPolicy: { policy: 'no-referrer' },
-      xFrameOptions: { action: 'deny' },
       xContentTypeOptions: true,
     }),
   );
