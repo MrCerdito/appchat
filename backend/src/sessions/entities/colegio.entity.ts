@@ -18,7 +18,7 @@ export class Colegio {
   @Column({ type: 'varchar', length: 5, nullable: true })
   calendario: string | null;
 
-  @Column({ type: 'varchar', length: 50, nullable: true })
+  @Column({ type: 'varchar', length: 50, nullable: true, name: 'tipo_colegio' })
   tipoColegio: string | null;
 
   @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
