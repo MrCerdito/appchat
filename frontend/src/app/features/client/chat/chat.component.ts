@@ -36,6 +36,8 @@ const SESSION_KEY     = 'chat_session';
 const CLIENT_NAME_KEY = 'chat_client_name';
 const AI_HISTORY_KEY  = 'chat_ai_history';
 const AI_MESSAGES_KEY = 'chat_ai_messages';
+const COLEGIO_KEY     = 'chat_colegio';     // { id, nombre, link }
+const PAGE_URL_KEY    = 'chat_page_url';    // last known host page URL
 
 // Segundos que espera el backend antes de cerrar la sesión tras la 3ª ofensa.
 // Debe coincidir con SEGUNDOS_CIERRE_POR_OFENSAS de ai.controller.ts.
@@ -177,6 +179,9 @@ get rolLabel(): string {
 
   private obtenerUrlPagina(): string {
     if (this.pageUrl) return this.pageUrl;
+    // Try cached page URL from previous detection
+    const cached = localStorage.getItem(PAGE_URL_KEY);
+    if (cached) return cached;
     const ref = document.referrer || '';
     if (ref) return ref;
     try {
@@ -201,6 +206,11 @@ get rolLabel(): string {
         this.colegioDetectado = res
           ? { id: res.id, nombre: res.nombre, link: this.obtenerOrigen(url) }
           : null;
+        // Persist for next refresh / new chat
+        localStorage.setItem(PAGE_URL_KEY, url);
+        if (this.colegioDetectado) {
+          localStorage.setItem(COLEGIO_KEY, JSON.stringify(this.colegioDetectado));
+        }
         this.cdr.detectChanges();
       },
       error: () => {
@@ -362,6 +372,17 @@ get rolLabel(): string {
     this.horarioPollInterval = setInterval(() => this.verificarJornada(), 30_000);
 
     this.pageUrl = document.referrer || '';
+
+    // Restore cached colegio detection immediately so the banner
+    // appears even before the async detectarColegio() call resolves.
+    const cachedColegio = localStorage.getItem(COLEGIO_KEY);
+    if (cachedColegio) {
+      try { this.colegioDetectado = JSON.parse(cachedColegio); } catch {}
+    }
+    const cachedPageUrl = localStorage.getItem(PAGE_URL_KEY);
+    if (cachedPageUrl && !this.pageUrl) {
+      this.pageUrl = cachedPageUrl;
+    }
 
     this.detectarColegio();
 
@@ -796,6 +817,7 @@ get rolLabel(): string {
         if (d.pageUrl) {
           const changed = d.pageUrl !== this.pageUrl;
           this.pageUrl = d.pageUrl;
+          localStorage.setItem(PAGE_URL_KEY, d.pageUrl);
           // Reintenta la detección si el widget reporta una URL de página nueva
           // o si el primer intento aún no identificó ninguna institución.
           if (changed || !this.colegioDetectado) {
@@ -1915,12 +1937,14 @@ private normalizePhotoUrl(url: string): string {
     localStorage.removeItem(CLIENT_NAME_KEY);
     localStorage.removeItem(AI_HISTORY_KEY);
     localStorage.removeItem(AI_MESSAGES_KEY);
+    // NOTE: COLEGIO_KEY and PAGE_URL_KEY are intentionally NOT cleared —
+    // they represent the host page identity and must persist across chats.
 
     this.session = null; this.messages = []; this.aiHistory = []; this.advisorName = ''; this.codigoSesion = ''; this.codigoCopiado = false;
     this.step = 'faq'; this.clientName = ''; this.submitted = false;
     this.sesionFinalizando = false;
     this.identificacion = ''; this.apellido = ''; this.rol = '';
-    this.colegio = ''; this.colegioLink = ''; this.colegioDetectado = null;
+    this.colegio = ''; this.colegioLink = '';
     this.email = ''; this.celular = ''; this.tipoSolicitud = '';
     this.aceptaTratamiento = false; this.showTratamientoDatos = false;
     this.ratingEstrellas = 0; this.ratingHover = 0; this.ratingComentario = '';
@@ -1929,6 +1953,10 @@ private normalizePhotoUrl(url: string): string {
     this.encuestasRespondidas.clear(); this.encuestasPendientes.clear(); this.aiMsgCount = 0;
 
     this.socket.disconnect();
+    // Re-detect colegio so the banner reappears when the form is shown again.
+    // colegioDetectado keeps its cached value so the banner stays visible.
+    this.pageUrl = '';
+    this.detectarColegio();
     this.cdr.detectChanges();
   }
 
