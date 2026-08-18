@@ -2,8 +2,7 @@
   <header class="tmc-topbar">
     <div class="tmc-topbar-info">
       <h2>Gestión de Colegios</h2>
-      <p>Administra los colegios y asigna un asesor principal a cada uno. Cuando un chat llegue de ese colegio,
-         se asignará automáticamente al asesor designado.</p>
+      <p>Administra los colegios, categorías y asigna un asesor principal a cada uno.</p>
     </div>
     <div class="tmc-topbar-actions">
       <button class="tmc-export" (click)="exportCsv()" title="Exportar CSV">
@@ -24,6 +23,25 @@
         <input type="file" accept=".csv" hidden (change)="importCsv($event)"/>
       </label>
     </div>
+    <!-- Info de formato -->
+    <div class="tmc-info-bar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="16" x2="12" y2="12"/>
+        <line x1="12" y1="8" x2="12.01" y2="8"/>
+      </svg>
+      <div>
+        <strong>Formato de importación CSV</strong> (separador punto y coma <code>;</code>):<br/>
+        <code>nombre;link;email;calendario;tipo_colegio;asesor</code><br/>
+        <span class="tmc-hint-inline">
+          <b>calendario:</b> A o B &nbsp;|&nbsp;
+          <b>tipo_colegio:</b> Proyecto Sian365 o Control Académico &nbsp;|&nbsp;
+          <b>asesor:</b> nombre exacto del asesor en el sistema &nbsp;|&nbsp;
+          <b>email:</b> máximo 1 correo por colegio
+        </span>
+      </div>
+    </div>
+
   </header>
 
   <div class="tmc-body">
@@ -85,6 +103,25 @@
             <div class="tmc-field">
               <label for="col-email">Correo electrónico</label>
               <input id="col-email" type="email" [(ngModel)]="form.email" placeholder="contacto@colegio.com" maxlength="255"/>
+              <span class="tmc-hint">Un solo correo por colegio.</span>
+            </div>
+          </div>
+          <div class="tmc-grid2">
+            <div class="tmc-field">
+              <label for="col-calendario">Calendario</label>
+              <select id="col-calendario" [(ngModel)]="form.calendario">
+                <option value="">Sin definir</option>
+                <option value="A">Calendario A</option>
+                <option value="B">Calendario B</option>
+              </select>
+            </div>
+            <div class="tmc-field">
+              <label for="col-tipo">Tipo de colegio</label>
+              <select id="col-tipo" [(ngModel)]="form.tipoColegio">
+                <option value="">Sin definir</option>
+                <option value="Proyecto Sian365">Proyecto Sian365</option>
+                <option value="Control Académico">Control Académico</option>
+              </select>
             </div>
           </div>
           <div class="tmc-field">
@@ -146,6 +183,8 @@
                 <th>Nombre</th>
                 <th>Link</th>
                 <th>Correo</th>
+                <th>Calendario</th>
+                <th>Tipo</th>
                 <th>Asesor Principal</th>
                 <th class="tmc-th-actions">Acciones</th>
               </tr>
@@ -164,6 +203,20 @@
                   <a [href]="c.link" target="_blank" rel="noopener noreferrer">{{ c.link }}</a>
                 </td>
                 <td class="tmc-td-email">{{ c.email || '—' }}</td>
+                <td class="tmc-td-calendario">
+                  @if (c.calendario) {
+                  <span class="tmc-pill tmc-pill--calendario">{{ c.calendario }}</span>
+                  } @else {
+                  <span class="tmc-no-data">—</span>
+                  }
+                </td>
+                <td class="tmc-td-tipo">
+                  @if (c.tipoColegio) {
+                  <span class="tmc-pill tmc-pill--tipo">{{ c.tipoColegio }}</span>
+                  } @else {
+                  <span class="tmc-no-data">—</span>
+                  }
+                </td>
                 <td class="tmc-td-advisor">
                   @if (c.advisorName) {
                   <span class="tmc-advisor-badge">

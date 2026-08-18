@@ -15,6 +15,12 @@ export class Colegio {
   @Column({ length: 200, nullable: true })
   email: string;
 
+  @Column({ type: 'varchar', length: 5, nullable: true })
+  calendario: string | null;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  tipoColegio: string | null;
+
   @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'advisor_id' })
   advisor: User | null;

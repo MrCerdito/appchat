@@ -844,7 +844,7 @@ export class SessionsService {
     return match ? { id: match.id, nombre: match.nombre } : null;
   }
 
-  async createColegio(data: { nombre: string; link: string; email?: string; advisorId?: string }): Promise<Colegio> {
+  async createColegio(data: { nombre: string; link: string; email?: string; calendario?: string; tipoColegio?: string; advisorId?: string }): Promise<Colegio> {
     const truncate = (s: string, max: number) => s.length > max ? s.slice(0, max) : s;
     const nombre = truncate(data.nombre, 200);
     const link = truncate(data.link, 500);
@@ -855,6 +855,8 @@ export class SessionsService {
       nombre,
       link,
       email: data.email ? truncate(data.email, 200) : '',
+      calendario: data.calendario || null,
+      tipoColegio: data.tipoColegio || null,
       advisorId: data.advisorId || null,
     });
     let saved: Colegio;
@@ -870,7 +872,7 @@ export class SessionsService {
     return saved;
   }
 
-  async updateColegio(id: string, data: { nombre?: string; link?: string; email?: string; advisorId?: string | null }): Promise<Colegio> {
+  async updateColegio(id: string, data: { nombre?: string; link?: string; email?: string; calendario?: string; tipoColegio?: string; advisorId?: string | null }): Promise<Colegio> {
     const truncate = (s: string, max: number) => s.length > max ? s.slice(0, max) : s;
     const colegio = await this.colegioRepo.findOne({ where: { id } });
     if (!colegio) throw new NotFoundException('Colegio no encontrado');
@@ -885,6 +887,8 @@ export class SessionsService {
     }
     if (data.link !== undefined) colegio.link = truncate(data.link, 500);
     if (data.email !== undefined) colegio.email = data.email ? truncate(data.email, 200) : '';
+    if (data.calendario !== undefined) colegio.calendario = data.calendario || null;
+    if (data.tipoColegio !== undefined) colegio.tipoColegio = data.tipoColegio || null;
     if (data.advisorId !== undefined) colegio.advisorId = data.advisorId || null;
 
     let saved: Colegio;
@@ -908,15 +912,36 @@ export class SessionsService {
     return { ok: true };
   }
 
-  async importColegios(data: { nombre: string; link: string; email?: string }[]): Promise<{ created: Colegio[]; skipped: number }> {
+  async importColegios(data: { nombre: string; link: string; email?: string; calendario?: string; tipoColegio?: string; asesor?: string }[]): Promise<{ created: Colegio[]; skipped: number; warnings: string[] }> {
     const truncate = (s: string, max: number) => s.length > max ? s.slice(0, max) : s;
-    const truncateItem = (d: { nombre: string; link: string; email?: string }) => ({
-      nombre: truncate(d.nombre, 200),
-      link: truncate(d.link, 500),
-      email: d.email ? truncate(d.email, 200) : '',
-    });
+    const warnings: string[] = [];
 
-    const truncated = data.map(truncateItem);
+    // Build advisor lookup by name (case-insensitive)
+    let advisorMap = new Map<string, string>();
+    try {
+      const allUsers = await this.userRepo.find({ where: { role: In(['advisor', 'admin']), active: true }, select: ['id', 'name'] });
+      for (const u of allUsers) {
+        if (u.name) advisorMap.set(u.name.toLowerCase().trim(), u.id);
+      }
+    } catch {}
+
+    const truncated = data.map((d) => {
+      const nombre = truncate(d.nombre, 200);
+      const link = truncate(d.link, 500);
+      const email = d.email ? truncate(d.email, 200) : '';
+      const calendario = d.calendario ? truncate(d.calendario, 5) : '';
+      const tipoColegio = d.tipoColegio ? truncate(d.tipoColegio, 50) : '';
+      let advisorId: string | null = null;
+      if (d.asesor && d.asesor.trim()) {
+        const found = advisorMap.get(d.asesor.toLowerCase().trim());
+        if (found) {
+          advisorId = found;
+        } else {
+          warnings.push(`Asesor "${d.asesor}" no encontrado para colegio "${nombre}"`);
+        }
+      }
+      return { nombre, link, email, calendario, tipoColegio, advisorId };
+    });
     const seen = new Set<string>();
     const unique = truncated.filter((d) => {
       const key = d.nombre.toLowerCase();
@@ -947,7 +972,7 @@ export class SessionsService {
       }
     }
     try { await this.cache.del(`${this.CACHE_PREFIX}colegios`); } catch {}
-    return { created, skipped: data.length - created.length };
+    return { created, skipped: data.length - created.length, warnings };
   }
 
   async deleteColegiosBulk(ids: string[]): Promise<{ deleted: number }> {

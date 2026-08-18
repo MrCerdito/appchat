@@ -11,6 +11,8 @@ export interface Colegio {
   nombre: string;
   link: string;
   email?: string | null;
+  calendario?: string | null;
+  tipoColegio?: string | null;
   advisorId?: string | null;
   advisorName?: string | null;
   advisor?: { id: string; name: string } | null;

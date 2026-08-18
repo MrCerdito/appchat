@@ -31,7 +31,7 @@ export class ColegiosConfigComponent implements OnInit, OnDestroy {
   search = '';
   showForm = false;
   editingColegio: Colegio | null = null;
-  form = { nombre: '', link: '', email: '', advisorId: '' };
+  form = { nombre: '', link: '', email: '', calendario: '', tipoColegio: '', advisorId: '' };
   selectedIds = new Set<string>();
   deletingId: string | null = null;
   deletingBulk = false;
@@ -80,7 +80,9 @@ export class ColegiosConfigComponent implements OnInit, OnDestroy {
     const all = this.colegios.filter(c =>
       c.nombre.toLowerCase().includes(q) ||
       (c.email || '').toLowerCase().includes(q) ||
-      (c.advisorName || '').toLowerCase().includes(q)
+      (c.advisorName || '').toLowerCase().includes(q) ||
+      (c.calendario || '').toLowerCase().includes(q) ||
+      (c.tipoColegio || '').toLowerCase().includes(q)
     );
     return all.slice((this.page - 1) * this.pageSize, this.page * this.pageSize);
   }
@@ -91,7 +93,9 @@ export class ColegiosConfigComponent implements OnInit, OnDestroy {
     return this.colegios.filter(c =>
       c.nombre.toLowerCase().includes(q) ||
       (c.email || '').toLowerCase().includes(q) ||
-      (c.advisorName || '').toLowerCase().includes(q)
+      (c.advisorName || '').toLowerCase().includes(q) ||
+      (c.calendario || '').toLowerCase().includes(q) ||
+      (c.tipoColegio || '').toLowerCase().includes(q)
     );
   }
 
@@ -153,11 +157,13 @@ export class ColegiosConfigComponent implements OnInit, OnDestroy {
         nombre: colegio.nombre,
         link: colegio.link,
         email: colegio.email || '',
+        calendario: colegio.calendario || '',
+        tipoColegio: colegio.tipoColegio || '',
         advisorId: colegio.advisorId || '',
       };
     } else {
       this.editingColegio = null;
-      this.form = { nombre: '', link: '', email: '', advisorId: '' };
+      this.form = { nombre: '', link: '', email: '', calendario: '', tipoColegio: '', advisorId: '' };
     }
     this.showForm = true;
   }
@@ -165,7 +171,7 @@ export class ColegiosConfigComponent implements OnInit, OnDestroy {
   closeForm(): void {
     this.showForm = false;
     this.editingColegio = null;
-    this.form = { nombre: '', link: '', email: '', advisorId: '' };
+    this.form = { nombre: '', link: '', email: '', calendario: '', tipoColegio: '', advisorId: '' };
   }
 
   saveColegio(): void {
@@ -176,6 +182,8 @@ export class ColegiosConfigComponent implements OnInit, OnDestroy {
       nombre: this.form.nombre.trim(),
       link: this.form.link.trim(),
       email: this.form.email.trim() || undefined,
+      calendario: this.form.calendario || undefined,
+      tipoColegio: this.form.tipoColegio || undefined,
       advisorId: this.form.advisorId || null,
     };
 
@@ -266,13 +274,24 @@ export class ColegiosConfigComponent implements OnInit, OnDestroy {
         const text = reader.result as string;
         const lines = text.split('\n').filter(l => l.trim());
         if (lines.length < 2) return;
+        const header = lines[0].toLowerCase();
+        const hasCalendario = header.includes('calendario');
+        const hasTipo = header.includes('tipo');
+        const hasAsesor = header.includes('asesor');
+
         const rows = lines.slice(1).map(line => {
           const cols = line.split(';').map(c => c.replace(/"/g, '').trim());
-          return { nombre: cols[0] || '', link: cols[1] || 'https://', email: cols[2] || '' };
+          const row: any = { nombre: cols[0] || '', link: cols[1] || 'https://', email: cols[2] || '' };
+          if (hasCalendario) row.calendario = cols[3] || '';
+          if (hasTipo) row.tipoColegio = cols[hasCalendario ? 4 : 3] || '';
+          if (hasAsesor) row.asesor = cols[hasCalendario && hasTipo ? 5 : hasCalendario || hasTipo ? 4 : 3] || '';
+          return row;
         }).filter(r => r.nombre && r.link);
         this.sessionService.importColegios(rows).pipe(takeUntil(this.destroy$)).subscribe({
-          next: (res) => {
-            this.notification.success('Importación', `${res.imported} colegios importados, ${res.skipped} omitidos.`);
+          next: (res: any) => {
+            const msg = `${res.created?.length ?? res.imported ?? 0} colegios importados, ${res.skipped} omitidos.`;
+            const warn = res.warnings?.length ? '\n' + res.warnings.join('\n') : '';
+            this.notification.success('Importación', msg + warn);
             this.loadColegios();
           },
           error: () => this.notification.error('Error', 'No se pudo importar el archivo.'),

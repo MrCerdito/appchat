@@ -9,6 +9,8 @@ export interface Colegio {
   nombre: string;
   email: string;
   link: string;
+  calendario?: string | null;
+  tipoColegio?: string | null;
 }
 
 @Injectable({ providedIn: 'root' })

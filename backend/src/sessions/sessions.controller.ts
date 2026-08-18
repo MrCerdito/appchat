@@ -26,7 +26,7 @@ import { Message } from '../chat/entities/message.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { RolesGuard, Roles } from '../auth/roles.guard';
-import { IsString, IsNotEmpty, Length, IsOptional, IsEmail, MaxLength, Matches, IsUUID } from 'class-validator';
+import { IsString, IsNotEmpty, Length, IsOptional, IsEmail, MaxLength, Matches, IsUUID, IsIn } from 'class-validator';
 import { ChatGateway } from '../chat/chat.gateway';
 
 export class CreateSessionDto {
@@ -93,6 +93,16 @@ export class CreateColegioDto {
   @MaxLength(200)
   email?: string;
 
+  @IsString()
+  @IsOptional()
+  @IsIn(['A', 'B', ''])
+  calendario?: string;
+
+  @IsString()
+  @IsOptional()
+  @IsIn(['Proyecto Sian365', 'Control Académico', ''])
+  tipoColegio?: string;
+
   @IsUUID()
   @IsOptional()
   advisorId?: string;
@@ -113,6 +123,16 @@ export class UpdateColegioDto {
   @IsOptional()
   @MaxLength(200)
   email?: string;
+
+  @IsString()
+  @IsOptional()
+  @IsIn(['A', 'B', ''])
+  calendario?: string;
+
+  @IsString()
+  @IsOptional()
+  @IsIn(['Proyecto Sian365', 'Control Académico', ''])
+  tipoColegio?: string;
 
   @IsUUID()
   @IsOptional()
@@ -472,9 +492,9 @@ export class SessionsController {
   async exportColegios(@Query('format') format: string) {
     const colegios = await this.sessionsService.exportColegios();
     if (format === 'csv') {
-      const header = 'nombre;link;email\n';
+      const header = 'nombre;link;email;calendario;tipo_colegio;asesor\n';
       const rows = colegios
-        .map((c) => `"${c.nombre}";"${c.link}";"${c.email ?? ''}"`)
+        .map((c) => `"${c.nombre}";"${c.link}";"${c.email ?? ''}";"${c.calendario ?? ''}";"${c.tipoColegio ?? ''}";"${c.advisor?.name ?? ''}"`)
         .join('\n');
       return { csv: header + rows, data: colegios };
     }

@@ -70,6 +70,7 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
   nombreInput = '';
   showColegiosPicker = false;
   colegioSearch = '';
+  colegioFilter: '' | 'A' | 'B' | 'Proyecto Sian365' | 'Control Académico' = '';
 
   @ViewChild('composeFrame') private readonly composeFrame?: ElementRef<HTMLIFrameElement>;
   private lastPreviewDoc = '';
@@ -235,11 +236,22 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
   }
 
   get filteredColegios(): Colegio[] {
-    if (!this.colegioSearch) return this.colegios;
-    return this.colegios.filter(c =>
-      c.nombre.toLowerCase().includes(this.colegioSearch.toLowerCase()) ||
-      c.email?.toLowerCase().includes(this.colegioSearch.toLowerCase())
-    );
+    let result = this.colegios;
+    if (this.colegioFilter) {
+      if (this.colegioFilter === 'A' || this.colegioFilter === 'B') {
+        result = result.filter(c => c.calendario === this.colegioFilter);
+      } else {
+        result = result.filter(c => c.tipoColegio === this.colegioFilter);
+      }
+    }
+    if (this.colegioSearch) {
+      const q = this.colegioSearch.toLowerCase();
+      result = result.filter(c =>
+        c.nombre.toLowerCase().includes(q) ||
+        c.email?.toLowerCase().includes(q)
+      );
+    }
+    return result;
   }
 
   get draftCount(): number {
@@ -300,6 +312,14 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
 
   addAllColegios(): void {
     this.colegios.filter(c => c.email).forEach(c => {
+      if (!this.destinatarios.some(d => d.email === c.email)) {
+        this.destinatarios.push({ email: c.email!, nombre: c.nombre });
+      }
+    });
+  }
+
+  addFilteredColegios(): void {
+    this.filteredColegios.filter(c => c.email).forEach(c => {
       if (!this.destinatarios.some(d => d.email === c.email)) {
         this.destinatarios.push({ email: c.email!, nombre: c.nombre });
       }

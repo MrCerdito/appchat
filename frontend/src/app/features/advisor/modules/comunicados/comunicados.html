@@ -476,12 +476,24 @@
             </svg>
             Seleccionar colegios
           </button>
+          @if (colegioFilter) {
+          <button class="btn-all-colegios btn-filtered" (click)="addFilteredColegios()">
+            + Agregar filtrados ({{ filteredColegios.length }})
+          </button>
+          }
           <button class="btn-all-colegios" (click)="addAllColegios()">
             + Todos los colegios
           </button>
         </div>
         @if (showColegiosPicker) {
         <div class="colegios-picker">
+          <div class="colegios-filters">
+            <button class="filter-pill" [class.active]="colegioFilter === ''" (click)="colegioFilter = ''">Todos</button>
+            <button class="filter-pill" [class.active]="colegioFilter === 'A'" (click)="colegioFilter = 'A'">Calendario A</button>
+            <button class="filter-pill" [class.active]="colegioFilter === 'B'" (click)="colegioFilter = 'B'">Calendario B</button>
+            <button class="filter-pill" [class.active]="colegioFilter === 'Proyecto Sian365'" (click)="colegioFilter = 'Proyecto Sian365'">Proyecto Sian365</button>
+            <button class="filter-pill" [class.active]="colegioFilter === 'Control Académico'" (click)="colegioFilter = 'Control Académico'">Control Académico</button>
+          </div>
           <input type="text" [(ngModel)]="colegioSearch" placeholder="Buscar colegio..."
             class="colegios-search"/>
           <div class="colegios-list">
