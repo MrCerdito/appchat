@@ -176,7 +176,29 @@ export class SessionsService {
     const mine = sessions.filter(
       (s) => s.advisor?.id === advisorId || s.status === 'waiting',
     );
-    return this.attachUnreadCounts(await this.attachLastMessages(mine));
+    const enriched = await this.enrichSessionsWithColegioAdvisor(mine);
+    return this.attachUnreadCounts(await this.attachLastMessages(enriched));
+  }
+
+  private async enrichSessionsWithColegioAdvisor(sessions: Session[]): Promise<Session[]> {
+    const colegioNames = [...new Set(sessions.map(s => s.colegio).filter(Boolean))];
+    if (!colegioNames.length) return sessions;
+
+    const colegios = await this.colegioRepo.find({
+      where: { nombre: In(colegioNames) },
+      relations: ['advisor'],
+    });
+    const byNombre = new Map(colegios.map(c => [c.nombre, c]));
+
+    for (const session of sessions) {
+      if (session.colegio) {
+        const colegio = byNombre.get(session.colegio);
+        if (colegio?.advisor?.name) {
+          (session as any).colegioAdvisorName = colegio.advisor.name;
+        }
+      }
+    }
+    return sessions;
   }
 
   async findAllPaginated(
@@ -692,7 +714,8 @@ export class SessionsService {
       order: { createdAt: 'DESC' },
       take: 500,
     });
-    return this.attachLastMessages(sessions);
+    const enriched = await this.enrichSessionsWithColegioAdvisor(sessions);
+    return this.attachLastMessages(enriched);
   }
 
   /** Añade `unreadCount` por sesión: mensajes del cliente sin leer (read_at IS
@@ -796,7 +819,10 @@ export class SessionsService {
       if (cached) return cached;
     } catch {}
 
-    const result = await this.colegioRepo.find({ order: { nombre: 'ASC' } });
+    const result = await this.colegioRepo.find({
+      relations: ['advisor'],
+      order: { nombre: 'ASC' },
+    });
 
     try {
       await this.cache.set(cacheKey, result, 120_000);
@@ -805,13 +831,20 @@ export class SessionsService {
     return result;
   }
 
+  async findColegioByNombre(nombre: string): Promise<Colegio | null> {
+    return this.colegioRepo.findOne({
+      where: { nombre },
+      relations: ['advisor'],
+    });
+  }
+
   async detectarColegio(url: string): Promise<{ id: string; nombre: string } | null> {
     const colegios = await this.findAllColegios();
     const match = matchColegio(colegios, url);
     return match ? { id: match.id, nombre: match.nombre } : null;
   }
 
-  async createColegio(data: { nombre: string; link: string; email?: string }): Promise<Colegio> {
+  async createColegio(data: { nombre: string; link: string; email?: string; advisorId?: string }): Promise<Colegio> {
     const truncate = (s: string, max: number) => s.length > max ? s.slice(0, max) : s;
     const nombre = truncate(data.nombre, 200);
     const link = truncate(data.link, 500);
@@ -822,6 +855,7 @@ export class SessionsService {
       nombre,
       link,
       email: data.email ? truncate(data.email, 200) : '',
+      advisorId: data.advisorId || null,
     });
     let saved: Colegio;
     try {
@@ -836,7 +870,7 @@ export class SessionsService {
     return saved;
   }
 
-  async updateColegio(id: string, data: { nombre?: string; link?: string; email?: string }): Promise<Colegio> {
+  async updateColegio(id: string, data: { nombre?: string; link?: string; email?: string; advisorId?: string | null }): Promise<Colegio> {
     const truncate = (s: string, max: number) => s.length > max ? s.slice(0, max) : s;
     const colegio = await this.colegioRepo.findOne({ where: { id } });
     if (!colegio) throw new NotFoundException('Colegio no encontrado');
@@ -851,6 +885,7 @@ export class SessionsService {
     }
     if (data.link !== undefined) colegio.link = truncate(data.link, 500);
     if (data.email !== undefined) colegio.email = data.email ? truncate(data.email, 200) : '';
+    if (data.advisorId !== undefined) colegio.advisorId = data.advisorId || null;
 
     let saved: Colegio;
     try {
@@ -922,7 +957,7 @@ export class SessionsService {
   }
 
   async exportColegios(): Promise<Colegio[]> {
-    return this.colegioRepo.find({ order: { nombre: 'ASC' } });
+    return this.colegioRepo.find({ relations: ['advisor'], order: { nombre: 'ASC' } });
   }
 
   async getRankingAsesores() {

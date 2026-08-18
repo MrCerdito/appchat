@@ -18,6 +18,7 @@ export interface Session {
   rol?:          string;
   colegio?:      string;
   colegioLink?: string;
+  colegioAdvisorName?: string;
   email?:        string;
   celular?:      string;
   tipoSolicitud?: string;

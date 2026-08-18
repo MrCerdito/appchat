@@ -1812,6 +1812,19 @@ export class ChatGateway
     const session = await this.sessionsService.findOne(sessionId);
     if (session.status !== 'waiting') return false;
 
+    // ── Priorizar asesor principal del colegio ──────────────────────────
+    if (session.colegio) {
+      const colegio = await this.sessionsService.findColegioByNombre(session.colegio);
+      if (colegio?.advisorId) {
+        const assigned = await this.tryAssignToPrimaryAdvisor(
+          sessionId,
+          clientName,
+          colegio.advisorId,
+        );
+        if (assigned) return true;
+      }
+    }
+
     const connectedIds = await this.redisState.getConnectedAdvisorIds();
     if (!connectedIds.length) return false;
 
@@ -1940,6 +1953,140 @@ export class ChatGateway
 
     this.logger.log(
       `[Assign] ✓ ${sessionId} → ${advisor.name} (PID: ${process.pid})`,
+    );
+    return true;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // ASIGNACIÓN A ASESOR PRINCIPAL DEL COLEGIO
+  // ══════════════════════════════════════════════════════════════════════════
+
+  private async tryAssignToPrimaryAdvisor(
+    sessionId: string,
+    clientName: string,
+    advisorId: string,
+  ): Promise<boolean> {
+    const connectedIds = await this.redisState.getConnectedAdvisorIds();
+    if (!connectedIds.includes(advisorId)) {
+      this.logger.log(
+        `[Assign:Colegio] Asesor principal ${advisorId} no está conectado, fallback a cola.`,
+      );
+      return false;
+    }
+
+    if (await this.estaEnAlmuerzo(advisorId)) {
+      this.logger.log(
+        `[Assign:Colegio] Asesor principal ${advisorId} está en almuerzo, fallback a cola.`,
+      );
+      return false;
+    }
+
+    const advisor = await this.sessionsService.findAdvisorById(advisorId);
+    if (!advisor || advisor.status !== 'online' || !advisor.active) {
+      this.logger.log(
+        `[Assign:Colegio] Asesor principal ${advisorId} no disponible (status=${advisor?.status}, active=${advisor?.active}), fallback a cola.`,
+      );
+      return false;
+    }
+
+    const maxChats = Number(process.env.MAX_ACTIVE_CHATS_PER_ADVISOR ?? 4);
+    if (advisor.activeChats >= maxChats) {
+      this.logger.log(
+        `[Assign:Colegio] Asesor principal ${advisorId} saturado (${advisor.activeChats}/${maxChats}), fallback a cola.`,
+      );
+      return false;
+    }
+
+    const assigned = await this.sessionsService.assignAdvisor(
+      sessionId,
+      advisor.id,
+    );
+    if (!assigned.won) return true;
+    if (
+      assigned.session.status !== 'active' ||
+      assigned.session.advisor?.id !== advisor.id
+    ) {
+      return false;
+    }
+
+    try {
+      const sockets = await this.server.in(sessionId).fetchSockets();
+      for (const s of sockets) {
+        if (
+          s.data?.role === 'advisor' &&
+          s.data?.user?.id &&
+          s.data.user.id !== advisor.id
+        ) {
+          await s.leave(sessionId);
+        }
+      }
+    } catch (err) {
+      this.logger.warn(
+        `[RoomCleanup] No se pudo limpiar sala ${sessionId}: ${(err as Error).message}`,
+      );
+    }
+
+    this.server.to(`advisor:${advisor.id}`).emit('join_session', {
+      sessionId,
+      clientName,
+    });
+    this.server.to(sessionId).emit('advisor_joined', {
+      name: advisor.name,
+      profilePhotoUrl: advisor.profilePhotoUrl ?? null,
+    });
+    this.server.to(`advisor:${advisor.id}`).emit('session_assigned', {
+      sessionId,
+      clientName,
+    });
+    this.server.to('admins').emit('session_assigned', {
+      sessionId,
+      clientName,
+    });
+    this.server.emit('session_updated', { sessionId, status: 'active' });
+    this.server.emit('metrics_updated', {
+      type: 'session_status',
+      sessionId,
+      status: 'active',
+    });
+
+    const refreshedAdvisor = await this.sessionsService.findAdvisorById(
+      advisor.id,
+    );
+    if (refreshedAdvisor) {
+      await this.redisState.setAdvisorStatus(
+        refreshedAdvisor.id,
+        refreshedAdvisor.status,
+      );
+      this.server.emit('advisor_status_changed', {
+        advisorId: refreshedAdvisor.id,
+        name: refreshedAdvisor.name,
+        status: refreshedAdvisor.status,
+        activeChats: refreshedAdvisor.activeChats,
+        profilePhotoUrl: refreshedAdvisor.profilePhotoUrl ?? null,
+      });
+    }
+
+    await this.redisState.removeFromQueue(sessionId);
+    await this.redisState.deleteSessionSocket(sessionId);
+    await this.broadcastQueuePositions();
+
+    this.timers.set(sessionId, {
+      tipo: 'none',
+      timeout: null,
+      tick: null,
+      elapsed: 0,
+      iterCliente: 0,
+      advisorId: advisor.id,
+      settingUp: false,
+      startTime: 0,
+      totalSecs: 0,
+    });
+
+    await this.enviarBienvenidaAsesor(sessionId, advisor.name, advisor.id);
+    await this.iniciarTimers(sessionId, advisor.id);
+
+    this.logger.log(
+      `[Assign:Colegio] ✓ ${sessionId} → ${advisor.name} (asesor principal del colegio, PID: ${process.pid})`,
     );
     return true;
   }

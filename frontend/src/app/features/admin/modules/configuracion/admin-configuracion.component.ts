@@ -16,6 +16,7 @@ import { trackByIndex } from '../../../../shared/utils/track-by';
 import { Colegio, SessionService } from '../../../../core/services/session.service';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { SmtpConfigComponent } from './components/smtp-config/smtp-config.component';
+import { ColegiosConfigComponent } from './components/colegios-config/colegios-config.component';
 
 type ConfigGrupo = 'chat' | 'whatsapp' | 'general';
 type ConfigTab =
@@ -32,7 +33,7 @@ type ConfigTab =
 @Component({
   selector: 'app-admin-configuracion',
   standalone: true,
-  imports: [FormsModule, SlicePipe, DecimalPipe, SmtpConfigComponent],
+  imports: [FormsModule, SlicePipe, DecimalPipe, SmtpConfigComponent, ColegiosConfigComponent],
   templateUrl: './admin-configuracion.html',
   styleUrl: './admin-configuracion.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -53,7 +54,7 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
 
   set tab(value: ConfigTab) {
     this._tab = value;
-    this.layoutService.setSidebarForcedCollapsed(value === 'correoTickets');
+    this.layoutService.setSidebarForcedCollapsed(value === 'correoTickets' || value === 'colegios');
   }
 
   diaSeleccionado: number | null = null;
@@ -98,6 +99,7 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
   colegioPage = 1;
   colegioPageSize = 10;
   pageSizeOptions = [10, 25, 50, 100];
+  advisorsList: { id: string; name: string }[] = [];
 
   readonly aiRoles = [
     { key: 'administrador', label: 'Administrador', icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' },
@@ -212,6 +214,12 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
       error: () => {
         this.loading = false;
         this.error = 'No se pudo cargar la configuracion.';
+        this.cdr.detectChanges();
+      },
+    });
+    this.sessionService.findAdvisors().pipe(takeUntil(this.destroy$)).subscribe({
+      next: (advisors) => {
+        this.advisorsList = advisors.map(a => ({ id: a.id, name: a.name }));
         this.cdr.detectChanges();
       },
     });

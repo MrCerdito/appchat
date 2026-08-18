@@ -10,7 +10,10 @@ export interface Colegio {
   id: string;
   nombre: string;
   link: string;
-  email?: string;
+  email?: string | null;
+  advisorId?: string | null;
+  advisorName?: string | null;
+  advisor?: { id: string; name: string } | null;
 }
 
 export interface RankingAsesor {

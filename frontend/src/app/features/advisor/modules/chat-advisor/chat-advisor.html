@@ -147,6 +147,12 @@
               <span class="info-text">{{ activeSession.colegio }}</span>
             </span>
             }
+            @if (activeSession.colegioAdvisorName) {
+            <span class="info-chip info-chip--advisor" title="Asesor principal del colegio">
+              <wa-icon name="user" size="13"></wa-icon>
+              <span class="info-text">{{ activeSession.colegioAdvisorName }}</span>
+            </span>
+            }
           </div>
         </div>
       </div>
@@ -645,6 +651,12 @@
           <span class="info-val">{{ activeSession.colegio || 'Sin colegio' }}</span>
           }
         </div>
+        @if (activeSession.colegioAdvisorName) {
+        <div class="info-row">
+          <span class="info-lbl">Asesor del colegio</span>
+          <span class="info-val info-val--advisor">{{ activeSession.colegioAdvisorName }}</span>
+        </div>
+        }
         <div class="info-row">
           <span class="info-lbl">Estado</span>
           <span class="info-val">{{ statusLabel(activeSession) }}</span>

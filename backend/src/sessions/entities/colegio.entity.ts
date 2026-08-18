@@ -1,4 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { User } from '../../auth/entities/user.entity';
 
 @Entity('colegios')
 export class Colegio {
@@ -13,4 +14,11 @@ export class Colegio {
 
   @Column({ length: 200, nullable: true })
   email: string;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'advisor_id' })
+  advisor: User | null;
+
+  @Column({ name: 'advisor_id', type: 'uuid', nullable: true })
+  advisorId: string | null;
 }
