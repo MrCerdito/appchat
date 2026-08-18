@@ -31,6 +31,7 @@ export class PqrsController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
   @Get()
   findAll(
     @Query(new ValidationPipe({ transform: true, whitelist: true }))

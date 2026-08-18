@@ -323,6 +323,8 @@ export class SessionsController {
   }
 
   @Post(':id/close-anonymous')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin', 'advisor')
   @HttpCode(HttpStatus.OK)
   async closeAnonymous(@Param('id') id: string) {
     return this.sessionsService.close(id);

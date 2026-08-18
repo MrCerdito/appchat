@@ -313,6 +313,7 @@ export class ChatGateway
 
     if (status === 'online') {
       if (await this.estaEnAlmuerzo(client.data.user.id)) {
+        await this.sessionsService.setAdvisorStatus(client.data.user.id, 'busy').catch(() => null);
         await this.emitLunchStarted(client.data.user.id, client);
         return;
       }
@@ -320,6 +321,7 @@ export class ChatGateway
         const pend = await this.redisState.getPendingLunch(
           client.data.user.id,
         );
+        await this.sessionsService.setAdvisorStatus(client.data.user.id, 'busy').catch(() => null);
         client.emit('lunch_pending', {
           mensaje: '',
           chats: 0,
@@ -2248,13 +2250,13 @@ export class ChatGateway
             !(await this.redisState.isLunchSkipped(advisorId, fechaHoy))
           ) {
             await this.redisState.removeLunchNotified(advisorId);
-            await this.sessionsService
+            const advisorRecord = await this.sessionsService
               .setAdvisorStatus(advisorId, 'busy')
               .catch(() => null);
             await this.redisState.setAdvisorStatus(advisorId, 'busy');
             this.server.emit('advisor_status_changed', {
               advisorId,
-              name: config.mensajeBienvenida, // will be overridden by advisor name from DB
+              name: advisorRecord?.name ?? config.mensajeBienvenida,
               status: 'busy',
             });
 
@@ -2350,7 +2352,9 @@ export class ChatGateway
     duracionMs: number,
     inicioReal: Date,
   ): Promise<void> {
-    const finAjMs = inicioReal.getTime() + duracionMs;
+    const [fh, fm] = finOriginal.split(':').map(Number);
+    const finOriginalMs = new Date(inicioReal).setHours(fh, fm, 0, 0);
+    const finAjMs = Math.min(inicioReal.getTime() + duracionMs, finOriginalMs);
     const finAjDate = new Date(finAjMs);
     const finAjHora = `${String(finAjDate.getHours()).padStart(2, '0')}:${String(finAjDate.getMinutes()).padStart(2, '0')}`;
 
@@ -2483,13 +2487,12 @@ export class ChatGateway
       return;
     }
 
-    const ahora = new Date();
     await this.iniciarAlmuerzoAhora(
       advisorId,
       pendiente.inicioOriginal,
       pendiente.finOriginal,
       pendiente.duracionMs,
-      ahora,
+      new Date(),
     );
   }
 

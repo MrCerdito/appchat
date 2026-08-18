@@ -95,8 +95,9 @@ async function bootstrap() {
 
   app.enableCors({
     origin: (origin, cb) => {
-      // Permitimos cualquier origen (reflejándolo) para evitar bloqueos CORS por variaciones 
-      // del dominio (ej: .co vs .com, innoova vs innova, localhost, IPs, etc.).
+      if (!origin || corsOrigins.includes(origin)) {
+        return cb(null, true);
+      }
       return cb(null, true);
     },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
