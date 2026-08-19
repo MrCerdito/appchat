@@ -30,10 +30,11 @@ export interface CreateFaqDto {
 export class FaqService {
   constructor(private http: HttpClient) {}
 
-  getAll(colegioId?: number, q?: string): Observable<Faq[]> {
+  getAll(colegioId?: number, q?: string, bustCache = false): Observable<Faq[]> {
     let params = '';
     if (colegioId) params += `colegioId=${colegioId}&`;
-    if (q) params += `q=${encodeURIComponent(q)}`;
+    if (q) params += `q=${encodeURIComponent(q)}&`;
+    if (bustCache) params += `_t=${Date.now()}`;
     return this.http.get<Faq[]>(`${environment.apiUrl}/faq?${params}`);
   }
 

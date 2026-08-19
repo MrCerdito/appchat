@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
@@ -77,7 +77,7 @@ export class FaqAdminComponent implements OnInit, OnDestroy {
         }
         this.notification.success('Importación completa', msg);
         input.value = '';
-        this.cargar();
+        this.cargar(true);
       },
       error: (err) => {
         this.notification.error('Error', err.error?.message || 'No se pudo importar el archivo');
@@ -95,8 +95,8 @@ export class FaqAdminComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  private cargar(): void {
-    this.faqService.getAll().pipe(takeUntil(this.destroy$)).subscribe({
+  private cargar(bustCache = false): void {
+    this.faqService.getAll(undefined, undefined, bustCache).pipe(takeUntil(this.destroy$)).subscribe({
       next: (faqs) => {
         this.faqs = faqs;
         this.filtrar();
@@ -116,6 +116,10 @@ export class FaqAdminComponent implements OnInit, OnDestroy {
     this.faqsFiltradas = q
       ? this.faqs.filter(f => f.pregunta.toLowerCase().includes(q) || f.respuesta.toLowerCase().includes(q) || (f.categoria && f.categoria.toLowerCase().includes(q)))
       : this.faqs;
+  }
+
+  private aplicarFiltroYActualizar(): void {
+    this.filtrar();
     this.cdr.detectChanges();
   }
 
@@ -177,10 +181,12 @@ export class FaqAdminComponent implements OnInit, OnDestroy {
 
     if (this.editando) {
       this.faqService.update(this.editando.id, dto).pipe(takeUntil(this.destroy$)).subscribe({
-        next: () => {
+        next: (updated) => {
+          const idx = this.faqs.findIndex(f => f.id === updated.id);
+          if (idx !== -1) this.faqs[idx] = updated;
           this.notification.success('Éxito', 'Pregunta frecuente actualizada correctamente');
           this.cerrarModal();
-          this.cargar();
+          this.aplicarFiltroYActualizar();
         },
         error: (err) => {
           this.notification.error('Error', err.error?.message || 'No se pudo actualizar la pregunta frecuente');
@@ -190,10 +196,11 @@ export class FaqAdminComponent implements OnInit, OnDestroy {
       });
     } else {
       this.faqService.create(dto).pipe(takeUntil(this.destroy$)).subscribe({
-        next: () => {
+        next: (created) => {
+          this.faqs.unshift(created);
           this.notification.success('Éxito', 'Pregunta frecuente creada correctamente');
           this.cerrarModal();
-          this.cargar();
+          this.aplicarFiltroYActualizar();
         },
         error: (err) => {
           this.notification.error('Error', err.error?.message || 'No se pudo crear la pregunta frecuente');
@@ -209,20 +216,24 @@ export class FaqAdminComponent implements OnInit, OnDestroy {
     this.eliminando = true;
     this.faqService.remove(id).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
+        this.faqs = this.faqs.filter(f => f.id !== id);
+        this.selectedIds.delete(id);
         this.notification.success('Éxito', 'Pregunta frecuente eliminada correctamente');
         this.deletingId = null;
         this.eliminando = false;
-        this.cargar();
+        this.aplicarFiltroYActualizar();
       },
       error: (err) => {
         if (err?.status === 404) {
+          this.faqs = this.faqs.filter(f => f.id !== id);
+          this.selectedIds.delete(id);
           this.notification.warning('Información', 'La pregunta frecuente ya fue eliminada o no existe');
         } else {
           this.notification.error('Error', err.error?.message || 'No se pudo eliminar la pregunta frecuente');
         }
         this.deletingId = null;
         this.eliminando = false;
-        this.cargar();
+        this.aplicarFiltroYActualizar();
       }
     });
   }
@@ -268,11 +279,13 @@ export class FaqAdminComponent implements OnInit, OnDestroy {
     const ids = Array.from(this.selectedIds);
     this.faqService.removeBulk(ids).pipe(takeUntil(this.destroy$)).subscribe({
       next: (res) => {
-        this.notification.success('Éxito', `${res.deleted} preguntas eliminadas correctamente`);
+        const deletedSet = new Set(ids);
+        this.faqs = this.faqs.filter(f => !deletedSet.has(f.id));
         this.selectedIds.clear();
+        this.notification.success('Éxito', `${res.deleted} preguntas eliminadas correctamente`);
         this.showBulkConfirm = false;
         this.bulkDeleting = false;
-        this.cargar();
+        this.aplicarFiltroYActualizar();
       },
       error: (err) => {
         this.notification.error('Error', err.error?.message || 'No se pudieron eliminar las preguntas');
