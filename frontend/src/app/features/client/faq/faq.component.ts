@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, Output, EventEmitter, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, AfterViewInit, Output, EventEmitter, ChangeDetectorRef, ChangeDetectionStrategy, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -16,8 +16,10 @@ import { formatFaqText } from '../../../shared/utils/faq-format';
   styleUrl: './faq.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class FaqComponent implements OnInit, OnDestroy {
+export class FaqComponent implements OnInit, OnDestroy, AfterViewInit {
   protected readonly trackByIndex = trackByIndex;
+
+  @ViewChild('catScroll') catScroll!: ElementRef<HTMLDivElement>;
 
   @Output() iniciarChat = new EventEmitter<void>();
   @Output() abrirPqrs   = new EventEmitter<void>();
@@ -28,6 +30,9 @@ export class FaqComponent implements OnInit, OnDestroy {
   categoriaActiva = '';
   faqExpandida: number | null = null;
   cargando = true;
+
+  canScrollLeft = false;
+  canScrollRight = false;
 
   private destroy$ = new Subject<void>();
 
@@ -52,9 +57,14 @@ export class FaqComponent implements OnInit, OnDestroy {
           .map(c => c?.trim())
           .filter((c): c is string => !!c);
         this.cdr.detectChanges();
+        setTimeout(() => this.actualizarScroll(), 0);
       },
       error: (err) => console.error('HTTP Error:', err),
     });
+  }
+
+  ngAfterViewInit(): void {
+    setTimeout(() => this.actualizarScroll(), 50);
   }
 
   ngOnDestroy(): void {
@@ -88,6 +98,25 @@ export class FaqComponent implements OnInit, OnDestroy {
 
   formatearRespuesta(text: string): SafeHtml {
     return this.sanitizer.bypassSecurityTrustHtml(formatFaqText(text));
+  }
+
+  scrollCats(direction: 'left' | 'right'): void {
+    const el = this.catScroll?.nativeElement;
+    if (!el) return;
+    const amount = direction === 'left' ? -140 : 140;
+    el.scrollBy({ left: amount, behavior: 'smooth' });
+  }
+
+  onCatScroll(): void {
+    this.actualizarScroll();
+  }
+
+  private actualizarScroll(): void {
+    const el = this.catScroll?.nativeElement;
+    if (!el) return;
+    this.canScrollLeft = el.scrollLeft > 2;
+    this.canScrollRight = el.scrollLeft < el.scrollWidth - el.clientWidth - 2;
+    this.cdr.detectChanges();
   }
 
   irAlChat(): void {

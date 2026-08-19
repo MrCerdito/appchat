@@ -1,6 +1,5 @@
 <div class="faq-screen">
 
-  <!-- ─── Header ──────────────────────────────────────────────────────── -->
   <header class="faq-header">
     <div class="faq-header-left">
       <span class="faq-header-icon">
@@ -23,7 +22,6 @@
     </button>
   </header>
 
-  <!-- ─── Search ──────────────────────────────────────────────────────── -->
   <div class="faq-search">
     <svg class="faq-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -31,25 +29,34 @@
     <input type="text" [(ngModel)]="filtroTexto" placeholder="Buscar preguntas..." class="faq-search-input"/>
   </div>
 
-  <!-- ─── Categories ──────────────────────────────────────────────────── -->
   @if (categorias.length > 0) {
-  <div class="faq-categorias">
-    <button class="faq-cat-pill"
-      [class.active]="!categoriaActiva"
-      (click)="categoriaActiva = ''">
-      Todas
+  <div class="faq-categorias-wrap">
+    @if (canScrollLeft) {
+    <button class="faq-cat-arrow faq-cat-arrow--left" (click)="scrollCats('left')" title="Desplazar a la izquierda">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
     </button>
-    @for (cat of categorias; track $index) {
-    <button class="faq-cat-pill"
-      [class.active]="categoriaActiva === cat"
-      (click)="selectCategoria(cat)">
-      {{ cat }}
+    }
+    <div class="faq-categorias" #catScroll (scroll)="onCatScroll()">
+      @for (cat of categorias; track $index) {
+      <button class="faq-cat-pill"
+        [class.active]="categoriaActiva === cat"
+        (click)="selectCategoria(cat)">
+        {{ cat }}
+      </button>
+      }
+    </div>
+    @if (canScrollRight) {
+    <button class="faq-cat-arrow faq-cat-arrow--right" (click)="scrollCats('right')" title="Desplazar a la derecha">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="9 18 15 12 9 6"/>
+      </svg>
     </button>
     }
   </div>
   }
 
-  <!-- ─── FAQ List ────────────────────────────────────────────────────── -->
   @if (!cargando) {
   <div class="faq-lista">
 
@@ -90,7 +97,6 @@
     </div>
     }
 
-    <!-- ─── CTA card ──────────────────────────────────────────────────── -->
     <div class="faq-cta-card">
       <div class="faq-cta-text">
         <span class="faq-cta-icon">
