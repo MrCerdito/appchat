@@ -2610,8 +2610,8 @@ export class ChatGateway
             .emit('new_message', { ...msg, sessionId });
         }
         // Los admins también reciben mensajes del cliente para notificarles
-        // en tiempo real quién escribe y qué escribió.
-        if (msg?.senderType === 'client') {
+        // en tiempo real quién escribe y qué escribió, excepto si la sesión está en modo IA.
+        if (msg?.senderType === 'client' && session?.status !== 'ai') {
           this.server.to('admins').emit('new_message', { ...msg, sessionId });
         }
       })
