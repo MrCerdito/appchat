@@ -858,7 +858,7 @@ export class AiService {
       },
       body: JSON.stringify({
         contents,
-        generationConfig: { temperature: 0.7, maxOutputTokens: 1200 },
+        generationConfig: { temperature: 0.7, maxOutputTokens: 3072 },
       }),
       signal: controller.signal,
     }).finally(() => clearTimeout(timeout));
@@ -1540,7 +1540,7 @@ ${transcript}`;
         },
         body: JSON.stringify({
           contents,
-          generationConfig: { temperature: 0.7, maxOutputTokens: 1200 },
+        generationConfig: { temperature: 0.7, maxOutputTokens: 3072 },
         }),
         signal: controller.signal,
       });

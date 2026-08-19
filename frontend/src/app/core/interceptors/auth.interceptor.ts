@@ -26,13 +26,23 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       '/configuracion/horario-hoy',
       '/sessions/colegios/detectar',
       '/codigo',
+      '/faq',
+      '/pqrs',
+      '/sessions',
     ];
     const isPublic = PUBLIC_URLS.some(url => req.url.includes(url));
+    const isChatRoute = router.url.includes('/chat');
 
     if (error.status === 401 && !isPublic) {
+      if (isChatRoute) {
+        return throwError(() => error);
+      }
       return handle401(req, next, authService, router);
     }
     if (error.status === 403 && !isPublic) {
+      if (isChatRoute) {
+        return throwError(() => error);
+      }
       const storedRole = authService.getUser()?.role;
       const tokenRole = authService.tokenRole();
       if (storedRole && tokenRole && storedRole !== tokenRole) {
