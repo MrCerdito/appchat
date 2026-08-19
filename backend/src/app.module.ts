@@ -60,14 +60,14 @@ import { AppService } from './app.service';
     CacheModule.registerAsync({
       isGlobal: true,
       inject: [ConfigService],
-      useFactory: async (config: ConfigService) => {
+      useFactory: async (config: ConfigService): Promise<any> => {
         const { createKeyv } = await import('@keyv/redis');
         return {
           stores: [
             createKeyv(config.get<string>('REDIS_URL') || 'redis://localhost:6379'),
           ],
           ttl: 10_000,
-        };
+        } as any;
       },
     }),
     ConfigModule.forRoot({
@@ -116,10 +116,12 @@ import { AppService } from './app.service';
         database: config.get<string>('DB_NAME') as string,
         timezone: 'UTC',
         extra: {
-          max: 20,
-          min: 3,
+          max: 40,
+          min: 5,
           idleTimeoutMillis: 30000,
-          connectionTimeoutMillis: 10000,
+          connectionTimeoutMillis: 60000,
+          statement_timeout: 60000,
+          query_timeout: 60000,
         },
         // Evita que un error puntual del pool (timeout, red, reinicio de DB)
         // tumbe todo el proceso Node con una excepción no capturada.

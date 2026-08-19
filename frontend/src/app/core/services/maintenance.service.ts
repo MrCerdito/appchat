@@ -11,8 +11,8 @@ export class MaintenanceService implements OnDestroy {
   private intervalId: ReturnType<typeof setInterval> | null = null;
   private socketSub: Subscription | null = null;
   private failCount = 0;
-  private readonly FAIL_THRESHOLD = 1;
-  private readonly POLL_MS = 3_000;
+  private readonly FAIL_THRESHOLD = 8;
+  private readonly POLL_MS = 5_000;
 
   constructor(
     private http: HttpClient,
@@ -23,13 +23,6 @@ export class MaintenanceService implements OnDestroy {
     if (this.intervalId) return;
     this.check();
     this.intervalId = setInterval(() => this.check(), this.POLL_MS);
-
-    // Escuchar desconexión del socket para chequear el backend inmediatamente
-    this.socketSub = this.socket.connected$.subscribe((connected) => {
-      if (!connected) {
-        this.check();
-      }
-    });
   }
 
   stop(): void {

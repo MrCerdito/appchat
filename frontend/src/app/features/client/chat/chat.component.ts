@@ -451,8 +451,8 @@ get rolLabel(): string {
           this.maintenance.isMaintenance.set(true);
         } else {
           this.notification.error('Error', 'No se pudo recuperar tu sesión anterior');
+          this.clearSession();
         }
-        this.clearSession();
         this.sesionResuelta = true;
         this.intentarMostrar();
       },
@@ -518,7 +518,7 @@ get rolLabel(): string {
         if (isBackendDown) {
           this.maintenance.isMaintenance.set(true);
         } else {
-          this.notification.error('Error', 'No se pudo verificar el horario de atención');
+          // No activar mantenimiento por errores lógicos o de validación de horario
         }
       },
     });

@@ -218,7 +218,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     const saved = localStorage.getItem(this.STATUS_KEY) as 'online' | 'busy' | 'offline';
     this.advisorStatus = saved ?? 'online';
-    this.applyStatus(this.advisorStatus);
+    // No forzar 'online' al recargar: se respeta el estado guardado (saved) o el del servidor
+    if (saved) {
+      this.applyStatus(saved);
+    }
     this.socket.emit('advisor_ready');
     this.loadActiveCount();
     this.registerSocketListeners();

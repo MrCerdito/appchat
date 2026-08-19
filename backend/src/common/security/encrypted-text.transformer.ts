@@ -193,85 +193,87 @@ export async function warmupEncryptedCache(dataSource: DataSource): Promise<void
   const raw = process.env.CHAT_ENCRYPTION_KEY?.trim();
   if (!raw) return;
 
-  try {
-    const tables = [
-      { table: 'sessions', columns: ['client_name', 'identificacion', 'apellido'] },
-      { table: 'messages', columns: ['content', 'sender_name'] },
-      { table: 'whatsapp_messages', columns: ['body'] },
-      { table: 'teams_tokens', columns: ['access_token', 'refresh_token'] },
-    ];
+  // Ejecutar de forma completamente asíncrona fuera del ciclo de arranque crítico principal
+  setImmediate(async () => {
+    try {
+      // Intentar realizar una consulta simple de prueba para verificar conectividad con la BD
+      await dataSource.query(`SELECT 1`).catch(() => {});
 
-    const allValues = new Set<string>();
+      const tables = [
+        { table: 'sessions', columns: ['client_name', 'identificacion', 'apellido'] },
+        { table: 'messages', columns: ['content', 'sender_name'] },
+        { table: 'whatsapp_messages', columns: ['body'] },
+        { table: 'teams_tokens', columns: ['access_token', 'refresh_token'] },
+      ];
 
-    for (const { table, columns } of tables) {
-      for (const col of columns) {
-        try {
-          const rows: any[] = await dataSource.query(
-            `SELECT DISTINCT "${col}" FROM "${table}" WHERE "${col}"::text LIKE 'enc:v2:%' AND "${col}" IS NOT NULL`,
-          );
-          for (const row of rows) {
-            const v = row[col];
-            if (typeof v === 'string' && v.startsWith(PREFIX_V2)) {
-              allValues.add(v);
+      const allValues = new Set<string>();
+
+      for (const { table, columns } of tables) {
+        for (const col of columns) {
+          try {
+            const rows: any[] = await dataSource.query(
+              `SELECT DISTINCT "${col}" FROM "${table}" WHERE "${col}"::text LIKE 'enc:v2:%' AND "${col}" IS NOT NULL`,
+            );
+            for (const row of rows) {
+              const v = row[col];
+              if (typeof v === 'string' && v.startsWith(PREFIX_V2)) {
+                allValues.add(v);
+              }
             }
+          } catch {
+            // tabla o columna no existe aún
           }
-        } catch {
-          // table or column might not exist yet
         }
       }
-    }
 
-    if (allValues.size === 0) {
-      logger.log('Warmup: no encrypted values found — cache empty');
-      return;
-    }
-
-    // Pre-fill the pbkdf2 key cache (salt → derived key) concurrently
-    const uniqueSalts = new Map<string, Buffer>();
-    for (const value of allValues) {
-      const parsed = parseV2(value);
-      if (!parsed) continue;
-      const saltB64 = parsed.salt.toString('base64');
-      if (!uniqueSalts.has(saltB64) && !pbkdf2Cache.has(saltB64)) {
-        uniqueSalts.set(saltB64, parsed.salt);
+      if (allValues.size === 0) {
+        logger.log('Warmup: no encrypted values found — cache empty');
+        return;
       }
-    }
 
-    // Derive keys in batches of BATCH_SIZE concurrently
-    const saltEntries = [...uniqueSalts.entries()];
-    for (let i = 0; i < saltEntries.length; i += BATCH_SIZE) {
-      const batch = saltEntries.slice(i, i + BATCH_SIZE);
-      await Promise.all(
-        batch.map(async ([saltB64, salt]) => {
-          const key = await new Promise<Buffer>((resolve, reject) =>
-            pbkdf2(raw, salt, PBKDF2_ITERATIONS, PBKDF2_KEYLEN, PBKDF2_DIGEST, (err, derivedKey) =>
-              err ? reject(err) : resolve(derivedKey),
-            ),
-          );
-          pbkdf2Cache.set(saltB64, key);
-        }),
-      );
-      // Yield to event loop between batches
-      await new Promise((r) => setImmediate(r));
-    }
-
-    // Now decrypt all values using the pre-derived keys (sync is fine — keys are cached)
-    for (const value of allValues) {
-      if (decryptCache.has(value)) continue;
-      try {
+      const uniqueSalts = new Map<string, Buffer>();
+      for (const value of allValues) {
         const parsed = parseV2(value);
         if (!parsed) continue;
-        const decrypted = decryptV2(raw, parsed);
-        decryptCache.set(value, decrypted);
-      } catch {
-        // skip corrupt values
+        const saltB64 = parsed.salt.toString('base64');
+        if (!uniqueSalts.has(saltB64) && !pbkdf2Cache.has(saltB64)) {
+          uniqueSalts.set(saltB64, parsed.salt);
+        }
       }
-    }
 
-    logger.log(
-      `Warmup complete: ${decryptCache.size} decrypted values, ${pbkdf2Cache.size} derived keys cached`,
-    );
-  } catch (err) {
-    logger.warn(`Warmup failed: ${err}`);
-  }
+      const saltEntries = [...uniqueSalts.entries()];
+      for (let i = 0; i < saltEntries.length; i += BATCH_SIZE) {
+        const batch = saltEntries.slice(i, i + BATCH_SIZE);
+        await Promise.all(
+          batch.map(async ([saltB64, salt]) => {
+            const key = await new Promise<Buffer>((resolve, reject) =>
+              pbkdf2(raw, salt, PBKDF2_ITERATIONS, PBKDF2_KEYLEN, PBKDF2_DIGEST, (err, derivedKey) =>
+                err ? reject(err) : resolve(derivedKey),
+              ),
+            );
+            pbkdf2Cache.set(saltB64, key);
+          }),
+        );
+        await new Promise((r) => setImmediate(r));
+      }
+
+      for (const value of allValues) {
+        if (decryptCache.has(value)) continue;
+        try {
+          const parsed = parseV2(value);
+          if (!parsed) continue;
+          const decrypted = decryptV2(raw, parsed);
+          decryptCache.set(value, decrypted);
+        } catch {
+          // ignorar valores corruptos
+        }
+      }
+
+      logger.log(
+        `Warmup complete: ${decryptCache.size} decrypted values, ${pbkdf2Cache.size} derived keys cached`,
+      );
+    } catch (err) {
+      logger.warn(`Warmup skipped/failed safely: ${(err as Error).message}`);
+    }
+  });
 }
