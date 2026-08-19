@@ -101,8 +101,8 @@ export class FaqAdminComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  private cargar(bustCache = false): void {
-    this.faqService.getAll(undefined, undefined, bustCache).pipe(takeUntil(this.destroy$)).subscribe({
+  private cargar(_bustCache = true): void {
+    this.faqService.getAll(undefined, undefined, true).pipe(takeUntil(this.destroy$)).subscribe({
       next: (faqs) => {
         this.faqs = faqs;
         this.filtrar();

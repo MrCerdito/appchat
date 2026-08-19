@@ -101,16 +101,16 @@ export class FaqService {
   }
 
   async remove(id: number): Promise<void> {
-    const faq = await this.findOne(id);
-    await this.faqRepo.remove(faq);
+    const result = await this.faqRepo.delete(id);
+    if (result.affected === 0) throw new NotFoundException(`FAQ con id ${id} no encontrada`);
     await this.invalidateCache();
   }
 
   async removeBulk(ids: number[]): Promise<{ deleted: number }> {
     if (!ids?.length) return { deleted: 0 };
-    await this.faqRepo.delete(ids);
+    const result = await this.faqRepo.delete(ids);
     await this.invalidateCache();
-    return { deleted: ids.length };
+    return { deleted: result.affected ?? 0 };
   }
 
   async importCsv(csv: string): Promise<{ imported: number; errors: string[]; total: number }> {
@@ -201,7 +201,11 @@ export class FaqService {
   private async invalidateCache(): Promise<void> {
     try {
       await this.cache.del('faq:list:all:');
+      await this.cache.del('faq:list:all:undefined');
+      await this.cache.del('faq:list:all:null');
       await this.cache.del('faq:categorias:all');
+      await this.cache.del('faq:categorias:undefined');
+      await this.cache.del('faq:categorias:null');
     } catch {}
   }
 }

@@ -12,7 +12,6 @@ import {
   ParseIntPipe,
   HttpCode,
   HttpStatus,
-  Header,
   UploadedFile,
   UseInterceptors,
   Res,
@@ -31,7 +30,6 @@ import { SkipThrottle } from '@nestjs/throttler';
 export class FaqController {
   constructor(private readonly faqService: FaqService) {}
 
-  @Header('Cache-Control', 'public, max-age=300')
   @SkipThrottle()
   @Get()
   findAll(@Query('colegioId') colegioId?: string, @Query('q') q?: string) {
