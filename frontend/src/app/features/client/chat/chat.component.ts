@@ -22,7 +22,6 @@ import { normalizeUploadFile } from '../../../shared/utils/media';
 import { FaqComponent } from '../faq/faq.component';
 import { PqrsComponent } from '../pqrs/pqrs.component';
 import { ToastContainerComponent } from '../../../shared/components/toast-container.component';
-import { MaintenanceOverlayComponent } from '../../../shared/components/maintenance-overlay.component';
 import { MaintenanceService } from '../../../core/services/maintenance.service';
 import {
   VoiceRecorderComponent,
@@ -60,7 +59,7 @@ interface TimerUpdatePayload {
   standalone : true,
   imports    : [
     CommonModule, FormsModule, FaqComponent, PqrsComponent, ToastContainerComponent,
-    VoiceRecorderComponent, VoicePlayerComponent, MaintenanceOverlayComponent,
+    VoiceRecorderComponent, VoicePlayerComponent,
   ],
   templateUrl: './chat.component.html',
   styleUrl   : './chat.component.scss',
@@ -446,12 +445,17 @@ get rolLabel(): string {
           this.connectSocket();
           this.cdr.detectChanges();
         },
-        error: () => {
+      error: (err) => {
+        const isBackendDown = !err || err.status === 0 || err.status === 502 || err.status === 503 || err.status === 504;
+        if (isBackendDown) {
+          this.maintenance.isMaintenance.set(true);
+        } else {
           this.notification.error('Error', 'No se pudo recuperar tu sesión anterior');
-          this.clearSession();
-          this.sesionResuelta = true;
-          this.intentarMostrar();
-        },
+        }
+        this.clearSession();
+        this.sesionResuelta = true;
+        this.intentarMostrar();
+      },
       });
     }
   }
@@ -507,10 +511,15 @@ get rolLabel(): string {
         this.intentarMostrar();
         this.cdr.detectChanges();
       },
-      error: () => {
+      error: (err) => {
         this.jornadaResuelta = true;
         this.intentarMostrar();
-        this.notification.error('Error', 'No se pudo verificar el horario de atención');
+        const isBackendDown = !err || err.status === 0 || err.status === 502 || err.status === 503 || err.status === 504;
+        if (isBackendDown) {
+          this.maintenance.isMaintenance.set(true);
+        } else {
+          this.notification.error('Error', 'No se pudo verificar el horario de atención');
+        }
       },
     });
   }
