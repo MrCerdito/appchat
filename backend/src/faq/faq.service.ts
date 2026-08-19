@@ -162,9 +162,27 @@ export class FaqService {
     const header = '"pregunta";"respuesta";"categoria";"orden";"activo"';
     const rows = faqs.map((f) => {
       const esc = (s: string) => `"${(s ?? '').replace(/"/g, '""')}"`;
-      return [esc(f.pregunta), esc(f.respuesta), esc(f.categoria ?? ''), f.orden, f.activo].join(';');
+      return [esc(f.pregunta), esc(this.stripMarkdown(f.respuesta)), esc(f.categoria ?? ''), f.orden, f.activo].join(';');
     });
-    return [header, ...rows].join('\n');
+    return '\uFEFF' + [header, ...rows].join('\n');
+  }
+
+  private stripMarkdown(text: string): string {
+    if (!text) return '';
+    let clean = text;
+    // Remove headings: ## text → text
+    clean = clean.replace(/^#{1,3}\s+/gm, '');
+    // Remove horizontal rules: --- → (empty line)
+    clean = clean.replace(/^-{3,}\s*$/gm, '');
+    // Remove bold: **text** → text
+    clean = clean.replace(/\*\*(.+?)\*\*/g, '$1');
+    // Remove italic: *text* → text
+    clean = clean.replace(/\*(.+?)\*/g, '$1');
+    // Unordered list: * item → • item
+    clean = clean.replace(/^\*\s+/gm, '• ');
+    // Clean up multiple blank lines
+    clean = clean.replace(/\n{3,}/g, '\n\n');
+    return clean.trim();
   }
 
   private parseCsvLine(line: string): string[] {
