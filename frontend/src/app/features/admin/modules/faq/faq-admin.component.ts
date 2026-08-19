@@ -28,6 +28,10 @@ export class FaqAdminComponent implements OnInit, OnDestroy {
   deletingId: number | null = null;
   eliminando = false;
 
+  selectedIds = new Set<number>();
+  showBulkConfirm = false;
+  bulkDeleting = false;
+
   private clickStartedInside = false;
   private destroy$ = new Subject<void>();
 
@@ -67,7 +71,11 @@ export class FaqAdminComponent implements OnInit, OnDestroy {
     const file = input.files[0];
     this.faqService.importCsv(file).pipe(takeUntil(this.destroy$)).subscribe({
       next: (res) => {
-        this.notification.success('Importación completa', `${res.imported} preguntas importadas`);
+        let msg = `${res.imported} de ${res.total} preguntas importadas`;
+        if (res.errors?.length) {
+          msg += ` (${res.errors.length} con errores)`;
+        }
+        this.notification.success('Importación completa', msg);
         input.value = '';
         this.cargar();
       },
@@ -215,6 +223,61 @@ export class FaqAdminComponent implements OnInit, OnDestroy {
         this.deletingId = null;
         this.eliminando = false;
         this.cargar();
+      }
+    });
+  }
+
+  get allSelected(): boolean {
+    return this.faqsFiltradas.length > 0 && this.faqsFiltradas.every(f => this.selectedIds.has(f.id));
+  }
+
+  get someSelected(): boolean {
+    return this.faqsFiltradas.some(f => this.selectedIds.has(f.id)) && !this.allSelected;
+  }
+
+  toggleSelectAll(): void {
+    if (this.allSelected) {
+      this.faqsFiltradas.forEach(f => this.selectedIds.delete(f.id));
+    } else {
+      this.faqsFiltradas.forEach(f => this.selectedIds.add(f.id));
+    }
+    this.cdr.detectChanges();
+  }
+
+  toggleSelect(id: number): void {
+    if (this.selectedIds.has(id)) {
+      this.selectedIds.delete(id);
+    } else {
+      this.selectedIds.add(id);
+    }
+    this.cdr.detectChanges();
+  }
+
+  abrirBulkConfirm(): void {
+    if (this.selectedIds.size === 0) return;
+    this.showBulkConfirm = true;
+  }
+
+  cerrarBulkConfirm(): void {
+    this.showBulkConfirm = false;
+  }
+
+  confirmarEliminacionMasiva(): void {
+    if (this.bulkDeleting) return;
+    this.bulkDeleting = true;
+    const ids = Array.from(this.selectedIds);
+    this.faqService.removeBulk(ids).pipe(takeUntil(this.destroy$)).subscribe({
+      next: (res) => {
+        this.notification.success('Éxito', `${res.deleted} preguntas eliminadas correctamente`);
+        this.selectedIds.clear();
+        this.showBulkConfirm = false;
+        this.bulkDeleting = false;
+        this.cargar();
+      },
+      error: (err) => {
+        this.notification.error('Error', err.error?.message || 'No se pudieron eliminar las preguntas');
+        this.showBulkConfirm = false;
+        this.bulkDeleting = false;
       }
     });
   }

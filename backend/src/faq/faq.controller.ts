@@ -75,10 +75,16 @@ export class FaqController {
   )
   @HttpCode(HttpStatus.CREATED)
   async importCsv(@UploadedFile() file: Express.Multer.File) {
-    if (!file) throw new Error('Archivo no proporcionado');
-    const csv = file.buffer.toString('utf-8');
+    if (!file) throw new BadRequestException('Archivo no proporcionado');
+    let csv: string;
+    try {
+      csv = new TextDecoder('utf-8', { fatal: true }).decode(file.buffer);
+    } catch {
+      csv = new TextDecoder('latin1').decode(file.buffer);
+    }
+    csv = csv.replace(/^\uFEFF/, '');
     const result = await this.faqService.importCsv(csv);
-    return { imported: result.length };
+    return { imported: result.imported, errors: result.errors, total: result.total };
   }
 
   @SkipThrottle()
@@ -108,5 +114,13 @@ export class FaqController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(@Param('id', ParseIntPipe) id: number) {
     await this.faqService.remove(id);
+  }
+
+  @Post('delete-bulk')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @HttpCode(HttpStatus.OK)
+  async removeBulk(@Body() body: { ids: number[] }) {
+    return this.faqService.removeBulk(body.ids);
   }
 }

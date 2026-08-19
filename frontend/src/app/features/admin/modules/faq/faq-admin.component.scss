@@ -209,6 +209,74 @@
   background: var(--danger-soft) !important;
 }
 
+.faq-row-selected td {
+  background: color-mix(in srgb, var(--primary) 6%, transparent) !important;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// CHECKBOX
+// ══════════════════════════════════════════════════════════════════════════════
+.faq-checkbox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+
+  input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+}
+
+.faq-checkbox-mark {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--border-strong);
+  border-radius: 5px;
+  background: var(--surface);
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &::after {
+    content: '';
+    width: 10px;
+    height: 6px;
+    border-left: 2px solid #fff;
+    border-bottom: 2px solid #fff;
+    transform: rotate(-45deg) scale(0);
+    transition: transform 0.15s;
+    margin-top: -2px;
+  }
+}
+
+.faq-checkbox input:checked ~ .faq-checkbox-mark {
+  background: var(--primary);
+  border-color: var(--primary);
+
+  &::after {
+    transform: rotate(-45deg) scale(1);
+  }
+}
+
+.faq-checkbox input:indeterminate ~ .faq-checkbox-mark {
+  background: var(--primary);
+  border-color: var(--primary);
+
+  &::after {
+    width: 8px;
+    height: 0;
+    border-left: 0;
+    border-bottom: 2px solid #fff;
+    transform: rotate(0) scale(1);
+    margin-top: 0;
+  }
+}
+
 .faq-table-question {
   font-weight: 600;
   color: var(--text);
@@ -491,6 +559,11 @@
   svg {
     width: 18px;
     height: 18px;
+  }
+
+  &--danger {
+    background: var(--danger-soft);
+    color: var(--danger);
   }
 }
 

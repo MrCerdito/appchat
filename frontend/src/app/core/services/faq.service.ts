@@ -55,13 +55,17 @@ export class FaqService {
     return this.http.delete<void>(`${environment.apiUrl}/faq/${id}`);
   }
 
-  importCsv(file: File): Observable<{ imported: number }> {
+  importCsv(file: File): Observable<{ imported: number; errors: string[]; total: number }> {
     const formData = new FormData();
     formData.append('file', file);
-    return this.http.post<{ imported: number }>(`${environment.apiUrl}/faq/import`, formData);
+    return this.http.post<{ imported: number; errors: string[]; total: number }>(`${environment.apiUrl}/faq/import`, formData);
   }
 
   exportCsv(): Observable<Blob> {
     return this.http.get(`${environment.apiUrl}/faq/export`, { responseType: 'blob' });
+  }
+
+  removeBulk(ids: number[]): Observable<{ deleted: number }> {
+    return this.http.post<{ deleted: number }>(`${environment.apiUrl}/faq/delete-bulk`, { ids });
   }
 }

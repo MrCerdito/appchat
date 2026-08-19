@@ -106,9 +106,16 @@ export class FaqService {
     await this.invalidateCache();
   }
 
-  async importCsv(csv: string): Promise<Faq[]> {
+  async removeBulk(ids: number[]): Promise<{ deleted: number }> {
+    if (!ids?.length) return { deleted: 0 };
+    await this.faqRepo.delete(ids);
+    await this.invalidateCache();
+    return { deleted: ids.length };
+  }
+
+  async importCsv(csv: string): Promise<{ imported: number; errors: string[]; total: number }> {
     const lines = csv.split('\n').filter((l) => l.trim());
-    if (lines.length < 2) return [];
+    if (lines.length < 2) return { imported: 0, errors: ['El archivo CSV está vacío o no tiene datos'], total: 0 };
 
     const header = lines[0].toLowerCase();
     const cols = header.split(';').map((c) => c.trim().replace(/"/g, ''));
@@ -121,7 +128,8 @@ export class FaqService {
     if (pIdx === -1 || rIdx === -1)
       throw new Error('CSV debe tener columnas "pregunta" y "respuesta"');
 
-    const created: Faq[] = [];
+    const errors: string[] = [];
+    let imported = 0;
 
     for (let i = 1; i < lines.length; i++) {
       const vals = this.parseCsvLine(lines[i]);
@@ -133,14 +141,20 @@ export class FaqService {
         activo: aIdx !== -1 ? vals[aIdx]?.trim().toLowerCase() !== 'false' : true,
       };
       if (dto.pregunta && dto.respuesta) {
-        const faq = this.faqRepo.create(dto as Faq);
-        await this.faqRepo.save(faq);
-        created.push(faq);
+        try {
+          const faq = this.faqRepo.create(dto as Faq);
+          await this.faqRepo.save(faq);
+          imported++;
+        } catch {
+          errors.push(`Fila ${i + 1}: no se pudo guardar`);
+        }
+      } else {
+        errors.push(`Fila ${i + 1}: falta pregunta o respuesta`);
       }
     }
 
-    if (created.length) await this.invalidateCache();
-    return created;
+    if (imported) await this.invalidateCache();
+    return { imported, errors, total: lines.length - 1 };
   }
 
   async exportCsv(): Promise<string> {
