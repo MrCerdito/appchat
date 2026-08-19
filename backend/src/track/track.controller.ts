@@ -63,6 +63,16 @@ export class TrackController {
       decodedUrl?.startsWith('http://') || decodedUrl?.startsWith('https://')
         ? decodedUrl
         : '/';
+    // Validate redirect stays on same domain or is a relative path
+    try {
+      const parsed = new URL(safeUrl);
+      const host = req.hostname || 'localhost';
+      if (!parsed.hostname.endsWith(host) && parsed.hostname !== host) {
+        return res.redirect('/');
+      }
+    } catch {
+      // Not a valid URL — treat as relative path, safe
+    }
     res.redirect(safeUrl);
   }
 }

@@ -63,7 +63,18 @@ async function bootstrap() {
 
   app.use(
     helmet({
-      contentSecurityPolicy: false,
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", 'data:', 'https:'],
+          connectSrc: ["'self'"],
+          fontSrc: ["'self'"],
+          objectSrc: ["'none'"],
+          frameAncestors: ["'none'"],
+        },
+      },
       crossOriginEmbedderPolicy: false,
       crossOriginResourcePolicy: { policy: 'cross-origin' },
       strictTransportSecurity:
@@ -97,7 +108,7 @@ async function bootstrap() {
       if (!origin || corsOrigins.includes(origin)) {
         return cb(null, true);
       }
-      return cb(null, true);
+      return cb(null, false);
     },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],

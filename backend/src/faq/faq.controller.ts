@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   Get,
   Post,
@@ -58,7 +59,17 @@ export class FaqController {
   @Post('import')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
-  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      fileFilter: (_req, file, cb) => {
+        const allowed = ['text/csv', 'application/csv', 'application/vnd.ms-excel'];
+        if (allowed.includes(file.mimetype) || file.originalname.endsWith('.csv'))
+          return cb(null, true);
+        cb(new BadRequestException('Solo se permiten archivos CSV'), false);
+      },
+    }),
+  )
   @HttpCode(HttpStatus.CREATED)
   async importCsv(@UploadedFile() file: Express.Multer.File) {
     if (!file) throw new Error('Archivo no proporcionado');

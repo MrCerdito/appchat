@@ -78,6 +78,7 @@ services:
       WHATSAPP_PROXY_URL: ${WHATSAPP_PROXY_URL:-}
     volumes:
       - uploads_data:/app/uploads
+      - wa_session_data:/app/.session
     depends_on:
       postgres:
         condition: service_healthy
@@ -140,4 +141,6 @@ volumes:
   pgdata:
     driver: local
   uploads_data:
+    driver: local
+  wa_session_data:
     driver: local

@@ -72,17 +72,17 @@ export class SeedService implements OnApplicationBootstrap {
   private async seedUsers() {
     const hash = (pw: string) => bcrypt.hash(pw, 10);
 
-    const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'admin123';
+    const adminPassword = process.env.SEED_ADMIN_PASSWORD;
+    if (!adminPassword) {
+      throw new Error(
+        'SEED_ADMIN_PASSWORD es requerido. Genera uno con: node -e "console.log(require(\'crypto\').randomBytes(16).toString(\'hex\'))"',
+      );
+    }
     const advisorPassword =
       process.env.SEED_ADVISOR_PASSWORD || this.generateStrongPassword();
 
-    if (!process.env.SEED_ADMIN_PASSWORD || !process.env.SEED_ADVISOR_PASSWORD) {
-      this.logger.warn(
-        'SEED_ADMIN_PASSWORD/SEED_ADVISOR_PASSWORD no definidos: se generaron passwords aleatorios (se muestran una sola vez):',
-      );
-      this.logger.warn(`  admin@innovacloud.co → ${adminPassword}`);
-      this.logger.warn(`  asesor1..6@innovacloud.co → ${advisorPassword}`);
-    }
+    this.logger.warn(`Seed credentials — admin: admin@innovacloud.co, advisor: asesor1..6@innovacloud.co`);
+    this.logger.warn(`Advisor password (use for all advisors): ${advisorPassword}`);
 
     const admin = this.userRepo.create({
       name: 'Administrador',

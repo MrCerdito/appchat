@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   Get,
   Post,
@@ -411,11 +412,18 @@ export class AdvisorsWhatsappController {
   async updateOperationalStatus(
     @Param('chatId') chatId: string,
     @Req() req: Request & { user: any },
-    @Body('status') status: any,
+    @Body('status') status: string,
   ) {
+    const VALID_OP_STATUSES = [
+      'new', 'queued', 'assigned', 'in_progress',
+      'waiting_customer', 'waiting_technical', 'resolved', 'released', 'closed',
+    ];
+    if (!VALID_OP_STATUSES.includes(status)) {
+      throw new BadRequestException(`Estado inválido: ${status}`);
+    }
     const chat = await this.whatsappService.updateOperationalStatus(
       chatId,
-      status,
+      status as any,
       req.user.id,
       req.user.role,
     );
@@ -604,9 +612,8 @@ export class AdvisorsWhatsappController {
       });
       return { ok: true, messageId: result.message.id, chat: result.chat };
     } catch (err: any) {
-      const metaError = err.response?.data;
-      this.logger.error('Error enviando mensaje:', metaError ?? err.message);
-      return { ok: false, error: metaError ?? err.message };
+      this.logger.error('Error enviando mensaje:', err?.message);
+      return { ok: false, error: 'Error al enviar mensaje. Intenta de nuevo.' };
     }
   }
 
@@ -699,9 +706,8 @@ export class AdvisorsWhatsappController {
         chat: result.chat,
       };
     } catch (err: any) {
-      const metaError = err.response?.data;
-      this.logger.error('Error enviando plantilla:', metaError ?? err.message);
-      return { ok: false, error: metaError ?? err.message };
+      this.logger.error('Error enviando plantilla:', err?.message);
+      return { ok: false, error: 'Error al enviar plantilla. Intenta de nuevo.' };
     }
   }
 

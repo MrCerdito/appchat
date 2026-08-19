@@ -1,7 +1,8 @@
-import { IsString, IsOptional, IsArray } from 'class-validator';
+import { IsString, IsOptional, IsArray, MaxLength } from 'class-validator';
 
 export class AiChatDto {
   @IsString()
+  @MaxLength(2000)
   message: string;
 
   @IsArray()

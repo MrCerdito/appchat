@@ -9,7 +9,7 @@ import {
   ViewChild,
   ElementRef,
 } from '@angular/core';
-import { SlicePipe } from '@angular/common';
+
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
@@ -31,7 +31,7 @@ const CUERPO_FALLBACK =
 @Component({
   selector: 'app-comunicados',
   standalone: true,
-  imports: [FormsModule, SlicePipe, MailEditorComponent, SendConfirmModalComponent],
+  imports: [FormsModule, MailEditorComponent, SendConfirmModalComponent],
   templateUrl: './comunicados.html',
   styleUrl: './comunicados.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

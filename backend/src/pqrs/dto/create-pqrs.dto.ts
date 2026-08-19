@@ -5,6 +5,7 @@ import {
   IsIn,
   IsEmail,
   Length,
+  MaxLength,
 } from 'class-validator';
 
 export class CreatePqrsDto {
@@ -20,6 +21,7 @@ export class CreatePqrsDto {
 
   @IsString()
   @IsNotEmpty()
+  @MaxLength(5000)
   descripcion: string;
 
   @IsString()

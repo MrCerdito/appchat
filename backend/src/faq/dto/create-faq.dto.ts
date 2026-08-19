@@ -5,6 +5,7 @@ import {
   IsArray,
   IsInt,
   Length,
+  MaxLength,
 } from 'class-validator';
 
 export class CreateFaqDto {
@@ -15,6 +16,7 @@ export class CreateFaqDto {
 
   @IsString()
   @IsNotEmpty()
+  @MaxLength(5000)
   respuesta: string;
 
   @IsOptional()

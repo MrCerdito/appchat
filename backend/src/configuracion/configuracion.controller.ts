@@ -156,7 +156,10 @@ export class ConfiguracionController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(RolesGuard)
   @Roles('admin', 'advisor')
-  guardarQuickReplies(@Body() body: { whatsappQuickReplies: any[] }) {
+  guardarQuickReplies(@Body() body: { whatsappQuickReplies: unknown[] }) {
+    if (!Array.isArray(body.whatsappQuickReplies)) {
+      throw new BadRequestException('whatsappQuickReplies debe ser un arreglo');
+    }
     return this.svc.guardar({ whatsappQuickReplies: body.whatsappQuickReplies }, undefined);
   }
 

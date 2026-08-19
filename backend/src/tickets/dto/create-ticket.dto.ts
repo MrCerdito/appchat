@@ -15,6 +15,7 @@ export class CreateTicketDto {
 
   @IsString()
   @IsOptional()
+  @Length(1, 5000)
   descripcion?: string | null;
 
   @IsString()

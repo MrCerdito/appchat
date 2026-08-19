@@ -79,9 +79,9 @@ import { AppService } from './app.service';
         DB_USER: Joi.string().required(),
         DB_PASS: Joi.string().required(),
         DB_NAME: Joi.string().required(),
-        JWT_SECRET: Joi.string().min(16).required().label('JWT_SECRET'),
+        JWT_SECRET: Joi.string().min(32).required().label('JWT_SECRET'),
         JWT_REFRESH_SECRET: Joi.string()
-          .min(16)
+          .min(32)
           .required()
           .label('JWT_REFRESH_SECRET'),
         JWT_EXPIRES: Joi.string().default('8h'),
@@ -152,8 +152,8 @@ import { AppService } from './app.service';
           InternalConversationMember,
           InternalMessage,
         ],
-        synchronize: config.get<string>('NODE_ENV') !== 'production',
-        logging: true, // Temporal: activa el log de SQL para depuración
+        synchronize: config.get<string>('NODE_ENV') === 'development',
+        logging: config.get<string>('NODE_ENV') !== 'production',
       }),
     }),
     AuthModule,

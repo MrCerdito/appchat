@@ -41,7 +41,9 @@ interface TimerEntry {
 @WebSocketGateway({
   maxHttpBufferSize: 2_000_000,
   cors: {
-    origin: true,
+    origin: process.env.CORS_ORIGINS
+      ? process.env.CORS_ORIGINS.split(',')
+      : ['http://localhost:4200'],
     credentials: true,
   },
 })
@@ -160,6 +162,9 @@ export class ChatGateway
           // Store in Redis + join advisor room for cross-instance messaging
           await this.redisState.addConnectedAdvisor(payload.sub);
           client.join(`advisor:${payload.sub}`);
+          // Sync DB status so findAvailableAdvisorFromList can find this advisor
+          await this.sessionsService.setAdvisorStatus(payload.sub, 'online');
+          await this.redisState.setAdvisorStatus(payload.sub, 'online');
         }
         if (fullUser?.role === 'admin') {
           // Los admins se unen a la sala 'admins' para recibir notificaciones
@@ -291,12 +296,12 @@ export class ChatGateway
     const advisor = await this.sessionsService.findAdvisorById(
       client.data.user.id,
     );
-    const status = advisor?.status ?? 'online';
-    await this.redisState.setAdvisorStatus(client.data.user.id, status);
+    await this.sessionsService.setAdvisorStatus(client.data.user.id, 'online');
+    await this.redisState.setAdvisorStatus(client.data.user.id, 'online');
     this.server.emit('advisor_status_changed', {
       advisorId: client.data.user.id,
       name: advisor?.name ?? client.data.user.name,
-      status,
+      status: 'online',
       profilePhotoUrl:
         advisor?.profilePhotoUrl ?? client.data.user?.profilePhotoUrl ?? null,
     });
@@ -310,6 +315,8 @@ export class ChatGateway
     @ConnectedSocket() client: Socket,
   ) {
     if (client.data.role !== 'advisor') return;
+    const VALID_STATUSES = ['online', 'busy', 'offline'];
+    if (!VALID_STATUSES.includes(status)) return;
 
     if (status === 'online') {
       if (await this.estaEnAlmuerzo(client.data.user.id)) {
@@ -804,6 +811,12 @@ export class ChatGateway
     client.emit('session_assigned', {
       sessionId,
       clientName: session.clientName,
+    });
+
+    // Notificar a la sala del chat sobre el nuevo asesor (nombre + foto)
+    this.server.to(sessionId).emit('advisor_joined', {
+      name: session.advisor?.name ?? newAdvisorName,
+      profilePhotoUrl: session.advisor?.profilePhotoUrl ?? null,
     });
 
     this.cancelarTimerActivo(sessionId);

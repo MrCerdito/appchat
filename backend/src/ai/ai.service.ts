@@ -361,6 +361,24 @@ function clasificarCharla(mensaje: string): CharlaTipo | null {
   return null;
 }
 
+// Patrones de solicitudes de ayuda genéricas que NO deben activar RAG.
+// Son peticiones vagas sin contenido real consultable.
+const PATRONES_AYUDA_GENERICA = [
+  /^necesito\s+(ayuda|informacion|apoyo|orientacion|asistencia|un\s+favor)/i,
+  /^ayudame|^ayuda(m(e|nos)?)?$/i,
+  /^que\s+puedo\s+hacer$/i,
+  /^que\s+hago$/i,
+  /^como\s+pregunto$/i,
+  /^tengo\s+una\s+(duda|pregunta|consulta)$/i,
+  /^me\s+puedes?\s+(ayudar|apoyar|orientar)$/i,
+  /^quiero\s+(ayuda|informacion|apoyo|orientacion)$/i,
+];
+
+function esAyudaGenerica(mensaje: string): boolean {
+  const m = normalizarTexto(mensaje);
+  return PATRONES_AYUDA_GENERICA.some((p) => p.test(m));
+}
+
 // ¿El mensaje es solo charla (sin consulta real)?
 function esSoloCharla(mensaje: string): boolean {
   return clasificarCharla(mensaje) !== null;
@@ -528,9 +546,10 @@ export class AiService {
   }
 
   // Query de RAG con referencia al hilo: combina la pregunta actual con los
-  // últimos mensajes del usuario para resolver referencias ("¿y cuándo es?").
-  // Además, expande intenciones críticas como contraseñas, claves o ingresos
-  // para asegurar la recuperación de documentos de la plataforma del colegio.
+  // últimos mensajes del usuario SOLO si el mensaje actual contiene palabras
+  // de referencia (pronombres, "cuándo", "dónde", etc.) que necesitan contexto
+  // del historial. Si el mensaje es una consulta standalone, no mezcla historial
+  // para evitar contaminación de resultados RAG.
   private construirConsultaRag(
     message: string,
     history: AiMessage[],
@@ -554,6 +573,24 @@ export class AiService {
       msgLower.includes('plataform')
     ) {
       expansion += ' plataforma ingresar acceder iniciar sesion usuario error acceso';
+    }
+
+    // Solo incluir historial si el mensaje contiene palabras de referencia
+    // que necesitan contexto previo para tener sentido
+    const REFERENCE_WORDS = [
+      'eso', 'esto', 'eso', 'aquel', 'aquella',
+      'cuando', 'cuándo', 'donde', 'dónde',
+      'como', 'cómo', 'porque', 'por qué',
+      'cuál', 'cual', 'cuáles', 'cuales',
+      'este', 'esta', 'ese', 'esa',
+      'ahí', 'ahi', 'allí', 'alli',
+      'mencion', 'mencionaste', 'dijiste', 'hablaste',
+    ];
+    const tieneRef = REFERENCE_WORDS.some((w) => msgLower.includes(w));
+
+    if (!tieneRef) {
+      // Mensaje standalone — no contaminar con historial
+      return message.trim() + expansion;
     }
 
     const previos = (history ?? [])
@@ -697,6 +734,22 @@ export class AiService {
       return { reply: saludo, transfer: false, showFeedback: false, documentos: [] };
     }
 
+    // ── D2b: ayuda genérica ("necesito ayuda", "ayudame", "qué puedo hacer")
+    //    → respuesta conversacional breve SIN activar RAG ni entregar documentos. ──
+    if (esAyudaGenerica(message)) {
+      const respuesta = '¡Claro! Estoy aquí para ayudarte. Por favor, cuéntame con más detalle qué necesitas para poder asistirte mejor.';
+      this.aiLogs.guardar({
+        colegio,
+        rol: rolNormalizado,
+        tipoSolicitud,
+        clientName,
+        pregunta: message,
+        respuesta,
+        chunksUsados: [],
+      });
+      return { reply: respuesta, transfer: false, showFeedback: false, documentos: [] };
+    }
+
     // ── Tema restringido ────────────────────────────────────────────────────
     const esRestringido = config.temasRestringidos.some((t) =>
       coincideTema(msgLower, t),
@@ -725,7 +778,7 @@ export class AiService {
     //    la búsqueda debe incluir el tema previo). Entrega SOLO por roles. ──
     const ragQuery = this.construirConsultaRag(message, history);
     const ragResult = await this.documentosService
-      .buscarRelevantes(ragQuery, rolNormalizado, 12)
+      .buscarRelevantes(ragQuery, rolNormalizado, 6)
       .catch(() => ({ contexto: '', documentos: [], chunks: [] }));
 
     const { contexto, documentos } = ragResult;
@@ -1341,6 +1394,24 @@ ${transcript}`;
       return saludo;
     }
 
+    // ── D2b: ayuda genérica ("necesito ayuda", "ayudame", "qué puedo hacer")
+    //    → respuesta conversacional breve SIN activar RAG ni entregar documentos. ──
+    if (esAyudaGenerica(message)) {
+      const respuesta = '¡Claro! Estoy aquí para ayudarte. Por favor, cuéntame con más detalle qué necesitas para poder asistirte mejor.';
+      this.aiLogs.guardar({
+        sessionId,
+        colegio,
+        rol: rolNormalizado,
+        tipoSolicitud,
+        clientName,
+        pregunta: message,
+        respuesta,
+        chunksUsados: [],
+      });
+      emit('chunk', { text: respuesta });
+      return respuesta;
+    }
+
     // ── Tema restringido ────────────────────────────────────────────────────
     const esRestringido = config.temasRestringidos.some((t) =>
       coincideTema(msgLower, t),
@@ -1366,7 +1437,7 @@ ${transcript}`;
     //    la búsqueda debe incluir el tema previo). Entrega SOLO por roles. ──
     const ragQuery = this.construirConsultaRag(message, history);
     const ragResult = await this.documentosService
-      .buscarRelevantes(ragQuery, rolNormalizado, 12)
+      .buscarRelevantes(ragQuery, rolNormalizado, 6)
       .catch(() => ({ contexto: '', documentos: [], chunks: [] }));
 
     const { contexto, documentos } = ragResult;
@@ -1809,6 +1880,9 @@ ${transcript}`;
         'Cuando uses datos de un documento, cita su nombre EXACTO tal como aparece.',
         'Cada fragmento trae su etiqueta [Documento N: <nombre>] como referencia interna;',
         'no la uses como cita literal, usa el <nombre> real del documento.',
+        'IMPORTANTE: Si los documentos recuperados NO son directamente pertinentes a la',
+        'pregunta del usuario, NO los menciones ni entregues. Responde con la información',
+        'que tengas disponible o indica que no tienes información sobre ese tema específico.',
         '',
         contexto,
         '',

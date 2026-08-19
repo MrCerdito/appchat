@@ -209,9 +209,10 @@ export class AdvisorsController {
       }),
       limits: { fileSize: 5 * 1024 * 1024 },
       fileFilter: (_req, file, cb) => {
-        if (!file.mimetype.startsWith('image/')) {
+        const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+        if (!allowed.includes(file.mimetype)) {
           return cb(
-            new BadRequestException('Solo se permiten imágenes', ''),
+            new BadRequestException('Solo se permiten JPEG, PNG, WebP o GIF', ''),
             false,
           );
         }

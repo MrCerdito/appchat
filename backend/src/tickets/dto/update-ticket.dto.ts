@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsIn, Length } from 'class-validator';
+import { IsString, IsOptional, IsIn, Length, MaxLength } from 'class-validator';
 
 export class UpdateTicketDto {
   @IsString()
@@ -8,6 +8,7 @@ export class UpdateTicketDto {
 
   @IsString()
   @IsOptional()
+  @MaxLength(5000)
   descripcion?: string;
 
   @IsString()

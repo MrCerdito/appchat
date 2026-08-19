@@ -83,7 +83,21 @@ export class InternalChatController {
   }
 
   @Post('conversations/:id/media')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 5 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        const allowed = [
+          'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+          'video/mp4', 'video/webm', 'video/quicktime',
+          'audio/mpeg', 'audio/ogg', 'audio/wav',
+          'application/pdf',
+        ];
+        if (allowed.includes(file.mimetype)) return cb(null, true);
+        cb(new BadRequestException('Tipo de archivo no permitido'), false);
+      },
+    }),
+  )
   sendMedia(
     @Request() req,
     @Param('id') conversationId: string,

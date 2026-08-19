@@ -3,6 +3,7 @@ import {
   IsOptional,
   IsIn,
   Length,
+  MaxLength,
 } from 'class-validator';
 
 export class UpdatePqrsDto {
@@ -13,5 +14,6 @@ export class UpdatePqrsDto {
 
   @IsString()
   @IsOptional()
+  @MaxLength(5000)
   respuesta?: string;
 }

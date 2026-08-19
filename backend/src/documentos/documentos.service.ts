@@ -72,7 +72,9 @@ function resolverAliases(rol?: string): string[] {
     .replace(/[\u0300-\u036f]/g, '');
   if (ROL_ALIASES[r]) return ROL_ALIASES[r];
   const entrada = Object.values(ROL_ALIASES).find((arr) => arr.includes(r));
-  return entrada ?? [r];
+  if (entrada) return entrada;
+  // Reject unrecognized roles to prevent SQL injection
+  return [];
 }
 
 @Injectable()
@@ -87,7 +89,7 @@ export class DocumentosService implements OnApplicationBootstrap {
   private readonly EMBEDDING_DIM = 768;
   // Umbral de recuperación semántica (0.66: balancea recall y precisión; los
   // matches por palabras/título garantizan los instructivos sin depender de él).
-  private readonly RETRIEVAL_THRESHOLD = 0.66;
+  private readonly RETRIEVAL_THRESHOLD = 0.55;
   // Umbral de "match fuerte" (0.52): los keyword matches por título/descripción
   // usan distancia sintética 0.05/0.40, así que caen en este tier.
   private readonly DOC_MATCH_THRESHOLD = 0.52;
@@ -255,6 +257,10 @@ export class DocumentosService implements OnApplicationBootstrap {
       try {
         const queryEmbedding = await this.generarEmbedding(query);
         const vectorStr = `[${queryEmbedding.join(',')}]`;
+        const { sql: rolSql, params: rolParams } = this.sqlFiltroRol(
+          aliases,
+          2,
+        );
         semanticos = await this.dataSource.query(
           `
           SELECT
@@ -265,11 +271,11 @@ export class DocumentosService implements OnApplicationBootstrap {
           WHERE activo = true
             AND embedding_vec IS NOT NULL
             AND embedding_vec <=> $1::vector < ${this.RETRIEVAL_THRESHOLD}
-            ${this.sqlFiltroRol(aliases)}
+            ${rolSql}
           ORDER BY distancia ASC
           LIMIT ${topK}
           `,
-          [vectorStr],
+          [vectorStr, ...rolParams],
         );
       } catch (err) {
         this.logger.warn(
@@ -321,22 +327,11 @@ export class DocumentosService implements OnApplicationBootstrap {
 
     // Tier 1: "matches fuertes" (distancia < DOC_MATCH_THRESHOLD, incluye los
     // keyword matches por título/descripción con distancia sintética).
-    // Tier 2: si no hay ninguno fuerte, mejor chunk de cada documento débil
-    // (hasta 4) para no ensuciar el contexto.
+    // Si no hay matches fuertes, NO devolver documentos débiles para evitar
+    // entregar documentos irrelevantes al usuario.
     const strong = rows.filter((r) => distanciaDe(r) < this.DOC_MATCH_THRESHOLD);
-    const weak = rows.filter((r) => distanciaDe(r) >= this.DOC_MATCH_THRESHOLD);
-
     const usarStrong = strong.length > 0;
-    const rowsFiltrados: any[] = usarStrong
-      ? strong
-      : Object.values(
-          weak.reduce<Record<string, any>>((acc, r) => {
-            if (!acc[r.nombre] || distanciaDe(r) < distanciaDe(acc[r.nombre])) {
-              acc[r.nombre] = r;
-            }
-            return acc;
-          }, {}),
-        ).slice(0, 4);
+    const rowsFiltrados: any[] = strong;
 
     // Documentos que la IA usará (ordenados por relevancia)
     const documentos = [...docsUnicos.values()]
@@ -391,18 +386,30 @@ export class DocumentosService implements OnApplicationBootstrap {
 
   // Filtro SQL de rol (ÚNICA condición de entrega). Acepta NULL/CSV vacío como
   // público y exige coincidencia EXACTA de token dentro del CSV.
-  private sqlFiltroRol(aliases: string[]): string {
-    if (!aliases.length) return '';
-    const clauses = aliases.map(
-      (a) =>
-        `roles_permitidos = '${a}'` +
-        ` OR roles_permitidos LIKE '${a},%'` +
-        ` OR roles_permitidos LIKE '%,${a},%'` +
-        ` OR roles_permitidos LIKE '%,${a}'`,
-    );
-    return ` AND (roles_permitidos IS NULL OR roles_permitidos = '' OR (${clauses.join(
-      ' OR ',
-    )}))`;
+  // Retorna SQL con parámetros `$N` para prevenir inyección SQL.
+  private sqlFiltroRol(
+    aliases: string[],
+    startParam: number = 1,
+  ): { sql: string; params: string[] } {
+    if (!aliases.length) return { sql: '', params: [] };
+    const params: string[] = [];
+    const conditions: string[] = [];
+    for (const a of aliases) {
+      const base = startParam + conditions.length;
+      conditions.push(
+        `roles_permitidos = $${base}`,
+        `roles_permitidos LIKE $${base + 1}`,
+        `roles_permitidos LIKE $${base + 2}`,
+        `roles_permitidos LIKE $${base + 3}`,
+      );
+      params.push(a, `${a},%`, `%,${a},%`, `%,${a}`);
+    }
+    return {
+      sql: ` AND (roles_permitidos IS NULL OR roles_permitidos = '' OR (${conditions.join(
+        ' OR ',
+      )}))`,
+      params,
+    };
   }
 
   // Fusiona resultados semánticos + de texto por id de chunk conservando la
@@ -725,6 +732,11 @@ export class DocumentosService implements OnApplicationBootstrap {
     const tituloODesc = `${nombreClause} OR ${descripcionClause}`;
 
     const params: any[] = [...likes, ...likes, ...likes];
+    const rolStart = 3 * n + 1;
+    const { sql: rolSql, params: rolParams } = this.sqlFiltroRol(
+      resolverAliases(rol),
+      rolStart,
+    );
     const sql = `
       SELECT
         id, nombre, contenido, pdf_url, categoria, chunk_index, roles_permitidos,
@@ -737,10 +749,10 @@ export class DocumentosService implements OnApplicationBootstrap {
       FROM documentos
       WHERE activo = true
         AND (${tituloODesc} OR (${tokens.map((_, i) => `(LOWER(contenido) LIKE $${i + 1})::int`).join(' + ')}) >= 1)
-        ${this.sqlFiltroRol(resolverAliases(rol))}
+        ${rolSql}
       ORDER BY distancia ASC
       LIMIT ${topK}
     `;
-    return this.dataSource.query(sql, params);
+    return this.dataSource.query(sql, [...params, ...rolParams]);
   }
 }
