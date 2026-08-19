@@ -28,6 +28,7 @@ export class FaqComponent implements OnInit, OnDestroy, AfterViewInit {
   categorias: string[] = [];
   filtroTexto = '';
   categoriaActiva = '';
+  categoriaSeleccionada = false;
   faqExpandida: number | null = null;
   cargando = true;
 
@@ -73,6 +74,9 @@ export class FaqComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   get faqsFiltradas(): Faq[] {
+    if (this.categorias.length > 0 && !this.categoriaActiva) {
+      return [];
+    }
     let lista = this.faqs;
     if (this.categoriaActiva) {
       lista = lista.filter(f => f.categoria === this.categoriaActiva);
@@ -93,7 +97,16 @@ export class FaqComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   selectCategoria(cat: string): void {
-    this.categoriaActiva = this.categoriaActiva === cat ? '' : cat;
+    if (this.categoriaActiva === cat) {
+      this.categoriaActiva = '';
+      this.categoriaSeleccionada = false;
+    } else {
+      this.categoriaActiva = cat;
+      this.categoriaSeleccionada = true;
+    }
+    this.faqExpandida = null;
+    this.filtroTexto = '';
+    this.cdr.detectChanges();
   }
 
   formatearRespuesta(text: string): SafeHtml {

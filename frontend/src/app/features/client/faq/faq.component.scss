@@ -217,6 +217,72 @@ $radius-lg: var(--radius-lg);
   &::-webkit-scrollbar-thumb { background: $border; border-radius: 2px; }
 }
 
+// ── Select category prompt ───────────────────────────────────────────────────
+.faq-select-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 2.5rem 1rem 2rem;
+  text-align: center;
+
+  &__icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    background: $primary-soft;
+    color: $primary;
+    display: grid;
+    place-items: center;
+    margin-bottom: 4px;
+
+    svg { width: 28px; height: 28px; }
+  }
+
+  &__title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: $text;
+    margin: 0;
+  }
+
+  &__sub {
+    font-size: 0.78rem;
+    color: $text-secondary;
+    margin: 0;
+  }
+
+  &__cats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 6px;
+    max-width: 320px;
+  }
+
+  &__cat {
+    padding: 8px 18px;
+    border-radius: 20px;
+    border: 1px solid $border;
+    background: $surface;
+    font-family: var(--font);
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: $text-secondary;
+    cursor: pointer;
+    transition: all 0.15s;
+
+    &:hover {
+      border-color: $primary;
+      color: $primary;
+      background: $primary-soft;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.12);
+    }
+  }
+}
+
 // ── Empty state ──────────────────────────────────────────────────────────────
 .faq-empty {
   display: flex;
