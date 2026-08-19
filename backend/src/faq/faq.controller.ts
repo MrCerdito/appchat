@@ -50,11 +50,11 @@ export class FaqController {
   @Get('export')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
-  async exportXml(@Res() res: Response) {
-    const xml = await this.faqService.exportXml();
-    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename="faqs.xml"');
-    res.send(xml);
+  async exportXlsx(@Res() res: Response) {
+    const buffer = await this.faqService.exportXlsx();
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="faqs.xlsx"');
+    res.send(buffer);
   }
 
   @Post('import')
@@ -64,24 +64,21 @@ export class FaqController {
     FileInterceptor('file', {
       storage: memoryStorage(),
       fileFilter: (_req, file, cb) => {
-        const allowed = ['text/xml', 'application/xml', 'text/plain'];
-        if (allowed.includes(file.mimetype) || file.originalname.endsWith('.xml'))
+        const allowed = [
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'application/vnd.ms-excel',
+        ];
+        if (allowed.includes(file.mimetype) || file.originalname.endsWith('.xlsx') || file.originalname.endsWith('.xls'))
           return cb(null, true);
-        cb(new BadRequestException('Solo se permiten archivos XML'), false);
+        cb(new BadRequestException('Solo se permiten archivos Excel (.xlsx o .xls)'), false);
       },
+      limits: { fileSize: 5 * 1024 * 1024 },
     }),
   )
   @HttpCode(HttpStatus.CREATED)
-  async importXml(@UploadedFile() file: Express.Multer.File) {
+  async importXlsx(@UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException('Archivo no proporcionado');
-    let xml: string;
-    try {
-      xml = new TextDecoder('utf-8', { fatal: true }).decode(file.buffer);
-    } catch {
-      xml = new TextDecoder('latin1').decode(file.buffer);
-    }
-    xml = xml.replace(/^\uFEFF/, '');
-    const result = await this.faqService.importXml(xml);
+    const result = await this.faqService.importXlsx(file.buffer);
     return { imported: result.imported, skipped: result.skipped, errors: result.errors, total: result.total };
   }
 

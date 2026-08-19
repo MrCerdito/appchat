@@ -56,13 +56,13 @@ export class FaqAdminComponent implements OnInit, OnDestroy {
     private sanitizer: DomSanitizer,
   ) {}
 
-  exportarXml(): void {
-    this.faqService.exportXml().pipe(takeUntil(this.destroy$)).subscribe({
+  exportarExcel(): void {
+    this.faqService.exportXlsx().pipe(takeUntil(this.destroy$)).subscribe({
       next: (blob) => {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'faqs.xml';
+        a.download = 'faqs.xlsx';
         a.click();
         window.URL.revokeObjectURL(url);
         this.notification.success('Éxito', 'Preguntas frecuentes exportadas correctamente');
@@ -71,11 +71,11 @@ export class FaqAdminComponent implements OnInit, OnDestroy {
     });
   }
 
-  importarXml(event: Event): void {
+  importarExcel(event: Event): void {
     const input = event.target as HTMLInputElement;
     if (!input.files?.length) return;
     const file = input.files[0];
-    this.faqService.importXml(file).pipe(takeUntil(this.destroy$)).subscribe({
+    this.faqService.importXlsx(file).pipe(takeUntil(this.destroy$)).subscribe({
       next: (res) => {
         let msg = `${res.imported} de ${res.total} preguntas importadas`;
         if (res.skipped > 0) {

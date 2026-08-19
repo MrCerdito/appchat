@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like, Not } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
+import * as ExcelJS from 'exceljs';
 import { Faq } from './entities/faq.entity';
 import { CreateFaqDto } from './dto/create-faq.dto';
 import { UpdateFaqDto } from './dto/update-faq.dto';
@@ -123,32 +124,43 @@ export class FaqService {
     return { deleted: result.affected ?? 0 };
   }
 
-  async importXml(xml: string): Promise<{ imported: number; skipped: number; errors: string[]; total: number }> {
-    const faqMatches = xml.match(/<faq>([\s\S]*?)<\/faq>/g);
-    if (!faqMatches || faqMatches.length === 0) {
-      return { imported: 0, skipped: 0, errors: ['El archivo XML no contiene etiquetas <faq>'], total: 0 };
+  async importXlsx(buffer: Buffer): Promise<{ imported: number; skipped: number; errors: string[]; total: number }> {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer);
+    const worksheet = workbook.getWorksheet(1);
+    if (!worksheet) return { imported: 0, skipped: 0, errors: ['El archivo Excel no tiene hojas de trabajo'], total: 0 };
+
+    const headerRow = worksheet.getRow(1).values as any[];
+    const pIdx = headerRow.findIndex((h: any) => parseCell(h).toLowerCase() === 'pregunta');
+    const rIdx = headerRow.findIndex((h: any) => parseCell(h).toLowerCase() === 'respuesta');
+    const cIdx = headerRow.findIndex((h: any) => parseCell(h).toLowerCase() === 'categoria');
+    const oIdx = headerRow.findIndex((h: any) => parseCell(h).toLowerCase() === 'orden');
+    const aIdx = headerRow.findIndex((h: any) => parseCell(h).toLowerCase() === 'activo');
+
+    if (pIdx === -1 || rIdx === -1) {
+      return { imported: 0, skipped: 0, errors: ['El Excel debe tener columnas "Pregunta" y "Respuesta"'], total: 0 };
     }
 
     const errors: string[] = [];
     let imported = 0;
     let skipped = 0;
+    let total = 0;
 
     const existingPreguntas = new Set<string>();
     const allFaqs = await this.faqRepo.find({ select: ['pregunta'] });
-    for (const f of allFaqs) {
-      existingPreguntas.add(f.pregunta.trim().toLowerCase());
-    }
+    for (const f of allFaqs) existingPreguntas.add(f.pregunta.trim().toLowerCase());
 
-    for (let i = 0; i < faqMatches.length; i++) {
-      const block = faqMatches[i];
-      const pregunta = this.extractXmlTag(block, 'pregunta');
-      const respuesta = this.extractXmlTag(block, 'respuesta');
-      const categoria = this.extractXmlTag(block, 'categoria') || null;
-      const ordenStr = this.extractXmlTag(block, 'orden');
-      const activoStr = this.extractXmlTag(block, 'activo');
+    for (let i = 2; i <= worksheet.actualRowCount; i++) {
+      const row = worksheet.getRow(i);
+      const vals = row.values as any[];
+      if (!vals || vals.length <= 1) continue;
+
+      const pregunta = parseCell(vals[pIdx]).trim();
+      const respuesta = parseCell(vals[rIdx]).trim();
+      total++;
 
       if (!pregunta || !respuesta) {
-        errors.push(`FAQ ${i + 1}: falta pregunta o respuesta`);
+        errors.push(`Fila ${i}: falta pregunta o respuesta`);
         continue;
       }
 
@@ -160,9 +172,9 @@ export class FaqService {
       const dto: any = {
         pregunta,
         respuesta,
-        categoria,
-        orden: ordenStr ? Number(ordenStr) || 0 : 0,
-        activo: activoStr ? activoStr.toLowerCase() !== 'false' : true,
+        categoria: cIdx !== -1 ? parseCell(vals[cIdx]).trim() || null : null,
+        orden: oIdx !== -1 ? Number(parseCell(vals[oIdx])) || 0 : 0,
+        activo: aIdx !== -1 ? parseCell(vals[aIdx]).toLowerCase() !== 'false' : true,
       };
 
       try {
@@ -171,44 +183,41 @@ export class FaqService {
         existingPreguntas.add(pregunta.toLowerCase());
         imported++;
       } catch {
-        errors.push(`FAQ ${i + 1}: no se pudo guardar`);
+        errors.push(`Fila ${i}: no se pudo guardar`);
       }
     }
 
     if (imported) await this.invalidateCache();
-    return { imported, skipped, errors, total: faqMatches.length };
+    return { imported, skipped, errors, total };
   }
 
-  async exportXml(): Promise<string> {
+  async exportXlsx(): Promise<Buffer> {
     const faqs = await this.faqRepo.find({ order: { orden: 'ASC', id: 'DESC' } });
-    const esc = (s: string) => this.escapeXml(s ?? '');
+    const workbook = new ExcelJS.Workbook();
+    const ws = workbook.addWorksheet('FAQs');
 
-    let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<faqs>\n';
+    ws.columns = [
+      { header: 'Pregunta', key: 'pregunta', width: 45 },
+      { header: 'Respuesta', key: 'respuesta', width: 65 },
+      { header: 'Categoria', key: 'categoria', width: 25 },
+      { header: 'Orden', key: 'orden', width: 10 },
+      { header: 'Activo', key: 'activo', width: 10 },
+    ];
+
+    ws.getRow(1).font = { bold: true };
+
     for (const f of faqs) {
-      xml += '  <faq>\n';
-      xml += `    <pregunta>${esc(f.pregunta)}</pregunta>\n`;
-      xml += `    <respuesta>${esc(f.respuesta)}</respuesta>\n`;
-      xml += `    <categoria>${esc(f.categoria ?? '')}</categoria>\n`;
-      xml += `    <orden>${f.orden}</orden>\n`;
-      xml += `    <activo>${f.activo}</activo>\n`;
-      xml += '  </faq>\n';
+      ws.addRow({
+        pregunta: f.pregunta ?? '',
+        respuesta: f.respuesta ?? '',
+        categoria: f.categoria ?? '',
+        orden: f.orden ?? 0,
+        activo: f.activo ? 'TRUE' : 'FALSE',
+      });
     }
-    xml += '</faqs>';
-    return xml;
-  }
 
-  private extractXmlTag(xml: string, tag: string): string {
-    const match = xml.match(new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`));
-    return match ? match[1].trim() : '';
-  }
-
-  private escapeXml(text: string): string {
-    return text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&apos;');
+    const buffer = await workbook.xlsx.writeBuffer();
+    return Buffer.from(buffer);
   }
 
   private async invalidateCache(): Promise<void> {
@@ -221,4 +230,18 @@ export class FaqService {
       await this.cache.del('faq:categorias:null');
     } catch {}
   }
+}
+
+function parseCell(val: any): string {
+  if (val === null || val === undefined) return '';
+  if (typeof val === 'string') return val;
+  if (typeof val === 'number' || typeof val === 'boolean') return String(val);
+  if (typeof val === 'object') {
+    if (val.text !== undefined) return parseCell(val.text);
+    if (val.result !== undefined) return parseCell(val.result);
+    if (val.richText && Array.isArray(val.richText)) {
+      return val.richText.map((rt: any) => parseCell(rt?.text)).join('');
+    }
+  }
+  return String(val);
 }
