@@ -732,22 +732,82 @@
   color: var(--text);
 
   p { margin: 0 0 10px; &:last-child { margin-bottom: 0; } }
-  ul { margin: 6px 0 10px; padding-left: 1.4rem; list-style: disc; }
-  ol { margin: 6px 0 10px; padding-left: 1.4rem; list-style: decimal; }
-  li { margin-bottom: 5px; padding-left: 2px; &:last-child { margin-bottom: 0; } }
+
+  ul {
+    margin: 6px 0 12px;
+    padding-left: 0;
+    list-style: none;
+
+    li {
+      position: relative;
+      padding-left: 22px;
+      margin-bottom: 6px;
+      line-height: 1.65;
+      &:last-child { margin-bottom: 0; }
+
+      &::before {
+        content: '';
+        position: absolute;
+        left: 2px;
+        top: 8px;
+        width: 6px;
+        height: 6px;
+        background: var(--primary);
+        border-radius: 50%;
+      }
+    }
+  }
+
+  ol {
+    margin: 6px 0 12px;
+    padding-left: 0;
+    list-style: none;
+    counter-reset: faq-counter;
+
+    li {
+      counter-increment: faq-counter;
+      position: relative;
+      padding-left: 26px;
+      margin-bottom: 6px;
+      line-height: 1.65;
+      &:last-child { margin-bottom: 0; }
+
+      &::before {
+        content: counter(faq-counter) '.';
+        position: absolute;
+        left: 0;
+        top: 0;
+        color: var(--primary);
+        font-weight: 700;
+        font-size: 0.88em;
+      }
+    }
+  }
+
   strong { font-weight: 700; }
   em { font-style: italic; }
   a { color: var(--primary); text-decoration: underline; }
-  hr { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
 
-  .faq-answer-heading {
+  hr.faq-separator {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 14px 0;
+  }
+
+  .faq-h1,
+  .faq-h2,
+  .faq-h3 {
     display: block;
-    font-size: 0.88rem;
     font-weight: 700;
-    margin: 12px 0 4px;
     color: var(--text);
+    line-height: 1.4;
+    margin: 14px 0 6px;
     &:first-child { margin-top: 0; }
   }
+
+  .faq-h1 { font-size: 0.96rem; }
+  .faq-h2 { font-size: 0.88rem; }
+  .faq-h3 { font-size: 0.84rem; }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

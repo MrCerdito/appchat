@@ -1,6 +1,6 @@
 import { Inject, Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like } from 'typeorm';
+import { Repository, Like, Not } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { Faq } from './entities/faq.entity';
@@ -87,7 +87,7 @@ export class FaqService {
 
   private async existsByPregunta(pregunta: string, excludeId?: number): Promise<boolean> {
     const where: any = { pregunta: pregunta.trim() };
-    if (excludeId) where.id = excludeId;
+    if (excludeId) where.id = Not(excludeId);
     const count = await this.faqRepo.count({ where });
     return count > 0;
   }
