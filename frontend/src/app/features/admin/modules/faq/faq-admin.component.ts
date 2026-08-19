@@ -1,11 +1,13 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { FaqService, Faq, CreateFaqDto } from '../../../../core/services/faq.service';
 import { NotificationService } from '../../../../core/services/notification.service';
 import { trackByIndex } from '../../../../shared/utils/track-by';
+import { formatFaqText } from '../../../../shared/utils/faq-format';
 
 @Component({
   selector: 'app-faq-admin',
@@ -18,6 +20,8 @@ import { trackByIndex } from '../../../../shared/utils/track-by';
 export class FaqAdminComponent implements OnInit, OnDestroy {
   protected readonly trackByIndex = trackByIndex;
 
+  @ViewChild('respuestaTextarea') respuestaTextarea!: ElementRef<HTMLTextAreaElement>;
+
   faqs: Faq[] = [];
   faqsFiltradas: Faq[] = [];
   filtro = '';
@@ -27,6 +31,7 @@ export class FaqAdminComponent implements OnInit, OnDestroy {
   guardando = false;
   deletingId: number | null = null;
   eliminando = false;
+  showPreview = false;
 
   selectedIds = new Set<number>();
   showBulkConfirm = false;
@@ -48,6 +53,7 @@ export class FaqAdminComponent implements OnInit, OnDestroy {
     private faqService: FaqService,
     private cdr: ChangeDetectorRef,
     private notification: NotificationService,
+    private sanitizer: DomSanitizer,
   ) {}
 
   exportarCsv(): void {
@@ -145,6 +151,109 @@ export class FaqAdminComponent implements OnInit, OnDestroy {
     this.modalAbierto = false;
     this.editando = null;
     this.guardando = false;
+    this.showPreview = false;
+  }
+
+  get respuestaPreview(): SafeHtml {
+    if (!this.form.respuesta) return this.sanitizer.bypassSecurityTrustHtml('<span style="color: var(--text-faint)">La vista previa aparecerá aquí...</span>');
+    return this.sanitizer.bypassSecurityTrustHtml(formatFaqText(this.form.respuesta));
+  }
+
+  togglePreview(): void {
+    this.showPreview = !this.showPreview;
+    this.cdr.detectChanges();
+  }
+
+  private getTa(): HTMLTextAreaElement | null {
+    return this.respuestaTextarea?.nativeElement || null;
+  }
+
+  private insertAtCursor(before: string, after: string, placeholder: string): void {
+    const ta = this.getTa();
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const selected = this.form.respuesta.substring(start, end);
+    const text = selected || placeholder;
+    const newText = before + text + after;
+    this.form.respuesta = this.form.respuesta.substring(0, start) + newText + this.form.respuesta.substring(end);
+    this.cdr.detectChanges();
+    setTimeout(() => {
+      ta.focus();
+      const cursorPos = start + before.length + text.length;
+      ta.setSelectionRange(cursorPos, cursorPos);
+    }, 0);
+  }
+
+  private insertBlockPrefix(prefix: string): void {
+    const ta = this.getTa();
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const lineStart = this.form.respuesta.lastIndexOf('\n', start - 1) + 1;
+    this.form.respuesta = this.form.respuesta.substring(0, lineStart) + prefix + this.form.respuesta.substring(lineStart);
+    this.cdr.detectChanges();
+    setTimeout(() => {
+      ta.focus();
+      ta.setSelectionRange(lineStart + prefix.length, lineStart + prefix.length);
+    }, 0);
+  }
+
+  editorBold(): void {
+    this.insertAtCursor('**', '**', 'texto en negrita');
+  }
+
+  editorItalic(): void {
+    this.insertAtCursor('*', '*', 'texto en cursiva');
+  }
+
+  editorBulletList(): void {
+    const ta = this.getTa();
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const selected = this.form.respuesta.substring(start, end);
+    if (selected) {
+      const lines = selected.split('\n').map(l => '* ' + l.trimStart());
+      this.form.respuesta = this.form.respuesta.substring(0, start) + lines.join('\n') + this.form.respuesta.substring(end);
+    } else {
+      this.insertBlockPrefix('* ');
+    }
+    this.cdr.detectChanges();
+    setTimeout(() => ta.focus(), 0);
+  }
+
+  editorNumberedList(): void {
+    const ta = this.getTa();
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const selected = this.form.respuesta.substring(start, end);
+    if (selected) {
+      const lines = selected.split('\n').map((l, i) => (i + 1) + '. ' + l.trimStart());
+      this.form.respuesta = this.form.respuesta.substring(0, start) + lines.join('\n') + this.form.respuesta.substring(end);
+    } else {
+      this.insertBlockPrefix('1. ');
+    }
+    this.cdr.detectChanges();
+    setTimeout(() => ta.focus(), 0);
+  }
+
+  editorHeading(): void {
+    this.insertBlockPrefix('## ');
+  }
+
+  editorSeparator(): void {
+    const ta = this.getTa();
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const needNewline = start > 0 && this.form.respuesta[start - 1] !== '\n';
+    const insertion = (needNewline ? '\n' : '') + '---\n';
+    this.form.respuesta = this.form.respuesta.substring(0, start) + insertion + this.form.respuesta.substring(start);
+    this.cdr.detectChanges();
+    setTimeout(() => {
+      ta.focus();
+      ta.setSelectionRange(start + insertion.length, start + insertion.length);
+    }, 0);
   }
 
   onOverlayMousedown(event: MouseEvent): void {
