@@ -126,7 +126,7 @@ export class FaqService {
 
   async importXlsx(buffer: Buffer): Promise<{ imported: number; skipped: number; errors: string[]; total: number }> {
     const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(buffer);
+    await workbook.xlsx.load(buffer as any);
     const worksheet = workbook.getWorksheet(1);
     if (!worksheet) return { imported: 0, skipped: 0, errors: ['El archivo Excel no tiene hojas de trabajo'], total: 0 };
 
