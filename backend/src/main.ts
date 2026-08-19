@@ -65,18 +65,7 @@ async function bootstrap() {
 
   app.use(
     helmet({
-      contentSecurityPolicy: {
-        directives: {
-          defaultSrc: ["'self'"],
-          scriptSrc: ["'self'"],
-          styleSrc: ["'self'", "'unsafe-inline'"],
-          imgSrc: ["'self'", 'data:', 'https:'],
-          connectSrc: ["'self'"],
-          fontSrc: ["'self'"],
-          objectSrc: ["'none'"],
-          frameAncestors: ["'none'"],
-        },
-      },
+      contentSecurityPolicy: false,
       crossOriginEmbedderPolicy: false,
       crossOriginResourcePolicy: { policy: 'cross-origin' },
       strictTransportSecurity:
@@ -91,7 +80,7 @@ async function bootstrap() {
   app.use((req, res, next) => {
     res.setHeader(
       'Permissions-Policy',
-      'camera=(self), microphone=(self), geolocation=()',
+      'camera=(self), microphone=(self), geolocation=(), unload=(self)',
     );
     next();
   });
