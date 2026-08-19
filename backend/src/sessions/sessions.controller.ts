@@ -27,6 +27,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { RolesGuard, Roles } from '../auth/roles.guard';
 import { IsString, IsNotEmpty, Length, IsOptional, IsEmail, MaxLength, Matches, IsUUID, IsIn } from 'class-validator';
+import { SkipThrottle } from '@nestjs/throttler';
 import { ChatGateway } from '../chat/chat.gateway';
 
 export class CreateSessionDto {
@@ -235,6 +236,7 @@ export class SessionsController {
     return this.sessionsService.findAllColegios();
   }
 
+  @SkipThrottle()
   @Post('colegios/detectar')
   detectarColegio(@Body('url') url?: string) {
     const raw = typeof url === 'string' ? url.trim() : '';

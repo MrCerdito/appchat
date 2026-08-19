@@ -25,12 +25,14 @@ import { Roles, RolesGuard } from '../auth/roles.guard';
 import { FaqService } from './faq.service';
 import { CreateFaqDto } from './dto/create-faq.dto';
 import { UpdateFaqDto } from './dto/update-faq.dto';
+import { SkipThrottle } from '@nestjs/throttler';
 
 @Controller('faq')
 export class FaqController {
   constructor(private readonly faqService: FaqService) {}
 
   @Header('Cache-Control', 'public, max-age=300')
+  @SkipThrottle()
   @Get()
   findAll(@Query('colegioId') colegioId?: string, @Query('q') q?: string) {
     return this.faqService.findAll(
@@ -39,6 +41,7 @@ export class FaqController {
     );
   }
 
+  @SkipThrottle()
   @Get('categorias')
   findCategorias(@Query('colegioId') colegioId?: string) {
     return this.faqService.findCategorias(
@@ -78,6 +81,7 @@ export class FaqController {
     return { imported: result.length };
   }
 
+  @SkipThrottle()
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.faqService.findOne(id);

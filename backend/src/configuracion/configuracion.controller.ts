@@ -24,6 +24,7 @@ import { existsSync, mkdirSync } from 'fs';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles, RolesGuard } from '../auth/roles.guard';
 import { Public } from '../auth/public.decorator';
+import { SkipThrottle } from '@nestjs/throttler';
 import { ConfiguracionService } from './configuracion.service';
 import { GuardarConfigGlobalDto } from './dto/guardar-config-global.dto';
 import { GuardarConfigTicketMailDto } from './dto/guardar-config-ticket-mail.dto';
@@ -38,6 +39,7 @@ export class ConfiguracionController {
   constructor(private readonly svc: ConfiguracionService) {}
 
   @Public()
+  @SkipThrottle()
   @Header('Cache-Control', 'no-store')
   @Get('horario-hoy')
   horarioHoy() {

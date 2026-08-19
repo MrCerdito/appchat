@@ -16,6 +16,8 @@ async function bootstrap() {
     rawBody: true,
   });
 
+  app.set('trust proxy', true);
+
   // ── Warmup: pre-compute all encrypted column decryptions ───────────────
   // Fires immediately in background; completes ~1-2s before the 10s interval
   const dataSource = app.get(DataSource);

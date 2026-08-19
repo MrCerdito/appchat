@@ -14,6 +14,7 @@ import { WidgetConfig } from './entities/widget-config.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles, RolesGuard } from '../auth/roles.guard';
 import { SaveWidgetConfigDto } from './dto/save-widget-config.dto';
+import { SkipThrottle } from '@nestjs/throttler';
 
 @Controller('widget-config')
 export class WidgetConfigController {
@@ -28,6 +29,7 @@ export class WidgetConfigController {
   // CORS_ORIGINS por cada sitio donde se incruste.
   @Header('Cache-Control', 'public, max-age=60')
   @Header('Access-Control-Allow-Origin', '*')
+  @SkipThrottle()
   @Get()
   get(): Promise<WidgetConfig> {
     return this.svc.get();

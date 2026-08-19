@@ -296,17 +296,24 @@ export class ChatGateway
     const advisor = await this.sessionsService.findAdvisorById(
       client.data.user.id,
     );
-    await this.sessionsService.setAdvisorStatus(client.data.user.id, 'online');
-    await this.redisState.setAdvisorStatus(client.data.user.id, 'online');
+    // Preservar el estado si ya era 'busy' (o 'online'), de lo contrario pasar a 'online'
+    const currentStatus = (advisor?.status === 'busy' || advisor?.status === 'online')
+      ? advisor.status
+      : 'online';
+
+    await this.sessionsService.setAdvisorStatus(client.data.user.id, currentStatus);
+    await this.redisState.setAdvisorStatus(client.data.user.id, currentStatus);
     this.server.emit('advisor_status_changed', {
       advisorId: client.data.user.id,
       name: advisor?.name ?? client.data.user.name,
-      status: 'online',
+      status: currentStatus,
       profilePhotoUrl:
         advisor?.profilePhotoUrl ?? client.data.user?.profilePhotoUrl ?? null,
     });
-    await this.assignPendingSessions();
-    await this.assignWaitingWhatsappChats();
+    if (currentStatus === 'online') {
+      await this.assignPendingSessions();
+      await this.assignWaitingWhatsappChats();
+    }
   }
 
   @SubscribeMessage('set_advisor_status')
