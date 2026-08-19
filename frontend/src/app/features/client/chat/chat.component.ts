@@ -22,6 +22,8 @@ import { normalizeUploadFile } from '../../../shared/utils/media';
 import { FaqComponent } from '../faq/faq.component';
 import { PqrsComponent } from '../pqrs/pqrs.component';
 import { ToastContainerComponent } from '../../../shared/components/toast-container.component';
+import { MaintenanceOverlayComponent } from '../../../shared/components/maintenance-overlay.component';
+import { MaintenanceService } from '../../../core/services/maintenance.service';
 import {
   VoiceRecorderComponent,
   VoiceRecordingResult,
@@ -58,7 +60,7 @@ interface TimerUpdatePayload {
   standalone : true,
   imports    : [
     CommonModule, FormsModule, FaqComponent, PqrsComponent, ToastContainerComponent,
-    VoiceRecorderComponent, VoicePlayerComponent,
+    VoiceRecorderComponent, VoicePlayerComponent, MaintenanceOverlayComponent,
   ],
   templateUrl: './chat.component.html',
   styleUrl   : './chat.component.scss',
@@ -349,6 +351,7 @@ get rolLabel(): string {
     private http          : HttpClient,
     private notification  : NotificationService,
     private chatMedia     : ChatMediaService,
+    private maintenance   : MaintenanceService,
   ) {}
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -356,6 +359,7 @@ get rolLabel(): string {
   // ══════════════════════════════════════════════════════════════════════════
 
   ngOnInit(): void {
+    this.maintenance.start();
     this.aplicarTemaWidget();
     this.escucharPostMessage();
     this.enviarSianReady();
@@ -2007,6 +2011,7 @@ private normalizePhotoUrl(url: string): string {
   
 
   ngOnDestroy(): void {
+    this.maintenance.stop();
     clearInterval(this.horarioPollInterval);
     this.horarioPollInterval = null;
     clearInterval(this.reconexionInterval);

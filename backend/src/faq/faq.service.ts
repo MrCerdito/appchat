@@ -123,20 +123,11 @@ export class FaqService {
     return { deleted: result.affected ?? 0 };
   }
 
-  async importCsv(csv: string): Promise<{ imported: number; skipped: number; errors: string[]; total: number }> {
-    const lines = csv.split('\n').filter((l) => l.trim());
-    if (lines.length < 2) return { imported: 0, skipped: 0, errors: ['El archivo CSV está vacío o no tiene datos'], total: 0 };
-
-    const header = lines[0].toLowerCase();
-    const cols = header.split(';').map((c) => c.trim().replace(/"/g, ''));
-    const pIdx = cols.indexOf('pregunta');
-    const rIdx = cols.indexOf('respuesta');
-    const cIdx = cols.indexOf('categoria');
-    const oIdx = cols.indexOf('orden');
-    const aIdx = cols.indexOf('activo');
-
-    if (pIdx === -1 || rIdx === -1)
-      throw new Error('CSV debe tener columnas "pregunta" y "respuesta"');
+  async importXml(xml: string): Promise<{ imported: number; skipped: number; errors: string[]; total: number }> {
+    const faqMatches = xml.match(/<faq>([\s\S]*?)<\/faq>/g);
+    if (!faqMatches || faqMatches.length === 0) {
+      return { imported: 0, skipped: 0, errors: ['El archivo XML no contiene etiquetas <faq>'], total: 0 };
+    }
 
     const errors: string[] = [];
     let imported = 0;
@@ -148,13 +139,16 @@ export class FaqService {
       existingPreguntas.add(f.pregunta.trim().toLowerCase());
     }
 
-    for (let i = 1; i < lines.length; i++) {
-      const vals = this.parseCsvLine(lines[i]);
-      const pregunta = vals[pIdx]?.trim();
-      const respuesta = vals[rIdx]?.trim();
+    for (let i = 0; i < faqMatches.length; i++) {
+      const block = faqMatches[i];
+      const pregunta = this.extractXmlTag(block, 'pregunta');
+      const respuesta = this.extractXmlTag(block, 'respuesta');
+      const categoria = this.extractXmlTag(block, 'categoria') || null;
+      const ordenStr = this.extractXmlTag(block, 'orden');
+      const activoStr = this.extractXmlTag(block, 'activo');
 
       if (!pregunta || !respuesta) {
-        errors.push(`Fila ${i + 1}: falta pregunta o respuesta`);
+        errors.push(`FAQ ${i + 1}: falta pregunta o respuesta`);
         continue;
       }
 
@@ -166,9 +160,9 @@ export class FaqService {
       const dto: any = {
         pregunta,
         respuesta,
-        categoria: cIdx !== -1 ? vals[cIdx]?.trim() || null : null,
-        orden: oIdx !== -1 ? Number(vals[oIdx]) || 0 : 0,
-        activo: aIdx !== -1 ? vals[aIdx]?.trim().toLowerCase() !== 'false' : true,
+        categoria,
+        orden: ordenStr ? Number(ordenStr) || 0 : 0,
+        activo: activoStr ? activoStr.toLowerCase() !== 'false' : true,
       };
 
       try {
@@ -177,53 +171,44 @@ export class FaqService {
         existingPreguntas.add(pregunta.toLowerCase());
         imported++;
       } catch {
-        errors.push(`Fila ${i + 1}: no se pudo guardar`);
+        errors.push(`FAQ ${i + 1}: no se pudo guardar`);
       }
     }
 
     if (imported) await this.invalidateCache();
-    return { imported, skipped, errors, total: lines.length - 1 };
+    return { imported, skipped, errors, total: faqMatches.length };
   }
 
-  async exportCsv(): Promise<string> {
+  async exportXml(): Promise<string> {
     const faqs = await this.faqRepo.find({ order: { orden: 'ASC', id: 'DESC' } });
-    const header = '"pregunta";"respuesta";"categoria";"orden";"activo"';
-    const rows = faqs.map((f) => {
-      const esc = (s: string) => `"${(s ?? '').replace(/"/g, '""')}"`;
-      return [esc(f.pregunta), esc(this.stripMarkdown(f.respuesta)), esc(f.categoria ?? ''), f.orden, f.activo].join(';');
-    });
-    return '\uFEFF' + [header, ...rows].join('\n');
-  }
+    const esc = (s: string) => this.escapeXml(s ?? '');
 
-  private stripMarkdown(text: string): string {
-    if (!text) return '';
-    let clean = text;
-    // Remove headings: ## text → text
-    clean = clean.replace(/^#{1,3}\s+/gm, '');
-    // Remove horizontal rules: --- → (empty line)
-    clean = clean.replace(/^-{3,}\s*$/gm, '');
-    // Remove bold: **text** → text
-    clean = clean.replace(/\*\*(.+?)\*\*/g, '$1');
-    // Remove italic: *text* → text
-    clean = clean.replace(/\*(.+?)\*/g, '$1');
-    // Unordered list: * item → • item
-    clean = clean.replace(/^\*\s+/gm, '• ');
-    // Clean up multiple blank lines
-    clean = clean.replace(/\n{3,}/g, '\n\n');
-    return clean.trim();
-  }
-
-  private parseCsvLine(line: string): string[] {
-    const result: string[] = [];
-    let current = '';
-    let inQuotes = false;
-    for (const ch of line) {
-      if (ch === '"') { inQuotes = !inQuotes; continue; }
-      if (ch === ';' && !inQuotes) { result.push(current); current = ''; continue; }
-      current += ch;
+    let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<faqs>\n';
+    for (const f of faqs) {
+      xml += '  <faq>\n';
+      xml += `    <pregunta>${esc(f.pregunta)}</pregunta>\n`;
+      xml += `    <respuesta>${esc(f.respuesta)}</respuesta>\n`;
+      xml += `    <categoria>${esc(f.categoria ?? '')}</categoria>\n`;
+      xml += `    <orden>${f.orden}</orden>\n`;
+      xml += `    <activo>${f.activo}</activo>\n`;
+      xml += '  </faq>\n';
     }
-    result.push(current);
-    return result;
+    xml += '</faqs>';
+    return xml;
+  }
+
+  private extractXmlTag(xml: string, tag: string): string {
+    const match = xml.match(new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`));
+    return match ? match[1].trim() : '';
+  }
+
+  private escapeXml(text: string): string {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;');
   }
 
   private async invalidateCache(): Promise<void> {

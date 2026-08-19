@@ -50,11 +50,11 @@ export class FaqController {
   @Get('export')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
-  async exportCsv(@Res() res: Response) {
-    const csv = await this.faqService.exportCsv();
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename="faqs.csv"');
-    res.send(csv);
+  async exportXml(@Res() res: Response) {
+    const xml = await this.faqService.exportXml();
+    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="faqs.xml"');
+    res.send(xml);
   }
 
   @Post('import')
@@ -64,24 +64,24 @@ export class FaqController {
     FileInterceptor('file', {
       storage: memoryStorage(),
       fileFilter: (_req, file, cb) => {
-        const allowed = ['text/csv', 'application/csv', 'application/vnd.ms-excel'];
-        if (allowed.includes(file.mimetype) || file.originalname.endsWith('.csv'))
+        const allowed = ['text/xml', 'application/xml', 'text/plain'];
+        if (allowed.includes(file.mimetype) || file.originalname.endsWith('.xml'))
           return cb(null, true);
-        cb(new BadRequestException('Solo se permiten archivos CSV'), false);
+        cb(new BadRequestException('Solo se permiten archivos XML'), false);
       },
     }),
   )
   @HttpCode(HttpStatus.CREATED)
-  async importCsv(@UploadedFile() file: Express.Multer.File) {
+  async importXml(@UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException('Archivo no proporcionado');
-    let csv: string;
+    let xml: string;
     try {
-      csv = new TextDecoder('utf-8', { fatal: true }).decode(file.buffer);
+      xml = new TextDecoder('utf-8', { fatal: true }).decode(file.buffer);
     } catch {
-      csv = new TextDecoder('latin1').decode(file.buffer);
+      xml = new TextDecoder('latin1').decode(file.buffer);
     }
-    csv = csv.replace(/^\uFEFF/, '');
-    const result = await this.faqService.importCsv(csv);
+    xml = xml.replace(/^\uFEFF/, '');
+    const result = await this.faqService.importXml(xml);
     return { imported: result.imported, skipped: result.skipped, errors: result.errors, total: result.total };
   }
 

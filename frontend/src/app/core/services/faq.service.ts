@@ -56,13 +56,13 @@ export class FaqService {
     return this.http.delete<void>(`${environment.apiUrl}/faq/${id}`);
   }
 
-  importCsv(file: File): Observable<{ imported: number; skipped: number; errors: string[]; total: number }> {
+  importXml(file: File): Observable<{ imported: number; skipped: number; errors: string[]; total: number }> {
     const formData = new FormData();
     formData.append('file', file);
     return this.http.post<{ imported: number; skipped: number; errors: string[]; total: number }>(`${environment.apiUrl}/faq/import`, formData);
   }
 
-  exportCsv(): Observable<Blob> {
+  exportXml(): Observable<Blob> {
     return this.http.get(`${environment.apiUrl}/faq/export`, { responseType: 'blob' });
   }
 
