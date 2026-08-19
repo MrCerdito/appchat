@@ -78,6 +78,9 @@ export class FaqAdminComponent implements OnInit, OnDestroy {
     this.faqService.importCsv(file).pipe(takeUntil(this.destroy$)).subscribe({
       next: (res) => {
         let msg = `${res.imported} de ${res.total} preguntas importadas`;
+        if (res.skipped > 0) {
+          msg += ` (${res.skipped} duplicada${res.skipped !== 1 ? 's' : ''} omitida${res.skipped !== 1 ? 's' : ''})`;
+        }
         if (res.errors?.length) {
           msg += ` (${res.errors.length} con errores)`;
         }
@@ -312,7 +315,11 @@ export class FaqAdminComponent implements OnInit, OnDestroy {
           this.aplicarFiltroYActualizar();
         },
         error: (err) => {
-          this.notification.error('Error', err.error?.message || 'No se pudo crear la pregunta frecuente');
+          if (err?.status === 409) {
+            this.notification.warning('Duplicado', 'Ya existe una pregunta frecuente con ese texto');
+          } else {
+            this.notification.error('Error', err.error?.message || 'No se pudo crear la pregunta frecuente');
+          }
           this.guardando = false;
           this.cdr.detectChanges();
         }

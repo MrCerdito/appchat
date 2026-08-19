@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
@@ -85,7 +85,17 @@ export class FaqService {
     return faq;
   }
 
+  private async existsByPregunta(pregunta: string, excludeId?: number): Promise<boolean> {
+    const where: any = { pregunta: pregunta.trim() };
+    if (excludeId) where.id = excludeId;
+    const count = await this.faqRepo.count({ where });
+    return count > 0;
+  }
+
   async create(dto: CreateFaqDto): Promise<Faq> {
+    if (await this.existsByPregunta(dto.pregunta)) {
+      throw new ConflictException('Ya existe una pregunta frecuente con ese texto');
+    }
     const faq = this.faqRepo.create(dto as Faq);
     await this.faqRepo.save(faq);
     await this.invalidateCache();
@@ -113,9 +123,9 @@ export class FaqService {
     return { deleted: result.affected ?? 0 };
   }
 
-  async importCsv(csv: string): Promise<{ imported: number; errors: string[]; total: number }> {
+  async importCsv(csv: string): Promise<{ imported: number; skipped: number; errors: string[]; total: number }> {
     const lines = csv.split('\n').filter((l) => l.trim());
-    if (lines.length < 2) return { imported: 0, errors: ['El archivo CSV está vacío o no tiene datos'], total: 0 };
+    if (lines.length < 2) return { imported: 0, skipped: 0, errors: ['El archivo CSV está vacío o no tiene datos'], total: 0 };
 
     const header = lines[0].toLowerCase();
     const cols = header.split(';').map((c) => c.trim().replace(/"/g, ''));
@@ -130,31 +140,49 @@ export class FaqService {
 
     const errors: string[] = [];
     let imported = 0;
+    let skipped = 0;
+
+    const existingPreguntas = new Set<string>();
+    const allFaqs = await this.faqRepo.find({ select: ['pregunta'] });
+    for (const f of allFaqs) {
+      existingPreguntas.add(f.pregunta.trim().toLowerCase());
+    }
 
     for (let i = 1; i < lines.length; i++) {
       const vals = this.parseCsvLine(lines[i]);
+      const pregunta = vals[pIdx]?.trim();
+      const respuesta = vals[rIdx]?.trim();
+
+      if (!pregunta || !respuesta) {
+        errors.push(`Fila ${i + 1}: falta pregunta o respuesta`);
+        continue;
+      }
+
+      if (existingPreguntas.has(pregunta.toLowerCase())) {
+        skipped++;
+        continue;
+      }
+
       const dto: any = {
-        pregunta: vals[pIdx]?.trim(),
-        respuesta: vals[rIdx]?.trim(),
+        pregunta,
+        respuesta,
         categoria: cIdx !== -1 ? vals[cIdx]?.trim() || null : null,
         orden: oIdx !== -1 ? Number(vals[oIdx]) || 0 : 0,
         activo: aIdx !== -1 ? vals[aIdx]?.trim().toLowerCase() !== 'false' : true,
       };
-      if (dto.pregunta && dto.respuesta) {
-        try {
-          const faq = this.faqRepo.create(dto as Faq);
-          await this.faqRepo.save(faq);
-          imported++;
-        } catch {
-          errors.push(`Fila ${i + 1}: no se pudo guardar`);
-        }
-      } else {
-        errors.push(`Fila ${i + 1}: falta pregunta o respuesta`);
+
+      try {
+        const faq = this.faqRepo.create(dto as Faq);
+        await this.faqRepo.save(faq);
+        existingPreguntas.add(pregunta.toLowerCase());
+        imported++;
+      } catch {
+        errors.push(`Fila ${i + 1}: no se pudo guardar`);
       }
     }
 
     if (imported) await this.invalidateCache();
-    return { imported, errors, total: lines.length - 1 };
+    return { imported, skipped, errors, total: lines.length - 1 };
   }
 
   async exportCsv(): Promise<string> {

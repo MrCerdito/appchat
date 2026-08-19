@@ -82,7 +82,7 @@ export class FaqController {
     }
     csv = csv.replace(/^\uFEFF/, '');
     const result = await this.faqService.importCsv(csv);
-    return { imported: result.imported, errors: result.errors, total: result.total };
+    return { imported: result.imported, skipped: result.skipped, errors: result.errors, total: result.total };
   }
 
   @SkipThrottle()
