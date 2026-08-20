@@ -389,7 +389,7 @@ export class AiService {
   private readonly logger = new Logger(AiService.name);
   private readonly apiKey: string;
   private readonly apiUrl =
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent';
 
   constructor(
     private config: ConfigService,
@@ -1519,7 +1519,7 @@ ${transcript}`;
 
     const t0 = Date.now();
     const streamUrl =
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent' +
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:streamGenerateContent' +
       '?alt=sse';
 
     const controller = new AbortController();
