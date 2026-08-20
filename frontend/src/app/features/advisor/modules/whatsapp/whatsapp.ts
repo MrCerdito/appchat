@@ -931,7 +931,8 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
           this.unreadDividerMsgId = messages[dividerIdx]?.id || null;
           this.scrollToUnreadDivider();
         } else {
-          this.shouldScroll = true;
+          setTimeout(() => this.scrollToBottomSmooth(), 80);
+          setTimeout(() => this.scrollToBottomSmooth(), 300);
         }
         this.cdr.detectChanges();
       }),
@@ -2439,6 +2440,7 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
 
   onInputChange(): void {
     this.resizeMessageInput();
+    if (this.messageText && this.unreadDividerMsgId) this.unreadDividerMsgId = null;
     const slashIdx = this.messageText.lastIndexOf('/');
     if (slashIdx === -1) {
       this.showSlashMenu = false;
@@ -3073,7 +3075,6 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
 
     if (!msg.fromMe) {
       this.subs.add(this.waService.markRead(this.activeContact.id).subscribe());
-      if (this.unreadDividerMsgId) this.unreadDividerMsgId = null;
     }
 
     if (this.isNearBottom()) this.shouldScroll = true;
@@ -3381,9 +3382,6 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
 
     const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
     this.showScrollToBottom = !atBottom;
-    if (atBottom && this.unreadDividerMsgId) {
-      this.unreadDividerMsgId = null;
-    }
   }
 
   private loadOlderMessages(): void {

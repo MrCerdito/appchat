@@ -475,7 +475,8 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
         this.state.setMessages(this.activeSession.id, msgs);
         this.socket.emit('set_active', { sessionId: this.activeSession.id, active: true });
         this.cdr.detectChanges();
-        this.scrollToBottom();
+        setTimeout(() => this.scrollToBottom(), 100);
+        setTimeout(() => this.scrollToBottom(), 300);
       });
 
       
@@ -797,7 +798,8 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     this.socket.emit('set_active', { sessionId: session.id, active: true });
     this.socket.emit('mark_read', session.id);
     this.cdr.detectChanges();
-    this.scrollToBottom();
+    setTimeout(() => this.scrollToBottom(), 100);
+    setTimeout(() => this.scrollToBottom(), 300);
   }
 
   closeActiveSessionView(): void {
