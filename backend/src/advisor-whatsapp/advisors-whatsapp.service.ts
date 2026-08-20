@@ -1919,6 +1919,85 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     return this.toChatDto(chat, false);
   }
 
+  async transferChat(
+    chatId: string,
+    sourceAdvisorId: string,
+    targetAdvisorId: string,
+    role: string,
+  ): Promise<AssignmentResult> {
+    if (sourceAdvisorId === targetAdvisorId) {
+      throw new BadRequestException('No puedes transferirte un chat a ti mismo');
+    }
+
+    const chat = await this.findChatOrFail(chatId);
+    if (chat.status === 'closed') {
+      throw new ConflictException('Este chat ya esta cerrado');
+    }
+    if (chat.isGroup) {
+      throw new ConflictException('Los grupos no se pueden transferir');
+    }
+
+    const isSourceAssigned =
+      chat.assignedAdvisor?.id === sourceAdvisorId;
+    const isAdmin = role === 'admin';
+    if (!isSourceAssigned && !isAdmin) {
+      throw new ForbiddenException('No tienes permiso para transferir este chat');
+    }
+
+    if (chat.fixedAdvisor && !isAdmin) {
+      throw new ForbiddenException(
+        'Este chat tiene un agente fijo asignado. Solo un administrador puede reasignarlo.',
+      );
+    }
+
+    const targetAdvisor = await this.userRepo.findOne({
+      where: { id: targetAdvisorId, role: 'advisor', active: true },
+    });
+    if (!targetAdvisor) {
+      throw new NotFoundException('Asesor destino no encontrado o inactivo');
+    }
+
+    const [enAlmuerzo, enAlmuerzoRedis, activeCount, maxChats] =
+      await Promise.all([
+        this.configuracionService.estaEnAlmuerzo(targetAdvisor.id).catch(() => false),
+        this.redisState.isOnLunch(targetAdvisor.id).catch(() => false),
+        this.countActiveChatsByAdvisorExcludingFixed(targetAdvisor.id),
+        this.getMaxActiveChatsPerAdvisor(),
+      ]);
+    if (enAlmuerzo || enAlmuerzoRedis) {
+      throw new BadRequestException(
+        'El asesor destino esta en almuerzo y no puede recibir el chat',
+      );
+    }
+    if (activeCount >= maxChats) {
+      throw new BadRequestException(
+        `El asesor destino ya alcanzo su capacidad maxima de ${maxChats} chats activos`,
+      );
+    }
+
+    const claimed = await this.claimChatForAdvisor(chatId, targetAdvisor, {
+      mode: 'admin',
+      operationalStatus: 'in_progress',
+      admin: true,
+    });
+    if (!claimed) {
+      throw new ConflictException('Este chat no se puede transferir en este momento');
+    }
+
+    const transferText = `Tu conversación fue transferida a ${targetAdvisor.name}. En un momento te atenderá.`;
+    await this.sendSystemMessage(claimed, transferText, targetAdvisor);
+
+    const updatedChat = await this.findChatOrFail(chatId);
+    const result: AssignmentResult = {
+      advisorId: targetAdvisor.id,
+      advisorName: targetAdvisor.name,
+      chat: await this.toChatDto(updatedChat, true),
+      autoMessage: null,
+    };
+
+    return result;
+  }
+
   async setFixedAdvisor(
     chatId: string,
     advisorId: string,
@@ -2042,7 +2121,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     advisorId?: string,
     role?: string,
     anchor?: string,
-  ): Promise<WaMessageDto[]> {
+  ): Promise<{ messages: WaMessageDto[]; total: number; hasMore: boolean }> {
     if (advisorId && role)
       await this.assertCanViewChat(chatId, advisorId, role);
     return this.getMessagesInternal(chatId, page, limit, anchor);
@@ -2063,7 +2142,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     page = 1,
     limit = 50,
     anchor?: string,
-  ): Promise<WaMessageDto[]> {
+  ): Promise<{ messages: WaMessageDto[]; total: number; hasMore: boolean }> {
     let targetPage = Math.max(page, 1);
 
     if (anchor) {
@@ -2081,10 +2160,10 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       }
     }
 
-    const count = await this.messageRepo.count({
+    const total = await this.messageRepo.count({
       where: { chat: { id: chatId } },
     });
-    const totalPages = Math.max(1, Math.ceil(count / limit));
+    const totalPages = Math.max(1, Math.ceil(total / limit));
     targetPage = Math.min(targetPage, totalPages);
     const skip = (targetPage - 1) * limit;
 
@@ -2120,7 +2199,9 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       }
     }
 
-    return messages.map((message) => this.toMessageDto(message, quotedMap));
+    const dtos = messages.map((message) => this.toMessageDto(message, quotedMap));
+    const hasMore = targetPage < totalPages;
+    return { messages: dtos, total, hasMore };
   }
 
   async editAdvisorMessage(
@@ -4635,9 +4716,9 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     chat: WhatsappChat,
     includeMessages = false,
   ): Promise<WaChatDto> {
-    const messages = includeMessages
+    const { messages } = includeMessages
       ? await this.getMessagesInternal(chat.id, 1, 50)
-      : [];
+      : { messages: [] as WaMessageDto[] };
     const last =
       [...messages].reverse().find((message) => message.type !== 'reaction') ??
       messages[messages.length - 1];

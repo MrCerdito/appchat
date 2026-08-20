@@ -83,6 +83,15 @@
           </select>
         </div>
         <div class="filter-group">
+          <label>Asesor</label>
+          <select [(ngModel)]="filterAsesor">
+            <option value="">Todos</option>
+            @for (a of asesores; track trackByIndex($index)) {
+            <option [value]="a">{{ a }}</option>
+            }
+          </select>
+        </div>
+        <div class="filter-group">
           <label>Identificación</label>
           <input type="text" [(ngModel)]="filterIdentificacion"
             placeholder="Buscar por documento..."/>

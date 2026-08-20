@@ -103,7 +103,7 @@
       </div>
     </header>
 
-    <section class="ic-messages" #icMessages>
+    <section class="ic-messages" #icMessages (scroll)="onScrollMessages()">
       @if (isLoadingMessages && !messages.length) {
       <div class="ic-msgs-skeleton">
         @for (i of [0, 1, 2, 3, 4]; track i) {
@@ -111,6 +111,11 @@
         }
       </div>
       } @else {
+      @if (isLoadingOlder) {
+      <div class="ic-loading-top">
+        <div class="ic-spinner"></div>
+      </div>
+      }
       @for (group of groupedMessages(messages); track trackByIndex($index)) {
       <div class="ic-date-group">
       <div class="ic-date-sep"><span>{{ group.label }}</span></div>
@@ -260,6 +265,12 @@
       <div class="ic-empty-msgs">Sin mensajes todavía. ¡Saluda!</div>
       }
     </section>
+
+    @if (showScrollToBottom) {
+    <button class="ic-scroll-btn" (click)="scrollToBottomSmooth()" title="Ir al ultimo mensaje">
+      <wa-icon name="chevrons-down"></wa-icon>
+    </button>
+    }
 
     @if (replyToMessage) {
     <div class="ic-reply-bar ic-quoted" [class.mine]="messageOwn(replyToMessage)" (click)="scrollToMessage(replyToMessage.id)">

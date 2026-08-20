@@ -218,7 +218,7 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
         if (this.selectedChatId && this.chatsMap.has(this.selectedChatId)) {
           this.whatsappChat.setActiveChat(this.selectedChatId);
           this.whatsappChat.loadMessages(this.selectedChatId, 1, 100).subscribe({
-            next: (messages) => {
+            next: ({ messages }) => {
               this.messagesMap.set(this.selectedChatId!, messages);
               this.dataReady = true;
               this.cdr.markForCheck();
@@ -284,7 +284,7 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
       this.startLoadingProgress();
     }
     this.whatsappChat.loadMessages(chatId, 1, 100).subscribe({
-      next: (messages) => {
+      next: ({ messages }) => {
         this.messagesMap.set(chatId, messages);
         this.dataReady = true;
         this.cdr.markForCheck();
@@ -938,7 +938,7 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
     }
     const chatId = this.selectedChatId;
     this.whatsappChat.loadMessages(chatId, 1, 100, messageId).subscribe({
-      next: (messages) => {
+      next: ({ messages }) => {
         if (this.selectedChatId !== chatId) return;
         this.messagesMap.set(chatId, messages);
         const found = messages.find(m => m.id === messageId || m.metaMessageId === messageId);

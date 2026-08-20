@@ -372,6 +372,27 @@ export class AdvisorsWhatsappController {
     return chat;
   }
 
+  @Post('chats/:chatId/transfer')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  async transferChat(
+    @Param('chatId') chatId: string,
+    @Req() req: Request & { user: any },
+    @Body('targetAdvisorId') targetAdvisorId: string,
+  ) {
+    const assignment = await this.whatsappService.transferChat(
+      chatId,
+      req.user.id,
+      targetAdvisorId,
+      req.user.role,
+    );
+    this.whatsappGateway.emitAssignments([assignment]);
+    if (req.user.id !== targetAdvisorId) {
+      this.whatsappGateway.emitChatTransferred(chatId, req.user.id);
+    }
+    return assignment.chat;
+  }
+
   @Post('chats/:chatId/fixed-advisor')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')

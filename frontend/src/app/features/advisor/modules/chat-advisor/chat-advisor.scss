@@ -2031,6 +2031,79 @@ a {
   font-size: 12px;
 }
 
+// ── Transfer Modal (Row List) ──────────────────────────────────────────────
+.transfer-modal { width: 480px; max-width: 94vw; max-height: 88vh; display: flex; flex-direction: column; h3 { margin: 0; font-size: 17px; font-weight: 700; } }
+.tadv-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.tadv-header-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: rgba(0, 168, 132, 0.12); color: $success; flex-shrink: 0; }
+.tadv-subtitle { margin: 2px 0 0; font-size: 12px; color: $text-faint; }
+.tadv-search-wrap { position: relative; margin-bottom: 14px; }
+.tadv-search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: $text-faint; pointer-events: none; }
+.tadv-search {
+  width: 100%; min-height: 38px; padding: 0 36px 0 38px;
+  border: 1px solid $border; border-radius: 8px; outline: 0;
+  background: $surface-hover; color: $text; font-size: 13px;
+  font-family: inherit; transition: border-color 0.15s;
+  &:focus { border-color: $success; }
+}
+.tadv-search-clear {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  display: grid; place-items: center; width: 22px; height: 22px;
+  border-radius: 50%; border: none; background: transparent;
+  color: $text-faint; cursor: pointer; transition: all 0.12s;
+  &:hover { background: rgba(0, 0, 0, 0.06); color: $text; }
+}
+.tadv-list {
+  display: flex; flex-direction: column; max-height: 360px; overflow-y: auto;
+  border: 1px solid $border; border-radius: 8px;
+  &::-webkit-scrollbar { width: 4px; }
+  &::-webkit-scrollbar-thumb { background: $border; border-radius: 4px; }
+}
+.tadv-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  width: 100%; padding: 10px 14px; border: 0; border-bottom: 1px solid $border;
+  background: transparent; cursor: pointer; text-align: left; transition: background 0.12s;
+  &:last-child { border-bottom: 0; }
+  &:hover { background: $surface-hover; }
+  &.selected { background: rgba(0, 168, 132, 0.08); }
+  &.is-offline { opacity: 0.55; &:hover { opacity: 0.8; } }
+}
+.tadv-row-left { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
+.tadv-row-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.tadv-avatar-wrap { position: relative; width: 40px; height: 40px; flex-shrink: 0; }
+.tadv-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; display: block; }
+.tadv-avatar-fallback {
+  display: grid; place-items: center; border-radius: 50%; width: 40px; height: 40px;
+  background: rgba(0, 168, 132, 0.12); color: $success;
+  font-weight: 700; font-size: 16px;
+}
+.tadv-status-dot {
+  position: absolute; bottom: 0; right: 0;
+  width: 11px; height: 11px; border-radius: 50%;
+  border: 2px solid $surface; background: $text-faint;
+  &.online { background: $success; }
+  &.busy { background: $warning; }
+  &.offline { background: $text-faint; }
+}
+.tadv-info { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.tadv-name { font-size: 13px; font-weight: 600; color: $text; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tadv-email { font-size: 11px; color: $text-faint; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tadv-chats-badge { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: rgba(59, 130, 246, 0.1); color: #3b82f6; white-space: nowrap; }
+.tadv-status-label { font-size: 10px; font-weight: 600; text-transform: capitalize; white-space: nowrap;
+  &.online { color: $success; }
+  &.busy { color: $warning; }
+  &.offline { color: $text-faint; }
+}
+.tadv-check {
+  display: grid; place-items: center; width: 22px; height: 22px;
+  border-radius: 50%; border: 2px solid $border; color: transparent;
+  background: $surface; transition: all 0.15s; flex-shrink: 0;
+  svg { width: 12px; height: 12px; }
+  .tadv-row.selected & { background: $success; border-color: $success; color: #fff; }
+}
+.tadv-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 28px 12px; color: $text-faint; font-size: 13px; }
+.tadv-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid $border; }
+.tadv-confirm-btn { height: 36px; padding: 0 16px; border: 0; border-radius: $radius-md; font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer; background: $success; color: #fff; transition: all 0.12s; &:disabled { opacity: 0.45; cursor: not-allowed; } }
+
 // ══════════════════════════════════════════════════════════════════════════════
 // MODALS
 // ══════════════════════════════════════════════════════════════════════════════
@@ -2552,6 +2625,7 @@ a {
   .s-name { font-size: 11px; }
   .s-sub { font-size: 10px; }
   .s-time { font-size: 9px; }
+  .transfer-modal { width: 96vw; padding: 16px !important; }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

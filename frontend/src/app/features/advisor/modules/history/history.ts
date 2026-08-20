@@ -44,12 +44,14 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
   filterRol          = '';
   filterSolicitud    = '';
   filterIdentificacion = '';
+  filterAsesor       = '';
   showAdvancedFilters  = false;
 
   // ── Dropdowns ──
   colegios   : string[] = [];
   roles      : string[] = [];
   solicitudes: string[] = [];
+  asesores   : string[] = [];
 
   // ── Mobile ──
   mobileView: 'list' | 'chat' = 'list';
@@ -92,8 +94,10 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
       const matchSolicitud  = !this.filterSolicitud  || s.tipoSolicitud?.toLowerCase() === this.filterSolicitud.toLowerCase();
       const matchId         = !this.filterIdentificacion ||
         s.identificacion?.toLowerCase().includes(this.filterIdentificacion.toLowerCase());
+      const matchAsesor     = !this.filterAsesor ||
+        s.advisor?.name?.toLowerCase() === this.filterAsesor.toLowerCase();
 
-      return matchStatus && matchSearch && matchColegio && matchRol && matchSolicitud && matchId;
+      return matchStatus && matchSearch && matchColegio && matchRol && matchSolicitud && matchId && matchAsesor;
     });
   }
 
@@ -265,6 +269,7 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
     this.colegios   = unique(this.sessions.map(s => s.colegio));
     this.roles      = unique(this.sessions.map(s => s.rol));
     this.solicitudes = unique(this.sessions.map(s => s.tipoSolicitud));
+    this.asesores   = unique(this.sessions.map(s => s.advisor?.name));
   }
 
   clearFilters(): void {
@@ -274,11 +279,12 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
     this.filterRol = '';
     this.filterSolicitud = '';
     this.filterIdentificacion = '';
+    this.filterAsesor = '';
   }
 
   get hasActiveFilters(): boolean {
     return !!(this.search || this.filter !== 'all' || this.filterColegio ||
-      this.filterRol || this.filterSolicitud || this.filterIdentificacion);
+      this.filterRol || this.filterSolicitud || this.filterIdentificacion || this.filterAsesor);
   }
 
   selectSession(session: Session): void {

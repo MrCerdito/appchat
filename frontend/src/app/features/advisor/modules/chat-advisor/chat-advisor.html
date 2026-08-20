@@ -581,7 +581,7 @@
           Generar ticket
         </button>
         @if (!isCollaborator && !isReadOnlyView) {
-        <button class="p-btn p-btn-transfer" type="button" (click)="showTransfer = !showTransfer">
+        <button class="p-btn p-btn-transfer" type="button" (click)="openTransferModal()">
           Transferir
         </button>
         }
@@ -792,37 +792,75 @@
 
   <!-- Transfer modal -->
   @if (showTransfer) {
-  <div class="floating-modal" (click)="showTransfer = false">
-    <div class="floating-modal-inner" (click)="$event.stopPropagation()">
-      <h3>Transferir a agente</h3>
-      <div class="transfer-modal-body">
-        @for (advisor of advisors; track trackById($index, advisor)) {
-        <button
-          type="button"
-          class="adv-row"
-          [class.adv-disabled]="advisor.status === 'offline'"
-          (click)="transferTo(advisor.id)"
-        >
-          <span class="adv-ava">
-            @if (advisor.profilePhotoUrl) {
-            <img [src]="advisor.profilePhotoUrl" [alt]="advisor.name" class="adv-ava-img" />
-            } @else {
-            {{ safeInitial(advisor.name) }}
-            }
-          </span>
-          <span class="adv-txt">
-            <span class="adv-name">{{ advisor.name }}</span>
-            <span class="adv-meta">{{ advisor.activeChats || 0 }} chats activos</span>
-          </span>
-          <span class="adv-badge" [ngClass]="'badge-' + advisor.status">{{ advisor.status }}</span>
+  <div class="floating-modal" (click)="closeTransferModal()">
+    <div class="floating-modal-inner transfer-modal" (click)="$event.stopPropagation()">
+      <div class="tadv-header">
+        <div class="tadv-header-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+        </div>
+        <div>
+          <h3>Transferir a agente</h3>
+          <p class="tadv-subtitle">Selecciona el agente destino para transferir esta conversación</p>
+        </div>
+      </div>
+      <div class="tadv-search-wrap">
+        <svg class="tadv-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input
+          type="text"
+          class="tadv-search"
+          placeholder="Buscar por nombre o email..."
+          [(ngModel)]="transferSearchQuery"
+        />
+        @if (transferSearchQuery) {
+        <button type="button" class="tadv-search-clear" (click)="transferSearchQuery = ''">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
         }
-        @if (advisors.length === 0) {
-        <div class="empty-adv">No hay agentes disponibles</div>
+      </div>
+      <div class="tadv-list">
+        @for (advisor of filteredTransferAdvisors; track trackById($index, advisor)) {
+        <button
+          type="button"
+          class="tadv-row"
+          [class.selected]="selectedTransferAdvisorId === advisor.id"
+          [class.is-offline]="advisor.status === 'offline'"
+          (click)="selectTransferAdvisor(advisor.id)"
+        >
+          <div class="tadv-row-left">
+            <div class="tadv-avatar-wrap">
+              @if (advisor.profilePhotoUrl) {
+              <img class="tadv-avatar" [src]="advisor.profilePhotoUrl" [alt]="advisor.name" referrerpolicy="no-referrer" />
+              } @else {
+              <div class="tadv-avatar tadv-avatar-fallback">{{ safeInitial(advisor.name) }}</div>
+              }
+              <span class="tadv-status-dot" [class.online]="advisor.status === 'online'" [class.busy]="advisor.status === 'busy'" [class.offline]="advisor.status === 'offline'"></span>
+            </div>
+            <div class="tadv-info">
+              <span class="tadv-name">{{ advisor.name }}</span>
+              <span class="tadv-email">{{ advisor.email }}</span>
+            </div>
+          </div>
+          <div class="tadv-row-right">
+            <span class="tadv-chats-badge">{{ advisor.activeChats ?? 0 }} chats</span>
+            <span class="tadv-status-label" [class.online]="advisor.status === 'online'" [class.busy]="advisor.status === 'busy'" [class.offline]="advisor.status === 'offline'">{{ advisor.status || 'offline' }}</span>
+            <div class="tadv-check">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+          </div>
+        </button>
+        }
+        @if (filteredTransferAdvisors.length === 0) {
+        <div class="tadv-empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="28" height="28"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>No se encontraron agentes</span>
+        </div>
         }
       </div>
-      <div class="modal-actions">
-        <button class="modal-cancel" type="button" (click)="showTransfer = false">Cancelar</button>
+      <div class="tadv-actions">
+        <button class="modal-cancel" type="button" (click)="closeTransferModal()">Cancelar</button>
+        <button class="modal-confirm tadv-confirm-btn" type="button" (click)="confirmTransfer()" [disabled]="!selectedTransferAdvisorId">
+          Transferir
+        </button>
       </div>
     </div>
   </div>

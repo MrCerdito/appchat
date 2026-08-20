@@ -824,7 +824,7 @@ a{text-decoration:none;color:inherit}
 }
 
 // ==================== MAIN CHAT ====================
-.main{flex:1; min-width:0; display:flex; flex-direction:column; background:var(--wa-bg); height:100%; overflow:hidden}
+.main{flex:1; min-width:0; display:flex; flex-direction:column; background:var(--wa-bg); height:100%; overflow:hidden; position:relative}
 
 .chat-header{
   display:flex; align-items:center; gap:12px; min-height:60px;
@@ -870,12 +870,40 @@ a{text-decoration:none;color:inherit}
   border-radius:50%; border:none; background:transparent; color:var(--wa-muted); cursor:pointer;
   &:hover{background:rgba(var(--wa-red-rgb),.1); color:var(--wa-red)}
 }
+.transfer-header-btn{
+  display:grid; place-items:center; width:36px; height:36px; flex:0 0 36px;
+  border-radius:50%; border:none; background:transparent; color:var(--wa-muted); cursor:pointer;
+  &:hover{background:rgba(var(--wa-green-rgb),.1); color:var(--wa-green)}
+}
 
 // Messages area (WhatsApp style)
 .messages-bg{
   flex:1; overflow-y:auto; overflow-x:hidden;
   padding:24px 28px; background:var(--wa-bg); min-height:0;
   background-image: radial-gradient(ellipse at 20% 50%, rgba(0,168,132,.03) 0%, transparent 50%);
+}
+
+// Loading spinner for older messages
+.msg-loading-top{
+  display:flex; justify-content:center; padding:12px 0;
+}
+.msg-spinner{
+  width:24px; height:24px; border:2.5px solid var(--wa-line);
+  border-top-color:var(--wa-green); border-radius:50%;
+  animation:msgSpin .7s linear infinite;
+}
+@keyframes msgSpin{to{transform:rotate(360deg)}}
+
+// Scroll-to-bottom floating button
+.scroll-to-bottom-btn{
+  position:absolute; bottom:80px; right:20px; z-index:10;
+  display:grid; place-items:center; width:40px; height:40px;
+  border:none; border-radius:50%; cursor:pointer;
+  background:var(--wa-surface-2); color:var(--wa-muted);
+  box-shadow:0 2px 8px rgba(0,0,0,.15);
+  transition:all .15s;
+  &:hover{background:var(--wa-surface-3); color:var(--wa-green); box-shadow:0 4px 12px rgba(0,0,0,.2)}
+  wa-icon{pointer-events:none}
 }
 
 .date-sep{
@@ -1365,6 +1393,45 @@ a{text-decoration:none;color:inherit}
 .ticket-cancel,.ticket-confirm{display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:32px; padding:0 12px; border-radius:6px; cursor:pointer; font-size:12px; font-weight:600; border:0}
 .ticket-cancel{border:1px solid var(--wa-line); background:transparent; color:var(--wa-muted)}
 .ticket-confirm{background:var(--wa-green); color:#fff;&:disabled{opacity:.45}}
+
+// -- Transfer Modal (Row List)
+.transfer-modal{width:min(480px,94vw); max-height:88vh; display:flex; flex-direction:column; h3{margin:0; font-size:17px; font-weight:700}}
+.tadv-header{display:flex; align-items:center; gap:12px; margin-bottom:16px}
+.tadv-header-icon{display:grid; place-items:center; width:40px; height:40px; border-radius:10px; background:rgba(var(--wa-green-rgb),.12); color:var(--wa-green); flex-shrink:0; font-size:18px}
+.tadv-subtitle{margin:2px 0 0; font-size:12px; color:var(--wa-muted)}
+.tadv-search-wrap{position:relative; margin-bottom:14px}
+.tadv-search-icon{position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--wa-muted); font-size:14px; pointer-events:none}
+.tadv-search{width:100%; min-height:38px; padding:0 36px 0 38px; border:1px solid var(--wa-line); border-radius:8px; outline:0; background:var(--wa-bg); color:var(--wa-text); font-size:13px; transition:border-color .15s}
+.tadv-search:focus{border-color:var(--wa-green)}
+.tadv-search-clear{position:absolute; right:8px; top:50%; transform:translateY(-50%); display:grid; place-items:center; width:22px; height:22px; border-radius:50%; border:none; background:transparent; color:var(--wa-muted); cursor:pointer; font-size:12px; &:hover{background:rgba(0,0,0,.06); color:var(--wa-text)}}
+.tadv-list{display:flex; flex-direction:column; max-height:360px; overflow-y:auto; border:1px solid var(--wa-line); border-radius:8px; &::-webkit-scrollbar{width:4px} &::-webkit-scrollbar-thumb{background:var(--wa-line); border-radius:4px}}
+.tadv-row{display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; padding:10px 14px; border:0; border-bottom:1px solid var(--wa-line); background:transparent; cursor:pointer; text-align:left; transition:background .12s; &:last-child{border-bottom:0} &:hover{background:var(--wa-hover)} &.selected{background:rgba(var(--wa-green-rgb),.08)} &.is-offline{opacity:.55; &:hover{opacity:.8}}}
+.tadv-row-left{display:flex; align-items:center; gap:10px; min-width:0; flex:1}
+.tadv-row-right{display:flex; align-items:center; gap:8px; flex-shrink:0}
+.tadv-avatar-wrap{position:relative; width:40px; height:40px; flex-shrink:0}
+.tadv-avatar{width:40px; height:40px; border-radius:50%; object-fit:cover; display:block}
+.tadv-avatar-fallback{display:grid; place-items:center; border-radius:50%; background:rgba(var(--wa-green-rgb),.12); color:var(--wa-green); font-weight:700; font-size:16px}
+.tadv-status-dot{position:absolute; bottom:0; right:0; width:11px; height:11px; border-radius:50%; border:2px solid var(--wa-surface-3); background:var(--wa-muted);
+  &.online{background:var(--wa-green)}
+  &.busy{background:var(--wa-amber)}
+  &.offline{background:var(--wa-muted)}
+}
+.tadv-info{display:flex; flex-direction:column; gap:1px; min-width:0}
+.tadv-name{font-size:13px; font-weight:600; color:var(--wa-text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.tadv-email{font-size:11px; color:var(--wa-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.tadv-chats-badge{font-size:10px; font-weight:600; padding:2px 7px; border-radius:4px; background:rgba(var(--wa-blue-rgb),.1); color:var(--wa-blue); white-space:nowrap}
+.tadv-status-label{font-size:10px; font-weight:600; text-transform:capitalize; white-space:nowrap;
+  &.online{color:var(--wa-green)}
+  &.busy{color:var(--wa-amber)}
+  &.offline{color:var(--wa-muted)}
+}
+.tadv-check{display:grid; place-items:center; width:22px; height:22px; border-radius:50%; border:2px solid var(--wa-line); color:transparent; background:var(--wa-surface-3); transition:all .15s; flex-shrink:0; svg{width:12px; height:12px}
+  .tadv-row.selected &{background:var(--wa-green); border-color:var(--wa-green); color:#fff}
+}
+.tadv-empty{display:flex; flex-direction:column; align-items:center; gap:6px; padding:28px 12px; color:var(--wa-muted); font-size:13px}
+.tadv-empty-icon{font-size:28px; opacity:.4}
+.tadv-actions{display:flex; justify-content:flex-end; gap:8px; margin-top:14px; padding-top:12px; border-top:1px solid var(--wa-line)}
+.tadv-confirm{display:inline-flex; align-items:center; gap:6px}
 .toast-floating{
   position:fixed; bottom:24px; right:24px; z-index:90; display:grid; gap:4px; max-width:320px; padding:12px 16px; border-radius:8px; box-shadow:0 8px 24px var(--wa-shadow);
   strong{font-size:13px}span{font-size:12px; opacity:.85}
@@ -1474,7 +1541,7 @@ a{text-decoration:none;color:inherit}
   .chat-avatar { width: 38px; height: 38px; }
   .chat-header { gap: 8px; padding: 8px 12px; min-height: 54px; }
   .header-name { font-size: 14px; }
-  .info-toggle-btn, .close-header-btn { width: 34px; height: 34px; flex: 0 0 34px; }
+  .info-toggle-btn, .close-header-btn, .transfer-header-btn { width: 34px; height: 34px; flex: 0 0 34px; }
   .messages-bg { padding: 14px 12px; }
   .composer-row { padding: 8px 10px 10px; }
   .quick-row { padding: 6px 10px 0; }
@@ -1553,6 +1620,7 @@ a{text-decoration:none;color:inherit}
   .header-name { font-size: 12px; }
   .header-presence { display: none; }
   .take-chat-btn { font-size: 0; padding: 0; min-height: 30px; min-width: 30px; }
-  .info-toggle-btn, .close-header-btn { width: 32px; height: 32px; flex: 0 0 32px; }
+  .info-toggle-btn, .close-header-btn, .transfer-header-btn { width: 32px; height: 32px; flex: 0 0 32px; }
   .mobile-back-btn { width: 32px; height: 32px; }
+  .transfer-modal { width: 96vw; padding: 16px !important; }
 }

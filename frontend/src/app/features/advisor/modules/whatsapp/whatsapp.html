@@ -627,6 +627,15 @@
         </button>
         @if (contact.assignedTo === currentUserId && !isAttentionClosed) {
         <button
+          class="transfer-header-btn"
+          type="button"
+          (click)="openTransferModal()"
+          [disabled]="isTransferring || contact.isGroup"
+          title="Transferir chat"
+        >
+          <wa-icon name="user-plus"></wa-icon>
+        </button>
+        <button
           class="close-header-btn"
           type="button"
           (click)="closeActiveChat()"
@@ -639,7 +648,12 @@
       </div>
     </header>
 
-    <section class="messages-bg" #messagesContainer>
+    <section class="messages-bg" #messagesContainer (scroll)="onScrollMessages()">
+      @if (isLoadingOlder) {
+      <div class="msg-loading-top">
+        <div class="msg-spinner"></div>
+      </div>
+      }
       @for (group of groupedMessages(contact.messages); track trackByIndex($index)) {
       <div class="date-group">
       <div class="date-sep"><span>{{ group.label }}</span></div>
@@ -839,6 +853,12 @@
       </div>
       }
     </section>
+
+    @if (showScrollToBottom) {
+    <button class="scroll-to-bottom-btn" (click)="scrollToBottomSmooth()" title="Ir al ultimo mensaje">
+      <wa-icon name="chevrons-down"></wa-icon>
+    </button>
+    }
 
 
     <!--<div class="state-banner group" *ngIf="contact.isGroup">
@@ -1578,6 +1598,83 @@
           [disabled]="isForwarding || forwardTargetIds.size === 0"
           (click)="confirmForward()"
         >{{ isForwarding ? 'Enviando...' : 'Reenviar a ' + forwardTargetIds.size }}</button>
+      </div>
+    </div>
+  </div>
+  }
+
+  <!-- ── Modal flotante transferencia WhatsApp ─────────── -->
+  @if (showTransferModal) {
+  <div class="wa-ticket-modal" (click)="closeTransferModal()">
+    <div class="wa-ticket-modal-inner transfer-modal" (click)="$event.stopPropagation()">
+      <div class="tadv-header">
+        <div class="tadv-header-icon">
+          <wa-icon name="user-plus"></wa-icon>
+        </div>
+        <div>
+          <h3>Transferir conversación</h3>
+          <p class="tadv-subtitle">Selecciona el asesor destino para transferir este chat</p>
+        </div>
+      </div>
+      <div class="tadv-search-wrap">
+        <wa-icon name="search" class="tadv-search-icon"></wa-icon>
+        <input
+          type="text"
+          class="tadv-search"
+          placeholder="Buscar por nombre o email..."
+          [(ngModel)]="transferSearchQuery"
+        />
+        @if (transferSearchQuery) {
+        <button type="button" class="tadv-search-clear" (click)="transferSearchQuery = ''">
+          <wa-icon name="x"></wa-icon>
+        </button>
+        }
+      </div>
+      <div class="tadv-list">
+        @for (adv of filteredTransferAdvisors; track adv.id) {
+        <button
+          type="button"
+          class="tadv-row"
+          [class.selected]="transferTargetAdvisorId === adv.id"
+          [class.is-offline]="adv.status === 'offline'"
+          (click)="selectTransferAdvisor(adv.id)"
+        >
+          <div class="tadv-row-left">
+            <div class="tadv-avatar-wrap">
+              @if (adv.profilePhotoUrl) {
+              <img class="tadv-avatar" [src]="adv.profilePhotoUrl" [alt]="adv.name" referrerpolicy="no-referrer" />
+              } @else {
+              <div class="tadv-avatar tadv-avatar-fallback">{{ adv.name.charAt(0).toUpperCase() }}</div>
+              }
+              <span class="tadv-status-dot" [class.online]="adv.status === 'online'" [class.busy]="adv.status === 'busy'" [class.offline]="adv.status === 'offline'"></span>
+            </div>
+            <div class="tadv-info">
+              <span class="tadv-name">{{ adv.name }}</span>
+              <span class="tadv-email">{{ adv.email }}</span>
+            </div>
+          </div>
+          <div class="tadv-row-right">
+            <span class="tadv-chats-badge">{{ adv.activeChats ?? 0 }} chats</span>
+            <span class="tadv-status-label" [class.online]="adv.status === 'online'" [class.busy]="adv.status === 'busy'" [class.offline]="adv.status === 'offline'">{{ adv.status || 'offline' }}</span>
+            <div class="tadv-check">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+          </div>
+        </button>
+        }
+        @if (filteredTransferAdvisors.length === 0) {
+        <div class="tadv-empty">
+          <wa-icon name="users" class="tadv-empty-icon"></wa-icon>
+          <span>No se encontraron asesores</span>
+        </div>
+        }
+      </div>
+      <div class="tadv-actions">
+        <button class="ticket-cancel" type="button" (click)="closeTransferModal()">Cancelar</button>
+        <button class="ticket-confirm tadv-confirm" type="button" (click)="doTransferChat()" [disabled]="!transferTargetAdvisorId || isTransferring">
+          <wa-icon name="user-plus"></wa-icon>
+          {{ isTransferring ? 'Transfiriendo...' : 'Transferir' }}
+        </button>
       </div>
     </div>
   </div>

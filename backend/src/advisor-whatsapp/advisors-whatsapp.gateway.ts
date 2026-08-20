@@ -316,6 +316,10 @@ export class AdvisorsWhatsappGateway
     }
   }
 
+  emitChatTransferred(chatId: string, sourceAdvisorId: string) {
+    this.emitToAdvisor(sourceAdvisorId, 'aw_chat_removed', { chatId });
+  }
+
   emitStatus(
     advisorId: string | undefined,
     payload: { messageId: string; status: string; chatId?: string },

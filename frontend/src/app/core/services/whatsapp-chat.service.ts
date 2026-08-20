@@ -133,6 +133,10 @@ export class WhatsappChatService implements OnDestroy {
       this.refreshUnreadTotal().subscribe();
     });
 
+    this.socket.on('aw_chat_removed', (data: { chatId: string }) => {
+      this.removeChat(data.chatId);
+    });
+
     this.socket.on('aw_queue_updated', (data: AwQueueUpdated = {}) => {
       if (data.chat) {
         this.queueUpdated$.next(data);
@@ -396,8 +400,8 @@ export class WhatsappChatService implements OnDestroy {
     });
   }
 
-  loadMessages(chatId: string, page = 1, limit = 50, anchor?: string): Observable<WaMessage[]> {
-    return this.http.get<WaMessage[]>(
+  loadMessages(chatId: string, page = 1, limit = 50, anchor?: string): Observable<{ messages: WaMessage[]; total: number; hasMore: boolean }> {
+    return this.http.get<{ messages: WaMessage[]; total: number; hasMore: boolean }>(
       `${this.apiUrl}/chats/${chatId}/messages`,
       {
         headers: this.headers(),
@@ -591,6 +595,14 @@ export class WhatsappChatService implements OnDestroy {
     ).pipe(tap(chat => this.upsertChat(chat)));
   }
 
+  transferChat(chatId: string, targetAdvisorId: string): Observable<WaChat> {
+    return this.http.post<WaChat>(
+      `${this.apiUrl}/chats/${chatId}/transfer`,
+      { targetAdvisorId },
+      { headers: this.headers() },
+    ).pipe(tap(chat => this.upsertChat(chat)));
+  }
+
   setFixedAdvisor(chatId: string, advisorId: string): Observable<WaChat> {
     return this.http.post<WaChat>(
       `${this.apiUrl}/chats/${chatId}/fixed-advisor`,
@@ -743,6 +755,12 @@ export class WhatsappChatService implements OnDestroy {
       new Date(b.lastClientMsg ?? 0).getTime() - new Date(a.lastClientMsg ?? 0).getTime(),
     );
     this.chats$.next(updated);
+  }
+
+  private removeChat(chatId: string): void {
+    const current = this.chats$.getValue();
+    this.chats$.next(current.filter(c => c.id !== chatId));
+    this.refreshUnreadTotal().subscribe();
   }
 
   private messagePreview(msg: WaMessage): string {

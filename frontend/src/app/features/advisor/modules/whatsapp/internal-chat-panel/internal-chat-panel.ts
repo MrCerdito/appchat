@@ -83,6 +83,9 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
 
   isLoadingConversations = true;
   isLoadingMessages = false;
+  hasMoreMessages = false;
+  isLoadingOlder = false;
+  showScrollToBottom = false;
 
   searchQuery = '';
   showNewChat = false;
@@ -229,10 +232,7 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
     }
     if (!this.shouldScroll) return;
     this.shouldScroll = false;
-    const isOwn = last.pending || last.senderId === this.currentUserId;
-    if (isOwn || this.isNearBottom()) {
-      scrollToBottomEl(this.messagesContainer.nativeElement, { smooth: true });
-    }
+    scrollToBottomEl(this.messagesContainer.nativeElement, { smooth: true });
   }
 
   private isNearBottom(): boolean {
@@ -422,12 +422,18 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
     this.errorMessage = '';
     this.activeChange.emit(true);
     this.forceScrollToBottom = true;
+    this.showScrollToBottom = false;
+    this.hasMoreMessages = false;
+    this.isLoadingOlder = false;
     this.internalChat.setActiveConversation(conv.id);
     this.closeImage();
     this.isLoadingMessages = true;
     this.messages = [];
     this.cdr.detectChanges();
     this.internalChat.loadMessages(conv.id).subscribe({
+      next: (msgs) => {
+        this.hasMoreMessages = msgs.length >= 50;
+      },
       complete: () => {
         this.isLoadingMessages = false;
         this.cdr.detectChanges();
@@ -1181,6 +1187,62 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
   onWindowClick(): void {
     if (this.contextMenu) this.closeContextMenu();
     if (this.showAttachMenu) this.showAttachMenu = false;
+  }
+
+  // ── Progressive message loading (scroll-up to load older) ─────────────
+  onScrollMessages(): void {
+    const el = this.messagesContainer?.nativeElement as HTMLElement | undefined;
+    if (!el) return;
+
+    const threshold = 120;
+    const isNearTop = el.scrollTop < threshold;
+    if (isNearTop && this.hasMoreMessages && !this.isLoadingOlder) {
+      this.loadOlderMessages();
+    }
+
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    this.showScrollToBottom = !atBottom;
+  }
+
+  private loadOlderMessages(): void {
+    const conv = this.activeConversation;
+    if (!conv || this.isLoadingOlder || !this.hasMoreMessages) return;
+
+    this.isLoadingOlder = true;
+    const container = this.messagesContainer.nativeElement as HTMLElement;
+    const prevScrollHeight = container.scrollHeight;
+    const prevScrollTop = container.scrollTop;
+
+    const oldest = this.messages.length ? this.messages[0] : null;
+    const before = oldest?.createdAt
+      ? new Date(oldest.createdAt).toISOString()
+      : undefined;
+
+    this.subs.add(
+      this.internalChat.loadMessages(conv.id, before, 50).subscribe({
+        next: (msgs) => {
+          this.hasMoreMessages = msgs.length >= 50;
+          this.isLoadingOlder = false;
+          this.cdr.detectChanges();
+          requestAnimationFrame(() => {
+            const newScrollHeight = container.scrollHeight;
+            container.scrollTop = prevScrollTop + (newScrollHeight - prevScrollHeight);
+          });
+        },
+        error: () => {
+          this.isLoadingOlder = false;
+          this.cdr.detectChanges();
+        },
+      }),
+    );
+  }
+
+  scrollToBottomSmooth(): void {
+    this.showScrollToBottom = false;
+    const el = this.messagesContainer?.nativeElement as HTMLElement | undefined;
+    if (el) {
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    }
   }
 
   ngOnDestroy(): void {

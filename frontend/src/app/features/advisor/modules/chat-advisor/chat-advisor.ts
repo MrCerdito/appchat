@@ -86,6 +86,8 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   sessions         : Session[]      = [];
   activeSession    : Session | null = null;
   showTransfer     = false;
+  transferSearchQuery = '';
+  selectedTransferAdvisorId = '';
   showCloseConfirm = false;
   showInfoPanel    = false;
   newMessage       = '';
@@ -824,15 +826,45 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   }
 
   // ── Transferir ────────────────────────────────────────────────────────────
-  transferTo(advisorId: string): void {
-    if (!this.activeSession) return;
-    const advisor = this.advisors.find(a => a.id === advisorId);
-    if (!advisor || advisor.status === 'offline') return;
+  get filteredTransferAdvisors(): User[] {
+    const q = this.transferSearchQuery.toLowerCase().trim();
+    if (!q) return this.advisors;
+    return this.advisors.filter(a =>
+      a.name.toLowerCase().includes(q) || a.email.toLowerCase().includes(q)
+    );
+  }
+
+  selectTransferAdvisor(id: string): void {
+    this.selectedTransferAdvisorId = id;
+    this.cdr.detectChanges();
+  }
+
+  confirmTransfer(): void {
+    if (!this.activeSession || !this.selectedTransferAdvisorId) return;
+    const advisor = this.advisors.find(a => a.id === this.selectedTransferAdvisorId);
+    if (!advisor) return;
     const sessionId = this.activeSession.id;
-    this.socket.emit('transfer_session', { sessionId, newAdvisorId: advisorId });
+    this.socket.emit('transfer_session', { sessionId, newAdvisorId: this.selectedTransferAdvisorId });
     this.clearSession(sessionId);
-    this.sessions      = this.sessions.filter(s => s.id !== sessionId);
-    this.showTransfer  = false;
+    this.sessions = this.sessions.filter(s => s.id !== sessionId);
+    this.showTransfer = false;
+    this.selectedTransferAdvisorId = '';
+    this.transferSearchQuery = '';
+    this.cdr.detectChanges();
+  }
+
+  openTransferModal(): void {
+    this.selectedTransferAdvisorId = '';
+    this.transferSearchQuery = '';
+    this.showTransfer = true;
+    this.loadAdvisors();
+    this.cdr.detectChanges();
+  }
+
+  closeTransferModal(): void {
+    this.showTransfer = false;
+    this.selectedTransferAdvisorId = '';
+    this.transferSearchQuery = '';
     this.cdr.detectChanges();
   }
 

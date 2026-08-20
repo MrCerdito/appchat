@@ -320,6 +320,29 @@ a { text-decoration: none; color: inherit; }
   scroll-behavior: smooth;
 }
 
+// Loading spinner for older messages
+.ic-loading-top{
+  display:flex; justify-content:center; padding:12px 0;
+}
+.ic-spinner{
+  width:24px; height:24px; border:2.5px solid var(--wa-line, #ddd);
+  border-top-color:var(--wa-green, #00A884); border-radius:50%;
+  animation:icSpin .7s linear infinite;
+}
+@keyframes icSpin{to{transform:rotate(360deg)}}
+
+// Scroll-to-bottom floating button
+.ic-scroll-btn{
+  position:absolute; bottom:80px; right:20px; z-index:10;
+  display:grid; place-items:center; width:40px; height:40px;
+  border:none; border-radius:50%; cursor:pointer;
+  background:var(--wa-surface-2, #fff); color:var(--wa-muted, #667781);
+  box-shadow:0 2px 8px rgba(0,0,0,.15);
+  transition:all .15s;
+  &:hover{background:var(--wa-surface-3, #f0f0f0); color:var(--wa-green, #00A884); box-shadow:0 4px 12px rgba(0,0,0,.2)}
+  wa-icon{pointer-events:none}
+}
+
 .ic-date-sep {
   position: sticky;
   top: 0;

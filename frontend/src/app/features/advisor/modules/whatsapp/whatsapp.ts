@@ -30,6 +30,7 @@ import { SoundService } from '../../../../core/services/sound.service';
 import { ThemeService } from '../../../../core/services/theme.service';
 import { WhatsappChatService } from '../../../../core/services/whatsapp-chat.service';
 import { InternalChatService } from '../../../../core/services/internal-chat.service';
+import { SessionService } from '../../../../core/services/session.service';
 import { InternalChatPanelComponent } from './internal-chat-panel/internal-chat-panel';
 import {
   AwChatAssigned,
@@ -41,6 +42,7 @@ import {
   WaMessage,
 } from '../../../../core/models/whatsapp.models';
 import { InternalConversation } from '../../../../core/models/internal-chat.models';
+import { User } from '../../../../core/models/user.model';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
 import { priorityLabel, priorityColor } from '../../../../shared/utils/ticket-categories';
 import { scrollToBottom as scrollToBottomEl } from '../../../../shared/utils/scroll';
@@ -48,7 +50,7 @@ import { formatBogotaTime as formatBogotaTimeShared } from '../../../../shared/u
 
 export type { WaChat as Contact };
 
-type WaFilter = 'all' | 'mine' | 'queue' | 'groups' | 'unread' | 'closed';
+type WaFilter = 'all' | 'mine' | 'queue' | 'groups' | 'unread' | 'closed' | 'advisor';
 type WindowState = 'open' | 'warning' | 'closed';
 type WaTheme = 'dark' | 'light';
 type WaOperationalStatus =
@@ -151,6 +153,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     { id: 'groups', label: 'Grupos' },
     { id: 'unread', label: 'Sin leer' },
     { id: 'closed', label: 'Cerradas' },
+    { id: 'advisor', label: 'Asesor' },
   ];
   readonly operationalStatusOptions: { id: WaOperationalStatus; label: string; hint: string }[] = [
     { id: 'in_progress', label: 'En gestion', hint: 'Atencion activa del caso.' },
@@ -227,6 +230,11 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   isClosingChat = false;
   isSavingWhatsappSettings = false;
   isUpdatingOperationalStatus = false;
+  isTransferring = false;
+  showTransferModal = false;
+  transferTargetAdvisorId = '';
+  transferAdvisors: User[] = [];
+  transferSearchQuery = '';
   creatingTicket = false;
   ticketFeedback: { type: 'ok' | 'error'; text: string } | null = null;
   showTicketModal = false;
@@ -335,6 +343,11 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   internalChatOpen = false;
   @ViewChild(InternalChatPanelComponent) internalPanel?: InternalChatPanelComponent;
 
+  hasMoreMessages = false;
+  isLoadingOlder = false;
+  showScrollToBottom = false;
+  private messagePage = 1;
+
   private shouldScroll = false;
   private toastTimer?: ReturnType<typeof setTimeout>;
   private subs = new Subscription();
@@ -344,6 +357,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   constructor(
     private readonly waService: WhatsappChatService,
     private readonly internalChat: InternalChatService,
+    private readonly sessionService: SessionService,
     private readonly authService: AuthService,
     private readonly configService: ConfiguracionFrontendService,
     private readonly ticketService: TicketService,
@@ -684,6 +698,8 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
         return this.unreadChats;
       case 'closed':
         return this.contacts.filter(contact => this.isChatClosed(contact)).length;
+      case 'advisor':
+        return this.contacts.filter(c => !!c.assignedTo && !this.isChatClosed(c)).length;
       case 'all':
       default:
         return this.contacts.length;
@@ -880,6 +896,10 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     this.sendError = '';
     this.newNote = '';
     this.shouldScroll = true;
+    this.showScrollToBottom = false;
+    this.hasMoreMessages = false;
+    this.isLoadingOlder = false;
+    this.messagePage = 1;
     this.closeMediaPreview();
     this.closeVideoFullscreen();
     this.closeProfilePhoto();
@@ -892,9 +912,11 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     }
 
     this.subs.add(
-      this.waService.loadMessages(contact.id, 1, 100).subscribe(messages => {
+      this.waService.loadMessages(contact.id, 1, 100).subscribe(({ messages, hasMore }) => {
         if (!this.activeContact || this.activeContact.id !== contact.id) return;
         this.activeContact = { ...this.activeContact, messages };
+        this.hasMoreMessages = hasMore;
+        this.messagePage = 1;
         this.contactDraft = this.draftFromContact(this.activeContact);
         this.shouldScroll = true;
         this.cdr.detectChanges();
@@ -1428,7 +1450,7 @@ scrollToQuotedMessage(msg: WaMessage): void {
   }
 
   this.waService.loadMessages(chat.id, 1, 100, quotedId).subscribe({
-    next: (messages) => {
+    next: ({ messages }) => {
       if (!this.activeContact || this.activeContact.id !== chat.id) return;
       this.activeContact = { ...this.activeContact, messages };
       this.cdr.detectChanges();
@@ -2168,6 +2190,72 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     );
   }
 
+  openTransferModal(): void {
+    if (!this.activeContact) return;
+    this.transferTargetAdvisorId = '';
+    this.transferSearchQuery = '';
+    this.isTransferring = false;
+    this.showTransferModal = true;
+    
+    this.subs.add(
+      this.sessionService.findAdvisors().subscribe(advisors => {
+        this.transferAdvisors = (advisors || []).filter(a => a.id !== this.currentUserId);
+        this.cdr.detectChanges();
+      })
+    );
+    this.cdr.detectChanges();
+  }
+
+  get filteredTransferAdvisors(): User[] {
+    const q = this.transferSearchQuery.toLowerCase().trim();
+    if (!q) return this.transferAdvisors;
+    return this.transferAdvisors.filter(a =>
+      a.name.toLowerCase().includes(q) || a.email.toLowerCase().includes(q)
+    );
+  }
+
+  selectTransferAdvisor(id: string): void {
+    this.transferTargetAdvisorId = id;
+    this.cdr.detectChanges();
+  }
+
+  closeTransferModal(): void {
+    this.showTransferModal = false;
+    this.transferTargetAdvisorId = '';
+    this.transferSearchQuery = '';
+    this.cdr.detectChanges();
+  }
+
+  doTransferChat(): void {
+    if (!this.activeContact || !this.transferTargetAdvisorId || this.isTransferring) return;
+
+    this.isTransferring = true;
+    const chatId = this.activeContact.id;
+
+    this.subs.add(
+      this.waService.transferChat(chatId, this.transferTargetAdvisorId).subscribe({
+        next: () => {
+          this.isTransferring = false;
+          this.showTransferModal = false;
+          this.transferTargetAdvisorId = '';
+          this.activeContact = undefined;
+          this.assignmentToast = 'Conversación transferida con éxito';
+          this.toastTimer = setTimeout(() => this.assignmentToast = '', 3000);
+          this.cdr.detectChanges();
+        },
+        error: err => {
+          this.isTransferring = false;
+          const message = err?.error?.message;
+          const errMsg = Array.isArray(message)
+            ? message.join(' ')
+            : message || 'No se pudo transferir este chat.';
+          alert(errMsg);
+          this.cdr.detectChanges();
+        }
+      })
+    );
+  }
+
   openTeamsMeeting(): void {
     if (!this.activeContact) return;
     this.showInfoPanel = false;
@@ -2590,9 +2678,9 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     try {
       let fetched: WaMessage[] = [];
       try {
-        fetched = await firstValueFrom(
+        fetched = (await firstValueFrom(
           this.waService.loadMessages(c.id, 1, 500),
-        );
+        )).messages;
       } catch {
         fetched = c.messages ?? [];
       }
@@ -3020,10 +3108,13 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
       this.reloadTimer = null;
       if (!this.activeContact || this.activeContact.id !== contact.id) return;
       this.subs.add(
-        this.waService.loadMessages(contact.id, 1, 100).subscribe(messages => {
+        this.waService.loadMessages(contact.id, 1, 100).subscribe(({ messages, hasMore }) => {
           if (!this.activeContact || this.activeContact.id !== contact.id) return;
           const lastId = messages.slice(-1)[0]?.id ?? '';
-          this.activeContact = { ...this.activeContact, messages };
+          const existing = this.activeContact.messages ?? [];
+          const merged = this.mergeMessages(existing, messages);
+          this.activeContact = { ...this.activeContact, messages: merged };
+          this.hasMoreMessages = hasMore;
           if (lastId && lastId !== prevLastId) this.shouldScroll = true;
           this.contactDraft = this.draftFromContact(this.activeContact);
           this.cdr.detectChanges();
@@ -3044,6 +3135,8 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
         return contact.unread > 0;
       case 'closed':
         return this.isChatClosed(contact);
+      case 'advisor':
+        return !!contact.assignedTo && !this.isChatClosed(contact);
       case 'all':
       default:
         return true;
@@ -3232,6 +3325,63 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
       scrollToBottomEl(this.messagesContainer.nativeElement);
     } catch {
       // View not ready yet.
+    }
+  }
+
+  // ── Progressive message loading (scroll-up to load older) ─────────────
+  onScrollMessages(): void {
+    const el = this.messagesContainer?.nativeElement as HTMLElement | undefined;
+    if (!el) return;
+
+    const threshold = 120;
+    const isNearTop = el.scrollTop < threshold;
+    if (isNearTop && this.hasMoreMessages && !this.isLoadingOlder) {
+      this.loadOlderMessages();
+    }
+
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    this.showScrollToBottom = !atBottom;
+  }
+
+  private loadOlderMessages(): void {
+    const contact = this.activeContact;
+    if (!contact || this.isLoadingOlder || !this.hasMoreMessages) return;
+
+    this.isLoadingOlder = true;
+    this.messagePage++;
+    const container = this.messagesContainer.nativeElement as HTMLElement;
+    const prevScrollHeight = container.scrollHeight;
+    const prevScrollTop = container.scrollTop;
+
+    this.subs.add(
+      this.waService.loadMessages(contact.id, this.messagePage, 50).subscribe({
+        next: ({ messages, hasMore }) => {
+          if (!this.activeContact || this.activeContact.id !== contact.id) return;
+          const existing = this.activeContact.messages ?? [];
+          const merged = this.mergeMessages(messages, existing);
+          this.activeContact = { ...this.activeContact, messages: merged };
+          this.hasMoreMessages = hasMore;
+          this.isLoadingOlder = false;
+          this.cdr.detectChanges();
+          requestAnimationFrame(() => {
+            const newScrollHeight = container.scrollHeight;
+            container.scrollTop = prevScrollTop + (newScrollHeight - prevScrollHeight);
+          });
+        },
+        error: () => {
+          this.isLoadingOlder = false;
+          this.messagePage--;
+          this.cdr.detectChanges();
+        },
+      }),
+    );
+  }
+
+  scrollToBottomSmooth(): void {
+    this.showScrollToBottom = false;
+    const el = this.messagesContainer?.nativeElement as HTMLElement | undefined;
+    if (el) {
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
     }
   }
 }
