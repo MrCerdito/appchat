@@ -56,6 +56,8 @@ export class ChatGateway
   private pollingInterval!: NodeJS.Timeout;
   private lunchInterval!: NodeJS.Timeout;
   private timers = new Map<string, TimerEntry>();
+  private aiCloseTimers = new Map<string, NodeJS.Timeout>();
+  private static readonly AI_CLOSE_DELAY_MS = 3 * 60 * 1000; // 3 minutos
   private readonly MAX_MSG_PER_SEC = 10;
 
   // ── Distributed state via Redis ──────────────────────────────────────────
@@ -277,6 +279,15 @@ export class ChatGateway
         active: false,
         lastSeen: new Date().toISOString(),
       });
+
+      // Si la sesión está en modo IA, iniciar timer de cierre por inactividad.
+      // Si el cliente se reconecta antes de 3 min, el timer se cancela.
+      try {
+        const session = await this.sessionsService.findOne(sessionId);
+        if (session && session.status === 'ai') {
+          this.startAiCloseTimer(sessionId);
+        }
+      } catch {}
     }
     if (sessionId) {
       await this.redisState.deleteRateLimit(sessionId);
@@ -521,13 +532,23 @@ export class ChatGateway
 
     if (client.data.role === 'advisor') {
       try {
-        // Vista compartida: cualquier asesor puede UNIRSE (leer) cualquier
-        // sesión, incluidas las cerradas (historial). El envío de mensajes
-        // sigue restringido por isAdvisorAuthorized en send_message.
         const session = await this.sessionsService.findOne(data.sessionId);
         if (!session) {
           client.emit('join_error', {
             reason: 'Sesión no encontrada o cerrada',
+          });
+          return;
+        }
+        // Solo el asesor asignado o un admin pueden unirse a sesiones activas.
+        // Otros asesores no deben recibir new_message en vivo (evita notificaciones
+        // duplicadas). Para historial, la vista ya carga el chat por HTTP.
+        if (
+          session.status === 'active' &&
+          session.advisor?.id !== client.data.user?.id &&
+          client.data.user?.role !== 'admin'
+        ) {
+          client.emit('join_error', {
+            reason: 'Sesión activa asignada a otro agente',
           });
           return;
         }
@@ -539,6 +560,11 @@ export class ChatGateway
 
     client.join(data.sessionId);
     client.data.sessionId = data.sessionId;
+
+    // Si el cliente se reconecta a una sesión IA, cancelar el timer de cierre
+    if (client.data.role === 'client') {
+      this.clearAiCloseTimer(data.sessionId);
+    }
 
     const history = await this.chatService.getHistory(data.sessionId, 50);
     client.emit('message_history', history);
@@ -617,7 +643,7 @@ export class ChatGateway
     if (client.data.role !== 'client') return;
     const session = await this.sessionsService.requestAdvisor(sessionId);
     if (session.status !== 'waiting') return;
-    this.server.emit('session_updated', { sessionId, status: 'waiting' });
+    this.broadcastSessionUpdated(sessionId, { status: 'waiting' });
     this.server.emit('metrics_updated', {
       type: 'session_status',
       sessionId,
@@ -847,7 +873,11 @@ export class ChatGateway
       'Sistema',
     );
     this.server.to(sessionId).emit('new_message', msg);
-    this.server.emit('session_updated', { sessionId, status: 'active' });
+    // Para transfer: notificar a ambos asesores (antiguo y nuevo)
+    this.broadcastSessionUpdated(sessionId, { status: 'active' });
+    if (oldAdvisorId) {
+      this.server.to(`advisor:${oldAdvisorId}`).emit('session_updated', { sessionId, status: 'active' });
+    }
     this.server.emit('metrics_updated', {
       type: 'session_status',
       sessionId,
@@ -978,6 +1008,8 @@ export class ChatGateway
       });
     }
 
+    // Broadcast a la sala de sesión para observadores (historial) y al asesor
+    // asignado vía su room dedicada. El frontend filtra notificaciones por asignación.
     this.server.to(data.sessionId).emit('new_message', message);
     this.broadcastMessageToAdvisors(data.sessionId, message);
 
@@ -994,6 +1026,9 @@ export class ChatGateway
         active: true,
         lastSeen: new Date().toISOString(),
       });
+      // Si el cliente envía mensaje en sesión IA, cancelar timer de cierre
+      // (actividad = sesión sigue viva).
+      this.clearAiCloseTimer(data.sessionId);
       await this.cambiarTurno(data.sessionId, 'advisor', true);
     } else if (senderType === 'advisor') {
       await this.cambiarTurno(data.sessionId, 'client', false);
@@ -1077,10 +1112,7 @@ export class ChatGateway
       'Sistema',
     );
     this.server.to(data.sessionId).emit('new_message', msg);
-    this.server.emit('session_updated', {
-      sessionId: data.sessionId,
-      status: 'active',
-    });
+    this.broadcastSessionUpdated(data.sessionId, { status: 'active' });
     this.server.emit('metrics_updated', {
       type: 'session_status',
       sessionId: data.sessionId,
@@ -1105,9 +1137,10 @@ export class ChatGateway
 
     await this.sessionsService.close(sessionId);
     this.eliminarTimer(sessionId);
+    this.clearAiCloseTimer(sessionId);
 
     this.server.to(sessionId).emit('session_closed', { sessionId });
-    this.server.emit('session_updated', { sessionId, status: 'closed' });
+    this.broadcastSessionUpdated(sessionId, { status: 'closed' });
 
     if (advisorId) {
       const a = await this.sessionsService.findAdvisorById(advisorId);
@@ -1151,9 +1184,10 @@ export class ChatGateway
 
     await this.sessionsService.close(sessionId);
     this.eliminarTimer(sessionId);
+    this.clearAiCloseTimer(sessionId);
 
     this.server.to(sessionId).emit('session_closed', { sessionId });
-    this.server.emit('session_updated', { sessionId, status: 'closed' });
+    this.broadcastSessionUpdated(sessionId, { status: 'closed' });
     this.server.emit('metrics_updated', { type: 'session_closed', sessionId });
 
     if (advisorId) {
@@ -1579,10 +1613,7 @@ export class ChatGateway
               this.eliminarTimer(sessionId);
               await this.sessionsService.close(sessionId);
               this.server.to(sessionId).emit('session_closed', { sessionId });
-              this.server.emit('session_updated', {
-                sessionId,
-                status: 'closed',
-              });
+              this.broadcastSessionUpdated(sessionId, { status: 'closed' });
               this.server.emit('metrics_updated', {
                 type: 'session_closed',
                 sessionId,
@@ -1666,10 +1697,7 @@ export class ChatGateway
 
         // Reassign to another available advisor
         await this.sessionsService.unassignAdvisor(sessionId);
-        this.server.emit('session_updated', {
-          sessionId,
-          status: 'waiting',
-        });
+        this.broadcastSessionUpdated(sessionId, { status: 'waiting' });
         this.server.to(sessionId).emit('session_interrupted', {
           sessionId,
           tiempoLimiteSeg: 0,
@@ -1793,6 +1821,41 @@ export class ChatGateway
     },
   ): void {
     this.server.to(sessionId).emit('timer_update', { sessionId, ...data });
+  }
+
+  // ── Timer de cierre automático para sesiones IA ────────────────────────
+  private startAiCloseTimer(sessionId: string): void {
+    this.clearAiCloseTimer(sessionId);
+    const timer = setTimeout(async () => {
+      this.aiCloseTimers.delete(sessionId);
+      try {
+        const session = await this.sessionsService.findOne(sessionId);
+        if (!session || session.status === 'closed') return;
+        await this.sessionsService.close(sessionId);
+        this.server.to(sessionId).emit('session_closed', {
+          sessionId,
+          reason: 'inactividad',
+        });
+        this.broadcastSessionUpdated(sessionId);
+        this.logger.log(
+          `[AI] Sesión ${sessionId} cerrada automáticamente por inactividad (3 min)`,
+        );
+      } catch (e) {
+        this.logger.error(
+          `[AI] Error cerrando sesión ${sessionId} por inactividad:`,
+          e,
+        );
+      }
+    }, ChatGateway.AI_CLOSE_DELAY_MS);
+    this.aiCloseTimers.set(sessionId, timer);
+  }
+
+  private clearAiCloseTimer(sessionId: string): void {
+    const t = this.aiCloseTimers.get(sessionId);
+    if (t) {
+      clearTimeout(t);
+      this.aiCloseTimers.delete(sessionId);
+    }
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -1931,7 +1994,7 @@ export class ChatGateway
       sessionId,
       clientName,
     });
-    this.server.emit('session_updated', { sessionId, status: 'active' });
+    this.broadcastSessionUpdated(sessionId, { status: 'active' });
     this.server.emit('metrics_updated', {
       type: 'session_status',
       sessionId,
@@ -2064,7 +2127,7 @@ export class ChatGateway
       sessionId,
       clientName,
     });
-    this.server.emit('session_updated', { sessionId, status: 'active' });
+    this.broadcastSessionUpdated(sessionId, { status: 'active' });
     this.server.emit('metrics_updated', {
       type: 'session_status',
       sessionId,
@@ -2629,17 +2692,35 @@ export class ChatGateway
       );
   }
 
+  /** Emite session_updated solo al asesor asignado y a los admins,
+   *  evitando que todos los asesores conectados recarguen innecesariamente. */
+  private broadcastSessionUpdated(sessionId: string, extra?: Record<string, any>) {
+    if (!sessionId) return;
+    const payload = { sessionId, ...extra };
+    void this.sessionsService.findOne(sessionId).then((session) => {
+      const advisorId = session?.advisor?.id;
+      if (advisorId) {
+        this.server.to(`advisor:${advisorId}`).emit('session_updated', payload);
+      }
+      this.server.to('admins').emit('session_updated', payload);
+    }).catch(() => {
+      // Fallback: si no se puede resolver el asesor, enviar a admins
+      this.server.to('admins').emit('session_updated', payload);
+    });
+  }
+
   emitSessionUpdated(sessionId: string) {
     if (!sessionId) return;
-    this.server.emit('session_updated', { sessionId });
+    this.broadcastSessionUpdated(sessionId);
   }
 
   async terminateAiSession(sessionId: string, reason?: string) {
     if (!sessionId) return;
     try {
+      this.clearAiCloseTimer(sessionId);
       await this.sessionsService.close(sessionId);
       this.server.to(sessionId).emit('session_closed', { sessionId, reason });
-      this.server.emit('session_updated', { sessionId });
+      this.broadcastSessionUpdated(sessionId);
     } catch (e) {
       this.logger.error(
         `[terminateAiSession] Error cerrando sesión ${sessionId}:`,

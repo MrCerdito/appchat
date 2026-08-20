@@ -4,7 +4,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Subject } from 'rxjs';
+import { Subject, Subscription } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { SocketService } from '../../../core/services/socket.service';
 import { SessionService, Colegio } from '../../../core/services/session.service';
@@ -178,6 +178,12 @@ get rolLabel(): string {
 
   colegioDetectado    : Colegio | null = null;
   private pageUrl     = '';
+  private detectarColegioSub: Subscription | null = null;
+  private urlPollInterval: any = null;
+  private urlRetryCount = 0;
+  private static readonly URL_POLL_DELAY   = 3_000;
+  private static readonly URL_POLL_MAX     = 8;
+  private static readonly RETRY_DELAYS     = [500, 1_500, 3_000];
 
   get emailValido(): boolean {
     const e = this.email.trim().toLowerCase();
@@ -189,14 +195,21 @@ get rolLabel(): string {
   }
 
   private obtenerUrlPagina(): string {
+    // 1. In-memory value (set by postMessage or previous call)
     if (this.pageUrl) return this.pageUrl;
-    // Try cached page URL from previous detection
+    // 2. Cached in localStorage from a previous detection
     const cached = localStorage.getItem(PAGE_URL_KEY);
     if (cached) return cached;
+    // 3. document.referrer (may be empty due to referrer-policy)
     const ref = document.referrer || '';
     if (ref) return ref;
+    // 4. Parent frame (works when hosted inside an iframe on the same or allowed origin)
     try {
       if (window.parent !== window) return window.parent.location.href;
+    } catch {}
+    // 5. Own location — covers standalone / direct-load scenarios
+    try {
+      if (window.location.href && window.location.href !== 'about:blank') return window.location.href;
     } catch {}
     return '';
   }
@@ -205,28 +218,43 @@ get rolLabel(): string {
     try { return new URL(url).origin; } catch { return ''; }
   }
 
-  private detectarColegio(): void {
+  private detectarColegio(reintento = 0): void {
     const url = this.obtenerUrlPagina();
     if (!url) {
       this.colegioDetectado = null;
       this.cdr.detectChanges();
       return;
     }
-    this.sessionService.detectarColegio(url).subscribe({
+
+    // Cancel any in-flight request to avoid race conditions
+    if (this.detectarColegioSub) {
+      this.detectarColegioSub.unsubscribe();
+      this.detectarColegioSub = null;
+    }
+
+    this.detectarColegioSub = this.sessionService.detectarColegio(url).subscribe({
       next: (res) => {
         this.colegioDetectado = res
           ? { id: res.id, nombre: res.nombre, link: this.obtenerOrigen(url) }
           : null;
-        // Persist for next refresh / new chat
         localStorage.setItem(PAGE_URL_KEY, url);
         if (this.colegioDetectado) {
           localStorage.setItem(COLEGIO_KEY, JSON.stringify(this.colegioDetectado));
         }
+        // Success — stop polling and reset retry counter
+        this.urlRetryCount = 0;
+        this.detenerPollingUrl();
         this.cdr.detectChanges();
       },
       error: () => {
-        this.colegioDetectado = null;
-        this.cdr.detectChanges();
+        // Retry with exponential backoff (up to 3 attempts)
+        if (reintento < ChatComponent.RETRY_DELAYS.length) {
+          const delay = ChatComponent.RETRY_DELAYS[reintento];
+          setTimeout(() => this.detectarColegio(reintento + 1), delay);
+        } else {
+          this.colegioDetectado = null;
+          this.cdr.detectChanges();
+        }
       },
     });
   }
@@ -400,6 +428,11 @@ get rolLabel(): string {
     }
 
     this.detectarColegio();
+    // If detection failed (no URL available yet), start a periodic poll
+    // that retries until the URL becomes available (e.g. postMessage arrives late).
+    if (!this.colegioDetectado) {
+      this.iniciarPollingUrl();
+    }
 
     const savedSession = localStorage.getItem(SESSION_KEY);
     const savedName    = localStorage.getItem(CLIENT_NAME_KEY);
@@ -849,12 +882,12 @@ get rolLabel(): string {
         if (d.chatBubbleColor) { root.style.setProperty('--chat-bubble', d.chatBubbleColor); root.style.setProperty('--chat-bubble-text', getContrastColor(d.chatBubbleColor)); }
         if (d.chatBubbleUserColor) { root.style.setProperty('--chat-bubble-user', d.chatBubbleUserColor); root.style.setProperty('--chat-bubble-user-text', getContrastColor(d.chatBubbleUserColor)); }
         if (d.chatMarca) this.marcaChat = d.chatMarca;
-        if (d.pageUrl) {
+        if (d.pageUrl && typeof d.pageUrl === 'string' && d.pageUrl.length > 0 && d.pageUrl.length < 2000) {
           const changed = d.pageUrl !== this.pageUrl;
           this.pageUrl = d.pageUrl;
           localStorage.setItem(PAGE_URL_KEY, d.pageUrl);
-          // Reintenta la detección si el widget reporta una URL de página nueva
-          // o si el primer intento aún no identificó ninguna institución.
+          // Stop recovery polling since we now have a valid URL from the host.
+          this.detenerPollingUrl();
           if (changed || !this.colegioDetectado) {
             this.detectarColegio();
           }
@@ -1931,10 +1964,38 @@ private normalizePhotoUrl(url: string): string {
         if (connected && this.session?.id) {
           this.socket.emit('request_advisor', this.session.id);
         }
-      });
+    });
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
+  /**
+   * Starts a periodic poll that retries detectarColegio() when the initial
+   * detection failed (no URL yet or backend returned null). This covers
+   * race conditions where the widget's postMessage arrives after
+   * ngOnInit already ran detectarColegio() with an empty URL.
+   */
+  private iniciarPollingUrl(): void {
+    if (this.urlPollInterval) return;
+    this.urlRetryCount = 0;
+    this.urlPollInterval = setInterval(() => {
+      // Stop if we already detected a colegio or exhausted attempts
+      if (this.colegioDetectado || this.urlRetryCount >= ChatComponent.URL_POLL_MAX) {
+        this.detenerPollingUrl();
+        return;
+      }
+      const url = this.obtenerUrlPagina();
+      if (url) {
+        this.urlRetryCount++;
+        this.detectarColegio();
+      }
+    }, ChatComponent.URL_POLL_DELAY);
+  }
+
+  private detenerPollingUrl(): void {
+    if (this.urlPollInterval) {
+      clearInterval(this.urlPollInterval);
+      this.urlPollInterval = null;
+    }
+  }
   // COLA
   // ══════════════════════════════════════════════════════════════════════════
 
@@ -2113,9 +2174,10 @@ private normalizePhotoUrl(url: string): string {
     this.faqCategorias = []; this.faqItems = []; this.faqCategoriaActiva = null; this.showFaqInChat = false;
 
     this.socket.disconnect();
-    // Re-detect colegio so the banner reappears when the form is shown again.
-    // colegioDetectado keeps its cached value so the banner stays visible.
-    this.pageUrl = '';
+    // Restore pageUrl from localStorage so the banner reappears immediately
+    // when the form is shown again (COLEGIO_KEY and PAGE_URL_KEY are NOT cleared above).
+    const cachedUrl = localStorage.getItem(PAGE_URL_KEY);
+    this.pageUrl = cachedUrl || this.pageUrl || '';
     this.detectarColegio();
     this.cdr.detectChanges();
 
@@ -2175,6 +2237,8 @@ private normalizePhotoUrl(url: string): string {
     this.horarioPollInterval = null;
     clearInterval(this.reconexionInterval);
     this.reconexionInterval = null;
+    this.detenerPollingUrl();
+    if (this.detectarColegioSub) { this.detectarColegioSub.unsubscribe(); this.detectarColegioSub = null; }
     window.removeEventListener('online',  this.onlineHandler);
     window.removeEventListener('offline', this.offlineHandler);
     document.removeEventListener('visibilitychange', this.visibilityHandler);

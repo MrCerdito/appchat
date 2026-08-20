@@ -573,21 +573,29 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const added = this.chatState.addMessage(sessionId, message);
     if (!added) return;
 
-    const isOpenHere = this.router.url.includes('/dashboard/chats') &&
-      this.chatState.getActiveSessionId() === sessionId;
-    if (isOpenHere) {
-      this.socket.emit('set_active', { sessionId, active: true });
-    } else {
-      this.chatState.incrementUnread(sessionId);
+    // Determinar si esta sesión pertenece al asesor actual (o es admin)
+    const session = message.session ?? this.chatState.sessions$.getValue().find(s => s.id === sessionId);
+    const isAssigned = this.currentAdvisor?.role === 'admin' ||
+      session?.advisor?.id === this.currentAdvisor?.id;
+
+    // Solo incrementar unread y mostrar notificaciones para chats asignados
+    if (isAssigned) {
+      const isOpenHere = this.router.url.includes('/dashboard/chats') &&
+        this.chatState.getActiveSessionId() === sessionId;
+      if (isOpenHere) {
+        this.socket.emit('set_active', { sessionId, active: true });
+      } else {
+        this.chatState.incrementUnread(sessionId);
+      }
+
+      this.sound.playCriticalMessage();
+      this.sound.notify(
+        'CHAT EN LINEA',
+        `${this.sessionFullName(session)}\n${message.content || 'Nuevo mensaje del cliente'}`,
+        `chat-message-${sessionId}`,
+      );
     }
 
-    this.sound.playCriticalMessage();
-    const session = message.session ?? this.chatState.sessions$.getValue().find(s => s.id === sessionId);
-    this.sound.notify(
-      'CHAT EN LINEA',
-      `${this.sessionFullName(session)}\n${message.content || 'Nuevo mensaje del cliente'}`,
-      `chat-message-${sessionId}`,
-    );
     this.loadActiveCount();
     this.cdr.detectChanges();
   }

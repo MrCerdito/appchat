@@ -34,7 +34,7 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
   sessions: Session[] = [];
   activeSession: Session | null = null;
   messages: Message[] = [];
-  filter: 'all' | 'active' | 'closed' = 'all';
+  filter: 'all' | 'active' | 'closed' = 'active';
   search = '';
   loading = false;
   loadingMore = false;

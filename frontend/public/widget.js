@@ -568,11 +568,26 @@
     } catch (_) {}
   }
 
+  // ── Theme confirmation tracking ────────────────────────────────────────────
+  var _themePollTimer = null;
+
+  function stopThemePoll() {
+    if (_themePollTimer) { clearInterval(_themePollTimer); _themePollTimer = null; }
+  }
+
   function sendThemeToIframe(iframe, c) {
     try {
       iframe.addEventListener('load', function onLoad() {
         iframe.removeEventListener('load', onLoad);
         postTheme(iframe, c);
+        // Start polling: re-send theme every 2s until the chat confirms
+        // receipt via 'sian-ready' (max 10s / 5 attempts).
+        stopThemePoll();
+        var attempts = 0;
+        _themePollTimer = setInterval(function () {
+          if (attempts++ >= 5) { stopThemePoll(); return; }
+          postTheme(iframe, c);
+        }, 2000);
       });
     } catch (_) {}
   }
@@ -616,6 +631,7 @@
       // El chat (lazy) avisa que ya escucha 'sian-theme'. Como el iframe
       // pudo haberse cargado antes de que Angular registrara el listener,
       // reenviamos el tema aquí para que no haya flash de colores.
+      stopThemePoll();
       var f = document.getElementById('sian-iframe');
       if (f) postTheme(f, cfg);
     }

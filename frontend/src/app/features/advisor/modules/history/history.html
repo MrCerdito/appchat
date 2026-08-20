@@ -28,9 +28,9 @@
       </div>
 
       <div class="filter-tabs">
-        <button [class.active]="filter === 'all'"    (click)="filter = 'all'">Todos</button>
         <button [class.active]="filter === 'active'" (click)="filter = 'active'">Activos</button>
         <button [class.active]="filter === 'closed'" (click)="filter = 'closed'">Cerrados</button>
+        <button [class.active]="filter === 'all'"    (click)="filter = 'all'">Todos</button>
       </div>
 
       <div class="advanced-toggle">
