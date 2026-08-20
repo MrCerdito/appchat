@@ -2049,8 +2049,6 @@ private normalizePhotoUrl(url: string): string {
     this.step = 'rating';
     this.cdr.detectChanges();
   }
-
-  try { window.parent.postMessage({ type: 'sian-close-panel' }, '*'); } catch (_) {}
 }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -2120,6 +2118,9 @@ private normalizePhotoUrl(url: string): string {
     this.pageUrl = '';
     this.detectarColegio();
     this.cdr.detectChanges();
+
+    // Cerrar el panel del widget después de calificar (o saltar calificación)
+    try { window.parent.postMessage({ type: 'sian-close-panel' }, '*'); } catch (_) {}
   }
 
 
