@@ -20,6 +20,7 @@ import { trackByIndex, trackById } from '../../../shared/utils/track-by';
 import { scrollToBottom } from '../../../shared/utils/scroll';
 import { normalizeUploadFile } from '../../../shared/utils/media';
 import { FaqComponent } from '../faq/faq.component';
+import { FaqService, Faq } from '../../../core/services/faq.service';
 import { PqrsComponent } from '../pqrs/pqrs.component';
 import { ToastContainerComponent } from '../../../shared/components/toast-container.component';
 import { MaintenanceService } from '../../../core/services/maintenance.service';
@@ -75,7 +76,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   // ESTADO GENERAL
   // ══════════════════════════════════════════════════════════════════════════
 
-  step: 'faq' | 'name' | 'pqrs' | 'waiting' | 'chat' | 'rating' | 'blocked' = 'faq';
+  step: 'faq' | 'name' | 'pqrs' | 'waiting' | 'chat' | 'rating' | 'blocked' = 'name';
   aiMode    = true;
   sesionFinalizando = false;
   private timerCierreSesion: any = null;
@@ -100,6 +101,12 @@ export class ChatComponent implements OnInit, OnDestroy {
   private sesionResuelta  = false;
   
   marcaChat = 'Soporte en línea';
+
+  // ── FAQ en chat ─────────────────────────────────────────────────────────
+  faqCategorias: string[] = [];
+  faqItems: Faq[] = [];
+  faqCategoriaActiva: string | null = null;
+  showFaqInChat = false;
 
   pqrsCodigo = '';
   showPqrsSuccess = false;
@@ -351,6 +358,7 @@ get rolLabel(): string {
     private notification  : NotificationService,
     private chatMedia     : ChatMediaService,
     private maintenance   : MaintenanceService,
+    private faqService    : FaqService,
   ) {}
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -422,6 +430,8 @@ get rolLabel(): string {
             localStorage.setItem(SESSION_KEY, JSON.stringify({ ...this.session, aiMode: true }));
             this.step = 'chat';
             this.iniciarTimerInactividadIa();
+            this.cargarFaqParaChat();
+            this.showFaqInChat = this.messages.length <= 2;
             this.cdr.detectChanges();
             this.scrollToBottom();
             return;
@@ -703,7 +713,7 @@ get rolLabel(): string {
   }
 
   onPqrsEnviado(codigo: string): void {
-    this.step = 'faq';
+    this.step = 'name';
     this.pqrsCodigo = codigo;
     this.showPqrsSuccess = true;
     setTimeout(() => { this.showPqrsSuccess = false; this.cdr.detectChanges(); }, 5000);
@@ -761,6 +771,14 @@ get rolLabel(): string {
   const bienvenida = `Hola ${this.clientName}, soy el asistente virtual. Estoy aquí para ayudarte con tu consulta sobre "${this.tipoSolicitud}". ¿En qué puedo ayudarte?`;
   this.bienvenidaIa = bienvenida;
   this.addAiMessage('model', bienvenida);
+
+  this.cargarFaqParaChat();
+  setTimeout(() => {
+    this.showFaqInChat = true;
+    this.cdr.detectChanges();
+    this.scrollToBottom();
+  }, 300);
+
   this.iniciarTimerInactividadIa();
   this.cdr.detectChanges();
       },
@@ -1452,6 +1470,44 @@ get rolLabel(): string {
     this.scrollToBottom();
   }
 
+  // ── FAQ en chat — carga y selección ──────────────────────────────────────
+
+  private cargarFaqParaChat(): void {
+    this.faqService.getCategorias().subscribe({
+      next: (cats) => {
+        this.faqCategorias = (cats || []).map(c => c?.trim()).filter((c): c is string => !!c);
+        this.cdr.detectChanges();
+      },
+    });
+    this.faqService.getAll().subscribe({
+      next: (faqs) => {
+        this.faqItems = faqs.filter(f => f.activo);
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  selectFaqCategoria(cat: string): void {
+    if (this.faqCategoriaActiva === cat) {
+      this.faqCategoriaActiva = null;
+    } else {
+      this.faqCategoriaActiva = cat;
+    }
+    this.cdr.detectChanges();
+    setTimeout(() => this.scrollToBottom(), 0);
+  }
+
+  getFaqItemsPorCategoria(cat: string): Faq[] {
+    return this.faqItems.filter(f => f.categoria === cat);
+  }
+
+  selectFaqItem(pregunta: string): void {
+    this.faqCategoriaActiva = null;
+    this.showFaqInChat = false;
+    this.newMessage = pregunta;
+    this.sendToAi();
+  }
+
   mostrarEncuestaEn(index: number): boolean {
     return this.encuestasPendientes.has(index) && !this.encuestasRespondidas.has(index);
   }
@@ -1954,7 +2010,7 @@ private normalizePhotoUrl(url: string): string {
     // they represent the host page identity and must persist across chats.
 
     this.session = null; this.messages = []; this.aiHistory = []; this.advisorName = ''; this.codigoSesion = ''; this.codigoCopiado = false;
-    this.step = 'faq'; this.clientName = ''; this.submitted = false;
+    this.step = 'name'; this.clientName = ''; this.submitted = false;
     this.sesionFinalizando = false;
     this.identificacion = ''; this.apellido = ''; this.rol = '';
     this.colegio = ''; this.colegioLink = '';
@@ -1964,6 +2020,7 @@ private normalizePhotoUrl(url: string): string {
     this.ratingEtiquetas = []; this.ratingEnviado = false; this.sessionIdParaRating = null;
     this.mostrarAsesoresOcupados = false; this.queuePosition = -1; this.queueTotal = null; this.clientTimer = null;
     this.encuestasRespondidas.clear(); this.encuestasPendientes.clear(); this.aiMsgCount = 0;
+    this.faqCategorias = []; this.faqItems = []; this.faqCategoriaActiva = null; this.showFaqInChat = false;
 
     this.socket.disconnect();
     // Re-detect colegio so the banner reappears when the form is shown again.

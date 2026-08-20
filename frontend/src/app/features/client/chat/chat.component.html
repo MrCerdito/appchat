@@ -131,11 +131,6 @@
   <div class="screen-form">
     <div class="card form-card">
       <div class="card-header">
-        <button class="btn-back" (click)="irAFaq()" type="button" aria-label="Volver a preguntas frecuentes">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
-          </svg>
-        </button>
         <div class="brand-mark">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
@@ -670,6 +665,52 @@
         </div>
         }
 
+      }
+
+      <!-- FAQ Interactivo en chat (dentro del scroll) -->
+      @if (showFaqInChat && aiMode && faqCategorias.length > 0) {
+      <div class="faq-chat-section">
+        @if (!faqCategoriaActiva) {
+        <div class="faq-chat-bubble">
+          <div class="faq-chat-label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            ¿En qué podemos ayudarte?
+          </div>
+          <div class="faq-chat-cats">
+            @for (cat of faqCategorias; track cat) {
+            <button class="faq-chat-cat" (click)="selectFaqCategoria(cat)" type="button">
+              {{ cat }}
+            </button>
+            }
+          </div>
+        </div>
+        } @else {
+        <div class="faq-chat-bubble faq-chat-items">
+          <div class="faq-chat-label faq-chat-label--back">
+            <button class="faq-chat-back" (click)="selectFaqCategoria(faqCategoriaActiva!)" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+              </svg>
+            </button>
+            {{ faqCategoriaActiva }}
+          </div>
+          <div class="faq-chat-rows">
+            @for (item of getFaqItemsPorCategoria(faqCategoriaActiva); track item.id) {
+            <button class="faq-chat-row" (click)="selectFaqItem(item.pregunta)" type="button">
+              <span class="faq-row-circle">?</span>
+              <span class="faq-row-text">{{ item.pregunta }}</span>
+              <span class="faq-row-arrow">&#8250;</span>
+            </button>
+            }
+            @if (getFaqItemsPorCategoria(faqCategoriaActiva).length === 0) {
+            <div class="faq-chat-empty">No hay preguntas en esta categoría</div>
+            }
+          </div>
+        </div>
+        }
+      </div>
       }
     </div>
 

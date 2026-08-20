@@ -1,41 +1,39 @@
 // ══════════════════════════════════════════════════════════════════════════════
-// DESIGN TOKENS (matching advisor)
+// DESIGN TOKENS — Widget de soporte minimalista
 // ══════════════════════════════════════════════════════════════════════════════
-$primary:       #2563eb;
-$primary-hover: #1d4ed8;
-$primary-soft:  rgba(37, 99, 235, 0.06);
-$primary-border: rgba(37, 99, 235, 0.18);
+$primary:       #4F46E5;
+$primary-hover: #4338CA;
+$primary-soft:  rgba(79, 70, 229, 0.06);
+$primary-border: rgba(79, 70, 229, 0.18);
 
-$success:       #10b981;
+$success:       #10B981;
 $success-soft:  rgba(16, 185, 129, 0.08);
-$warning:       #f59e0b;
+$warning:       #F59E0B;
 $warning-soft:  rgba(245, 158, 11, 0.08);
-$warning-border: #fde68a;
-$danger:        #ef4444;
+$warning-border: #FDE68A;
+$danger:        #EF4444;
 $danger-soft:   rgba(239, 68, 68, 0.08);
-$purple:        #7c3aed;
+$purple:        #7C3AED;
 $purple-soft:   rgba(124, 58, 237, 0.08);
 
-$bg:            #f8fafc;
-$surface:       #ffffff;
-$surface-hover: #f9fafb;
+$bg:            #F7F7F8;
+$surface:       #FFFFFF;
+$surface-hover: #F9FAFB;
 $text:          #111827;
-$text-secondary: #6b7280;
-$text-faint:    #9ca3af;
-$border:        #e5e7eb;
-$border-light:  #f3f4f6;
+$text-secondary: #6B7280;
+$text-faint:    #9CA3AF;
+$border:        #E5E7EB;
+$border-light:  #F3F4F6;
+
+$chat-bg:       #F8F9FB;
 
 $shadow-xs:  0 1px 2px rgba(0, 0, 0, 0.04);
 $shadow-sm:  0 1px 3px rgba(0, 0, 0, 0.06);
-$shadow-md:  0 4px 12px rgba(0, 0, 0, 0.06);
-$shadow-lg:  0 8px 24px rgba(0, 0, 0, 0.08);
-$shadow-xl:  0 16px 48px rgba(0, 0, 0, 0.1);
 
 $radius-sm:  8px;
 $radius-md:  10px;
 $radius-lg:  12px;
 $radius-xl:  16px;
-$radius-2xl: 20px;
 $radius-pill: 999px;
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -44,11 +42,11 @@ $radius-pill: 999px;
 :root {
   --chat-header          : #ffffff;
   --chat-header-text     : #111827;
-  --chat-bg              : #f0ede9;
+  --chat-bg              : #F8F9FB;
   --chat-bg-text         : #111827;
   --chat-bubble          : #ffffff;
-  --chat-bubble-text     : #111827;
-  --chat-bubble-user     : #2563eb;
+  --chat-bubble-text     : #1F2937;
+  --chat-bubble-user     : #4F46E5;
   --chat-bubble-user-text: #ffffff;
 }
 
@@ -57,7 +55,7 @@ $radius-pill: 999px;
 .chat-loading {
   width: 100%;
   height: 100%;
-  background: var(--chat-bg, #f0ede9);
+  background: var(--chat-bg, $chat-bg);
   transition: background 0.25s ease;
 }
 
@@ -72,9 +70,12 @@ $radius-pill: 999px;
 }
 
 .chat-wrapper {
-  font-family: var(--font);
+  font-family: 'Inter', var(--font), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   height: 100%;
-  background: var(--chat-bg, var(--bg));
+  background: var(--chat-bg, $chat-bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .screen-center {
@@ -526,18 +527,20 @@ $radius-pill: 999px;
 // CHAT BOX
 // ══════════════════════════════════════════════════════════════════════════════
 .chat-box {
-  width: 100%; max-width: 100%; height: 100%;
+  width: 100%; max-width: 900px; height: 100%;
+  max-height: 750px;
   display: flex; flex-direction: column;
   border-radius: $radius-xl; overflow: hidden;
   border: 1px solid $border;
-  box-shadow: $shadow-xs;
+  box-shadow: $shadow-sm;
   position: relative;
   background: $surface;
+  margin: auto 0;
 }
 
 // ── CHAT HEADER ──────────────────────────────────────────────────────────────
 .chat-header {
-  padding: 16px 24px;
+  padding: 14px 20px;
   border-bottom: 1px solid $border;
   display: flex;
   align-items: center;
@@ -545,48 +548,61 @@ $radius-pill: 999px;
   flex-shrink: 0;
   background: $surface;
   min-width: 0;
-  gap: 16px;
+  gap: 12px;
+  height: 70px;
 }
 
 .header-left {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   min-width: 0;
   flex: 1;
 }
 
 .header-avatar {
-  width: 48px; height: 48px; border-radius: 50%;
-  background: $primary; color: #fff;
+  width: 42px; height: 42px; border-radius: $radius-md;
+  background: $text; color: #fff;
   display: flex; align-items: center; justify-content: center;
-  font-size: 18px; font-weight: 600; flex-shrink: 0;
+  font-size: 16px; font-weight: 600; flex-shrink: 0;
   overflow: hidden;
+  position: relative;
+
+  svg { width: 20px; height: 20px; }
+
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; right: -1px;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: $success;
+    border: 2px solid $surface;
+  }
 
   &.ai-avatar {
-    border-radius: $radius-sm;
+    border-radius: $radius-md;
     background: $text;
-    svg { width: 20px; height: 20px; }
   }
 }
 
 .advisor-avatar-img {
-  width: 100%; height: 100%; object-fit: cover; border-radius: 50%;
+  width: 100%; height: 100%; object-fit: cover; border-radius: $radius-md;
 }
 
 .header-meta {
-  display: flex; flex-direction: column; gap: 4px; min-width: 0;
+  display: flex; flex-direction: column; gap: 3px; min-width: 0;
 }
 
 .header-name {
-  font-size: 16px; font-weight: 700; color: $text; margin: 0;
+  font-size: 16px; font-weight: 600; color: $text; margin: 0;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
 .client-presence-pill {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 2px 8px; border-radius: $radius-pill;
-  font-size: 11px; font-weight: 600;
+  font-size: 12px; font-weight: 600;
 
   &::before {
     content: ''; width: 6px; height: 6px; border-radius: 50%;
@@ -594,7 +610,7 @@ $radius-pill: 999px;
 
   &.presence-active {
     color: $success; background: $success-soft;
-    &::before { background: $success; box-shadow: 0 0 0 3px rgba($success, 0.2); }
+    &::before { background: $success; }
   }
   &.presence-open {
     color: $primary; background: $primary-soft;
@@ -614,25 +630,27 @@ $radius-pill: 999px;
   width: 36px; height: 36px; border-radius: $radius-md;
   border: 1px solid $border; background: transparent;
   display: flex; align-items: center; justify-content: center;
-  color: $text-secondary; transition: all 0.12s ease;
+  color: $text-secondary; transition: all 0.15s ease;
   svg { width: 16px; height: 16px; }
-  &:hover { background: $surface-hover; color: $text; border-color: $border; }
+  &:hover { background: $surface-hover; color: $text; border-color: #D1D5DB; }
 }
 
 // ── MESSAGES ─────────────────────────────────────────────────────────────────
 .chat-messages {
   flex: 1; min-height: 0; overflow-y: auto;
-  padding: clamp(14px, 3vw, 24px);
-  display: flex; flex-direction: column; gap: 16px;
-  background: var(--chat-bg, $surface);
-  &::-webkit-scrollbar { width: 3px; }
-  &::-webkit-scrollbar-thumb { background: $border; border-radius: 3px; }
+  padding: 20px;
+  display: flex; flex-direction: column; gap: 12px;
+  background: var(--chat-bg, $chat-bg);
+
+  &::-webkit-scrollbar { width: 4px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb { background: $border; border-radius: 4px; }
 }
 
 // ── Message base ─────────────────────────────────────────────────────────────
 .msg {
   display: flex; flex-direction: column;
-  max-width: min(65%, 540px);
+  max-width: min(65%, 600px);
   animation: fadeUp 0.2s ease;
 
   .msg-time {
@@ -704,12 +722,13 @@ $radius-pill: 999px;
 
   .bubble {
     background: var(--chat-bubble, $surface);
-    color: var(--chat-bubble-text, $text);
+    color: var(--chat-bubble-text, #1F2937);
     border: 1px solid $border;
-    border-radius: $radius-2xl $radius-2xl $radius-2xl 4px;
-    padding: 12px 16px; font-size: 14px; line-height: 1.55;
+    border-radius: 14px 14px 14px 4px;
+    padding: 14px 16px; font-size: 14px; line-height: 1.5;
     word-break: break-word;
-    box-shadow: $shadow-xs;
+    box-shadow: none;
+    max-width: 600px;
 
     a {
       color: $primary; text-decoration: underline; word-break: break-all;
@@ -723,12 +742,12 @@ $radius-pill: 999px;
   align-self: flex-end; align-items: flex-end;
 
   .bubble {
-    background: linear-gradient(135deg, $primary, $primary-hover);
-    color: #fff;
-    border-radius: $radius-2xl $radius-2xl 4px $radius-2xl;
-    padding: 12px 16px; font-size: 14px; line-height: 1.55;
+    background: var(--chat-bubble-user, $primary);
+    color: var(--chat-bubble-user-text, #fff);
+    border-radius: 14px 14px 4px 14px;
+    padding: 12px 16px; font-size: 14px; line-height: 1.5;
     word-break: break-word;
-    box-shadow: 0 2px 8px rgba($primary, 0.2);
+    box-shadow: none;
 
     a {
       color: #bfdbfe; text-decoration: underline; word-break: break-all;
@@ -798,7 +817,7 @@ $radius-pill: 999px;
 
 // ── INPUT BAR ────────────────────────────────────────────────────────────────
 .chat-input {
-  padding: 12px 24px 16px;
+  padding: 12px 16px;
   border-top: 1px solid $border;
   background: $surface;
   display: flex; flex-wrap: wrap; align-items: flex-end;
@@ -820,10 +839,11 @@ $radius-pill: 999px;
 }
 
 .input-icon-btn {
-  width: 40px; height: 40px; border-radius: $radius-md;
+  width: 40px; height: 40px; border-radius: $radius-lg;
   display: flex; align-items: center; justify-content: center;
-  color: $text-faint; transition: all 0.12s ease; flex-shrink: 0;
-  svg { width: 18px; height: 18px; }
+  color: $text-faint; transition: all 0.15s ease; flex-shrink: 0;
+  background: transparent; border: none;
+  svg { width: 20px; height: 20px; }
   &:hover { background: $surface-hover; color: $text-secondary; }
 }
 
@@ -831,12 +851,12 @@ $radius-pill: 999px;
   position: relative; flex: 1; min-width: 0;
 
   textarea {
-    width: 100%; background: $bg;
+    width: 100%; background: $chat-bg;
     border: 1px solid $border; border-radius: $radius-lg;
-    padding: 10px 16px;
-    font-family: var(--font); font-size: 14px;
+    padding: 11px 16px;
+    font-family: 'Inter', var(--font), system-ui, sans-serif; font-size: 14px;
     color: $text; outline: none; resize: none;
-    overflow-y: hidden; min-height: 40px; max-height: 120px;
+    overflow-y: hidden; min-height: 44px; max-height: 120px;
     line-height: 1.4;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
 
@@ -849,15 +869,15 @@ $radius-pill: 999px;
   }
 }
 
-// Send button — SQUARE
+// Send button
 .send-btn {
-  width: 40px; height: 40px; border-radius: $radius-md;
-  background: $primary; display: flex;
+  width: 44px; height: 44px; border-radius: $radius-lg;
+  background: var(--chat-bubble-user, $primary); display: flex;
   align-items: center; justify-content: center; flex-shrink: 0;
-  transition: all 0.12s ease;
-  box-shadow: 0 1px 4px rgba($primary, 0.25);
-  svg { width: 16px; height: 16px; stroke: #fff; }
-  &:hover:not(:disabled) { background: $primary-hover; box-shadow: 0 2px 8px rgba($primary, 0.3); }
+  transition: all 0.15s ease;
+  box-shadow: none;
+  svg { width: 18px; height: 18px; stroke: #fff; }
+  &:hover:not(:disabled) { background: var(--chat-bubble-user, $primary-hover); opacity: 0.9; }
   &:active:not(:disabled) { transform: scale(0.95); }
   &:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
 }
@@ -865,12 +885,12 @@ $radius-pill: 999px;
 // ── TYPING INDICATOR ─────────────────────────────────────────────────────────
 .typing-indicator {
   display: flex; align-items: center; gap: 8px;
-  padding: 4px 24px 4px; min-height: 28px; flex-shrink: 0;
+  padding: 4px 16px 4px; min-height: 28px; flex-shrink: 0;
 
   .dot {
     display: flex; gap: 3px;
-    background: $bg; border: 1px solid $border-light; border-radius: $radius-pill;
-    padding: 6px 10px;
+    background: $surface; border: 1px solid $border; border-radius: $radius-pill;
+    padding: 6px 12px;
 
     span {
       width: 5px; height: 5px; border-radius: 50%;
@@ -1794,26 +1814,203 @@ textarea {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// FAQ INTERACTIVO EN CHAT
+// ══════════════════════════════════════════════════════════════════════════════
+
+.faq-chat-section {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: 82%;
+  animation: fadeUp 0.3s ease;
+  margin-top: 4px;
+}
+
+.faq-chat-bubble {
+  background: var(--chat-bubble, $surface);
+  color: var(--chat-bubble-text, $text);
+  border: 1px solid $border;
+  border-radius: 14px 14px 14px 4px;
+  padding: 16px;
+  box-shadow: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.faq-chat-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: inherit;
+  margin-bottom: 14px;
+
+  svg {
+    width: 18px;
+    height: 18px;
+    color: var(--chat-bubble-user, $primary);
+    flex-shrink: 0;
+  }
+
+  &--back {
+    margin-bottom: 12px;
+  }
+}
+
+.faq-chat-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: $radius-sm;
+  border: 1px solid $border;
+  background: $surface;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+
+  svg {
+    width: 16px;
+    height: 16px;
+    color: $text-secondary;
+  }
+
+  &:hover {
+    background: $primary-soft;
+    border-color: $primary-border;
+
+    svg { color: $primary; }
+  }
+}
+
+.faq-chat-cats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.faq-chat-cat {
+  padding: 10px 14px;
+  border-radius: $radius-md;
+  border: 1px solid $border;
+  background: $surface;
+  font-size: 14px;
+  font-weight: 500;
+  color: $text;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+
+  &:hover {
+    border-color: $primary;
+    color: $primary;
+    background: $primary-soft;
+  }
+}
+
+.faq-chat-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.faq-chat-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 14px;
+  border-radius: $radius-md;
+  border: 1px solid $border;
+  background: $surface;
+  font-size: 14px;
+  font-weight: 500;
+  color: $text;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+
+  .faq-row-circle {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: $primary-soft;
+    color: var(--chat-bubble-user, $primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .faq-row-text {
+    flex: 1;
+    line-height: 1.4;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .faq-row-arrow {
+    color: $text-faint;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  &:hover {
+    border-color: $primary;
+    background: $primary-soft;
+  }
+}
+
+.faq-chat-empty {
+  text-align: center;
+  padding: 16px;
+  font-size: 14px;
+  color: $text-secondary;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // RESPONSIVE
 // ══════════════════════════════════════════════════════════════════════════════
 
 @media (max-width: 720px) {
-  .chat-messages { gap: 12px; }
+  .chat-messages { gap: 10px; padding: 16px; }
 
   .msg--system { max-width: 94%; }
 
   .reconexion-banner { padding: 10px 14px; }
   .codigo-banner    { padding: 8px 14px; }
   .typing-indicator { padding: 4px 14px; }
+
+  .faq-chat-section { max-width: 90%; }
 }
 
 @media (max-width: 600px) {
-  .chat-header {
-    padding: 12px 14px; gap: 10px;
+  .chat-box {
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 0;
+    border: none;
+    height: 100%;
   }
 
-  .header-left { gap: 12px; }
-  .header-avatar { width: 42px; height: 42px; font-size: 16px; }
+  .chat-header {
+    padding: 12px 14px; gap: 10px;
+    height: 60px;
+  }
+
+  .header-left { gap: 10px; }
+  .header-avatar { width: 38px; height: 38px; font-size: 14px; }
   .header-name   { font-size: 15px; }
 
   .chat-input {
@@ -1822,13 +2019,17 @@ textarea {
   }
 
   .input-field textarea {
-    font-size: 16px; // evita el zoom automático de iOS al escribir
+    font-size: 16px;
+    min-height: 42px;
   }
+
+  .send-btn { width: 42px; height: 42px; }
 }
 
 @media (max-width: 520px) {
   .msg, .msg--client, .msg--ai { max-width: 88%; }
   .msg--with-docs              { max-width: 94%; }
+  .faq-chat-section            { max-width: 95%; }
 
   .msg-attachments { max-width: 100%; }
   .att-image-link  { max-width: 100%; }
@@ -1842,7 +2043,7 @@ textarea {
       background: $primary-soft;
       border-color: transparent;
       color: $primary;
-      &:hover { background: rgba(37, 99, 235, 0.12); }
+      &:hover { background: rgba($primary, 0.12); }
     }
   }
 
