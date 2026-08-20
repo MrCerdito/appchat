@@ -449,7 +449,7 @@
 
         <div class="chat-info">
           <div class="chat-top">
-            <span class="chat-name" [class.has-unread]="c.unread > 0">{{ c.name }}</span>
+            <span class="chat-name" [class.has-unread]="c.unread > 0">{{ formatDisplayName(c.name) }}</span>
             @if (c.fixedAdvisorId) {
             <wa-icon name="lock" class="fixed-icon" title="Cliente fijado"></wa-icon>
             }
@@ -597,7 +597,7 @@
       </div>
 
       <div class="chat-header-info">
-        <div class="header-name">{{ contact.name }}</div>
+        <div class="header-name">{{ formatDisplayName(contact.name) }}</div>
         <div class="header-presence">
           <span class="presence-pill" [class.presence-active]="contact.status === 'online'" [class.presence-away]="contact.status === 'away'" [class.presence-offline]="contact.status === 'offline'">
             {{ getPresenceLabel(contact) }}
@@ -649,6 +649,13 @@
     </header>
 
     <section class="messages-bg" #messagesContainer (scroll)="onScrollMessages()">
+      @if (isLoadingMessages) {
+      <div class="messages-skeleton">
+        <div class="skel-bubble skel-in"></div>
+        <div class="skel-bubble skel-out"></div>
+        <div class="skel-bubble skel-in"></div>
+      </div>
+      } @else {
       @if (isLoadingOlder) {
       <div class="msg-loading-top">
         <div class="msg-spinner"></div>
@@ -658,6 +665,11 @@
       <div class="date-group">
       <div class="date-sep"><span>{{ group.label }}</span></div>
       @for (msg of group.messages; track trackById($index, msg)) {
+      @if (unreadDividerMsgId && msg.id === unreadDividerMsgId) {
+      <div class="unread-divider" #unreadDivider>
+        <span>{{ activeContact?.unread || '?' }} mensaje(s) nuevo(s)</span>
+      </div>
+      }
       <div
         class="msg-row"
         [ngClass]="msg.fromMe ? 'out' : 'in'"
@@ -851,6 +863,7 @@
           <span></span><span></span><span></span>
         </div>
       </div>
+      }
       }
     </section>
 
@@ -1218,7 +1231,7 @@
     <section class="profile-head">
       <img [src]="avatarSrc(contact)" [alt]="contact.name" referrerpolicy="no-referrer" (click)="openProfilePhoto(contact, $event)" (error)="useFallbackAvatar($event, contact)" />
       <div>
-        <h2>{{ contact.name }}</h2>
+        <h2>{{ formatDisplayName(contact.name) }}</h2>
         <p>{{ getAssignmentLabel(contact) }}</p>
         <button
           class="close-chat-btn"
@@ -1354,7 +1367,7 @@
         <div class="info-grid">
           <div>
             <span>Nombre</span>
-            <strong>{{ contact.name || 'Sin nombre' }}</strong>
+            <strong>{{ formatDisplayName(contact.name) || 'Sin nombre' }}</strong>
           </div>
           <div>
             <span>Cargo</span>
@@ -1384,7 +1397,7 @@
 
         <a class="info-row" [href]="getPhoneHref(contact)">
           <wa-icon name="phone"></wa-icon>
-          <span>{{ contact.phone || 'Sin telefono' }}</span>
+          <span>{{ formatPhoneDisplay(contact.phone) || 'Sin telefono' }}</span>
         </a>
         @if (getEmailHref(contact)) {
         <a class="info-row" [href]="getEmailHref(contact)">

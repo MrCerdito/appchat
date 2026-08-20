@@ -253,6 +253,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   mediaPanY = 0;
   protected isMediaDragging = false;
   @ViewChild('mediaImage') mediaImage?: ElementRef<HTMLImageElement>;
+  @ViewChild('unreadDivider') unreadDividerRef?: ElementRef;
   private mediaDragStartX = 0;
   private mediaDragStartY = 0;
   private mediaDragPanX = 0;
@@ -345,7 +346,9 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
 
   hasMoreMessages = false;
   isLoadingOlder = false;
+  isLoadingMessages = false;
   showScrollToBottom = false;
+  unreadDividerMsgId: string | null = null;
   private messagePage = 1;
 
   private shouldScroll = false;
@@ -487,7 +490,8 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     this.subs.add(
       this.waService.onChatUpdated().subscribe(chat => {
         if (this.activeContact && this.activeContact.id === chat.id) {
-          this.reloadActiveMessages();
+          if (this.isNearBottom()) this.shouldScroll = true;
+          this.cdr.detectChanges();
         }
       }),
     );
@@ -895,10 +899,11 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     this.contactSaveMessage = '';
     this.sendError = '';
     this.newNote = '';
-    this.shouldScroll = true;
     this.showScrollToBottom = false;
     this.hasMoreMessages = false;
     this.isLoadingOlder = false;
+    this.isLoadingMessages = true;
+    this.unreadDividerMsgId = null;
     this.messagePage = 1;
     this.closeMediaPreview();
     this.closeVideoFullscreen();
@@ -906,19 +911,28 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     if (switching) this.loadComposer(contact.id);
     this.waService.setActiveChat(contact.id);
 
-    if (contact.unread > 0) {
-      contact.unread = 0;
+    const unreadCount = contact.unread || 0;
+    if (unreadCount > 0) {
       this.subs.add(this.waService.markRead(contact.id).subscribe());
     }
 
     this.subs.add(
-      this.waService.loadMessages(contact.id, 1, 100).subscribe(({ messages, hasMore }) => {
+      this.waService.loadMessages(contact.id, 1, 50).subscribe(({ messages, hasMore }) => {
         if (!this.activeContact || this.activeContact.id !== contact.id) return;
-        this.activeContact = { ...this.activeContact, messages };
+        this.activeContact = { ...this.activeContact, messages, unread: 0 };
+        contact.unread = 0;
         this.hasMoreMessages = hasMore;
         this.messagePage = 1;
+        this.isLoadingMessages = false;
         this.contactDraft = this.draftFromContact(this.activeContact);
-        this.shouldScroll = true;
+
+        if (unreadCount > 0 && messages.length > 0) {
+          const dividerIdx = Math.max(0, messages.length - unreadCount);
+          this.unreadDividerMsgId = messages[dividerIdx]?.id || null;
+          this.scrollToUnreadDivider();
+        } else {
+          this.shouldScroll = true;
+        }
         this.cdr.detectChanges();
       }),
     );
@@ -930,6 +944,8 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     this.activeContact = undefined;
     this.showInfoPanel = false;
     this.messageMenu = undefined;
+    this.unreadDividerMsgId = null;
+    this.isLoadingMessages = false;
     this.cancelEditMessage();
     this.cdr.detectChanges();
   }
@@ -2788,6 +2804,24 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     return preview || 'Sin mensajes recientes';
   }
 
+  formatPhoneDisplay(phone?: string): string {
+    if (!phone) return '';
+    const d = phone.replace(/\D/g, '');
+    if (d.length >= 12 && d.startsWith('57'))
+      return `+${d.slice(0,2)} ${d.slice(2,5)} ${d.slice(5,8)} ${d.slice(8)}`;
+    if (d.length >= 10)
+      return `+${d.slice(0,d.length-10)} ${d.slice(d.length-10,d.length-7)} ${d.slice(d.length-7,d.length-4)} ${d.slice(d.length-4)}`;
+    return `+${d}`;
+  }
+
+  formatDisplayName(name?: string): string {
+    if (!name) return 'Desconocido';
+    const digits = name.replace(/\D/g, '');
+    if (digits.length >= 10 && /^\d+$/.test(digits))
+      return this.formatPhoneDisplay(name);
+    return name;
+  }
+
   avatarSrc(contact?: WaChat): string {
     return contact?.avatar || this.fallbackAvatar(contact?.name || contact?.phone || 'WhatsApp');
   }
@@ -3039,11 +3073,11 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
 
     if (!msg.fromMe) {
       this.subs.add(this.waService.markRead(this.activeContact.id).subscribe());
+      if (this.unreadDividerMsgId) this.unreadDividerMsgId = null;
     }
 
-    this.shouldScroll = true;
+    if (this.isNearBottom()) this.shouldScroll = true;
     this.cdr.detectChanges();
-    this.reloadActiveMessages();
   }
 
   private handleAssignment(event: AwChatAssigned): void {
@@ -3328,6 +3362,12 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     }
   }
 
+  private isNearBottom(): boolean {
+    const el = this.messagesContainer?.nativeElement as HTMLElement | undefined;
+    if (!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 200;
+  }
+
   // ── Progressive message loading (scroll-up to load older) ─────────────
   onScrollMessages(): void {
     const el = this.messagesContainer?.nativeElement as HTMLElement | undefined;
@@ -3341,6 +3381,9 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
 
     const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
     this.showScrollToBottom = !atBottom;
+    if (atBottom && this.unreadDividerMsgId) {
+      this.unreadDividerMsgId = null;
+    }
   }
 
   private loadOlderMessages(): void {
@@ -3383,5 +3426,15 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     if (el) {
       el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
     }
+  }
+
+  scrollToUnreadDivider(): void {
+    setTimeout(() => {
+      if (this.unreadDividerRef?.nativeElement) {
+        this.unreadDividerRef.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else {
+        this.scrollToBottomSmooth();
+      }
+    }, 100);
   }
 }

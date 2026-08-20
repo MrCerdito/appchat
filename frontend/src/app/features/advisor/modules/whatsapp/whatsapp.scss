@@ -919,6 +919,30 @@ a{text-decoration:none;color:inherit}
   }
 }
 
+.messages-skeleton {
+  display: flex; flex-direction: column; gap: 8px; padding: 20px 16px;
+}
+.skel-bubble {
+  height: 36px; border-radius: 12px; background: var(--wa-surface-2, #e9edef);
+  animation: skelPulse 1.2s ease-in-out infinite;
+  &.skel-in { width: 65%; align-self: flex-start; border-bottom-left-radius: 4px; }
+  &.skel-out { width: 50%; align-self: flex-end; border-bottom-right-radius: 4px; background: rgba(var(--wa-green-rgb, 37,211,102), .15); }
+}
+@keyframes skelPulse { 0%,100%{opacity:.6} 50%{opacity:1} }
+
+.unread-divider {
+  display: flex; align-items: center; justify-content: center;
+  position: sticky; top: 0; z-index: 3;
+  margin: 10px 0 4px; pointer-events: none;
+
+  span {
+    padding: 5px 12px; border-radius: 8px;
+    background: var(--wa-green, #25d366); color: #fff;
+    font-size: 12px; font-weight: 600; white-space: nowrap;
+    box-shadow: 0 1px 4px rgba(0,0,0,.15);
+  }
+}
+
 .msg-row{
   display:flex; flex-direction:column; align-items:flex-start; margin-bottom:2px;
   &.out{align-items:flex-end}
