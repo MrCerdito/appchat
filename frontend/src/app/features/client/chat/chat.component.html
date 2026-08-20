@@ -665,6 +665,36 @@
         </div>
         }
 
+        <!-- Ver FAQ de nuevo -->
+        @if (mostrarFaqMenuEn(i)) {
+        <div class="inline-survey faq-menu-prompt">
+          <div class="survey-question">¿Deseas ver el menú de preguntas frecuentes?</div>
+          <div class="survey-actions">
+            <button class="survey-btn positive" (click)="responderFaqMenu(i, true)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 18l6-6-6-6"/>
+              </svg>
+              Ver preguntas frecuentes
+            </button>
+            <button class="survey-btn negative" (click)="responderFaqMenu(i, false)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+              No, gracias
+            </button>
+          </div>
+        </div>
+        }
+        @if (faqMenuRespondidos.has(i)) {
+        <div class="survey-feedback">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          {{ faqMenuRespondidos.get(i) ? 'Aquí tienes el menú de preguntas frecuentes' : 'Continúa escribiendo tu consulta' }}
+        </div>
+        }
+
       }
 
       <!-- FAQ Interactivo en chat (dentro del scroll) -->
@@ -676,7 +706,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
             </svg>
-            ¿En qué podemos ayudarte?
+            Preguntas frecuentes
           </div>
           <div class="faq-chat-cats">
             @for (cat of faqCategorias; track cat) {
@@ -698,7 +728,7 @@
           </div>
           <div class="faq-chat-rows">
             @for (item of getFaqItemsPorCategoria(faqCategoriaActiva); track item.id) {
-            <button class="faq-chat-row" (click)="selectFaqItem(item.pregunta)" type="button">
+            <button class="faq-chat-row" (click)="selectFaqItem(item)" type="button">
               <span class="faq-row-circle">?</span>
               <span class="faq-row-text">{{ item.pregunta }}</span>
               <span class="faq-row-arrow">&#8250;</span>

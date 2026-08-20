@@ -1974,6 +1974,29 @@ textarea {
   color: $text-secondary;
 }
 
+// ── FAQ interactivo en chat — animaciones ──────────────────────────────────
+.faq-chat-cats {
+  animation: faqFadeIn 0.35s ease-out;
+}
+
+.faq-chat-rows {
+  animation: faqSlideIn 0.3s ease-out;
+}
+
+.faq-menu-prompt {
+  animation: faqFadeIn 0.4s ease-out;
+}
+
+@keyframes faqFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes faqSlideIn {
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }

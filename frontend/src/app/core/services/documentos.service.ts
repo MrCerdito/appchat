@@ -47,6 +47,12 @@ export class DocumentosService {
     return this.http.post(`${this.url}/search`, { query, rol, topK: 8 });
   }
 
+  buscarPublico(query: string, rol?: string): Observable<{ documentos: any[] }> {
+    return this.http.post<{ documentos: any[] }>(
+      `${this.url}/public-search`, { query, rol, topK: 3 },
+    );
+  }
+
   actualizarRoles(nombreOriginal: string, data: {
     nombre         : string;
     descripcion    : string;

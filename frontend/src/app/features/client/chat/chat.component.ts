@@ -24,6 +24,7 @@ import { FaqService, Faq } from '../../../core/services/faq.service';
 import { PqrsComponent } from '../pqrs/pqrs.component';
 import { ToastContainerComponent } from '../../../shared/components/toast-container.component';
 import { MaintenanceService } from '../../../core/services/maintenance.service';
+import { DocumentosService } from '../../../core/services/documentos.service';
 import {
   VoiceRecorderComponent,
   VoiceRecordingResult,
@@ -85,6 +86,8 @@ export class ChatComponent implements OnInit, OnDestroy {
   aiTyping  = false;
   ofertasAsesorPendientes  = new Set<number>();
   ofertasAsesorRespondidas = new Map<number, boolean>();
+  faqMenuPendientes  = new Set<number>();
+  faqMenuRespondidos = new Map<number, boolean>();
   mostrarConfirmCierre    = false;
   mostrarAsesoresOcupados = false;
   reconexionActiva = false;
@@ -358,6 +361,7 @@ get rolLabel(): string {
     private notification  : NotificationService,
     private chatMedia     : ChatMediaService,
     private maintenance   : MaintenanceService,
+    private docService    : DocumentosService,
     private faqService    : FaqService,
   ) {}
 
@@ -1501,11 +1505,93 @@ get rolLabel(): string {
     return this.faqItems.filter(f => f.categoria === cat);
   }
 
-  selectFaqItem(pregunta: string): void {
+  selectFaqItem(item: Faq): void {
     this.faqCategoriaActiva = null;
     this.showFaqInChat = false;
-    this.newMessage = pregunta;
-    this.sendToAi();
+
+    // 1. Pregunta del usuario como mensaje propio
+    this.addAiMessage('user', item.pregunta);
+
+    // 2. Crear bot msg vacío (se llena tras typing)
+    const botIdx = this.messages.length;
+    this.messages.push({
+      id: Date.now().toString(),
+      content: '',
+      senderType: 'advisor',
+      createdAt: new Date().toISOString(),
+      readAt: null,
+      documentos: [],
+    } as any);
+    this.cdr.detectChanges();
+
+    // 3. Typing simulation: duración según longitud de respuesta
+    const textLen = (item.respuesta || '').length;
+    const typingMs = textLen > 500 ? 1000 : textLen > 200 ? 800 : 600;
+    this.aiTyping = true;
+    this.scrollToBottom();
+
+    setTimeout(() => {
+      // 4. Renderizar respuesta completa de la FAQ
+      this.messages[botIdx].content =
+        item.respuesta || 'No hay respuesta disponible para esta pregunta.';
+      this.aiTyping = false;
+
+      // 5. Agregar al historial de la IA para contexto futuro
+      this.aiHistory.push({ role: 'user', text: item.pregunta });
+      this.aiHistory.push({ role: 'model', text: item.respuesta });
+      localStorage.setItem(AI_HISTORY_KEY, JSON.stringify(this.aiHistory));
+
+      // 6. Buscar documentos relacionados
+      const queryBusqueda = [
+        item.pregunta,
+        item.respuesta,
+        ...(item.keywords || []),
+      ].join(' ').slice(0, 300);
+
+      this.docService
+        .buscarPublico(queryBusqueda, this.rol || undefined)
+        .subscribe({
+          next: (res) => {
+            const docs = res?.documentos;
+            if (docs?.length) {
+              (this.messages[botIdx] as any).documentos = docs.slice(0, 3);
+            }
+            // 7. Prompt "ver FAQ de nuevo"
+            this.faqMenuPendientes.add(botIdx);
+            this.cdr.detectChanges();
+            this.scrollToBottom();
+          },
+          error: () => {
+            this.faqMenuPendientes.add(botIdx);
+            this.cdr.detectChanges();
+            this.scrollToBottom();
+          },
+        });
+
+      this.scrollToBottom();
+      this.cdr.detectChanges();
+    }, typingMs);
+  }
+
+  mostrarFaqMenuEn(index: number): boolean {
+    return this.faqMenuPendientes.has(index) && !this.faqMenuRespondidos.has(index);
+  }
+
+  responderFaqMenu(index: number, quiereVer: boolean): void {
+    this.faqMenuPendientes.delete(index);
+    this.faqMenuRespondidos.set(index, quiereVer);
+
+    if (quiereVer) {
+      this.showFaqInChat = true;
+      this.faqCategoriaActiva = null;
+      setTimeout(() => this.scrollToBottom(), 0);
+    } else {
+      this.addAiMessage(
+        'model',
+        '¡Perfecto! Continúa escribiendo tu consulta y con gusto te ayudo. 😊',
+      );
+    }
+    this.cdr.detectChanges();
   }
 
   mostrarEncuestaEn(index: number): boolean {
@@ -1825,6 +1911,10 @@ private normalizePhotoUrl(url: string): string {
     this.aiMode = false;
     this.encuestasRespondidas.clear();
     this.encuestasPendientes.clear();
+    this.ofertasAsesorPendientes.clear();
+    this.ofertasAsesorRespondidas.clear();
+    this.faqMenuPendientes.clear();
+    this.faqMenuRespondidos.clear();
     this.aiMsgCount = 0;
     localStorage.removeItem(AI_HISTORY_KEY);
     localStorage.removeItem(AI_MESSAGES_KEY);
@@ -2020,6 +2110,8 @@ private normalizePhotoUrl(url: string): string {
     this.ratingEtiquetas = []; this.ratingEnviado = false; this.sessionIdParaRating = null;
     this.mostrarAsesoresOcupados = false; this.queuePosition = -1; this.queueTotal = null; this.clientTimer = null;
     this.encuestasRespondidas.clear(); this.encuestasPendientes.clear(); this.aiMsgCount = 0;
+    this.ofertasAsesorPendientes.clear(); this.ofertasAsesorRespondidas.clear();
+    this.faqMenuPendientes.clear(); this.faqMenuRespondidos.clear();
     this.faqCategorias = []; this.faqItems = []; this.faqCategoriaActiva = null; this.showFaqInChat = false;
 
     this.socket.disconnect();

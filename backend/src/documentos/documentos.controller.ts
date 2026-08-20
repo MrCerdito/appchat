@@ -20,7 +20,9 @@ import { existsSync, mkdirSync, readFileSync, unlinkSync } from 'fs'; // Añadir
 import { DocumentosService } from './documentos.service';
 import { MAPA_ROLES, ROLES_DEFAULT } from './roles.util';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Public } from '../auth/public.decorator';
 import { Roles, RolesGuard } from '../auth/roles.guard';
+import { Throttle } from '@nestjs/throttler';
 
 // Directorio donde se guardan los PDFs subidos
 const UPLOADS_DIR = join(process.cwd(), 'uploads', 'documentos');
@@ -181,5 +183,21 @@ export class DocumentosController {
       body.rol || undefined,
       body.topK ? Number(body.topK) : 8,
     );
+  }
+
+  // ── Buscar documentos públicos (widget cliente — FAQ) ─────────────────────
+  @Public()
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Post('public-search')
+  async buscarPublico(
+    @Body()
+    body: { query: string; rol?: string; topK?: number },
+  ) {
+    const result = await this.docService.buscarRelevantes(
+      body.query,
+      body.rol || undefined,
+      body.topK ? Number(body.topK) : 3,
+    );
+    return { documentos: result.documentos ?? [] };
   }
 }
