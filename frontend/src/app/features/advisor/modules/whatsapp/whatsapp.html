@@ -648,7 +648,7 @@
       </div>
     </header>
 
-    <section class="messages-bg" #messagesContainer (scroll)="onScrollMessages()" [style.overflow]="chatReady ? '' : 'hidden'">
+    <section class="messages-bg" #messagesContainer (scroll)="onScrollMessages()" [style.visibility]="chatReady ? 'visible' : 'hidden'">
       @if (isLoadingMessages) {
       <div class="messages-skeleton">
         <div class="skel-bubble skel-in"></div>

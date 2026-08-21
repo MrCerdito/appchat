@@ -103,7 +103,7 @@
       </div>
     </header>
 
-    <section class="ic-messages" #icMessages (scroll)="onScrollMessages()" [style.overflow]="chatReady ? '' : 'hidden'">
+    <section class="ic-messages" #icMessages (scroll)="onScrollMessages()" [style.visibility]="chatReady ? 'visible' : 'hidden'">
       @if (isLoadingMessages && !messages.length) {
       <div class="ic-msgs-skeleton">
         @for (i of [0, 1, 2, 3, 4]; track i) {
