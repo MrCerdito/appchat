@@ -152,6 +152,9 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
   unreadDividerMsgId: string | null = null;
   unreadDividerCount = 0;
   chatReady = false;
+  private pendingInitialScroll = false;
+  private pendingUnreadCount = 0;
+  private pendingDividerIdx: number | null = null;
 
   constructor(
     private readonly internalChat: InternalChatService,
@@ -198,6 +201,26 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
         const last = list.length ? list[list.length - 1] : null;
         this.lastMsgId = last?.id ?? '';
         this.cdr.detectChanges();
+
+        if (this.pendingInitialScroll && list.length > 0) {
+          this.pendingInitialScroll = false;
+          const container = this.messagesContainer?.nativeElement as HTMLElement | undefined;
+          if (container) {
+            if (this.unreadDividerCount > 0 && this.unreadDividerMsgId) {
+              const divider = container.querySelector('[data-unread-divider]') as HTMLElement | null;
+              if (divider) {
+                const top = divider.offsetTop - container.clientHeight / 2 + divider.clientHeight / 2;
+                container.scrollTop = Math.max(0, top);
+              } else {
+                container.scrollTop = container.scrollHeight;
+              }
+            } else {
+              container.scrollTop = container.scrollHeight;
+            }
+          }
+          this.chatReady = true;
+          this.cdr.detectChanges();
+        }
       }),
     );
     this.subs.add(
@@ -222,7 +245,7 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
   }
 
   ngAfterViewChecked(): void {
-    if (!this.messagesContainer) return;
+    if (!this.chatReady || !this.messagesContainer) return;
     const list = this.messages;
     const last = list.length ? list[list.length - 1] : null;
     if (!last) return;
@@ -429,7 +452,13 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
     this.unreadDividerMsgId = null;
     this.unreadDividerCount = 0;
     this.chatReady = false;
+    this.pendingInitialScroll = true;
     const unreadCount = conv.unreadCount || 0;
+    if (unreadCount > 0) {
+      const dividerIdx = Math.max(0, 50 - unreadCount);
+      this.unreadDividerCount = unreadCount;
+      this.pendingDividerIdx = dividerIdx;
+    }
     this.internalChat.setActiveConversation(conv.id);
     this.closeImage();
     this.isLoadingMessages = true;
@@ -438,31 +467,11 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
     this.internalChat.loadMessages(conv.id).subscribe({
       next: (msgs) => {
         this.hasMoreMessages = msgs.length >= 50;
-        this.messages = msgs;
-        if (unreadCount > 0 && msgs.length > 0) {
-          const dividerIdx = Math.max(0, msgs.length - unreadCount);
-          this.unreadDividerMsgId = msgs[dividerIdx]?.id || null;
-          this.unreadDividerCount = unreadCount;
-          this.cdr.detectChanges();
-          const container = this.messagesContainer?.nativeElement as HTMLElement | undefined;
-          if (container) {
-            const divider = container.querySelector('[data-unread-divider]') as HTMLElement | null;
-            if (divider) {
-              const top = divider.offsetTop - container.clientHeight / 2 + divider.clientHeight / 2;
-              container.scrollTop = Math.max(0, top);
-            } else {
-              container.scrollTop = container.scrollHeight;
-            }
-          }
-          this.chatReady = true;
-          this.cdr.detectChanges();
-        } else {
-          this.cdr.detectChanges();
-          const container = this.messagesContainer?.nativeElement as HTMLElement | undefined;
-          if (container) container.scrollTop = container.scrollHeight;
-          this.chatReady = true;
-          this.cdr.detectChanges();
+        if (this.pendingDividerIdx !== null && msgs.length > 0) {
+          const idx = Math.min(this.pendingDividerIdx, msgs.length - 1);
+          this.unreadDividerMsgId = msgs[idx]?.id || null;
         }
+        this.pendingDividerIdx = null;
       },
       complete: () => {
         this.isLoadingMessages = false;
@@ -477,6 +486,8 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
     this.unreadDividerMsgId = null;
     this.unreadDividerCount = 0;
     this.chatReady = false;
+    this.pendingInitialScroll = false;
+    this.pendingDividerIdx = null;
     this.internalChat.setActiveConversation(null);
     this.cdr.detectChanges();
   }
