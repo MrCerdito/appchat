@@ -1289,11 +1289,20 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
     this.mediaPanY = Math.min(Math.max(this.mediaPanY, -maxY), maxY);
   }
 
-  @HostListener('window:click')
-  onWindowClick(): void {
+  @HostListener('window:click', ['$event'])
+  onWindowClick(event?: MouseEvent): void {
+    if (event && event.button !== 0) return;
     if (this.contextMenu) this.closeContextMenu();
-    if (this.convContextMenu) this.closeConvContextMenu();
     if (this.showAttachMenu) this.showAttachMenu = false;
+  }
+
+  closeConvContextMenuIfOutside(event?: MouseEvent): void {
+    if (!this.convContextMenu) return;
+    if (event) {
+      const target = event.target as HTMLElement;
+      if (target.closest('.ic-conv-context')) return;
+    }
+    this.closeConvContextMenu();
   }
 
   // ── Progressive message loading (scroll-up to load older) ─────────────
