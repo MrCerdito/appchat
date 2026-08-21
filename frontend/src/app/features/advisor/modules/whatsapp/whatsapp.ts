@@ -349,6 +349,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   isLoadingMessages = false;
   showScrollToBottom = false;
   unreadDividerMsgId: string | null = null;
+  unreadDividerCount = 0;
   private messagePage = 1;
 
   private shouldScroll = false;
@@ -490,7 +491,6 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     this.subs.add(
       this.waService.onChatUpdated().subscribe(chat => {
         if (this.activeContact && this.activeContact.id === chat.id) {
-          if (this.isNearBottom()) this.shouldScroll = true;
           this.cdr.detectChanges();
         }
       }),
@@ -904,6 +904,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     this.isLoadingOlder = false;
     this.isLoadingMessages = true;
     this.unreadDividerMsgId = null;
+    this.unreadDividerCount = 0;
     this.messagePage = 1;
     this.closeMediaPreview();
     this.closeVideoFullscreen();
@@ -929,10 +930,10 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
         if (unreadCount > 0 && messages.length > 0) {
           const dividerIdx = Math.max(0, messages.length - unreadCount);
           this.unreadDividerMsgId = messages[dividerIdx]?.id || null;
+          this.unreadDividerCount = unreadCount;
           this.scrollToUnreadDivider();
         } else {
-          setTimeout(() => this.scrollToBottomSmooth(), 80);
-          setTimeout(() => this.scrollToBottomSmooth(), 300);
+          this.scrollToBottom();
         }
         this.cdr.detectChanges();
       }),
@@ -946,6 +947,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     this.showInfoPanel = false;
     this.messageMenu = undefined;
     this.unreadDividerMsgId = null;
+    this.unreadDividerCount = 0;
     this.isLoadingMessages = false;
     this.cancelEditMessage();
     this.cdr.detectChanges();
@@ -2440,7 +2442,10 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
 
   onInputChange(): void {
     this.resizeMessageInput();
-    if (this.messageText && this.unreadDividerMsgId) this.unreadDividerMsgId = null;
+    if (this.messageText && this.unreadDividerMsgId) {
+      this.unreadDividerMsgId = null;
+      this.unreadDividerCount = 0;
+    }
     const slashIdx = this.messageText.lastIndexOf('/');
     if (slashIdx === -1) {
       this.showSlashMenu = false;
@@ -3077,7 +3082,6 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
       this.subs.add(this.waService.markRead(this.activeContact.id).subscribe());
     }
 
-    if (this.isNearBottom()) this.shouldScroll = true;
     this.cdr.detectChanges();
   }
 

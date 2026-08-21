@@ -120,6 +120,13 @@
       <div class="ic-date-group">
       <div class="ic-date-sep"><span>{{ group.label }}</span></div>
       @for (msg of group.messages; track msg.id) {
+      @if (unreadDividerMsgId && msg.id === unreadDividerMsgId) {
+      <div class="ic-unread-divider" data-unread-divider>
+        <div class="ic-unread-divider-line"></div>
+        <span class="ic-unread-divider-label">Mensajes sin leer</span>
+        <div class="ic-unread-divider-line"></div>
+      </div>
+      }
       <div class="ic-msg-row" [ngClass]="messageOwn(msg) ? 'out' : 'in'" [attr.data-msg-id]="msg.id">
         @if (!messageOwn(msg) && msg.type !== 'system') {
         <div class="ic-msg-avatar" [title]="msg.senderName">

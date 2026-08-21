@@ -931,16 +931,24 @@ a{text-decoration:none;color:inherit}
 @keyframes skelPulse { 0%,100%{opacity:.6} 50%{opacity:1} }
 
 .unread-divider {
-  display: flex; align-items: center; justify-content: center;
-  position: sticky; top: 0; z-index: 3;
-  margin: 10px 0 4px; pointer-events: none;
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; padding: 12px 0; margin: 8px 0;
+  pointer-events: none; user-select: none;
+}
 
-  span {
-    padding: 5px 12px; border-radius: 8px;
-    background: var(--wa-green, #25d366); color: #fff;
-    font-size: 12px; font-weight: 600; white-space: nowrap;
-    box-shadow: 0 1px 4px rgba(0,0,0,.15);
-  }
+.unread-divider-line {
+  flex: 1; height: 1px;
+  background: var(--wa-green, #25d366); opacity: 0.5;
+}
+
+.unread-divider-label {
+  flex-shrink: 0;
+  padding: 6px 18px; border-radius: 6px;
+  background: rgba(var(--wa-green-rgb), 0.12);
+  color: var(--wa-green, #25d366);
+  font-size: 12px; font-weight: 700; letter-spacing: 0.3px;
+  white-space: nowrap;
+  border: 1px solid rgba(var(--wa-green-rgb), 0.2);
 }
 
 .msg-row{

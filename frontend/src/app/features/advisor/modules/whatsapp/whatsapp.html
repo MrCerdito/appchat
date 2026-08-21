@@ -667,7 +667,9 @@
       @for (msg of group.messages; track trackById($index, msg)) {
       @if (unreadDividerMsgId && msg.id === unreadDividerMsgId) {
       <div class="unread-divider" #unreadDivider>
-        <span>{{ activeContact?.unread || '?' }} mensaje(s) nuevo(s)</span>
+        <div class="unread-divider-line"></div>
+        <span class="unread-divider-label">Mensajes sin leer</span>
+        <div class="unread-divider-line"></div>
       </div>
       }
       <div
