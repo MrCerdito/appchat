@@ -29,7 +29,7 @@
       </div>
       } @else {
       @for (conv of filteredConversations; track conv.id) {
-      <button type="button" class="ic-item" [class.active]="activeConversation?.id === conv.id" (click)="selectConversation(conv)">
+      <button type="button" class="ic-item" [class.active]="activeConversation?.id === conv.id" [class.is-muted]="isMuted(conv.id)" (click)="selectConversation(conv)" (contextmenu)="onConvContextMenu($event, conv)">
         <div class="ic-avatar" [class.is-group]="conv.type === 'group'">
           @if (conversationPhotoUrl(conv)) {
           <img [src]="conversationPhotoUrl(conv)" [alt]="conversationName(conv)" referrerpolicy="no-referrer" />
@@ -38,10 +38,16 @@
           } @else {
           {{ conversationAvatar(conv) }}
           }
+          @if (isMuted(conv.id)) {
+          <span class="ic-mute-dot"></span>
+          }
         </div>
         <div class="ic-item-info">
           <div class="ic-item-top">
             <span class="ic-item-name" [class.has-unread]="conv.unreadCount > 0">{{ conversationName(conv) }}</span>
+            @if (isMuted(conv.id)) {
+            <wa-icon name="bell-off" class="ic-mute-icon"></wa-icon>
+            }
             <span class="ic-item-time">{{ convTime(conv) }}</span>
           </div>
           <div class="ic-item-preview" [class.has-unread]="conv.unreadCount > 0">{{ previewText(conv) }}</div>
@@ -514,6 +520,15 @@
     @if (canDelete(contextMenu.message)) {
     <button type="button" class="danger" (click)="deleteMessage(contextMenu.message)"><wa-icon name="trash"></wa-icon>Eliminar</button>
     }
+  </div>
+  }
+
+  @if (convContextMenu) {
+  <div class="ic-context ic-conv-context" [style.left.px]="convContextMenu.x" [style.top.px]="convContextMenu.y">
+    <button type="button" (click)="toggleMute(convContextMenu.conv)">
+      <wa-icon [name]="isMuted(convContextMenu.conv.id) ? 'bell' : 'bell-off'"></wa-icon>
+      {{ isMuted(convContextMenu.conv.id) ? 'Activar notificaciones' : 'Silenciar chat' }}
+    </button>
   </div>
   }
 

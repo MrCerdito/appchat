@@ -615,12 +615,22 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private handleGlobalInternalMessage(message: InternalMessage): void {
     if (message.senderId === this.currentAdvisor?.id) return;
     if (message.type === 'system') return;
+    if (this.isInternalConversationMuted(message.conversationId)) return;
     this.sound.playWhatsappAssignedMessage();
     this.sound.notify(
       'CHAT INTERNO',
       `${message.senderName}\n${message.body || this.internalMediaLabel(message)}`,
       `internal-message-${message.conversationId}`,
     );
+  }
+
+  private isInternalConversationMuted(conversationId: string): boolean {
+    try {
+      const raw = localStorage.getItem('ic_muted_conversations');
+      if (!raw) return false;
+      const arr = JSON.parse(raw) as string[];
+      return arr.includes(conversationId);
+    } catch { return false; }
   }
 
   get whatsappTotalUnread(): number {

@@ -1122,6 +1122,27 @@ a { text-decoration: none; color: inherit; }
   }
 }
 
+// ── Muted conversation indicators ─────────────────────────────────────────────
+.ic-item.is-muted { opacity: 0.65; }
+
+.ic-mute-dot {
+  position: absolute; bottom: 0; right: 0;
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--wa-muted, #667781);
+  border: 2px solid var(--wa-surface, #fff);
+  display: flex; align-items: center; justify-content: center;
+
+  &::after {
+    content: ''; display: block; width: 5px; height: 5px;
+    background: var(--wa-surface, #fff); border-radius: 1px;
+    clip-path: polygon(20% 0, 80% 0, 80% 20%, 100% 20%, 100% 80%, 80% 80%, 80% 100%, 20% 100%, 20% 80%, 0 80%, 0 20%, 20% 20%);
+  }
+}
+
+.ic-mute-icon {
+  font-size: 14px; color: var(--wa-muted, #667781); flex-shrink: 0;
+}
+
 // ── Modal ───────────────────────────────────────────────────────────────────
 .ic-backdrop {
   position: absolute;

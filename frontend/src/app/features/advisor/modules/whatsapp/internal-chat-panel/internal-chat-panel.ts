@@ -106,6 +106,8 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
 
   contextMenu: ContextMenuState | null = null;
   showReactionsForId: string | null = null;
+  convContextMenu: { conv: InternalConversation; x: number; y: number } | null = null;
+  mutedConversations = new Set<string>();
 
   showForwardPicker = false;
   forwardSource: InternalMessage | null = null;
@@ -164,7 +166,63 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
     private readonly sanitizer: DomSanitizer,
   ) {}
 
+  private readonly MUTED_KEY = 'ic_muted_conversations';
+
+  private loadMuted(): void {
+    try {
+      const raw = localStorage.getItem(this.MUTED_KEY);
+      if (raw) {
+        const arr = JSON.parse(raw) as string[];
+        this.mutedConversations = new Set(arr);
+      }
+    } catch { /* ignore */ }
+  }
+
+  private saveMuted(): void {
+    localStorage.setItem(this.MUTED_KEY, JSON.stringify([...this.mutedConversations]));
+  }
+
+  isMuted(convId: string): boolean {
+    return this.mutedConversations.has(convId);
+  }
+
+  toggleMute(conv: InternalConversation): void {
+    if (this.mutedConversations.has(conv.id)) {
+      this.mutedConversations.delete(conv.id);
+    } else {
+      this.mutedConversations.add(conv.id);
+    }
+    this.saveMuted();
+    this.convContextMenu = null;
+    this.cdr.detectChanges();
+  }
+
+  onConvContextMenu(event: MouseEvent, conv: InternalConversation): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.convContextMenu = { conv, x: event.clientX, y: event.clientY };
+    this.cdr.detectChanges();
+    requestAnimationFrame(() => this.clampConvContextMenu());
+  }
+
+  private clampConvContextMenu(): void {
+    if (!this.convContextMenu) return;
+    const el = document.querySelector('.ic-conv-context') as HTMLElement | null;
+    if (!el) return;
+    const menuW = el.offsetWidth;
+    const menuH = el.offsetHeight;
+    let { x, y } = this.convContextMenu;
+    if (x + menuW > window.innerWidth - 8) x = window.innerWidth - menuW - 8;
+    if (y + menuH > window.innerHeight - 8) y = window.innerHeight - menuH - 8;
+    this.convContextMenu = { ...this.convContextMenu, x, y };
+  }
+
+  closeConvContextMenu(): void {
+    this.convContextMenu = null;
+  }
+
   ngOnInit(): void {
+    this.loadMuted();
     const user = this.authService.getUser();
     this.currentUserId = user?.id || '';
     this.currentUserName = user?.name || '';
@@ -1234,6 +1292,7 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
   @HostListener('window:click')
   onWindowClick(): void {
     if (this.contextMenu) this.closeContextMenu();
+    if (this.convContextMenu) this.closeConvContextMenu();
     if (this.showAttachMenu) this.showAttachMenu = false;
   }
 

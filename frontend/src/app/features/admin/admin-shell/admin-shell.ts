@@ -205,6 +205,7 @@ export class AdminShellComponent implements OnInit, OnDestroy {
       .subscribe(message => {
         if (message.senderId === this.currentAdmin?.id) return;
         if (message.type === 'system') return;
+        if (this.isInternalConversationMuted(message.conversationId)) return;
         this.sound.playWhatsappAssignedMessage();
         this.sound.notify(
           'CHAT INTERNO',
@@ -287,5 +288,14 @@ export class AdminShellComponent implements OnInit, OnDestroy {
       this.sidebarCollapsed = this.isOperacionesRoute;
     }
     this.sidebarOpen = false;
+  }
+
+  private isInternalConversationMuted(conversationId: string): boolean {
+    try {
+      const raw = localStorage.getItem('ic_muted_conversations');
+      if (!raw) return false;
+      const arr = JSON.parse(raw) as string[];
+      return arr.includes(conversationId);
+    } catch { return false; }
   }
 }
