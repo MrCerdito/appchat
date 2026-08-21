@@ -936,7 +936,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
           this.cdr.detectChanges();
           const el = this.messagesContainer?.nativeElement;
           if (el) {
-            const divider = el.querySelector<HTMLElement>('[data-unread-divider]');
+            const divider = el.querySelector('[data-unread-divider]') as HTMLElement | null;
             if (divider) {
               const top = divider.offsetTop - el.clientHeight / 2 + divider.clientHeight / 2;
               el.scrollTop = Math.max(0, top);

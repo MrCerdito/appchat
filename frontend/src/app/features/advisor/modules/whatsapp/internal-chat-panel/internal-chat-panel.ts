@@ -446,7 +446,7 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
           this.cdr.detectChanges();
           const container = this.messagesContainer?.nativeElement as HTMLElement | undefined;
           if (container) {
-            const divider = container.querySelector<HTMLElement>('[data-unread-divider]');
+            const divider = container.querySelector('[data-unread-divider]') as HTMLElement | null;
             if (divider) {
               const top = divider.offsetTop - container.clientHeight / 2 + divider.clientHeight / 2;
               container.scrollTop = Math.max(0, top);
