@@ -71,6 +71,10 @@ export class AiService {
     return this.http.post<{ summary: string }>(`${this.baseUrl}/ai/whatsapp/summary`, payload);
   }
 
+  improveForClient(text: string, tone?: string): Observable<{ improved: string }> {
+    return this.http.post<{ improved: string }>(`${this.baseUrl}/ai/improve`, { text, tone });
+  }
+
   chatStream(
     message       : string,
     history       : AiMessage[],

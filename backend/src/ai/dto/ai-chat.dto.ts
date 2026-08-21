@@ -33,3 +33,14 @@ export class AiChatDto {
   @IsOptional()
   welcome?: string;
 }
+
+export class AiImproveDto {
+  @IsString()
+  @MaxLength(1000)
+  text: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(30)
+  tone?: string;
+}

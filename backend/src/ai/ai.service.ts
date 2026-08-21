@@ -1188,6 +1188,25 @@ ${cleanDraft}`;
     return prev[b.length];
   }
 
+  async improveForClient(text: string, tone?: string): Promise<{ improved: string }> {
+    const toneMap: Record<string, string> = {
+      formal:  'formal y profesional, institucional',
+      educado: 'amable, respetuoso y cortés',
+      directo: 'claro, conciso y sin rodeos',
+      corregir: 'corrigiendo ortografía, gramática y puntuación',
+      resumir: 'más corto y conciso, manteniendo la idea principal',
+    };
+    const toneLabel = toneMap[tone || 'formal'] || toneMap.formal;
+
+    const prompt = `Reescribe el siguiente texto en tono ${toneLabel}.
+Devuelve SOLO el texto reescrito, sin explicaciones, sin comillas, sin formato adicional.
+
+Texto: "${text}"`;
+
+    const result = await this.generateCompactText(prompt, 256, 0.7);
+    return { improved: this.cleanAiPlainText(result) };
+  }
+
   async summarizeWhatsappConversation(input: {
     clientName?: string;
     institution?: string;

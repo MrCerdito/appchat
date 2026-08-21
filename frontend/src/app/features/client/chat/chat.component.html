@@ -917,16 +917,110 @@
         <textarea rows="1" placeholder="Escribe un mensaje..."
           [(ngModel)]="newMessage"
           (keyup)="handleKey($event)"
-          (input)="autoResize($event)"
+          (input)="autoResize($event); onImproveInput()"
           [disabled]="sesionFinalizando"
           maxlength="1000"></textarea>
       </div>
+
+      @if (aiMode && !chatFinalizado) {
+      <button class="input-icon-btn improve-btn" type="button" title="Mejorar mensaje"
+        (click)="openImprovePanel()"
+        [disabled]="!newMessage.trim() || isImproving || sesionFinalizando">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>
+          <path d="M20 3v4"/>
+          <path d="M22 5h-4"/>
+        </svg>
+      </button>
+      }
+
       <button class="send-btn" (click)="send()" [disabled]="(!newMessage.trim() && previewFiles.length === 0) || isRecordingAudio || sesionFinalizando">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <line x1="22" y1="2" x2="11" y2="13"/>
           <polygon points="22 2 15 22 11 13 2 9 22 2"/>
         </svg>
       </button>
+    </div>
+    }
+
+    <!-- Suggestion chips -->
+    @if (showSuggestionChips && aiMode && !chatFinalizado) {
+    <div class="suggestion-chips">
+      <button class="suggestion-chip" (click)="openImproveWithTone('formal')">Formal</button>
+      <button class="suggestion-chip" (click)="openImproveWithTone('educado')">Educado</button>
+      <button class="suggestion-chip" (click)="openImproveWithTone('corregir')">Corregir</button>
+      <button class="suggestion-chip" (click)="openImproveWithTone('resumir')">Resumir</button>
+    </div>
+    }
+
+    <!-- Improve panel -->
+    @if (showImprovePanel) {
+    <div class="improve-backdrop" (click)="closeImprovePanel()"></div>
+    <div class="improve-panel">
+      <div class="improve-header">
+        <span class="improve-title">Mejorar mensaje</span>
+        <button class="improve-close" (click)="closeImprovePanel()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="improve-current-text">{{ newMessage }}</div>
+
+      @if (!improvedText && !isImproving) {
+      <div class="improve-tones">
+        <button class="improve-tone" [class.active]="improveTone === 'formal'" (click)="selectImproveTone('formal')">
+          <span class="improve-tone-label">Formal</span>
+          <span class="improve-tone-desc">Profesional e institucional</span>
+        </button>
+        <button class="improve-tone" [class.active]="improveTone === 'educado'" (click)="selectImproveTone('educado')">
+          <span class="improve-tone-label">Educado</span>
+          <span class="improve-tone-desc">Amable y respetuoso</span>
+        </button>
+        <button class="improve-tone" [class.active]="improveTone === 'corregir'" (click)="selectImproveTone('corregir')">
+          <span class="improve-tone-label">Corregir</span>
+          <span class="improve-tone-desc">Ortografia y gramatica</span>
+        </button>
+        <button class="improve-tone" [class.active]="improveTone === 'resumir'" (click)="selectImproveTone('resumir')">
+          <span class="improve-tone-label">Resumir</span>
+          <span class="improve-tone-desc">Mas corto, misma idea</span>
+        </button>
+      </div>
+
+      <button class="improve-generate" [disabled]="!improveTone" (click)="generateImprovedText()">
+        Mejorar mensaje
+      </button>
+      }
+
+      @if (isImproving) {
+      <div class="improve-spinner">
+        <div class="spinner"></div>
+        <span>Mejorando...</span>
+      </div>
+      }
+
+      @if (improvedText && !isImproving) {
+      <div class="improve-result">
+        <div class="improve-result-text">{{ improvedText }}</div>
+        <div class="improve-actions">
+          <button class="improve-ghost" (click)="generateImprovedText()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.5 2v6h-6"/><path d="M2.5 22v-6h6"/>
+              <path d="M21.34 15.57A10 10 0 0 1 2.5 12"/>
+              <path d="M2.66 8.43A10 10 0 0 1 21.5 12"/>
+            </svg>
+            Regenerar
+          </button>
+          <button class="improve-apply" (click)="applyImprovedText()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            Usar esta
+          </button>
+        </div>
+      </div>
+      }
     </div>
     }
 

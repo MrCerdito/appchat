@@ -90,6 +90,12 @@ export class ChatComponent implements OnInit, OnDestroy {
   faqMenuRespondidos = new Map<number, boolean>();
   chatFinalizado = false;
   fechaCierre = '';
+  showImprovePanel = false;
+  isImproving = false;
+  improveTone: string | null = null;
+  improvedText = '';
+  showSuggestionChips = false;
+  private improveDebounceTimer: any = null;
   mostrarConfirmCierre    = false;
   mostrarAsesoresOcupados = false;
   reconexionActiva = false;
@@ -2140,6 +2146,81 @@ private normalizePhotoUrl(url: string): string {
 
     this.chatFinalizado = true;
     this.scrollToBottom();
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // MEJORAR MENSAJE
+  // ══════════════════════════════════════════════════════════════════════════
+
+  onImproveInput(): void {
+    clearTimeout(this.improveDebounceTimer);
+    this.showSuggestionChips = false;
+    if (this.newMessage.trim().length >= 20 && this.aiMode && !this.chatFinalizado) {
+      this.improveDebounceTimer = setTimeout(() => {
+        this.showSuggestionChips = true;
+        this.cdr.detectChanges();
+      }, 400);
+    }
+    this.cdr.detectChanges();
+  }
+
+  openImproveWithTone(tone: string): void {
+    this.showSuggestionChips = false;
+    this.improveTone = tone;
+    this.showImprovePanel = true;
+    this.improvedText = '';
+    this.isImproving = true;
+    this.cdr.detectChanges();
+    this.generateImprovedText();
+  }
+
+  openImprovePanel(): void {
+    this.showImprovePanel = true;
+    this.improveTone = null;
+    this.improvedText = '';
+    this.cdr.detectChanges();
+  }
+
+  closeImprovePanel(): void {
+    this.showImprovePanel = false;
+    this.isImproving = false;
+    this.improvedText = '';
+    this.improveTone = null;
+    this.cdr.detectChanges();
+  }
+
+  selectImproveTone(tone: string): void {
+    this.improveTone = tone;
+    this.cdr.detectChanges();
+  }
+
+  generateImprovedText(): void {
+    if (!this.newMessage.trim() || this.isImproving) return;
+    this.isImproving = true;
+    this.improvedText = '';
+    this.cdr.detectChanges();
+
+    this.aiService.improveForClient(this.newMessage.trim(), this.improveTone || undefined)
+      .pipe(takeUntil(this.socketDestroy$))
+      .subscribe({
+        next: (res) => {
+          this.improvedText = res.improved;
+          this.isImproving = false;
+          this.cdr.detectChanges();
+        },
+        error: () => {
+          this.isImproving = false;
+          this.improvedText = 'No se pudo mejorar el mensaje. Intenta de nuevo.';
+          this.cdr.detectChanges();
+        },
+      });
+  }
+
+  applyImprovedText(): void {
+    if (!this.improvedText) return;
+    this.newMessage = this.improvedText.slice(0, 1000);
+    this.closeImprovePanel();
+    this.showSuggestionChips = false;
   }
 
   toggleEtiqueta(e: string): void {

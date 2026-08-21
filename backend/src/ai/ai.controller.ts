@@ -4,6 +4,7 @@ import type { Request, Response } from 'express';
 import { AiService } from './ai.service';
 import { AiLogsService } from './ai-logs.service';
 import { AiChatDto } from './dto/ai-chat.dto';
+import { AiImproveDto } from './dto/ai-chat.dto';
 import { ChatService } from '../chat/chat.service';
 import { ChatGateway } from '../chat/chat.gateway';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -246,6 +247,13 @@ export class AiController {
       );
       return null;
     }
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 6, ttl: 60_000 } })
+  @Post('improve')
+  async improve(@Body() dto: AiImproveDto) {
+    return this.aiService.improveForClient(dto.text, dto.tone);
   }
 
   @Public()
