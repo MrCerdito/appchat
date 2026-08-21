@@ -7,36 +7,65 @@ import { MaintenanceService } from '../../core/services/maintenance.service';
   template: `
     @if (maintenance.isMaintenance()) {
     <div class="maintenance-overlay" [style.background-color]="bgColor()">
-      <div class="maintenance-backdrop" [style.background-image]="'url(assets/maintenance.gif)'"></div>
+      <!-- GIF a pantalla completa como fondo -->
+      <img src="assets/maintenance.gif" alt="" class="maintenance-bg"
+        (load)="onGifLoad($event)" />
+
+      <!-- Overlay de gradiente para legibilidad del texto -->
+      <div class="maintenance-gradient"></div>
+
+      <!-- Contenido sobre el fondo -->
       <div class="maintenance-content">
-        <img src="assets/maintenance.gif" alt="Mantenimiento" class="maintenance-gif"
-          (load)="onGifLoad($event)" />
-        <h1 class="maintenance-title" [style.color]="textColor()">ESTAMOS FUERA DE SERVICIO</h1>
-        <p class="maintenance-sub" [style.color]="textColor()">En este momento nos encontramos en mantenimiento.</p>
-        <div class="maintenance-spinner" [style.border-color]="spinnerBorder()" [style.border-top-color]="textColor()"></div>
+        <h1 class="maintenance-title" [style.color]="textColor()">
+          ESTAMOS FUERA DE SERVICIO
+        </h1>
+        <p class="maintenance-sub" [style.color]="textColor()">
+          En este momento nos encontramos en mantenimiento.
+        </p>
+        <div class="maintenance-divider" [style.background-color]="dividerColor()"></div>
+        <p class="maintenance-hint" [style.color]="textColor()">
+          Vuelve a intentarlo en unos minutos.
+        </p>
+        <div class="maintenance-spinner-wrap">
+          <div class="maintenance-spinner" [style.border-color]="spinnerBorder()" [style.border-top-color]="textColor()"></div>
+        </div>
       </div>
     </div>
     }
   `,
   styles: [`
+    :host { display: block; }
+
     .maintenance-overlay {
       position: fixed;
       inset: 0;
       z-index: 99999;
       display: flex;
-      align-items: center;
+      align-items: flex-end;
       justify-content: center;
-      transition: background-color 0.6s ease;
-      animation: fadeIn 0.4s ease;
+      overflow: hidden;
+      animation: fadeIn 0.5s ease;
     }
 
-    .maintenance-backdrop {
+    .maintenance-bg {
       position: absolute;
-      inset: -40px;
-      background-size: cover;
-      background-position: center;
-      filter: blur(50px) saturate(1.8) brightness(0.6);
-      opacity: 0.35;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+    }
+
+    .maintenance-gradient {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        to top,
+        rgba(0, 0, 0, 0.85) 0%,
+        rgba(0, 0, 0, 0.5) 35%,
+        rgba(0, 0, 0, 0.15) 60%,
+        transparent 100%
+      );
     }
 
     .maintenance-content {
@@ -45,44 +74,61 @@ import { MaintenanceService } from '../../core/services/maintenance.service';
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 18px;
+      gap: 10px;
       text-align: center;
-      padding: 2.5rem;
-      max-width: 400px;
-    }
-
-    .maintenance-gif {
-      width: 200px;
-      height: 200px;
-      object-fit: contain;
-      border-radius: 20px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+      padding: 0 2rem 4.5rem;
+      width: 100%;
+      max-width: 520px;
     }
 
     .maintenance-title {
-      font-size: 1.5rem;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: clamp(1.2rem, 4vw, 1.8rem);
       font-weight: 900;
-      letter-spacing: 0.06em;
+      letter-spacing: 0.08em;
       text-transform: uppercase;
       margin: 0;
-      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+      color: #fff;
+      text-shadow: 0 2px 20px rgba(0, 0, 0, 0.5);
+      line-height: 1.2;
     }
 
     .maintenance-sub {
-      font-size: 0.88rem;
+      font-size: clamp(0.8rem, 2.5vw, 0.95rem);
       font-weight: 400;
-      opacity: 0.75;
       margin: 0;
       line-height: 1.5;
+      color: rgba(255, 255, 255, 0.8);
+      text-shadow: 0 1px 8px rgba(0, 0, 0, 0.4);
+    }
+
+    .maintenance-divider {
+      width: 40px;
+      height: 3px;
+      border-radius: 2px;
+      background: rgba(255, 255, 255, 0.4);
+      margin: 4px 0;
+    }
+
+    .maintenance-hint {
+      font-size: 0.75rem;
+      font-weight: 400;
+      margin: 0;
+      color: rgba(255, 255, 255, 0.55);
+      text-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    .maintenance-spinner-wrap {
+      margin-top: 8px;
     }
 
     .maintenance-spinner {
-      width: 30px;
-      height: 30px;
-      border: 3px solid rgba(255, 255, 255, 0.15);
+      width: 26px;
+      height: 26px;
+      border: 2.5px solid rgba(255, 255, 255, 0.15);
+      border-top-color: #fff;
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
-      margin-top: 4px;
     }
 
     @keyframes fadeIn {
@@ -97,8 +143,9 @@ import { MaintenanceService } from '../../core/services/maintenance.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MaintenanceOverlayComponent implements OnInit {
-  bgColor = signal('rgb(25, 32, 56)');
+  bgColor = signal('#111827');
   textColor = signal('#ffffff');
+  dividerColor = signal('rgba(255,255,255,0.4)');
   spinnerBorder = signal('rgba(255,255,255,0.15)');
 
   constructor(public maintenance: MaintenanceService) {}
@@ -141,15 +188,8 @@ export class MaintenanceOverlayComponent implements OnInit {
       const b = Math.round(bSum / count);
 
       this.bgColor.set(`rgb(${r}, ${g}, ${b})`);
-      this.textColor.set(this.isLight(r, g, b) ? '#1e293b' : '#ffffff');
-      this.spinnerBorder.set(this.isLight(r, g, b) ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.15)');
     } catch {
-      // CORS or other error — keep defaults
+      // CORS — keep defaults
     }
-  }
-
-  private isLight(r: number, g: number, b: number): boolean {
-    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-    return luminance > 0.5;
   }
 }
