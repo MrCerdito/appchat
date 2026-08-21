@@ -88,6 +88,8 @@ export class ChatComponent implements OnInit, OnDestroy {
   ofertasAsesorRespondidas = new Map<number, boolean>();
   faqMenuPendientes  = new Set<number>();
   faqMenuRespondidos = new Map<number, boolean>();
+  chatFinalizado = false;
+  fechaCierre = '';
   mostrarConfirmCierre    = false;
   mostrarAsesoresOcupados = false;
   reconexionActiva = false;
@@ -1025,7 +1027,7 @@ get rolLabel(): string {
           this.clearSession();
         } else {
           this.sessionIdParaRating = this.session?.id ?? null;
-          this.step = 'rating';
+          this.marcarChatFinalizado();
           this.cdr.detectChanges();
         }
       });
@@ -2107,7 +2109,7 @@ private normalizePhotoUrl(url: string): string {
     this.socket.emit('client_close_session', this.session.id);
     this.socketDestroy$.next();
     this.socket.disconnect();
-    this.step = 'rating';
+    this.marcarChatFinalizado();
     this.cdr.detectChanges();
   }
 }
@@ -2115,6 +2117,17 @@ private normalizePhotoUrl(url: string): string {
   // ══════════════════════════════════════════════════════════════════════════
   // RATING
   // ══════════════════════════════════════════════════════════════════════════
+
+  private marcarChatFinalizado(): void {
+    const now = new Date();
+    const h = now.getHours();
+    const m = now.getMinutes().toString().padStart(2, '0');
+    const ampm = h >= 12 ? 'p. m.' : 'a. m.';
+    const h12 = h % 12 || 12;
+    this.fechaCierre = `${h12}:${m} ${ampm}`;
+    this.chatFinalizado = true;
+    this.scrollToBottom();
+  }
 
   toggleEtiqueta(e: string): void {
     const idx = this.ratingEtiquetas.indexOf(e);
@@ -2129,13 +2142,15 @@ private normalizePhotoUrl(url: string): string {
         next: () => {
           this.ratingEnviado = true;
           this.cdr.detectChanges();
-          setTimeout(() => this.clearSession(), 2000);
         },
         error: (err) => console.error('HTTP Error:', err),
       });
   }
 
-  omitirRating(): void { this.clearSession(); }
+  omitirRating(): void {
+    this.chatFinalizado = false;
+    this.clearSession();
+  }
 
   // ══════════════════════════════════════════════════════════════════════════
   // LIMPIEZA
@@ -2160,6 +2175,7 @@ private normalizePhotoUrl(url: string): string {
 
     this.session = null; this.messages = []; this.aiHistory = []; this.advisorName = ''; this.codigoSesion = ''; this.codigoCopiado = false;
     this.step = 'name'; this.clientName = ''; this.submitted = false;
+    this.chatFinalizado = false; this.fechaCierre = '';
     this.sesionFinalizando = false;
     this.identificacion = ''; this.apellido = ''; this.rol = '';
     this.colegio = ''; this.colegioLink = '';
