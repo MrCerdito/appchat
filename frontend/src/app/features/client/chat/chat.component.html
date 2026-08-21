@@ -76,7 +76,7 @@
   <!-- ══════════════════════════════════════════════════════════════
        BANNER MODO SIN CONEXIÓN
   ══════════════════════════════════════════════════════════════════ -->
-  @if (!isOnline) {
+  @if (!isOnline && !chatFinalizado) {
   <div class="offline-banner">
     <div class="offline-inner">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -393,11 +393,12 @@
         </div>
         <div class="header-meta">
           <span class="header-name">{{ aiMode ? (marcaChat || 'Asistente Virtual') : advisorName }}</span>
-          <span class="client-presence-pill presence-active">
-            {{ aiMode ? 'IA activa' : 'En linea' }}
+          <span class="client-presence-pill" [class.presence-active]="!chatFinalizado" [class.presence-finalized]="chatFinalizado">
+            {{ chatFinalizado ? 'Finalizado' : (aiMode ? 'IA activa' : 'En linea') }}
           </span>
         </div>
       </div>
+      @if (!chatFinalizado) {
       <div class="header-actions">
         <button class="icon-btn" type="button" title="Cerrar" (click)="mostrarConfirmCierre = true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -405,10 +406,11 @@
           </svg>
         </button>
       </div>
+      }
     </header>
 
     <!-- ══ BANNER RECONEXIÓN ══ -->
-    @if (reconexionActiva) {
+    @if (reconexionActiva && !chatFinalizado) {
     <div class="reconexion-banner">
       <div class="reconexion-inner">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -598,7 +600,7 @@
         }
 
         <!-- Encuesta intermedia -->
-        @if (mostrarEncuestaEn(i)) {
+        @if (mostrarEncuestaEn(i) && !chatFinalizado) {
         <div class="inline-survey">
           <div class="survey-question">¿Te sirvió la respuesta?</div>
           <div class="survey-actions">
@@ -633,7 +635,7 @@
         }
 
         <!-- Oferta de transferencia a asesor -->
-        @if (mostrarOfertaAsesorEn(i)) {
+        @if (mostrarOfertaAsesorEn(i) && !chatFinalizado) {
         <div class="inline-survey">
           <div class="survey-question">¿Deseas que te transfiera con un asesor?</div>
           <div class="survey-actions">
@@ -666,7 +668,7 @@
         }
 
         <!-- Ver FAQ de nuevo -->
-        @if (mostrarFaqMenuEn(i)) {
+        @if (mostrarFaqMenuEn(i) && !chatFinalizado) {
         <div class="inline-survey faq-menu-prompt">
           <div class="survey-question">¿Deseas ver el menú de preguntas frecuentes?</div>
           <div class="survey-actions">
@@ -802,7 +804,7 @@
     </div>
 
     <!-- Typing indicator -->
-    @if (aiTyping || otherTyping) {
+    @if ((aiTyping || otherTyping) && !chatFinalizado) {
     <div class="typing-indicator">
       <div class="dot">
         <span></span><span></span><span></span>
@@ -813,7 +815,7 @@
     </div>
     }
 
-    @if (clientTimer && !aiMode) {
+    @if (clientTimer && !aiMode && !chatFinalizado) {
     <div
       class="client-timer-strip"
       [class.closing]="clientTimer.tipo === 'closing'"

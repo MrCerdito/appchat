@@ -2125,6 +2125,19 @@ private normalizePhotoUrl(url: string): string {
     const ampm = h >= 12 ? 'p. m.' : 'a. m.';
     const h12 = h % 12 || 12;
     this.fechaCierre = `${h12}:${m} ${ampm}`;
+
+    // Limpiar todos los timers y estados que puedan filtrar UI
+    this.clientTimer = null;
+    this.otherTyping = false;
+    this.typingName = '';
+    this.isStreaming = false;
+    this.aiTyping = false;
+    this.inactividadIaAviso = false;
+    this.cancelarTimerInactividadIa();
+    this.reconexionActiva = false;
+    clearInterval(this.reconexionInterval);
+    this.reconexionInterval = null;
+
     this.chatFinalizado = true;
     this.scrollToBottom();
   }

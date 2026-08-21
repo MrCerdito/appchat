@@ -620,6 +620,10 @@ $radius-pill: 999px;
     color: $text-faint; background: $surface-hover;
     &::before { background: $text-faint; }
   }
+  &.presence-finalized {
+    color: #6b7280; background: #f3f4f6;
+    &::before { background: #9ca3af; }
+  }
 }
 
 .header-actions {
