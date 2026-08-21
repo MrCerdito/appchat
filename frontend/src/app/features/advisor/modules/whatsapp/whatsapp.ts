@@ -348,6 +348,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   isLoadingOlder = false;
   isLoadingMessages = false;
   showScrollToBottom = false;
+  chatReady = false;
   unreadDividerMsgId: string | null = null;
   unreadDividerCount = 0;
   private messagePage = 1;
@@ -903,6 +904,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     this.hasMoreMessages = false;
     this.isLoadingOlder = false;
     this.isLoadingMessages = true;
+    this.chatReady = false;
     this.unreadDividerMsgId = null;
     this.unreadDividerCount = 0;
     this.messagePage = 1;
@@ -931,11 +933,26 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
           const dividerIdx = Math.max(0, messages.length - unreadCount);
           this.unreadDividerMsgId = messages[dividerIdx]?.id || null;
           this.unreadDividerCount = unreadCount;
-          this.scrollToUnreadDivider();
+          this.cdr.detectChanges();
+          const el = this.messagesContainer?.nativeElement;
+          if (el) {
+            const divider = el.querySelector<HTMLElement>('[data-unread-divider]');
+            if (divider) {
+              const top = divider.offsetTop - el.clientHeight / 2 + divider.clientHeight / 2;
+              el.scrollTop = Math.max(0, top);
+            } else {
+              el.scrollTop = el.scrollHeight;
+            }
+          }
+          this.chatReady = true;
+          this.cdr.detectChanges();
         } else {
-          this.scrollToBottom();
+          this.cdr.detectChanges();
+          const el = this.messagesContainer?.nativeElement;
+          if (el) el.scrollTop = el.scrollHeight;
+          this.chatReady = true;
+          this.cdr.detectChanges();
         }
-        this.cdr.detectChanges();
       }),
     );
   }
@@ -949,6 +966,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     this.unreadDividerMsgId = null;
     this.unreadDividerCount = 0;
     this.isLoadingMessages = false;
+    this.chatReady = false;
     this.cancelEditMessage();
     this.cdr.detectChanges();
   }

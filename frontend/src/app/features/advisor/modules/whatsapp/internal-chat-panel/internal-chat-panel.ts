@@ -151,6 +151,7 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
   private lastMsgId = '';
   unreadDividerMsgId: string | null = null;
   unreadDividerCount = 0;
+  chatReady = false;
 
   constructor(
     private readonly internalChat: InternalChatService,
@@ -427,6 +428,7 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
     this.isLoadingOlder = false;
     this.unreadDividerMsgId = null;
     this.unreadDividerCount = 0;
+    this.chatReady = false;
     const unreadCount = conv.unreadCount || 0;
     this.internalChat.setActiveConversation(conv.id);
     this.closeImage();
@@ -436,22 +438,29 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
     this.internalChat.loadMessages(conv.id).subscribe({
       next: (msgs) => {
         this.hasMoreMessages = msgs.length >= 50;
+        this.messages = msgs;
         if (unreadCount > 0 && msgs.length > 0) {
           const dividerIdx = Math.max(0, msgs.length - unreadCount);
           this.unreadDividerMsgId = msgs[dividerIdx]?.id || null;
           this.unreadDividerCount = unreadCount;
-          setTimeout(() => {
-            const container = this.messagesContainer?.nativeElement as HTMLElement | undefined;
-            const el = container?.querySelector<HTMLElement>('[data-unread-divider]');
-            if (el) {
-              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          this.cdr.detectChanges();
+          const container = this.messagesContainer?.nativeElement as HTMLElement | undefined;
+          if (container) {
+            const divider = container.querySelector<HTMLElement>('[data-unread-divider]');
+            if (divider) {
+              const top = divider.offsetTop - container.clientHeight / 2 + divider.clientHeight / 2;
+              container.scrollTop = Math.max(0, top);
             } else {
-              this.forceScrollToBottom = true;
-              this.cdr.detectChanges();
+              container.scrollTop = container.scrollHeight;
             }
-          }, 100);
+          }
+          this.chatReady = true;
+          this.cdr.detectChanges();
         } else {
-          this.forceScrollToBottom = true;
+          this.cdr.detectChanges();
+          const container = this.messagesContainer?.nativeElement as HTMLElement | undefined;
+          if (container) container.scrollTop = container.scrollHeight;
+          this.chatReady = true;
           this.cdr.detectChanges();
         }
       },
@@ -467,6 +476,7 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
     this.activeChange.emit(false);
     this.unreadDividerMsgId = null;
     this.unreadDividerCount = 0;
+    this.chatReady = false;
     this.internalChat.setActiveConversation(null);
     this.cdr.detectChanges();
   }
