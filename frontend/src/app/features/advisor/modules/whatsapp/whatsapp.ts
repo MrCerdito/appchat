@@ -1327,7 +1327,10 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   }
 
   visibleConversationMessages(messages: WaMessage[] = []): WaMessage[] {
-    return messages.filter(message => !this.isReactionMessage(message));
+    return messages.filter(message =>
+      !this.isReactionMessage(message) &&
+      !(message.type === 'text' && message.body && /^\[Mensaje [^\]]+\]$/.test(message.body))
+    );
   }
 
   groupedMessages(messages: WaMessage[]): { label: string; messages: WaMessage[] }[] {
@@ -2870,6 +2873,7 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     const body = (message.body || '').trim();
     if (this.isReactionMessage(message)) return '';
     if (!body || this.isLegacyMediaFallback(body) || this.isEncryptedBlob(body)) return '';
+    if (/^\[Mensaje [^\]]+\]$/.test(body)) return '';
     if (message.type && message.type !== 'text') {
       const fallback = this.mediaFallbackLabel(message.type, message.fileName);
       if (body === fallback || body === this.mediaFallbackLabel(message.type)) return '';

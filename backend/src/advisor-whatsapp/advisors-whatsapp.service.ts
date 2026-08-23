@@ -3205,7 +3205,9 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     for (const message of messages) {
       try {
         const isEdited = !!(message.message as any)?.editedMessage;
-        const pinData = (message.message as any)?.pinInChatMessage;
+        const topMsg = message.message as any;
+        const pinData = topMsg?.pinInChatMessage
+          ?? topMsg?.editedMessage?.message?.pinInChatMessage;
 
         if (pinData) {
           await this.handlePinMessage(message, pinData);
@@ -3215,7 +3217,11 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
         const raw = await this.baileysMessageToIncoming(message);
         if (!raw) continue;
 
-        if (isEdited && raw.text) {
+        if (raw.type === 'text' && raw.text && /^\[Mensaje [^\]]+\]$/.test(raw.text)) {
+          continue;
+        }
+
+        if (isEdited) {
           await this.handleEditedMessage(message, raw);
           continue;
         }
@@ -3259,6 +3265,14 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     if (!existing) return;
 
     const newBody = this.messageBody(raw);
+    if (
+      !newBody ||
+      /^\[Mensaje [^\]]+\]$/.test(newBody) ||
+      /^enc:v\d+:/i.test(newBody)
+    ) {
+      return;
+    }
+
     existing.body = newBody;
     existing.editedAt = new Date();
     const saved = await this.messageRepo.save(existing);
@@ -3662,7 +3676,8 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       type === 'senderKeyDistributionMessage' ||
       type === 'messageContextInfo' ||
       type === 'protocolMessage' ||
-      type === 'secretEncryptedMessage'
+      type === 'secretEncryptedMessage' ||
+      type === 'pinInChatMessage'
     );
   }
 
