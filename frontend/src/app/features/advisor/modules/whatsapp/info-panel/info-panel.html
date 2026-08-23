@@ -1,0 +1,244 @@
+<section class="profile-head">
+  <img [src]="avatarSrc()" [alt]="contact.name" referrerpolicy="no-referrer" (click)="$event.stopPropagation(); profilePhotoOpen.emit($event)" (error)="useFallbackAvatar($event)" />
+  <div>
+    <h2>{{ formatDisplayName(contact.name) }}</h2>
+    <p>{{ getAssignmentLabel() }}</p>
+    <button
+      class="close-chat-btn"
+      type="button"
+      (click)="closeChat.emit()"
+      [disabled]="isClosingChat || contact.assignedTo !== currentUserId || isFixedToOther() || contact.isGroup"
+      [title]="isFixedToOther() ? 'No puedes cerrar un cliente fijado' : (contact.isGroup ? 'Solo un administrador puede liberar la asignacion de un grupo' : 'Cerrar chat')"
+    >
+      <wa-icon name="x-circle"></wa-icon>
+      Cerrar chat
+    </button>
+  </div>
+  <button
+    class="icon-action"
+    type="button"
+    (click)="isEditingContact ? cancelEdit.emit() : toggleEdit.emit()"
+    [title]="isEditingContact ? 'Cancelar edicion' : 'Editar contacto'"
+  >
+    <wa-icon [name]="isEditingContact ? 'x' : 'pencil'"></wa-icon>
+  </button>
+</section>
+
+@if (contact.fixedAdvisorId && contact.fixedAdvisorName) {
+<section class="panel-section fixed-info-section">
+  <div class="section-title">
+    <wa-icon name="lock"></wa-icon>
+    Agente fijado
+  </div>
+  <div class="fixed-advisor-display">
+    <wa-icon name="user"></wa-icon>
+    <span>{{ contact.fixedAdvisorName }}</span>
+  </div>
+</section>
+}
+
+@if (isEditingContact) {
+<section class="panel-section contact-editor">
+  <div class="section-title">
+    <wa-icon name="id"></wa-icon>
+    Informacion editable
+  </div>
+
+  <label>
+    <span>Nombre</span>
+    <input name="wa-name" type="text" [ngModel]="contactDraft.name" (ngModelChange)="onDraftFieldChange('name', $event)" />
+  </label>
+  <label>
+    <span>Cargo</span>
+    <input name="wa-role" type="text" [ngModel]="contactDraft.role" (ngModelChange)="onDraftFieldChange('role', $event)" />
+  </label>
+  <label>
+    <span>Colegio</span>
+    <input name="wa-institution" type="text" [ngModel]="contactDraft.institution" (ngModelChange)="onDraftFieldChange('institution', $event)" />
+  </label>
+  <label>
+    <span>Link del colegio</span>
+    <input name="wa-institution-url" type="url" [ngModel]="contactDraft.institutionUrl" (ngModelChange)="onDraftFieldChange('institutionUrl', $event)" />
+  </label>
+  <label>
+    <span>Lugar</span>
+    <input name="wa-city" type="text" [ngModel]="contactDraft.city" (ngModelChange)="onDraftFieldChange('city', $event)" />
+  </label>
+  <label>
+    <span>Contacto</span>
+    <input name="wa-phone" type="tel" [ngModel]="contactDraft.phone" (ngModelChange)="onDraftFieldChange('phone', $event)" />
+  </label>
+  <label>
+    <span>Correo</span>
+    <input name="wa-email" type="email" [ngModel]="contactDraft.email" (ngModelChange)="onDraftFieldChange('email', $event)" />
+  </label>
+  <label>
+    <span>Plan</span>
+    <input name="wa-plan" type="text" [ngModel]="contactDraft.plan" (ngModelChange)="onDraftFieldChange('plan', $event)" />
+  </label>
+  <label>
+    <span>Modulos</span>
+    <input name="wa-modules" type="text" [ngModel]="contactDraft.modulesText" (ngModelChange)="onDraftFieldChange('modulesText', $event)" />
+  </label>
+
+  <div class="edit-actions">
+    <button type="button" class="secondary-btn" (click)="cancelEdit.emit()">Cancelar</button>
+    <button type="button" class="primary-btn" (click)="saveContact.emit()" [disabled]="isSavingContact">
+      <wa-icon [name]="isSavingContact ? 'loader-2' : 'device-floppy'"></wa-icon>
+      Guardar
+    </button>
+  </div>
+  @if (contactSaveMessage) {
+  <p class="save-message">{{ contactSaveMessage }}</p>
+  }
+</section>
+} @else {
+  <section class="panel-section operation-card">
+    <div class="section-title">
+      <wa-icon name="activity"></wa-icon>
+      Estado operativo
+      <em>{{ contact.operationalStatusLabel || contact.stage }}</em>
+    </div>
+
+    <div class="operation-current" [ngClass]="operationalStatusClass()">
+      <strong>{{ contact.operationalStatusLabel || contact.stage }}</strong>
+      <span>{{ getAssignmentLabel() }}</span>
+    </div>
+
+    <div class="operation-actions">
+      @for (status of operationalStatusOptions; track trackByIndex($index)) {
+      <button
+        type="button"
+        [class.active]="contact.operationalStatus === status.id"
+        [disabled]="isUpdatingOperationalStatus || isAssignedToSomeoneElse || contact.isGroup"
+        (click)="updateStatus.emit(status.id)"
+        [title]="status.hint"
+      >
+        {{ status.label }}
+      </button>
+      }
+    </div>
+    @if (contactSaveMessage) {
+    <p class="save-message">{{ contactSaveMessage }}</p>
+    }
+    @if (!isAssignedToSomeoneElse) {
+    <button class="ticket-btn" type="button" (click)="openTicket.emit()">
+      <wa-icon name="file-text"></wa-icon>
+      {{ creatingTicket ? 'Generando...' : 'Generar ticket' }}
+    </button>
+    }
+  </section>
+
+  <section class="panel-section">
+    <div class="section-title">
+      <wa-icon name="address-book"></wa-icon>
+      Contacto
+    </div>
+    <div class="info-grid">
+      <div>
+        <span>Nombre</span>
+        <strong>{{ formatDisplayName(contact.name) || 'Sin nombre' }}</strong>
+      </div>
+      <div>
+        <span>Cargo</span>
+        <strong>{{ contact.role || 'Sin cargo' }}</strong>
+      </div>
+      @if (getInstitutionHref()) {
+      <a
+        class="info-card link-card"
+        [href]="getInstitutionHref()"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <span>Colegio</span>
+        <strong>{{ contact.institution || 'Sin colegio' }}</strong>
+      </a>
+      } @else {
+        <div class="info-card">
+          <span>Colegio</span>
+          <strong>{{ contact.institution || 'Sin colegio' }}</strong>
+        </div>
+      }
+      <div>
+        <span>Lugar</span>
+        <strong>{{ contact.city || 'Sin lugar' }}</strong>
+      </div>
+    </div>
+
+    <a class="info-row" [href]="getPhoneHref()">
+      <wa-icon name="phone"></wa-icon>
+      <span>{{ formatPhoneDisplay(contact.phone) || 'Sin telefono' }}</span>
+    </a>
+    @if (getEmailHref()) {
+    <a class="info-row" [href]="getEmailHref()">
+      <wa-icon name="mail"></wa-icon>
+      <span>{{ contact.email }}</span>
+    </a>
+    }
+  </section>
+
+}
+
+<section class="panel-section teams-card">
+  <div class="section-title">
+    <wa-icon name="brand-teams"></wa-icon>
+    Microsoft Teams
+  </div>
+  <button
+    type="button"
+    class="teams-meeting-btn"
+    (click)="openTeamsMeeting.emit()"
+    [disabled]="!canReply"
+    title="Crear videollamada de Teams y enviar el link"
+  >
+    <wa-icon name="video-plus"></wa-icon>
+    Crear reunion
+  </button>
+</section>
+
+<section class="panel-section ai-card" (click)="runAiInsight.emit()" [class.loading]="isAiInsightLoading">
+  <div class="section-title">
+    <wa-icon [name]="isAiInsightLoading ? 'loader-2' : 'sparkles'"></wa-icon>
+    Analisis IA
+  </div>
+  @if (!isAiInsightLoading) {
+  <p>{{ aiInsightPreview }}</p>
+  }
+  @if (isAiInsightLoading) {
+  <div class="ai-loading-bar"><span></span></div>
+  }
+</section>
+
+<section class="panel-section notes-card">
+  <div class="section-title">
+    <wa-icon name="notes"></wa-icon>
+    Observaciones
+    <em>{{ contact.notes.length }}</em>
+  </div>
+
+  <div class="note-composer">
+    <textarea
+      class="note-textarea"
+      [ngModel]="newNote"
+      (ngModelChange)="onNewNoteInput($event)"
+      rows="2"
+      placeholder="Anadir observacion"
+      (keydown.enter)="$event.preventDefault(); addNote.emit()"
+    ></textarea>
+    <button type="button" class="note-save-btn" (click)="addNote.emit()" [disabled]="!newNote.trim()">
+      <wa-icon name="plus"></wa-icon>
+      Guardar
+    </button>
+  </div>
+
+  <div class="note-list">
+    @for (note of contact.notes; track trackByIndex($index); let i = $index) {
+    <article class="note-item">
+      <p>{{ note }}</p>
+      <button type="button" class="note-del" (click)="removeNote.emit(i)" title="Eliminar">
+        <wa-icon name="trash"></wa-icon>
+      </button>
+    </article>
+    }
+  </div>
+</section>

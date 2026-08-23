@@ -244,9 +244,38 @@
           <span class="msg-sender">{{ msg.senderName }}</span>
           }
           @if (msg.content) {
-          <div class="bubble">
-            <span [innerHTML]="formatMessage(msg.content)"></span>
+          @if (editingMessageId === msg.id) {
+          <div class="bubble-row bubble-row--editing">
+            <div class="bubble bubble--editing">
+              <div class="edit-header">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10.5-10.5a2.828 2.828 0 1 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>
+                Editando mensaje
+              </div>
+              <textarea class="edit-input" [(ngModel)]="editingText"
+                (keydown.enter)="$event.preventDefault(); submitEdit()"
+                (keydown.escape)="cancelEdit()"
+                rows="3"></textarea>
+              <div class="edit-footer">
+                <span class="edit-hint">Enter para guardar · Esc para cancelar</span>
+                <div class="edit-actions">
+                  <button type="button" class="edit-cancel" (click)="cancelEdit()">Cancelar</button>
+                  <button type="button" class="edit-save" (click)="submitEdit()" [disabled]="!editingText.trim()">Guardar</button>
+                </div>
+              </div>
+            </div>
           </div>
+          } @else {
+          <div class="bubble-row" [class.bubble-row--own]="isOwnMessage(msg)">
+            <div class="bubble">
+              <span [innerHTML]="formatMessage(msg.content)"></span>
+            </div>
+            @if (isOwnMessage(msg)) {
+            <button type="button" class="bubble-float-edit" (click)="startEdit(msg)" title="Editar mensaje">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10.5-10.5a2.828 2.828 0 1 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>
+            </button>
+            }
+          </div>
+          }
           }
 
           <!-- Archivos adjuntos del mensaje -->
@@ -301,23 +330,28 @@
             }
           </div>
           }
-          <span class="msg-time">
-            {{ fmtTime(msg.createdAt) }}
-            @if (msg.senderType === 'advisor') {
-            <span class="read-mark"
-                  [class.delivered]="!!msg.deliveredAt"
-                  [class.read]="!!msg.readAt">
-              <svg class="check check-1" viewBox="0 0 16 11" fill="currentColor" aria-hidden="true">
-                <path d="M11.07.65l-5.93 6.2L2.45 4.3l-1.1 1.1 3.08 3.3.7.8.8-.8 6.32-6.6L11.07.65z"/>
-              </svg>
-              @if (msg.readAt || msg.deliveredAt) {
-              <svg class="check check-2" viewBox="0 0 16 11" fill="currentColor" aria-hidden="true">
-                <path d="M11.07.65l-5.93 6.2L2.45 4.3l-1.1 1.1 3.08 3.3.7.8.8-.8 6.32-6.6L11.07.65z"/>
-              </svg>
+          <div class="msg-meta">
+            <span class="msg-time">
+              {{ fmtTime(msg.createdAt) }}
+              @if (msg.senderType === 'advisor') {
+              <span class="read-mark"
+                    [class.delivered]="!!msg.deliveredAt"
+                    [class.read]="!!msg.readAt">
+                <svg class="check check-1" viewBox="0 0 16 11" fill="currentColor" aria-hidden="true">
+                  <path d="M11.07.65l-5.93 6.2L2.45 4.3l-1.1 1.1 3.08 3.3.7.8.8-.8 6.32-6.6L11.07.65z"/>
+                </svg>
+                @if (msg.readAt || msg.deliveredAt) {
+                <svg class="check check-2" viewBox="0 0 16 11" fill="currentColor" aria-hidden="true">
+                  <path d="M11.07.65l-5.93 6.2L2.45 4.3l-1.1 1.1 3.08 3.3.7.8.8-.8 6.32-6.6L11.07.65z"/>
+                </svg>
+                }
+              </span>
               }
             </span>
+            @if (msg.editedAt) {
+            <span class="edited-tag">editado</span>
             }
-          </span>
+          </div>
         </div>
         }
       }

@@ -122,6 +122,10 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   slashHighlight = 0;
   ghostSuggestion = '';
 
+  editingMessageId: string | null = null;
+  editingText = '';
+  readonly EDIT_WINDOW_MS = 15 * 60 * 1000;
+
   // ── File attachments ───────────────────────────────────────────────────────
   previewFiles: { file: File; preview: string | null; uploading: boolean; error: string | null }[] = [];
   pendingAttachments: Attachment[] = [];
@@ -525,6 +529,15 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
       .subscribe((data) => {
         if (!data?.sessionId || data.senderType !== 'advisor') return;
         this.state.markDelivered(data.sessionId, 'advisor');
+        this.cdr.detectChanges();
+      });
+
+    this.socket.on<any>('message_edited')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((msg) => {
+        const sessionId = msg.session?.id ?? msg.sessionId;
+        if (!sessionId) return;
+        this.state.updateMessage(sessionId, msg);
         this.cdr.detectChanges();
       });
 
@@ -1144,6 +1157,39 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     this.resizeInput();
     this.showSlashMenu = false;
     this.ghostSuggestion = '';
+  }
+
+  canEditMessage(msg: any): boolean {
+    if (!this.currentAdvisor || msg.senderType !== 'advisor') return false;
+    if (msg.senderName !== this.currentAdvisor.name) return false;
+    if (msg.senderName === 'Sistema' || msg.senderName === 'Asistente Virtual') return false;
+    const elapsed = Date.now() - new Date(msg.createdAt).getTime();
+    return elapsed <= this.EDIT_WINDOW_MS;
+  }
+
+  startEdit(msg: any): void {
+    this.editingMessageId = msg.id;
+    this.editingText = msg.content;
+  }
+
+  cancelEdit(): void {
+    this.editingMessageId = null;
+    this.editingText = '';
+  }
+
+  submitEdit(): void {
+    if (!this.editingMessageId || !this.editingText.trim() || !this.activeSession) return;
+    this.socket.emit('edit_message', {
+      messageId: this.editingMessageId,
+      sessionId: this.activeSession.id,
+      content: this.editingText.trim(),
+    });
+    this.editingMessageId = null;
+    this.editingText = '';
+  }
+
+  isOwnMessage(msg: any): boolean {
+    return msg.senderType === 'advisor' && msg.senderName === this.currentAdvisor?.name;
   }
 
   toggleImprovePanel(): void {

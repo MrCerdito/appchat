@@ -32,6 +32,8 @@ import { WhatsappChatService } from '../../../../core/services/whatsapp-chat.ser
 import { InternalChatService } from '../../../../core/services/internal-chat.service';
 import { SessionService } from '../../../../core/services/session.service';
 import { InternalChatPanelComponent } from './internal-chat-panel/internal-chat-panel';
+import { WhatsappSidebarComponent, WaFilter } from './sidebar/sidebar';
+import { WhatsappInfoPanelComponent } from './info-panel/info-panel';
 import {
   AwChatAssigned,
   AwNewMessage,
@@ -49,8 +51,8 @@ import { scrollToBottom as scrollToBottomEl } from '../../../../shared/utils/scr
 import { formatBogotaTime as formatBogotaTimeShared } from '../../../../shared/utils/date';
 
 export type { WaChat as Contact };
+export type { WaFilter };
 
-type WaFilter = 'all' | 'mine' | 'queue' | 'groups' | 'unread' | 'closed' | 'advisor';
 type WindowState = 'open' | 'warning' | 'closed';
 type WaTheme = 'dark' | 'light';
 type WaOperationalStatus =
@@ -112,7 +114,7 @@ interface MessageReactionGroup {
 @Component({
   selector: 'app-whatsapp-chat',
   standalone: true,
-  imports: [CommonModule, FormsModule, WaIconComponent, DecimalPipe, InternalChatPanelComponent, VoicePlayerComponent, VoiceRecorderComponent],
+  imports: [CommonModule, FormsModule, WaIconComponent, DecimalPipe, InternalChatPanelComponent, VoicePlayerComponent, VoiceRecorderComponent, WhatsappSidebarComponent, WhatsappInfoPanelComponent],
   templateUrl: './whatsapp.html',
   styleUrl: './whatsapp.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -351,6 +353,9 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   chatReady = false;
   unreadDividerMsgId: string | null = null;
   unreadDividerCount = 0;
+  pendingInitialScroll = false;
+  isNearBottom = true;
+  newMessagesCount = 0;
   private messagePage = 1;
 
   private shouldScroll = false;
@@ -905,6 +910,9 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     this.isLoadingOlder = false;
     this.isLoadingMessages = true;
     this.chatReady = false;
+    this.pendingInitialScroll = true;
+    this.isNearBottom = true;
+    this.newMessagesCount = 0;
     this.unreadDividerMsgId = null;
     this.unreadDividerCount = 0;
     this.messagePage = 1;
@@ -933,23 +941,25 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
           const dividerIdx = Math.max(0, messages.length - unreadCount);
           this.unreadDividerMsgId = messages[dividerIdx]?.id || null;
           this.unreadDividerCount = unreadCount;
-          this.cdr.detectChanges();
-          const el = this.messagesContainer?.nativeElement;
+        }
+
+        this.cdr.detectChanges();
+
+        if (this.pendingInitialScroll) {
+          this.pendingInitialScroll = false;
+          const el = this.messagesContainer?.nativeElement as HTMLElement | undefined;
           if (el) {
-            const divider = el.querySelector('[data-unread-divider]') as HTMLElement | null;
-            if (divider) {
-              const top = divider.offsetTop - el.clientHeight / 2 + divider.clientHeight / 2;
-              el.scrollTop = Math.max(0, top);
+            if (this.unreadDividerMsgId) {
+              const divider = el.querySelector('[data-unread-divider]') as HTMLElement | null;
+              if (divider) {
+                el.scrollTop = Math.max(0, divider.offsetTop - el.clientHeight / 2 + divider.clientHeight / 2);
+              } else {
+                el.scrollTop = el.scrollHeight;
+              }
             } else {
               el.scrollTop = el.scrollHeight;
             }
           }
-          this.chatReady = true;
-          this.cdr.detectChanges();
-        } else {
-          this.cdr.detectChanges();
-          const el = this.messagesContainer?.nativeElement;
-          if (el) el.scrollTop = el.scrollHeight;
           this.chatReady = true;
           this.cdr.detectChanges();
         }
@@ -1296,6 +1306,24 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
 
   messageTime(message: WaMessage): string {
     return this.formatBogotaTime(message.timestamp);
+  }
+
+  scrollToPinnedMessage(): void {
+    if (!this.activeContact?.pinnedMessageId || !this.messagesContainer) return;
+    const el = this.messagesContainer.nativeElement.querySelector(
+      `[data-msg-id="${this.activeContact.pinnedMessageId}"]`
+    );
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('highlight-pin');
+      setTimeout(() => el.classList.remove('highlight-pin'), 1500);
+    }
+  }
+
+  unpinMessage(event: Event): void {
+    event.stopPropagation();
+    if (!this.activeContact) return;
+    this.waService.unpinMessage(this.activeContact.id).subscribe();
   }
 
   visibleConversationMessages(messages: WaMessage[] = []): WaMessage[] {
@@ -2161,6 +2189,10 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     });
   }
 
+  onInfoPanelUpdateStatus(status: string): void {
+    this.updateOperationalStatus(status as WaOperationalStatus);
+  }
+
   updateOperationalStatus(status: WaOperationalStatus): void {
     if (!this.activeContact || this.isUpdatingOperationalStatus) return;
     this.isUpdatingOperationalStatus = true;
@@ -2185,10 +2217,6 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
         },
       }),
     );
-  }
-
-  operationalStatusClass(contact: WaChat): string {
-    return contact.operationalStatus || contact.assignmentStatus || 'new';
   }
 
   isRecentChat(contact: WaChat): boolean {
@@ -2576,33 +2604,6 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     return `${h}h ${m}m`;
   }
 
-  isFixedToOther(): boolean {
-    if (!this.activeContact?.fixedAdvisorId) return false;
-    if (this.currentUserRole === 'admin') return false;
-    return true;
-  }
-
-  getAssignmentLabel(contact?: WaChat): string {
-    if (contact?.isGroup) return 'Grupo compartido';
-    if (this.isChatClosed(contact)) return 'Atencion cerrada';
-    if (contact?.fixedAdvisorId) return 'ASESOR FIJADO';
-    if (!contact?.assignedTo) return 'En cola';
-    if (contact.assignedTo === this.currentUserId) return 'Mi chat';
-    return contact.assignedToName ? `Asignado a ${contact.assignedToName}` : 'Asignado';
-  }
-
-  getHeaderStatus(contact?: WaChat): string {
-    if (!contact) return '';
-    if (this.isChatClosed(contact)) return 'Cerrado';
-    const parts: string[] = [];
-    if (contact.status === 'online') parts.push('Activo');
-    else if (contact.status === 'away') parts.push('Ausente');
-    else parts.push('Inactivo');
-    if (contact.assignedToName) parts.push(contact.assignedToName);
-    else if (contact.assignedTo === this.currentUserId) parts.push('Mi chat');
-    return parts.join(' · ');
-  }
-
   getPresenceLabel(contact?: WaChat): string {
     if (!contact) return '';
     if (contact.status === 'online') return 'Cliente activo en el chat';
@@ -2917,21 +2918,6 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     return /^enc:v\d+:/i.test(value) || /enc:v\d+:/i.test(value);
   }
 
-  getInstitutionHref(contact?: WaChat): string {
-    return this.safeHttpUrl(contact?.institutionUrl);
-  }
-
-  getPhoneHref(contact?: WaChat): string {
-    const phone = (contact?.phone || '').replace(/[^\d+]/g, '');
-    return phone ? `tel:${phone}` : '';
-  }
-
-  getEmailHref(contact?: WaChat): string {
-    const email = (contact?.email || '').trim();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return '';
-    return `mailto:${encodeURIComponent(email)}`;
-  }
-
   private isAllowedUpload(file: File): boolean {
     const mimeType = this.normalizeMimeType(file.type);
     const audioMime = this.audioMimeFromExtension(file.name);
@@ -3101,6 +3087,14 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     }
 
     this.cdr.detectChanges();
+
+    if (this.isNearBottom) {
+      this.scrollToBottom();
+      this.newMessagesCount = 0;
+    } else {
+      this.newMessagesCount++;
+      this.showScrollToBottom = true;
+    }
   }
 
   private handleAssignment(event: AwChatAssigned): void {
@@ -3152,32 +3146,6 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
         this.parseDateValue(a.timestamp).getTime() -
         this.parseDateValue(b.timestamp).getTime(),
     );
-  }
-
-  private reloadTimer: ReturnType<typeof setTimeout> | null = null;
-
-  private reloadActiveMessages(): void {
-    const contact = this.activeContact;
-    if (!contact) return;
-    const prevLastId = (contact.messages ?? []).slice(-1)[0]?.id ?? '';
-    if (this.reloadTimer) clearTimeout(this.reloadTimer);
-    this.reloadTimer = setTimeout(() => {
-      this.reloadTimer = null;
-      if (!this.activeContact || this.activeContact.id !== contact.id) return;
-      this.subs.add(
-        this.waService.loadMessages(contact.id, 1, 100).subscribe(({ messages, hasMore }) => {
-          if (!this.activeContact || this.activeContact.id !== contact.id) return;
-          const lastId = messages.slice(-1)[0]?.id ?? '';
-          const existing = this.activeContact.messages ?? [];
-          const merged = this.mergeMessages(existing, messages);
-          this.activeContact = { ...this.activeContact, messages: merged };
-          this.hasMoreMessages = hasMore;
-          if (lastId && lastId !== prevLastId) this.shouldScroll = true;
-          this.contactDraft = this.draftFromContact(this.activeContact);
-          this.cdr.detectChanges();
-        }),
-      );
-    }, 250);
   }
 
   private matchesFilter(contact: WaChat): boolean {
@@ -3385,12 +3353,6 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     }
   }
 
-  private isNearBottom(): boolean {
-    const el = this.messagesContainer?.nativeElement as HTMLElement | undefined;
-    if (!el) return true;
-    return el.scrollHeight - el.scrollTop - el.clientHeight < 200;
-  }
-
   // ── Progressive message loading (scroll-up to load older) ─────────────
   onScrollMessages(): void {
     const el = this.messagesContainer?.nativeElement as HTMLElement | undefined;
@@ -3402,8 +3364,9 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
       this.loadOlderMessages();
     }
 
-    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
-    this.showScrollToBottom = !atBottom;
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    this.isNearBottom = distFromBottom < 160;
+    this.showScrollToBottom = !this.isNearBottom;
   }
 
   private loadOlderMessages(): void {
@@ -3411,16 +3374,18 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     if (!contact || this.isLoadingOlder || !this.hasMoreMessages) return;
 
     this.isLoadingOlder = true;
-    this.messagePage++;
     const container = this.messagesContainer.nativeElement as HTMLElement;
     const prevScrollHeight = container.scrollHeight;
     const prevScrollTop = container.scrollTop;
 
+    const existing = contact.messages ?? [];
+    const oldest = existing.length ? existing[0] : null;
+    const before = oldest?.timestamp ? new Date(oldest.timestamp).toISOString() : undefined;
+
     this.subs.add(
-      this.waService.loadMessages(contact.id, this.messagePage, 50).subscribe({
+      this.waService.loadMessages(contact.id, 1, 50, undefined, before).subscribe({
         next: ({ messages, hasMore }) => {
           if (!this.activeContact || this.activeContact.id !== contact.id) return;
-          const existing = this.activeContact.messages ?? [];
           const merged = this.mergeMessages(messages, existing);
           this.activeContact = { ...this.activeContact, messages: merged };
           this.hasMoreMessages = hasMore;
@@ -3433,7 +3398,6 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
         },
         error: () => {
           this.isLoadingOlder = false;
-          this.messagePage--;
           this.cdr.detectChanges();
         },
       }),
@@ -3442,19 +3406,11 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
 
   scrollToBottomSmooth(): void {
     this.showScrollToBottom = false;
+    this.newMessagesCount = 0;
+    this.isNearBottom = true;
     const el = this.messagesContainer?.nativeElement as HTMLElement | undefined;
     if (el) {
       el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
     }
-  }
-
-  scrollToUnreadDivider(): void {
-    setTimeout(() => {
-      if (this.unreadDividerRef?.nativeElement) {
-        this.unreadDividerRef.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      } else {
-        this.scrollToBottomSmooth();
-      }
-    }, 100);
   }
 }

@@ -973,6 +973,16 @@ get rolLabel(): string {
         this.scrollToBottom();
       });
 
+    this.socket.on<Message>('message_edited')
+      .pipe(takeUntil(this.socketDestroy$))
+      .subscribe((msg) => {
+        const idx = this.messages.findIndex(m => m.id === msg.id);
+        if (idx !== -1) {
+          this.messages[idx] = { ...this.messages[idx], ...msg };
+          this.cdr.detectChanges();
+        }
+      });
+
     this.socket.on<{ position: number; total: number }>('queue_position')
       .pipe(takeUntil(this.socketDestroy$))
       .subscribe((data) => {

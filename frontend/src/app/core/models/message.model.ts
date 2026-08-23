@@ -15,6 +15,7 @@ export interface Message {
   createdAt : string;
   readAt    : string | null;
   deliveredAt?: string | null;
+  editedAt  : string | null;
   attachments?: Attachment[];
   documentos?: {
     nombre: string;

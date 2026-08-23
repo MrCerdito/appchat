@@ -56,7 +56,7 @@ interface ContextMenuState {
   styleUrl: './internal-chat-panel.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnDestroy {
+export class InternalChatPanelComponent implements OnInit, OnDestroy {
   protected readonly trackByIndex = trackByIndex;
   protected readonly reactionEmojis = ['👍', '❤️', '🔥', '😂', '🎉', '😮', '😢', '👏', '🙏', '✅', '❌', '⭐'];
 
@@ -148,14 +148,10 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
   ];
 
   private subs = new Subscription();
-  private shouldScroll = false;
-  private forceScrollToBottom = false;
-  private lastMsgId = '';
   unreadDividerMsgId: string | null = null;
   unreadDividerCount = 0;
   chatReady = false;
   private pendingInitialScroll = false;
-  private pendingUnreadCount = 0;
   private pendingDividerIdx: number | null = null;
 
   constructor(
@@ -256,8 +252,6 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
       this.internalChat.getMessagesStream().subscribe(list => {
         this.messages = list;
         if (list.length) this.isLoadingMessages = false;
-        const last = list.length ? list[list.length - 1] : null;
-        this.lastMsgId = last?.id ?? '';
         this.cdr.detectChanges();
 
         if (this.pendingInitialScroll && list.length > 0) {
@@ -300,22 +294,6 @@ export class InternalChatPanelComponent implements OnInit, AfterViewChecked, OnD
         this.cdr.detectChanges();
       },
     });
-  }
-
-  ngAfterViewChecked(): void {
-    if (!this.chatReady || !this.messagesContainer) return;
-    const list = this.messages;
-    const last = list.length ? list[list.length - 1] : null;
-    if (!last) return;
-    if (this.forceScrollToBottom) {
-      this.forceScrollToBottom = false;
-      this.shouldScroll = false;
-      scrollToBottomEl(this.messagesContainer.nativeElement, { smooth: true });
-      return;
-    }
-    if (!this.shouldScroll) return;
-    this.shouldScroll = false;
-    scrollToBottomEl(this.messagesContainer.nativeElement, { smooth: true });
   }
 
   private isNearBottom(): boolean {

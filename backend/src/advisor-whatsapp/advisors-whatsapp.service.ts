@@ -28,7 +28,7 @@ import QRCode from 'qrcode';
 import { mkdir, rm, writeFile } from 'fs/promises';
 import { extname, join } from 'path';
 import { Subject } from 'rxjs';
-import { In, IsNull, MoreThan, Not, Repository } from 'typeorm';
+import { In, IsNull, LessThan, MoreThan, Not, Repository } from 'typeorm';
 import { User } from '../auth/entities/user.entity';
 import {
   ConfiguracionService,
@@ -155,6 +155,10 @@ export interface WaChatDto {
   frozenMinutes?: number;
   categoria?: string;
   categoriaLabel?: string;
+  pinnedMessageId?: string | null;
+  pinnedMessageBody?: string | null;
+  pinnedMessageFrom?: string | null;
+  pinnedAt?: string | null;
 }
 
 export interface UpdateWhatsappContactInput {
@@ -2114,6 +2118,16 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     return this.toChatDto(await this.findChatOrFail(chatId), true);
   }
 
+  async unpinChatMessage(chatId: string): Promise<WaChatDto> {
+    const chat = await this.findChatOrFail(chatId);
+    chat.pinnedMessageId = null;
+    chat.pinnedMessageBody = null;
+    chat.pinnedMessageFrom = null;
+    chat.pinnedAt = null;
+    await this.chatRepo.save(chat);
+    return this.toChatDto(await this.findChatOrFail(chatId), false);
+  }
+
   async getMessages(
     chatId: string,
     page = 1,
@@ -2121,10 +2135,11 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     advisorId?: string,
     role?: string,
     anchor?: string,
+    before?: string,
   ): Promise<{ messages: WaMessageDto[]; total: number; hasMore: boolean }> {
     if (advisorId && role)
       await this.assertCanViewChat(chatId, advisorId, role);
-    return this.getMessagesInternal(chatId, page, limit, anchor);
+    return this.getMessagesInternal(chatId, page, limit, anchor, before);
   }
 
   async getChatForAdvisor(
@@ -2142,7 +2157,46 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     page = 1,
     limit = 50,
     anchor?: string,
+    before?: string,
   ): Promise<{ messages: WaMessageDto[]; total: number; hasMore: boolean }> {
+    if (before) {
+      const beforeDate = new Date(before);
+      const rawMessages = await this.messageRepo.find({
+        where: { chat: { id: chatId }, createdAt: LessThan(beforeDate) as any },
+        relations: ['chat', 'advisor'],
+        order: { createdAt: 'DESC' },
+        take: limit,
+      });
+      const messages = rawMessages.reverse();
+      const replyIds = [
+        ...new Set(
+          messages
+            .map((m) => m.replyToMessageId)
+            .filter((id): id is string => !!id),
+        ),
+      ];
+      const quotedMap = new Map<string, { body: string; senderName: string }>();
+      if (replyIds.length) {
+        const quotedMsgs = await this.messageRepo.find({
+          where: replyIds.map((id) => ({ metaMessageId: id })),
+          select: ['metaMessageId', 'body', 'senderName'],
+        });
+        for (const q of quotedMsgs) {
+          if (q.metaMessageId)
+            quotedMap.set(q.metaMessageId, { body: q.body, senderName: q.senderName });
+        }
+      }
+      const dtos = messages.map((message) => this.toMessageDto(message, quotedMap));
+      const total = await this.messageRepo.count({ where: { chat: { id: chatId } } });
+      const oldestLoaded = messages.length ? messages[0] : null;
+      const hasMore = oldestLoaded
+        ? (await this.messageRepo.count({
+            where: { chat: { id: chatId }, createdAt: LessThan(oldestLoaded.createdAt) },
+          })) > 0
+        : false;
+      return { messages: dtos, total, hasMore };
+    }
+
     let targetPage = Math.max(page, 1);
 
     if (anchor) {
@@ -3150,8 +3204,21 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
 
     for (const message of messages) {
       try {
+        const isEdited = !!(message.message as any)?.editedMessage;
+        const pinData = (message.message as any)?.pinInChatMessage;
+
+        if (pinData) {
+          await this.handlePinMessage(message, pinData);
+          continue;
+        }
+
         const raw = await this.baileysMessageToIncoming(message);
         if (!raw) continue;
+
+        if (isEdited && raw.text) {
+          await this.handleEditedMessage(message, raw);
+          continue;
+        }
 
         if (message.key.fromMe) {
           const saved = await this.saveBaileysOutgoingMessage(raw);
@@ -3176,6 +3243,90 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
         );
       }
     }
+  }
+
+  private async handleEditedMessage(
+    message: WAMessage,
+    raw: IncomingWhatsappMessage,
+  ): Promise<void> {
+    const messageId = message.key?.id;
+    if (!messageId) return;
+
+    const existing = await this.messageRepo.findOne({
+      where: { metaMessageId: messageId },
+      relations: ['chat', 'chat.assignedAdvisor'],
+    });
+    if (!existing) return;
+
+    const newBody = this.messageBody(raw);
+    existing.body = newBody;
+    existing.editedAt = new Date();
+    const saved = await this.messageRepo.save(existing);
+
+    this.messageStatusUpdates$.next({
+      advisorId: existing.chat.assignedAdvisor?.id,
+      message: this.toMessageDto(saved),
+      chat: await this.toChatDto(existing.chat, true),
+    });
+  }
+
+  private async handlePinMessage(
+    message: WAMessage,
+    pinData: { type?: number; key?: { id?: string; remoteJid?: string } },
+  ): Promise<void> {
+    const chatJid = message.key?.remoteJid;
+    if (!chatJid) return;
+
+    const chat = await this.chatRepo.findOne({
+      where: { jid: chatJid },
+      relations: ['assignedAdvisor'],
+    });
+    if (!chat) return;
+
+    const isUnpin = pinData.type === 2;
+
+    if (isUnpin) {
+      chat.pinnedMessageId = null;
+      chat.pinnedMessageBody = null;
+      chat.pinnedMessageFrom = null;
+      chat.pinnedAt = null;
+    } else {
+      const pinnedKey = pinData.key?.id;
+      if (pinnedKey) {
+        const pinnedMsg = await this.messageRepo.findOne({
+          where: { metaMessageId: pinnedKey },
+        });
+        chat.pinnedMessageId = pinnedKey;
+        chat.pinnedMessageBody = pinnedMsg?.body ?? '';
+        chat.pinnedMessageFrom = pinnedMsg?.fromMe
+          ? 'Tú'
+          : pinnedMsg?.senderName || chat.name;
+      }
+      chat.pinnedAt = new Date();
+    }
+
+    await this.chatRepo.save(chat);
+
+    const label = isUnpin ? 'Mensaje desfijado' : 'Mensaje fijado';
+    const systemBody = this.messageBody({
+      type: 'text',
+      text: label,
+    } as IncomingWhatsappMessage);
+    const systemMsg = this.messageRepo.create({
+      chat,
+      body: systemBody,
+      type: 'system',
+      fromMe: false,
+      status: 'delivered',
+      metaMessageId: message.key?.id,
+    });
+    const savedSystem = await this.messageRepo.save(systemMsg);
+
+    this.incomingResults$.next({
+      chat: await this.toChatDto(chat, false),
+      message: this.toMessageDto(savedSystem),
+      assignedAdvisorId: chat.assignedAdvisor?.id,
+    });
   }
 
   private isUniqueViolation(err: unknown): boolean {
@@ -3454,6 +3605,14 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       };
     }
 
+    if (type === 'pinInChatMessage') {
+      const pinType = data?.type;
+      return {
+        type: 'system',
+        text: pinType === 2 ? 'Mensaje desfijado' : 'Mensaje fijado',
+      };
+    }
+
     return { type: 'text', text: `[Mensaje ${type ?? 'no soportado'}]` };
   }
 
@@ -3487,6 +3646,10 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
         content = content.documentWithCaptionMessage.message;
         continue;
       }
+      if (content.editedMessage?.message) {
+        content = content.editedMessage.message;
+        continue;
+      }
       break;
     }
     return content;
@@ -3498,7 +3661,8 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       !type ||
       type === 'senderKeyDistributionMessage' ||
       type === 'messageContextInfo' ||
-      type === 'protocolMessage'
+      type === 'protocolMessage' ||
+      type === 'secretEncryptedMessage'
     );
   }
 
@@ -4769,6 +4933,10 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       lastClientMsg: chat.lastClientMessageAt ?? chat.updatedAt,
       messages,
       priority: chat.priority ?? 'normal',
+      pinnedMessageId: chat.pinnedMessageId ?? null,
+      pinnedMessageBody: chat.pinnedMessageBody ?? null,
+      pinnedMessageFrom: chat.pinnedMessageFrom ?? null,
+      pinnedAt: chat.pinnedAt ? chat.pinnedAt.toISOString() : null,
       ...this.computeChatSla(chat, messages),
     };
   }
@@ -4829,6 +4997,10 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       lastClientMsg: chat.lastClientMessageAt ?? chat.updatedAt,
       messages: dtos,
       priority: chat.priority ?? 'normal',
+      pinnedMessageId: chat.pinnedMessageId ?? null,
+      pinnedMessageBody: chat.pinnedMessageBody ?? null,
+      pinnedMessageFrom: chat.pinnedMessageFrom ?? null,
+      pinnedAt: chat.pinnedAt ? chat.pinnedAt.toISOString() : null,
       ...this.computeChatSla(chat, messages),
     };
   }

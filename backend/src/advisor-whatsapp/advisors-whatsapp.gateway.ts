@@ -64,6 +64,9 @@ export class AdvisorsWhatsappGateway
           status: updated.message.status,
           chatId: updated.chat.id,
         });
+        if (updated.message.editedAt) {
+          this.emitChatUpdated(updated.chat);
+        }
       }),
     );
     this.subscriptions.add(

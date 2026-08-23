@@ -71,6 +71,10 @@ export interface WaChat {
   frozenMinutes?: number;
   categoria?: WaCategoria;
   categoriaLabel?: string;
+  pinnedMessageId?: string | null;
+  pinnedMessageBody?: string | null;
+  pinnedMessageFrom?: string | null;
+  pinnedAt?: string | null;
 }
 
 export type WaCategoria =

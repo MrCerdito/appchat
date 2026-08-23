@@ -1,0 +1,266 @@
+<aside class="sidebar advisors-sidebar" [class.compact]="compactList">
+
+  <div class="mode-tabs">
+    <button
+      type="button"
+      class="mode-tab"
+      [class.active]="chatMode === 'clients'"
+      (click)="onSetChatMode('clients')"
+      title="Chat clientes"
+    >
+      <wa-icon name="message-circle"></wa-icon>
+      <span>Chat clientes</span>
+    </button>
+    <button
+      type="button"
+      class="mode-tab"
+      [class.active]="chatMode === 'advisors'"
+      (click)="onSetChatMode('advisors')"
+      title="Chat agentes"
+    >
+      <wa-icon name="users-group"></wa-icon>
+      <span>Chat agentes</span>
+      @if (internalUnreadTotal > 0) {
+      <em class="mode-badge">{{ internalUnreadTotal }}</em>
+      }
+    </button>
+  </div>
+
+  @if (chatMode === 'clients') {
+
+  @if (compactList) {
+  <div class="compact-filter-wrap">
+    <button
+      class="compact-filter-btn"
+      type="button"
+      [class.active]="showCompactFilter"
+      (click)="onToggleCompactFilter($event)"
+      title="Filtros"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px">
+        <path d="M3 4h18l-7 8v5l-4 2v-7l-7-8z" />
+      </svg>
+      <span class="cf-label">{{ activeFilterLabel }}</span>
+    </button>
+  </div>
+  }
+
+  <div class="search-bar">
+    <wa-icon name="search"></wa-icon>
+    <input
+      type="text"
+      placeholder="Buscar contacto, colegio, telefono o correo"
+      [ngModel]="searchQuery"
+      (ngModelChange)="onSearchChange($event)"
+    />
+  </div>
+
+  <div class="filter-tabs">
+    @for (filter of filterOptions; track trackByIndex($index)) {
+    <button
+      class="tab"
+      type="button"
+      [class.active]="activeFilter === filter.id"
+      (click)="onSetFilter(filter.id)"
+    >
+      <span>{{ filter.label }}</span>
+      <em>{{ getFilterCount(filter.id) }}</em>
+    </button>
+    }
+    <div class="more-filter-wrap">
+      <button
+        class="more-filter-btn"
+        type="button"
+        [class.open]="showMoreFilter"
+        (click)="onToggleMoreFilter()"
+        title="Mas filtros"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px">
+          <path d="M3 4h18l-7 8v5l-4 2v-7l-7-8z" />
+        </svg>
+      </button>
+      @if (showMoreFilter) {
+      <div class="more-filter-dropdown">
+        @for (filter of moreFilterOptions; track trackByIndex($index)) {
+        <button
+          class="more-filter-opt"
+          type="button"
+          (click)="onSetFilter(filter.id)"
+        >
+          <span>{{ filter.label }}</span>
+          <em>{{ getFilterCount(filter.id) }}</em>
+        </button>
+        }
+      </div>
+      }
+    </div>
+  </div>
+
+  <div class="chat-list">
+    @for (c of filteredContacts; track trackById($index, c)) {
+    <button
+      type="button"
+      class="chat-item"
+      [class.active]="c.id === activeContact?.id"
+      [class.mine]="c.assignedTo === currentUserId"
+      [class.in-queue]="c.tag === 'pendiente'"
+      [class.group-chat]="c.isGroup"
+      [class.closed-attention]="isChatClosed(c)"
+      [class.recent]="isRecentChat(c)"
+      [ngClass]="operationalStatusClass(c)"
+      (click)="onSelectContact(c)"
+    >
+      <div class="avatar-wrap"
+        [class]="compactList ? operationalStatusClass(c) : ''"
+        [class.is-group]="c.isGroup"
+        [class.is-closed]="isChatClosed(c)"
+        [class.is-recent]="isRecentChat(c)"
+      >
+        <img class="chat-avatar" [src]="avatarSrc(c)" [alt]="c.name" referrerpolicy="no-referrer" (click)="!compactList && onOpenProfilePhoto(c, $event)" (error)="useFallbackAvatar($event, c)" />
+        <span class="status-dot" [class]="c.status"></span>
+        @if (c.unread > 0) {
+        <span class="badge">{{ c.unread }}</span>
+        }
+      </div>
+
+      <div class="chat-info">
+        <div class="chat-top">
+          <span class="chat-name" [class.has-unread]="c.unread > 0">{{ formatDisplayName(c.name) }}</span>
+          @if (c.fixedAdvisorId) {
+          <wa-icon name="lock" class="fixed-icon" title="Cliente fijado"></wa-icon>
+          }
+          <span class="chat-time">{{ c.time }}</span>
+        </div>
+        @if (c.isGroup) {
+        <div class="chat-inst">
+          <wa-icon name="users-group"></wa-icon>
+          <span>Grupo</span>
+          @if (c.assignedTo === currentUserId) {
+          <span class="chat-mine-tag">Asignado a ti</span>
+          }
+        </div>
+        }
+        <div class="chat-preview">{{ displayPreview(c) }}</div>
+        <div class="chat-meta">
+          @if (c.priority && c.priority !== 'normal') {
+          <span
+            class="meta-badge priority-badge"
+            [style.background]="priorityColor(c.priority)"
+            [style.color]="c.priority === 'low' ? '#6b7280' : '#fff'"
+          >
+            {{ priorityLabel(c.priority) }}
+          </span>
+          }
+          <span
+            class="meta-badge tag"
+            [class.mine]="c.assignedTo === currentUserId"
+            [class.closed]="isChatClosed(c)"
+            [class.fixed]="!!c.fixedAdvisorId"
+          >
+            {{ getAssignmentLabel(c) }}
+          </span>
+          @if (c.fixedAdvisorId && c.fixedAdvisorName) {
+          <span class="meta-badge fixed-badge" title="Agente fijo">
+            <wa-icon name="lock"></wa-icon>
+            {{ c.fixedAdvisorName }}
+          </span>
+          }
+          @if (!c.isGroup && c.operationalStatusLabel && c.operationalStatusLabel !== 'Nuevo' && c.operationalStatusLabel !== 'En cola') {
+          <span
+            class="meta-badge op-status"
+            [class.in-progress]="c.operationalStatus === 'in_progress'"
+            [class.waiting]="c.operationalStatus === 'waiting_technical'"
+            [class.resolved]="c.operationalStatus === 'resolved'"
+          >
+            {{ c.operationalStatusLabel }}
+          </span>
+          }
+        </div>
+      </div>
+    </button>
+    }
+
+    
+
+      @if (hasMoreChats && filteredContacts.length > 0) {
+      <button
+        type="button"
+        class="load-more-btn"
+        [disabled]="isLoadingMoreChats"
+        (click)="onLoadMore()"
+      >
+        @if (isLoadingMoreChats) {
+        <span>Cargando...</span>
+        }
+        @if (!isLoadingMoreChats) {
+        <span>Cargar mas chats</span>
+        }
+      </button>
+      }
+  </div>
+
+  } @else {
+
+  <header class="ic-sidebar-header">
+    <div class="ic-sidebar-title">
+      <strong>Chat agentes</strong>
+      <span>{{ internalConversations.length }} conversacion{{ internalConversations.length === 1 ? '' : 'es' }}</span>
+    </div>
+    <button type="button" class="ic-new-btn" title="Nuevo chat" (click)="onOpenInternalNewChat()">
+      <wa-icon name="user-plus"></wa-icon>
+    </button>
+  </header>
+
+  <div class="ic-search">
+    <wa-icon name="search"></wa-icon>
+    <input
+      type="text"
+      placeholder="Buscar agente o grupo"
+      [ngModel]="internalSearchQuery"
+      (ngModelChange)="onInternalSearchChange($event)"
+    />
+  </div>
+
+  <div class="ic-list">
+    @if (internalIsLoadingConversations && !internalConversations.length) {
+    <div class="ic-empty-list">Cargando conversaciones...</div>
+    } @else {
+    @for (conv of internalFilteredConversations; track conv.id) {
+    <button
+      type="button"
+      class="ic-item"
+      [class.active]="internalActiveConversationId === conv.id"
+      (click)="onSelectInternalConversation(conv)"
+    >
+      <div class="ic-avatar" [class.is-group]="conv.type === 'group'">
+        @if (conv.photoUrl) {
+        <img [src]="conv.photoUrl" [alt]="conv.name" referrerpolicy="no-referrer" />
+        } @else if (conv.type === 'group') {
+        <wa-icon name="users-group"></wa-icon>
+        } @else {
+        {{ conv.name?.charAt(0) || '?' }}
+        }
+      </div>
+      <div class="ic-item-info">
+        <div class="ic-item-top">
+          <span class="ic-item-name" [class.has-unread]="conv.unreadCount > 0">{{ conv.name }}</span>
+          <span class="ic-item-time">{{ conv.lastMessage?.createdAt | date:'shortTime' }}</span>
+        </div>
+        <div class="ic-item-preview" [class.has-unread]="conv.unreadCount > 0">{{ conv.lastMessage?.body || 'Sin mensajes' }}</div>
+      </div>
+      @if (conv.unreadCount > 0) {
+      <span class="ic-badge">{{ conv.unreadCount }}</span>
+      }
+    </button>
+    }
+    @if (!internalFilteredConversations.length) {
+    <div class="ic-empty-list">Sin conversaciones. Crea una para empezar.</div>
+    }
+    }
+    <button type="button" class="ic-new-chat-btn" title="Nuevo chat" (click)="onOpenInternalNewChat()">
+      <wa-icon name="plus"></wa-icon>
+    </button>
+  </div>
+
+  }
+</aside>

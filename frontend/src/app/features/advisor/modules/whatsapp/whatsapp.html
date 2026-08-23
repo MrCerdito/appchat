@@ -322,267 +322,40 @@
   }
   }
 
-  <aside class="sidebar advisors-sidebar" [class.compact]="compactList">
-
-    <div class="mode-tabs">
-      <button
-        type="button"
-        class="mode-tab"
-        [class.active]="chatMode === 'clients'"
-        (click)="setChatMode('clients')"
-        title="Chat clientes"
-      >
-        <wa-icon name="message-circle"></wa-icon>
-        <span>Chat clientes</span>
-      </button>
-      <button
-        type="button"
-        class="mode-tab"
-        [class.active]="chatMode === 'advisors'"
-        (click)="setChatMode('advisors')"
-        title="Chat agentes"
-      >
-        <wa-icon name="users-group"></wa-icon>
-        <span>Chat agentes</span>
-        @if (internalUnreadTotal > 0) {
-        <em class="mode-badge">{{ internalUnreadTotal }}</em>
-        }
-      </button>
-    </div>
-
-    @if (chatMode === 'clients') {
-
-    @if (compactList) {
-    <div class="compact-filter-wrap">
-      <button
-        class="compact-filter-btn"
-        type="button"
-        [class.active]="showCompactFilter"
-        #compactFilterBtn
-        (click)="toggleCompactFilter($event)"
-        title="Filtros"
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px">
-          <path d="M3 4h18l-7 8v5l-4 2v-7l-7-8z" />
-        </svg>
-        <span class="cf-label">{{ activeFilterLabel }}</span>
-      </button>
-    </div>
-    }
-
-    <div class="search-bar">
-      <wa-icon name="search"></wa-icon>
-      <input
-        type="text"
-        placeholder="Buscar contacto, colegio, telefono o correo"
-        [(ngModel)]="searchQuery"
-      />
-    </div>
-
-    <div class="filter-tabs">
-      @for (filter of filterOptions; track trackByIndex($index)) {
-      <button
-        class="tab"
-        type="button"
-        [class.active]="activeFilter === filter.id"
-        (click)="setFilter(filter.id)"
-      >
-        <span>{{ filter.label }}</span>
-        <em>{{ getFilterCount(filter.id) }}</em>
-      </button>
-      }
-      <div class="more-filter-wrap">
-        <button
-          class="more-filter-btn"
-          type="button"
-          [class.open]="showMoreFilter"
-          (click)="toggleMoreFilter()"
-          title="Mas filtros"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px">
-            <path d="M3 4h18l-7 8v5l-4 2v-7l-7-8z" />
-          </svg>
-        </button>
-        @if (showMoreFilter) {
-        <div class="more-filter-dropdown">
-          @for (filter of moreFilterOptions; track trackByIndex($index)) {
-          <button
-            class="more-filter-opt"
-            type="button"
-            (click)="setFilter(filter.id); showMoreFilter = false"
-          >
-            <span>{{ filter.label }}</span>
-            <em>{{ getFilterCount(filter.id) }}</em>
-          </button>
-          }
-        </div>
-        }
-      </div>
-    </div>
-
-    <div class="chat-list">
-      @for (c of filteredContacts; track trackById($index, c)) {
-      <button
-        type="button"
-        class="chat-item"
-        [class.active]="c.id === activeContact?.id"
-        [class.mine]="c.assignedTo === currentUserId"
-        [class.in-queue]="c.tag === 'pendiente'"
-        [class.group-chat]="c.isGroup"
-        [class.closed-attention]="isChatClosed(c)"
-        [class.recent]="isRecentChat(c)"
-        [ngClass]="operationalStatusClass(c)"
-        (click)="selectContact(c)"
-      >
-        <div class="avatar-wrap"
-          [class]="compactList ? operationalStatusClass(c) : ''"
-          [class.is-group]="c.isGroup"
-          [class.is-closed]="isChatClosed(c)"
-          [class.is-recent]="isRecentChat(c)"
-        >
-          <img class="chat-avatar" [src]="avatarSrc(c)" [alt]="c.name" referrerpolicy="no-referrer" (click)="!compactList && openProfilePhoto(c, $event)" (error)="useFallbackAvatar($event, c)" />
-          <span class="status-dot" [class]="c.status"></span>
-          @if (c.unread > 0) {
-          <span class="badge">{{ c.unread }}</span>
-          }
-        </div>
-
-        <div class="chat-info">
-          <div class="chat-top">
-            <span class="chat-name" [class.has-unread]="c.unread > 0">{{ formatDisplayName(c.name) }}</span>
-            @if (c.fixedAdvisorId) {
-            <wa-icon name="lock" class="fixed-icon" title="Cliente fijado"></wa-icon>
-            }
-            <span class="chat-time">{{ c.time }}</span>
-          </div>
-          @if (c.isGroup) {
-          <div class="chat-inst">
-            <wa-icon name="users-group"></wa-icon>
-            <span>Grupo</span>
-            @if (c.assignedTo === currentUserId) {
-            <span class="chat-mine-tag">Asignado a ti</span>
-            }
-          </div>
-          }
-          <div class="chat-preview">{{ displayPreview(c) }}</div>
-          <div class="chat-meta">
-            @if (c.priority && c.priority !== 'normal') {
-            <span
-              class="meta-badge priority-badge"
-              [style.background]="priorityColor(c.priority)"
-              [style.color]="c.priority === 'low' ? '#6b7280' : '#fff'"
-            >
-              {{ priorityLabel(c.priority) }}
-            </span>
-            }
-            <span
-              class="meta-badge tag"
-              [class.mine]="c.assignedTo === currentUserId"
-              [class.closed]="isChatClosed(c)"
-              [class.fixed]="!!c.fixedAdvisorId"
-            >
-              {{ getAssignmentLabel(c) }}
-            </span>
-            @if (c.fixedAdvisorId && c.fixedAdvisorName) {
-            <span class="meta-badge fixed-badge" title="Agente fijo">
-              <wa-icon name="lock"></wa-icon>
-              {{ c.fixedAdvisorName }}
-            </span>
-            }
-            @if (!c.isGroup && c.operationalStatusLabel && c.operationalStatusLabel !== 'Nuevo' && c.operationalStatusLabel !== 'En cola') {
-            <span
-              class="meta-badge op-status"
-              [class.in-progress]="c.operationalStatus === 'in_progress'"
-              [class.waiting]="c.operationalStatus === 'waiting_technical'"
-              [class.resolved]="c.operationalStatus === 'resolved'"
-            >
-              {{ c.operationalStatusLabel }}
-            </span>
-            }
-          </div>
-        </div>
-      </button>
-      }
-
-    
-
-      @if (hasMoreChats && filteredContacts.length > 0) {
-      <button
-        type="button"
-        class="load-more-btn"
-        [disabled]="isLoadingMoreChats"
-        (click)="loadMoreChats()"
-      >
-        @if (isLoadingMoreChats) {
-        <span>Cargando...</span>
-        }
-        @if (!isLoadingMoreChats) {
-        <span>Cargar mas chats</span>
-        }
-      </button>
-      }
-    </div>
-
-    } @else {
-
-    <header class="ic-sidebar-header">
-      <div class="ic-sidebar-title">
-        <strong>Chat agentes</strong>
-        <span>{{ internalConversations.length }} conversacion{{ internalConversations.length === 1 ? '' : 'es' }}</span>
-      </div>
-      <button type="button" class="ic-new-btn" title="Nuevo chat" (click)="openInternalNewChat()">
-        <wa-icon name="user-plus"></wa-icon>
-      </button>
-    </header>
-
-    <div class="ic-search">
-      <wa-icon name="search"></wa-icon>
-      <input type="text" placeholder="Buscar agente o grupo" [(ngModel)]="internalSearchQuery" />
-    </div>
-
-    <div class="ic-list">
-      @if (internalIsLoadingConversations && !internalConversations.length) {
-      <div class="ic-empty-list">Cargando conversaciones...</div>
-      } @else {
-      @for (conv of internalFilteredConversations; track conv.id) {
-      <button
-        type="button"
-        class="ic-item"
-        [class.active]="internalActiveConversationId === conv.id"
-        (click)="selectInternalConversation(conv)"
-      >
-        <div class="ic-avatar" [class.is-group]="conv.type === 'group'">
-          @if (internalConversationPhotoUrl(conv)) {
-          <img [src]="internalConversationPhotoUrl(conv)" [alt]="internalConversationName(conv)" referrerpolicy="no-referrer" />
-          } @else if (conv.type === 'group') {
-          <wa-icon name="users-group"></wa-icon>
-          } @else {
-          {{ internalConversationAvatar(conv) }}
-          }
-        </div>
-        <div class="ic-item-info">
-          <div class="ic-item-top">
-            <span class="ic-item-name" [class.has-unread]="conv.unreadCount > 0">{{ internalConversationName(conv) }}</span>
-            <span class="ic-item-time">{{ internalConversationTime(conv) }}</span>
-          </div>
-          <div class="ic-item-preview" [class.has-unread]="conv.unreadCount > 0">{{ internalPreviewText(conv) }}</div>
-        </div>
-        @if (conv.unreadCount > 0) {
-        <span class="ic-badge">{{ conv.unreadCount }}</span>
-        }
-      </button>
-      }
-      @if (!internalFilteredConversations.length) {
-      <div class="ic-empty-list">Sin conversaciones. Crea una para empezar.</div>
-      }
-      }
-      <button type="button" class="ic-new-chat-btn" title="Nuevo chat" (click)="openInternalNewChat()">
-        <wa-icon name="plus"></wa-icon>
-      </button>
-    </div>
-
-    }
-  </aside>
+  <app-whatsapp-sidebar
+    [chatMode]="chatMode"
+    [contacts]="contacts"
+    [activeContact]="activeContact"
+    [currentUserId]="currentUserId"
+    [compactList]="compactList"
+    [showCompactFilter]="showCompactFilter"
+    [compactFilterTop]="compactFilterTop"
+    [compactFilterLeft]="compactFilterLeft"
+    [showMoreFilter]="showMoreFilter"
+    [activeFilter]="activeFilter"
+    [searchQuery]="searchQuery"
+    [filterOptions]="filterOptions"
+    [moreFilterOptions]="moreFilterOptions"
+    [hasMoreChats]="hasMoreChats"
+    [isLoadingMoreChats]="isLoadingMoreChats"
+    [internalUnreadTotal]="internalUnreadTotal"
+    [internalConversations]="internalConversations"
+    [internalFilteredConversations]="internalFilteredConversations"
+    [internalIsLoadingConversations]="internalIsLoadingConversations"
+    [internalActiveConversationId]="internalActiveConversationId"
+    [internalSearchQuery]="internalSearchQuery"
+    (modeChange)="setChatMode($event)"
+    (contactSelect)="selectContact($event)"
+    (filterChange)="activeFilter = $event"
+    (searchChange)="searchQuery = $event"
+    (compactFilterToggle)="toggleCompactFilter($event)"
+    (moreFilterToggle)="toggleMoreFilter()"
+    (loadMore)="loadMoreChats()"
+    (profilePhotoOpen)="openProfilePhoto($event.contact, $event.event)"
+    (internalSearchChange)="internalSearchQuery = $event"
+    (internalConversationSelect)="selectInternalConversation($event)"
+    (internalNewChatOpen)="openInternalNewChat()"
+  ></app-whatsapp-sidebar>
 
   @if (chatMode === 'clients') {
   @if (activeContact; as contact) {
@@ -619,11 +392,12 @@
         }
         <button
           class="info-toggle-btn"
+          [class.active]="showInfoPanel"
           type="button"
           (click)="showInfoPanel = !showInfoPanel"
-          title="Mostrar informacion"
+          [title]="showInfoPanel ? 'Ocultar informacion' : 'Mostrar informacion'"
         >
-          <wa-icon name="info-circle"></wa-icon>
+          <wa-icon [name]="showInfoPanel ? 'panel-right-close' : 'panel-right-open'"></wa-icon>
         </button>
         @if (contact.assignedTo === currentUserId && !isAttentionClosed) {
         <button
@@ -647,6 +421,19 @@
         }
       </div>
     </header>
+
+    @if (contact.pinnedMessageId) {
+    <div class="pinned-bar" (click)="scrollToPinnedMessage()">
+      <wa-icon name="pin" class="pinned-bar-icon"></wa-icon>
+      <div class="pinned-bar-content">
+        <span class="pinned-bar-from">{{ contact.pinnedMessageFrom }}</span>
+        <span class="pinned-bar-text">{{ contact.pinnedMessageBody }}</span>
+      </div>
+      <button class="pinned-bar-close" type="button" (click)="unpinMessage($event)" title="Desfijar mensaje">
+        <wa-icon name="x"></wa-icon>
+      </button>
+    </div>
+    }
 
     <section class="messages-bg" #messagesContainer (scroll)="onScrollMessages()" [style.visibility]="chatReady ? 'visible' : 'hidden'">
       @if (isLoadingMessages) {
@@ -672,6 +459,11 @@
         <div class="unread-divider-line"></div>
       </div>
       }
+      @if (msg.type === 'system') {
+      <div class="msg-system">
+        <span>{{ msg.body }}</span>
+      </div>
+      } @else {
       <div
         class="msg-row"
         [ngClass]="msg.fromMe ? 'out' : 'in'"
@@ -770,9 +562,9 @@
               <div class="quoted-content">
                 <strong>{{ msg.quotedSender || 'Mensaje' }}</strong>
                 <span>{{ msg.quotedBody | slice:0:60 }}{{ (msg.quotedBody || '').length > 60 ? '...' : '' }}</span>
-              </div>
-            </div>
-            }
+        </div>
+      </div>
+      }
             @if (shouldShowMessageBody(msg)) {
             <p [innerHTML]="formatWaMessage(msg)"></p>
             }
@@ -856,6 +648,7 @@
         </div>
       </div>
       }
+      }
       </div>
       }
 
@@ -871,6 +664,9 @@
 
     @if (showScrollToBottom) {
     <button class="scroll-to-bottom-btn" (click)="scrollToBottomSmooth()" title="Ir al ultimo mensaje">
+      @if (newMessagesCount > 0) {
+      <span class="scroll-to-bottom-count">{{ newMessagesCount }} nuevos</span>
+      }
       <wa-icon name="chevrons-down"></wa-icon>
     </button>
     }
@@ -1229,250 +1025,36 @@
   <div class="info-backdrop" (click)="showInfoPanel = false"></div>
   }
   @if (activeContact; as contact) {
-  <aside class="right-panel" [class.open]="showInfoPanel">
-    <section class="profile-head">
-      <img [src]="avatarSrc(contact)" [alt]="contact.name" referrerpolicy="no-referrer" (click)="openProfilePhoto(contact, $event)" (error)="useFallbackAvatar($event, contact)" />
-      <div>
-        <h2>{{ formatDisplayName(contact.name) }}</h2>
-        <p>{{ getAssignmentLabel(contact) }}</p>
-        <button
-          class="close-chat-btn"
-          type="button"
-          (click)="closeActiveChat()"
-          [disabled]="isClosingChat || activeContact.assignedTo !== currentUserId || isFixedToOther() || activeContact.isGroup"
-          [title]="isFixedToOther() ? 'No puedes cerrar un cliente fijado' : (activeContact.isGroup ? 'Solo un administrador puede liberar la asignacion de un grupo' : 'Cerrar chat')"
-        >
-          <wa-icon name="x-circle"></wa-icon>
-          Cerrar chat
-        </button>
-      </div>
-      <button
-        class="icon-action"
-        type="button"
-        (click)="isEditingContact ? cancelEditContact() : startEditContact()"
-        [title]="isEditingContact ? 'Cancelar edicion' : 'Editar contacto'"
-      >
-        <wa-icon [name]="isEditingContact ? 'x' : 'pencil'"></wa-icon>
-      </button>
-    </section>
-
-    @if (contact.fixedAdvisorId && contact.fixedAdvisorName) {
-    <section class="panel-section fixed-info-section">
-      <div class="section-title">
-        <wa-icon name="lock"></wa-icon>
-        Agente fijado
-      </div>
-      <div class="fixed-advisor-display">
-        <wa-icon name="user"></wa-icon>
-        <span>{{ contact.fixedAdvisorName }}</span>
-      </div>
-    </section>
-    }
-
-    @if (isEditingContact) {
-    <section class="panel-section contact-editor">
-      <div class="section-title">
-        <wa-icon name="id"></wa-icon>
-        Informacion editable
-      </div>
-
-      <label>
-        <span>Nombre</span>
-        <input name="wa-name" type="text" [(ngModel)]="contactDraft.name" />
-      </label>
-      <label>
-        <span>Cargo</span>
-        <input name="wa-role" type="text" [(ngModel)]="contactDraft.role" />
-      </label>
-      <label>
-        <span>Colegio</span>
-        <input name="wa-institution" type="text" [(ngModel)]="contactDraft.institution" />
-      </label>
-      <label>
-        <span>Link del colegio</span>
-        <input name="wa-institution-url" type="url" [(ngModel)]="contactDraft.institutionUrl" />
-      </label>
-      <label>
-        <span>Lugar</span>
-        <input name="wa-city" type="text" [(ngModel)]="contactDraft.city" />
-      </label>
-      <label>
-        <span>Contacto</span>
-        <input name="wa-phone" type="tel" [(ngModel)]="contactDraft.phone" />
-      </label>
-      <label>
-        <span>Correo</span>
-        <input name="wa-email" type="email" [(ngModel)]="contactDraft.email" />
-      </label>
-      <label>
-        <span>Plan</span>
-        <input name="wa-plan" type="text" [(ngModel)]="contactDraft.plan" />
-      </label>
-      <label>
-        <span>Modulos</span>
-        <input name="wa-modules" type="text" [(ngModel)]="contactDraft.modulesText" />
-      </label>
-
-      <div class="edit-actions">
-        <button type="button" class="secondary-btn" (click)="cancelEditContact()">Cancelar</button>
-        <button type="button" class="primary-btn" (click)="saveContact()" [disabled]="isSavingContact">
-          <wa-icon [name]="isSavingContact ? 'loader-2' : 'device-floppy'"></wa-icon>
-          Guardar
-        </button>
-      </div>
-      @if (contactSaveMessage) {
-      <p class="save-message">{{ contactSaveMessage }}</p>
-      }
-    </section>
-    } @else {
-      <section class="panel-section operation-card">
-        <div class="section-title">
-          <wa-icon name="activity"></wa-icon>
-          Estado operativo
-          <em>{{ contact.operationalStatusLabel || contact.stage }}</em>
-        </div>
-
-        <div class="operation-current" [ngClass]="operationalStatusClass(contact)">
-          <strong>{{ contact.operationalStatusLabel || contact.stage }}</strong>
-          <span>{{ getAssignmentLabel(contact) }}</span>
-        </div>
-
-        <div class="operation-actions">
-          @for (status of operationalStatusOptions; track trackByIndex($index)) {
-          <button
-            type="button"
-            [class.active]="contact.operationalStatus === status.id"
-            [disabled]="isUpdatingOperationalStatus || isAssignedToSomeoneElse || contact.isGroup"
-            (click)="updateOperationalStatus(status.id)"
-            [title]="status.hint"
-          >
-            {{ status.label }}
-          </button>
-          }
-        </div>
-        @if (contactSaveMessage) {
-        <p class="save-message">{{ contactSaveMessage }}</p>
-        }
-        @if (!isAssignedToSomeoneElse) {
-        <button class="ticket-btn" type="button" (click)="openTicketModal()">
-          <wa-icon name="file-text"></wa-icon>
-          {{ creatingTicket ? 'Generando...' : 'Generar ticket' }}
-        </button>
-        }
-      </section>
-
-      <section class="panel-section">
-        <div class="section-title">
-          <wa-icon name="address-book"></wa-icon>
-          Contacto
-        </div>
-        <div class="info-grid">
-          <div>
-            <span>Nombre</span>
-            <strong>{{ formatDisplayName(contact.name) || 'Sin nombre' }}</strong>
-          </div>
-          <div>
-            <span>Cargo</span>
-            <strong>{{ contact.role || 'Sin cargo' }}</strong>
-          </div>
-          @if (getInstitutionHref(contact)) {
-          <a
-            class="info-card link-card"
-            [href]="getInstitutionHref(contact)"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <span>Colegio</span>
-            <strong>{{ contact.institution || 'Sin colegio' }}</strong>
-          </a>
-          } @else {
-            <div class="info-card">
-              <span>Colegio</span>
-              <strong>{{ contact.institution || 'Sin colegio' }}</strong>
-            </div>
-          }
-          <div>
-            <span>Lugar</span>
-            <strong>{{ contact.city || 'Sin lugar' }}</strong>
-          </div>
-        </div>
-
-        <a class="info-row" [href]="getPhoneHref(contact)">
-          <wa-icon name="phone"></wa-icon>
-          <span>{{ formatPhoneDisplay(contact.phone) || 'Sin telefono' }}</span>
-        </a>
-        @if (getEmailHref(contact)) {
-        <a class="info-row" [href]="getEmailHref(contact)">
-          <wa-icon name="mail"></wa-icon>
-          <span>{{ contact.email }}</span>
-        </a>
-        }
-      </section>
-
-    }
-
-    <section class="panel-section teams-card">
-      <div class="section-title">
-        <wa-icon name="brand-teams"></wa-icon>
-        Microsoft Teams
-      </div>
-      <button
-        type="button"
-        class="teams-meeting-btn"
-        (click)="openTeamsMeeting()"
-        [disabled]="!canReply"
-        title="Crear videollamada de Teams y enviar el link"
-      >
-        <wa-icon name="video-plus"></wa-icon>
-        Crear reunion
-      </button>
-    </section>
-
-    <section class="panel-section ai-card" (click)="aiInsight()" [class.loading]="isAiInsightLoading">
-      <div class="section-title">
-        <wa-icon [name]="isAiInsightLoading ? 'loader-2' : 'sparkles'"></wa-icon>
-        Analisis IA
-      </div>
-      @if (!isAiInsightLoading) {
-      <p>{{ aiInsightPreview }}</p>
-      }
-      @if (isAiInsightLoading) {
-      <div class="ai-loading-bar"><span></span></div>
-      }
-    </section>
-
-    <section class="panel-section notes-card">
-      <div class="section-title">
-        <wa-icon name="notes"></wa-icon>
-        Observaciones
-        <em>{{ contact.notes.length }}</em>
-      </div>
-
-      <div class="note-composer">
-        <textarea
-          class="note-textarea"
-          [(ngModel)]="newNote"
-          rows="2"
-          placeholder="Anadir observacion"
-          (keydown.enter)="$event.preventDefault(); addNote()"
-        ></textarea>
-        <button type="button" class="note-save-btn" (click)="addNote()" [disabled]="!newNote.trim()">
-          <wa-icon name="plus"></wa-icon>
-          Guardar
-        </button>
-      </div>
-
-      <div class="note-list">
-        @for (note of contact.notes; track trackByIndex($index); let i = $index) {
-        <article class="note-item">
-          <p>{{ note }}</p>
-          <button type="button" class="note-del" (click)="removeNote(i)" title="Eliminar">
-            <wa-icon name="trash"></wa-icon>
-          </button>
-        </article>
-        }
-      </div>
-    </section>
+  <aside class="right-panel" [class.hidden]="!showInfoPanel">
+    <app-whatsapp-info-panel
+      [contact]="contact"
+      [currentUserId]="currentUserId"
+      [isClosingChat]="isClosingChat"
+      [isEditingContact]="isEditingContact"
+      [contactDraft]="contactDraft"
+      [isSavingContact]="isSavingContact"
+      [contactSaveMessage]="contactSaveMessage"
+      [operationalStatusOptions]="operationalStatusOptions"
+      [isUpdatingOperationalStatus]="isUpdatingOperationalStatus"
+      [isAssignedToSomeoneElse]="isAssignedToSomeoneElse"
+      [creatingTicket]="creatingTicket"
+      [canReply]="canReply"
+      [isAiInsightLoading]="isAiInsightLoading"
+      [aiInsightPreview]="aiInsightPreview"
+      [newNote]="newNote"
+      (closeChat)="closeActiveChat()"
+      (toggleEdit)="startEditContact()"
+      (saveContact)="saveContact()"
+      (cancelEdit)="cancelEditContact()"
+      (updateStatus)="onInfoPanelUpdateStatus($event)"
+      (openTicket)="openTicketModal()"
+      (openTeamsMeeting)="openTeamsMeeting()"
+      (runAiInsight)="aiInsight()"
+      (addNote)="addNote()"
+      (removeNote)="removeNote($event)"
+      (newNoteChange)="newNote = $event"
+      (profilePhotoOpen)="openProfilePhoto(contact, $event)"
+    ></app-whatsapp-info-panel>
   </aside>
   }
 

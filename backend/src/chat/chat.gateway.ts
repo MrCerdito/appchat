@@ -1047,6 +1047,63 @@ export class ChatGateway
   }
 
   // ══════════════════════════════════════════════════════════════════════════
+  // EDITAR MENSAJE
+  // ══════════════════════════════════════════════════════════════════════════
+
+  @SubscribeMessage('edit_message')
+  async handleEditMessage(
+    @MessageBody()
+    data: { messageId: string; sessionId: string; content: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const { messageId, sessionId, content } = data;
+    if (!messageId || !sessionId || typeof content !== 'string') {
+      client.emit('message_error', { reason: 'Datos invalidos' });
+      return;
+    }
+
+    if (client.data.role === 'client') {
+      if (client.data.sessionId !== sessionId) {
+        client.emit('message_error', { reason: 'No estas conectado a esta sesion' });
+        return;
+      }
+    } else if (client.data.role === 'advisor') {
+      try {
+        const session = await this.sessionsService.findOne(sessionId);
+        if (!this.isAdvisorAuthorized(session, client.data.user)) {
+          client.emit('message_error', { reason: 'No tienes permisos' });
+          return;
+        }
+      } catch {
+        client.emit('message_error', { reason: 'Sesion no encontrada' });
+        return;
+      }
+    } else {
+      client.emit('message_error', { reason: 'Rol no valido' });
+      return;
+    }
+
+    const senderType = client.data.role as 'client' | 'advisor';
+    try {
+      const updated = await this.chatService.editMessage(
+        messageId,
+        sessionId,
+        senderType,
+        content,
+      );
+      this.server.to(sessionId).emit('message_edited', updated);
+      void this.sessionsService.findOne(sessionId).then((session) => {
+        const advisorId = session?.advisor?.id;
+        if (advisorId) {
+          this.server.to(`advisor:${advisorId}`).emit('message_edited', { ...updated, sessionId });
+        }
+      }).catch(() => {});
+    } catch (err) {
+      client.emit('message_error', { reason: err.message });
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
   // TRANSFERIR SESIÓN
   // ══════════════════════════════════════════════════════════════════════════
 

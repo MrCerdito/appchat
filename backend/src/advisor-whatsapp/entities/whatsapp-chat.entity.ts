@@ -153,6 +153,18 @@ export class WhatsappChat {
   @OneToMany(() => WhatsappMessage, (message) => message.chat)
   messages: WhatsappMessage[];
 
+  @Column({ name: 'pinned_message_id', type: 'varchar', length: 100, nullable: true })
+  pinnedMessageId: string | null;
+
+  @Column({ name: 'pinned_message_body', type: 'text', nullable: true })
+  pinnedMessageBody: string | null;
+
+  @Column({ name: 'pinned_message_from', type: 'varchar', length: 120, nullable: true })
+  pinnedMessageFrom: string | null;
+
+  @Column({ name: 'pinned_at', nullable: true, type: 'timestamptz' })
+  pinnedAt: Date | null;
+
   @Column({ name: 'closed_at', nullable: true, type: 'timestamptz' })
   closedAt: Date | null;
 

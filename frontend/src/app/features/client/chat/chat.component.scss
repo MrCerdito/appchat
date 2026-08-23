@@ -661,6 +661,13 @@ $radius-pill: 999px;
     font-size: 11px; color: $text-faint; margin-top: 4px; padding: 0 4px;
     display: flex; align-items: center; gap: 4px;
   }
+
+  .edited-tag {
+    font-size: 11px;
+    font-style: italic;
+    color: #9ca3af;
+    margin-left: 4px;
+  }
 }
 
 // Mensajes que adjuntan tarjetas de documentos: más ancho para que las

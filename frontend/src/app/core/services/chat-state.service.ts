@@ -86,6 +86,13 @@ export class ChatStateService {
     ));
   }
 
+  updateMessage(sessionId: string, updatedMsg: Message): void {
+    const current = this.messagesMap.get(sessionId) ?? [];
+    this.messagesMap.set(sessionId, current.map(m =>
+      m.id === updatedMsg.id ? { ...m, ...updatedMsg } : m,
+    ));
+  }
+
   clearSession(sessionId: string): void {
     this.messagesMap.delete(sessionId);
     this.unreadMap.delete(sessionId);

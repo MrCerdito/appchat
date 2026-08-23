@@ -2467,6 +2467,160 @@ a {
 .header-actions { flex-shrink: 0; }
 .chat-messages { overflow-x: hidden; }
 
+.msg-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.msg--advisor .msg-meta { justify-content: flex-end; }
+.msg--client .msg-meta { justify-content: flex-start; }
+
+.edited-tag {
+  font-size: 11px;
+  font-style: italic;
+  color: $text-faint;
+}
+
+// ── Bubble row + floating edit pencil ──────────────────────────────────────────
+.bubble-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  max-width: 100%;
+}
+
+.bubble-row--own {
+  justify-content: flex-end;
+}
+
+.bubble-float-edit {
+  display: none;
+  flex-shrink: 0;
+  width: 26px;
+  min-height: 32px;
+  align-self: center;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: $text-faint;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: $radius-sm;
+  transition: background 0.18s, color 0.18s, transform 0.15s;
+
+  svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+  &:hover {
+    background: $primary-soft;
+    color: $primary;
+    transform: scale(1.1);
+  }
+}
+
+.bubble-row--own:hover .bubble-float-edit { display: flex; }
+
+// ── Editing state ─────────────────────────────────────────────────────────────
+.bubble-row--editing {
+  justify-content: flex-end;
+}
+
+.bubble--editing {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  min-width: 200px;
+  max-width: 100%;
+  width: auto;
+  background: $surface;
+  border: 1px solid $primary-border;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-md;
+  overflow: hidden;
+
+  .edit-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: linear-gradient(135deg, $primary, $primary-hover);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+
+    svg { width: 14px; height: 14px; opacity: 0.85; }
+  }
+
+  .edit-input {
+    width: 100%;
+    border: none;
+    border-radius: 0;
+    padding: 10px 12px;
+    font-size: 14px;
+    line-height: 1.5;
+    resize: vertical;
+    font-family: inherit;
+    background: $surface;
+    color: $text;
+    min-height: 60px;
+    max-height: 180px;
+
+    &:focus { outline: none; box-shadow: inset 0 0 0 2px rgba($primary, 0.15); }
+  }
+
+  .edit-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px;
+    background: $bg;
+    border-top: 1px solid $border-light;
+  }
+
+  .edit-hint {
+    font-size: 11px;
+    color: $text-faint;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .edit-actions {
+    display: flex;
+    gap: 6px;
+  }
+}
+
+.edit-cancel,
+.edit-save {
+  border: none;
+  border-radius: $radius-sm;
+  padding: 5px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.12s;
+}
+
+.edit-cancel {
+  background: $border-light;
+  color: $text-secondary;
+  &:hover { background: #e2e4e8; }
+}
+
+.edit-save {
+  background: linear-gradient(135deg, $primary, $primary-hover);
+  color: #fff;
+  box-shadow: 0 1px 4px rgba($primary, 0.25);
+  &:hover { box-shadow: 0 2px 8px rgba($primary, 0.35); transform: translateY(-1px); }
+  &:disabled { opacity: 0.4; cursor: default; box-shadow: none; transform: none; }
+}
+
 // ── ≥1400px: extra wide ──────────────────────────────────
 @media (min-width: 1400px) {
   .conversations-panel:not(.compact) { width: 380px; }

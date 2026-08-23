@@ -400,7 +400,7 @@ export class WhatsappChatService implements OnDestroy {
     });
   }
 
-  loadMessages(chatId: string, page = 1, limit = 50, anchor?: string): Observable<{ messages: WaMessage[]; total: number; hasMore: boolean }> {
+  loadMessages(chatId: string, page = 1, limit = 50, anchor?: string, before?: string): Observable<{ messages: WaMessage[]; total: number; hasMore: boolean }> {
     return this.http.get<{ messages: WaMessage[]; total: number; hasMore: boolean }>(
       `${this.apiUrl}/chats/${chatId}/messages`,
       {
@@ -409,6 +409,7 @@ export class WhatsappChatService implements OnDestroy {
           page: String(page),
           limit: String(limit),
           ...(anchor ? { anchor } : {}),
+          ...(before ? { before } : {}),
         },
       },
     );
@@ -646,6 +647,14 @@ export class WhatsappChatService implements OnDestroy {
   adminUnassignChat(chatId: string): Observable<WaChat> {
     return this.http.post<WaChat>(
       `${this.apiUrl}/chats/${chatId}/admin-unassign`,
+      {},
+      { headers: this.headers() },
+    ).pipe(tap(chat => this.upsertChat(chat)));
+  }
+
+  unpinMessage(chatId: string): Observable<WaChat> {
+    return this.http.post<WaChat>(
+      `${this.apiUrl}/chats/${chatId}/unpin`,
       {},
       { headers: this.headers() },
     ).pipe(tap(chat => this.upsertChat(chat)));

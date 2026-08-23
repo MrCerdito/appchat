@@ -181,6 +181,7 @@ export class AdvisorsWhatsappController {
     @Query('limit') limit = '100',
     @Req() req: Request & { user: any },
     @Query('anchor') anchor?: string,
+    @Query('before') before?: string,
   ) {
     return this.whatsappService.getMessages(
       chatId,
@@ -189,6 +190,7 @@ export class AdvisorsWhatsappController {
       req.user.id,
       req.user.role,
       anchor,
+      before,
     );
   }
 
@@ -465,6 +467,17 @@ export class AdvisorsWhatsappController {
       priority as any,
       req.user.role,
     );
+    this.whatsappGateway.emitChatUpdated(chat);
+    return chat;
+  }
+
+  @Post('chats/:chatId/unpin')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  async unpinMessage(
+    @Param('chatId') chatId: string,
+  ) {
+    const chat = await this.whatsappService.unpinChatMessage(chatId);
     this.whatsappGateway.emitChatUpdated(chat);
     return chat;
   }
