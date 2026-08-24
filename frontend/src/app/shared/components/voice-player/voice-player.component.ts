@@ -45,6 +45,22 @@ function getDurationCache(): Map<string, number> {
   return durationCache;
 }
 
+const HEARD_KEY = 'vp-heard-srcs';
+
+let heardSrcs: Set<string> | null = null;
+
+function getHeardSet(): Set<string> {
+  if (!heardSrcs) {
+    try {
+      const raw = sessionStorage.getItem(HEARD_KEY);
+      heardSrcs = new Set(raw ? (JSON.parse(raw) as string[]) : []);
+    } catch {
+      heardSrcs = new Set();
+    }
+  }
+  return heardSrcs;
+}
+
 function computePeaks(channel: Float32Array, count: number): number[] {
   const peaks: number[] = [];
   const block = Math.max(1, Math.floor(channel.length / count));
@@ -71,6 +87,7 @@ function computePeaks(channel: Float32Array, count: number): number[] {
   templateUrl: './voice-player.component.html',
   styleUrl: './voice-player.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { '[class.compact-mode]': 'compact' },
 })
 export class VoicePlayerComponent implements OnInit, AfterViewInit, OnDestroy {
   @Input() src = '';
@@ -88,6 +105,7 @@ export class VoicePlayerComponent implements OnInit, AfterViewInit, OnDestroy {
   progress = 0;
   avatarFailed = false;
   dragging = false;
+  heard = false;
 
   private audio?: HTMLAudioElement;
   private rafId = 0;
@@ -100,6 +118,7 @@ export class VoicePlayerComponent implements OnInit, AfterViewInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    this.heard = getHeardSet().has(this.src);
     const cached = getPeaksCache().get(this.src);
     if (cached) {
       this.peaks = cached;
@@ -154,6 +173,7 @@ export class VoicePlayerComponent implements OnInit, AfterViewInit, OnDestroy {
     void this.audio.play()
       .then(() => {
         this.playing = true;
+        this.markHeard();
         this.cdr.detectChanges();
         this.tick();
       })
@@ -172,6 +192,13 @@ export class VoicePlayerComponent implements OnInit, AfterViewInit, OnDestroy {
     const m = Math.floor(sec / 60);
     const s = Math.floor(sec % 60);
     return `${m}:${s.toString().padStart(2, '0')}`;
+  }
+
+  get timeLabel(): string {
+    if (this.playing || this.progress > 0) {
+      return `${this.formatTime(this.elapsed)} / ${this.formatTime(this.duration)}`;
+    }
+    return this.formatTime(this.duration);
   }
 
   onAvatarError(): void {
@@ -199,6 +226,18 @@ export class VoicePlayerComponent implements OnInit, AfterViewInit, OnDestroy {
     this.dragging = false;
     this.dragPointerId = -1;
     this.trackRef?.nativeElement.releasePointerCapture?.(event.pointerId);
+  }
+
+  private markHeard(): void {
+    if (this.heard || !this.src) return;
+    this.heard = true;
+    const set = getHeardSet();
+    set.add(this.src);
+    try {
+      sessionStorage.setItem(HEARD_KEY, JSON.stringify([...set]));
+    } catch {
+      /* storage lleno o no disponible: el estado vive en memoria */
+    }
   }
 
   private seekFromEvent(event: PointerEvent): void {

@@ -1,7 +1,16 @@
 @if (recording) {
-<div class="vr-bar" [class.paused]="paused">
+<div
+  class="vr-bar"
+  [class.paused]="paused"
+  [style.transform]="'translateX(calc(-50% + ' + barShift + 'px))'"
+>
   <span class="vr-dot" [class.paused]="paused"></span>
   <span class="vr-time">{{ formatTime(seconds) }}</span>
+  <span class="vr-wave">
+    @for (bar of bars; track $index) {
+    <span class="vr-wave-bar" [style.height.%]="bar * 100"></span>
+    }
+  </span>
   <button
     type="button"
     class="vr-cancel"
@@ -13,11 +22,6 @@
       <path d="M9 3v1H4a1 1 0 0 0 0 2h1v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6h1a1 1 0 1 0 0-2h-5V3a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1zm2 1h2v1h-2V4zM7 6h10v13H7V6zm2 2v9h2V8H9zm4 0v9h2V8h-2z" />
     </svg>
   </button>
-  <span class="vr-wave">
-    @for (bar of bars; track $index) {
-    <span class="vr-wave-bar" [style.height.%]="bar * 100"></span>
-    }
-  </span>
   @if (canPause) {
   <button
     type="button"

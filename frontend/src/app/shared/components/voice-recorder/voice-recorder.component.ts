@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
+  ElementRef,
   EventEmitter,
   Input,
   OnDestroy,
@@ -35,6 +36,7 @@ export class VoiceRecorderComponent implements OnDestroy {
   seconds = 0;
   bars: number[] = new Array<number>(BAR_COUNT).fill(0.18);
   canPause = false;
+  barShift = 0;
 
   private mediaRecorder?: MediaRecorder;
   private chunks: Blob[] = [];
@@ -48,15 +50,19 @@ export class VoiceRecorderComponent implements OnDestroy {
   private lastTickAt = 0;
   private mimeType = '';
   private finalized = false;
+  private resizeHandler?: () => void;
 
-  constructor(private readonly cdr: ChangeDetectorRef) {}
-
+  constructor(
+    private readonly cdr: ChangeDetectorRef,
+    private readonly el: ElementRef<HTMLElement>,
+  ) {}
   async start(): Promise<void> {
     if (this.disabled || this.recording) return;
     if (!navigator.mediaDevices?.getUserMedia) {
       this.error.emit('Este navegador no permite grabar audio.');
       return;
     }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       this.stream = stream;
@@ -80,15 +86,36 @@ export class VoiceRecorderComponent implements OnDestroy {
       this.setupAnalyser(stream);
       this.mediaRecorder.start(250);
       this.recording = true;
+      this.barShift = 0;
       this.lastTickAt = performance.now();
       this.intervalId = setInterval(() => this.updateClock(), 250);
       this.drawLoop();
       this.recordingChange.emit(true);
       this.cdr.detectChanges();
+      requestAnimationFrame(() => {
+        this.applyBarPlacement();
+        window.addEventListener('resize', (this.resizeHandler = () => this.applyBarPlacement()));
+      });
     } catch {
       this.cleanupStream();
       this.error.emit('No se pudo acceder al micrófono.');
     }
+  }
+
+  private applyBarPlacement(): void {
+    if (!this.recording) return;
+    const host = this.el.nativeElement;
+    const bar = host.querySelector<HTMLElement>('.vr-bar');
+    const container = host.parentElement ?? (host.offsetParent as HTMLElement | null);
+    if (!bar || !container) return;
+    bar.style.maxWidth = `${Math.max(240, container.clientWidth - 16)}px`;
+    const c = container.getBoundingClientRect();
+    const b = bar.getBoundingClientRect();
+    const rawDelta = c.left + c.width / 2 - (b.left + b.width / 2);
+    const minDelta = c.left + 8 - b.left;
+    const maxDelta = c.right - 8 - b.right;
+    this.barShift += Math.round(Math.max(minDelta, Math.min(maxDelta, rawDelta)));
+    this.cdr.detectChanges();
   }
 
   togglePause(): void {
@@ -200,6 +227,8 @@ export class VoiceRecorderComponent implements OnDestroy {
     this.intervalId = undefined;
     if (this.rafId) cancelAnimationFrame(this.rafId);
     this.rafId = 0;
+    if (this.resizeHandler) window.removeEventListener('resize', this.resizeHandler);
+    this.resizeHandler = undefined;
     this.cleanupStream();
     try {
       this.audioCtx?.close().catch(() => undefined);

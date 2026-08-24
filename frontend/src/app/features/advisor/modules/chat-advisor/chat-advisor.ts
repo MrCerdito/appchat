@@ -1082,6 +1082,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   onVoiceFileReady(result: VoiceRecordingResult): void {
     this.previewFiles.push({ file: result.file, preview: null, uploading: false, error: null });
     this.cdr.detectChanges();
+    void this.send();
   }
 
   onVoiceRecordingChange(recording: boolean): void {

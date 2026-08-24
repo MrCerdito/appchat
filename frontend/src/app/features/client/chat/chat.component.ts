@@ -90,12 +90,6 @@ export class ChatComponent implements OnInit, OnDestroy {
   faqMenuRespondidos = new Map<number, boolean>();
   chatFinalizado = false;
   fechaCierre = '';
-  showImprovePanel = false;
-  isImproving = false;
-  improveTone: string | null = null;
-  improvedText = '';
-  showSuggestionChips = false;
-  private improveDebounceTimer: any = null;
   mostrarConfirmCierre    = false;
   mostrarAsesoresOcupados = false;
   reconexionActiva = false;
@@ -354,22 +348,23 @@ get rolLabel(): string {
   // ══════════════════════════════════════════════════════════════════════════
   //
   // Flujo:
-  //   Minuto 0  → cliente abre chat, timer arranca.
-  //   Escribe   → timer se reinicia completamente desde cero.
-  //   Minuto 2  → aparece overlay con barra regresiva de 60s.
-  //   Escribe   → overlay desaparece, timer reinicia.
-  //   Minuto 3  → cierre automático de la sesión.
+  //   Minuto 0   → cliente abre chat (o escribe), contador arranca en 3:00.
+  //   Escribe    → el deadline se reinicia completo.
+  //   Últimos 30s → strip en ámbar. Últimos 10s → rojo.
+  //   0:00       → cierre automático de la sesión.
   //
-  // Tres timers separados para poder cancelarlos individualmente:
-  //   inactividadIaAviso$ → setTimeout para mostrar el overlay (min 2)
-  //   inactividadIaTick   → setInterval que decrementa el contador visual
-  //   inactividadIaTimer  → setTimeout para cerrar la sesión (min 3)
+  // El conteo se calcula contra un deadline ABSOLUTO (Date.now()), no por
+  // decrementos: si el navegador ralentiza los intervals con la pestaña en
+  // segundo plano, al volver esta se recalcula al instante y sigue exacto.
 
-  private inactividadIaTimer  : any = null;
-  private inactividadIaAviso$ : any = null;
-  private inactividadIaTick   : any = null;
-  inactividadIaAviso   = false; // visibilidad del overlay
-  inactividadIaSegRest = 30;    // segundos restantes para la barra
+  private static readonly IA_TOTAL_SEGS   = 180;
+  private static readonly IA_AVISO_SEGS   = 30;
+  private static readonly IA_URGENTE_SEGS = 10;
+
+  private iaDeadline = 0;           // timestamp absoluto de cierre
+  private iaTick     : any = null;  // interval de refresco visual (1s)
+  inactividadIaAviso   = false;     // true mientras haya sesión IA activa
+  inactividadIaSegRest = 180;       // segundos restantes mostrados
 
   // ══════════════════════════════════════════════════════════════════════════
   // CONEXIÓN
@@ -618,72 +613,78 @@ get rolLabel(): string {
    * Cancela cualquier timer previo antes de crear uno nuevo.
    */
   private iniciarTimerInactividadIa(): void {
-    this._limpiarTimersInactividad();
+    this._detenerTickInactividad();
+    if (!this.aiMode) return;
 
-    const AVISO_MS   = 150 * 1000;
-    const AVISO_SEGS = 30;
-    const TOTAL_MS   = 180 * 1000;
-  
+    this.iaDeadline = Date.now() + ChatComponent.IA_TOTAL_SEGS * 1000;
+    this.inactividadIaSegRest = ChatComponent.IA_TOTAL_SEGS;
+    this.inactividadIaAviso   = true;
+    this.cdr.detectChanges();
 
-    // Paso 1: mostrar overlay con barra regresiva.
-    this.inactividadIaAviso$ = setTimeout(() => {
-      if (!this.aiMode || this.step !== 'chat') {
-        return;
-      }
-      this.inactividadIaAviso   = true;
-      this.inactividadIaSegRest = AVISO_SEGS;
-      this.cdr.detectChanges();
-
-      // Decrementar 1 segundo cada tick.
-      this.inactividadIaTick = setInterval(() => {
-        if (this.inactividadIaSegRest > 0) {
-          this.inactividadIaSegRest--;
-          this.cdr.detectChanges();
-        }
-      }, 1000);
-
-    }, AVISO_MS);
-
-    // Paso 2: cerrar sesión definitivamente.
-    this.inactividadIaTimer = setTimeout(() => {
-      if (!this.aiMode || this.step !== 'chat') {
-        return;
-      }
-
-      this._limpiarTimersInactividad();
-      this.inactividadIaAviso = false;
-
-      // Cerrar en backend (sin bloquear la redirección).
-      if (this.session?.id) {
-        this.sessionService.closeAnonymous(this.session.id).subscribe({
-          next : () => undefined,
-          error: () => undefined,
-        });
-      }
-
-      // Mostrar mensaje de despedida.
-      this.addAiMessage('model', 'La sesión se cerró automáticamente por inactividad. ¡Hasta pronto!');
-      this.cdr.detectChanges();
-
-      // Volver al formulario después de 2s.
-      setTimeout(() => {
-        this.clearSession();
-      }, 2000);
-
-    }, TOTAL_MS);
-  }
-  /** Solo limpia los timers sin tocar el estado visual. */
-  private _limpiarTimersInactividad(): void {
-    if (this.inactividadIaTimer)  { clearTimeout(this.inactividadIaTimer);  this.inactividadIaTimer  = null; }
-    if (this.inactividadIaAviso$) { clearTimeout(this.inactividadIaAviso$); this.inactividadIaAviso$ = null; }
-    if (this.inactividadIaTick)   { clearInterval(this.inactividadIaTick);  this.inactividadIaTick   = null; }
+    this.recalcularInactividadIa(); // pinta de inmediato por si hubo deriva
+    this.iaTick = setInterval(() => this.recalcularInactividadIa(), 1000);
   }
 
-  /** Cancela timers Y oculta el overlay. Usar siempre que el cliente muestre actividad. */
+  /** Recalcula los segundos restantes contra el deadline y cierra al llegar a 0. */
+  private recalcularInactividadIa(): void {
+    const restante = Math.max(
+      0,
+      Math.ceil((this.iaDeadline - Date.now()) / 1000),
+    );
+    if (restante === this.inactividadIaSegRest && restante > 0) return;
+    this.inactividadIaSegRest = restante;
+
+    if (restante <= 0) {
+      this._detenerTickInactividad();
+      if (!this.aiMode || this.step !== 'chat' || !this.session?.id) {
+        this.inactividadIaAviso = false;
+        this.cdr.detectChanges();
+        return;
+      }
+      this._cerrarSesionPorInactividadIa();
+      return;
+    }
+    this.cdr.detectChanges();
+  }
+
+  /** Cierre definitivo: backend + despedida + regreso al formulario. */
+  private _cerrarSesionPorInactividadIa(): void {
+    this.inactividadIaAviso = false;
+
+    // Cerrar en backend (sin bloquear la redirección).
+    if (this.session?.id) {
+      this.sessionService.closeAnonymous(this.session.id).subscribe({
+        next : () => undefined,
+        error: () => undefined,
+      });
+    }
+
+    // Mostrar mensaje de despedida.
+    this.addAiMessage('model', 'La sesión se cerró automáticamente por inactividad. ¡Hasta pronto!');
+    this.cdr.detectChanges();
+
+    // Volver al formulario después de 2s.
+    setTimeout(() => {
+      this.clearSession();
+    }, 2000);
+  }
+
+  /** Detiene solo el interval de refresco visual. */
+  private _detenerTickInactividad(): void {
+    if (this.iaTick) { clearInterval(this.iaTick); this.iaTick = null; }
+  }
+
+  /** Cancela timers Y oculta el contador. Usar siempre que el cliente muestre actividad. */
   private cancelarTimerInactividadIa(): void {
-    this._limpiarTimersInactividad();
+    this._detenerTickInactividad();
+    this.iaDeadline = 0;
     this.inactividadIaAviso   = false;
-    this.inactividadIaSegRest = 30;
+    this.inactividadIaSegRest = ChatComponent.IA_TOTAL_SEGS;
+  }
+
+  get inactividadIaFormato(): string {
+    const s = Math.max(0, this.inactividadIaSegRest);
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   }
 
   /** Desde el botón "Seguir chateando" del overlay. */
@@ -991,6 +992,11 @@ get rolLabel(): string {
       .subscribe((data) => {
         this.advisorName = data.name;
         this.advisorPhotoUrl = this.normalizePhotoUrl(data.profilePhotoUrl ?? '');
+        // El asesor se conectó: garantizar input humano (clip + notas de voz)
+        // aunque la asignación llegue sin pasar por transferToAdvisor().
+        this.aiMode = false;
+        this.cancelarTimerInactividadIa();
+        this.inactividadIaAviso = false;
         this.sound.playNotification();
         this.clearWaitingTimer();
         this.mostrarAsesoresOcupados = false;
@@ -1133,6 +1139,9 @@ get rolLabel(): string {
     // Al volver a la pestaña, refresca el estado de jornada al instante.
     if (document.visibilityState === 'visible') {
       this.verificarJornada();
+      // Recalcula el countdown IA contra el deadline real (los intervals
+      // pueden haber estado ralentizados en segundo plano).
+      if (this.aiMode && this.iaTick) this.recalcularInactividadIa();
     }
     if (!this.session || this.aiMode || this.step !== 'chat') return;
     this.socket.emit('set_active', {
@@ -1208,6 +1217,7 @@ get rolLabel(): string {
       error: null,
     });
     this.cdr.detectChanges();
+    void this.send();
   }
 
   onVoiceRecordingChange(recording: boolean): void {
@@ -1221,6 +1231,9 @@ get rolLabel(): string {
 
   onChatPaste(event: ClipboardEvent): void {
     if (this.step !== 'chat' || this.sesionFinalizando) return;
+    // Modo IA = solo texto: se ignoran archivos del portapapeles
+    // (el pegado de texto normal no se ve afectado).
+    if (this.aiMode) return;
     const items = event.clipboardData?.items;
     if (!items) return;
 
@@ -1437,15 +1450,7 @@ get rolLabel(): string {
     if (!hasText && !hasFiles) return;
 
     if (this.aiMode) {
-      if (hasFiles) {
-        const attachments = await this.uploadPendingFiles();
-        if (attachments.length > 0) {
-          this.pendingAttachments = attachments;
-          this.pendingTransferText = this.newMessage.trim();
-          this.transferToAdvisor();
-        }
-        return;
-      }
+      // Modo IA = solo texto: los adjuntos solo existen en chat humano.
       this.cancelarTimerInactividadIa();
       this.iniciarTimerInactividadIa();
       if (hasText) {
@@ -2154,79 +2159,8 @@ private normalizePhotoUrl(url: string): string {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // MEJORAR MENSAJE
+  // RATING
   // ══════════════════════════════════════════════════════════════════════════
-
-  onImproveInput(): void {
-    clearTimeout(this.improveDebounceTimer);
-    this.showSuggestionChips = false;
-    if (this.newMessage.trim().length >= 20 && this.aiMode && !this.chatFinalizado) {
-      this.improveDebounceTimer = setTimeout(() => {
-        this.showSuggestionChips = true;
-        this.cdr.detectChanges();
-      }, 400);
-    }
-    this.cdr.detectChanges();
-  }
-
-  openImproveWithTone(tone: string): void {
-    this.showSuggestionChips = false;
-    this.improveTone = tone;
-    this.showImprovePanel = true;
-    this.improvedText = '';
-    this.isImproving = true;
-    this.cdr.detectChanges();
-    this.generateImprovedText();
-  }
-
-  openImprovePanel(): void {
-    this.showImprovePanel = true;
-    this.improveTone = null;
-    this.improvedText = '';
-    this.cdr.detectChanges();
-  }
-
-  closeImprovePanel(): void {
-    this.showImprovePanel = false;
-    this.isImproving = false;
-    this.improvedText = '';
-    this.improveTone = null;
-    this.cdr.detectChanges();
-  }
-
-  selectImproveTone(tone: string): void {
-    this.improveTone = tone;
-    this.cdr.detectChanges();
-  }
-
-  generateImprovedText(): void {
-    if (!this.newMessage.trim() || this.isImproving) return;
-    this.isImproving = true;
-    this.improvedText = '';
-    this.cdr.detectChanges();
-
-    this.aiService.improveForClient(this.newMessage.trim(), this.improveTone || undefined)
-      .pipe(takeUntil(this.socketDestroy$))
-      .subscribe({
-        next: (res) => {
-          this.improvedText = res.improved;
-          this.isImproving = false;
-          this.cdr.detectChanges();
-        },
-        error: () => {
-          this.isImproving = false;
-          this.improvedText = 'No se pudo mejorar el mensaje. Intenta de nuevo.';
-          this.cdr.detectChanges();
-        },
-      });
-  }
-
-  applyImprovedText(): void {
-    if (!this.improvedText) return;
-    this.newMessage = this.improvedText.slice(0, 1000);
-    this.closeImprovePanel();
-    this.showSuggestionChips = false;
-  }
 
   toggleEtiqueta(e: string): void {
     const idx = this.ratingEtiquetas.indexOf(e);

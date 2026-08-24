@@ -16,6 +16,8 @@
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
   background: var(--surface);
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap;
 
   h1 {
     font-size: 1.05rem; font-weight: 600;
@@ -26,6 +28,86 @@
   @media (max-width: 640px) {
     padding: 0.85rem 1rem 0.7rem;
     h1 { font-size: 0.95rem; }
+  }
+}
+
+// ── Header Stats — tarjeta "Resumen del historial" ────────────────────────────
+.header-stats {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 10px 16px 11px;
+  box-shadow: 0 1px 3px rgba(16, 24, 40, .05), 0 1px 2px rgba(16, 24, 40, .03);
+
+  .hs-title {
+    display: block;
+    font-size: 9px; font-weight: 700;
+    letter-spacing: .08em; text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 8px;
+  }
+
+  .hs-body {
+    display: flex; align-items: center; gap: 14px;
+  }
+
+  .metric {
+    display: flex; align-items: center;
+    gap: 8px; min-width: 0;
+  }
+
+  .m-icon {
+    width: 28px; height: 28px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+
+    svg { width: 13px; height: 13px; }
+  }
+
+  .m-data {
+    display: flex; flex-direction: column;
+    line-height: 1.15;
+  }
+
+  .m-num {
+    font-size: 15px; font-weight: 800;
+    color: var(--text);
+    display: inline-flex; align-items: baseline; gap: 3px;
+
+    .pct {
+      font-size: 9px; font-weight: 600;
+      color: var(--text-faint);
+    }
+  }
+
+  .m-lbl {
+    font-size: 10px; font-weight: 500;
+    color: var(--text-faint); white-space: nowrap;
+  }
+
+  .m-sep {
+    width: 1px; height: 26px;
+    background: var(--border); flex-shrink: 0;
+  }
+
+  // Colores por categoría
+  .total .m-icon  { background: var(--surface-hover); color: var(--text-muted); }
+  .asesor .m-icon { background: #e6f7ee; color: #19a35c; }
+  .ia .m-icon     { background: #f2eeff; color: #6c47d4; }
+
+  @media (max-width: 900px) {
+    padding: 9px 13px 10px;
+    .hs-body { gap: 10px; }
+    .metric { gap: 7px; }
+  }
+
+  @media (max-width: 640px) {
+    width: 100%;
+    padding: 8px 10px 9px;
+
+    .hs-body { gap: 6px; }
+    .metric { flex: 1; justify-content: center; gap: 6px; }
+    .m-sep { height: 24px; }
   }
 }
 

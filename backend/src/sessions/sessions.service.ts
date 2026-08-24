@@ -270,6 +270,40 @@ export class SessionsService {
     });
   }
 
+  // ── Auto-cierre de sesiones IA ────────────────────────────────────────────
+  // Sesiones en 'ai' cuyo ÚLTIMO mensaje del cliente es anterior a `cutoff`
+  // (fallback: createdAt si el cliente nunca escribió). Las consume el
+  // barrido periódico del gateway para cerrarlas por inactividad.
+  // Nota: se usa getRawMany + hidratación manual porque getMany() con
+  // LEFT JOIN de subquery + orderBy lanza un TypeError en TypeORM 0.3.x
+  // (createOrderByCombinedWithSelectExpression).
+  async findStaleAiSessions(cutoff: Date, limit = 50): Promise<Session[]> {
+    const rows = await this.sessionRepo
+      .createQueryBuilder('s')
+      .select('s.id', 'id')
+      .leftJoin(
+        (qb) =>
+          qb
+            .select('m.session_id', 'session_id')
+            .addSelect('MAX(m.created_at)', 'last_client_at')
+            .from(Message, 'm')
+            .where("m.sender_type = 'client'")
+            .groupBy('m.session_id'),
+        'lm',
+        'lm.session_id = s.id',
+      )
+      .where("s.status = 'ai'")
+      .andWhere('COALESCE(lm.last_client_at, s.created_at) < :cutoff', {
+        cutoff,
+      })
+      .orderBy('s.created_at', 'ASC')
+      .limit(limit)
+      .getRawMany<{ id: string }>();
+
+    if (!rows.length) return [];
+    return this.sessionRepo.find({ where: { id: In(rows.map((r) => r.id)) } });
+  }
+
   // ── Asignación ────────────────────────────────────────────────────────────
   // Solo asigna si está en 'waiting'. Si está en 'ai', no asigna.
   // ★ UPDATE ATÓMICO: solo un autoAssignAdvisor concurrente puede ganar la

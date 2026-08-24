@@ -1,10 +1,16 @@
+// ── Tamaños específicos del reproductor ──────────────────────────────────────
 :host {
   display: block;
-  width: 100%;
+  width: 320px;
   max-width: 100%;
   color: inherit;
 }
 
+:host(.compact-mode) {
+  width: 250px;
+}
+
+// ── BURBUJA ÚNICA DEL REPRODUCTOR ────────────────────────────────────────────
 .vp {
   display: flex;
   align-items: center;
@@ -20,58 +26,87 @@
     border-radius: 50%;
     object-fit: cover;
     background: var(--wa-surface-2, #e9edef);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
   }
 
+  .vp-bubble {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 10px 16px 10px 10px;
+    border-radius: 18px;
+    border: 1px solid rgba(15, 23, 42, 0.07);
+    background: var(--wa-surface, #ffffff);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    transition: box-shadow 0.15s ease;
+    overflow: hidden; /* ← Evita cualquier desborde */
+  }
+
+  // Botón play/pause integrado en la burbuja
   .vp-btn {
     flex: 0 0 auto;
     display: grid;
     place-items: center;
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
     padding: 0;
     border: none;
     border-radius: 50%;
     cursor: pointer;
-    background: rgba(255, 255, 255, 0.55);
-    color: #111;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
-    transition: transform 0.12s ease, background 0.12s ease;
+    background: linear-gradient(135deg, #00d9a3, var(--wa-green, #00a884));
+    color: #fff;
+    box-shadow: 0 2px 6px rgba(0, 168, 132, 0.35);
+    transition: transform 0.12s ease, filter 0.15s ease, box-shadow 0.3s ease;
 
     svg {
-      width: 20px;
-      height: 20px;
+      width: 19px;
+      height: 19px;
     }
 
-    &:hover { background: rgba(255, 255, 255, 0.8); }
+    &:hover { filter: brightness(1.07); }
     &:active { transform: scale(0.92); }
-    &:focus-visible { outline: 2px solid var(--wa-blue, #3b82f6); outline-offset: 2px; }
+    &:focus-visible {
+      outline: 2px solid var(--wa-green, #00a884);
+      outline-offset: 2px;
+    }
   }
 
+  &.playing .vp-btn {
+    animation: vpBreath 1.6s ease-in-out infinite;
+  }
+
+  // Columna interna: duración arriba + onda debajo
   .vp-main {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    gap: 2px;
+    gap: 5px;
     flex: 1 1 auto;
     min-width: 0;
   }
 
+  .vp-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    line-height: 1;
+  }
+
+  // ── Forma de onda (elemento principal) ──
   .vp-track {
     position: relative;
     width: 100%;
-    min-width: 0;
-    height: 30px;
+    min-width: 0; /* ← Permitir contraerse por completo */
+    height: 28px;
     touch-action: none;
     cursor: pointer;
     user-select: none;
 
-    &.dragging {
-      cursor: grabbing;
-
-      .vp-progress,
-      .vp-playhead {
-        transition: none;
-      }
+    &.dragging .vp-bar {
+      transition: none;
+      animation: none;
     }
   }
 
@@ -85,61 +120,63 @@
 
     .vp-bar {
       flex: 1 1 0;
-      min-width: 1px;
+      min-width: 0; /* ← Las barras se reducen según el espacio */
+      max-width: 4px;
       max-height: 100%;
-      border-radius: 1px;
-      background: #8696a0;
-      opacity: 0.85;
+      border-radius: 99px;
+      background: #c2c9cf;
+      transition: background 0.18s ease;
+
+      &.done {
+        background: linear-gradient(180deg, #00d9a3, var(--wa-green, #00a884));
+      }
     }
   }
 
-  .vp-rail {
-    position: absolute;
-    left: 5px;
-    right: 5px;
-    top: 0;
-    bottom: 0;
-    pointer-events: none;
+  &.playing .vp-bar.done {
+    animation: vpBarGlow 1s ease-in-out infinite alternate;
   }
 
-  .vp-progress {
-    position: absolute;
-    left: 0;
-    top: 50%;
-    height: 12px;
-    transform: translateY(-50%);
-    z-index: 1;
-    background-image: radial-gradient(circle, #a8b2ba 2px, transparent 2.4px);
-    background-size: 6px 6px;
-    background-position: 0 4px;
-    background-repeat: repeat-x;
-    transition: width 0.15s linear;
-  }
-
-  .vp-playhead {
-    position: absolute;
-    top: 50%;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: var(--wa-blue, #3b82f6);
-    border: 2px solid #fff;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
-    transform: translate(-50%, -50%);
-    z-index: 2;
-    transition: left 0.15s linear;
-  }
-
+  // ── Duración ──
   .vp-time {
+    flex: 0 1 auto;
+    min-width: 0;
     font-size: 11px;
     line-height: 1;
+    font-weight: 600;
     color: var(--wa-muted, #667781);
     font-variant-numeric: tabular-nums;
-    padding-left: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
+  // ── Indicador "no escuchado" (integrado, espacio reservado) ──
+  .vp-new {
+    flex: 0 0 auto;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.18);
+    transform: scale(1);
+    opacity: 1;
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease;
+
+    &.heard {
+      transform: scale(0);
+      opacity: 0;
+    }
+  }
+
+  // ── Modo compacto (preview antes de enviar) ──
   &.compact {
-    gap: 6px;
+    gap: 8px;
+
+    .vp-bubble {
+      padding: 8px 12px 8px 8px;
+      border-radius: 16px;
+    }
 
     .vp-avatar {
       width: 30px;
@@ -151,6 +188,66 @@
       height: 30px;
 
       svg {
+        width: 16px;
+        height: 16px;
+      }
+    }
+
+    .vp-main { gap: 3px; }
+
+    .vp-track {
+      height: 22px;
+      min-width: 0;
+    }
+
+    .vp-time { font-size: 10px; }
+    .vp-new { width: 6px; height: 6px; }
+  }
+}
+
+// Mensajes propios: tinte verde sutil
+.vp.out .vp-bubble {
+  background: color-mix(in srgb, var(--wa-green, #00a884) 8%, var(--wa-surface, #ffffff));
+}
+
+@keyframes vpBreath {
+  0%, 100% { box-shadow: 0 2px 6px rgba(0, 168, 132, 0.35); }
+  50%      { box-shadow: 0 2px 14px rgba(0, 168, 132, 0.55); }
+}
+
+@keyframes vpBarGlow {
+  from { opacity: 1; }
+  to   { opacity: 0.72; }
+}
+
+// ── Responsive ───────────────────────────────────────────────────────────────
+@media (max-width: 480px) {
+  :host {
+    width: 100%; /* Toma todo el ancho disponible en móviles muy pequeños */
+    max-width: 290px;
+  }
+
+  .vp {
+    gap: 8px;
+
+    .vp-avatar {
+      width: 32px;
+      height: 32px;
+    }
+
+    .vp-bubble {
+      gap: 10px;
+      padding: 9px 13px 9px 9px;
+      border-radius: 16px;
+    }
+
+    .vp-main { gap: 4px; }
+
+    .vp-btn {
+      width: 36px;
+      height: 36px;
+
+      svg {
         width: 17px;
         height: 17px;
       }
@@ -158,8 +255,9 @@
 
     .vp-track {
       height: 24px;
+      min-width: 0;
     }
 
-    .vp-time { font-size: 10px; }
+    .vp-time { font-size: 10.5px; }
   }
 }

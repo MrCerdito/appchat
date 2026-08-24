@@ -643,6 +643,8 @@ export class ChatGateway
     if (client.data.role !== 'client') return;
     const session = await this.sessionsService.requestAdvisor(sessionId);
     if (session.status !== 'waiting') return;
+    // La sesión salió del modo IA → ya no aplica el timer de cierre por inactividad
+    this.clearAiCloseTimer(sessionId);
     this.broadcastSessionUpdated(sessionId, { status: 'waiting' });
     this.server.emit('metrics_updated', {
       type: 'session_status',
@@ -1881,28 +1883,13 @@ export class ChatGateway
   }
 
   // ── Timer de cierre automático para sesiones IA ────────────────────────
+  // Se activa al desconectarse el socket del cliente. El cierre real lo hace
+  // closeAiSessionForInactivity(), que solo actúa si la sesión sigue en 'ai'.
   private startAiCloseTimer(sessionId: string): void {
     this.clearAiCloseTimer(sessionId);
-    const timer = setTimeout(async () => {
+    const timer = setTimeout(() => {
       this.aiCloseTimers.delete(sessionId);
-      try {
-        const session = await this.sessionsService.findOne(sessionId);
-        if (!session || session.status === 'closed') return;
-        await this.sessionsService.close(sessionId);
-        this.server.to(sessionId).emit('session_closed', {
-          sessionId,
-          reason: 'inactividad',
-        });
-        this.broadcastSessionUpdated(sessionId);
-        this.logger.log(
-          `[AI] Sesión ${sessionId} cerrada automáticamente por inactividad (3 min)`,
-        );
-      } catch (e) {
-        this.logger.error(
-          `[AI] Error cerrando sesión ${sessionId} por inactividad:`,
-          e,
-        );
-      }
+      void this.closeAiSessionForInactivity(sessionId);
     }, ChatGateway.AI_CLOSE_DELAY_MS);
     this.aiCloseTimers.set(sessionId, timer);
   }
@@ -1912,6 +1899,55 @@ export class ChatGateway
     if (t) {
       clearTimeout(t);
       this.aiCloseTimers.delete(sessionId);
+    }
+  }
+
+  /**
+   * Cierre automático por inactividad (3 min sin mensajes del cliente).
+   * Guard estricto: SOLO cierra si la sesión sigue en modo IA ('ai'),
+   * nunca si pasó a 'waiting'/'active'. Cubre tanto el timer de
+   * desconexión como el barrido periódico (clientes conectados pero
+   * inactivos y sesiones huérfanas tras un reinicio del servidor).
+   */
+  private async closeAiSessionForInactivity(sessionId: string): Promise<void> {
+    try {
+      const session = await this.sessionsService.findOne(sessionId);
+      if (!session || session.status !== 'ai') return;
+      await this.sessionsService.close(sessionId);
+      this.clearAiCloseTimer(sessionId);
+      this.server.to(sessionId).emit('session_closed', {
+        sessionId,
+        reason: 'inactividad',
+      });
+      this.broadcastSessionUpdated(sessionId, { status: 'closed' });
+      this.logger.log(
+        `[AI] Sesión ${sessionId} cerrada automáticamente por inactividad (3 min)`,
+      );
+    } catch (e) {
+      this.logger.error(
+        `[AI] Error cerrando sesión ${sessionId} por inactividad:`,
+        e,
+      );
+    }
+  }
+
+  /**
+   * Barrido de seguridad respaldado en BD: encuentra sesiones 'ai' cuyo
+   * último mensaje del cliente es anterior al cutoff y las cierra.
+   * No depende de timers en memoria → sobrevive reinicios del servidor.
+   */
+  private async sweepStaleAiSessions(): Promise<void> {
+    try {
+      const cutoff = new Date(Date.now() - ChatGateway.AI_CLOSE_DELAY_MS);
+      const stale = await this.sessionsService.findStaleAiSessions(cutoff);
+      for (const s of stale) {
+        await this.closeAiSessionForInactivity(s.id);
+      }
+    } catch (e) {
+      this.logger.error(
+        '[AI] Error en barrido de sesiones IA inactivas:',
+        e,
+      );
     }
   }
 
@@ -1934,6 +1970,9 @@ export class ChatGateway
     const locked = await this.redisState.acquireAssignLock(8000);
     if (!locked) return;
     try {
+      // Auto-cierre por inactividad de sesiones IA (barrido DB, cada ciclo)
+      await this.sweepStaleAiSessions();
+
       const waiting = await this.sessionsService.findWaitingSessions();
       for (const session of waiting) {
         const connectedIds = await this.redisState.getConnectedAdvisorIds();

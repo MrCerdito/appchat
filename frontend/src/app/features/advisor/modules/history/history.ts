@@ -101,6 +101,22 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
     });
   }
 
+  /** Estadísticas de atención según las sesiones filtradas */
+  get stats() {
+    const list      = this.filteredSessions;
+    const total     = list.length;
+    const conAsesor = list.filter(s => !!s.advisor?.name).length;
+    const porIa     = total - conAsesor;
+    const pct       = (n: number) => total ? Math.round((n / total) * 100) : 0;
+    return {
+      total,
+      conAsesor,
+      porIa,
+      pctAsesor: pct(conAsesor),
+      pctIa    : pct(porIa),
+    };
+  }
+
   get canTakeOver(): boolean {
     if (!this.activeSession) return false;
     const s = this.activeSession;

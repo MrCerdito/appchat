@@ -4,6 +4,56 @@
       <h1>Historial</h1>
       <p>Consulta todas las conversaciones</p>
     </div>
+
+    <!-- Resumen del historial -->
+    <div class="header-stats">
+      <span class="hs-title">Resumen del historial</span>
+
+      <div class="hs-body">
+        <div class="metric total">
+          <div class="m-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </div>
+          <div class="m-data">
+            <span class="m-num">{{ stats.total }}</span>
+            <span class="m-lbl">Total</span>
+          </div>
+        </div>
+
+        <span class="m-sep"></span>
+
+        <div class="metric asesor">
+          <div class="m-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/>
+            </svg>
+          </div>
+          <div class="m-data">
+            <span class="m-num">{{ stats.conAsesor }}<span class="pct">{{ stats.pctAsesor }}%</span></span>
+            <span class="m-lbl">Asesor</span>
+          </div>
+        </div>
+
+        <span class="m-sep"></span>
+
+        <div class="metric ia">
+          <div class="m-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3z"/>
+            </svg>
+          </div>
+          <div class="m-data">
+            <span class="m-num">{{ stats.porIa }}<span class="pct">{{ stats.pctIa }}%</span></span>
+            <span class="m-lbl">IA</span>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Mobile Tab Bar -->
