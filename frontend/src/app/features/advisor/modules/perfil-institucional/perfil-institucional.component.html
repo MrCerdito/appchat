@@ -5,9 +5,6 @@
       <p>Consulta y administra la información de las instituciones.</p>
     </div>
     <div class="pi-header-actions">
-      <button type="button" class="pi-btn pi-btn-outline" (click)="abrirModalNueva()">
-        + Nueva institución
-      </button>
       <a class="pi-btn pi-btn-primary" routerLink="campos">⚙ Gestionar campos</a>
     </div>
   </header>
@@ -127,49 +124,5 @@
         </span>
       </nav>
     }
-  }
-
-  @if (mostrarModalNueva) {
-    <div class="pi-modal-backdrop" (click)="mostrarModalNueva = false">
-      <div class="pi-modal" (click)="$event.stopPropagation()">
-        <h3>Nueva institución</h3>
-        <label class="pi-field">
-          <span>Nombre *</span>
-          <input type="text" [(ngModel)]="nuevaForm.nombre" maxlength="200" placeholder="Colegio San Pedro Claver" />
-        </label>
-        <label class="pi-field">
-          <span>Link *</span>
-          <input type="text" [(ngModel)]="nuevaForm.link" maxlength="500" placeholder="https://colegio.edu.co" />
-        </label>
-        <label class="pi-field">
-          <span>Correo electrónico</span>
-          <input type="email" [(ngModel)]="nuevaForm.email" maxlength="200" />
-        </label>
-        <div class="pi-field-row">
-          <label class="pi-field">
-            <span>Calendario</span>
-            <select [(ngModel)]="nuevaForm.calendario">
-              <option value=""></option>
-              <option value="A">A</option>
-              <option value="B">B</option>
-            </select>
-          </label>
-          <label class="pi-field">
-            <span>Tipo</span>
-            <select [(ngModel)]="nuevaForm.tipoColegio">
-              <option value=""></option>
-              <option value="Sian365">Sian365</option>
-              <option value="ControlAcademic">ControlAcademic</option>
-            </select>
-          </label>
-        </div>
-        <div class="pi-modal-actions">
-          <button type="button" class="pi-btn pi-btn-ghost" (click)="mostrarModalNueva = false">Cancelar</button>
-          <button type="button" class="pi-btn pi-btn-primary" [disabled]="guardandoNueva" (click)="crearNueva()">
-            {{ guardandoNueva ? 'Creando…' : 'Crear' }}
-          </button>
-        </div>
-      </div>
-    </div>
   }
 </div>

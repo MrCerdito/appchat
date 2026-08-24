@@ -8,7 +8,6 @@ import {
   PiInstitucionCard,
 } from '../../../../core/services/perfil-institucional.service';
 import { NotificationService } from '../../../../core/services/notification.service';
-import { SessionService } from '../../../../core/services/session.service';
 
 interface FiltroDinamico {
   campoId: string;
@@ -43,15 +42,10 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
   pages = 1;
   total = 0;
 
-  mostrarModalNueva = false;
-  guardandoNueva = false;
-  nuevaForm = { nombre: '', link: '', email: '', calendario: '', tipoColegio: '' };
-
   private busquedaTimer?: ReturnType<typeof setTimeout>;
 
   constructor(
     private piService: PerfilInstitucionalService,
-    private sessionService: SessionService,
     private notification: NotificationService,
     private cdr: ChangeDetectorRef,
   ) {}
@@ -192,37 +186,5 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
       .slice(0, 2)
       .map((p) => p[0].toUpperCase())
       .join('') || nombre.substring(0, 2).toUpperCase();
-  }
-
-  abrirModalNueva(): void {
-    this.nuevaForm = { nombre: '', link: '', email: '', calendario: '', tipoColegio: '' };
-    this.mostrarModalNueva = true;
-    this.cdr.detectChanges();
-  }
-
-  crearNueva(): void {
-    if (!this.nuevaForm.nombre.trim() || !this.nuevaForm.link.trim()) return;
-    this.guardandoNueva = true;
-    this.sessionService.createColegio({
-      nombre: this.nuevaForm.nombre.trim(),
-      link: this.nuevaForm.link.trim(),
-      email: this.nuevaForm.email.trim() || undefined,
-      calendario: this.nuevaForm.calendario,
-      tipoColegio: this.nuevaForm.tipoColegio,
-    })
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: () => {
-          this.guardandoNueva = false;
-          this.mostrarModalNueva = false;
-          this.notification.success('Institución creada', this.nuevaForm.nombre);
-          this.cargar();
-        },
-        error: (err: any) => {
-          this.guardandoNueva = false;
-          this.notification.error('Error', err?.error?.message ?? 'No se pudo crear la institución');
-          this.cdr.detectChanges();
-        },
-      });
   }
 }
