@@ -8,7 +8,6 @@ import {
   PiInstitucionCard,
 } from '../../../../core/services/perfil-institucional.service';
 import { NotificationService } from '../../../../core/services/notification.service';
-import { AuthService } from '../../../../core/services/auth.service';
 import { SessionService } from '../../../../core/services/session.service';
 
 interface FiltroDinamico {
@@ -39,31 +38,42 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
   filtrosDinamicos: FiltroDinamico[] = [];
   valoresFiltros: Record<string, string> = {};
 
-  isAdmin = false;
   mostrarModalNueva = false;
   guardandoNueva = false;
   nuevaForm = { nombre: '', link: '', email: '', calendario: '', tipoColegio: '' };
+
+  private busquedaTimer?: ReturnType<typeof setTimeout>;
 
   constructor(
     private piService: PerfilInstitucionalService,
     private sessionService: SessionService,
     private notification: NotificationService,
-    private auth: AuthService,
     private cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit(): void {
-    this.isAdmin = this.auth.getUser()?.role === 'admin';
     this.cargar();
   }
 
   ngOnDestroy(): void {
+    clearTimeout(this.busquedaTimer);
     this.destroy$.next();
     this.destroy$.complete();
   }
 
-  cargar(): void {
-    this.loading = true;
+  alEscribirBusqueda(): void {
+    clearTimeout(this.busquedaTimer);
+    this.busquedaTimer = setTimeout(() => this.cargar(true), 350);
+  }
+
+  limpiarBusqueda(): void {
+    clearTimeout(this.busquedaTimer);
+    this.q = '';
+    this.cargar(true);
+  }
+
+  cargar(silencioso = false): void {
+    if (!silencioso) this.loading = true;
     const params: Record<string, string | undefined> = {
       q: this.q || undefined,
       estado: this.filtroEstado || undefined,

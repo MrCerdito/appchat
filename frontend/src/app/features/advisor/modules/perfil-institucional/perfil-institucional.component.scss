@@ -121,7 +121,7 @@
 
   input {
     width: 100%;
-    padding: 9px 12px 9px 36px;
+    padding: 9px 32px 9px 36px;
     border-radius: 10px;
     border: 1px solid var(--border, #e5e7eb);
     background: var(--bg-surface, #fff);
@@ -134,6 +134,29 @@
       border-color: var(--primary, #2563eb);
       box-shadow: 0 0 0 3px rgba(var(--primary-rgb, 37, 99, 235), 0.15);
     }
+  }
+}
+
+.pi-search-clear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--text-secondary, #6b7280);
+  font-size: 0.68rem;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.12);
+    color: inherit;
   }
 }
 

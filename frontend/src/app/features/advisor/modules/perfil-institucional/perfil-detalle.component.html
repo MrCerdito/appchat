@@ -51,11 +51,9 @@
       </div>
 
       <div class="pd-header-actions">
-        @if (isAdmin) {
-          <button type="button" class="pi-btn pi-btn-outline" (click)="alternarEstado()">
-            {{ ficha.institucion.activo ? 'Desactivar' : 'Activar' }}
-          </button>
-        }
+        <button type="button" class="pi-btn pi-btn-outline" (click)="alternarEstado()">
+          {{ ficha.institucion.activo ? 'Desactivar' : 'Activar' }}
+        </button>
       </div>
     </header>
 

@@ -5,14 +5,10 @@
       <p>Consulta y administra la información de las instituciones.</p>
     </div>
     <div class="pi-header-actions">
-      @if (isAdmin) {
-        <button type="button" class="pi-btn pi-btn-outline" (click)="abrirModalNueva()">
-          + Nueva institución
-        </button>
-        <a class="pi-btn pi-btn-primary" routerLink="campos">⚙ Gestionar campos</a>
-      } @else {
-        <a class="pi-btn pi-btn-primary" routerLink="campos">Ver campos</a>
-      }
+      <button type="button" class="pi-btn pi-btn-outline" (click)="abrirModalNueva()">
+        + Nueva institución
+      </button>
+      <a class="pi-btn pi-btn-primary" routerLink="campos">⚙ Gestionar campos</a>
     </div>
   </header>
 
@@ -22,8 +18,12 @@
         stroke-linecap="round" stroke-linejoin="round">
         <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
       </svg>
-      <input type="text" placeholder="Buscar institución, ID, correo o información..."
-        [(ngModel)]="q" (keyup.enter)="buscar()" />
+      <input type="text" placeholder="Buscar por nombre, correo, link o información…"
+        [(ngModel)]="q" (input)="alEscribirBusqueda()" (keyup.enter)="buscar()" />
+      @if (q) {
+        <button type="button" class="pi-search-clear" title="Limpiar búsqueda"
+          (click)="limpiarBusqueda()">✕</button>
+      }
     </div>
 
     <select class="pi-select" [(ngModel)]="filtroEstado" (change)="cargar()">

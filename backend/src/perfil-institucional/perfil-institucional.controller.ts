@@ -21,7 +21,7 @@ import { existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { ValidationPipe } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { Roles, RolesGuard } from '../auth/roles.guard';
+import { RolesGuard } from '../auth/roles.guard';
 import { PerfilInstitucionalService } from './perfil-institucional.service';
 import {
   CreatePiCampoDto,
@@ -93,7 +93,6 @@ export class PerfilInstitucionalController {
   }
 
   @Patch('instituciones/:id/estado')
-  @Roles('admin')
   cambiarEstado(
     @Param('id') id: string,
     @Body('activo', ParseBoolPipe) activo: boolean,
@@ -110,7 +109,6 @@ export class PerfilInstitucionalController {
   }
 
   @Post('campos')
-  @Roles('admin')
   crearCampo(
     @Body(new ValidationPipe({ whitelist: true })) dto: CreatePiCampoDto,
   ) {
@@ -118,7 +116,6 @@ export class PerfilInstitucionalController {
   }
 
   @Patch('campos/:id')
-  @Roles('admin')
   actualizarCampo(
     @Param('id') id: string,
     @Body(new ValidationPipe({ whitelist: true })) dto: UpdatePiCampoDto,
@@ -127,13 +124,11 @@ export class PerfilInstitucionalController {
   }
 
   @Post('campos/:id/duplicar')
-  @Roles('admin')
   duplicarCampo(@Param('id') id: string) {
     return this.svc.duplicarCampo(id);
   }
 
   @Delete('campos/:id')
-  @Roles('admin')
   eliminarCampo(@Param('id') id: string) {
     return this.svc.eliminarCampo(id);
   }
@@ -146,7 +141,6 @@ export class PerfilInstitucionalController {
   }
 
   @Post('categorias')
-  @Roles('admin')
   crearCategoria(
     @Body(new ValidationPipe({ whitelist: true })) dto: CreatePiCategoriaDto,
   ) {
@@ -154,7 +148,6 @@ export class PerfilInstitucionalController {
   }
 
   @Patch('categorias/:id')
-  @Roles('admin')
   actualizarCategoria(
     @Param('id') id: string,
     @Body(new ValidationPipe({ whitelist: true })) dto: UpdatePiCategoriaDto,
@@ -163,7 +156,6 @@ export class PerfilInstitucionalController {
   }
 
   @Delete('categorias/:id')
-  @Roles('admin')
   eliminarCategoria(@Param('id') id: string) {
     return this.svc.eliminarCategoria(id);
   }

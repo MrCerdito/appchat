@@ -11,7 +11,6 @@ import {
   PiHistorialItem,
 } from '../../../../core/services/perfil-institucional.service';
 import { NotificationService } from '../../../../core/services/notification.service';
-import { AuthService } from '../../../../core/services/auth.service';
 
 type Tab = 'configuracion' | 'personalizados' | 'informacion' | 'historial';
 
@@ -31,7 +30,6 @@ export class PerfilDetalleComponent implements OnInit, OnDestroy {
   guardando = false;
 
   tab: Tab = 'configuracion';
-  isAdmin = false;
 
   historial: PiHistorialItem[] = [];
   historialPage = 1;
@@ -55,14 +53,12 @@ export class PerfilDetalleComponent implements OnInit, OnDestroy {
   constructor(
     private piService: PerfilInstitucionalService,
     private notification: NotificationService,
-    private auth: AuthService,
     private route: ActivatedRoute,
     private location: Location,
     private cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit(): void {
-    this.isAdmin = this.auth.getUser()?.role === 'admin';
     const id = this.route.snapshot.paramMap.get('id');
     if (!id) {
       this.location.back();
@@ -156,7 +152,7 @@ export class PerfilDetalleComponent implements OnInit, OnDestroy {
 
   /* ---------- Estado ---------- */
   alternarEstado(): void {
-    if (!this.ficha || !this.isAdmin) return;
+    if (!this.ficha) return;
     const nuevo = !this.ficha.institucion.activo;
     const nombre = this.ficha.institucion.nombre;
     this.piService.cambiarEstado(this.ficha.institucion.id, nuevo)

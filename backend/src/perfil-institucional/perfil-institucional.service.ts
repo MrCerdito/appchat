@@ -44,10 +44,14 @@ export class PerfilInstitucionalService {
     @InjectRepository(User) private readonly userRepo: Repository<User>,
   ) {}
 
+  private sinAcentos(texto: string): string {
+    return texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+
   // ── Instituciones ────────────────────────────────────────────────────────
 
   async listarInstituciones(query: ListarQuery & Record<string, string>) {
-    const q = (query.q ?? '').trim().toLowerCase();
+    const q = this.sinAcentos((query.q ?? '').trim().toLowerCase());
 
     const [colegios, campos, valores] = await Promise.all([
       this.colegioRepo.find({ relations: { advisor: true } }),
@@ -86,11 +90,17 @@ export class PerfilInstitucionalService {
 
       if (q) {
         const enBase =
-          c.nombre.toLowerCase().includes(q) ||
-          (c.email ?? '').toLowerCase().includes(q);
-        const enValores = campos
-          .filter((f) => f.buscar)
-          .some((f) => (vals.get(f.id) ?? '').toLowerCase().includes(q));
+          this.sinAcentos(c.nombre.toLowerCase()).includes(q) ||
+          this.sinAcentos((c.email ?? '').toLowerCase()).includes(q) ||
+          this.sinAcentos(c.link.toLowerCase()).includes(q) ||
+          c.id.includes(q);
+        let enValores = false;
+        for (const valor of vals.values()) {
+          if (valor && this.sinAcentos(valor.toLowerCase()).includes(q)) {
+            enValores = true;
+            break;
+          }
+        }
         if (!enBase && !enValores) return false;
       }
 
