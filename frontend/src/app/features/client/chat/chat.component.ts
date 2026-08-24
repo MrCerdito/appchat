@@ -503,7 +503,7 @@ get rolLabel(): string {
       error: (err) => {
         const isBackendDown = !err || err.status === 0 || err.status === 502 || err.status === 503 || err.status === 504;
         if (isBackendDown) {
-          this.maintenance.isMaintenance.set(true);
+          this.maintenance.reportError(err);
         } else {
           this.notification.error('Error', 'No se pudo recuperar tu sesión anterior');
           this.clearSession();
@@ -569,12 +569,7 @@ get rolLabel(): string {
       error: (err) => {
         this.jornadaResuelta = true;
         this.intentarMostrar();
-        const isBackendDown = !err || err.status === 0 || err.status === 502 || err.status === 503 || err.status === 504;
-        if (isBackendDown) {
-          this.maintenance.isMaintenance.set(true);
-        } else {
-          // No activar mantenimiento por errores lógicos o de validación de horario
-        }
+        this.maintenance.reportError(err);
       },
     });
   }

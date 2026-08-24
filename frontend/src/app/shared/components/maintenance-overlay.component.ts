@@ -8,7 +8,7 @@ import { MaintenanceService } from '../../core/services/maintenance.service';
     @if (maintenance.isMaintenance()) {
     <div class="maintenance-overlay" [style.background-color]="bgColor()">
       <!-- GIF a pantalla completa como fondo -->
-      <img [src]="'assets/maintenance.gif?v=' + gifVersion" alt="" class="maintenance-bg"
+      <img [src]="'assets/maintenance.webp?v=' + gifVersion" alt="" class="maintenance-bg"
         (load)="onGifLoad($event)" />
 
       <!-- Overlay de gradiente para legibilidad del texto -->
@@ -147,7 +147,7 @@ export class MaintenanceOverlayComponent implements OnInit {
   textColor = signal('#ffffff');
   dividerColor = signal('rgba(255,255,255,0.4)');
   spinnerBorder = signal('rgba(255,255,255,0.15)');
-  gifVersion = Date.now();
+  gifVersion = 'v2';
 
   constructor(public maintenance: MaintenanceService) {}
 
@@ -162,7 +162,7 @@ export class MaintenanceOverlayComponent implements OnInit {
   private extractDominantColor(): void {
     const img = new Image();
     img.crossOrigin = 'anonymous';
-    img.src = 'assets/maintenance.gif';
+    img.src = 'assets/maintenance.webp';
     img.onload = () => this.extractColorFromElement(img);
   }
 

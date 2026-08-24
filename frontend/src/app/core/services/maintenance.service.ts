@@ -50,12 +50,28 @@ export class MaintenanceService implements OnDestroy {
           this.isMaintenance.set(false);
         }
       },
-      error: () => {
-        this.failCount++;
-        if (this.failCount >= this.FAIL_THRESHOLD) {
-          this.isMaintenance.set(true);
-        }
-      },
+      error: (err) => this.reportError(err),
     });
+  }
+
+  /**
+   * Registra un fallo de conectividad con el mismo criterio del poll de
+   * /health: solo status 0 (red caída / sin respuesta) o 5xx cuentan como
+   * caída real. Un 4xx (p. ej. 429 rate-limit) significa que el backend SÍ
+   * responde, por lo que se trata como éxito.
+   */
+  reportError(err?: { status?: number }): void {
+    const status = err?.status ?? 0;
+    if (status !== 0 && status < 500) {
+      this.failCount = 0;
+      if (this.isMaintenance()) {
+        this.isMaintenance.set(false);
+      }
+      return;
+    }
+    this.failCount++;
+    if (this.failCount >= this.FAIL_THRESHOLD) {
+      this.isMaintenance.set(true);
+    }
   }
 }
