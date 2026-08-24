@@ -61,13 +61,13 @@
 
     <nav class="pd-tabs">
       <button type="button" [class.active]="tab === 'informacion'" (click)="cambiarTab('informacion')">
-        Información
+        General
       </button>
       <button type="button" [class.active]="tab === 'configuracion'" (click)="cambiarTab('configuracion')">
         Configuración
       </button>
       <button type="button" [class.active]="tab === 'personalizados'" (click)="cambiarTab('personalizados')">
-        Personalizados
+        Información
       </button>
       <button type="button" [class.active]="tab === 'historial'" (click)="cambiarTab('historial')">
         Historial
@@ -103,10 +103,6 @@
           <div class="pd-base-item">
             <span>Asesor asignado</span>
             <strong>{{ ficha.institucion.advisorNombre ?? '—' }}</strong>
-          </div>
-          <div class="pd-base-item">
-            <span>ID</span>
-            <code>{{ ficha.institucion.id }}</code>
           </div>
         </div>
         <p class="pd-nota">
