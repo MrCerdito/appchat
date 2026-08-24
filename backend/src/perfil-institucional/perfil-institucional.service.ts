@@ -114,9 +114,21 @@ export class PerfilInstitucionalService {
       return a.nombre.localeCompare(b.nombre, 'es');
     });
 
+    const page = Math.max(1, parseInt(query.page ?? '1', 10) || 1);
+    const limit = Math.min(
+      100,
+      Math.max(1, parseInt(query.limit ?? '15', 10) || 15),
+    );
+    const total = resultado.length;
+    const pages = Math.max(1, Math.ceil(total / limit));
+    const inicio = (Math.min(page, pages) - 1) * limit;
+
     return {
-      total: resultado.length,
-      instituciones: resultado.map((c) => ({
+      total,
+      page,
+      limit,
+      pages,
+      instituciones: resultado.slice(inicio, inicio + limit).map((c) => ({
         id: c.id,
         nombre: c.nombre,
         link: c.link,

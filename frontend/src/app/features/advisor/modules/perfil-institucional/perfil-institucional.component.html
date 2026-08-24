@@ -26,19 +26,19 @@
       }
     </div>
 
-    <select class="pi-select" [(ngModel)]="filtroEstado" (change)="cargar()">
+    <select class="pi-select" [(ngModel)]="filtroEstado" (change)="alCambiarFiltros()">
       <option value="">Estado: todos</option>
       <option value="activo">● Activo</option>
       <option value="inactivo">○ Inactivo</option>
     </select>
 
-    <select class="pi-select" [(ngModel)]="filtroCalendario" (change)="cargar()">
+    <select class="pi-select" [(ngModel)]="filtroCalendario" (change)="alCambiarFiltros()">
       <option value="">Calendario: todos</option>
       <option value="A">Calendario A</option>
       <option value="B">Calendario B</option>
     </select>
 
-    <select class="pi-select" [(ngModel)]="filtroTipo" (change)="cargar()">
+    <select class="pi-select" [(ngModel)]="filtroTipo" (change)="alCambiarFiltros()">
       <option value="">Tipo: todos</option>
       <option value="Sian365">Sian365</option>
       <option value="ControlAcademic">ControlAcademic</option>
@@ -46,13 +46,13 @@
 
     @for (f of filtrosDinamicos; track f.campoId) {
       @if (f.tipo === 'booleano') {
-        <select class="pi-select" [(ngModel)]="valoresFiltros[f.campoId]" (change)="cargar()">
+        <select class="pi-select" [(ngModel)]="valoresFiltros[f.campoId]" (change)="alCambiarFiltros()">
           <option value="">{{ f.nombre }}: todos</option>
           <option value="true">● Activo</option>
           <option value="false">○ Inactivo</option>
         </select>
       } @else if (f.tipo === 'lista') {
-        <select class="pi-select" [(ngModel)]="valoresFiltros[f.campoId]" (change)="cargar()">
+        <select class="pi-select" [(ngModel)]="valoresFiltros[f.campoId]" (change)="alCambiarFiltros()">
           <option value="">{{ f.nombre }}</option>
           @for (op of f.opciones; track op) {
             <option [value]="op">{{ op }}</option>
@@ -61,7 +61,7 @@
       }
     }
 
-    <select class="pi-select" [(ngModel)]="orden" (change)="cargar()">
+    <select class="pi-select" [(ngModel)]="orden" (change)="alCambiarFiltros()">
       <option value="nombre">Nombre A → Z</option>
       <option value="nombre-desc">Nombre Z → A</option>
     </select>
@@ -104,6 +104,29 @@
         </a>
       }
     </div>
+
+    @if (pages > 1) {
+      <nav class="pi-paginador" aria-label="Paginación">
+        <button type="button" class="pi-pag-flecha" [disabled]="page <= 1"
+          title="Primera página" (click)="irAPagina(1)">«</button>
+        <button type="button" class="pi-pag-flecha" [disabled]="page <= 1"
+          title="Anterior" (click)="irAPagina(page - 1)">‹</button>
+
+        @for (p of paginasVisibles(); track p) {
+          <button type="button" class="pi-pag-num" [class.active]="p === page"
+            (click)="irAPagina(p)">{{ p }}</button>
+        }
+
+        <button type="button" class="pi-pag-flecha" [disabled]="page >= pages"
+          title="Siguiente" (click)="irAPagina(page + 1)">›</button>
+        <button type="button" class="pi-pag-flecha" [disabled]="page >= pages"
+          title="Última página" (click)="irAPagina(pages)">»</button>
+
+        <span class="pi-pag-info">
+          {{ total }} institución{{ total === 1 ? '' : 'es' }}
+        </span>
+      </nav>
+    }
   }
 
   @if (mostrarModalNueva) {

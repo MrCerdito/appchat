@@ -283,6 +283,58 @@
   to { background-position: -200% 0; }
 }
 
+/* ---------- Paginador ---------- */
+.pi-paginador {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 26px;
+  flex-wrap: wrap;
+}
+
+.pi-pag-flecha,
+.pi-pag-num {
+  min-width: 34px;
+  height: 34px;
+  padding: 0 8px;
+  border-radius: 9px;
+  border: 1px solid var(--border, #e5e7eb);
+  background: var(--bg-surface, #fff);
+  color: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background: rgba(var(--primary-rgb, 37, 99, 235), 0.08);
+    border-color: rgba(var(--primary-rgb, 37, 99, 235), 0.4);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+}
+
+.pi-pag-num.active {
+  background: var(--primary, #2563eb);
+  border-color: var(--primary, #2563eb);
+  color: #fff;
+
+  &:hover:not(:disabled) {
+    background: var(--primary-dark, #1d4ed8);
+    border-color: var(--primary-dark, #1d4ed8);
+  }
+}
+
+.pi-pag-info {
+  margin-left: 10px;
+  font-size: 0.82rem;
+  color: var(--text-secondary, #6b7280);
+}
+
 /* ---------- Empty ---------- */
 .pi-empty {
   text-align: center;

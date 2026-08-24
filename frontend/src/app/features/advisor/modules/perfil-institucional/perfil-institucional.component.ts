@@ -38,6 +38,11 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
   filtrosDinamicos: FiltroDinamico[] = [];
   valoresFiltros: Record<string, string> = {};
 
+  readonly limitePorPagina = 15;
+  page = 1;
+  pages = 1;
+  total = 0;
+
   mostrarModalNueva = false;
   guardandoNueva = false;
   nuevaForm = { nombre: '', link: '', email: '', calendario: '', tipoColegio: '' };
@@ -63,13 +68,45 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
 
   alEscribirBusqueda(): void {
     clearTimeout(this.busquedaTimer);
-    this.busquedaTimer = setTimeout(() => this.cargar(true), 350);
+    this.busquedaTimer = setTimeout(() => {
+      this.page = 1;
+      this.cargar(true);
+    }, 350);
   }
 
   limpiarBusqueda(): void {
     clearTimeout(this.busquedaTimer);
     this.q = '';
+    this.page = 1;
     this.cargar(true);
+  }
+
+  alCambiarFiltros(): void {
+    this.page = 1;
+    this.cargar();
+  }
+
+  irAPagina(p: number): void {
+    if (p < 1 || p > this.pages || p === this.page) return;
+    this.page = p;
+    this.cargar();
+    this.scrollArriba();
+  }
+
+  private scrollArriba(): void {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  /** Ventana de páginas numeradas alrededor de la actual. */
+  paginasVisibles(): number[] {
+    const total = this.pages;
+    const actual = this.page;
+    const rango: number[] = [];
+    let desde = Math.max(1, actual - 2);
+    const hasta = Math.min(total, desde + 4);
+    desde = Math.max(1, hasta - 4);
+    for (let i = desde; i <= hasta; i++) rango.push(i);
+    return rango;
   }
 
   cargar(silencioso = false): void {
@@ -80,6 +117,8 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
       calendario: this.filtroCalendario || undefined,
       tipo: this.filtroTipo || undefined,
       sort: this.orden,
+      page: String(this.page),
+      limit: String(this.limitePorPagina),
     };
     for (const f of this.filtrosDinamicos) {
       const v = this.valoresFiltros[f.campoId];
@@ -91,6 +130,13 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
       .subscribe({
         next: (res) => {
           this.instituciones = res.instituciones;
+          this.total = res.total;
+          this.pages = res.pages ?? 1;
+          if (this.page > this.pages) {
+            this.page = this.pages;
+            this.cargar(true);
+            return;
+          }
           this.sincronizarFiltrosDinamicos(res.camposFiltrables);
           this.loading = false;
           this.cdr.detectChanges();
@@ -118,6 +164,8 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
   }
 
   buscar(): void {
+    clearTimeout(this.busquedaTimer);
+    this.page = 1;
     this.cargar();
   }
 
@@ -128,6 +176,7 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
     this.filtroTipo = '';
     this.orden = 'nombre';
     this.valoresFiltros = {};
+    this.page = 1;
     this.cargar();
   }
 

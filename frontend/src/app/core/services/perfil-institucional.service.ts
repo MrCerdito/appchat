@@ -48,6 +48,9 @@ export interface PiInstitucionCard {
 
 export interface PiInstitucionesResp {
   total: number;
+  page: number;
+  limit: number;
+  pages: number;
   instituciones: PiInstitucionCard[];
   camposFiltrables: { id: string; nombre: string; tipo: string; opciones: PiOpcion[] }[];
 }
