@@ -1,0 +1,505 @@
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, In, FindOptionsWhere } from 'typeorm';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
+import { existsSync, mkdirSync, renameSync, unlinkSync } from 'fs';
+import { join } from 'path';
+import { Colegio } from '../sessions/entities/colegio.entity';
+import { User } from '../auth/entities/user.entity';
+import { PiCategoria } from './entities/pi-categoria.entity';
+import { PiCampo } from './entities/pi-campo.entity';
+import { PiValor } from './entities/pi-valor.entity';
+import { PiHistorial } from './entities/pi-historial.entity';
+import {
+  CreatePiCampoDto,
+  CreatePiCategoriaDto,
+  UpdatePiCampoDto,
+  UpdatePiCategoriaDto,
+  UpsertPiValoresDto,
+} from './dto/perfil-institucional.dto';
+
+interface ListarQuery {
+  q?: string;
+  calendario?: string;
+  tipo?: string;
+  estado?: string;
+  sort?: string;
+}
+
+@Injectable()
+export class PerfilInstitucionalService {
+  constructor(
+    @InjectRepository(Colegio)
+    private readonly colegioRepo: Repository<Colegio>,
+    @InjectRepository(PiCategoria)
+    private readonly categoriaRepo: Repository<PiCategoria>,
+    @InjectRepository(PiCampo) private readonly campoRepo: Repository<PiCampo>,
+    @InjectRepository(PiValor) private readonly valorRepo: Repository<PiValor>,
+    @InjectRepository(PiHistorial)
+    private readonly historialRepo: Repository<PiHistorial>,
+    @InjectRepository(User) private readonly userRepo: Repository<User>,
+  ) {}
+
+  // ── Instituciones ────────────────────────────────────────────────────────
+
+  async listarInstituciones(query: ListarQuery & Record<string, string>) {
+    const q = (query.q ?? '').trim().toLowerCase();
+
+    const [colegios, campos, valores] = await Promise.all([
+      this.colegioRepo.find({ relations: { advisor: true } }),
+      this.campoRepo.find({
+        where: { activo: true },
+        relations: { categoria: true },
+      }),
+      this.valorRepo.find(),
+    ]);
+
+    const valoresPorColegio = new Map<string, Map<string, string | null>>();
+    for (const v of valores) {
+      if (!valoresPorColegio.has(v.colegioId))
+        valoresPorColegio.set(v.colegioId, new Map());
+      valoresPorColegio.get(v.colegioId)!.set(v.campoId, v.valor);
+    }
+
+    const filtrosCustom = Object.entries(query)
+      .filter(([k, v]) => k.startsWith('f_') && v !== '' && v != null)
+      .map(([k, v]) => [k.slice(2), String(v).toLowerCase()] as const);
+
+    const resultado = colegios.filter((c) => {
+      if (query.calendario && (c.calendario ?? '') !== query.calendario)
+        return false;
+      if (query.tipo && (c.tipoColegio ?? '') !== query.tipo) return false;
+      if (query.estado === 'activo' && !c.activo) return false;
+      if (query.estado === 'inactivo' && c.activo) return false;
+
+      const vals =
+        valoresPorColegio.get(c.id) ?? new Map<string, string | null>();
+
+      for (const [campoId, esperado] of filtrosCustom) {
+        const real = (vals.get(campoId) ?? '').toLowerCase();
+        if (real !== esperado) return false;
+      }
+
+      if (q) {
+        const enBase =
+          c.nombre.toLowerCase().includes(q) ||
+          (c.email ?? '').toLowerCase().includes(q);
+        const enValores = campos
+          .filter((f) => f.buscar)
+          .some((f) => (vals.get(f.id) ?? '').toLowerCase().includes(q));
+        if (!enBase && !enValores) return false;
+      }
+
+      return true;
+    });
+
+    const sort = query.sort ?? 'nombre';
+    resultado.sort((a, b) => {
+      if (sort === 'id') return a.id < b.id ? -1 : 1;
+      if (sort === 'nombre-desc') return b.nombre.localeCompare(a.nombre, 'es');
+      return a.nombre.localeCompare(b.nombre, 'es');
+    });
+
+    return {
+      total: resultado.length,
+      instituciones: resultado.map((c) => ({
+        id: c.id,
+        nombre: c.nombre,
+        link: c.link,
+        email: c.email,
+        logoUrl: c.logoUrl,
+        activo: c.activo,
+        calendario: c.calendario,
+        tipoColegio: c.tipoColegio,
+        advisorNombre: c.advisor?.name ?? null,
+        valores: Object.fromEntries(valoresPorColegio.get(c.id) ?? []),
+      })),
+      camposFiltrables: campos
+        .filter((f) => f.filtrable)
+        .map((f) => ({
+          id: f.id,
+          nombre: f.nombre,
+          tipo: f.tipo,
+          opciones: f.opciones,
+        })),
+    };
+  }
+
+  async obtenerFicha(colegioId: string) {
+    const colegio = await this.colegioRepo.findOne({
+      where: { id: colegioId },
+      relations: { advisor: true },
+    });
+    if (!colegio) throw new NotFoundException('Institución no encontrada');
+
+    const [campos, valores] = await Promise.all([
+      this.campoRepo.find({
+        where: { activo: true, mostrarPerfil: true },
+        relations: { categoria: true },
+      }),
+      this.valorRepo.find({
+        where: { colegioId } as FindOptionsWhere<PiValor>,
+      }),
+    ]);
+
+    const valoresMap = new Map(valores.map((v) => [v.campoId, v.valor]));
+    const ultimaActualizacion = valores.reduce<Date | null>(
+      (max, v) => (!max || v.updatedAt > max ? v.updatedAt : max),
+      null,
+    );
+
+    const categorias = [...new Set(campos.map((c) => c.categoria))]
+      .filter((cat) => cat.activa)
+      .sort((a, b) => a.orden - b.orden);
+
+    const grupos = categorias.map((cat) => ({
+      categoriaId: cat.id,
+      categoriaNombre: cat.nombre,
+      categoriaEsSistema: cat.esSistema,
+      campos: campos
+        .filter((f) => f.categoriaId === cat.id)
+        .sort(
+          (a, b) => a.orden - b.orden || a.nombre.localeCompare(b.nombre, 'es'),
+        )
+        .map((f) => ({
+          campo: f,
+          valor: valoresMap.get(f.id) ?? null,
+        })),
+    }));
+
+    return {
+      institucion: {
+        id: colegio.id,
+        nombre: colegio.nombre,
+        link: colegio.link,
+        email: colegio.email,
+        logoUrl: colegio.logoUrl,
+        activo: colegio.activo,
+        calendario: colegio.calendario,
+        tipoColegio: colegio.tipoColegio,
+        advisorNombre: colegio.advisor?.name ?? null,
+      },
+      grupos,
+      ultimaActualizacion,
+    };
+  }
+
+  async guardarValores(
+    colegioId: string,
+    dto: UpsertPiValoresDto,
+    userId: string,
+  ) {
+    const colegio = await this.colegioRepo.findOneBy({ id: colegioId });
+    if (!colegio) throw new NotFoundException('Institución no encontrada');
+    if (!dto.valores?.length)
+      throw new BadRequestException('Sin valores para guardar');
+
+    const ids = [...new Set(dto.valores.map((v) => v.campoId))];
+    const campos = await this.campoRepo.findBy({ id: In(ids) });
+    if (campos.length !== ids.length)
+      throw new BadRequestException('Campo desconocido');
+
+    let cambios = 0;
+    for (const item of dto.valores) {
+      const campo = campos.find((c) => c.id === item.campoId)!;
+      const nuevo = item.valor == null || item.valor === '' ? null : item.valor;
+
+      let registro = await this.valorRepo.findOneBy({
+        colegioId,
+        campoId: campo.id,
+      });
+      const anterior = registro?.valor ?? null;
+
+      if ((registro?.valor ?? null) === nuevo) continue;
+
+      if (registro) {
+        registro.valor = nuevo;
+        registro.updatedBy = { id: userId } as User;
+      } else {
+        registro = this.valorRepo.create({
+          colegioId,
+          campoId: campo.id,
+          valor: nuevo,
+          updatedBy: { id: userId } as User,
+        });
+      }
+      await this.valorRepo.save(registro);
+
+      await this.historialRepo.insert({
+        colegioId,
+        campoId: campo.id,
+        usuario: { id: userId } as User,
+        accion: 'actualizar_valor',
+        valorAnterior: anterior,
+        valorNuevo: nuevo,
+      });
+      cambios++;
+    }
+
+    return { ok: true, cambios };
+  }
+
+  async subirLogo(
+    colegioId: string,
+    filePath: string,
+    urlPublica: string,
+    userId: string,
+  ) {
+    const colegio = await this.colegioRepo.findOneBy({ id: colegioId });
+    if (!colegio) throw new NotFoundException('Institución no encontrada');
+
+    const anterior = colegio.logoUrl;
+    colegio.logoUrl = urlPublica;
+    await this.colegioRepo.save(colegio);
+
+    if (anterior && anterior.startsWith('/uploads/perfil/')) {
+      const viejo = join(
+        process.cwd(),
+        'uploads',
+        'perfil',
+        anterior.split('/').pop() ?? '',
+      );
+      try {
+        if (existsSync(viejo)) unlinkSync(viejo);
+      } catch {
+        /* noop */
+      }
+    }
+
+    await this.historialRepo.insert({
+      colegioId,
+      usuario: { id: userId } as User,
+      accion: 'actualizar_logo',
+      valorAnterior: anterior,
+      valorNuevo: urlPublica,
+    });
+
+    void filePath;
+    return { ok: true, logoUrl: urlPublica };
+  }
+
+  async cambiarEstado(colegioId: string, activo: boolean, userId: string) {
+    const colegio = await this.colegioRepo.findOneBy({ id: colegioId });
+    if (!colegio) throw new NotFoundException('Institución no encontrada');
+
+    const anterior = colegio.activo;
+    colegio.activo = activo;
+    await this.colegioRepo.save(colegio);
+
+    await this.historialRepo.insert({
+      colegioId,
+      usuario: { id: userId } as User,
+      accion: 'cambiar_estado',
+      valorAnterior: anterior ? 'true' : 'false',
+      valorNuevo: activo ? 'true' : 'false',
+    });
+
+    return { ok: true, activo };
+  }
+
+  moverArchivoLogo(file: Express.Multer.File, colegioId: string): string {
+    const dir = join(process.cwd(), 'uploads', 'perfil');
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    const ext =
+      file.originalname.substring(file.originalname.lastIndexOf('.')) || '.jpg';
+    const finalName = `logo-${colegioId.substring(0, 8)}-${Date.now()}${ext}`;
+    renameSync(file.path, join(dir, finalName));
+    return `/uploads/perfil/${finalName}`;
+  }
+
+  // ── Campos ───────────────────────────────────────────────────────────────
+
+  listarCampos() {
+    return this.campoRepo.find({
+      relations: { categoria: true },
+      order: { orden: 'ASC', nombre: 'ASC' },
+    });
+  }
+
+  private validarOpciones(
+    tipo: string,
+    opciones?: { valor: string; orden?: number }[],
+  ) {
+    if (tipo !== 'lista') return [];
+    if (!opciones?.length)
+      throw new BadRequestException('Un campo tipo lista requiere opciones');
+    return opciones.map((o, i) => ({
+      valor: o.valor.trim(),
+      orden: o.orden ?? i,
+    }));
+  }
+
+  async crearCampo(dto: CreatePiCampoDto) {
+    const categoria = await this.categoriaRepo.findOneBy({
+      id: dto.categoriaId,
+    });
+    if (!categoria) throw new BadRequestException('Categoría desconocida');
+
+    const opciones = this.validarOpciones(dto.tipo, dto.opciones);
+    const campo = await this.campoRepo.save(
+      this.campoRepo.create({ ...dto, opciones }),
+    );
+
+    await this.historialRepo.insert({
+      campoId: campo.id,
+      accion: 'crear_campo',
+      valorNuevo: `${campo.nombre} (${campo.tipo})`,
+    });
+
+    return this.campoRepo.findOneOrFail({
+      where: { id: campo.id },
+      relations: { categoria: true },
+    });
+  }
+
+  async actualizarCampo(id: string, dto: UpdatePiCampoDto) {
+    const campo = await this.campoRepo.findOneBy({ id });
+    if (!campo) throw new NotFoundException('Campo no encontrado');
+
+    const datos: Partial<PiCampo> = { ...dto, opciones: undefined };
+    if (dto.opciones)
+      datos.opciones = this.validarOpciones(
+        datos.tipo ?? campo.tipo,
+        dto.opciones,
+      );
+
+    await this.campoRepo.update(id, datos);
+    await this.historialRepo.insert({
+      campoId: id,
+      accion: 'editar_campo',
+      valorNuevo: datos.nombre ?? campo.nombre,
+    });
+
+    return this.campoRepo.findOneOrFail({
+      where: { id },
+      relations: { categoria: true },
+    });
+  }
+
+  async duplicarCampo(id: string) {
+    const campo = await this.campoRepo.findOneBy({ id });
+    if (!campo) throw new NotFoundException('Campo no encontrado');
+
+    const copia = await this.campoRepo.save(
+      this.campoRepo.create({
+        ...campo,
+        id: undefined,
+        nombre: `${campo.nombre} (copia)`,
+        esSistema: false,
+      } as Partial<PiCampo>),
+    );
+
+    await this.historialRepo.insert({
+      campoId: copia.id,
+      accion: 'crear_campo',
+      valorNuevo: `Duplicado de ${campo.nombre}`,
+    });
+
+    return this.campoRepo.findOneOrFail({
+      where: { id: copia.id },
+      relations: { categoria: true },
+    });
+  }
+
+  async eliminarCampo(id: string) {
+    const campo = await this.campoRepo.findOneBy({ id });
+    if (!campo) throw new NotFoundException('Campo no encontrado');
+    if (campo.esSistema)
+      throw new ForbiddenException(
+        'Los campos de sistema no se pueden eliminar',
+      );
+
+    await this.campoRepo.delete(id);
+    return { ok: true };
+  }
+
+  // ── Categorías ───────────────────────────────────────────────────────────
+
+  listarCategorias() {
+    return this.categoriaRepo.find({ order: { orden: 'ASC', nombre: 'ASC' } });
+  }
+
+  async crearCategoria(dto: CreatePiCategoriaDto) {
+    const existe = await this.categoriaRepo.findOneBy({ nombre: dto.nombre });
+    if (existe)
+      throw new BadRequestException('Ya existe una categoría con ese nombre');
+    return this.categoriaRepo.save(this.categoriaRepo.create(dto));
+  }
+
+  async actualizarCategoria(id: string, dto: UpdatePiCategoriaDto) {
+    const categoria = await this.categoriaRepo.findOneBy({ id });
+    if (!categoria) throw new NotFoundException('Categoría no encontrada');
+    await this.categoriaRepo.update(id, dto);
+    return this.categoriaRepo.findOneByOrFail({ id });
+  }
+
+  async eliminarCategoria(id: string) {
+    const categoria = await this.categoriaRepo.findOneBy({ id });
+    if (!categoria) throw new NotFoundException('Categoría no encontrada');
+
+    const conCampos = await this.campoRepo.countBy({ categoriaId: id });
+    if (conCampos > 0) {
+      throw new BadRequestException(
+        'La categoría tiene campos asociados; muévelos o elimínalos primero',
+      );
+    }
+
+    await this.categoriaRepo.delete(id);
+    return { ok: true };
+  }
+
+  // ── Historial ────────────────────────────────────────────────────────────
+
+  async listarHistorial(
+    colegioId: string | undefined,
+    page = '1',
+    limit = '30',
+  ) {
+    const pag = Math.max(1, parseInt(page, 10) || 1);
+    const porPagina = Math.min(100, Math.max(1, parseInt(limit, 10) || 30));
+
+    const qb = this.historialRepo
+      .createQueryBuilder('h')
+      .leftJoinAndSelect('h.usuario', 'u')
+      .orderBy('h.createdAt', 'DESC')
+      .skip((pag - 1) * porPagina)
+      .take(porPagina);
+
+    if (colegioId) qb.where('h.colegio_id = :colegioId', { colegioId });
+
+    const [data, total] = await qb.getManyAndCount();
+    const nombresCampos = await this.nombresDeCampos(data);
+
+    return {
+      data: data.map((h) => ({
+        ...h,
+        usuario: h.usuario ? { id: h.usuario.id, name: h.usuario.name } : null,
+        campoNombre: h.campoId ? (nombresCampos.get(h.campoId) ?? null) : null,
+      })),
+      total,
+      page: pag,
+      limit: porPagina,
+      pages: Math.ceil(total / porPagina),
+    };
+  }
+
+  private async nombresDeCampos(
+    registros: PiHistorial[],
+  ): Promise<Map<string, string>> {
+    const ids = [
+      ...new Set(
+        registros.map((r) => r.campoId).filter((x): x is string => !!x),
+      ),
+    ];
+    if (!ids.length) return new Map();
+    const filas = await this.campoRepo.find({
+      where: { id: In(ids) },
+      select: ['id', 'nombre'],
+    });
+    return new Map(filas.map((f) => [f.id, f.nombre]));
+  }
+}

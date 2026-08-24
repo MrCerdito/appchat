@@ -1,0 +1,152 @@
+<div class="pi-page">
+  <header class="pi-header">
+    <div class="pi-header-text">
+      <h1>Perfil Institucional</h1>
+      <p>Consulta y administra la información de las instituciones.</p>
+    </div>
+    <div class="pi-header-actions">
+      @if (isAdmin) {
+        <button type="button" class="pi-btn pi-btn-outline" (click)="abrirModalNueva()">
+          + Nueva institución
+        </button>
+        <a class="pi-btn pi-btn-primary" routerLink="campos">⚙ Gestionar campos</a>
+      } @else {
+        <a class="pi-btn pi-btn-primary" routerLink="campos">Ver campos</a>
+      }
+    </div>
+  </header>
+
+  <div class="pi-toolbar">
+    <div class="pi-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input type="text" placeholder="Buscar institución, ID, correo o información..."
+        [(ngModel)]="q" (keyup.enter)="buscar()" />
+    </div>
+
+    <select class="pi-select" [(ngModel)]="filtroEstado" (change)="cargar()">
+      <option value="">Estado: todos</option>
+      <option value="activo">● Activo</option>
+      <option value="inactivo">○ Inactivo</option>
+    </select>
+
+    <select class="pi-select" [(ngModel)]="filtroCalendario" (change)="cargar()">
+      <option value="">Calendario: todos</option>
+      <option value="A">Calendario A</option>
+      <option value="B">Calendario B</option>
+    </select>
+
+    <select class="pi-select" [(ngModel)]="filtroTipo" (change)="cargar()">
+      <option value="">Tipo: todos</option>
+      <option value="Sian365">Sian365</option>
+      <option value="ControlAcademic">ControlAcademic</option>
+    </select>
+
+    @for (f of filtrosDinamicos; track f.campoId) {
+      @if (f.tipo === 'booleano') {
+        <select class="pi-select" [(ngModel)]="valoresFiltros[f.campoId]" (change)="cargar()">
+          <option value="">{{ f.nombre }}: todos</option>
+          <option value="true">● Activo</option>
+          <option value="false">○ Inactivo</option>
+        </select>
+      } @else if (f.tipo === 'lista') {
+        <select class="pi-select" [(ngModel)]="valoresFiltros[f.campoId]" (change)="cargar()">
+          <option value="">{{ f.nombre }}</option>
+          @for (op of f.opciones; track op) {
+            <option [value]="op">{{ op }}</option>
+          }
+        </select>
+      }
+    }
+
+    <select class="pi-select" [(ngModel)]="orden" (change)="cargar()">
+      <option value="nombre">Nombre A → Z</option>
+      <option value="nombre-desc">Nombre Z → A</option>
+    </select>
+
+    @if (hayFiltros) {
+      <button type="button" class="pi-link" (click)="limpiarFiltros()">Limpiar</button>
+    }
+  </div>
+
+  @if (loading) {
+    <div class="pi-grid">
+      @for (i of [1, 2, 3, 4, 5, 6, 7, 8]; track i) {
+        <div class="pi-card pi-card--skeleton">
+          <div class="pi-card-media"></div>
+          <div class="pi-card-name"></div>
+        </div>
+      }
+    </div>
+  } @else if (instituciones.length === 0) {
+    <div class="pi-empty">
+      <p>No se encontraron instituciones</p>
+      @if (hayFiltros) {
+        <button type="button" class="pi-btn pi-btn-outline" (click)="limpiarFiltros()">Limpiar filtros</button>
+      }
+    </div>
+  } @else {
+    <div class="pi-grid">
+      @for (inst of instituciones; track inst.id) {
+        <a class="pi-card" [routerLink]="[inst.id]">
+          <span class="pi-card-dot" [class.off]="!inst.activo"
+            [title]="inst.activo ? 'Activo' : 'Inactivo'"></span>
+          <div class="pi-card-media">
+            @if (inst.logoUrl) {
+              <img [src]="inst.logoUrl" [alt]="inst.nombre" loading="lazy" />
+            } @else {
+              <span class="pi-card-initials">{{ iniciales(inst.nombre) }}</span>
+            }
+          </div>
+          <div class="pi-card-name" [title]="inst.nombre">{{ inst.nombre }}</div>
+        </a>
+      }
+    </div>
+  }
+
+  @if (mostrarModalNueva) {
+    <div class="pi-modal-backdrop" (click)="mostrarModalNueva = false">
+      <div class="pi-modal" (click)="$event.stopPropagation()">
+        <h3>Nueva institución</h3>
+        <label class="pi-field">
+          <span>Nombre *</span>
+          <input type="text" [(ngModel)]="nuevaForm.nombre" maxlength="200" placeholder="Colegio San Pedro Claver" />
+        </label>
+        <label class="pi-field">
+          <span>Link *</span>
+          <input type="text" [(ngModel)]="nuevaForm.link" maxlength="500" placeholder="https://colegio.edu.co" />
+        </label>
+        <label class="pi-field">
+          <span>Correo electrónico</span>
+          <input type="email" [(ngModel)]="nuevaForm.email" maxlength="200" />
+        </label>
+        <div class="pi-field-row">
+          <label class="pi-field">
+            <span>Calendario</span>
+            <select [(ngModel)]="nuevaForm.calendario">
+              <option value=""></option>
+              <option value="A">A</option>
+              <option value="B">B</option>
+            </select>
+          </label>
+          <label class="pi-field">
+            <span>Tipo</span>
+            <select [(ngModel)]="nuevaForm.tipoColegio">
+              <option value=""></option>
+              <option value="Sian365">Sian365</option>
+              <option value="ControlAcademic">ControlAcademic</option>
+            </select>
+          </label>
+        </div>
+        <div class="pi-modal-actions">
+          <button type="button" class="pi-btn pi-btn-ghost" (click)="mostrarModalNueva = false">Cancelar</button>
+          <button type="button" class="pi-btn pi-btn-primary" [disabled]="guardandoNueva" (click)="crearNueva()">
+            {{ guardandoNueva ? 'Creando…' : 'Crear' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

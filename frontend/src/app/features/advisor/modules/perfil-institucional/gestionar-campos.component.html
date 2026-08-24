@@ -1,0 +1,182 @@
+<div class="gc-page">
+  <header class="gc-header">
+    <button type="button" class="gc-back" (click)="volver()" title="Volver">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+    </button>
+    <div>
+      <h1>Campos del perfil</h1>
+      <p>Define la estructura de información de todas las instituciones.</p>
+    </div>
+    <div class="gc-header-actions">
+      <button type="button" class="pi-btn pi-btn-outline" (click)="toggleCategorias()">
+        Categorías ({{ categorias.length }})
+      </button>
+      <button type="button" class="pi-btn pi-btn-primary" (click)="abrirNuevo()">+ Agregar campo</button>
+    </div>
+  </header>
+
+  <div class="gc-toolbar">
+    <input class="gc-search" type="text" placeholder="Buscar campo…" [(ngModel)]="q" />
+    <select class="pi-select" [(ngModel)]="filtroTipo">
+      <option value="">Todos los tipos</option>
+      @for (t of tipos(); track t) {
+        <option [value]="t">{{ tipoLabel(t) }}</option>
+      }
+    </select>
+    <select class="pi-select" [(ngModel)]="filtroCategoria">
+      <option value="">Todas las categorías</option>
+      @for (c of categorias; track c.id) {
+        <option [value]="c.id">{{ c.nombre }}</option>
+      }
+    </select>
+  </div>
+
+  @if (loading) {
+    <div class="gc-loading">Cargando campos…</div>
+  } @else {
+    <table class="gc-table">
+      <thead>
+        <tr>
+          <th>Campo</th>
+          <th>Tipo</th>
+          <th>Categoría</th>
+          <th>Uso</th>
+          <th>Estado</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (c of filtrados; track c.id) {
+          <tr [class.inactive]="!c.activo">
+            <td class="gc-nombre">
+              {{ c.nombre }}
+              @if (c.esSistema) {
+                <span class="gc-badge gc-badge--sistema">sistema</span>
+              }
+            </td>
+            <td>{{ tipoLabel(c.tipo) }}</td>
+            <td>{{ c.categoria?.nombre ?? '—' }}</td>
+            <td class="gc-uso">
+              @if (c.mostrarPerfil) { <span title="Visible en el perfil">P</span> }
+              @if (c.mostrarListado) { <span title="Columna en listado">L</span> }
+              @if (c.buscar) { <span title="Buscable">B</span> }
+              @if (c.filtrable) { <span title="Filtrable">F</span> }
+              @if (!c.mostrarPerfil && !c.mostrarListado && !c.buscar && !c.filtrable) { — }
+            </td>
+            <td>
+              <button type="button" class="gc-estado" [class.off]="!c.activo" (click)="alternarActivo(c)">
+                {{ c.activo ? '● Activo' : '○ Inactivo' }}
+              </button>
+            </td>
+            <td class="gc-actions">
+              <button type="button" class="gc-icon" title="Editar" (click)="abrirEditar(c)">✎</button>
+              <button type="button" class="gc-icon" title="Duplicar" (click)="duplicar(c)">⧉</button>
+              @if (!c.esSistema) {
+                <button type="button" class="gc-icon gc-icon--danger" title="Eliminar" (click)="eliminar(c)">✕</button>
+              }
+            </td>
+          </tr>
+        } @empty {
+          <tr><td colspan="6" class="gc-empty">No hay campos que coincidan con el filtro</td></tr>
+        }
+      </tbody>
+    </table>
+  }
+
+  <!-- ---------- Panel categorías ---------- -->
+  @if (mostrarPanelCategorias) {
+    <div class="gc-panel-backdrop" (click)="toggleCategorias()">
+      <div class="gc-panel" (click)="$event.stopPropagation()">
+        <h3>Categorías</h3>
+        <div class="gc-cat-add">
+          <input #catInput type="text" placeholder="Nueva categoría…" maxlength="120"
+            (keyup.enter)="crearCategoria(catInput)" />
+          <button type="button" class="pi-btn pi-btn-primary" (click)="crearCategoria(catInput)">Agregar</button>
+        </div>
+        <ul class="gc-cat-list">
+          @for (cat of categorias; track cat.id) {
+            <li>
+              <input #renameInput type="text" [value]="cat.nombre"
+                (change)="renombrarCategoria(cat, renameInput)" />
+              @if (cat.esSistema) {
+                <span class="gc-badge gc-badge--sistema">sistema</span>
+              }
+              <button type="button" class="gc-estado" [class.off]="!cat.activa" (click)="alternarCategoria(cat)">
+                {{ cat.activa ? '●' : '○' }}
+              </button>
+              @if (!cat.esSistema) {
+                <button type="button" class="gc-icon gc-icon--danger" title="Eliminar" (click)="eliminarCategoria(cat)">✕</button>
+              }
+            </li>
+          }
+        </ul>
+      </div>
+    </div>
+  }
+
+  <!-- ---------- Modal campo ---------- -->
+  @if (mostrarModalCampo) {
+    <div class="gc-modal-backdrop" (click)="mostrarModalCampo = false">
+      <div class="gc-modal" (click)="$event.stopPropagation()">
+        <h3>{{ campoEditando ? 'Editar campo' : 'Nuevo campo' }}</h3>
+
+        <label class="pi-field">
+          <span>Nombre *</span>
+          <input type="text" [(ngModel)]="form.nombre" maxlength="150" />
+        </label>
+
+        <div class="gc-row">
+          <label class="pi-field">
+            <span>Categoría *</span>
+            <select [(ngModel)]="form.categoriaId">
+              @for (cat of categorias; track cat.id) {
+                <option [value]="cat.id">{{ cat.nombre }}</option>
+              }
+            </select>
+          </label>
+          <label class="pi-field">
+            <span>Tipo *</span>
+            <select [(ngModel)]="form.tipo">
+              @for (t of tipos(); track t) {
+                <option [value]="t">{{ tipoLabel(t) }}</option>
+              }
+            </select>
+          </label>
+        </div>
+
+        @if (form.tipo === 'lista') {
+          <div class="gc-opciones">
+            <span>Opciones</span>
+            @for (op of form.opciones; track $index) {
+              <div class="gc-opcion">
+                <button type="button" class="gc-icon" title="Subir" (click)="subirOpcion($index)">↑</button>
+                <input type="text" [(ngModel)]="form.opciones[$index]" maxlength="200" />
+                <button type="button" class="gc-icon gc-icon--danger" title="Quitar" (click)="quitarOpcion($index)">✕</button>
+              </div>
+            }
+            <button type="button" class="pi-link" (click)="agregarOpcion()">+ Agregar opción</button>
+          </div>
+        }
+
+        <div class="gc-checks">
+          <label><input type="checkbox" [(ngModel)]="form.requerido" /> Obligatorio</label>
+          <label><input type="checkbox" [(ngModel)]="form.buscar" /> Buscable</label>
+          <label><input type="checkbox" [(ngModel)]="form.filtrable" /> Filtrable</label>
+          <label><input type="checkbox" [(ngModel)]="form.mostrarPerfil" /> Visible en perfil</label>
+          <label><input type="checkbox" [(ngModel)]="form.mostrarListado" /> Columna en listado</label>
+          <label><input type="checkbox" [(ngModel)]="form.activo" /> Activo</label>
+        </div>
+
+        <div class="pi-modal-actions">
+          <button type="button" class="pi-btn pi-btn-ghost" (click)="mostrarModalCampo = false">Cancelar</button>
+          <button type="button" class="pi-btn pi-btn-primary" [disabled]="guardando" (click)="guardarCampo()">
+            {{ guardando ? 'Guardando…' : 'Guardar' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

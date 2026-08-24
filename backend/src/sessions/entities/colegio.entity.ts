@@ -27,4 +27,10 @@ export class Colegio {
 
   @Column({ name: 'advisor_id', type: 'uuid', nullable: true })
   advisorId: string | null;
+
+  @Column({ name: 'logo_url', type: 'text', nullable: true })
+  logoUrl: string | null;
+
+  @Column({ type: 'boolean', default: true })
+  activo: boolean;
 }

@@ -44,6 +44,11 @@ import { InternalChatModule } from './internal-chat/internal-chat.module';
 import { InternalConversation } from './internal-chat/entities/internal-conversation.entity';
 import { InternalConversationMember } from './internal-chat/entities/internal-conversation-member.entity';
 import { InternalMessage } from './internal-chat/entities/internal-message.entity';
+import { PerfilInstitucionalModule } from './perfil-institucional/perfil-institucional.module';
+import { PiCategoria } from './perfil-institucional/entities/pi-categoria.entity';
+import { PiCampo } from './perfil-institucional/entities/pi-campo.entity';
+import { PiValor } from './perfil-institucional/entities/pi-valor.entity';
+import { PiHistorial } from './perfil-institucional/entities/pi-historial.entity';
 import { SeedModule } from './seed/seed.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -64,7 +69,9 @@ import { AppService } from './app.service';
         const { createKeyv } = await import('@keyv/redis');
         return {
           stores: [
-            createKeyv(config.get<string>('REDIS_URL') || 'redis://localhost:6379'),
+            createKeyv(
+              config.get<string>('REDIS_URL') || 'redis://localhost:6379',
+            ),
           ],
           ttl: 10_000,
         } as any;
@@ -153,6 +160,10 @@ import { AppService } from './app.service';
           InternalConversation,
           InternalConversationMember,
           InternalMessage,
+          PiCategoria,
+          PiCampo,
+          PiValor,
+          PiHistorial,
         ],
         synchronize: config.get<string>('NODE_ENV') === 'development',
         logging: config.get<string>('NODE_ENV') !== 'production',
@@ -173,6 +184,7 @@ import { AppService } from './app.service';
     TicketsModule,
     PqrsModule,
     InternalChatModule,
+    PerfilInstitucionalModule,
     SeedModule,
   ],
   controllers: [AppController],

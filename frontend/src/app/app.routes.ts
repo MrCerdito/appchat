@@ -49,6 +49,21 @@ export const routes: Routes = [
           import('./features/advisor/modules/documentos/documentos.component').then(m => m.DocumentosComponent),
       },
       {
+        path: 'perfil-institucional',
+        loadComponent: () =>
+          import('./features/advisor/modules/perfil-institucional/perfil-institucional.component').then(m => m.PerfilInstitucionalComponent),
+      },
+      {
+        path: 'perfil-institucional/campos',
+        loadComponent: () =>
+          import('./features/advisor/modules/perfil-institucional/gestionar-campos.component').then(m => m.GestionarCamposComponent),
+      },
+      {
+        path: 'perfil-institucional/:id',
+        loadComponent: () =>
+          import('./features/advisor/modules/perfil-institucional/perfil-detalle.component').then(m => m.PerfilDetalleComponent),
+      },
+      {
         path: 'configuracion',
         loadComponent: () =>
           import('./features/advisor/modules/configuracion/configuracion').then(m => m.ConfiguracionComponent),
@@ -136,6 +151,21 @@ export const routes: Routes = [
         path: 'tickets',
         loadComponent: () =>
           import('./shared/tickets/tickets.component').then(m => m.TicketsComponent),
+      },
+      {
+        path: 'perfil-institucional',
+        loadComponent: () =>
+          import('./features/advisor/modules/perfil-institucional/perfil-institucional.component').then(m => m.PerfilInstitucionalComponent),
+      },
+      {
+        path: 'perfil-institucional/campos',
+        loadComponent: () =>
+          import('./features/advisor/modules/perfil-institucional/gestionar-campos.component').then(m => m.GestionarCamposComponent),
+      },
+      {
+        path: 'perfil-institucional/:id',
+        loadComponent: () =>
+          import('./features/advisor/modules/perfil-institucional/perfil-detalle.component').then(m => m.PerfilDetalleComponent),
       },
     ],
   },

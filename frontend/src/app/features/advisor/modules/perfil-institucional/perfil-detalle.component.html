@@ -1,0 +1,278 @@
+<div class="pd-page">
+  @if (loading) {
+    <div class="pd-loading">Cargando ficha…</div>
+  } @else if (ficha) {
+    <header class="pd-header">
+      <button type="button" class="pd-back" (click)="volver()" title="Volver">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+      </button>
+
+      <div class="pd-logo" (click)="abrirSelectorLogo(logoInput)" title="Cambiar logo">
+        @if (subiendoLogo) {
+          <span class="pd-logo-loading">…</span>
+        } @else if (ficha.institucion.logoUrl) {
+          <img [src]="ficha.institucion.logoUrl" [alt]="ficha.institucion.nombre" />
+        } @else {
+          <span class="pd-logo-initials">{{ iniciales(ficha.institucion.nombre) }}</span>
+        }
+        <span class="pd-logo-edit">✎</span>
+      </div>
+      <input #logoInput type="file" accept="image/jpeg,image/png,image/webp,image/gif"
+        (change)="alSeleccionarLogo($event)" hidden />
+
+      <div class="pd-titular">
+        <h1>{{ ficha.institucion.nombre }}</h1>
+        <div class="pd-meta">
+          <span class="pd-chip" [class.off]="!ficha.institucion.activo">
+            {{ ficha.institucion.activo ? '● Activo' : '○ Inactivo' }}
+          </span>
+          @if (ficha.institucion.calendario) {
+            <span class="pd-chip">Calendario {{ ficha.institucion.calendario }}</span>
+          }
+          @if (ficha.institucion.tipoColegio) {
+            <span class="pd-chip">{{ ficha.institucion.tipoColegio }}</span>
+          }
+          <a class="pd-link" [href]="ficha.institucion.link" target="_blank" rel="noopener noreferrer">
+            {{ ficha.institucion.link }} ↗
+          </a>
+        </div>
+        <p class="pd-actualizacion">
+          Asesor:
+          {{ ficha.institucion.advisorNombre ?? '—' }}
+          @if (ficha.ultimaActualizacion) {
+            · Última actualización: {{ formatearFecha(ficha.ultimaActualizacion) }}
+          } @else {
+            · Sin información registrada todavía
+          }
+        </p>
+      </div>
+
+      <div class="pd-header-actions">
+        @if (isAdmin) {
+          <button type="button" class="pi-btn pi-btn-outline" (click)="alternarEstado()">
+            {{ ficha.institucion.activo ? 'Desactivar' : 'Activar' }}
+          </button>
+        }
+      </div>
+    </header>
+
+    <nav class="pd-tabs">
+      <button type="button" [class.active]="tab === 'informacion'" (click)="cambiarTab('informacion')">
+        Información
+      </button>
+      <button type="button" [class.active]="tab === 'configuracion'" (click)="cambiarTab('configuracion')">
+        Configuración
+      </button>
+      <button type="button" [class.active]="tab === 'personalizados'" (click)="cambiarTab('personalizados')">
+        Personalizados
+      </button>
+      <button type="button" [class.active]="tab === 'historial'" (click)="cambiarTab('historial')">
+        Historial
+      </button>
+    </nav>
+
+    <!-- ================= Información base ================= -->
+    @if (tab === 'informacion') {
+      <section class="pd-base">
+        <div class="pd-base-grid">
+          <div class="pd-base-item">
+            <span>Nombre</span>
+            <strong>{{ ficha.institucion.nombre }}</strong>
+          </div>
+          <div class="pd-base-item">
+            <span>Link</span>
+            <a [href]="ficha.institucion.link" target="_blank" rel="noopener noreferrer">
+              {{ ficha.institucion.link }}
+            </a>
+          </div>
+          <div class="pd-base-item">
+            <span>Correo electrónico</span>
+            <strong>{{ ficha.institucion.email ?? '—' }}</strong>
+          </div>
+          <div class="pd-base-item">
+            <span>Calendario</span>
+            <strong>{{ ficha.institucion.calendario ?? '—' }}</strong>
+          </div>
+          <div class="pd-base-item">
+            <span>Tipo de sistema</span>
+            <strong>{{ ficha.institucion.tipoColegio ?? '—' }}</strong>
+          </div>
+          <div class="pd-base-item">
+            <span>Asesor asignado</span>
+            <strong>{{ ficha.institucion.advisorNombre ?? '—' }}</strong>
+          </div>
+          <div class="pd-base-item">
+            <span>ID</span>
+            <code>{{ ficha.institucion.id }}</code>
+          </div>
+        </div>
+        <p class="pd-nota">
+          Los datos base se administran desde la gestión de instituciones.
+        </p>
+      </section>
+    }
+
+    <!-- ================= Configuración / Personalizados ================= -->
+    @if (tab === 'configuracion' || tab === 'personalizados') {
+      @if ((tab === 'configuracion' ? gruposConfiguracion() : gruposPersonalizados()).length === 0) {
+        <div class="pd-empty">
+          @if (tab === 'personalizados') {
+            <p>Aún no hay información personalizada para esta institución.</p>
+          } @else {
+            <p>No hay categorías de configuración activas.</p>
+          }
+        </div>
+      }
+
+      @for (grupo of (tab === 'configuracion' ? gruposConfiguracion() : gruposPersonalizados()); track grupo.categoriaId) {
+        <section class="pd-grupo">
+          <div class="pd-grupo-head">
+            <h2>{{ grupo.categoriaNombre }}</h2>
+            <button type="button" class="pi-btn pi-btn-ghost pi-btn-sm" (click)="abrirEdicion(grupo)">
+              ✎ Editar
+            </button>
+          </div>
+
+          <dl class="pd-items">
+            @for (item of grupo.campos; track item.campo.id) {
+              <div class="pd-item">
+                <dt>
+                  {{ item.campo.nombre }}
+                  @if (item.campo.requerido && !item.valor) {
+                    <span class="pd-falta" title="Campo obligatorio sin completar">pendiente</span>
+                  }
+                </dt>
+                <dd>
+                  @switch (item.campo.tipo) {
+                    @case ('booleano') {
+                      <span class="pd-chip" [class.off]="!esBooleanoActivo(item.valor)">
+                        {{ esBooleanoActivo(item.valor) ? '● Activo' : '○ Inactivo' }}
+                      </span>
+                    }
+                    @case ('url') {
+                      @if (item.valor) {
+                        <a [href]="item.valor" target="_blank" rel="noopener noreferrer">{{ item.valor }} ↗</a>
+                      } @else { — }
+                    }
+                    @case ('email') {
+                      @if (item.valor) {
+                        <a href="mailto:{{ item.valor }}">{{ item.valor }}</a>
+                      } @else { — }
+                    }
+                    @case ('archivo') {
+                      @if (item.valor) {
+                        <a [href]="item.valor" target="_blank" rel="noopener noreferrer">Ver archivo ↗</a>
+                      } @else { — }
+                    }
+                    @default {
+                      {{ formatearValor(item) }}
+                    }
+                  }
+                </dd>
+              </div>
+            }
+          </dl>
+        </section>
+      }
+    }
+
+    <!-- ================= Historial ================= -->
+    @if (tab === 'historial') {
+      <section class="pd-historial">
+        @if (historial.length === 0 && !historialCargando) {
+          <div class="pd-empty"><p>Sin cambios registrados.</p></div>
+        }
+        <ul class="pd-hist-lista">
+          @for (h of historial; track h.id) {
+            <li>
+              <div class="pd-hist-punto"></div>
+              <div class="pd-hist-cuerpo">
+                <div class="pd-hist-linea1">
+                  <strong>{{ h.usuario?.name ?? 'Sistema' }}</strong>
+                  {{ accionLabel(h.accion) }}
+                  @if (h.campoNombre) { «{{ h.campoNombre }}» }
+                  <time>{{ formatearFecha(h.createdAt) }}</time>
+                </div>
+                @if (h.accion !== 'cambiar_estado') {
+                  <div class="pd-hist-valores">
+                    @if (h.valorAnterior) {
+                      <del>{{ h.valorAnterior }}</del>
+                    }
+                    @if (h.valorNuevo) {
+                      <ins>{{ h.valorNuevo }}</ins>
+                    }
+                    @if (!h.valorAnterior && !h.valorNuevo) { — }
+                  </div>
+                }
+              </div>
+            </li>
+          }
+        </ul>
+        @if (historial.length < historialTotal) {
+          <button type="button" class="pi-btn pi-btn-ghost pd-mas" [disabled]="historialCargando" (click)="masHistorial()">
+            {{ historialCargando ? 'Cargando…' : 'Cargar más' }}
+          </button>
+        }
+      </section>
+    }
+  }
+
+  <!-- ================= Modal edición de grupo ================= -->
+  @if (grupoEditar) {
+    <div class="pd-modal-backdrop" (click)="cerrarEdicion()">
+      <div class="pd-modal" (click)="$event.stopPropagation()">
+        <h3>Editar · {{ grupoEditar.categoriaNombre }}</h3>
+
+        @for (item of grupoEditar.campos; track item.campo.id) {
+          <label class="pi-field">
+            <span>
+              {{ item.campo.nombre }}
+              @if (item.campo.tipo === 'booleano') {
+                ({{ borrador[item.campo.id] ? 'Activo' : 'Inactivo' }})
+              }
+            </span>
+
+            @switch (item.campo.tipo) {
+              @case ('booleano') {
+                <input type="checkbox"
+                  [(ngModel)]="borrador[item.campo.id]"
+                  [ngModelOptions]="{ standalone: true }" />
+              }
+              @case ('texto_largo') {
+                <textarea rows="3" maxlength="2000" [(ngModel)]="borrador[item.campo.id]"
+                  [ngModelOptions]="{ standalone: true }"></textarea>
+              }
+              @case ('lista') {
+                <select [(ngModel)]="borrador[item.campo.id]" [ngModelOptions]="{ standalone: true }">
+                  <option value=""></option>
+                  @for (op of item.campo.opciones; track op.valor) {
+                    <option [value]="op.valor">{{ op.valor }}</option>
+                  }
+                </select>
+              }
+              @default {
+                <input
+                  [type]="item.campo.tipo === 'numero' || item.campo.tipo === 'moneda' || item.campo.tipo === 'porcentaje'
+                    ? 'number'
+                    : item.campo.tipo === 'fecha' ? 'date' : 'text'"
+                  maxlength="500"
+                  [(ngModel)]="borrador[item.campo.id]"
+                  [ngModelOptions]="{ standalone: true }" />
+              }
+            }
+          </label>
+        }
+
+        <div class="pi-modal-actions">
+          <button type="button" class="pi-btn pi-btn-ghost" (click)="cerrarEdicion()">Cancelar</button>
+          <button type="button" class="pi-btn pi-btn-primary" [disabled]="guardando" (click)="guardarEdicion()">
+            {{ guardando ? 'Guardando…' : 'Guardar cambios' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>
