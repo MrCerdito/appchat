@@ -677,8 +677,14 @@
         </div>
         <div class="info-row">
           <span class="info-lbl">Colegio</span>
-          @if (openClientLink(activeSession)) {
-          <a class="info-link" [href]="openClientLink(activeSession)" target="_blank" rel="noopener noreferrer">
+          @if (perfilInstitucionalLink(activeSession).length) {
+          <a class="info-link" [routerLink]="perfilInstitucionalLink(activeSession)"
+             title="Ver Perfil Institucional del colegio">
+            {{ activeSession.colegio || 'Sin colegio' }}
+          </a>
+          } @else if (openClientLink(activeSession)) {
+          <a class="info-link" [href]="openClientLink(activeSession)" target="_blank" rel="noopener noreferrer"
+             title="Abrir sitio web del colegio">
             {{ activeSession.colegio || 'Sin colegio' }}
           </a>
           } @else {

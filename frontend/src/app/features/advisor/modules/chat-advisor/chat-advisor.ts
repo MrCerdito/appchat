@@ -18,7 +18,7 @@ import { Session } from '../../../../core/models/session.model';
 import { User } from '../../../../core/models/user.model';
 import { Subject, Observable, firstValueFrom } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AiService } from '../../../../core/services/ai.service';
 import { ConfiguracionFrontendService } from '../../../../core/services/configuracion.service';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
@@ -63,7 +63,7 @@ const AVATAR_COLORS = ['ava-blue', 'ava-green', 'ava-amber', 'ava-purple'];
 @Component({
   selector   : 'app-chat-advisor',
   standalone : true,
-  imports    : [CommonModule, FormsModule, VoiceRecorderComponent, VoicePlayerComponent, WaIconComponent],
+  imports    : [CommonModule, FormsModule, RouterLink, VoiceRecorderComponent, VoicePlayerComponent, WaIconComponent],
   templateUrl: './chat-advisor.html',
   styleUrl   : './chat-advisor.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -337,6 +337,21 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     });
     this.loadSessions();
     this.loadAdvisors();
+
+    // Mapa nombre → id para enlazar al Perfil Institucional desde la info del cliente
+    this.sessionService.getColegios()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (colegios) => {
+          this.colegiosMap = new Map(
+            colegios
+              .filter((c) => c.nombre)
+              .map((c) => [c.nombre.trim().toLowerCase(), c.id]),
+          );
+          this.cdr.detectChanges();
+        },
+        error: () => { /* silencioso: cae al link externo */ },
+      });
 
     this.configService.getQuickRepliesConfig().subscribe({
       next: (replies) => {
@@ -1632,6 +1647,17 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     const presence = this.clientPresenceMap.get(session.id);
     if (session.status === 'closed' || !presence?.online) return 'presence-offline';
     return presence.active ? 'presence-active' : 'presence-open';
+  }
+
+  /** Mapa nombre de colegio → id para navegar al Perfil Institucional. */
+  protected colegiosMap = new Map<string, string>();
+
+  /** Ruta interna al Perfil Institucional del colegio de la sesión ([] si no se resolvió). */
+  perfilInstitucionalLink(session?: Session | null): string[] {
+    const nombre = session?.colegio?.trim();
+    if (!nombre) return [];
+    const id = this.colegiosMap.get(nombre.toLowerCase());
+    return id ? ['/dashboard', 'perfil-institucional', id] : [];
   }
 
   openClientLink(session?: Session | null): string {
