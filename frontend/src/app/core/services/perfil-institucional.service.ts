@@ -87,6 +87,25 @@ export interface PiPaginado<T> {
   pages: number;
 }
 
+export interface PiImportLog {
+  colegio: string;
+  campo: string;
+  anterior: string | null;
+  nuevo: string | null;
+  estado: 'exito' | 'error';
+  detalle: string;
+}
+
+export interface PiImportResp {
+  ok: boolean;
+  created: number;
+  updated: number;
+  total: number;
+  errores: string[];
+  logs: PiImportLog[];
+  logExcelBase64: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class PerfilInstitucionalService {
   private readonly base = `${environment.apiUrl}/perfil-institucional`;
@@ -182,10 +201,10 @@ export class PerfilInstitucionalService {
     return this.http.get(`${this.base}/exportar/${id}`, { responseType: 'blob' });
   }
 
-  importar(file: File): Observable<{ ok: boolean; created: number; updated: number; total: number; errores: string[] }> {
+  importar(file: File): Observable<PiImportResp> {
     const fd = new FormData();
     fd.append('archivo', file, file.name);
-    return this.http.post<{ ok: boolean; created: number; updated: number; total: number; errores: string[] }>(
+    return this.http.post<PiImportResp>(
       `${this.base}/importar`,
       fd,
     );

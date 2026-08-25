@@ -630,6 +630,16 @@ export class PerfilInstitucionalService {
     return wb.xlsx.writeBuffer() as unknown as Promise<Buffer>;
   }
 
+  private getCellValue(cell: any): string {
+    if (!cell || cell.value == null) return '';
+    const val = cell.value;
+    if (typeof val === 'object') {
+      if ('text' in val) return String(val.text || '').trim();
+      if ('result' in val) return String(val.result || '').trim();
+    }
+    return String(val).trim();
+  }
+
   async importarExcel(filePath: string, userId: string) {
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.readFile(filePath);
@@ -659,43 +669,73 @@ export class PerfilInstitucionalService {
     let created = 0;
     let updated = 0;
     const errores: string[] = [];
+    const logs: { colegio: string; campo: string; anterior: string | null; nuevo: string | null; estado: 'exito' | 'error'; detalle: string }[] = [];
 
     for (let r = 2; r <= ws.rowCount; r++) {
       const row = ws.getRow(r);
       const nombreCell = row.getCell(1);
-      const nombre = String(nombreCell.value ?? '').trim();
+      const nombre = this.getCellValue(nombreCell);
       if (!nombre) continue;
 
       let colegio = await this.colegioRepo.findOneBy({ nombre });
+      const linkVal = this.getCellValue(row.getCell(3)) || 'https://';
+      const emailVal = this.getCellValue(row.getCell(2)) || '';
+      const calendarioVal = this.getCellValue(row.getCell(4)) || null;
+      const tipoVal = this.getCellValue(row.getCell(5)) || null;
+      const activoVal = this.getCellValue(row.getCell(7)) || 'Sí';
+      const activoBool = activoVal.toLowerCase() !== 'no' && activoVal.toLowerCase() !== 'false';
+
       if (!colegio) {
-        const linkVal = String(row.getCell(3).value ?? '').trim() || 'https://';
-        const emailVal = String(row.getCell(2).value ?? '').trim();
-        const calendarioVal = String(row.getCell(4).value ?? '').trim() || undefined;
-        const tipoVal = String(row.getCell(5).value ?? '').trim() || undefined;
-        const activoVal = String(row.getCell(7).value ?? 'Sí').trim().toLowerCase();
         const nuevo = this.colegioRepo.create({
           nombre, link: linkVal, email: emailVal,
           calendario: calendarioVal as any, tipoColegio: tipoVal as any,
-          activo: activoVal !== 'no' && activoVal !== 'false',
+          activo: activoBool,
         });
         colegio = await this.colegioRepo.save(nuevo);
         created++;
+        logs.push({ colegio: nombre, campo: 'Institución', anterior: null, nuevo: 'Creada', estado: 'exito', detalle: 'Institución creada' });
       } else {
-        const linkVal = String(row.getCell(3).value ?? '').trim();
-        const emailVal = String(row.getCell(2).value ?? '').trim();
-        const calendarioVal = String(row.getCell(4).value ?? '').trim();
-        const tipoVal = String(row.getCell(5).value ?? '').trim();
-        const activoVal = String(row.getCell(7).value ?? 'Sí').trim().toLowerCase();
+        const anteriorLink = colegio.link;
+        const anteriorEmail = colegio.email;
+        const anteriorCalendario = colegio.calendario;
+        const anteriorTipo = colegio.tipoColegio;
+        const anteriorActivo = colegio.activo;
 
-        if (linkVal) colegio.link = linkVal;
-        if (emailVal !== undefined) colegio.email = emailVal;
-        if (calendarioVal) colegio.calendario = calendarioVal;
-        if (tipoVal) colegio.tipoColegio = tipoVal;
-        colegio.activo = activoVal !== 'no' && activoVal !== 'false';
+        let modificado = false;
+        if (linkVal && linkVal !== anteriorLink) {
+          colegio.link = linkVal;
+          logs.push({ colegio: nombre, campo: 'Link', anterior: anteriorLink, nuevo: linkVal, estado: 'exito', detalle: 'Link actualizado' });
+          modificado = true;
+        }
+        if (emailVal !== undefined && emailVal !== anteriorEmail) {
+          colegio.email = emailVal;
+          logs.push({ colegio: nombre, campo: 'Email', anterior: anteriorEmail, nuevo: emailVal, estado: 'exito', detalle: 'Email actualizado' });
+          modificado = true;
+        }
+        if (calendarioVal !== anteriorCalendario) {
+          colegio.calendario = calendarioVal;
+          logs.push({ colegio: nombre, campo: 'Calendario', anterior: anteriorCalendario, nuevo: calendarioVal, estado: 'exito', detalle: 'Calendario actualizado' });
+          modificado = true;
+        }
+        if (tipoVal !== anteriorTipo) {
+          colegio.tipoColegio = tipoVal;
+          logs.push({ colegio: nombre, campo: 'Tipo sistema', anterior: anteriorTipo, nuevo: tipoVal, estado: 'exito', detalle: 'Tipo sistema actualizado' });
+          modificado = true;
+        }
+        if (activoBool !== anteriorActivo) {
+          colegio.activo = activoBool;
+          logs.push({ colegio: nombre, campo: 'Activo', anterior: anteriorActivo ? 'Sí' : 'No', nuevo: activoBool ? 'Sí' : 'No', estado: 'exito', detalle: 'Estado actualizado' });
+          modificado = true;
+        }
 
-        await this.colegioRepo.save(colegio);
+        if (modificado) {
+          await this.colegioRepo.save(colegio);
+        }
         updated++;
       }
+
+      const colegioId = Array.isArray(colegio) ? colegio[0].id : colegio.id;
+      const currentValores = await this.valorRepo.findBy({ colegioId });
 
       const valoresToSave: { campoId: string; valor: string | null }[] = [];
       for (let c = 1; c < headers.length; c++) {
@@ -703,20 +743,110 @@ export class PerfilInstitucionalService {
         if (baseHeaders.includes(h)) continue;
         const campo = campoLookup.get(h);
         if (!campo) continue;
-        const val = String(row.getCell(c + 1).value ?? '').trim() || null;
-        valoresToSave.push({ campoId: campo.id, valor: val });
+        
+        const cellVal = this.getCellValue(row.getCell(c + 1));
+        const nuevoVal = cellVal === '' ? null : cellVal;
+        
+        const currentVal = currentValores.find(v => v.campoId === campo.id);
+        const anteriorVal = currentVal?.valor ?? null;
+
+        if (anteriorVal !== nuevoVal) {
+          valoresToSave.push({ campoId: campo.id, valor: nuevoVal });
+          logs.push({ 
+            colegio: nombre, 
+            campo: campo.nombre, 
+            anterior: anteriorVal, 
+            nuevo: nuevoVal, 
+            estado: 'exito', 
+            detalle: 'Valor actualizado' 
+          });
+        }
       }
 
-      const colegioId = Array.isArray(colegio) ? colegio[0].id : colegio.id;
-
       if (valoresToSave.length > 0) {
-        await this.guardarValores(colegioId, { valores: valoresToSave }, userId);
+        try {
+          await this.guardarValores(colegioId, { valores: valoresToSave }, userId);
+        } catch (err: any) {
+          for (const l of logs) {
+            if (l.colegio === nombre && l.estado === 'exito' && l.detalle === 'Valor actualizado') {
+              l.estado = 'error';
+              l.detalle = err.message || 'Error al guardar';
+            }
+          }
+          errores.push(`Error guardando en ${nombre}: ${err.message || err}`);
+        }
       }
     }
 
     try { unlinkSync(filePath); } catch { /* noop */ }
 
-    return { ok: true, created, updated, total: created + updated, errores };
+    // Generate beautiful change log Excel workbook
+    const logWb = new ExcelJS.Workbook();
+    const logWs = logWb.addWorksheet('Reporte de Cambios');
+    logWs.columns = [
+      { header: 'Institución', key: 'colegio', width: 32 },
+      { header: 'Campo', key: 'campo', width: 22 },
+      { header: 'Valor Anterior', key: 'anterior', width: 30 },
+      { header: 'Valor Nuevo', key: 'nuevo', width: 30 },
+      { header: 'Estado', key: 'estado', width: 14 },
+      { header: 'Detalle', key: 'detalle', width: 32 },
+    ];
+    
+    // Style the header row
+    const headerRowLog = logWs.getRow(1);
+    headerRowLog.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRowLog.eachCell((cell) => {
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF1E293B' }, // Dark slate
+      };
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    });
+    headerRowLog.height = 26;
+
+    for (const log of logs) {
+      const row = logWs.addRow({
+        colegio: log.colegio,
+        campo: log.campo,
+        anterior: log.anterior ?? '—',
+        nuevo: log.nuevo ?? '—',
+        estado: log.estado === 'exito' ? 'Éxito' : 'Error',
+        detalle: log.detalle,
+      });
+
+      // Style cells
+      const statusCell = row.getCell(5);
+      if (log.estado === 'exito') {
+        statusCell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFE8F5E9' }, // Light green
+        };
+        statusCell.font = { color: { argb: 'FF2E7D32' }, bold: true };
+      } else {
+        statusCell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFFFEBEE' }, // Light red
+        };
+        statusCell.font = { color: { argb: 'FFC62828' }, bold: true };
+      }
+      statusCell.alignment = { horizontal: 'center' };
+    }
+
+    const logBuffer = await logWb.xlsx.writeBuffer();
+    const logExcelBase64 = Buffer.from(logBuffer as any).toString('base64');
+
+    return { 
+      ok: true, 
+      created, 
+      updated, 
+      total: created + updated, 
+      errores,
+      logs,
+      logExcelBase64
+    };
   }
 
   // ── Historial ────────────────────────────────────────────────────────────

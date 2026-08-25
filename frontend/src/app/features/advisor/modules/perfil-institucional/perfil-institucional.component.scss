@@ -1698,6 +1698,127 @@
   margin: 12px 0 0;
 }
 
+/* ── Import log table and download button ── */
+.pi-import-log-container {
+  margin-top: 18px;
+  text-align: left;
+  border-top: 1px solid $pi-border;
+  padding-top: 16px;
+
+  h5 {
+    margin: 0 0 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: $pi-text;
+  }
+}
+
+.pi-import-log-table {
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid $pi-border;
+  border-radius: $pi-radius-md;
+  background: $pi-surface;
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+
+    th, td {
+      padding: 8px 12px;
+      text-align: left;
+      border-bottom: 1px solid $pi-border;
+    }
+
+    th {
+      background: $pi-slate-50;
+      font-weight: 600;
+      color: $pi-text-secondary;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover {
+      background: $pi-slate-50;
+    }
+
+    tr.pi-log-error {
+      background: $pi-red-50;
+
+      &:hover {
+        background: #fee2e2;
+      }
+    }
+  }
+}
+
+.pi-log-val {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pi-log-badge {
+  display: inline-flex;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+
+  &--success {
+    background: #e8f5e9;
+    color: #2e7d32;
+  }
+
+  &--error {
+    background: #ffe8fee;
+    color: #c62828;
+  }
+}
+
+.pi-import-download-btn {
+  margin-top: 12px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #2e7d32 !important;
+  color: white !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+
+  &:hover {
+    background: #1b5e20 !important;
+  }
+}
+
+.pi-import-errors-list {
+  margin-top: 16px;
+  text-align: left;
+  border-top: 1px solid $pi-border;
+  padding-top: 12px;
+
+  ul {
+    margin: 8px 0 0;
+    padding-left: 20px;
+    font-size: 12px;
+    color: $pi-red-600;
+    
+    li {
+      margin-bottom: 4px;
+    }
+  }
+}
+
 .pi-spin {
   animation: spin 0.7s linear infinite;
 }

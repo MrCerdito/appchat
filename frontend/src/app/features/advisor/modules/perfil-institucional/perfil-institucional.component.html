@@ -454,8 +454,56 @@
                 <span class="pi-import-stat pi-import-stat--success">{{ resultadoImportar.created }} creadas</span>
                 <span class="pi-import-stat pi-import-stat--info">{{ resultadoImportar.updated }} actualizadas</span>
               </div>
+
+              @if (resultadoImportar.logs.length > 0) {
+                <div class="pi-import-log-container">
+                  <h5>Bit&aacute;cora de Cambios</h5>
+                  <div class="pi-import-log-table">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Instituci&oacute;n</th>
+                          <th>Campo</th>
+                          <th>Antes</th>
+                          <th>Despu&eacute;s</th>
+                          <th>Estado</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        @for (log of resultadoImportar.logs; track log) {
+                          <tr [class.pi-log-error]="log.estado === 'error'">
+                            <td><strong>{{ log.colegio }}</strong></td>
+                            <td>{{ log.campo }}</td>
+                            <td class="pi-log-val">{{ log.anterior ?? '—' }}</td>
+                            <td class="pi-log-val">{{ log.nuevo ?? '—' }}</td>
+                            <td>
+                              <span class="pi-log-badge" [class.pi-log-badge--success]="log.estado === 'exito'" [class.pi-log-badge--error]="log.estado === 'error'">
+                                {{ log.estado === 'exito' ? 'Éxito' : 'Error' }}
+                              </span>
+                            </td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                  
+                  @if (resultadoImportar.logExcelBase64) {
+                    <button type="button" class="pi-btn pi-btn-success pi-import-download-btn" (click)="descargarExcelReporte()">
+                      📥 Descargar reporte de cambios (.xlsx)
+                    </button>
+                  }
+                </div>
+              }
+
               @if (resultadoImportar.errores.length > 0) {
-                <p class="pi-import-errors">{{ resultadoImportar.errores.length }} errores encontrados</p>
+                <div class="pi-import-errors-list">
+                  <p class="pi-import-errors">{{ resultadoImportar.errores.length }} errores encontrados:</p>
+                  <ul>
+                    @for (err of resultadoImportar.errores; track err) {
+                      <li>{{ err }}</li>
+                    }
+                  </ul>
+                </div>
               }
             </div>
           }

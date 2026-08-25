@@ -7,6 +7,7 @@ import { LucideAngularModule } from 'lucide-angular';
 import {
   PerfilInstitucionalService,
   PiInstitucionCard,
+  PiImportResp,
 } from '../../../../core/services/perfil-institucional.service';
 import { NotificationService } from '../../../../core/services/notification.service';
 import { PI_ICONS } from './pi-icons';
@@ -62,7 +63,7 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
   importando = false;
   mostrarModalImportar = false;
   archivoImportar: File | null = null;
-  resultadoImportar: { ok: boolean; created: number; updated: number; total: number; errores: string[] } | null = null;
+  resultadoImportar: PiImportResp | null = null;
 
   private busquedaTimer?: ReturnType<typeof setTimeout>;
 
@@ -417,5 +418,23 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
           this.cdr.detectChanges();
         },
       });
+  }
+
+  descargarExcelReporte(): void {
+    if (!this.resultadoImportar?.logExcelBase64) return;
+    const base64 = this.resultadoImportar.logExcelBase64;
+    const binStr = window.atob(base64);
+    const len = binStr.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binStr.charCodeAt(i);
+    }
+    const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `reporte_cambios_${Date.now()}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 }
