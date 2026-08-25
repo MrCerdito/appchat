@@ -22,6 +22,7 @@ export const PI_TIPOS_CAMPO = [
   'booleano',
   'lista',
   'email',
+  'email_lista',
   'telefono',
   'url',
   'archivo',

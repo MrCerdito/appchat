@@ -19,6 +19,7 @@ const TIPOS_LABEL: Record<string, string> = {
   booleano: 'Sí / No',
   lista: 'Lista',
   email: 'Correo',
+  email_lista: 'Lista de correos',
   telefono: 'Teléfono',
   url: 'URL',
   archivo: 'Archivo',
@@ -128,11 +129,6 @@ export class GestionarCamposComponent implements OnInit, OnDestroy {
       tipo: 'texto',
       opciones: [] as string[],
       requerido: false,
-      mostrarListado: false,
-      mostrarPerfil: true,
-      buscar: false,
-      filtrable: false,
-      activo: true,
     };
   }
 
@@ -152,11 +148,6 @@ export class GestionarCamposComponent implements OnInit, OnDestroy {
       tipo: campo.tipo,
       opciones: (campo.opciones ?? []).slice().sort((a, b) => a.orden - b.orden).map((o) => o.valor),
       requerido: campo.requerido,
-      mostrarListado: campo.mostrarListado,
-      mostrarPerfil: campo.mostrarPerfil,
-      buscar: campo.buscar,
-      filtrable: campo.filtrable,
-      activo: campo.activo,
     };
     this.mostrarModalCampo = true;
     this.cdr.detectChanges();
@@ -198,11 +189,11 @@ export class GestionarCamposComponent implements OnInit, OnDestroy {
           ? this.form.opciones.map((v) => v.trim()).filter(Boolean).map((valor, orden) => ({ valor, orden }))
           : undefined,
       requerido: this.form.requerido,
-      mostrarListado: this.form.mostrarListado,
-      mostrarPerfil: this.form.mostrarPerfil,
-      buscar: this.form.buscar,
-      filtrable: this.form.filtrable,
-      activo: this.form.activo,
+      mostrarListado: false,
+      mostrarPerfil: true,
+      buscar: false,
+      filtrable: false,
+      activo: true,
     };
 
     this.guardando = true;

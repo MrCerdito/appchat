@@ -160,7 +160,6 @@ export class PerfilInstitucionalService {
         valores: Object.fromEntries(valoresPorColegio.get(c.id) ?? []),
       })),
       camposFiltrables: campos
-        .filter((f) => f.filtrable)
         .map((f) => ({
           id: f.id,
           nombre: f.nombre,

@@ -118,20 +118,6 @@
   background: rgba(var(--primary-rgb, 37, 99, 235), 0.1);
 }
 
-.gc-uso span {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  margin-right: 4px;
-  border-radius: 6px;
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: var(--text-secondary, #475569);
-  background: var(--bg-muted, #f1f5f9);
-}
-
 .gc-estado {
   border: none;
   background: none;

@@ -39,6 +39,12 @@ export class PerfilDetalleComponent implements OnInit, OnDestroy {
   grupoEditar: PiGrupoFicha | null = null;
   borrador: Record<string, string | boolean> = {};
 
+  /* Modal correos */
+  modalEmailsCampoId: string | null = null;
+  modalEmailsCampoNombre = '';
+  modalEmails: string[] = [];
+  guardandoEmails = false;
+
   subiendoLogo = false;
   exportando = false;
 
@@ -197,6 +203,77 @@ export class PerfilDetalleComponent implements OnInit, OnDestroy {
   /* ---------- Valores ---------- */
   esBooleanoActivo(valor: string | null): boolean {
     return valor === 'true';
+  }
+
+  parseEmails(valor: string | null): string[] {
+    if (!valor) return [];
+    try {
+      const parsed = JSON.parse(valor);
+      return Array.isArray(parsed) ? parsed.filter((e: unknown) => typeof e === 'string' && e.trim()) : [];
+    } catch {
+      return valor.trim() ? [valor.trim()] : [];
+    }
+  }
+
+  serializarEmails(emails: string[]): string {
+    const limpios = emails.map(e => e.trim()).filter(Boolean);
+    return JSON.stringify(limpios);
+  }
+
+  /* ---------- Modal correos ---------- */
+  abrirModalEmails(item: { campo: { id: string; nombre: string }; valor: string | null }): void {
+    this.modalEmailsCampoId = item.campo.id;
+    this.modalEmailsCampoNombre = item.campo.nombre;
+    this.modalEmails = this.parseEmails(item.valor);
+    this.cdr.detectChanges();
+  }
+
+  cerrarModalEmails(): void {
+    this.modalEmailsCampoId = null;
+    this.modalEmailsCampoNombre = '';
+    this.modalEmails = [];
+  }
+
+  agregarEmailModal(input: HTMLInputElement): void {
+    const val = input.value.trim();
+    if (!val) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+      this.notification.error('Formato inválido', 'Ingresa un correo electrónico válido');
+      return;
+    }
+    if (this.modalEmails.includes(val)) {
+      this.notification.warning('Duplicado', 'Este correo ya está en la lista');
+      return;
+    }
+    this.modalEmails.push(val);
+    input.value = '';
+    this.cdr.detectChanges();
+  }
+
+  quitarEmailModal(index: number): void {
+    this.modalEmails.splice(index, 1);
+    this.cdr.detectChanges();
+  }
+
+  guardarEmails(): void {
+    if (!this.modalEmailsCampoId || !this.institucionId) return;
+    const valor = this.modalEmails.length > 0 ? this.serializarEmails(this.modalEmails) : null;
+    this.guardandoEmails = true;
+    this.piService.guardarValores(this.institucionId, [{ campoId: this.modalEmailsCampoId, valor }])
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.guardandoEmails = false;
+          this.cerrarModalEmails();
+          this.notification.success('Correos guardados', '');
+          this.cargar();
+        },
+        error: (err: any) => {
+          this.guardandoEmails = false;
+          this.notification.error('Error', err?.error?.message ?? 'No se pudieron guardar los correos');
+          this.cdr.detectChanges();
+        },
+      });
   }
 
   formatearValor(item: { campo: { tipo: string }; valor: string | null }): string {

@@ -42,6 +42,7 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
   orden = 'nombre';
   filtrosDinamicos: FiltroDinamico[] = [];
   valoresFiltros: Record<string, string> = {};
+  filtrosHabilitados: Record<string, boolean> = {};
   mostrarFiltrosDinamicos = false;
 
   mostrarFiltros = true;
@@ -134,6 +135,7 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
     } else {
       this.filtroCalendario.add(val);
     }
+    this.cdr.detectChanges();
   }
 
   toggleTipo(val: string): void {
@@ -142,10 +144,12 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
     } else {
       this.filtroTipo.add(val);
     }
+    this.cdr.detectChanges();
   }
 
   toggleEstado(val: string): void {
     this.filtroEstado = this.filtroEstado === val ? '' : val;
+    this.cdr.detectChanges();
   }
 
   toggleAsesor(nombre: string): void {
@@ -154,6 +158,15 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
     } else {
       this.filtroAsesor.add(nombre);
     }
+    this.cdr.detectChanges();
+  }
+
+  toggleFiltroHabilitado(campoId: string): void {
+    this.filtrosHabilitados[campoId] = !this.filtrosHabilitados[campoId];
+    if (!this.filtrosHabilitados[campoId]) {
+      this.valoresFiltros[campoId] = '';
+    }
+    this.cdr.detectChanges();
   }
 
   toggleDropdownAsesor(): void {
@@ -182,7 +195,11 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
     count += this.filtroTipo.size;
     if (this.filtroEstado) count += 1;
     count += this.filtroAsesor.size;
-    count += Object.values(this.valoresFiltros).filter(v => !!v).length;
+    for (const f of this.filtrosDinamicos) {
+      if (this.filtrosHabilitados[f.campoId] && this.valoresFiltros[f.campoId]) {
+        count++;
+      }
+    }
     return count;
   }
 
@@ -226,8 +243,10 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
       limit: String(this.limitePorPagina),
     };
     for (const f of this.filtrosDinamicos) {
-      const v = this.valoresFiltros[f.campoId];
-      if (v) params[`f_${f.campoId}`] = v;
+      if (this.filtrosHabilitados[f.campoId]) {
+        const v = this.valoresFiltros[f.campoId];
+        if (v) params[`f_${f.campoId}`] = v;
+      }
     }
 
     this.piService.listarInstituciones(params)
@@ -266,6 +285,7 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
     }));
     for (const f of this.filtrosDinamicos) {
       if (!(f.campoId in this.valoresFiltros)) this.valoresFiltros[f.campoId] = '';
+      if (!(f.campoId in this.filtrosHabilitados)) this.filtrosHabilitados[f.campoId] = false;
     }
   }
 
@@ -283,6 +303,7 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
     this.filtroAsesor.clear();
     this.orden = 'nombre';
     this.valoresFiltros = {};
+    this.filtrosHabilitados = {};
     this.mostrarDropdownAsesor = false;
     this.busquedaAsesor = '';
     this.page = 1;
@@ -290,9 +311,11 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
   }
 
   get hayFiltros(): boolean {
+    const tieneFiltrosDinamicos = this.filtrosDinamicos.some(
+      (f) => this.filtrosHabilitados[f.campoId] && !!this.valoresFiltros[f.campoId]
+    );
     return !!(this.q || this.filtroEstado || this.filtroCalendario.size > 0 ||
-      this.filtroTipo.size > 0 || this.filtroAsesor.size > 0 ||
-      Object.values(this.valoresFiltros).some((v) => !!v));
+      this.filtroTipo.size > 0 || this.filtroAsesor.size > 0 || tieneFiltrosDinamicos);
   }
 
   iniciales(nombre: string): string {

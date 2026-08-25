@@ -143,6 +143,16 @@
                         <a href="mailto:{{ item.valor }}">{{ item.valor }}</a>
                       } @else { — }
                     }
+                    @case ('email_lista') {
+                      <button type="button" class="pd-email-trigger" (click)="abrirModalEmails(item)">
+                        @if (item.valor) {
+                          <span class="pd-email-count">{{ parseEmails(item.valor).length }} correo(s)</span>
+                        } @else {
+                          <span class="pd-email-empty">Sin correos</span>
+                        }
+                        <span class="pd-email-arrow">→</span>
+                      </button>
+                    }
                     @case ('archivo') {
                       @if (item.valor) {
                         <a [href]="item.valor" target="_blank" rel="noopener noreferrer">Ver archivo ↗</a>
@@ -251,6 +261,42 @@
           <button type="button" class="pi-btn pi-btn-ghost" (click)="cerrarEdicion()">Cancelar</button>
           <button type="button" class="pi-btn pi-btn-primary" [disabled]="guardando" (click)="guardarEdicion()">
             {{ guardando ? 'Guardando…' : 'Guardar cambios' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================= Modal gestión de correos ================= -->
+  @if (modalEmailsCampoId) {
+    <div class="pd-modal-backdrop" (click)="cerrarModalEmails()">
+      <div class="pd-modal pd-emails-modal" (click)="$event.stopPropagation()">
+        <h3>{{ modalEmailsCampoNombre }}</h3>
+
+        <div class="pd-emails-list">
+          @if (modalEmails.length === 0) {
+            <p class="pd-emails-empty">No hay correos registrados</p>
+          }
+          @for (email of modalEmails; track $index; let i = $index) {
+            <div class="pd-email-row">
+              <a class="pd-email-link" href="mailto:{{ email }}">{{ email }}</a>
+              <button type="button" class="pd-email-remove" (click)="quitarEmailModal(i)" title="Quitar correo">✕</button>
+            </div>
+          }
+        </div>
+
+        <div class="pd-email-input-row">
+          <input #emailInput type="email" placeholder="correo@ejemplo.com" maxlength="200"
+            (keydown.enter)="agregarEmailModal(emailInput)" />
+          <button type="button" class="pi-btn pi-btn-primary pd-email-add-btn" (click)="agregarEmailModal(emailInput)">
+            +
+          </button>
+        </div>
+
+        <div class="pi-modal-actions">
+          <button type="button" class="pi-btn pi-btn-ghost" (click)="cerrarModalEmails()">Cancelar</button>
+          <button type="button" class="pi-btn pi-btn-primary" [disabled]="guardandoEmails" (click)="guardarEmails()">
+            {{ guardandoEmails ? 'Guardando…' : 'Guardar correos' }}
           </button>
         </div>
       </div>
