@@ -64,7 +64,7 @@
         <span>Filtros</span>
         @if (hayFiltros) {
           <span class="pi-filter-count">
-            {{ filtroCalendario.size + filtroTipo.size + (filtroEstado ? 1 : 0) + filtroAsesor.size + (q ? 1 : 0) }}
+            {{ filtroCalendario.size + filtroTipo.size + (filtroEstado ? 1 : 0) + filtroAsesor.size }}
           </span>
         }
       </div>
@@ -80,74 +80,125 @@
 
     @if (mostrarFiltros) {
       <div class="pi-filter-panel-body">
-        <!-- Calendario -->
-        <div class="pi-filter-section">
-          <div class="pi-filter-section-title">
-            <lucide-icon [img]="icons.Calendar" [size]="14" /> Calendario
-          </div>
-          <div class="pi-filter-options">
-            <label class="pi-filter-option" [class.active]="filtroCalendario.has('A')" (click)="toggleCalendario('A')">
-              <input type="checkbox" [checked]="filtroCalendario.has('A')" />
-              <span>Calendario A</span>
-            </label>
-            <label class="pi-filter-option" [class.active]="filtroCalendario.has('B')" (click)="toggleCalendario('B')">
-              <input type="checkbox" [checked]="filtroCalendario.has('B')" />
-              <span>Calendario B</span>
-            </label>
-          </div>
-        </div>
-
-        <!-- Tipo -->
-        <div class="pi-filter-section">
-          <div class="pi-filter-section-title">
-            <lucide-icon [img]="icons.Cloud" [size]="14" /> Tipo
-          </div>
-          <div class="pi-filter-options">
-            <label class="pi-filter-option" [class.active]="filtroTipo.has('Sian365')" (click)="toggleTipo('Sian365')">
-              <input type="checkbox" [checked]="filtroTipo.has('Sian365')" />
-              <lucide-icon [img]="icons.Cloud" [size]="16" />
-              <span>Sian365</span>
-            </label>
-            <label class="pi-filter-option" [class.active]="filtroTipo.has('ControlAcademic')" (click)="toggleTipo('ControlAcademic')">
-              <input type="checkbox" [checked]="filtroTipo.has('ControlAcademic')" />
-              <lucide-icon [img]="icons.GraduationCap" [size]="16" />
-              <span>ControlAcademic</span>
-            </label>
-          </div>
-        </div>
-
-        <!-- Estado -->
-        <div class="pi-filter-section">
-          <div class="pi-filter-section-title">
-            <lucide-icon [img]="icons.CircleCheck" [size]="14" /> Estado
-          </div>
-          <div class="pi-filter-options">
-            <label class="pi-filter-option" [class.active]="filtroEstado === 'activo'" (click)="toggleEstado('activo')">
-              <input type="radio" name="estado" [checked]="filtroEstado === 'activo'" />
-              <span class="pi-status-dot active"></span>
-              <span>Activo</span>
-            </label>
-            <label class="pi-filter-option" [class.active]="filtroEstado === 'inactivo'" (click)="toggleEstado('inactivo')">
-              <input type="radio" name="estado" [checked]="filtroEstado === 'inactivo'" />
-              <span class="pi-status-dot inactive"></span>
-              <span>Inactivo</span>
-            </label>
-          </div>
-        </div>
-
-        <!-- Asesores responsables -->
-        @if (asesoresDisponibles.length > 0) {
-          <div class="pi-filter-section">
+        
+        <!-- 3 Columns Grid for Calendario, Tipo, Estado -->
+        <div class="pi-filter-columns-grid">
+          <!-- Calendario -->
+          <div class="pi-filter-column">
             <div class="pi-filter-section-title">
-              <lucide-icon [img]="icons.User" [size]="14" /> Asesores responsables
+              <lucide-icon [img]="icons.Calendar" [size]="14" /> Calendario
             </div>
-            <div class="pi-filter-options pi-filter-options--scroll">
-              @for (asesor of asesoresDisponibles; track asesor) {
-                <label class="pi-filter-option" [class.active]="filtroAsesor.has(asesor)" (click)="toggleAsesor(asesor)">
-                  <input type="checkbox" [checked]="filtroAsesor.has(asesor)" />
-                  <span class="pi-asesor-avatar-sm">{{ asesor.charAt(0) }}</span>
-                  <span>{{ asesor }}</span>
-                </label>
+            <div class="pi-filter-options">
+              <label class="pi-filter-option" [class.active]="filtroCalendario.has('A')" (click)="toggleCalendario('A')">
+                <input type="checkbox" [checked]="filtroCalendario.has('A')" />
+                <span>Calendario A</span>
+              </label>
+              <label class="pi-filter-option" [class.active]="filtroCalendario.has('B')" (click)="toggleCalendario('B')">
+                <input type="checkbox" [checked]="filtroCalendario.has('B')" />
+                <span>Calendario B</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Tipo -->
+          <div class="pi-filter-column">
+            <div class="pi-filter-section-title">
+              <lucide-icon [img]="icons.Cloud" [size]="14" /> Tipo
+            </div>
+            <div class="pi-filter-options">
+              <label class="pi-filter-option" [class.active]="filtroTipo.has('Sian365')" (click)="toggleTipo('Sian365')">
+                <input type="checkbox" [checked]="filtroTipo.has('Sian365')" />
+                <lucide-icon [img]="icons.Cloud" [size]="16" />
+                <span>Sian365</span>
+              </label>
+              <label class="pi-filter-option" [class.active]="filtroTipo.has('ControlAcademic')" (click)="toggleTipo('ControlAcademic')">
+                <input type="checkbox" [checked]="filtroTipo.has('ControlAcademic')" />
+                <lucide-icon [img]="icons.GraduationCap" [size]="16" />
+                <span>ControlAcademic</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Estado -->
+          <div class="pi-filter-column">
+            <div class="pi-filter-section-title">
+              <lucide-icon [img]="icons.CircleCheck" [size]="14" /> Estado
+            </div>
+            <div class="pi-filter-options">
+              <label class="pi-filter-option" [class.active]="filtroEstado === 'activo'" (click)="toggleEstado('activo')">
+                <input type="checkbox" [checked]="filtroEstado === 'activo'" />
+                <span class="pi-status-dot active"></span>
+                <span>Activo</span>
+              </label>
+              <label class="pi-filter-option" [class.active]="filtroEstado === 'inactivo'" (click)="toggleEstado('inactivo')">
+                <input type="checkbox" [checked]="filtroEstado === 'inactivo'" />
+                <span class="pi-status-dot inactive"></span>
+                <span>Inactivo</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Asesor responsable Selector (Full Width Dropdown) -->
+        @if (asesoresDisponibles.length > 0) {
+          <div class="pi-filter-row-asesor">
+            <div class="pi-filter-section-title">
+              <lucide-icon [img]="icons.User" [size]="14" /> Asesor responsable
+            </div>
+            
+            <div class="pi-custom-select-container">
+              <!-- Select Trigger Button -->
+              <div class="pi-custom-select-trigger" (click)="toggleDropdownAsesor()" role="combobox" aria-haspopup="listbox" [attr.aria-expanded]="mostrarDropdownAsesor">
+                <div class="pi-custom-select-trigger-content">
+                  @if (filtroAsesor.size > 0) {
+                    @for (selected of filtroAsesor; track selected) {
+                      <span class="pi-asesor-avatar-sm">{{ selected.charAt(0) }}</span>
+                      <span class="pi-selected-text">{{ selected }}</span>
+                    }
+                  } @else {
+                    <span class="pi-placeholder-text">Seleccionar asesor...</span>
+                  }
+                </div>
+                <div class="pi-custom-select-actions">
+                  @if (filtroAsesor.size > 0) {
+                    <button type="button" class="pi-clear-select" (click)="seleccionarAsesor(''); $event.stopPropagation()" title="Limpiar asesor">
+                      <lucide-icon [img]="icons.X" [size]="14" />
+                    </button>
+                  }
+                  <lucide-icon [img]="icons.ChevronDown" [size]="16" class="pi-dropdown-arrow" [class.rotated]="mostrarDropdownAsesor" />
+                </div>
+              </div>
+
+              <!-- Custom Dropdown Panel -->
+              @if (mostrarDropdownAsesor) {
+                <div class="pi-custom-select-dropdown" role="listbox">
+                  <!-- Search input inside dropdown -->
+                  <div class="pi-custom-select-search-box">
+                    <lucide-icon [img]="icons.Search" [size]="14" />
+                    <input type="text" placeholder="Buscar asesor..." [(ngModel)]="busquedaAsesor" (click)="$event.stopPropagation()" aria-label="Buscar asesor" />
+                  </div>
+
+                  <!-- Advisor Options List -->
+                  <div class="pi-custom-select-options">
+                    @if (filtrarAsesores().length === 0) {
+                      <div class="pi-custom-select-empty">No se encontraron asesores</div>
+                    } @else {
+                      <div class="pi-custom-select-option" (click)="seleccionarAsesor('')" [class.selected]="filtroAsesor.size === 0">
+                        <span>Todos los asesores</span>
+                      </div>
+                      @for (asesor of filtrarAsesores(); track asesor) {
+                        <div class="pi-custom-select-option" (click)="seleccionarAsesor(asesor)" [class.selected]="filtroAsesor.has(asesor)">
+                          <span class="pi-asesor-avatar-sm">{{ asesor.charAt(0) }}</span>
+                          <span class="pi-asesor-name">{{ asesor }}</span>
+                          @if (filtroAsesor.has(asesor)) {
+                            <lucide-icon [img]="icons.CheckCircle2" [size]="14" class="pi-check-icon" />
+                          }
+                        </div>
+                      }
+                    }
+                  </div>
+                </div>
+                <div class="pi-dropdown-backdrop" (click)="mostrarDropdownAsesor = false"></div>
               }
             </div>
           </div>
@@ -159,34 +210,47 @@
             <div class="pi-filter-section-title">
               <lucide-icon [img]="icons.SlidersHorizontal" [size]="14" /> Campos personalizados
             </div>
-            @for (f of filtrosDinamicos; track f.campoId) {
-              <div class="pi-filter-group">
-                <span class="pi-filter-label">{{ f.nombre }}</span>
-                @if (f.tipo === 'booleano') {
-                  <div class="pi-filter-options">
-                    <label class="pi-filter-option" [class.active]="valoresFiltros[f.campoId] === 'true'" (click)="valoresFiltros[f.campoId] = valoresFiltros[f.campoId] === 'true' ? '' : 'true'; alCambiarFiltros()">
-                      <input type="checkbox" [checked]="valoresFiltros[f.campoId] === 'true'" />
-                      <span>Activo</span>
-                    </label>
-                    <label class="pi-filter-option" [class.active]="valoresFiltros[f.campoId] === 'false'" (click)="valoresFiltros[f.campoId] = valoresFiltros[f.campoId] === 'false' ? '' : 'false'; alCambiarFiltros()">
-                      <input type="checkbox" [checked]="valoresFiltros[f.campoId] === 'false'" />
-                      <span>Inactivo</span>
-                    </label>
-                  </div>
-                } @else if (f.tipo === 'lista') {
-                  <div class="pi-filter-options">
-                    @for (op of f.opciones; track op) {
-                      <label class="pi-filter-option" [class.active]="valoresFiltros[f.campoId] === op" (click)="valoresFiltros[f.campoId] = valoresFiltros[f.campoId] === op ? '' : op; alCambiarFiltros()">
-                        <input type="checkbox" [checked]="valoresFiltros[f.campoId] === op" />
-                        <span>{{ op }}</span>
+            <div class="pi-filter-dynamic-grid">
+              @for (f of filtrosDinamicos; track f.campoId) {
+                <div class="pi-filter-group">
+                  <span class="pi-filter-label">{{ f.nombre }}</span>
+                  @if (f.tipo === 'booleano') {
+                    <div class="pi-filter-options">
+                      <label class="pi-filter-option" [class.active]="valoresFiltros[f.campoId] === 'true'" (click)="valoresFiltros[f.campoId] = valoresFiltros[f.campoId] === 'true' ? '' : 'true'">
+                        <input type="checkbox" [checked]="valoresFiltros[f.campoId] === 'true'" />
+                        <span>Activo</span>
                       </label>
-                    }
-                  </div>
-                }
-              </div>
-            }
+                      <label class="pi-filter-option" [class.active]="valoresFiltros[f.campoId] === 'false'" (click)="valoresFiltros[f.campoId] = valoresFiltros[f.campoId] === 'false' ? '' : 'false'">
+                        <input type="checkbox" [checked]="valoresFiltros[f.campoId] === 'false'" />
+                        <span>Inactivo</span>
+                      </label>
+                    </div>
+                  } @else if (f.tipo === 'lista') {
+                    <div class="pi-filter-options">
+                      @for (op of f.opciones; track op) {
+                        <label class="pi-filter-option" [class.active]="valoresFiltros[f.campoId] === op" (click)="valoresFiltros[f.campoId] = valoresFiltros[f.campoId] === op ? '' : op">
+                          <input type="checkbox" [checked]="valoresFiltros[f.campoId] === op" />
+                          <span>{{ op }}</span>
+                        </label>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            </div>
           </div>
         }
+      </div>
+
+      <!-- Filter Panel Footer (Apply filters button + count) -->
+      <div class="pi-filter-footer">
+        <span class="pi-filter-footer-info">
+          <lucide-icon [img]="icons.Info" [size]="14" />
+          {{ contarFiltrosSeleccionados() }} {{ contarFiltrosSeleccionados() === 1 ? 'filtro seleccionado' : 'filtros seleccionados' }}
+        </span>
+        <button type="button" class="pi-btn pi-btn-primary" (click)="aplicarFiltros()" aria-label="Aplicar todos los filtros">
+          <lucide-icon [img]="icons.Check" [size]="16" /> Aplicar filtros
+        </button>
       </div>
     }
   </div>

@@ -45,6 +45,8 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
   mostrarFiltrosDinamicos = false;
 
   mostrarFiltros = true;
+  mostrarDropdownAsesor = false;
+  busquedaAsesor = '';
   menuActivoId: string | null = null;
   exportandoFormato: string = '';
   mostrarModalExportar = false;
@@ -132,7 +134,6 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
     } else {
       this.filtroCalendario.add(val);
     }
-    this.alCambiarFiltros();
   }
 
   toggleTipo(val: string): void {
@@ -141,12 +142,10 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
     } else {
       this.filtroTipo.add(val);
     }
-    this.alCambiarFiltros();
   }
 
   toggleEstado(val: string): void {
     this.filtroEstado = this.filtroEstado === val ? '' : val;
-    this.alCambiarFiltros();
   }
 
   toggleAsesor(nombre: string): void {
@@ -155,6 +154,39 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
     } else {
       this.filtroAsesor.add(nombre);
     }
+  }
+
+  toggleDropdownAsesor(): void {
+    this.mostrarDropdownAsesor = !this.mostrarDropdownAsesor;
+  }
+
+  seleccionarAsesor(asesor: string): void {
+    this.filtroAsesor.clear();
+    if (asesor) {
+      this.filtroAsesor.add(asesor);
+    }
+    this.mostrarDropdownAsesor = false;
+    this.busquedaAsesor = '';
+    this.cdr.detectChanges();
+  }
+
+  filtrarAsesores(): string[] {
+    if (!this.busquedaAsesor) return this.asesoresDisponibles;
+    const term = this.busquedaAsesor.toLowerCase().trim();
+    return this.asesoresDisponibles.filter(a => a.toLowerCase().includes(term));
+  }
+
+  contarFiltrosSeleccionados(): number {
+    let count = 0;
+    count += this.filtroCalendario.size;
+    count += this.filtroTipo.size;
+    if (this.filtroEstado) count += 1;
+    count += this.filtroAsesor.size;
+    count += Object.values(this.valoresFiltros).filter(v => !!v).length;
+    return count;
+  }
+
+  aplicarFiltros(): void {
     this.alCambiarFiltros();
   }
 
@@ -251,6 +283,8 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
     this.filtroAsesor.clear();
     this.orden = 'nombre';
     this.valoresFiltros = {};
+    this.mostrarDropdownAsesor = false;
+    this.busquedaAsesor = '';
     this.page = 1;
     this.cargar();
   }
