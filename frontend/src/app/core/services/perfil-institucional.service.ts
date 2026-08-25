@@ -51,6 +51,7 @@ export interface PiInstitucionesResp {
   page: number;
   limit: number;
   pages: number;
+  asesoresDisponibles: string[];
   instituciones: PiInstitucionCard[];
   camposFiltrables: { id: string; nombre: string; tipo: string; opciones: PiOpcion[] }[];
 }

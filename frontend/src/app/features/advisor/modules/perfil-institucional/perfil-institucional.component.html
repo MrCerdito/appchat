@@ -31,7 +31,6 @@
     <select class="pi-select" [(ngModel)]="orden" (change)="alCambiarFiltros()">
       <option value="nombre">Nombre A-Z</option>
       <option value="nombre-desc">Nombre Z-A</option>
-      <option value="asesor">Por Asesor</option>
     </select>
   </div>
 
@@ -68,6 +67,19 @@
           (click)="toggleEstado('inactivo')">Inactivo</button>
       </div>
     </div>
+
+    @if (asesoresDisponibles.length > 0) {
+    <div class="pi-filter-group">
+      <span class="pi-filter-label">Asesor</span>
+      <div class="pi-pills pi-pills--asesor">
+        @for (asesor of asesoresDisponibles; track asesor) {
+          <button type="button" class="pi-pill pi-pill--asesor"
+            [class.pi-pill--active]="filtroAsesor.has(asesor)"
+            (click)="toggleAsesor(asesor)">{{ asesor }}</button>
+        }
+      </div>
+    </div>
+    }
 
     @if (filtrosDinamicos.length > 0) {
     <button type="button" class="pi-filter-toggle" (click)="mostrarFiltrosDinamicos = !mostrarFiltrosDinamicos">

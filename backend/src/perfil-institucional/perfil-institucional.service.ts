@@ -23,6 +23,7 @@ interface ListarQuery {
   q?: string;
   calendario?: string;
   tipo?: string;
+  asesor?: string;
   estado?: string;
   sort?: string;
 }
@@ -78,6 +79,11 @@ export class PerfilInstitucionalService {
       if (query.tipo) {
         const allowed = query.tipo.split(',').map(s => s.trim());
         if (!allowed.includes(c.tipoColegio ?? '')) return false;
+      }
+      if (query.asesor) {
+        const allowed = query.asesor.split(',').map(s => s.trim().toLowerCase());
+        const nombre = (c.advisor?.name ?? '').toLowerCase();
+        if (!allowed.includes(nombre)) return false;
       }
       if (query.estado === 'activo' && !c.activo) return false;
       if (query.estado === 'inactivo' && c.activo) return false;
@@ -135,6 +141,12 @@ export class PerfilInstitucionalService {
       page,
       limit,
       pages,
+      asesoresDisponibles: [...new Set(
+        colegios
+          .map(c => c.advisor?.name)
+          .filter((n): n is string => !!n && n.trim() !== '')
+          .sort((a, b) => a.localeCompare(b, 'es'))
+      )],
       instituciones: resultado.slice(inicio, inicio + limit).map((c) => ({
         id: c.id,
         nombre: c.nombre,
