@@ -231,7 +231,6 @@ export class SessionsController {
 
   @Get('colegios/list')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
   findColegios() {
     return this.sessionsService.findAllColegios();
   }

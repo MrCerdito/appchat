@@ -352,7 +352,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
           this.colegiosMap = new Map(
             colegios
               .filter((c) => c.nombre)
-              .map((c) => [c.nombre.trim().toLowerCase(), c.id]),
+              .map((c) => [this.normalizarNombre(c.nombre), c.id]),
           );
           this.cdr.detectChanges();
         },
@@ -1658,11 +1658,21 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   /** Mapa nombre de colegio → id para navegar al Perfil Institucional. */
   protected colegiosMap = new Map<string, string>();
 
+  /** Normaliza nombres de colegio: minúsculas, sin acentos, espacios colapsados. */
+  private normalizarNombre(valor: string): string {
+    return valor
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, ' ');
+  }
+
   /** Resuelve el id del colegio de la sesión a partir del catálogo cargado. */
   private colegioIdDe(session?: Session | null): string | null {
     const nombre = session?.colegio?.trim();
     if (!nombre) return null;
-    return this.colegiosMap.get(nombre.toLowerCase()) ?? null;
+    return this.colegiosMap.get(this.normalizarNombre(nombre)) ?? null;
   }
 
   /** Ruta interna al Perfil Institucional del colegio de la sesión ([] si no se resolvió). */
