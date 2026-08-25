@@ -84,11 +84,11 @@
             <span>Correo electrónico</span>
             <button type="button" class="pd-email-trigger" (click)="abrirModalEmailInstitucion()">
               @if (ficha.institucion.email) {
-                {{ ficha.institucion.email }}
+                <span class="pd-email-count">{{ parseEmailsInstitucion().length }} correo(s)</span>
               } @else {
-                <span class="pd-email-empty">Sin correo — click para agregar</span>
+                <span class="pd-email-empty">Sin correos — click para agregar</span>
               }
-              <span class="pd-email-arrow">✎</span>
+              <span class="pd-email-arrow">→</span>
             </button>
           </div>
           <div class="pd-base-item">
@@ -315,9 +315,27 @@
     <div class="pd-modal-backdrop" (click)="cerrarModalEmailInstitucion()">
       <div class="pd-modal pd-emails-modal" (click)="$event.stopPropagation()">
         <h3>Correo electrónico</h3>
-        <input type="email" class="pd-email-single-input" placeholder="correo@ejemplo.com" maxlength="200"
-          [(ngModel)]="emailInstitucionValor"
-          (keydown.enter)="guardarEmailInstitucion()" />
+
+        <div class="pd-emails-list">
+          @if (emailInstitucionLista.length === 0) {
+            <p class="pd-emails-empty">No hay correos registrados</p>
+          }
+          @for (email of emailInstitucionLista; track $index; let i = $index) {
+            <div class="pd-email-row">
+              <a class="pd-email-link" href="mailto:{{ email }}">{{ email }}</a>
+              <button type="button" class="pd-email-remove" (click)="quitarEmailInstitucion(i)" title="Quitar correo">✕</button>
+            </div>
+          }
+        </div>
+
+        <div class="pd-email-input-row">
+          <input #emailInstInput type="email" placeholder="correo@ejemplo.com" maxlength="200"
+            (keydown.enter)="agregarEmailInstitucion(emailInstInput)" />
+          <button type="button" class="pi-btn pi-btn-primary pd-email-add-btn" (click)="agregarEmailInstitucion(emailInstInput)">
+            +
+          </button>
+        </div>
+
         <div class="pi-modal-actions">
           <button type="button" class="pi-btn pi-btn-ghost" (click)="cerrarModalEmailInstitucion()">Cancelar</button>
           <button type="button" class="pi-btn pi-btn-primary" [disabled]="guardandoEmailInstitucion" (click)="guardarEmailInstitucion()">

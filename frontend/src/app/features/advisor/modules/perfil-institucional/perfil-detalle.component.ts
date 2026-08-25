@@ -47,7 +47,7 @@ export class PerfilDetalleComponent implements OnInit, OnDestroy {
 
   /* Modal email institución */
   modalEmailInstitucion = false;
-  emailInstitucionValor = '';
+  emailInstitucionLista: string[] = [];
   guardandoEmailInstitucion = false;
 
   subiendoLogo = false;
@@ -282,37 +282,61 @@ export class PerfilDetalleComponent implements OnInit, OnDestroy {
   }
 
   /* ---------- Modal email institución ---------- */
+  parseEmailsInstitucion(): string[] {
+    const raw = this.ficha?.institucion.email;
+    if (!raw) return [];
+    return raw.split('|').map(e => e.trim()).filter(Boolean);
+  }
+
   abrirModalEmailInstitucion(): void {
-    this.emailInstitucionValor = this.ficha?.institucion.email ?? '';
+    this.emailInstitucionLista = this.parseEmailsInstitucion();
     this.modalEmailInstitucion = true;
     this.cdr.detectChanges();
   }
 
   cerrarModalEmailInstitucion(): void {
     this.modalEmailInstitucion = false;
-    this.emailInstitucionValor = '';
+    this.emailInstitucionLista = [];
+  }
+
+  agregarEmailInstitucion(input: HTMLInputElement): void {
+    const val = input.value.trim();
+    if (!val) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+      this.notification.error('Formato inválido', 'Ingresa un correo electrónico válido');
+      return;
+    }
+    if (this.emailInstitucionLista.includes(val)) {
+      this.notification.warning('Duplicado', 'Este correo ya está en la lista');
+      return;
+    }
+    this.emailInstitucionLista.push(val);
+    input.value = '';
+    this.cdr.detectChanges();
+  }
+
+  quitarEmailInstitucion(index: number): void {
+    this.emailInstitucionLista.splice(index, 1);
+    this.cdr.detectChanges();
   }
 
   guardarEmailInstitucion(): void {
     if (!this.institucionId) return;
-    const val = this.emailInstitucionValor.trim();
-    if (val && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
-      this.notification.error('Formato inválido', 'Ingresa un correo electrónico válido');
-      return;
-    }
+    const limpios = this.emailInstitucionLista.map(e => e.trim()).filter(Boolean);
+    const valor = limpios.length > 0 ? limpios.join('|') : null;
     this.guardandoEmailInstitucion = true;
-    this.piService.actualizarEmail(this.institucionId, val || null)
+    this.piService.actualizarEmail(this.institucionId, valor)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: () => {
           this.guardandoEmailInstitucion = false;
-          if (this.ficha) this.ficha.institucion.email = val || null;
+          if (this.ficha) this.ficha.institucion.email = valor;
           this.cerrarModalEmailInstitucion();
-          this.notification.success('Correo actualizado', '');
+          this.notification.success('Correos actualizados', '');
         },
         error: (err: any) => {
           this.guardandoEmailInstitucion = false;
-          this.notification.error('Error', err?.error?.message ?? 'No se pudo guardar el correo');
+          this.notification.error('Error', err?.error?.message ?? 'No se pudieron guardar los correos');
           this.cdr.detectChanges();
         },
       });
