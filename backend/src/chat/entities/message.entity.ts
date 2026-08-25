@@ -55,6 +55,18 @@ export class Message {
   @Column({ type: 'jsonb', nullable: true })
   attachments: Attachment[] | null;
 
+  /** Documentos entregados por la IA junto a esta respuesta. */
+  @Column({ type: 'jsonb', nullable: true })
+  documentos:
+    | {
+        nombre: string;
+        pdfUrl: string | null;
+        categoria: string | null;
+        descripcion?: string | null;
+        instructivo?: boolean | null;
+      }[]
+    | null;
+
   @ManyToOne(() => Session, (session) => session.messages, {
     onDelete: 'CASCADE',
   })

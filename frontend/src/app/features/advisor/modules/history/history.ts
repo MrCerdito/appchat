@@ -7,7 +7,7 @@ import { takeUntil } from 'rxjs/operators';
 import { SocketService } from '../../../../core/services/socket.service';
 import { SessionService } from '../../../../core/services/session.service';
 import { AuthService } from '../../../../core/services/auth.service';
-import { Message } from '../../../../core/models/message.model';
+import { Message, TimelineItem, TimelineEvento } from '../../../../core/models/message.model';
 import { Session } from '../../../../core/models/session.model';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
 import { scrollToBottom } from '../../../../shared/utils/scroll';
@@ -33,7 +33,10 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
 
   sessions     : Session[] = [];
   activeSession: Session | null = null;
-  messages     : Message[] = [];
+  timeline     : TimelineItem[] = [];
+  nextBefore   : string | null = null;
+  hasMoreHistorial = false;
+  loadingMore  = false;
   msgSearchQuery = '';
   filter       : 'all' | 'active' | 'closed' = 'active';
   search = '';
@@ -124,10 +127,38 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
     return s.advisor?.id !== this.currentUserId;
   }
 
-  get filteredMessages(): Message[] {
-    if (!this.msgSearchQuery.trim()) return this.messages;
+  get filteredMessages(): TimelineItem[] {
+    if (!this.msgSearchQuery.trim()) return this.timeline;
     const q = this.msgSearchQuery.toLowerCase();
-    return this.messages.filter(m => m.content?.toLowerCase().includes(q));
+    return this.timeline.filter(item => {
+      if (item.kind === 'evento') {
+        const d = item.detalle ?? {};
+        return (
+          d['pregunta']?.toLowerCase().includes(q) ||
+          d['respuesta']?.toLowerCase().includes(q)
+        );
+      }
+      return item.content?.toLowerCase().includes(q);
+    });
+  }
+
+  esEvento(item: TimelineItem): item is TimelineEvento {
+    return item.kind === 'evento';
+  }
+
+  eventoIcono(tipo: string): string {
+    if (tipo === 'solicitud_asesor') return '🎧';
+    if (tipo === 'faq_clic') return '❓';
+    return 'ℹ️';
+  }
+
+  eventoTexto(item: TimelineEvento): string {
+    if (item.tipo === 'solicitud_asesor') return 'El cliente solicitó hablar con un asesor';
+    if (item.tipo === 'faq_clic') {
+      const p = item.detalle?.['pregunta'];
+      return p ? `Consultó la pregunta frecuente: "${p}"` : 'Consultó una pregunta frecuente';
+    }
+    return 'Evento de sesión';
   }
 
   /** Indica si el usuario actual ya es asesor/colaborador del chat activo */
@@ -226,8 +257,29 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
         const sessionId = msg.session?.id ?? msg.sessionId;
         if (!sessionId) return;
         if (this.activeSession && sessionId === this.activeSession.id) {
-          if (!this.messages.some(m => m.id === msg.id)) {
-            this.messages = [...this.messages, msg];
+          if (!this.timeline.some(t => t.kind === 'message' && t.id === msg.id)) {
+            this.timeline = [...this.timeline, { kind: 'message' as const, ...msg }];
+            this.cdr.detectChanges();
+            this.scrollToBottom();
+          }
+        }
+      });
+
+    // Eventos de sesión en vivo (solicitud de asesor, clic en FAQ, ...)
+    this.socket.on<any>('session_event')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((evt) => {
+        const sessionId = evt?.sessionId ?? evt?.session_id;
+        if (!sessionId || !evt?.id) return;
+        if (this.activeSession && sessionId === this.activeSession.id) {
+          if (!this.timeline.some(t => t.kind === 'evento' && t.id === evt.id)) {
+            this.timeline = [...this.timeline, {
+              kind: 'evento' as const,
+              id: evt.id,
+              tipo: evt.tipo,
+              detalle: evt.detalle ?? null,
+              createdAt: evt.createdAt ?? new Date().toISOString(),
+            }];
             this.cdr.detectChanges();
             this.scrollToBottom();
           }
@@ -306,22 +358,53 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
   selectSession(session: Session): void {
     sessionStorage.setItem(this.STORAGE_KEY, session.id);
     this.activeSession    = session;
-    this.messages         = [];
+    this.timeline         = [];
+    this.nextBefore       = null;
+    this.hasMoreHistorial = false;
     this.loading          = true;
     this.takeoverFeedback = null;
     this.mobileView       = 'chat';
 
     this.socket.emit('join_session', { sessionId: session.id });
 
-    this.sessionService.getMessages(session.id, 100).subscribe({
-      next: (msgs) => {
-        this.messages = msgs;
+    this.sessionService.getTimeline(session.id, null, 50).subscribe({
+      next: (resp) => {
+        this.timeline         = resp.items ?? [];
+        this.nextBefore       = resp.nextBefore ?? null;
+        this.hasMoreHistorial = !!resp.hasMore;
         this.loading  = false;
         this.cdr.detectChanges();
         this.scrollToBottom();
       },
       error: () => { this.loading = false; this.cdr.detectChanges(); },
     });
+  }
+
+  /** Carga el bloque anterior del historial conservando la posición de scroll. */
+  cargarAnteriores(): void {
+    if (!this.activeSession || !this.hasMoreHistorial || this.loadingMore || !this.nextBefore) return;
+    this.loadingMore = true;
+    this.cdr.detectChanges();
+
+    const container = this.messagesContainer?.nativeElement as HTMLElement | undefined;
+    const prevHeight = container?.scrollHeight ?? 0;
+
+    this.sessionService
+      .getTimeline(this.activeSession.id, this.nextBefore, 50)
+      .subscribe({
+        next: (resp) => {
+          const viejos = resp.items ?? [];
+          this.timeline = [...viejos, ...this.timeline];
+          this.nextBefore = resp.nextBefore ?? null;
+          this.hasMoreHistorial = !!resp.hasMore;
+          this.loadingMore = false;
+          this.cdr.detectChanges();
+          if (container) {
+            container.scrollTop = container.scrollHeight - prevHeight;
+          }
+        },
+        error: () => { this.loadingMore = false; this.cdr.detectChanges(); },
+      });
   }
 
   getStatusLabel(status: string): string {

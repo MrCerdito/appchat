@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { Session } from '../models/session.model';
 import { User } from '../models/user.model';
-import { Message } from '../models/message.model';
+import { Message, TimelineResp } from '../models/message.model';
 
 export interface Colegio {
   id: string;
@@ -95,6 +95,27 @@ export class SessionService {
   getMessages(sessionId: string, limit?: number): Observable<Message[]> {
     const params = limit ? { params: { limit: limit.toString() } } : {};
     return this.http.get<Message[]>(`${environment.apiUrl}/sessions/${sessionId}/messages`, params);
+  }
+
+  /** Timeline unificada (mensajes + eventos) paginada por cursor. */
+  getTimeline(
+    sessionId: string,
+    before?: string | null,
+    limit = 50,
+  ): Observable<TimelineResp> {
+    const qp = new URLSearchParams({ limit: String(limit) });
+    if (before) qp.set('before', before);
+    return this.http.get<TimelineResp>(
+      `${environment.apiUrl}/sessions/${sessionId}/timeline?${qp.toString()}`,
+    );
+  }
+
+  /** Fire-and-forget: registra que el cliente abrió una FAQ durante su chat. */
+  registrarFaqClic(sessionId: string, faqId: number): Observable<{ ok: boolean }> {
+    return this.http.post<{ ok: boolean }>(
+      `${environment.apiUrl}/chat/eventos-faq`,
+      { sessionId, faqId },
+    );
   }
 
   findAdvisors(): Observable<User[]> {

@@ -857,3 +857,92 @@
   from { opacity: 0; transform: translateY(-4px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+// ── Eventos de sesión (solicitud asesor, FAQ) ────────────────────────────────
+.load-older {
+  display: block;
+  margin: 10px auto;
+  padding: 6px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background: var(--primary-soft);
+  }
+
+  &:disabled { opacity: 0.55; cursor: default; }
+}
+
+.event-chip {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: 78%;
+  margin: 8px auto;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  background: var(--surface-hover);
+  border: 1px solid var(--border);
+  animation: fadeIn 0.2s ease both;
+
+  .event-icon { font-size: 14px; line-height: 1.4; }
+
+  .event-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .event-text {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+  }
+
+  .event-detail {
+    font-size: 11.5px;
+    color: var(--text-faint);
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+    white-space: pre-line;
+    display: -webkit-box;
+    -webkit-line-clamp: 6;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .event-time {
+    flex-shrink: 0;
+    font-size: 10px;
+    color: var(--text-faint);
+    margin-top: 2px;
+  }
+
+  &--asesor {
+    background: var(--warning-soft);
+
+    .event-text { color: #92400e; }
+  }
+
+  &--faq {
+    background: rgba(124, 58, 237, 0.1);
+
+    .event-text { color: #7c3aed; }
+  }
+}
+
+// Burbuja IA con acento distintivo
+.message.msg-ia {
+  .sender { color: #7c3aed; }
+  .bubble { border-left: 3px solid #7c3aed; }
+}

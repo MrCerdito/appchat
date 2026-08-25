@@ -539,27 +539,35 @@ export class ChatGateway
           });
           return;
         }
-        // Solo el asesor asignado o un admin pueden unirse a sesiones activas.
-        // Otros asesores no deben recibir new_message en vivo (evita notificaciones
-        // duplicadas). Para historial, la vista ya carga el chat por HTTP.
-        if (
-          session.status === 'active' &&
-          session.advisor?.id !== client.data.user?.id &&
-          client.data.user?.role !== 'admin'
-        ) {
-          client.emit('join_error', {
-            reason: 'Sesión activa asignada a otro agente',
-          });
-          return;
-        }
       } catch {
         client.emit('join_error', { reason: 'Sesión no encontrada' });
         return;
       }
     }
 
+    // ¿El asesor participa de la sesión (asignado o admin)? Los demás entran
+    // como espectadores: reciben new_message/session_event en vivo para el
+    // historial, pero sin marcar entrega, presencia ni timers.
+    let asesorParticipa = client.data.role !== 'advisor';
+    if (client.data.role === 'advisor') {
+      try {
+        const session = await this.sessionsService.findOne(data.sessionId);
+        const esColaborador = (
+          (session as any)?.collaborators ?? []
+        ).some?.((c: any) => c?.id === client.data.user?.id) ?? false;
+        asesorParticipa =
+          session.advisor?.id === client.data.user?.id ||
+          esColaborador ||
+          client.data.user?.role === 'admin';
+      } catch {
+        asesorParticipa = false;
+      }
+    }
+
     client.join(data.sessionId);
-    client.data.sessionId = data.sessionId;
+    if (asesorParticipa) {
+      client.data.sessionId = data.sessionId;
+    }
 
     // Si el cliente se reconecta a una sesión IA, cancelar el timer de cierre
     if (client.data.role === 'client') {
@@ -570,19 +578,22 @@ export class ChatGateway
     client.emit('message_history', history);
 
     // Al conectarse el receptor, los mensajes pendientes del otro lado se
-    // consideran entregados y se notifica al remitente.
+    // consideran entregados y se notifica al remitente. Los espectadores del
+    // historial no alteran estos estados.
     if (client.data.role === 'client') {
       await this.markMessagesDelivered(data.sessionId, 'advisor');
-    } else if (client.data.role === 'advisor') {
+    } else if (client.data.role === 'advisor' && asesorParticipa) {
       await this.markMessagesDelivered(data.sessionId, 'client');
     }
 
-    this.server.to(data.sessionId).emit('user_joined', {
-      role: client.data.role,
-      name: data.clientName ?? client.data.user?.name ?? 'Anónimo',
-    });
+    if (asesorParticipa) {
+      this.server.to(data.sessionId).emit('user_joined', {
+        role: client.data.role,
+        name: data.clientName ?? client.data.user?.name ?? 'Anónimo',
+      });
+    }
 
-    if (client.data.role === 'advisor') {
+    if (client.data.role === 'advisor' && asesorParticipa) {
       const presence = await this.redisState.getClientPresence(data.sessionId);
       client.emit('client_presence', {
         sessionId: data.sessionId,
@@ -643,6 +654,19 @@ export class ChatGateway
     if (client.data.role !== 'client') return;
     const session = await this.sessionsService.requestAdvisor(sessionId);
     if (session.status !== 'waiting') return;
+    // Registrar el hito para el historial y notificarlo en vivo.
+    try {
+      const evento = await this.chatService.registrarEvento(
+        sessionId,
+        'solicitud_asesor',
+        { cliente: session.clientName ?? null },
+      );
+      this.emitirSessionEvento(sessionId, evento);
+    } catch (err) {
+      this.logger.warn(
+        `[WS] No se pudo registrar solicitud_asesor de ${sessionId}: ${(err as Error).message}`,
+      );
+    }
     // La sesión salió del modo IA → ya no aplica el timer de cierre por inactividad
     this.clearAiCloseTimer(sessionId);
     this.broadcastSessionUpdated(sessionId, { status: 'waiting' });
@@ -1446,6 +1470,8 @@ export class ChatGateway
         result.reply,
         'advisor',
         'Asistente Virtual',
+        null,
+        result.documentos ?? null,
       );
       this.server
         .to(sessionId)
@@ -2773,12 +2799,14 @@ export class ChatGateway
         if (advisorId) {
           this.server
             .to(`advisor:${advisorId}`)
-            .emit('new_message', { ...msg, sessionId });
+            .emit('new_message', { ...msg, sessionId, advisorId });
         }
         // Los admins también reciben mensajes del cliente para notificarles
         // en tiempo real quién escribe y qué escribió, excepto si la sesión está en modo IA.
         if (msg?.senderType === 'client' && session?.status !== 'ai') {
-          this.server.to('admins').emit('new_message', { ...msg, sessionId });
+          this.server
+            .to('admins')
+            .emit('new_message', { ...msg, sessionId, advisorId });
         }
       })
       .catch((err) =>
@@ -2803,6 +2831,32 @@ export class ChatGateway
       // Fallback: si no se puede resolver el asesor, enviar a admins
       this.server.to('admins').emit('session_updated', payload);
     });
+  }
+
+  /** Propaga un evento de sesión (solicitud de asesor, clic FAQ, ...) a la
+   *  sala, al asesor asignado y a los admins para el historial en vivo. */
+  emitirSessionEvento(sessionId: string, evento: {
+    id: string;
+    tipo: string;
+    detalle: Record<string, any> | null;
+    createdAt: Date | string;
+  }) {
+    if (!sessionId || !evento?.id) return;
+    const payload = { ...evento, kind: 'evento' as const, sessionId };
+    this.server.to(sessionId).emit('session_event', payload);
+    void this.sessionsService
+      .findOne(sessionId)
+      .then((session) => {
+        if (session?.advisor?.id) {
+          this.server
+            .to(`advisor:${session.advisor.id}`)
+            .emit('session_event', payload);
+        }
+        if (session?.status !== 'ai') {
+          this.server.to('admins').emit('session_event', payload);
+        }
+      })
+      .catch(() => undefined);
   }
 
   emitSessionUpdated(sessionId: string) {

@@ -1560,6 +1560,12 @@ get rolLabel(): string {
     this.faqCategoriaActiva = null;
     this.showFaqInChat = false;
 
+    // Registrar en el historial qué FAQ abrió el cliente (fire-and-forget).
+    if (this.session?.id && item?.id != null) {
+      this.sessionService.registrarFaqClic(this.session.id, item.id)
+        .subscribe({ error: () => undefined });
+    }
+
     // 1. Pregunta del usuario como mensaje propio
     this.addAiMessage('user', item.pregunta);
 

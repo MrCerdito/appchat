@@ -309,38 +309,45 @@
           </div>
           }
 
-          @for (msg of filteredMessages; track trackById($index, msg)) {
+          @if (hasMoreHistorial) {
+          <button type="button" class="load-older" (click)="cargarAnteriores()" [disabled]="loadingMore">
+            {{ loadingMore ? 'Cargando…' : 'Cargar mensajes anteriores' }}
+          </button>
+          }
 
-            <!-- Sistema -->
-            @if (msg.senderName === 'Sistema') {
-            <div class="system-msg">
-              <div class="system-msg-inner">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="12" r="10"/>
-                  <line x1="12" y1="8" x2="12" y2="12"/>
-                  <line x1="12" y1="16" x2="12.01" y2="16"/>
-                </svg>
-                <span>{{ msg.content }}</span>
+          @for (item of filteredMessages; track trackById($index, item)) {
+
+            <!-- Eventos de la sesión -->
+            @if (item.kind === 'evento') {
+            <div class="event-chip"
+                 [class.event-chip--asesor]="item.tipo === 'solicitud_asesor'"
+                 [class.event-chip--faq]="item.tipo === 'faq_clic'">
+              <span class="event-icon">{{ eventoIcono(item.tipo) }}</span>
+              <div class="event-body">
+                <span class="event-text">{{ eventoTexto(item) }}</span>
+                @if (item.tipo === 'faq_clic' && item.detalle?.['respuesta']) {
+                <span class="event-detail">El sistema respondió: {{ item.detalle?.['respuesta'] }}</span>
+                }
               </div>
-              <span class="system-time">{{ fmtTime(msg.createdAt) }}</span>
+              <span class="event-time">{{ fmtTime(item.createdAt) }}</span>
             </div>
             }
 
-            <!-- Normal -->
-            @if (msg.senderName !== 'Sistema') {
+            <!-- Mensajes -->
+            @else {
             <div class="message"
-              [class.mine]="msg.senderType === 'advisor'"
-              [class.theirs]="msg.senderType === 'client'"
-              [class.media-only]="!msg.content && msg.attachments && msg.attachments.length > 0">
+              [class.mine]="item.senderType === 'advisor'"
+              [class.theirs]="item.senderType === 'client'"
+              [class.msg-ia]="item.senderName === 'Asistente Virtual'"
+              [class.media-only]="!item.content && item.attachments && item.attachments.length > 0">
 
-              @if (msg.content || !msg.attachments?.length) {
-              <span class="sender">{{ msg.senderName }}</span>
+              @if (item.content || !item.attachments?.length) {
+              <span class="sender">{{ item.senderName }}</span>
               }
 
-              @if (msg.attachments && msg.attachments.length > 0) {
+              @if (item.attachments && item.attachments.length > 0) {
               <div class="msg-attachments">
-                @for (att of msg.attachments; track att.id) {
+                @for (att of item.attachments; track att.id) {
                 @if (att.mimeType.startsWith('image/')) {
                 <button type="button" class="att-image-link" (click)="openImagePreview(att.url, att.originalName)">
                   <img [src]="att.url" [alt]="att.originalName" class="att-image" loading="lazy" />
@@ -372,15 +379,15 @@
               </div>
               }
 
-              @if (msg.content) {
-              <div class="bubble">{{ msg.content }}</div>
+              @if (item.content) {
+              <div class="bubble">{{ item.content }}</div>
               }
 
-              @if (msg.documentos && msg.documentos.length > 0) {
+              @if (item.documentos && item.documentos.length > 0) {
               <div class="doc-adjuntos">
-                <span class="doc-adjuntos-label">Documentos relacionados</span>
-                @for (doc of msg.documentos; track $index) {
-                <a class="doc-adjunto-item" [href]="doc.pdfUrl" target="_blank">
+                <span class="doc-adjuntos-label">Documentos entregados</span>
+                @for (doc of item.documentos; track $index) {
+                <a class="doc-adjunto-item" [href]="doc.pdfUrl" target="_blank" rel="noopener noreferrer">
                   <span class="doc-adjunto-nombre">{{ doc.nombre }}</span>
                   @if (doc.categoria) {
                   <span class="doc-adjunto-cat">{{ doc.categoria }}</span>
@@ -390,15 +397,15 @@
               </div>
               }
 
-              @if (msg.content || !msg.attachments?.length) {
-              <span class="time">{{ fmtTime(msg.createdAt) }}</span>
+              @if (item.content || !item.attachments?.length) {
+              <span class="time">{{ fmtTime(item.createdAt) }}</span>
               }
             </div>
             }
 
           }
 
-          @if (!loading && messages.length === 0) {
+          @if (!loading && timeline.length === 0) {
           <div class="no-messages">
             Sin mensajes en esta conversación
           </div>

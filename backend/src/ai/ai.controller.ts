@@ -123,6 +123,26 @@ export class AiController {
       if (texto && texto.trim()) respuestaParcial = texto.trim();
     };
 
+    // Captura los documentos que la IA entrega (evento metadata) para
+    // persistirlos junto a la respuesta en el historial.
+    let documentosEntregados: {
+      nombre: string;
+      pdfUrl: string | null;
+      categoria: string | null;
+      descripcion?: string | null;
+      instructivo?: boolean | null;
+    }[] | null = null;
+    const emitConCaptura = (event: string, data: object) => {
+      if (
+        event === 'metadata' &&
+        Array.isArray((data as any)?.documentos) &&
+        (data as any).documentos.length > 0
+      ) {
+        documentosEntregados = (data as any).documentos;
+      }
+      emit(event, data);
+    };
+
     try {
       emit('start', { message: 'Procesando...' });
 
@@ -162,7 +182,7 @@ export class AiController {
         dto.colegio ?? '',
         dto.tipoSolicitud ?? '',
         dto.rol ?? 'estudiante',
-        emit,
+        emitConCaptura,
         sessionId,
         dto.welcome,
         abortController.signal,
@@ -189,6 +209,8 @@ export class AiController {
               limpio,
               'advisor',
               'Asistente Virtual',
+              null,
+              documentosEntregados,
             ),
           );
         }
@@ -220,6 +242,8 @@ export class AiController {
               limpio,
               'advisor',
               'Asistente Virtual',
+              null,
+              documentosEntregados,
             ),
           );
         }

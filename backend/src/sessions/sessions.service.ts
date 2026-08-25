@@ -1,12 +1,13 @@
 import { Inject, Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
-import { Repository, In, DataSource } from 'typeorm';
+import { Repository, In, DataSource, LessThan } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import * as crypto from 'crypto';
 import { Session } from './entities/session.entity';
 import { User } from 'src/auth/entities/user.entity';
 import { Message } from '../chat/entities/message.entity';
+import { SessionEvento } from '../chat/entities/session-evento.entity';
 import { Colegio } from './entities/colegio.entity';
 import { Rating } from './entities/rating.entity';
 import { matchColegio } from '../common/url/url-match.util';
@@ -25,6 +26,8 @@ export class SessionsService {
     @InjectRepository(Colegio)
     private readonly colegioRepo: Repository<Colegio>,
     @InjectRepository(Rating) private readonly ratingRepo: Repository<Rating>,
+    @InjectRepository(SessionEvento)
+    private readonly sessionEventoRepo: Repository<SessionEvento>,
     @Inject(CACHE_MANAGER)
     private readonly cache: Cache,
     @InjectDataSource() private readonly dataSource: DataSource,
@@ -703,6 +706,69 @@ export class SessionsService {
       order: { createdAt: 'DESC' },
       take: limit,
     }).then(msgs => msgs.reverse());
+  }
+
+  /** Timeline unificada (mensajes + eventos) con paginación por cursor hacia
+   *  atrás. Devuelve los `limit` items anteriores a `before` en orden asc. */
+  async getTimeline(sessionId: string, before?: string, limit = 50) {
+    const lim = Math.min(Math.max(limit || 50, 1), 100);
+    const cursorDate = before ? new Date(before) : null;
+    if (before && isNaN(cursorDate!.getTime())) {
+      throw new NotFoundException('Cursor inválido');
+    }
+
+    const msgWhere: Record<string, unknown> = { session: { id: sessionId } };
+    const evtWhere: Record<string, unknown> = { sessionId };
+    if (cursorDate) {
+      msgWhere.createdAt = LessThan(cursorDate);
+      evtWhere.createdAt = LessThan(cursorDate);
+    }
+
+    const [mensajes, eventos] = await Promise.all([
+      this.messageRepo.find({
+        where: msgWhere as any,
+        order: { createdAt: 'DESC' },
+        take: lim,
+      }),
+      this.sessionEventoRepo.find({
+        where: evtWhere as any,
+        order: { createdAt: 'DESC' },
+        take: lim,
+      }),
+    ]);
+
+    type Item =
+      | ({ kind: 'message' } & Message)
+      | {
+          kind: 'evento';
+          id: string;
+          tipo: string;
+          detalle: Record<string, any> | null;
+          createdAt: Date;
+        };
+
+    const items: Item[] = [
+      ...mensajes.map((m) => ({ kind: 'message' as const, ...m })),
+      ...eventos.map((e) => ({
+        kind: 'evento' as const,
+        id: e.id,
+        tipo: e.tipo,
+        detalle: e.detalle,
+        createdAt: e.createdAt,
+      })),
+    ]
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      )
+      .slice(0, lim)
+      .reverse();
+
+    return {
+      items,
+      nextBefore: items.length ? items[0].createdAt : null,
+      hasMore: items.length === lim,
+    };
   }
 
   async getMetrics() {

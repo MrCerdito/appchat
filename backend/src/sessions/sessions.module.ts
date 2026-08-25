@@ -6,6 +6,7 @@ import { Session } from './entities/session.entity';
 import { AuthModule } from '../auth/auth.module';
 import { User } from 'src/auth/entities/user.entity';
 import { Message } from '../chat/entities/message.entity';
+import { SessionEvento } from '../chat/entities/session-evento.entity';
 import { Colegio } from './entities/colegio.entity';
 import { Rating } from './entities/rating.entity';
 import { TicketsModule } from '../tickets/tickets.module';
@@ -13,7 +14,14 @@ import { ChatModule } from '../chat/chat.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Session, User, Message, Colegio, Rating]),
+    TypeOrmModule.forFeature([
+      Session,
+      User,
+      Message,
+      SessionEvento,
+      Colegio,
+      Rating,
+    ]),
     AuthModule,
     TicketsModule,
     forwardRef(() => ChatModule),

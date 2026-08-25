@@ -14,6 +14,7 @@ import { ChatModule } from './chat/chat.module';
 import { User } from './auth/entities/user.entity';
 import { Session } from './sessions/entities/session.entity';
 import { Message } from './chat/entities/message.entity';
+import { SessionEvento } from './chat/entities/session-evento.entity';
 import { Colegio } from './sessions/entities/colegio.entity';
 import { ComunicadosModule } from './comunicados/comunicados.module';
 import { Comunicado } from './comunicados/entities/comunicado.entity';
@@ -164,6 +165,7 @@ import { AppService } from './app.service';
           PiCampo,
           PiValor,
           PiHistorial,
+          SessionEvento,
         ],
         synchronize: config.get<string>('NODE_ENV') === 'development',
         logging: config.get<string>('NODE_ENV') !== 'production',

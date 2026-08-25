@@ -329,6 +329,17 @@ export class SessionsController {
     return this.sessionsService.getMessages(id, limit ? +limit : undefined);
   }
 
+  /** Timeline unificada (mensajes + eventos) paginada por cursor. */
+  @Get(':id/timeline')
+  @UseGuards(JwtAuthGuard)
+  getTimeline(
+    @Param('id') id: string,
+    @Query('before') before?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.sessionsService.getTimeline(id, before, limit ? +limit : undefined);
+  }
+
   @Post(':id/close')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)

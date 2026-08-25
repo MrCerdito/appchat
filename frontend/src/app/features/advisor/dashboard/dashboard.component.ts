@@ -566,34 +566,38 @@ export class DashboardComponent implements OnInit, OnDestroy {
     document.addEventListener('visibilitychange', this.handleVisibilityChange);
   }
 
-  private handleGlobalChatMessage(message: Message & { session?: Session; sessionId?: string }): void {
+  private handleGlobalChatMessage(message: Message & { session?: Session; sessionId?: string; advisorId?: string }): void {
     const sessionId = message.session?.id ?? message.sessionId;
     if (!sessionId || message.senderType !== 'client') return;
 
     const added = this.chatState.addMessage(sessionId, message);
     if (!added) return;
 
-    // Determinar si esta sesión pertenece al asesor actual (o es admin)
+    // Determinar si esta sesión pertenece al asesor actual (o es admin).
+    // El backend ahora incluye advisorId en new_message; se mantiene el
+    // fallback por caché de sesiones para mensajes heredados.
     const session = message.session ?? this.chatState.sessions$.getValue().find(s => s.id === sessionId);
     const isAssigned = this.currentAdvisor?.role === 'admin' ||
+      message.advisorId === this.currentAdvisor?.id ||
       session?.advisor?.id === this.currentAdvisor?.id;
 
     // Solo incrementar unread y mostrar notificaciones para chats asignados
     if (isAssigned) {
       const isOpenHere = this.router.url.includes('/dashboard/chats') &&
         this.chatState.getActiveSessionId() === sessionId;
-      if (isOpenHere) {
+      const viendoEseChat = isOpenHere && document.visibilityState === 'visible';
+
+      if (viendoEseChat) {
         this.socket.emit('set_active', { sessionId, active: true });
       } else {
         this.chatState.incrementUnread(sessionId);
+        this.sound.playCriticalMessage();
+        this.sound.notify(
+          'CHAT EN LINEA',
+          `${this.sessionFullName(session)}\n${message.content || 'Nuevo mensaje del cliente'}`,
+          `chat-message-${sessionId}`,
+        );
       }
-
-      this.sound.playCriticalMessage();
-      this.sound.notify(
-        'CHAT EN LINEA',
-        `${this.sessionFullName(session)}\n${message.content || 'Nuevo mensaje del cliente'}`,
-        `chat-message-${sessionId}`,
-      );
     }
 
     this.loadActiveCount();

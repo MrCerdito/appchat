@@ -25,3 +25,22 @@ export interface Message {
     instructivo?: boolean | null;
   }[];
 }
+
+/** Hito registrado durante la sesión (solicitud de asesor, clic en FAQ, ...). */
+export interface TimelineEvento {
+  kind: 'evento';
+  id: string;
+  tipo: string;
+  detalle: Record<string, any> | null;
+  createdAt: string;
+}
+
+export type TimelineItem =
+  | ({ kind: 'message' } & Message)
+  | TimelineEvento;
+
+export interface TimelineResp {
+  items: TimelineItem[];
+  nextBefore: string | null;
+  hasMore: boolean;
+}

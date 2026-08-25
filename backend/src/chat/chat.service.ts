@@ -8,6 +8,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Message, Attachment } from './entities/message.entity';
+import { SessionEvento } from './entities/session-evento.entity';
 import { Session } from '../sessions/entities/session.entity';
 import {
   sanitizeMessage,
@@ -22,6 +23,8 @@ export class ChatService implements OnModuleInit {
   constructor(
     @InjectRepository(Message)
     private readonly messageRepo: Repository<Message>,
+    @InjectRepository(SessionEvento)
+    private readonly sessionEventoRepo: Repository<SessionEvento>,
   ) {}
 
   // ── Schema (prod has synchronize off) ─────────────────────────────────────
@@ -38,6 +41,26 @@ export class ChatService implements OnModuleInit {
         );
       }
     }
+    try {
+      await this.messageRepo.query(
+        `ALTER TABLE messages ADD COLUMN IF NOT EXISTS documentos jsonb`,
+      );
+      await this.sessionEventoRepo.query(`
+        CREATE TABLE IF NOT EXISTS session_events (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          session_id uuid NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+          tipo varchar(50) NOT NULL,
+          detalle jsonb,
+          created_at timestamptz NOT NULL DEFAULT now()
+        )`);
+      await this.sessionEventoRepo.query(
+        `CREATE INDEX IF NOT EXISTS idx_session_events_session ON session_events(session_id, created_at)`,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `No se pudo asegurar el esquema de eventos: ${error.message}`,
+      );
+    }
   }
 
   async saveMessage(
@@ -46,6 +69,7 @@ export class ChatService implements OnModuleInit {
     senderType: 'client' | 'advisor',
     senderName: string,
     attachments?: Attachment[] | null,
+    documentos?: Message['documentos'],
   ): Promise<Message> {
     const safeContent = sanitizeMessage(content);
     if (!safeContent && (!attachments || attachments.length === 0)) {
@@ -57,9 +81,21 @@ export class ChatService implements OnModuleInit {
       senderType,
       senderName: safeSenderName,
       attachments: attachments && attachments.length > 0 ? attachments : null,
+      documentos: documentos && documentos.length > 0 ? documentos : null,
       session: { id: sessionId } as Session,
     });
     return this.messageRepo.save(message);
+  }
+
+  /** Registra un evento de sesión (solicitud de asesor, clic en FAQ, etc.). */
+  async registrarEvento(
+    sessionId: string,
+    tipo: string,
+    detalle: Record<string, any> | null = null,
+  ): Promise<SessionEvento> {
+    return this.sessionEventoRepo.save(
+      this.sessionEventoRepo.create({ sessionId, tipo, detalle }),
+    );
   }
 
   async getHistory(sessionId: string, limit?: number): Promise<Message[]> {
