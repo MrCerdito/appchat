@@ -785,6 +785,7 @@
   border: 1px solid $pi-border;
   border-radius: $pi-radius-2xl;
   padding: 20px;
+  overflow: hidden;
   transition: all 180ms ease-out;
   cursor: pointer;
   text-decoration: none;
@@ -816,27 +817,32 @@
 }
 
 .pi-card-logo {
-  width: 72px;
-  height: 72px;
-  border-radius: 18px;
+  width: calc(100% + 40px);
+  height: 110px;
+  margin: -20px -20px 14px -20px;
   overflow: hidden;
-  margin: 0 auto 14px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: $pi-slate-50;
-  border: 1px solid $pi-border-light;
+  border-bottom: 1px solid $pi-border-light;
   flex-shrink: 0;
 
   img {
     width: 100%;
     height: 100%;
     object-fit: contain;
+    padding: 12px;
+    transition: transform 200ms ease;
+  }
+
+  &:hover img {
+    transform: scale(1.05);
   }
 }
 
 .pi-card-initials {
-  font-size: 1.4rem;
+  font-size: 1.8rem;
   font-weight: 700;
   color: #ffffff;
   background: linear-gradient(135deg, $pi-blue-600, $pi-violet-600);
@@ -845,7 +851,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: inherit;
 }
 
 .pi-card-name {
