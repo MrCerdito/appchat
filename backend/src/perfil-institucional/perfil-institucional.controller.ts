@@ -95,6 +95,15 @@ export class PerfilInstitucionalController {
     return this.svc.guardarValores(id, dto, req.user.id);
   }
 
+  @Patch('instituciones/:id/email')
+  actualizarEmail(
+    @Param('id') id: string,
+    @Body('email') email: string | null,
+    @Request() req: { user: { id: string } },
+  ) {
+    return this.svc.actualizarEmailInstitucion(id, email?.trim() || null, req.user.id);
+  }
+
   @Patch('instituciones/:id/estado')
   @Roles('admin')
   cambiarEstado(

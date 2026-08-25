@@ -121,6 +121,13 @@ export class PerfilInstitucionalService {
     );
   }
 
+  actualizarEmail(id: string, email: string | null): Observable<{ ok: boolean; email: string | null }> {
+    return this.http.patch<{ ok: boolean; email: string | null }>(
+      `${this.base}/instituciones/${id}/email`,
+      { email },
+    );
+  }
+
   listarCampos(): Observable<PiCampo[]> {
     return this.http.get<PiCampo[]>(`${this.base}/campos`);
   }

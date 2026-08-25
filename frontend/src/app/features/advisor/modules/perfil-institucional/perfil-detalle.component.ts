@@ -45,6 +45,11 @@ export class PerfilDetalleComponent implements OnInit, OnDestroy {
   modalEmails: string[] = [];
   guardandoEmails = false;
 
+  /* Modal email institución */
+  modalEmailInstitucion = false;
+  emailInstitucionValor = '';
+  guardandoEmailInstitucion = false;
+
   subiendoLogo = false;
   exportando = false;
 
@@ -271,6 +276,43 @@ export class PerfilDetalleComponent implements OnInit, OnDestroy {
         error: (err: any) => {
           this.guardandoEmails = false;
           this.notification.error('Error', err?.error?.message ?? 'No se pudieron guardar los correos');
+          this.cdr.detectChanges();
+        },
+      });
+  }
+
+  /* ---------- Modal email institución ---------- */
+  abrirModalEmailInstitucion(): void {
+    this.emailInstitucionValor = this.ficha?.institucion.email ?? '';
+    this.modalEmailInstitucion = true;
+    this.cdr.detectChanges();
+  }
+
+  cerrarModalEmailInstitucion(): void {
+    this.modalEmailInstitucion = false;
+    this.emailInstitucionValor = '';
+  }
+
+  guardarEmailInstitucion(): void {
+    if (!this.institucionId) return;
+    const val = this.emailInstitucionValor.trim();
+    if (val && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+      this.notification.error('Formato inválido', 'Ingresa un correo electrónico válido');
+      return;
+    }
+    this.guardandoEmailInstitucion = true;
+    this.piService.actualizarEmail(this.institucionId, val || null)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.guardandoEmailInstitucion = false;
+          if (this.ficha) this.ficha.institucion.email = val || null;
+          this.cerrarModalEmailInstitucion();
+          this.notification.success('Correo actualizado', '');
+        },
+        error: (err: any) => {
+          this.guardandoEmailInstitucion = false;
+          this.notification.error('Error', err?.error?.message ?? 'No se pudo guardar el correo');
           this.cdr.detectChanges();
         },
       });

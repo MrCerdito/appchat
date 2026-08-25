@@ -627,3 +627,28 @@
   font-size: 1.1rem !important;
   font-weight: 700 !important;
 }
+
+.pd-base-email {
+  dd {
+    display: flex !important;
+    align-items: center;
+  }
+}
+
+.pd-email-single-input {
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 150ms ease;
+  margin-bottom: 16px;
+
+  &:focus {
+    border-color: var(--primary, #2563eb);
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+  }
+}

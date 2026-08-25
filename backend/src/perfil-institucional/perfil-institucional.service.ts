@@ -330,6 +330,31 @@ export class PerfilInstitucionalService {
     return { ok: true, logoUrl: urlPublica };
   }
 
+  async actualizarEmailInstitucion(
+    colegioId: string,
+    email: string | null,
+    userId: string,
+  ) {
+    const colegio = await this.colegioRepo.findOneBy({ id: colegioId });
+    if (!colegio) throw new NotFoundException('Institución no encontrada');
+
+    const anterior = colegio.email;
+    if (anterior === email) return { ok: true, email: anterior };
+
+    colegio.email = email ?? '';
+    await this.colegioRepo.save(colegio);
+
+    await this.historialRepo.insert({
+      colegioId,
+      usuario: { id: userId } as User,
+      accion: 'actualizar_valor',
+      valorAnterior: anterior,
+      valorNuevo: email,
+    });
+
+    return { ok: true, email };
+  }
+
   async cambiarEstado(colegioId: string, activo: boolean, userId: string) {
     const colegio = await this.colegioRepo.findOneBy({ id: colegioId });
     if (!colegio) throw new NotFoundException('Institución no encontrada');

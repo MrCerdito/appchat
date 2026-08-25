@@ -80,9 +80,16 @@
               {{ ficha.institucion.link }}
             </a>
           </div>
-          <div class="pd-base-item">
+          <div class="pd-base-item pd-base-email">
             <span>Correo electrónico</span>
-            <strong>{{ ficha.institucion.email ?? '—' }}</strong>
+            <button type="button" class="pd-email-trigger" (click)="abrirModalEmailInstitucion()">
+              @if (ficha.institucion.email) {
+                {{ ficha.institucion.email }}
+              } @else {
+                <span class="pd-email-empty">Sin correo — click para agregar</span>
+              }
+              <span class="pd-email-arrow">✎</span>
+            </button>
           </div>
           <div class="pd-base-item">
             <span>Calendario</span>
@@ -297,6 +304,24 @@
           <button type="button" class="pi-btn pi-btn-ghost" (click)="cerrarModalEmails()">Cancelar</button>
           <button type="button" class="pi-btn pi-btn-primary" [disabled]="guardandoEmails" (click)="guardarEmails()">
             {{ guardandoEmails ? 'Guardando…' : 'Guardar correos' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================= Modal email institución ================= -->
+  @if (modalEmailInstitucion) {
+    <div class="pd-modal-backdrop" (click)="cerrarModalEmailInstitucion()">
+      <div class="pd-modal pd-emails-modal" (click)="$event.stopPropagation()">
+        <h3>Correo electrónico</h3>
+        <input type="email" class="pd-email-single-input" placeholder="correo@ejemplo.com" maxlength="200"
+          [(ngModel)]="emailInstitucionValor"
+          (keydown.enter)="guardarEmailInstitucion()" />
+        <div class="pi-modal-actions">
+          <button type="button" class="pi-btn pi-btn-ghost" (click)="cerrarModalEmailInstitucion()">Cancelar</button>
+          <button type="button" class="pi-btn pi-btn-primary" [disabled]="guardandoEmailInstitucion" (click)="guardarEmailInstitucion()">
+            {{ guardandoEmailInstitucion ? 'Guardando…' : 'Guardar' }}
           </button>
         </div>
       </div>
