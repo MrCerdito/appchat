@@ -174,7 +174,15 @@ export class PerfilInstitucionalService {
       null,
     );
 
-    const categorias = [...new Set(campos.map((c) => c.categoria))]
+    // Deduplicar categorías por ID (TypeORM devuelve una instancia distinta
+    // de la relación por cada campo, un Set por referencia no funciona)
+    const categoriasMap = new Map<string, PiCategoria>();
+    for (const campo of campos) {
+      if (campo.categoria && !categoriasMap.has(campo.categoria.id)) {
+        categoriasMap.set(campo.categoria.id, campo.categoria);
+      }
+    }
+    const categorias = [...categoriasMap.values()]
       .filter((cat) => cat.activa)
       .sort((a, b) => a.orden - b.orden);
 
