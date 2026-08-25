@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Location } from '@angular/common';
 import { Subject, takeUntil } from 'rxjs';
+import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import {
   PerfilInstitucionalService,
   PiCampo,
@@ -28,7 +29,7 @@ const TIPOS_LABEL: Record<string, string> = {
 @Component({
   selector: 'app-gestionar-campos',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DragDropModule],
   templateUrl: './gestionar-campos.component.html',
   styleUrl: './gestionar-campos.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -325,6 +326,23 @@ export class GestionarCamposComponent implements OnInit, OnDestroy {
         },
         error: (err: any) =>
           this.notification.error('Error', err?.error?.message ?? 'No se pudo eliminar la categoría'),
+      });
+  }
+
+  onDropCategoria(event: CdkDragDrop<PiCategoria[]>): void {
+    moveItemInArray(this.categorias, event.previousIndex, event.currentIndex);
+    const items = this.categorias.map((c, i) => ({ id: c.id, orden: i }));
+    this.piService.reordenarCategorias(items)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.notification.success('Orden actualizado', '');
+          this.cdr.detectChanges();
+        },
+        error: () => {
+          this.notification.error('Error', 'No se pudo guardar el orden');
+          this.cargar();
+        },
       });
   }
 }

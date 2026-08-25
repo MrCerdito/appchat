@@ -10,11 +10,13 @@ import {
   Post,
   Put,
   Query,
+  Res,
   UploadedFile,
   UseGuards,
   UseInterceptors,
   Request,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { existsSync, mkdirSync } from 'fs';
@@ -26,6 +28,7 @@ import { PerfilInstitucionalService } from './perfil-institucional.service';
 import {
   CreatePiCampoDto,
   CreatePiCategoriaDto,
+  ReorderCategoriasDto,
   UpdatePiCampoDto,
   UpdatePiCategoriaDto,
   UpsertPiValoresDto,
@@ -159,6 +162,65 @@ export class PerfilInstitucionalController {
   @Delete('categorias/:id')
   eliminarCategoria(@Param('id') id: string) {
     return this.svc.eliminarCategoria(id);
+  }
+
+  @Put('categorias/reordenar')
+  reordenarCategorias(
+    @Body(new ValidationPipe({ whitelist: true })) dto: ReorderCategoriasDto,
+  ) {
+    return this.svc.reordenarCategorias(dto.items);
+  }
+
+  // ── Exportar / Importar ─────────────────────────────────────────────────
+
+  @Get('exportar')
+  async exportar(@Res() res: Response) {
+    const buffer = await this.svc.exportarExcel();
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=instituciones.xlsx');
+    res.send(buffer);
+  }
+
+  @Get('exportar/:id')
+  async exportarFicha(@Param('id') id: string, @Res() res: Response) {
+    const buffer = await this.svc.exportarFichaExcel(id);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=ficha-${id.substring(0, 8)}.xlsx`);
+    res.send(buffer);
+  }
+
+  @Post('importar')
+  @UseInterceptors(
+    FileInterceptor('archivo', {
+      storage: diskStorage({
+        destination: (_req, _file, cb) => {
+          const dir = join(process.cwd(), 'uploads', 'perfil');
+          if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+          cb(null, dir);
+        },
+        filename: (_req, file, cb) =>
+          cb(null, `import-${Date.now()}-${file.originalname}`),
+      }),
+      limits: { fileSize: 10 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        const allowed = [
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'application/vnd.ms-excel',
+          'text/csv',
+        ];
+        if (!allowed.includes(file.mimetype) && !file.originalname.match(/\.(xlsx|xls|csv)$/i)) {
+          return cb(new BadRequestException('Solo se permiten archivos Excel o CSV'), false);
+        }
+        cb(null, true);
+      },
+    }),
+  )
+  async importar(
+    @UploadedFile() file: Express.Multer.File,
+    @Request() req: { user: { id: string } },
+  ) {
+    if (!file) throw new BadRequestException('Archivo no recibido');
+    return this.svc.importarExcel(file.path, req.user.id);
   }
 
   // ── Historial ────────────────────────────────────────────────────────────

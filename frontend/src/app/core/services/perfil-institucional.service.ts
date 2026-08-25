@@ -156,9 +156,30 @@ export class PerfilInstitucionalService {
     return this.http.delete<{ ok: boolean }>(`${this.base}/categorias/${id}`);
   }
 
+  reordenarCategorias(items: { id: string; orden: number }[]): Observable<{ ok: boolean }> {
+    return this.http.put<{ ok: boolean }>(`${this.base}/categorias/reordenar`, { items });
+  }
+
   historial(colegioId?: string, page = '1'): Observable<PiPaginado<PiHistorialItem>> {
     let params = new HttpParams().set('page', page);
     if (colegioId) params = params.set('colegioId', colegioId);
     return this.http.get<PiPaginado<PiHistorialItem>>(`${this.base}/historial`, { params });
+  }
+
+  exportar(): Observable<Blob> {
+    return this.http.get(`${this.base}/exportar`, { responseType: 'blob' });
+  }
+
+  exportarFicha(id: string): Observable<Blob> {
+    return this.http.get(`${this.base}/exportar/${id}`, { responseType: 'blob' });
+  }
+
+  importar(file: File): Observable<{ ok: boolean; created: number; updated: number; total: number; errores: string[] }> {
+    const fd = new FormData();
+    fd.append('archivo', file, file.name);
+    return this.http.post<{ ok: boolean; created: number; updated: number; total: number; errores: string[] }>(
+      `${this.base}/importar`,
+      fd,
+    );
   }
 }

@@ -5,6 +5,10 @@
       <p>Consulta y administra la información de las instituciones.</p>
     </div>
     <div class="pi-header-actions">
+      <button type="button" class="pi-btn pi-btn-outline" [disabled]="exportando" (click)="exportarTodo()">
+        {{ exportando ? '⏳ Exportando…' : '⬇ Exportar todo' }}
+      </button>
+      <button type="button" class="pi-btn pi-btn-outline" (click)="abrirModalImportar()">⬆ Importar</button>
       <a class="pi-btn pi-btn-primary" routerLink="campos">⚙ Gestionar campos</a>
     </div>
   </header>
@@ -124,5 +128,47 @@
         </span>
       </nav>
     }
+  }
+
+  @if (mostrarModalImportar) {
+    <div class="pi-modal-backdrop" (click)="cerrarModalImportar()">
+      <div class="pi-modal" (click)="$event.stopPropagation()">
+        <h3>Importar instituciones desde Excel</h3>
+        <p style="font-size:0.84rem;color:var(--text-secondary,#6b7280);margin:0 0 16px">
+          Selecciona un archivo <strong>.xlsx</strong> o <strong>.csv</strong>. Las instituciones se crean si el nombre no existe, o se actualizan si ya existe. Las columnas deben seguir el formato de exportación.
+        </p>
+
+        @if (!resultadoImportar) {
+          <div class="pi-field">
+            <input type="file" accept=".xlsx,.xls,.csv" (change)="onArchivoSeleccionado($event)" />
+          </div>
+
+          <div class="pi-modal-actions">
+            <button type="button" class="pi-btn pi-btn-ghost" (click)="cerrarModalImportar()">Cancelar</button>
+            <button type="button" class="pi-btn pi-btn-primary" [disabled]="!archivoImportar || importando"
+              (click)="ejecutarImportar()">
+              {{ importando ? '⏳ Importando…' : '⬆ Importar' }}
+            </button>
+          </div>
+        } @else {
+          <div class="pi-import-resultado">
+            <p style="font-size:0.92rem;font-weight:600;margin:0 0 10px">✅ Importación completada</p>
+            <div class="pi-import-resumen">
+              <span class="pi-import-chip">{{ resultadoImportar.total }} procesadas</span>
+              <span class="pi-import-chip ok">{{ resultadoImportar.created }} creadas</span>
+              <span class="pi-import-chip info">{{ resultadoImportar.updated }} actualizadas</span>
+            </div>
+            @if (resultadoImportar.errores.length > 0) {
+              <p style="font-size:0.82rem;color:#dc2626;margin:12px 0 0">
+                {{ resultadoImportar.errores.length }} errores encontrados
+              </p>
+            }
+          </div>
+          <div class="pi-modal-actions" style="margin-top:16px">
+            <button type="button" class="pi-btn pi-btn-primary" (click)="cerrarModalImportar()">Cerrar</button>
+          </div>
+        }
+      </div>
+    </div>
   }
 </div>

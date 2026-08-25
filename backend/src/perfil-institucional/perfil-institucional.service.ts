@@ -4,6 +4,7 @@ import { Repository, In, FindOptionsWhere } from 'typeorm';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { existsSync, mkdirSync, renameSync, unlinkSync } from 'fs';
 import { join } from 'path';
+import ExcelJS from 'exceljs';
 import { Colegio } from '../sessions/entities/colegio.entity';
 import { User } from '../auth/entities/user.entity';
 import { PiCategoria } from './entities/pi-categoria.entity';
@@ -472,6 +473,191 @@ export class PerfilInstitucionalService {
 
     await this.categoriaRepo.delete(id);
     return { ok: true };
+  }
+
+  async reordenarCategorias(items: { id: string; orden: number }[]) {
+    for (const item of items) {
+      await this.categoriaRepo.update(item.id, { orden: item.orden });
+    }
+    return { ok: true };
+  }
+
+  // ── Exportar / Importar ───────────────────────────────────────────────────
+
+  async exportarExcel(): Promise<Buffer> {
+    const [colegios, campos, valores] = await Promise.all([
+      this.colegioRepo.find({ relations: { advisor: true }, order: { nombre: 'ASC' } }),
+      this.campoRepo.find({ where: { activo: true }, relations: { categoria: true }, order: { orden: 'ASC', nombre: 'ASC' } }),
+      this.valorRepo.find(),
+    ]);
+
+    const valoresPorColegio = new Map<string, Map<string, string | null>>();
+    for (const v of valores) {
+      if (!valoresPorColegio.has(v.colegioId)) valoresPorColegio.set(v.colegioId, new Map());
+      valoresPorColegio.get(v.colegioId)!.set(v.campoId, v.valor);
+    }
+
+    const categoriasMap = new Map<string, { nombre: string; orden: number }>();
+    for (const c of campos) {
+      if (c.categoria && !categoriasMap.has(c.categoria.id)) {
+        categoriasMap.set(c.categoria.id, { nombre: c.categoria.nombre, orden: c.categoria.orden });
+      }
+    }
+    const categorias = [...categoriasMap.entries()].sort((a, b) => a[1].orden - b[1].orden);
+
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Instituciones');
+
+    const headers = ['Nombre', 'Email', 'Link', 'Calendario', 'Tipo', 'Asesor', 'Activo'];
+    for (const [, cat] of categorias) {
+      for (const c of campos.filter(f => f.categoriaId && categoriasMap.has(f.categoriaId) && categoriasMap.get(f.categoriaId)!.nombre === cat.nombre)) {
+        headers.push(`${cat.nombre} > ${c.nombre}`);
+      }
+    }
+
+    ws.addRow(headers);
+    const headerRow = ws.getRow(1);
+    headerRow.eachCell((cell) => {
+      cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2563EB' } };
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      cell.border = { bottom: { style: 'thin', color: { argb: 'FF1D4ED8' } } };
+    });
+    ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: headers.length } };
+
+    for (const c of colegios) {
+      const vals = valoresPorColegio.get(c.id) ?? new Map();
+      const row: (string | null)[] = [
+        c.nombre, c.email ?? '', c.link, c.calendario ?? '', c.tipoColegio ?? '',
+        c.advisor?.name ?? '', c.activo ? 'Sí' : 'No',
+      ];
+      for (const [, cat] of categorias) {
+        for (const campo of campos.filter(f => f.categoriaId && categoriasMap.has(f.categoriaId) && categoriasMap.get(f.categoriaId)!.nombre === cat.nombre)) {
+          row.push(vals.get(campo.id) ?? '');
+        }
+      }
+      ws.addRow(row);
+    }
+
+    for (const col of ws.columns) {
+      if (!col) continue;
+      let max = 10;
+      col.eachCell!({ includeEmpty: false }, (cell) => {
+        const len = String(cell.value ?? '').length;
+        if (len > max) max = len;
+      });
+      col.width = Math.min(max + 4, 45);
+    }
+
+    return wb.xlsx.writeBuffer() as unknown as Promise<Buffer>;
+  }
+
+  async exportarFichaExcel(colegioId: string): Promise<Buffer> {
+    const ficha = await this.obtenerFicha(colegioId);
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet(ficha.institucion.nombre);
+
+    const baseData = [
+      ['Nombre', ficha.institucion.nombre],
+      ['Email', ficha.institucion.email ?? ''],
+      ['Link', ficha.institucion.link],
+      ['Calendario', ficha.institucion.calendario ?? ''],
+      ['Tipo', ficha.institucion.tipoColegio ?? ''],
+      ['Asesor', ficha.institucion.advisorNombre ?? ''],
+      ['Activo', ficha.institucion.activo ? 'Sí' : 'No'],
+    ];
+
+    for (const row of baseData) ws.addRow(row);
+
+    for (const grupo of ficha.grupos) {
+      ws.addRow([]);
+      ws.addRow([grupo.categoriaNombre]).font = { bold: true, size: 12, color: { argb: 'FF2563EB' } };
+      ws.addRow([grupo.categoriaNombre]).border = { bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } } };
+      for (const item of grupo.campos) {
+        ws.addRow([item.campo.nombre, item.valor ?? '—']);
+      }
+    }
+
+    ws.getColumn(1).width = 28;
+    ws.getColumn(2).width = 60;
+
+    return wb.xlsx.writeBuffer() as unknown as Promise<Buffer>;
+  }
+
+  async importarExcel(filePath: string, userId: string) {
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.readFile(filePath);
+    const ws = wb.getWorksheet('Instituciones') ?? wb.worksheets[0];
+    if (!ws || ws.rowCount < 2) throw new BadRequestException('El archivo no contiene datos válidos');
+
+    const headerRow = ws.getRow(1);
+    const headers: string[] = [];
+    headerRow.eachCell((cell, colNum) => {
+      headers[colNum - 1] = String(cell.value ?? '').trim();
+    });
+
+    const [allCampos, allCategorias] = await Promise.all([
+      this.campoRepo.find({ relations: { categoria: true } }),
+      this.categoriaRepo.find(),
+    ]);
+
+    const catByName = new Map(allCategorias.map(c => [c.nombre.toLowerCase(), c]));
+    const campoLookup = new Map<string, PiCampo>();
+    for (const c of allCampos) {
+      const catName = c.categoria?.nombre ?? '';
+      const headerName = catName ? `${catName} > ${c.nombre}` : c.nombre;
+      campoLookup.set(headerName.toLowerCase(), c);
+    }
+
+    const baseHeaders = ['nombre', 'email', 'link', 'calendario', 'tipo', 'asesor', 'activo'];
+    let created = 0;
+    let updated = 0;
+    const errores: string[] = [];
+
+    for (let r = 2; r <= ws.rowCount; r++) {
+      const row = ws.getRow(r);
+      const nombreCell = row.getCell(1);
+      const nombre = String(nombreCell.value ?? '').trim();
+      if (!nombre) continue;
+
+      let colegio = await this.colegioRepo.findOneBy({ nombre });
+      if (!colegio) {
+        const linkVal = String(row.getCell(3).value ?? '').trim() || 'https://';
+        const emailVal = String(row.getCell(2).value ?? '').trim();
+        const calendarioVal = String(row.getCell(4).value ?? '').trim() || undefined;
+        const tipoVal = String(row.getCell(5).value ?? '').trim() || undefined;
+        const activoVal = String(row.getCell(7).value ?? 'Sí').trim().toLowerCase();
+        const nuevo = this.colegioRepo.create({
+          nombre, link: linkVal, email: emailVal,
+          calendario: calendarioVal as any, tipoColegio: tipoVal as any,
+          activo: activoVal !== 'no' && activoVal !== 'false',
+        });
+        colegio = await this.colegioRepo.save(nuevo);
+        created++;
+      } else {
+        updated++;
+      }
+
+      const valoresToSave: { campoId: string; valor: string | null }[] = [];
+      for (let c = 1; c < headers.length; c++) {
+        const h = headers[c]?.toLowerCase() ?? '';
+        if (baseHeaders.includes(h)) continue;
+        const campo = campoLookup.get(h);
+        if (!campo) continue;
+        const val = String(row.getCell(c + 1).value ?? '').trim() || null;
+        valoresToSave.push({ campoId: campo.id, valor: val });
+      }
+
+      const colegioId = Array.isArray(colegio) ? colegio[0].id : colegio.id;
+
+      if (valoresToSave.length > 0) {
+        await this.guardarValores(colegioId, { valores: valoresToSave }, userId);
+      }
+    }
+
+    try { unlinkSync(filePath); } catch { /* noop */ }
+
+    return { ok: true, created, updated, total: created + updated, errores };
   }
 
   // ── Historial ────────────────────────────────────────────────────────────

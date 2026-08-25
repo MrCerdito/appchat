@@ -42,6 +42,12 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
   pages = 1;
   total = 0;
 
+  exportando = false;
+  importando = false;
+  mostrarModalImportar = false;
+  archivoImportar: File | null = null;
+  resultadoImportar: { ok: boolean; created: number; updated: number; total: number; errores: string[] } | null = null;
+
   private busquedaTimer?: ReturnType<typeof setTimeout>;
 
   constructor(
@@ -186,5 +192,72 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
       .slice(0, 2)
       .map((p) => p[0].toUpperCase())
       .join('') || nombre.substring(0, 2).toUpperCase();
+  }
+
+  /* ── Export ── */
+  exportarTodo(): void {
+    this.exportando = true;
+    this.cdr.detectChanges();
+    this.piService.exportar()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (blob) => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'instituciones.xlsx';
+          a.click();
+          URL.revokeObjectURL(url);
+          this.exportando = false;
+          this.notification.success('Exportación', 'Archivo descargado correctamente');
+          this.cdr.detectChanges();
+        },
+        error: () => {
+          this.exportando = false;
+          this.notification.error('Error', 'No se pudo exportar');
+          this.cdr.detectChanges();
+        },
+      });
+  }
+
+  /* ── Import ── */
+  abrirModalImportar(): void {
+    this.mostrarModalImportar = true;
+    this.archivoImportar = null;
+    this.resultadoImportar = null;
+  }
+
+  cerrarModalImportar(): void {
+    this.mostrarModalImportar = false;
+    this.archivoImportar = null;
+    this.resultadoImportar = null;
+  }
+
+  onArchivoSeleccionado(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.archivoImportar = input.files?.[0] ?? null;
+    this.resultadoImportar = null;
+  }
+
+  ejecutarImportar(): void {
+    if (!this.archivoImportar) return;
+    this.importando = true;
+    this.cdr.detectChanges();
+    this.piService.importar(this.archivoImportar)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (res) => {
+          this.importando = false;
+          this.resultadoImportar = res;
+          this.notification.success('Importación', `${res.total} instituciones procesadas: ${res.created} creadas, ${res.updated} actualizadas`);
+          this.cargar(true);
+          this.cdr.detectChanges();
+        },
+        error: (err) => {
+          this.importando = false;
+          this.notification.error('Error', err?.error?.message ?? 'No se pudo importar');
+          this.cdr.detectChanges();
+        },
+      });
   }
 }

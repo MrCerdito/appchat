@@ -293,6 +293,83 @@
   }
 }
 
+.gc-cat-hint {
+  margin: 0 0 10px;
+  font-size: 0.78rem;
+  color: var(--text-secondary, #9ca3af);
+}
+
+.gc-cat-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border, #f1f5f9);
+  transition: background 0.15s ease;
+
+  &:last-child { border-bottom: none; }
+
+  &:hover { background: rgba(0, 0, 0, 0.015); }
+
+  input {
+    flex: 1;
+    min-width: 0;
+    padding: 7px 10px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: inherit;
+    font-size: 0.87rem;
+    font-weight: 600;
+
+    &:focus {
+      border-color: var(--primary, #2563eb);
+      background: var(--bg-surface, #fff);
+      outline: none;
+    }
+  }
+}
+
+.gc-cat-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  color: var(--text-secondary, #9ca3af);
+  font-size: 0.9rem;
+  cursor: grab;
+  flex-shrink: 0;
+  user-select: none;
+  transition: color 0.15s ease, background 0.15s ease;
+
+  &:hover {
+    color: var(--text-primary, #475569);
+    background: var(--bg-muted, #f1f5f9);
+  }
+
+  &:active { cursor: grabbing; }
+}
+
+/* CDK Drag styles */
+.gc-cat-item.cdk-drag-preview {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  border-radius: 10px;
+  background: var(--bg-surface, #fff);
+  padding: 7px 8px;
+}
+
+.gc-cat-item.cdk-drag-placeholder {
+  opacity: 0.35;
+  background: rgba(var(--primary-rgb, 37, 99, 235), 0.08);
+  border-radius: 8px;
+}
+
+.gc-cat-item.cdk-drag-animating {
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
 .gc-cat-list {
   list-style: none;
   margin: 0;

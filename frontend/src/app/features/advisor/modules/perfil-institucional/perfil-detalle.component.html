@@ -49,6 +49,12 @@
           }
         </p>
       </div>
+
+      <div class="pd-header-actions">
+        <button type="button" class="pi-btn pi-btn-outline" [disabled]="exportando" (click)="exportarFicha()">
+          {{ exportando ? '⏳ Exportando…' : '⬇ Exportar ficha' }}
+        </button>
+      </div>
     </header>
 
     <nav class="pd-tabs">
@@ -217,7 +223,7 @@
                   [ngModelOptions]="{ standalone: true }" />
               }
               @case ('texto_largo') {
-                <textarea rows="3" maxlength="2000" [(ngModel)]="borrador[item.campo.id]"
+                <textarea rows="6" maxlength="2000" [(ngModel)]="borrador[item.campo.id]"
                   [ngModelOptions]="{ standalone: true }"></textarea>
               }
               @case ('lista') {

@@ -343,3 +343,93 @@
 
   p { margin: 0 0 14px; font-size: 0.95rem; }
 }
+
+/* ---------- Modal import ---------- */
+.pi-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 1200;
+}
+
+.pi-modal {
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--bg-surface, #fff);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.25);
+
+  h3 { margin: 0 0 4px; font-size: 1.05rem; }
+}
+
+.pi-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 14px;
+
+  > span {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-secondary, #6b7280);
+  }
+
+  input:not([type='checkbox']),
+  select,
+  textarea {
+    padding: 9px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border, #e5e7eb);
+    background: var(--bg-surface, #fff);
+    color: inherit;
+    font-size: 0.88rem;
+    outline: none;
+    resize: vertical;
+
+    &:focus { border-color: var(--primary, #2563eb); }
+  }
+}
+
+.pi-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.pi-import-resultado { padding: 0; }
+
+.pi-import-resumen {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pi-import-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: var(--bg-muted, #f1f5f9);
+  color: var(--text-secondary, #475569);
+
+  &.ok {
+    color: #16a34a;
+    background: rgba(22, 163, 74, 0.1);
+  }
+
+  &.info {
+    color: var(--primary, #2563eb);
+    background: rgba(var(--primary-rgb, 37, 99, 235), 0.1);
+  }
+}

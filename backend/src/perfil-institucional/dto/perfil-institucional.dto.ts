@@ -183,3 +183,19 @@ export class UpsertPiValoresDto {
   @Type(() => PiValorItemDto)
   valores: PiValorItemDto[];
 }
+
+export class ReorderItemDto {
+  @IsUUID()
+  id: string;
+
+  @IsInt()
+  orden: number;
+}
+
+export class ReorderCategoriasDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => ReorderItemDto)
+  items: ReorderItemDto[];
+}

@@ -94,9 +94,11 @@
             (keyup.enter)="crearCategoria(catInput)" />
           <button type="button" class="pi-btn pi-btn-primary" (click)="crearCategoria(catInput)">Agregar</button>
         </div>
-        <ul class="gc-cat-list">
+        <p class="gc-cat-hint">Arrastra para reordenar las categorías</p>
+        <div cdkDropList (cdkDropListDropped)="onDropCategoria($event)">
           @for (cat of categorias; track cat.id) {
-            <li>
+            <div class="gc-cat-item" cdkDrag>
+              <span class="gc-cat-handle" cdkDragHandle title="Arrastrar para reordenar">⠿</span>
               <input #renameInput type="text" [value]="cat.nombre"
                 (change)="renombrarCategoria(cat, renameInput)" />
               @if (cat.esSistema) {
@@ -106,9 +108,9 @@
                 {{ cat.activa ? '●' : '○' }}
               </button>
               <button type="button" class="gc-icon gc-icon--danger" title="Eliminar" (click)="eliminarCategoria(cat)">✕</button>
-            </li>
+            </div>
           }
-        </ul>
+        </div>
       </div>
     </div>
   }

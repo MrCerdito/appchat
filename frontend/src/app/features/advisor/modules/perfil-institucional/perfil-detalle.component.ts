@@ -40,6 +40,7 @@ export class PerfilDetalleComponent implements OnInit, OnDestroy {
   borrador: Record<string, string | boolean> = {};
 
   subiendoLogo = false;
+  exportando = false;
 
   private readonly ACCIONES_LABEL: Record<string, string> = {
     actualizar_valor: 'Actualizó',
@@ -258,5 +259,32 @@ export class PerfilDetalleComponent implements OnInit, OnDestroy {
       ? iso
       : d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' }) +
           ' · ' + d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  /* ── Export ficha ── */
+  exportarFicha(): void {
+    if (!this.institucionId) return;
+    this.exportando = true;
+    this.cdr.detectChanges();
+    this.piService.exportarFicha(this.institucionId)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (blob) => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `ficha-${(this.ficha?.institucion.nombre ?? 'institucion').replace(/\s+/g, '_')}.xlsx`;
+          a.click();
+          URL.revokeObjectURL(url);
+          this.exportando = false;
+          this.notification.success('Exportación', 'Ficha descargada');
+          this.cdr.detectChanges();
+        },
+        error: () => {
+          this.exportando = false;
+          this.notification.error('Error', 'No se pudo exportar la ficha');
+          this.cdr.detectChanges();
+        },
+      });
   }
 }
