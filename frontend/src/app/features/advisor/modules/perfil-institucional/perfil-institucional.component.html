@@ -279,25 +279,6 @@
               {{ inst.advisorNombre }}
             </div>
           }
-
-          <button type="button" class="pi-card-menu" (click)="toggleMenu(inst.id); $event.stopPropagation()" title="Acciones" aria-label="Acciones de la instituci&oacute;n">
-            <lucide-icon [img]="icons.MoreVertical" [size]="16" />
-          </button>
-
-          @if (menuActivoId === inst.id) {
-            <div class="pi-context-menu-backdrop" (click)="cerrarMenus()"></div>
-            <div class="pi-context-menu" role="menu">
-              <button type="button" class="pi-context-menu-item" (click)="verInstitucion(inst.id)" role="menuitem">
-                <lucide-icon [img]="icons.Eye" [size]="15" /> Ver instituci&oacute;n
-              </button>
-              <button type="button" class="pi-context-menu-item" (click)="editarInstitucion(inst.id)" role="menuitem">
-                <lucide-icon [img]="icons.Pencil" [size]="15" /> Editar
-              </button>
-              <button type="button" class="pi-context-menu-item" (click)="cerrarMenus()" role="menuitem">
-                <lucide-icon [img]="icons.ExternalLink" [size]="15" /> Abrir enlace
-              </button>
-            </div>
-          }
         </div>
       }
     </div>
