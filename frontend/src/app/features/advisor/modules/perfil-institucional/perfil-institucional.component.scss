@@ -544,6 +544,57 @@
   }
 }
 
+.pi-asesor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: $pi-slate-200 transparent;
+
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: $pi-slate-200;
+    border-radius: 2px;
+  }
+}
+
+.pi-asesor-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  transition: background 150ms ease;
+
+  &:hover {
+    background: $pi-slate-50;
+  }
+}
+
+.pi-asesor-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(37, 99, 235, 0.1);
+  color: $pi-primary;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.pi-asesor-name {
+  font-size: 13px;
+  color: $pi-text;
+  font-weight: 500;
+}
+
 .pi-filter-group {
   display: flex;
   flex-direction: column;

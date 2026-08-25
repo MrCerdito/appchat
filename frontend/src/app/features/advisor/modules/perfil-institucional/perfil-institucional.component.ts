@@ -38,7 +38,6 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
   filtroEstado = '';
   filtroCalendario = new Set<string>();
   filtroTipo = new Set<string>();
-  filtroAsesor = new Set<string>();
   orden = 'nombre';
   filtrosDinamicos: FiltroDinamico[] = [];
   valoresFiltros: Record<string, string> = {};
@@ -93,12 +92,12 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
   /* ── Navigation ── */
   verInstitucion(id: string): void {
     this.cerrarMenus();
-    this.router.navigate(['/advisor/perfil-institucional', id]);
+    this.router.navigate(['/dashboard/perfil-institucional', id]);
   }
 
   editarInstitucion(id: string): void {
     this.cerrarMenus();
-    this.router.navigate(['/advisor/perfil-institucional', id], { queryParams: { edit: true } });
+    this.router.navigate(['/dashboard/perfil-institucional', id], { queryParams: { edit: true } });
   }
 
   /* ── Filter panel toggle ── */
@@ -150,15 +149,6 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
     this.alCambiarFiltros();
   }
 
-  toggleAsesor(nombre: string): void {
-    if (this.filtroAsesor.has(nombre)) {
-      this.filtroAsesor.delete(nombre);
-    } else {
-      this.filtroAsesor.add(nombre);
-    }
-    this.alCambiarFiltros();
-  }
-
   irAPagina(p: number): void {
     if (p < 1 || p > this.pages || p === this.page) return;
     this.page = p;
@@ -189,7 +179,6 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
       estado: this.filtroEstado || undefined,
       calendario: this.filtroCalendario.size > 0 ? [...this.filtroCalendario].join(',') : undefined,
       tipo: this.filtroTipo.size > 0 ? [...this.filtroTipo].join(',') : undefined,
-      asesor: this.filtroAsesor.size > 0 ? [...this.filtroAsesor].join(',') : undefined,
       sort: this.orden,
       page: String(this.page),
       limit: String(this.limitePorPagina),
@@ -249,7 +238,6 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
     this.filtroEstado = '';
     this.filtroCalendario.clear();
     this.filtroTipo.clear();
-    this.filtroAsesor.clear();
     this.orden = 'nombre';
     this.valoresFiltros = {};
     this.page = 1;
@@ -258,7 +246,7 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
 
   get hayFiltros(): boolean {
     return !!(this.q || this.filtroEstado || this.filtroCalendario.size > 0 ||
-      this.filtroTipo.size > 0 || this.filtroAsesor.size > 0 ||
+      this.filtroTipo.size > 0 ||
       Object.values(this.valoresFiltros).some((v) => !!v));
   }
 
