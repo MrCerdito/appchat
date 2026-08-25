@@ -2,75 +2,122 @@
   <header class="pi-header">
     <div class="pi-header-text">
       <h1>Perfil Institucional</h1>
-      <p>Consulta y administra la información de las instituciones.</p>
+      <p>Consulta y administra la informacion de las instituciones.</p>
     </div>
     <div class="pi-header-actions">
       <button type="button" class="pi-btn pi-btn-outline" [disabled]="exportando" (click)="exportarTodo()">
-        {{ exportando ? '⏳ Exportando…' : '⬇ Exportar todo' }}
+        {{ exportando ? 'Exportando...' : 'Exportar todo' }}
       </button>
-      <button type="button" class="pi-btn pi-btn-outline" (click)="abrirModalImportar()">⬆ Importar</button>
-      <a class="pi-btn pi-btn-primary" routerLink="campos">⚙ Gestionar campos</a>
+      <button type="button" class="pi-btn pi-btn-outline" (click)="abrirModalImportar()">Importar</button>
+      <a class="pi-btn pi-btn-primary" routerLink="campos">Gestionar campos</a>
     </div>
   </header>
 
-  <div class="pi-toolbar">
+  <!-- Fila 1: Busqueda + Orden -->
+  <div class="pi-toolbar-row">
     <div class="pi-search">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
         stroke-linecap="round" stroke-linejoin="round">
         <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
       </svg>
-      <input type="text" placeholder="Buscar por nombre, correo, link o información…"
+      <input type="text" placeholder="Buscar por nombre, correo, link..."
         [(ngModel)]="q" (input)="alEscribirBusqueda()" (keyup.enter)="buscar()" />
       @if (q) {
-        <button type="button" class="pi-search-clear" title="Limpiar búsqueda"
-          (click)="limpiarBusqueda()">✕</button>
+        <button type="button" class="pi-search-clear" title="Limpiar busqueda"
+          (click)="limpiarBusqueda()">X</button>
       }
     </div>
 
-    <select class="pi-select" [(ngModel)]="filtroEstado" (change)="alCambiarFiltros()">
-      <option value="">Estado: todos</option>
-      <option value="activo">● Activo</option>
-      <option value="inactivo">○ Inactivo</option>
-    </select>
-
-    <select class="pi-select" [(ngModel)]="filtroCalendario" (change)="alCambiarFiltros()">
-      <option value="">Calendario: todos</option>
-      <option value="A">Calendario A</option>
-      <option value="B">Calendario B</option>
-    </select>
-
-    <select class="pi-select" [(ngModel)]="filtroTipo" (change)="alCambiarFiltros()">
-      <option value="">Tipo: todos</option>
-      <option value="Sian365">Sian365</option>
-      <option value="ControlAcademic">ControlAcademic</option>
-    </select>
-
-    @for (f of filtrosDinamicos; track f.campoId) {
-      @if (f.tipo === 'booleano') {
-        <select class="pi-select" [(ngModel)]="valoresFiltros[f.campoId]" (change)="alCambiarFiltros()">
-          <option value="">{{ f.nombre }}: todos</option>
-          <option value="true">● Activo</option>
-          <option value="false">○ Inactivo</option>
-        </select>
-      } @else if (f.tipo === 'lista') {
-        <select class="pi-select" [(ngModel)]="valoresFiltros[f.campoId]" (change)="alCambiarFiltros()">
-          <option value="">{{ f.nombre }}</option>
-          @for (op of f.opciones; track op) {
-            <option [value]="op">{{ op }}</option>
-          }
-        </select>
-      }
-    }
-
     <select class="pi-select" [(ngModel)]="orden" (change)="alCambiarFiltros()">
-      <option value="nombre">Nombre A → Z</option>
-      <option value="nombre-desc">Nombre Z → A</option>
+      <option value="nombre">Nombre A-Z</option>
+      <option value="nombre-desc">Nombre Z-A</option>
+      <option value="asesor">Por Asesor</option>
     </select>
+  </div>
+
+  <!-- Fila 2: Filtros pills -->
+  <div class="pi-filters-row">
+    <div class="pi-filter-group">
+      <span class="pi-filter-label">Calendario</span>
+      <div class="pi-pills">
+        <button type="button" class="pi-pill" [class.pi-pill--active]="filtroCalendario.has('A')"
+          (click)="toggleCalendario('A')">A</button>
+        <button type="button" class="pi-pill" [class.pi-pill--active]="filtroCalendario.has('B')"
+          (click)="toggleCalendario('B')">B</button>
+      </div>
+    </div>
+
+    <div class="pi-filter-group">
+      <span class="pi-filter-label">Tipo</span>
+      <div class="pi-pills">
+        <button type="button" class="pi-pill pi-pill--sian" [class.pi-pill--active]="filtroTipo.has('Sian365')"
+          (click)="toggleTipo('Sian365')">Sian365</button>
+        <button type="button" class="pi-pill pi-pill--ctrl" [class.pi-pill--active]="filtroTipo.has('ControlAcademic')"
+          (click)="toggleTipo('ControlAcademic')">ControlAcademic</button>
+      </div>
+    </div>
+
+    <div class="pi-filter-group">
+      <span class="pi-filter-label">Estado</span>
+      <div class="pi-pills">
+        <button type="button" class="pi-pill pi-pill--estado"
+          [class.pi-pill--active]="filtroEstado === 'activo'"
+          (click)="toggleEstado('activo')">Activo</button>
+        <button type="button" class="pi-pill pi-pill--estado"
+          [class.pi-pill--active]="filtroEstado === 'inactivo'"
+          (click)="toggleEstado('inactivo')">Inactivo</button>
+      </div>
+    </div>
+
+    @if (filtrosDinamicos.length > 0) {
+    <button type="button" class="pi-filter-toggle" (click)="mostrarFiltrosDinamicos = !mostrarFiltrosDinamicos">
+      @if (mostrarFiltrosDinamicos) { Ocultar filtros } @else { Mas filtros }
+      <svg [class.pi-chevron--open]="mostrarFiltrosDinamicos" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2" width="14" height="14">
+        <polyline points="6 9 12 15 18 9"></polyline>
+      </svg>
+    </button>
+    }
 
     @if (hayFiltros) {
-      <button type="button" class="pi-link" (click)="limpiarFiltros()">Limpiar</button>
+      <button type="button" class="pi-clear-btn" (click)="limpiarFiltros()">Limpiar</button>
     }
   </div>
+
+  <!-- Filtros dinamicos expandibles -->
+  @if (mostrarFiltrosDinamicos && filtrosDinamicos.length > 0) {
+  <div class="pi-dynamic-filters">
+    @for (f of filtrosDinamicos; track f.campoId) {
+    <div class="pi-filter-group">
+      <span class="pi-filter-label">{{ f.nombre }}</span>
+      @if (f.tipo === 'booleano') {
+        <div class="pi-pills">
+          <button type="button" class="pi-pill"
+            [class.pi-pill--active]="valoresFiltros[f.campoId] === 'true'"
+            (click)="valoresFiltros[f.campoId] = valoresFiltros[f.campoId] === 'true' ? '' : 'true'; alCambiarFiltros()">
+            Activo
+          </button>
+          <button type="button" class="pi-pill"
+            [class.pi-pill--active]="valoresFiltros[f.campoId] === 'false'"
+            (click)="valoresFiltros[f.campoId] = valoresFiltros[f.campoId] === 'false' ? '' : 'false'; alCambiarFiltros()">
+            Inactivo
+          </button>
+        </div>
+      } @else if (f.tipo === 'lista') {
+        <div class="pi-pills">
+          @for (op of f.opciones; track op) {
+          <button type="button" class="pi-pill"
+            [class.pi-pill--active]="valoresFiltros[f.campoId] === op"
+            (click)="valoresFiltros[f.campoId] = valoresFiltros[f.campoId] === op ? '' : op; alCambiarFiltros()">
+            {{ op }}
+          </button>
+          }
+        </div>
+      }
+    </div>
+    }
+  </div>
+  }
 
   @if (loading) {
     <div class="pi-grid">
@@ -101,17 +148,41 @@
               <span class="pi-card-initials">{{ iniciales(inst.nombre) }}</span>
             }
           </div>
-          <div class="pi-card-name" [title]="inst.nombre">{{ inst.nombre }}</div>
+          <div class="pi-card-body">
+            <div class="pi-card-name" [title]="inst.nombre">{{ inst.nombre }}</div>
+            <div class="pi-card-badges">
+              @if (inst.calendario) {
+                <span class="pi-badge" [class.pi-badge--a]="inst.calendario === 'A'"
+                  [class.pi-badge--b]="inst.calendario === 'B'">{{ inst.calendario }}</span>
+              }
+              @if (inst.tipoColegio) {
+                <span class="pi-badge" [class.pi-badge--sian]="inst.tipoColegio === 'Sian365'"
+                  [class.pi-badge--ctrl]="inst.tipoColegio === 'ControlAcademic'">
+                  {{ inst.tipoColegio === 'Sian365' ? 'Sian' : 'Ctrl' }}
+                </span>
+              }
+            </div>
+            @if (inst.advisorNombre) {
+              <div class="pi-card-advisor">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  width="12" height="12">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+                {{ inst.advisorNombre }}
+              </div>
+            }
+          </div>
         </a>
       }
     </div>
 
     @if (pages > 1) {
-      <nav class="pi-paginador" aria-label="Paginación">
+      <nav class="pi-paginador" aria-label="Paginacion">
         <button type="button" class="pi-pag-flecha" [disabled]="page <= 1"
-          title="Primera página" (click)="irAPagina(1)">«</button>
+          title="Primera pagina" (click)="irAPagina(1)">&laquo;</button>
         <button type="button" class="pi-pag-flecha" [disabled]="page <= 1"
-          title="Anterior" (click)="irAPagina(page - 1)">‹</button>
+          title="Anterior" (click)="irAPagina(page - 1)">&lsaquo;</button>
 
         @for (p of paginasVisibles(); track p) {
           <button type="button" class="pi-pag-num" [class.active]="p === page"
@@ -119,12 +190,12 @@
         }
 
         <button type="button" class="pi-pag-flecha" [disabled]="page >= pages"
-          title="Siguiente" (click)="irAPagina(page + 1)">›</button>
+          title="Siguiente" (click)="irAPagina(page + 1)">&rsaquo;</button>
         <button type="button" class="pi-pag-flecha" [disabled]="page >= pages"
-          title="Última página" (click)="irAPagina(pages)">»</button>
+          title="Ultima pagina" (click)="irAPagina(pages)">&raquo;</button>
 
         <span class="pi-pag-info">
-          {{ total }} institución{{ total === 1 ? '' : 'es' }}
+          {{ total }} institucion{{ total === 1 ? '' : 'es' }}
         </span>
       </nav>
     }
@@ -134,8 +205,8 @@
     <div class="pi-modal-backdrop" (click)="cerrarModalImportar()">
       <div class="pi-modal" (click)="$event.stopPropagation()">
         <h3>Importar instituciones desde Excel</h3>
-        <p style="font-size:0.84rem;color:var(--text-secondary,#6b7280);margin:0 0 16px">
-          Selecciona un archivo <strong>.xlsx</strong> o <strong>.csv</strong>. Las instituciones se crean si el nombre no existe, o se actualizan si ya existe. Las columnas deben seguir el formato de exportación.
+        <p class="pi-modal-desc">
+          Selecciona un archivo <strong>.xlsx</strong> o <strong>.csv</strong>. Las instituciones se crean si el nombre no existe, o se actualizan si ya existe.
         </p>
 
         @if (!resultadoImportar) {
@@ -147,19 +218,19 @@
             <button type="button" class="pi-btn pi-btn-ghost" (click)="cerrarModalImportar()">Cancelar</button>
             <button type="button" class="pi-btn pi-btn-primary" [disabled]="!archivoImportar || importando"
               (click)="ejecutarImportar()">
-              {{ importando ? '⏳ Importando…' : '⬆ Importar' }}
+              {{ importando ? 'Importando...' : 'Importar' }}
             </button>
           </div>
         } @else {
           <div class="pi-import-resultado">
-            <p style="font-size:0.92rem;font-weight:600;margin:0 0 10px">✅ Importación completada</p>
+            <p class="pi-import-title">Importacion completada</p>
             <div class="pi-import-resumen">
               <span class="pi-import-chip">{{ resultadoImportar.total }} procesadas</span>
               <span class="pi-import-chip ok">{{ resultadoImportar.created }} creadas</span>
               <span class="pi-import-chip info">{{ resultadoImportar.updated }} actualizadas</span>
             </div>
             @if (resultadoImportar.errores.length > 0) {
-              <p style="font-size:0.82rem;color:#dc2626;margin:12px 0 0">
+              <p class="pi-import-error">
                 {{ resultadoImportar.errores.length }} errores encontrados
               </p>
             }

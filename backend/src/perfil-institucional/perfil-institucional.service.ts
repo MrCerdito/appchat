@@ -71,9 +71,14 @@ export class PerfilInstitucionalService {
       .map(([k, v]) => [k.slice(2), String(v).toLowerCase()] as const);
 
     const resultado = colegios.filter((c) => {
-      if (query.calendario && (c.calendario ?? '') !== query.calendario)
-        return false;
-      if (query.tipo && (c.tipoColegio ?? '') !== query.tipo) return false;
+      if (query.calendario) {
+        const allowed = query.calendario.split(',').map(s => s.trim());
+        if (!allowed.includes(c.calendario ?? '')) return false;
+      }
+      if (query.tipo) {
+        const allowed = query.tipo.split(',').map(s => s.trim());
+        if (!allowed.includes(c.tipoColegio ?? '')) return false;
+      }
       if (query.estado === 'activo' && !c.activo) return false;
       if (query.estado === 'inactivo' && c.activo) return false;
 
@@ -108,6 +113,11 @@ export class PerfilInstitucionalService {
     resultado.sort((a, b) => {
       if (sort === 'id') return a.id < b.id ? -1 : 1;
       if (sort === 'nombre-desc') return b.nombre.localeCompare(a.nombre, 'es');
+      if (sort === 'asesor') {
+        const na = (a.advisor?.name ?? '').localeCompare(b.advisor?.name ?? '', 'es');
+        if (na !== 0) return na;
+        return a.nombre.localeCompare(b.nombre, 'es');
+      }
       return a.nombre.localeCompare(b.nombre, 'es');
     });
 

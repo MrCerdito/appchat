@@ -31,11 +31,12 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
   loading = true;
   q = '';
   filtroEstado = '';
-  filtroCalendario = '';
-  filtroTipo = '';
+  filtroCalendario = new Set<string>();
+  filtroTipo = new Set<string>();
   orden = 'nombre';
   filtrosDinamicos: FiltroDinamico[] = [];
   valoresFiltros: Record<string, string> = {};
+  mostrarFiltrosDinamicos = false;
 
   readonly limitePorPagina = 15;
   page = 1;
@@ -86,6 +87,29 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
     this.cargar();
   }
 
+  toggleCalendario(val: string): void {
+    if (this.filtroCalendario.has(val)) {
+      this.filtroCalendario.delete(val);
+    } else {
+      this.filtroCalendario.add(val);
+    }
+    this.alCambiarFiltros();
+  }
+
+  toggleTipo(val: string): void {
+    if (this.filtroTipo.has(val)) {
+      this.filtroTipo.delete(val);
+    } else {
+      this.filtroTipo.add(val);
+    }
+    this.alCambiarFiltros();
+  }
+
+  toggleEstado(val: string): void {
+    this.filtroEstado = this.filtroEstado === val ? '' : val;
+    this.alCambiarFiltros();
+  }
+
   irAPagina(p: number): void {
     if (p < 1 || p > this.pages || p === this.page) return;
     this.page = p;
@@ -114,8 +138,8 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
     const params: Record<string, string | undefined> = {
       q: this.q || undefined,
       estado: this.filtroEstado || undefined,
-      calendario: this.filtroCalendario || undefined,
-      tipo: this.filtroTipo || undefined,
+      calendario: this.filtroCalendario.size > 0 ? [...this.filtroCalendario].join(',') : undefined,
+      tipo: this.filtroTipo.size > 0 ? [...this.filtroTipo].join(',') : undefined,
       sort: this.orden,
       page: String(this.page),
       limit: String(this.limitePorPagina),
@@ -172,8 +196,8 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
   limpiarFiltros(): void {
     this.q = '';
     this.filtroEstado = '';
-    this.filtroCalendario = '';
-    this.filtroTipo = '';
+    this.filtroCalendario.clear();
+    this.filtroTipo.clear();
     this.orden = 'nombre';
     this.valoresFiltros = {};
     this.page = 1;
@@ -181,8 +205,8 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
   }
 
   get hayFiltros(): boolean {
-    return !!(this.q || this.filtroEstado || this.filtroCalendario ||
-      this.filtroTipo || Object.values(this.valoresFiltros).some((v) => !!v));
+    return !!(this.q || this.filtroEstado || this.filtroCalendario.size > 0 ||
+      this.filtroTipo.size > 0 || Object.values(this.valoresFiltros).some((v) => !!v));
   }
 
   iniciales(nombre: string): string {

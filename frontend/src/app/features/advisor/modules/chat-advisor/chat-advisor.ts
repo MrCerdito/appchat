@@ -13,7 +13,7 @@ import { TicketService } from '../../../../core/services/ticket.service';
 import { SoundService } from '../../../../core/services/sound.service';
 import { NotificationService } from '../../../../core/services/notification.service';
 import { ChatMediaService } from '../../../../core/services/chat-media.service';
-import { Message, Attachment } from '../../../../core/models/message.model';
+import { Message, Attachment, TimelineItem, TimelineResp, TimelineEvento } from '../../../../core/models/message.model';
 import { Session } from '../../../../core/models/session.model';
 import { User } from '../../../../core/models/user.model';
 import { Subject, Observable, firstValueFrom } from 'rxjs';
@@ -194,9 +194,31 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
 
   // ── Getters ───────────────────────────────────────────────────────────────
 
-  get messages(): Message[] {
+  private timelineMap = new Map<string, TimelineItem[]>();
+
+  get messages(): TimelineItem[] {
     if (!this.activeSession) return [];
-    return this.state.getMessages(this.activeSession.id);
+    return this.timelineMap.get(this.activeSession.id) ?? [];
+  }
+
+  /** ¿El item es un evento de sesión? */
+  esEvento(item: TimelineItem): item is TimelineEvento {
+    return item.kind === 'evento';
+  }
+
+  eventoIcono(tipo: string): string {
+    if (tipo === 'solicitud_asesor') return '\uD83C\uDFA7';
+    if (tipo === 'faq_clic') return '\u2753';
+    return '\u2139\uFE0F';
+  }
+
+  eventoTexto(item: TimelineEvento): string {
+    if (item.tipo === 'solicitud_asesor') return 'El cliente solicito hablar con un asesor';
+    if (item.tipo === 'faq_clic') {
+      const p = item.detalle?.['pregunta'];
+      return p ? `Consulto la pregunta frecuente: "${p}"` : 'Consulto una pregunta frecuente';
+    }
+    return 'Evento de sesion';
   }
 
   /** ¿Esta sesión puede aparecer en la lista propia del asesor? */
@@ -498,6 +520,9 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
       .subscribe((msgs) => {
         if (!this.activeSession) return;
         this.state.setMessages(this.activeSession.id, msgs);
+        if (!this.timelineMap.has(this.activeSession.id)) {
+          this.timelineMap.set(this.activeSession.id, msgs.map(m => ({ kind: 'message' as const, ...m })));
+        }
         this.socket.emit('set_active', { sessionId: this.activeSession.id, active: true });
         this.cdr.detectChanges();
         setTimeout(() => this.scrollToBottom(), 100);
@@ -513,6 +538,10 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
         if (!sessionId) return;
 
         const added = this.state.addMessage(sessionId, msg);
+        const tl = this.timelineMap.get(sessionId);
+        if (tl && !tl.some(t => t.kind === 'message' && t.id === msg.id)) {
+          this.timelineMap.set(sessionId, [...tl, { kind: 'message', ...msg }]);
+        }
         this.updateSessionPreview(sessionId, msg);
 
         if (msg.senderType === 'client') {
@@ -535,6 +564,25 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
       .subscribe(() => {
         this.loadSessions();
         this.cdr.detectChanges();
+      });
+
+    this.socket.on<any>('session_event')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((evt) => {
+        const sessionId = evt?.sessionId ?? evt?.session_id;
+        if (!sessionId || !evt?.id) return;
+        const tl = this.timelineMap.get(sessionId);
+        if (tl && !tl.some(t => t.kind === 'evento' && t.id === evt.id)) {
+          this.timelineMap.set(sessionId, [...tl, {
+            kind: 'evento',
+            id: evt.id,
+            tipo: evt.tipo,
+            detalle: evt.detalle ?? null,
+            createdAt: evt.createdAt ?? new Date().toISOString(),
+          }]);
+          this.cdr.detectChanges();
+          if (this.activeSession?.id === sessionId) this.scrollToBottom();
+        }
       });
 
     this.socket.on<{ sessionId: string; readBy: string }>('messages_read')
@@ -828,12 +876,21 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     this.state.setUnread(session.id, 0);
 
     this.joinRoom(session.id);
-
     this.socket.emit('set_active', { sessionId: session.id, active: true });
     this.socket.emit('mark_read', session.id);
-    this.cdr.detectChanges();
-    setTimeout(() => this.scrollToBottom(), 100);
-    setTimeout(() => this.scrollToBottom(), 300);
+
+    this.sessionService.getTimeline(session.id, null, 100).subscribe({
+      next: (resp) => {
+        this.timelineMap.set(session.id, resp.items ?? []);
+        this.cdr.detectChanges();
+        setTimeout(() => this.scrollToBottom(), 100);
+        setTimeout(() => this.scrollToBottom(), 300);
+      },
+      error: () => {
+        this.cdr.detectChanges();
+        setTimeout(() => this.scrollToBottom(), 100);
+      },
+    });
   }
 
   closeActiveSessionView(): void {
@@ -1313,7 +1370,9 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
           this.sessionService.getMessages(this.activeSession.id, 1000),
         );
       } catch {
-        history = this.messages;
+        history = this.messages
+          .filter(i => i.kind === 'message')
+          .map(m => (m as any)) as Message[];
       }
       const msgs = history
         .filter(m => m.senderName !== 'Sistema')
