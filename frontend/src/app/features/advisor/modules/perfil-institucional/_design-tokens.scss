@@ -1,0 +1,124 @@
+// ── PI Design Tokens ──────────────────────────────────────────────────────────
+// Design system for Perfil Institucional module
+// Inspired by Linear, Vercel, Stripe, Notion
+
+$pi-font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+// ── Colors ───────────────────────────────────────────────────────────────────
+$pi-blue-50:  #eff6ff;
+$pi-blue-100: #dbeafe;
+$pi-blue-200: #bfdbfe;
+$pi-blue-400: #60a5fa;
+$pi-blue-500: #3b82f6;
+$pi-blue-600: #2563eb;
+$pi-blue-700: #1d4ed8;
+$pi-blue-800: #1e40af;
+$pi-blue-900: #1e3a5f;
+
+$pi-slate-50:  #f8fafc;
+$pi-slate-100: #f1f5f9;
+$pi-slate-200: #e2e8f0;
+$pi-slate-300: #cbd5e1;
+$pi-slate-400: #94a3b8;
+$pi-slate-500: #64748b;
+$pi-slate-600: #475569;
+$pi-slate-700: #334155;
+$pi-slate-800: #1e293b;
+$pi-slate-900: #0f172a;
+
+$pi-green-50:  #f0fdf4;
+$pi-green-100: #dcfce7;
+$pi-green-500: #22c55e;
+$pi-green-600: #16a34a;
+$pi-green-700: #15803d;
+
+$pi-red-50:  #fef2f2;
+$pi-red-100: #fee2e2;
+$pi-red-400: #f87171;
+$pi-red-500: #ef4444;
+$pi-red-600: #dc2626;
+
+$pi-amber-50:  #fffbeb;
+$pi-amber-100: #fef3c7;
+$pi-amber-500: #f59e0b;
+$pi-amber-600: #d97706;
+$pi-amber-700: #b45309;
+
+$pi-violet-50:  #f5f3ff;
+$pi-violet-100: #ede9fe;
+$pi-violet-500: #8b5cf6;
+$pi-violet-600: #7c3aed;
+$pi-violet-700: #6d28d9;
+
+$pi-cyan-50:  #ecfeff;
+$pi-cyan-100: #cffafe;
+$pi-cyan-500: #06b6d4;
+$pi-cyan-600: #0891b2;
+$pi-cyan-700: #0e7490;
+
+$pi-indigo-50:  #eef2ff;
+$pi-indigo-100: #e0e7ff;
+$pi-indigo-500: #6366f1;
+$pi-indigo-600: #4f46e5;
+$pi-indigo-700: #4338ca;
+
+// ── Semantic ─────────────────────────────────────────────────────────────────
+$pi-bg:          $pi-slate-50;
+$pi-surface:     #ffffff;
+$pi-surface-hover: $pi-slate-50;
+$pi-border:      $pi-slate-200;
+$pi-border-light: $pi-slate-100;
+$pi-text:        $pi-slate-800;
+$pi-text-secondary: $pi-slate-500;
+$pi-text-muted:  $pi-slate-400;
+$pi-primary:     $pi-blue-600;
+$pi-primary-hover: $pi-blue-700;
+$pi-primary-rgb: 37, 99, 235;
+
+// ── Spacing ──────────────────────────────────────────────────────────────────
+$pi-sp-1: 4px;
+$pi-sp-2: 8px;
+$pi-sp-3: 12px;
+$pi-sp-4: 16px;
+$pi-sp-5: 20px;
+$pi-sp-6: 24px;
+$pi-sp-8: 32px;
+$pi-sp-10: 40px;
+$pi-sp-12: 48px;
+
+// ── Radius ───────────────────────────────────────────────────────────────────
+$pi-radius-sm: 8px;
+$pi-radius-md: 10px;
+$pi-radius-lg: 12px;
+$pi-radius-xl: 14px;
+$pi-radius-2xl: 16px;
+$pi-radius-pill: 9999px;
+
+// ── Shadows ──────────────────────────────────────────────────────────────────
+$pi-shadow-xs:  0 1px 2px rgba(0, 0, 0, 0.04);
+$pi-shadow-sm:  0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+$pi-shadow-md:  0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+$pi-shadow-lg:  0 10px 15px -3px rgba(0, 0, 0, 0.06), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+$pi-shadow-xl:  0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+
+// ── Transitions ──────────────────────────────────────────────────────────────
+$pi-transition-fast: 120ms ease;
+$pi-transition: 180ms ease;
+$pi-transition-slow: 250ms ease;
+
+// ── Breakpoints ──────────────────────────────────────────────────────────────
+$pi-bp-sm: 640px;
+$pi-bp-md: 768px;
+$pi-bp-lg: 1024px;
+$pi-bp-xl: 1280px;
+$pi-bp-2xl: 1536px;
+
+// ── Typography ───────────────────────────────────────────────────────────────
+$pi-text-xs:   0.75rem;
+$pi-text-sm:   0.8125rem;
+$pi-text-base: 0.875rem;
+$pi-text-lg:   1rem;
+$pi-text-xl:   1.125rem;
+$pi-text-2xl:  1.25rem;
+$pi-text-3xl:  1.5rem;
+$pi-text-4xl:  1.75rem;

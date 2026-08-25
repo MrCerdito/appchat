@@ -1,13 +1,15 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
+import { LucideAngularModule } from 'lucide-angular';
 import {
   PerfilInstitucionalService,
   PiInstitucionCard,
 } from '../../../../core/services/perfil-institucional.service';
 import { NotificationService } from '../../../../core/services/notification.service';
+import { PI_ICONS } from './pi-icons';
 
 interface FiltroDinamico {
   campoId: string;
@@ -19,12 +21,14 @@ interface FiltroDinamico {
 @Component({
   selector: 'app-perfil-institucional',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, LucideAngularModule],
   templateUrl: './perfil-institucional.component.html',
   styleUrl: './perfil-institucional.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
+  readonly icons = PI_ICONS;
+
   private destroy$ = new Subject<void>();
 
   instituciones: PiInstitucionCard[] = [];
@@ -40,7 +44,14 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
   valoresFiltros: Record<string, string> = {};
   mostrarFiltrosDinamicos = false;
 
-  readonly limitePorPagina = 15;
+  vistaMode: 'grid' | 'list' = 'grid';
+  mostrarFiltros = true;
+  menuActivoId: string | null = null;
+  exportandoFormato: string = '';
+  mostrarModalExportar = false;
+  arrastrandoArchivo = false;
+
+  limitePorPagina = 20;
   page = 1;
   pages = 1;
   total = 0;
@@ -57,6 +68,7 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
     private piService: PerfilInstitucionalService,
     private notification: NotificationService,
     private cdr: ChangeDetectorRef,
+    private router: Router,
   ) {}
 
   ngOnInit(): void {
@@ -69,6 +81,32 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
+  /* ── Context menu ── */
+  toggleMenu(id: string): void {
+    this.menuActivoId = this.menuActivoId === id ? null : id;
+  }
+
+  cerrarMenus(): void {
+    this.menuActivoId = null;
+  }
+
+  /* ── Navigation ── */
+  verInstitucion(id: string): void {
+    this.cerrarMenus();
+    this.router.navigate(['/advisor/perfil-institucional', id]);
+  }
+
+  editarInstitucion(id: string): void {
+    this.cerrarMenus();
+    this.router.navigate(['/advisor/perfil-institucional', id], { queryParams: { edit: true } });
+  }
+
+  /* ── Filter panel toggle ── */
+  toggleFiltros(): void {
+    this.mostrarFiltros = !this.mostrarFiltros;
+  }
+
+  /* ── Search ── */
   alEscribirBusqueda(): void {
     clearTimeout(this.busquedaTimer);
     this.busquedaTimer = setTimeout(() => {
@@ -132,7 +170,6 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  /** Ventana de páginas numeradas alrededor de la actual. */
   paginasVisibles(): number[] {
     const total = this.pages;
     const actual = this.page;
@@ -144,6 +181,7 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
     return rango;
   }
 
+  /* ── Data loading ── */
   cargar(silencioso = false): void {
     if (!silencioso) this.loading = true;
     const params: Record<string, string | undefined> = {
@@ -186,7 +224,7 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
       });
   }
 
-  private sincronizarFiltrosDinamicos(
+  sincronizarFiltrosDinamicos(
     filtrables: { id: string; nombre: string; tipo: string; opciones: { valor: string }[] }[],
   ): void {
     this.filtrosDinamicos = filtrables.map((f) => ({
@@ -264,18 +302,43 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
     this.mostrarModalImportar = true;
     this.archivoImportar = null;
     this.resultadoImportar = null;
+    this.arrastrandoArchivo = false;
   }
 
   cerrarModalImportar(): void {
     this.mostrarModalImportar = false;
     this.archivoImportar = null;
     this.resultadoImportar = null;
+    this.arrastrandoArchivo = false;
   }
 
   onArchivoSeleccionado(event: Event): void {
     const input = event.target as HTMLInputElement;
     this.archivoImportar = input.files?.[0] ?? null;
     this.resultadoImportar = null;
+  }
+
+  onDragOver(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.arrastrandoArchivo = true;
+  }
+
+  onDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.arrastrandoArchivo = false;
+  }
+
+  onDrop(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.arrastrandoArchivo = false;
+    const file = event.dataTransfer?.files?.[0];
+    if (file) {
+      this.archivoImportar = file;
+      this.resultadoImportar = null;
+    }
   }
 
   ejecutarImportar(): void {
