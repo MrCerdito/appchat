@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
 import { Colegio, SessionService } from '../../../../../../core/services/session.service';
 import { NotificationService } from '../../../../../../core/services/notification.service';
@@ -17,7 +18,7 @@ import { NotificationService } from '../../../../../../core/services/notificatio
 @Component({
   selector: 'app-colegios-config',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './colegios-config.html',
   styleUrl: './colegios-config.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
