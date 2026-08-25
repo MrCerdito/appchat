@@ -579,7 +579,16 @@ export class PerfilInstitucionalService {
       ];
       for (const [, cat] of categorias) {
         for (const campo of campos.filter(f => f.categoriaId && categoriasMap.has(f.categoriaId) && categoriasMap.get(f.categoriaId)!.nombre === cat.nombre)) {
-          row.push(vals.get(campo.id) ?? '');
+          let val = vals.get(campo.id) ?? '';
+          if (campo.tipo === 'booleano' && val) {
+            const lower = val.toLowerCase().trim();
+            if (lower === 'true' || lower === 'sí' || lower === 'si' || lower === 'activo') {
+              val = 'Sí';
+            } else if (lower === 'false' || lower === 'no' || lower === 'inactivo') {
+              val = 'No';
+            }
+          }
+          row.push(val);
         }
       }
       ws.addRow(row);
@@ -620,7 +629,16 @@ export class PerfilInstitucionalService {
       ws.addRow([grupo.categoriaNombre]).font = { bold: true, size: 12, color: { argb: 'FF2563EB' } };
       ws.addRow([grupo.categoriaNombre]).border = { bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } } };
       for (const item of grupo.campos) {
-        ws.addRow([item.campo.nombre, item.valor ?? '—']);
+        let val = item.valor ?? '—';
+        if (item.campo.tipo === 'booleano' && item.valor) {
+          const lower = item.valor.toLowerCase().trim();
+          if (lower === 'true' || lower === 'sí' || lower === 'si' || lower === 'activo') {
+            val = 'Sí';
+          } else if (lower === 'false' || lower === 'no' || lower === 'inactivo') {
+            val = 'No';
+          }
+        }
+        ws.addRow([item.campo.nombre, val]);
       }
     }
 
@@ -682,8 +700,8 @@ export class PerfilInstitucionalService {
       const emailVal = this.getCellValue(row.getCell(2)) || '';
       const calendarioVal = this.getCellValue(row.getCell(4)) || null;
       const tipoVal = this.getCellValue(row.getCell(5)) || null;
-      const activoVal = this.getCellValue(row.getCell(7)) || 'Sí';
-      const activoBool = activoVal.toLowerCase() !== 'no' && activoVal.toLowerCase() !== 'false';
+      const activoVal = this.getCellValue(row.getCell(7)).toLowerCase().trim();
+      const activoBool = activoVal === 'sí' || activoVal === 'si' || activoVal === 'true' || activoVal === 'activo' || activoVal === 'yes' || activoVal === 's' || activoVal === '';
 
       if (!colegio) {
         const nuevo = this.colegioRepo.create({
@@ -745,18 +763,35 @@ export class PerfilInstitucionalService {
         if (!campo) continue;
         
         const cellVal = this.getCellValue(row.getCell(c + 1));
-        const nuevoVal = cellVal === '' ? null : cellVal;
+        let nuevoVal = cellVal === '' ? null : cellVal;
+        
+        if (campo.tipo === 'booleano' && nuevoVal) {
+          const lower = nuevoVal.toLowerCase().trim();
+          if (lower === 'sí' || lower === 'si' || lower === 'true' || lower === 'activo' || lower === 'yes' || lower === 's') {
+            nuevoVal = 'true';
+          } else if (lower === 'no' || lower === 'false' || lower === 'inactivo' || lower === 'n') {
+            nuevoVal = 'false';
+          }
+        }
         
         const currentVal = currentValores.find(v => v.campoId === campo.id);
         const anteriorVal = currentVal?.valor ?? null;
 
         if (anteriorVal !== nuevoVal) {
           valoresToSave.push({ campoId: campo.id, valor: nuevoVal });
+          
+          let showAnterior = anteriorVal;
+          let showNuevo = nuevoVal;
+          if (campo.tipo === 'booleano') {
+            showAnterior = (anteriorVal === 'true') ? 'Sí' : (anteriorVal === 'false' ? 'No' : anteriorVal);
+            showNuevo = (nuevoVal === 'true') ? 'Sí' : (nuevoVal === 'false' ? 'No' : nuevoVal);
+          }
+
           logs.push({ 
             colegio: nombre, 
             campo: campo.nombre, 
-            anterior: anteriorVal, 
-            nuevo: nuevoVal, 
+            anterior: showAnterior, 
+            nuevo: showNuevo, 
             estado: 'exito', 
             detalle: 'Valor actualizado' 
           });
