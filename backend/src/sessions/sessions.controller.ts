@@ -89,19 +89,19 @@ export class CreateColegioDto {
   @Length(1, 500)
   link: string;
 
-  @IsEmail()
+  @IsString()
   @IsOptional()
   @MaxLength(200)
   email?: string;
 
   @IsString()
   @IsOptional()
-  @IsIn(['A', 'B', ''])
+  @MaxLength(50)
   calendario?: string;
 
   @IsString()
   @IsOptional()
-  @IsIn(['Sian365', 'ControlAcademic', ''])
+  @MaxLength(100)
   tipoColegio?: string;
 
   @IsUUID()
@@ -120,19 +120,19 @@ export class UpdateColegioDto {
   @Length(1, 500)
   link?: string;
 
-  @IsEmail()
+  @IsString()
   @IsOptional()
   @MaxLength(200)
   email?: string;
 
   @IsString()
   @IsOptional()
-  @IsIn(['A', 'B', ''])
+  @MaxLength(50)
   calendario?: string;
 
   @IsString()
   @IsOptional()
-  @IsIn(['Sian365', 'ControlAcademic', ''])
+  @MaxLength(100)
   tipoColegio?: string;
 
   @IsUUID()

@@ -150,19 +150,11 @@
       <div class="tmc-form__grid">
         <div class="tmc-field">
           <label for="col-calendario">Calendario</label>
-          <select id="col-calendario" [(ngModel)]="form.calendario">
-            <option value="">Sin definir</option>
-            <option value="A">Calendario A</option>
-            <option value="B">Calendario B</option>
-          </select>
+          <input id="col-calendario" type="text" [(ngModel)]="form.calendario" placeholder="A, B, 0, etc." maxlength="50"/>
         </div>
         <div class="tmc-field">
           <label for="col-tipo">Proyecto</label>
-          <select id="col-tipo" [(ngModel)]="form.tipoColegio">
-            <option value="">Sin definir</option>
-            <option value="Sian365">Sian365</option>
-            <option value="ControlAcademic">ControlAcademic</option>
-          </select>
+          <input id="col-tipo" type="text" [(ngModel)]="form.tipoColegio" placeholder="Sian365, Control Académico, etc." maxlength="100"/>
         </div>
       </div>
       <div class="tmc-field">
