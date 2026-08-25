@@ -73,13 +73,25 @@ export class SessionsService {
       codigo = this.generarCodigo();
       exists = await this.sessionRepo.findOneBy({ codigo });
     }
+    // El link oficial es el registrado en el catálogo de colegios; el origen
+    // de la página donde se abrió el chat solo es respaldo.
+    let colegioLink = data.colegioLink ?? null;
+    if (data.colegio?.trim()) {
+      const colegio = await this.colegioRepo
+        .createQueryBuilder('c')
+        .where('LOWER(TRIM(c.nombre)) = :nombre', {
+          nombre: data.colegio.trim().toLowerCase(),
+        })
+        .getOne();
+      if (colegio?.link) colegioLink = colegio.link;
+    }
     const session = this.sessionRepo.create({
       clientName: data.clientName,
       identificacion: data.identificacion,
       apellido: data.apellido,
       rol: data.rol,
       colegio: data.colegio ?? '',
-      colegioLink: data.colegioLink,
+      colegioLink,
       email: data.email,
       celular: data.celular,
       tipoSolicitud: data.tipoSolicitud,
