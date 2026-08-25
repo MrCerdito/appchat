@@ -1,15 +1,15 @@
 <div class="pi-page">
 
-  <!-- ════════════════════════════════════════════════ HEADER ════════════════════════════════════════════════ -->
-  <header class="pi-header">
-    <div class="pi-header-icon">
-      <lucide-icon [img]="icons.Building2" [size]="28" />
+  <!-- ═══════════════════════════════════════ BANNER HEADER ═══════════════════════════════════════ -->
+  <header class="pi-banner">
+    <div class="pi-banner-bg">
+      <div class="pi-banner-icon">
+        <lucide-icon [img]="icons.Building2" [size]="40" />
+      </div>
+      <h1 class="pi-banner-title">Perfil Institucional</h1>
+      <p class="pi-banner-sub">Consulta y administra la informaci&oacute;n de las instituciones.</p>
     </div>
-    <div class="pi-header-text">
-      <h1>Perfil Institucional</h1>
-      <p>Consulta y administra la informaci&oacute;n de las instituciones.</p>
-    </div>
-    <div class="pi-header-actions">
+    <div class="pi-banner-actions">
       <button type="button" class="pi-btn pi-btn-outline" (click)="mostrarModalExportar = true" [disabled]="exportando" aria-label="Exportar instituciones">
         <lucide-icon [img]="icons.Download" [size]="16" /> Exportar
       </button>
@@ -22,35 +22,37 @@
     </div>
   </header>
 
-  <!-- ═══════════════════════════════════════ SEARCH + DROPDOWNS ═══════════════════════════════════════ -->
-  <div class="pi-toolbar-row">
-    <div class="pi-search">
-      <lucide-icon [img]="icons.Search" [size]="18" />
-      <input type="text" placeholder="Buscar por nombre, correo, enlace..."
-        [(ngModel)]="q" (input)="alEscribirBusqueda()" (keyup.enter)="buscar()" aria-label="Buscar instituciones" />
-      @if (q) {
-        <button type="button" class="pi-search-clear" (click)="limpiarBusqueda()" title="Limpiar b&uacute;squeda">
-          <lucide-icon [img]="icons.X" [size]="12" />
-        </button>
-      }
+  <!-- ═══════════════════════════════════════ SEARCH + TOOLBAR ═══════════════════════════════════════ -->
+  <div class="pi-toolbar">
+    <div class="pi-toolbar-search">
+      <div class="pi-search">
+        <lucide-icon [img]="icons.Search" [size]="18" />
+        <input type="text" placeholder="Buscar por nombre, correo, enlace..."
+          [(ngModel)]="q" (input)="alEscribirBusqueda()" (keyup.enter)="buscar()" aria-label="Buscar instituciones" />
+        @if (q) {
+          <button type="button" class="pi-search-clear" (click)="limpiarBusqueda()" title="Limpiar b&uacute;squeda">
+            <lucide-icon [img]="icons.X" [size]="12" />
+          </button>
+        }
+      </div>
     </div>
-
-    <div class="pi-dropdown">
-      <span class="pi-dropdown-label">Ordenar por</span>
-      <select class="pi-dropdown-trigger" [(ngModel)]="orden" (change)="alCambiarFiltros()" aria-label="Ordenar por">
-        <option value="nombre">Nombre A &rarr; Z</option>
-        <option value="nombre-desc">Nombre Z &rarr; A</option>
-      </select>
-    </div>
-
-    <div class="pi-dropdown">
-      <span class="pi-dropdown-label">Por p&aacute;gina</span>
-      <select class="pi-dropdown-trigger" [(ngModel)]="limitePorPagina" (change)="alCambiarFiltros()" aria-label="Resultados por p&aacute;gina">
-        <option [value]="15">15</option>
-        <option [value]="20">20</option>
-        <option [value]="50">50</option>
-        <option [value]="100">100</option>
-      </select>
+    <div class="pi-toolbar-controls">
+      <div class="pi-dropdown">
+        <span class="pi-dropdown-label">Ordenar por</span>
+        <select class="pi-dropdown-trigger" [(ngModel)]="orden" (change)="alCambiarFiltros()" aria-label="Ordenar por">
+          <option value="nombre">Nombre A &rarr; Z</option>
+          <option value="nombre-desc">Nombre Z &rarr; A</option>
+        </select>
+      </div>
+      <div class="pi-dropdown">
+        <span class="pi-dropdown-label">Por p&aacute;gina</span>
+        <select class="pi-dropdown-trigger" [(ngModel)]="limitePorPagina" (change)="alCambiarFiltros()" aria-label="Resultados por p&aacute;gina">
+          <option [value]="15">15</option>
+          <option [value]="20">20</option>
+          <option [value]="50">50</option>
+          <option [value]="100">100</option>
+        </select>
+      </div>
     </div>
   </div>
 
@@ -62,7 +64,7 @@
         <span>Filtros</span>
         @if (hayFiltros) {
           <span class="pi-filter-count">
-            {{ filtroCalendario.size + filtroTipo.size + (filtroEstado ? 1 : 0) + (q ? 1 : 0) }}
+            {{ filtroCalendario.size + filtroTipo.size + (filtroEstado ? 1 : 0) + filtroAsesor.size + (q ? 1 : 0) }}
           </span>
         }
       </div>
@@ -133,24 +135,25 @@
           </div>
         </div>
 
-        <!-- Asesor -->
+        <!-- Asesores responsables -->
         @if (asesoresDisponibles.length > 0) {
           <div class="pi-filter-section">
             <div class="pi-filter-section-title">
               <lucide-icon [img]="icons.User" [size]="14" /> Asesores responsables
             </div>
-            <div class="pi-asesor-list">
+            <div class="pi-filter-options pi-filter-options--scroll">
               @for (asesor of asesoresDisponibles; track asesor) {
-                <div class="pi-asesor-item">
-                  <span class="pi-asesor-avatar">{{ asesor.charAt(0) }}</span>
-                  <span class="pi-asesor-name">{{ asesor }}</span>
-                </div>
+                <label class="pi-filter-option" [class.active]="filtroAsesor.has(asesor)" (click)="toggleAsesor(asesor)">
+                  <input type="checkbox" [checked]="filtroAsesor.has(asesor)" />
+                  <span class="pi-asesor-avatar-sm">{{ asesor.charAt(0) }}</span>
+                  <span>{{ asesor }}</span>
+                </label>
               }
             </div>
           </div>
         }
 
-        <!-- Dynamic filters -->
+        <!-- Campos personalizados -->
         @if (filtrosDinamicos.length > 0) {
           <div class="pi-filter-section pi-filter-section--dynamic">
             <div class="pi-filter-section-title">
@@ -160,26 +163,23 @@
               <div class="pi-filter-group">
                 <span class="pi-filter-label">{{ f.nombre }}</span>
                 @if (f.tipo === 'booleano') {
-                  <div class="pi-pills">
-                    <button type="button" class="pi-pill"
-                      [class.pi-pill--active]="valoresFiltros[f.campoId] === 'true'"
-                      (click)="valoresFiltros[f.campoId] = valoresFiltros[f.campoId] === 'true' ? '' : 'true'; alCambiarFiltros()">
-                      Activo
-                    </button>
-                    <button type="button" class="pi-pill"
-                      [class.pi-pill--active]="valoresFiltros[f.campoId] === 'false'"
-                      (click)="valoresFiltros[f.campoId] = valoresFiltros[f.campoId] === 'false' ? '' : 'false'; alCambiarFiltros()">
-                      Inactivo
-                    </button>
+                  <div class="pi-filter-options">
+                    <label class="pi-filter-option" [class.active]="valoresFiltros[f.campoId] === 'true'" (click)="valoresFiltros[f.campoId] = valoresFiltros[f.campoId] === 'true' ? '' : 'true'; alCambiarFiltros()">
+                      <input type="checkbox" [checked]="valoresFiltros[f.campoId] === 'true'" />
+                      <span>Activo</span>
+                    </label>
+                    <label class="pi-filter-option" [class.active]="valoresFiltros[f.campoId] === 'false'" (click)="valoresFiltros[f.campoId] = valoresFiltros[f.campoId] === 'false' ? '' : 'false'; alCambiarFiltros()">
+                      <input type="checkbox" [checked]="valoresFiltros[f.campoId] === 'false'" />
+                      <span>Inactivo</span>
+                    </label>
                   </div>
                 } @else if (f.tipo === 'lista') {
-                  <div class="pi-pills">
+                  <div class="pi-filter-options">
                     @for (op of f.opciones; track op) {
-                      <button type="button" class="pi-pill"
-                        [class.pi-pill--active]="valoresFiltros[f.campoId] === op"
-                        (click)="valoresFiltros[f.campoId] = valoresFiltros[f.campoId] === op ? '' : op; alCambiarFiltros()">
-                        {{ op }}
-                      </button>
+                      <label class="pi-filter-option" [class.active]="valoresFiltros[f.campoId] === op" (click)="valoresFiltros[f.campoId] = valoresFiltros[f.campoId] === op ? '' : op; alCambiarFiltros()">
+                        <input type="checkbox" [checked]="valoresFiltros[f.campoId] === op" />
+                        <span>{{ op }}</span>
+                      </label>
                     }
                   </div>
                 }
@@ -219,31 +219,29 @@
           </button>
         </span>
       }
+      @for (asesor of filtroAsesor; track asesor) {
+        <span class="pi-chip">
+          Asesor: {{ asesor }}
+          <button type="button" (click)="toggleAsesor(asesor)" [attr.aria-label]="'Quitar filtro asesor ' + asesor">
+            <lucide-icon [img]="icons.X" [size]="12" />
+          </button>
+        </span>
+      }
     </div>
   }
 
-  <!-- ═══════════════════════════════════════ RESULTS TOOLBAR ═══════════════════════════════════════ -->
+  <!-- ═══════════════════════════════════════ RESULTS BAR ═══════════════════════════════════════ -->
   @if (!loading && instituciones.length > 0) {
     <div class="pi-results-bar">
       <div class="pi-results-count">
         <lucide-icon [img]="icons.Building2" [size]="18" />
         <span><strong>{{ total }}</strong> instituciones encontradas</span>
       </div>
-      <div class="pi-results-controls">
-        <div class="pi-view-toggle">
-          <button type="button" [class.active]="vistaMode === 'grid'" (click)="vistaMode = 'grid'" title="Vista cuadr&iacute;cula" aria-label="Cambiar a vista cuadr&iacute;cula">
-            <lucide-icon [img]="icons.LayoutGrid" [size]="16" /> Cuadr&iacute;cula
-          </button>
-          <button type="button" [class.active]="vistaMode === 'list'" (click)="vistaMode = 'list'" title="Vista lista" aria-label="Cambiar a vista lista">
-            <lucide-icon [img]="icons.List" [size]="16" /> Lista
-          </button>
-        </div>
-      </div>
     </div>
   }
 
   <!-- ═══════════════════════════════════════ GRID VIEW ═══════════════════════════════════════ -->
-  @if (!loading && instituciones.length > 0 && vistaMode === 'grid') {
+  @if (!loading && instituciones.length > 0) {
     <div class="pi-grid">
       @for (inst of instituciones; track inst.id) {
         <div class="pi-card" (click)="verInstitucion(inst.id)" role="button" tabindex="0" (keydown.enter)="verInstitucion(inst.id)">
@@ -300,58 +298,6 @@
               </button>
             </div>
           }
-        </div>
-      }
-    </div>
-  }
-
-  <!-- ═══════════════════════════════════════ LIST VIEW ═══════════════════════════════════════ -->
-  @if (!loading && instituciones.length > 0 && vistaMode === 'list') {
-    <div class="pi-list">
-      <div class="pi-list-header">
-        <span></span>
-        <span>Instituci&oacute;n</span>
-        <span>Calendario</span>
-        <span>Tipo</span>
-        <span>Estado</span>
-        <span>Asesor</span>
-        <span></span>
-      </div>
-      @for (inst of instituciones; track inst.id) {
-        <div class="pi-list-row" (click)="verInstitucion(inst.id)" role="button" tabindex="0" (keydown.enter)="verInstitucion(inst.id)">
-          <div class="pi-list-logo">
-            @if (inst.logoUrl) {
-              <img [src]="inst.logoUrl" [alt]="inst.nombre" loading="lazy" />
-            } @else {
-              <span class="pi-list-initials">{{ iniciales(inst.nombre) }}</span>
-            }
-          </div>
-          <div class="pi-list-name" [title]="inst.nombre">{{ inst.nombre }}</div>
-          <div class="pi-list-cell">
-            @if (inst.calendario) {
-              <span class="pi-badge pi-badge--cal-{{ inst.calendario === 'A' ? 'a' : 'b' }}">{{ inst.calendario }}</span>
-            } @else {
-              &mdash;
-            }
-          </div>
-          <div class="pi-list-cell">
-            @if (inst.tipoColegio) {
-              <span class="pi-badge" [class.pi-badge--tipo-sian]="inst.tipoColegio === 'Sian365'" [class.pi-badge--tipo-ctrl]="inst.tipoColegio === 'ControlAcademic'">
-                {{ inst.tipoColegio === 'Sian365' ? 'Sian365' : 'Ctrl' }}
-              </span>
-            } @else {
-              &mdash;
-            }
-          </div>
-          <div class="pi-list-cell">
-            <span class="pi-list-status" [class.active]="inst.activo" [class.inactive]="!inst.activo"></span>
-          </div>
-          <div class="pi-list-cell">{{ inst.advisorNombre ?? '&mdash;' }}</div>
-          <div class="pi-list-actions">
-            <button type="button" class="pi-btn-icon" (click)="toggleMenu(inst.id); $event.stopPropagation()" title="Acciones" aria-label="Acciones de la instituci&oacute;n">
-              <lucide-icon [img]="icons.MoreVertical" [size]="16" />
-            </button>
-          </div>
         </div>
       }
     </div>

@@ -54,55 +54,60 @@
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 2. Header
+// 2. Banner Header
 // ══════════════════════════════════════════════════════════════════════════════
-.pi-header {
-  display: flex;
-  align-items: center;
-  gap: 20px;
+.pi-banner {
   margin-bottom: 28px;
 }
 
-.pi-header-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
-  background: $pi-surface;
+.pi-banner-bg {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.06) 0%, rgba(37, 99, 235, 0.02) 60%, transparent 100%);
   border: 1px solid $pi-border;
+  border-radius: $pi-radius-xl;
+  padding: 40px 32px 32px;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.pi-banner-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 20px;
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px solid rgba(37, 99, 235, 0.12);
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
+  margin: 0 auto 18px;
   color: $pi-primary;
+  animation: scaleIn 400ms ease;
 
   svg {
-    width: 26px;
-    height: 26px;
+    width: 36px;
+    height: 36px;
   }
 }
 
-.pi-header-text {
-  h1 {
-    margin: 0;
-    font-size: 28px;
-    font-weight: 700;
-    color: $pi-text;
-    letter-spacing: -0.02em;
-    line-height: 1.2;
-  }
-
-  p {
-    margin: 4px 0 0;
-    font-size: 14px;
-    color: $pi-text-secondary;
-  }
+.pi-banner-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: $pi-text;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
-.pi-header-actions {
+.pi-banner-sub {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: $pi-text-secondary;
+}
+
+.pi-banner-actions {
   display: flex;
+  justify-content: center;
   gap: 10px;
-  margin-left: auto;
-  flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -194,14 +199,24 @@
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 4. Search Bar
+// 4. Toolbar
 // ══════════════════════════════════════════════════════════════════════════════
-.pi-toolbar-row {
-  display: grid;
-  grid-template-columns: 1fr auto auto;
+.pi-toolbar {
+  display: flex;
+  flex-direction: column;
   gap: 12px;
-  align-items: end;
   margin-bottom: 20px;
+}
+
+.pi-toolbar-search {
+  width: 100%;
+}
+
+.pi-toolbar-controls {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
 }
 
 .pi-search {
@@ -544,55 +559,18 @@
   }
 }
 
-.pi-asesor-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  max-height: 200px;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: $pi-slate-200 transparent;
-
-  &::-webkit-scrollbar {
-    width: 4px;
-  }
-  &::-webkit-scrollbar-thumb {
-    background: $pi-slate-200;
-    border-radius: 2px;
-  }
-}
-
-.pi-asesor-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  border-radius: 6px;
-  transition: background 150ms ease;
-
-  &:hover {
-    background: $pi-slate-50;
-  }
-}
-
-.pi-asesor-avatar {
-  width: 24px;
-  height: 24px;
+.pi-asesor-avatar-sm {
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   background: rgba(37, 99, 235, 0.1);
   color: $pi-primary;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-}
-
-.pi-asesor-name {
-  font-size: 13px;
-  color: $pi-text;
-  font-weight: 500;
 }
 
 .pi-filter-group {
@@ -768,74 +746,6 @@
   strong {
     color: $pi-text;
     font-weight: 700;
-  }
-}
-
-.pi-results-controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.pi-view-toggle {
-  display: flex;
-  background: $pi-slate-100;
-  border-radius: 10px;
-  padding: 3px;
-
-  button {
-    height: 34px;
-    padding: 0 12px;
-    border-radius: 8px;
-    border: none;
-    background: transparent;
-    cursor: pointer;
-    transition: all 150ms ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    font-size: 13px;
-    font-weight: 500;
-    font-family: inherit;
-    color: $pi-text-secondary;
-
-    svg {
-      width: 16px;
-      height: 16px;
-    }
-
-    &.active {
-      background: $pi-surface;
-      color: $pi-text;
-      box-shadow: $pi-shadow-sm;
-    }
-
-    &:hover:not(.active) {
-      color: $pi-slate-700;
-    }
-  }
-}
-
-.pi-per-page-select {
-  height: 34px;
-  padding: 0 28px 0 10px;
-  border-radius: $pi-radius-sm;
-  border: 1px solid $pi-border;
-  background: $pi-surface;
-  color: $pi-text;
-  font-size: 13px;
-  font-family: inherit;
-  appearance: none;
-  cursor: pointer;
-  outline: none;
-  transition: border-color 150ms ease;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 5l3 3 3-3'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 8px center;
-
-  &:focus {
-    border-color: $pi-primary;
   }
 }
 
@@ -1113,117 +1023,7 @@
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 13. List View (Table)
-// ══════════════════════════════════════════════════════════════════════════════
-.pi-list {
-  background: $pi-surface;
-  border: 1px solid $pi-border;
-  border-radius: $pi-radius-xl;
-  overflow: hidden;
-}
-
-.pi-list-header {
-  display: grid;
-  grid-template-columns: 50px 2fr 100px 120px 100px 140px 50px;
-  gap: 12px;
-  align-items: center;
-  padding: 12px 18px;
-  background: $pi-bg;
-  border-bottom: 1px solid $pi-border;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: $pi-text-secondary;
-}
-
-.pi-list-row {
-  display: grid;
-  grid-template-columns: 50px 2fr 100px 120px 100px 140px 50px;
-  gap: 12px;
-  align-items: center;
-  padding: 12px 18px;
-  border-bottom: 1px solid $pi-border-light;
-  transition: background 120ms ease;
-  cursor: pointer;
-
-  &:last-child {
-    border-bottom: none;
-  }
-
-  &:hover {
-    background: $pi-slate-50;
-  }
-}
-
-.pi-list-logo {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  overflow: hidden;
-  background: $pi-slate-50;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid $pi-border-light;
-  flex-shrink: 0;
-
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-  }
-}
-
-.pi-list-initials,
-.pi-list-logo-initials {
-  font-size: 11px;
-  font-weight: 700;
-  color: #ffffff;
-  background: $pi-primary;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.pi-list-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: $pi-text;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.pi-list-cell {
-  font-size: 13px;
-  color: $pi-slate-600;
-}
-
-.pi-list-status {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-
-  &.active {
-    background: $pi-green-500;
-  }
-
-  &.inactive {
-    background: $pi-slate-300;
-  }
-}
-
-.pi-list-actions {
-  display: flex;
-  gap: 4px;
-  justify-content: center;
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// 14. Skeleton Loaders
+// 13. Skeleton Loaders
 // ══════════════════════════════════════════════════════════════════════════════
 .pi-skeleton {
   border-radius: inherit;
