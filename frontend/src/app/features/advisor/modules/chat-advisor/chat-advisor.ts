@@ -21,6 +21,11 @@ import { takeUntil } from 'rxjs/operators';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AiService } from '../../../../core/services/ai.service';
 import { ConfiguracionFrontendService } from '../../../../core/services/configuracion.service';
+import {
+  PerfilInstitucionalService,
+  PiCampo,
+  PiFicha,
+} from '../../../../core/services/perfil-institucional.service';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
 import { priorityLabel } from '../../../../shared/utils/ticket-categories';
 import { scrollToBottom } from '../../../../shared/utils/scroll';
@@ -172,6 +177,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   constructor(
     private socket      : SocketService,
     private sessionService: SessionService,
+    private piService   : PerfilInstitucionalService,
     private auth        : AuthService,
     private state       : ChatStateService,
     private ticketService: TicketService,
@@ -1652,12 +1658,79 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   /** Mapa nombre de colegio → id para navegar al Perfil Institucional. */
   protected colegiosMap = new Map<string, string>();
 
+  /** Resuelve el id del colegio de la sesión a partir del catálogo cargado. */
+  private colegioIdDe(session?: Session | null): string | null {
+    const nombre = session?.colegio?.trim();
+    if (!nombre) return null;
+    return this.colegiosMap.get(nombre.toLowerCase()) ?? null;
+  }
+
   /** Ruta interna al Perfil Institucional del colegio de la sesión ([] si no se resolvió). */
   perfilInstitucionalLink(session?: Session | null): string[] {
-    const nombre = session?.colegio?.trim();
-    if (!nombre) return [];
-    const id = this.colegiosMap.get(nombre.toLowerCase());
+    const id = this.colegioIdDe(session);
     return id ? ['/dashboard', 'perfil-institucional', id] : [];
+  }
+
+  // ── Modal de información del colegio (solo lectura) ────────────────────────
+
+  infoColegioAbierta = false;
+  infoCargando = false;
+  infoFicha: PiFicha | null = null;
+
+  abrirInfoColegio(session?: Session | null): void {
+    const id = this.colegioIdDe(session);
+    if (!id) return;
+    this.infoColegioAbierta = true;
+    this.infoCargando = true;
+    this.infoFicha = null;
+    this.cdr.detectChanges();
+    this.piService.obtenerFicha(id)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: ficha => {
+          this.infoFicha = ficha;
+          this.infoCargando = false;
+          this.cdr.detectChanges();
+        },
+        error: () => {
+          this.infoCargando = false;
+          this.notification.error('Error', 'No se pudo cargar la información del colegio.');
+          this.cdr.detectChanges();
+        },
+      });
+  }
+
+  cerrarInfoColegio(): void {
+    this.infoColegioAbierta = false;
+    this.infoFicha = null;
+  }
+
+  infoIniciales(nombre: string): string {
+    const palabras = nombre.trim().split(/\s+/).filter(p => p.length > 1).slice(0, 2);
+    return palabras.length ? palabras.map(p => p[0]!.toUpperCase()).join('') : '?';
+  }
+
+  infoEsActivo(item: { campo: PiCampo; valor: string | null }): boolean {
+    return item.valor === 'true';
+  }
+
+  /** Valor listo para mostrar: fechas formateadas, vacíos como "—". */
+  infoValor(item: { campo: PiCampo; valor: string | null }): string {
+    if (!item.valor) return '—';
+    if (item.campo.tipo === 'fecha') {
+      const d = new Date(`${item.valor}T00:00:00`);
+      return isNaN(d.getTime()) ? item.valor : d.toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' });
+    }
+    return item.valor;
+  }
+
+  /** Normaliza un valor a enlace clicable (mailto:/https://). */
+  infoEnlace(valor: string | null): string {
+    const v = (valor ?? '').trim();
+    if (!v) return '';
+    if (/^(https?:\/\/|mailto:)/i.test(v)) return v;
+    if (v.includes('@') && !v.includes('/')) return `mailto:${v}`;
+    return `https://${v}`;
   }
 
   openClientLink(session?: Session | null): string {

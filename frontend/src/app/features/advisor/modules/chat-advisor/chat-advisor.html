@@ -677,19 +677,31 @@
         </div>
         <div class="info-row">
           <span class="info-lbl">Colegio</span>
-          @if (perfilInstitucionalLink(activeSession).length) {
-          <a class="info-link" [routerLink]="perfilInstitucionalLink(activeSession)"
-             title="Ver Perfil Institucional del colegio">
-            {{ activeSession.colegio || 'Sin colegio' }}
-          </a>
-          } @else if (openClientLink(activeSession)) {
-          <a class="info-link" [href]="openClientLink(activeSession)" target="_blank" rel="noopener noreferrer"
-             title="Abrir sitio web del colegio">
-            {{ activeSession.colegio || 'Sin colegio' }}
-          </a>
-          } @else {
-          <span class="info-val">{{ activeSession.colegio || 'Sin colegio' }}</span>
-          }
+          <div class="info-val-line">
+            @if (perfilInstitucionalLink(activeSession).length) {
+            <a class="info-link" [routerLink]="perfilInstitucionalLink(activeSession)"
+               title="Ver Perfil Institucional del colegio">
+              {{ activeSession.colegio || 'Sin colegio' }}
+            </a>
+            } @else if (openClientLink(activeSession)) {
+            <a class="info-link" [href]="openClientLink(activeSession)" target="_blank" rel="noopener noreferrer"
+               title="Abrir sitio web del colegio">
+              {{ activeSession.colegio || 'Sin colegio' }}
+            </a>
+            } @else {
+            <span class="info-val">{{ activeSession.colegio || 'Sin colegio' }}</span>
+            }
+            @if (perfilInstitucionalLink(activeSession).length) {
+            <button type="button" class="ci-info-btn" (click)="abrirInfoColegio(activeSession)"
+                    title="Información institucional del colegio" aria-label="Ver información institucional">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+              </svg>
+            </button>
+            }
+          </div>
         </div>
         @if (activeSession.colegioAdvisorName) {
         <div class="info-row">
@@ -937,6 +949,117 @@
         </svg>
       </button>
     </figure>
+  </div>
+  }
+
+  <!-- Modal: información institucional del colegio (solo lectura) -->
+  @if (infoColegioAbierta) {
+  <div class="ci-backdrop" (click)="cerrarInfoColegio()">
+    <section class="ci-modal" role="dialog" aria-modal="true" aria-label="Información institucional del colegio"
+             (click)="$event.stopPropagation()">
+      @if (infoCargando) {
+      <div class="ci-cargando">
+        <span class="ci-spinner"></span>
+        Cargando información del colegio…
+      </div>
+      } @else if (infoFicha) {
+      <header class="ci-header">
+        @if (infoFicha.institucion.logoUrl) {
+        <img class="ci-logo" [src]="infoFicha.institucion.logoUrl" [alt]="infoFicha.institucion.nombre" />
+        } @else {
+        <span class="ci-logo ci-logo--fallback">{{ infoIniciales(infoFicha.institucion.nombre) }}</span>
+        }
+        <div class="ci-titular">
+          <h3>{{ infoFicha.institucion.nombre }}</h3>
+          <div class="ci-chips">
+            <span class="ci-chip"
+                  [class.ci-chip--on]="infoFicha.institucion.activo"
+                  [class.ci-chip--off]="!infoFicha.institucion.activo">
+              {{ infoFicha.institucion.activo ? 'Activo' : 'Inactivo' }}
+            </span>
+            @if (infoFicha.institucion.calendario) {
+            <span class="ci-chip">Calendario {{ infoFicha.institucion.calendario }}</span>
+            }
+            @if (infoFicha.institucion.tipoColegio) {
+            <span class="ci-chip">{{ infoFicha.institucion.tipoColegio }}</span>
+            }
+          </div>
+        </div>
+        <button type="button" class="ci-close" (click)="cerrarInfoColegio()" title="Cerrar" aria-label="Cerrar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </header>
+
+      <div class="ci-body">
+        <dl class="ci-datos">
+          <div class="ci-dato">
+            <dt>Correo</dt>
+            <dd>
+              @if (infoFicha.institucion.email) {
+              <a [href]="'mailto:' + infoFicha.institucion.email">{{ infoFicha.institucion.email }}</a>
+              } @else { <span class="ci-vacio-val">—</span> }
+            </dd>
+          </div>
+          <div class="ci-dato">
+            <dt>Sitio web</dt>
+            <dd>
+              @if (infoFicha.institucion.link) {
+              <a [href]="infoEnlace(infoFicha.institucion.link)" target="_blank" rel="noopener noreferrer">
+                {{ infoFicha.institucion.link }}
+              </a>
+              } @else { <span class="ci-vacio-val">—</span> }
+            </dd>
+          </div>
+          <div class="ci-dato">
+            <dt>Asesor asignado</dt>
+            <dd>{{ infoFicha.institucion.advisorNombre ?? '—' }}</dd>
+          </div>
+        </dl>
+
+        @for (grupo of infoFicha.grupos; track grupo.categoriaId) {
+        <h4 class="ci-grupo-titulo">{{ grupo.categoriaNombre }}</h4>
+        <dl class="ci-datos">
+          @for (item of grupo.campos; track item.campo.id) {
+          <div class="ci-dato">
+            <dt>{{ item.campo.nombre }}</dt>
+            <dd>
+              @if (!item.valor) {
+              <span class="ci-vacio-val">—</span>
+              } @else if (item.campo.tipo === 'booleano') {
+              <span class="ci-estado" [class.ci-estado--on]="infoEsActivo(item)" [class.ci-estado--off]="!infoEsActivo(item)">
+                ● {{ infoEsActivo(item) ? 'Sí' : 'No' }}
+              </span>
+              } @else if (item.campo.tipo === 'url') {
+              <a [href]="infoEnlace(item.valor)" target="_blank" rel="noopener noreferrer">{{ item.valor }}</a>
+              } @else if (item.campo.tipo === 'email') {
+              <a [href]="infoEnlace(item.valor)">{{ item.valor }}</a>
+              } @else if (item.campo.tipo === 'archivo') {
+              <a [href]="infoEnlace(item.valor)" target="_blank" rel="noopener noreferrer">Ver archivo ↗</a>
+              } @else {
+              {{ infoValor(item) }}
+              }
+            </dd>
+          </div>
+          }
+        </dl>
+        } @empty {
+        <p class="ci-vacio">Este colegio todavía no tiene información registrada en su perfil institucional.</p>
+        }
+      </div>
+
+      <footer class="ci-footer">
+        <a class="ci-btn ci-btn--primary"
+           [routerLink]="['/dashboard', 'perfil-institucional', infoFicha.institucion.id]"
+           (click)="cerrarInfoColegio()">
+          Ver ficha completa
+        </a>
+        <button type="button" class="ci-btn ci-btn--ghost" (click)="cerrarInfoColegio()">Cerrar</button>
+      </footer>
+      }
+    </section>
   </div>
   }
 </div>
