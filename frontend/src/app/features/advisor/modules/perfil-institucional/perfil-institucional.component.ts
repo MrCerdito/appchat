@@ -45,7 +45,7 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
   filtrosHabilitados: Record<string, boolean> = {};
   mostrarFiltrosDinamicos = false;
 
-  mostrarFiltros = true;
+  mostrarFiltros = false;
   mostrarDropdownAsesor = false;
   busquedaAsesor = '';
   menuActivoId: string | null = null;

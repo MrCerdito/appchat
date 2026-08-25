@@ -681,6 +681,19 @@ export class PerfilInstitucionalService {
         colegio = await this.colegioRepo.save(nuevo);
         created++;
       } else {
+        const linkVal = String(row.getCell(3).value ?? '').trim();
+        const emailVal = String(row.getCell(2).value ?? '').trim();
+        const calendarioVal = String(row.getCell(4).value ?? '').trim();
+        const tipoVal = String(row.getCell(5).value ?? '').trim();
+        const activoVal = String(row.getCell(7).value ?? 'Sí').trim().toLowerCase();
+
+        if (linkVal) colegio.link = linkVal;
+        if (emailVal !== undefined) colegio.email = emailVal;
+        if (calendarioVal) colegio.calendario = calendarioVal;
+        if (tipoVal) colegio.tipoColegio = tipoVal;
+        colegio.activo = activoVal !== 'no' && activoVal !== 'false';
+
+        await this.colegioRepo.save(colegio);
         updated++;
       }
 

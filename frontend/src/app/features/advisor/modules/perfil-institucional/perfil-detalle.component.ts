@@ -333,6 +333,7 @@ export class PerfilDetalleComponent implements OnInit, OnDestroy {
           if (this.ficha) this.ficha.institucion.email = valor;
           this.cerrarModalEmailInstitucion();
           this.notification.success('Correos actualizados', '');
+          this.cargar();
         },
         error: (err: any) => {
           this.guardandoEmailInstitucion = false;

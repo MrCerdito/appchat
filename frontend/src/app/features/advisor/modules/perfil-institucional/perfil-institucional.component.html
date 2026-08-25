@@ -415,7 +415,7 @@
 
   <!-- ═══════════════════════════════════════ IMPORT MODAL ═══════════════════════════════════════ -->
   @if (mostrarModalImportar) {
-    <div class="pi-modal-backdrop" (click)="cerrarModalImportar()" role="dialog" aria-modal="true" aria-label="Importar instituciones">
+    <div class="pi-modal-backdrop" role="dialog" aria-modal="true" aria-label="Importar instituciones">
       <div class="pi-modal" (click)="$event.stopPropagation()">
         <div class="pi-modal-header">
           <h3>Importar instituciones</h3>
@@ -480,7 +480,7 @@
 
   <!-- ═══════════════════════════════════════ EXPORT MODAL ═══════════════════════════════════════ -->
   @if (mostrarModalExportar) {
-    <div class="pi-modal-backdrop" (click)="mostrarModalExportar = false" role="dialog" aria-modal="true" aria-label="Exportar instituciones">
+    <div class="pi-modal-backdrop" role="dialog" aria-modal="true" aria-label="Exportar instituciones">
       <div class="pi-modal" (click)="$event.stopPropagation()">
         <div class="pi-modal-header">
           <h3>Exportar instituciones</h3>

@@ -80,16 +80,21 @@
               {{ ficha.institucion.link }}
             </a>
           </div>
-          <div class="pd-base-item pd-base-email">
+          <div class="pd-base-item pd-base-email" (click)="abrirModalEmailInstitucion()" role="button" tabindex="0">
             <span>Correo electrónico</span>
-            <button type="button" class="pd-email-trigger" (click)="abrirModalEmailInstitucion()">
+            <div class="pd-email-values">
               @if (ficha.institucion.email) {
-                <span class="pd-email-count">{{ parseEmailsInstitucion().length }} correo(s)</span>
+                @for (email of parseEmailsInstitucion().slice(0, 2); track email) {
+                  <a class="pd-email-chip" href="mailto:{{ email }}" (click)="$event.stopPropagation()">{{ email }}</a>
+                }
+                @if (parseEmailsInstitucion().length > 2) {
+                  <span class="pd-email-more">+{{ parseEmailsInstitucion().length - 2 }} más</span>
+                }
               } @else {
                 <span class="pd-email-empty">Sin correos — click para agregar</span>
               }
-              <span class="pd-email-arrow">→</span>
-            </button>
+              <span class="pd-email-arrow">✎</span>
+            </div>
           </div>
           <div class="pd-base-item">
             <span>Calendario</span>
@@ -220,7 +225,7 @@
 
   <!-- ================= Modal edición de grupo ================= -->
   @if (grupoEditar) {
-    <div class="pd-modal-backdrop" (click)="cerrarEdicion()">
+    <div class="pd-modal-backdrop">
       <div class="pd-modal" (click)="$event.stopPropagation()">
         <h3>Editar · {{ grupoEditar.categoriaNombre }}</h3>
 
@@ -276,7 +281,7 @@
 
   <!-- ================= Modal gestión de correos ================= -->
   @if (modalEmailsCampoId) {
-    <div class="pd-modal-backdrop" (click)="cerrarModalEmails()">
+    <div class="pd-modal-backdrop">
       <div class="pd-modal pd-emails-modal" (click)="$event.stopPropagation()">
         <h3>{{ modalEmailsCampoNombre }}</h3>
 
@@ -312,13 +317,23 @@
 
   <!-- ================= Modal email institución ================= -->
   @if (modalEmailInstitucion) {
-    <div class="pd-modal-backdrop" (click)="cerrarModalEmailInstitucion()">
+    <div class="pd-modal-backdrop">
       <div class="pd-modal pd-emails-modal" (click)="$event.stopPropagation()">
-        <h3>Correo electrónico</h3>
+        <div class="pd-emails-header">
+          <div class="pd-emails-icon">✉</div>
+          <div>
+            <h3>Correos electrónicos</h3>
+            <p class="pd-emails-subtitle">{{ emailInstitucionLista.length }} registrado(s)</p>
+          </div>
+        </div>
 
         <div class="pd-emails-list">
           @if (emailInstitucionLista.length === 0) {
-            <p class="pd-emails-empty">No hay correos registrados</p>
+            <div class="pd-emails-empty-state">
+              <span class="pd-emails-empty-icon">📭</span>
+              <p>No hay correos registrados</p>
+              <p class="pd-emails-empty-hint">Agrega uno o más correos con el campo de abajo</p>
+            </div>
           }
           @for (email of emailInstitucionLista; track $index; let i = $index) {
             <div class="pd-email-row">
@@ -329,7 +344,7 @@
         </div>
 
         <div class="pd-email-input-row">
-          <input #emailInstInput type="email" placeholder="correo@ejemplo.com" maxlength="200"
+          <input #emailInstInput type="email" placeholder="Agregar correo y presionar +" maxlength="200"
             (keydown.enter)="agregarEmailInstitucion(emailInstInput)" />
           <button type="button" class="pi-btn pi-btn-primary pd-email-add-btn" (click)="agregarEmailInstitucion(emailInstInput)">
             +
