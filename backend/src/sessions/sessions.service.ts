@@ -509,6 +509,15 @@ export class SessionsService {
     return session;
   }
 
+  async updateStatus(sessionId: string, status: string): Promise<void> {
+    await this.sessionRepo
+      .createQueryBuilder()
+      .update(Session)
+      .set({ status })
+      .where('id = :id', { id: sessionId })
+      .execute();
+  }
+
   async transfer(sessionId: string, newAdvisorId: string): Promise<Session> {
     const session = await this.findOne(sessionId);
     if (!session.advisor)
@@ -1234,6 +1243,13 @@ export class SessionsService {
   findActiveSessionsByAdvisor(advisorId: string): Promise<Session[]> {
     return this.sessionRepo.find({
       where: { advisor: { id: advisorId }, status: 'active' },
+      relations: ['advisor'],
+    });
+  }
+
+  findActiveSessionsWithAdvisor(): Promise<Session[]> {
+    return this.sessionRepo.find({
+      where: { status: 'active' },
       relations: ['advisor'],
     });
   }

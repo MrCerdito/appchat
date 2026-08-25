@@ -41,6 +41,8 @@ const AI_HISTORY_KEY  = 'chat_ai_history';
 const AI_MESSAGES_KEY = 'chat_ai_messages';
 const COLEGIO_KEY     = 'chat_colegio';     // { id, nombre, link }
 const PAGE_URL_KEY    = 'chat_page_url';    // last known host page URL
+const IA_DEADLINE_KEY = 'chat_ia_deadline'; // timestamp absoluto del deadline IA
+const HUMAN_TIMER_KEY = 'chat_human_timer'; // { tipo, restante, total, ts }
 
 // Segundos que espera el backend antes de cerrar la sesión tras la 3ª ofensa.
 // Debe coincidir con SEGUNDOS_CIERRE_POR_OFENSAS de ai.controller.ts.
@@ -469,7 +471,15 @@ get rolLabel(): string {
             this.tipoSolicitud = (s as any).tipoSolicitud ?? savedData.tipoSolicitud ?? '';
             localStorage.setItem(SESSION_KEY, JSON.stringify({ ...this.session, aiMode: true }));
             this.step = 'chat';
-            this.iniciarTimerInactividadIa();
+            const savedDeadline = Number(sessionStorage.getItem(IA_DEADLINE_KEY)) || 0;
+            if (savedDeadline > Date.now()) {
+              this.iniciarTimerInactividadIa(savedDeadline);
+            } else if (savedDeadline > 0) {
+              this._cerrarSesionPorInactividadIa();
+              return;
+            } else {
+              this.iniciarTimerInactividadIa();
+            }
             this.cargarFaqParaChat();
             this.showFaqInChat = this.messages.length <= 2;
             this.cdr.detectChanges();
@@ -487,6 +497,26 @@ get rolLabel(): string {
             );
             this.fueraDeHorario = false;
             this.step = 'chat';
+            const saved = sessionStorage.getItem(HUMAN_TIMER_KEY);
+            if (saved) {
+              try {
+                const ht = JSON.parse(saved);
+                const elapsed = Math.floor((Date.now() - ht.ts) / 1000);
+                const restante = Math.max(0, ht.total - elapsed);
+                if (restante > 0) {
+                  this.clientTimer = {
+                    tipo: ht.tipo,
+                    restante,
+                    total: ht.total,
+                    pct: ht.total > 0 ? Math.min(100, Math.round(((ht.total - restante) / ht.total) * 100)) : 0,
+                    mensaje: '',
+                    iteracion: 0,
+                    maxIter: 0,
+                  };
+                  this.cdr.detectChanges();
+                }
+              } catch {}
+            }
           } else {
             this.step = 'waiting';
             this.startWaitingTimer();
@@ -609,19 +639,21 @@ get rolLabel(): string {
   // ══════════════════════════════════════════════════════════════════════════
 
   /**
-   * Arranca el timer de inactividad de 3 minutos desde cero.
+   * Arranca el timer de inactividad de 3 minutos.
+   * Si se provee `savedDeadline`, restaura desde ese timestamp (refresca de página).
    * Cancela cualquier timer previo antes de crear uno nuevo.
    */
-  private iniciarTimerInactividadIa(): void {
+  private iniciarTimerInactividadIa(savedDeadline?: number): void {
     this._detenerTickInactividad();
     if (!this.aiMode) return;
 
-    this.iaDeadline = Date.now() + ChatComponent.IA_TOTAL_SEGS * 1000;
-    this.inactividadIaSegRest = ChatComponent.IA_TOTAL_SEGS;
+    this.iaDeadline = savedDeadline ?? (Date.now() + ChatComponent.IA_TOTAL_SEGS * 1000);
+    this.inactividadIaSegRest = Math.max(0, Math.ceil((this.iaDeadline - Date.now()) / 1000));
     this.inactividadIaAviso   = true;
+    sessionStorage.setItem(IA_DEADLINE_KEY, String(this.iaDeadline));
     this.cdr.detectChanges();
 
-    this.recalcularInactividadIa(); // pinta de inmediato por si hubo deriva
+    this.recalcularInactividadIa();
     this.iaTick = setInterval(() => this.recalcularInactividadIa(), 1000);
   }
 
@@ -650,6 +682,7 @@ get rolLabel(): string {
   /** Cierre definitivo: backend + despedida + regreso al formulario. */
   private _cerrarSesionPorInactividadIa(): void {
     this.inactividadIaAviso = false;
+    sessionStorage.removeItem(IA_DEADLINE_KEY);
 
     // Cerrar en backend (sin bloquear la redirección).
     if (this.session?.id) {
@@ -680,6 +713,7 @@ get rolLabel(): string {
     this.iaDeadline = 0;
     this.inactividadIaAviso   = false;
     this.inactividadIaSegRest = ChatComponent.IA_TOTAL_SEGS;
+    sessionStorage.removeItem(IA_DEADLINE_KEY);
   }
 
   get inactividadIaFormato(): string {
@@ -1086,6 +1120,15 @@ get rolLabel(): string {
       .subscribe((payload) => {
         if (!payload?.sessionId || payload.sessionId !== this.session?.id) return;
         this.clientTimer = this.buildClientTimer(payload);
+        const remaining = this.clientTimer.restante;
+        const total = this.clientTimer.total;
+        if (remaining > 0) {
+          sessionStorage.setItem(HUMAN_TIMER_KEY, JSON.stringify({
+            tipo: this.clientTimer.tipo, restante: remaining, total, ts: Date.now(),
+          }));
+        } else {
+          sessionStorage.removeItem(HUMAN_TIMER_KEY);
+        }
         this.cdr.detectChanges();
       });
 
@@ -1472,7 +1515,6 @@ get rolLabel(): string {
       senderName : this.clientName,
       attachments: attachments.length > 0 ? attachments : undefined,
     });
-    this.clientTimer = null;
     this.newMessage = '';
   }
 
@@ -2150,6 +2192,8 @@ private normalizePhotoUrl(url: string): string {
 
     // Limpiar todos los timers y estados que puedan filtrar UI
     this.clientTimer = null;
+    sessionStorage.removeItem(HUMAN_TIMER_KEY);
+    sessionStorage.removeItem(IA_DEADLINE_KEY);
     this.otherTyping = false;
     this.typingName = '';
     this.isStreaming = false;
@@ -2209,6 +2253,7 @@ private normalizePhotoUrl(url: string): string {
     localStorage.removeItem(CLIENT_NAME_KEY);
     localStorage.removeItem(AI_HISTORY_KEY);
     localStorage.removeItem(AI_MESSAGES_KEY);
+    sessionStorage.removeItem(HUMAN_TIMER_KEY);
     // NOTE: COLEGIO_KEY and PAGE_URL_KEY are intentionally NOT cleared —
     // they represent the host page identity and must persist across chats.
 

@@ -644,6 +644,36 @@ export class ChatGateway
         }
       }
     }
+
+    // Emitir el estado actual del timer al cliente que se reconecta para
+    // que no haya gap de 1s sin mostrar el timer.
+    const timerEntry = this.timers.get(data.sessionId);
+    if (timerEntry && timerEntry.tipo !== 'none' && timerEntry.startTime > 0) {
+      const nowSecs = Date.now() / 1000;
+      const elapsed = Math.max(0, Math.floor(nowSecs - timerEntry.startTime));
+      let msg = '';
+      let maxIter = 0;
+      try {
+        const cfg = await this.configuracionService
+          .getEfectiva(timerEntry.advisorId)
+          .catch(() => null);
+        if (cfg) {
+          msg = timerEntry.tipo === 'client'
+            ? cfg.clienteInactividadMsg
+            : cfg.asesorInactividadMsg;
+          maxIter = cfg.clienteInactividadIters;
+        }
+      } catch {}
+      client.emit('timer_update', {
+        sessionId: data.sessionId,
+        tipo: timerEntry.tipo === 'advisor' ? 'advisor_waiting' : 'client_waiting',
+        total: timerEntry.totalSecs,
+        elapsed,
+        mensaje: msg,
+        iteracion: timerEntry.iterCliente,
+        maxIter,
+      });
+    }
   }
 
   @SubscribeMessage('request_advisor')
@@ -1977,6 +2007,50 @@ export class ChatGateway
     }
   }
 
+  /**
+   * Limpia sesiones 'active' donde el asesor asignado ya no tiene socket
+   * conectado por más de 5 minutos. Las vuelve a 'waiting' para re-encolar.
+   * Cubre reinicios del servidor donde los timers en memoria se pierden.
+   */
+  private static readonly ORPHAN_THRESHOLD_MS = 5 * 60 * 1000;
+  private async sweepOrphanedActiveSessions(): Promise<void> {
+    try {
+      const activeSessions = await this.sessionsService.findActiveSessionsWithAdvisor();
+      const connectedIds = await this.redisState.getConnectedAdvisorIds();
+      const connectedSet = new Set(connectedIds);
+
+      for (const session of activeSessions) {
+        if (!session.advisor?.id) continue;
+        if (connectedSet.has(session.advisor.id)) continue;
+
+        const timerEntry = this.timers.get(session.id);
+        if (timerEntry && timerEntry.tipo !== 'none' && timerEntry.startTime > 0) {
+          const inactiveMs = Date.now() - timerEntry.startTime;
+          if (inactiveMs < ChatGateway.ORPHAN_THRESHOLD_MS) continue;
+        }
+
+        this.logger.log(
+          `[Sweep] Sesión ${session.id} activa con asesor ${session.advisor.id} desconectado, volviendo a waiting`,
+        );
+        await this.sessionsService.updateStatus(session.id, 'waiting');
+        await this.redisState.addToQueue(session.id);
+        this.eliminarTimer(session.id);
+        this.broadcastSessionUpdated(session.id, { status: 'waiting' });
+        this.server.emit('metrics_updated', {
+          type: 'session_status',
+          sessionId: session.id,
+          status: 'waiting',
+        });
+        this.server.to(session.id).emit('session_interrupted', {
+          sessionId: session.id,
+          reason: 'advisor_disconnected',
+        });
+      }
+    } catch (e) {
+      this.logger.error('[Sweep] Error en barrido de sesiones huérfanas:', e);
+    }
+  }
+
   // ══════════════════════════════════════════════════════════════════════════
   // ASIGNACIÓN AUTOMÁTICA
   // ══════════════════════════════════════════════════════════════════════════
@@ -1998,6 +2072,8 @@ export class ChatGateway
     try {
       // Auto-cierre por inactividad de sesiones IA (barrido DB, cada ciclo)
       await this.sweepStaleAiSessions();
+      // Re-encolar sesiones activas con asesor huérfano
+      await this.sweepOrphanedActiveSessions();
 
       const waiting = await this.sessionsService.findWaitingSessions();
       for (const session of waiting) {
