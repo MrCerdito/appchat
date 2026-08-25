@@ -120,10 +120,6 @@ export class PerfilInstitucionalService {
     );
   }
 
-  cambiarEstado(id: string, activo: boolean): Observable<{ ok: boolean }> {
-    return this.http.patch<{ ok: boolean }>(`${this.base}/instituciones/${id}/estado`, { activo });
-  }
-
   listarCampos(): Observable<PiCampo[]> {
     return this.http.get<PiCampo[]>(`${this.base}/campos`);
   }

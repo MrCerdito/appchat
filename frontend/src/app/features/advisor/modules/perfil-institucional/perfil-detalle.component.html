@@ -49,22 +49,10 @@
           }
         </p>
       </div>
-
-      <div class="pd-header-actions">
-        <button type="button" class="pi-btn pi-btn-outline" (click)="alternarEstado()">
-          {{ ficha.institucion.activo ? 'Desactivar' : 'Activar' }}
-        </button>
-      </div>
     </header>
 
     <nav class="pd-tabs">
       <button type="button" [class.active]="tab === 'informacion'" (click)="cambiarTab('informacion')">
-        General
-      </button>
-      <button type="button" [class.active]="tab === 'configuracion'" (click)="cambiarTab('configuracion')">
-        Configuración
-      </button>
-      <button type="button" [class.active]="tab === 'personalizados'" (click)="cambiarTab('personalizados')">
         Información
       </button>
       <button type="button" [class.active]="tab === 'historial'" (click)="cambiarTab('historial')">
@@ -107,21 +95,14 @@
           Los datos base se administran desde la gestión de instituciones.
         </p>
       </section>
-    }
 
-    <!-- ================= Configuración / Personalizados ================= -->
-    @if (tab === 'configuracion' || tab === 'personalizados') {
-      @if ((tab === 'configuracion' ? gruposConfiguracion() : gruposPersonalizados()).length === 0) {
+      @if (ficha.grupos.length === 0) {
         <div class="pd-empty">
-          @if (tab === 'personalizados') {
-            <p>Aún no hay información personalizada para esta institución.</p>
-          } @else {
-            <p>No hay categorías de configuración activas.</p>
-          }
+          <p>No hay categorías de información activas.</p>
         </div>
       }
 
-      @for (grupo of (tab === 'configuracion' ? gruposConfiguracion() : gruposPersonalizados()); track grupo.categoriaId) {
+      @for (grupo of ficha.grupos; track grupo.categoriaId) {
         <section class="pd-grupo">
           <div class="pd-grupo-head">
             <h2>{{ grupo.categoriaNombre }}</h2>

@@ -21,7 +21,7 @@ import { existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { ValidationPipe } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
+import { Roles, RolesGuard } from '../auth/roles.guard';
 import { PerfilInstitucionalService } from './perfil-institucional.service';
 import {
   CreatePiCampoDto,
@@ -93,6 +93,7 @@ export class PerfilInstitucionalController {
   }
 
   @Patch('instituciones/:id/estado')
+  @Roles('admin')
   cambiarEstado(
     @Param('id') id: string,
     @Body('activo', ParseBoolPipe) activo: boolean,

@@ -1,11 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, FindOptionsWhere } from 'typeorm';
-import {
-  BadRequestException,
-  ForbiddenException,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { existsSync, mkdirSync, renameSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { Colegio } from '../sessions/entities/colegio.entity';
@@ -438,10 +434,6 @@ export class PerfilInstitucionalService {
   async eliminarCampo(id: string) {
     const campo = await this.campoRepo.findOneBy({ id });
     if (!campo) throw new NotFoundException('Campo no encontrado');
-    if (campo.esSistema)
-      throw new ForbiddenException(
-        'Los campos de sistema no se pueden eliminar',
-      );
 
     await this.campoRepo.delete(id);
     return { ok: true };

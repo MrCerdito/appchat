@@ -74,9 +74,7 @@
             <td class="gc-actions">
               <button type="button" class="gc-icon" title="Editar" (click)="abrirEditar(c)">✎</button>
               <button type="button" class="gc-icon" title="Duplicar" (click)="duplicar(c)">⧉</button>
-              @if (!c.esSistema) {
-                <button type="button" class="gc-icon gc-icon--danger" title="Eliminar" (click)="eliminar(c)">✕</button>
-              }
+              <button type="button" class="gc-icon gc-icon--danger" title="Eliminar" (click)="eliminar(c)">✕</button>
             </td>
           </tr>
         } @empty {
@@ -107,9 +105,7 @@
               <button type="button" class="gc-estado" [class.off]="!cat.activa" (click)="alternarCategoria(cat)">
                 {{ cat.activa ? '●' : '○' }}
               </button>
-              @if (!cat.esSistema) {
-                <button type="button" class="gc-icon gc-icon--danger" title="Eliminar" (click)="eliminarCategoria(cat)">✕</button>
-              }
+              <button type="button" class="gc-icon gc-icon--danger" title="Eliminar" (click)="eliminarCategoria(cat)">✕</button>
             </li>
           }
         </ul>

@@ -12,7 +12,7 @@ import {
 } from '../../../../core/services/perfil-institucional.service';
 import { NotificationService } from '../../../../core/services/notification.service';
 
-type Tab = 'configuracion' | 'personalizados' | 'informacion' | 'historial';
+type Tab = 'informacion' | 'historial';
 
 @Component({
   selector: 'app-perfil-detalle',
@@ -29,7 +29,7 @@ export class PerfilDetalleComponent implements OnInit, OnDestroy {
   loading = true;
   guardando = false;
 
-  tab: Tab = 'configuracion';
+  tab: Tab = 'informacion';
 
   historial: PiHistorialItem[] = [];
   historialPage = 1;
@@ -107,14 +107,6 @@ export class PerfilDetalleComponent implements OnInit, OnDestroy {
     this.cdr.detectChanges();
   }
 
-  gruposConfiguracion(): PiGrupoFicha[] {
-    return (this.ficha?.grupos ?? []).filter((g) => g.categoriaEsSistema);
-  }
-
-  gruposPersonalizados(): PiGrupoFicha[] {
-    return (this.ficha?.grupos ?? []).filter((g) => !g.categoriaEsSistema);
-  }
-
   /* ---------- Logo ---------- */
   abrirSelectorLogo(input: HTMLInputElement): void {
     input.click();
@@ -147,26 +139,6 @@ export class PerfilDetalleComponent implements OnInit, OnDestroy {
           this.notification.error('Error', 'No se pudo subir el logo');
           this.cdr.detectChanges();
         },
-      });
-  }
-
-  /* ---------- Estado ---------- */
-  alternarEstado(): void {
-    if (!this.ficha) return;
-    const nuevo = !this.ficha.institucion.activo;
-    const nombre = this.ficha.institucion.nombre;
-    this.piService.cambiarEstado(this.ficha.institucion.id, nuevo)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: () => {
-          if (this.ficha) this.ficha.institucion.activo = nuevo;
-          this.notification.success(
-            nuevo ? 'Institución activada' : 'Institución desactivada',
-            nombre,
-          );
-          this.cdr.detectChanges();
-        },
-        error: () => this.notification.error('Error', 'No se pudo cambiar el estado'),
       });
   }
 
