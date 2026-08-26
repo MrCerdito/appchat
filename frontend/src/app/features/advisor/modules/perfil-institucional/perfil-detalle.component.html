@@ -185,8 +185,29 @@
     <!-- ================= Historial ================= -->
     @if (tab === 'historial') {
       <section class="pd-historial">
+        <!-- Date filter bar -->
+        <div class="pd-hist-filtros">
+          <div class="pd-hist-pills">
+            <button type="button" class="pd-hist-pill" [class.active]="historialFiltroFecha === 'todos'" (click)="filtrarHistorialFecha('todos')">Todos</button>
+            <button type="button" class="pd-hist-pill" [class.active]="historialFiltroFecha === 'hoy'" (click)="filtrarHistorialFecha('hoy')">Hoy</button>
+            <button type="button" class="pd-hist-pill" [class.active]="historialFiltroFecha === 'ayer'" (click)="filtrarHistorialFecha('ayer')">Ayer</button>
+            <button type="button" class="pd-hist-pill" [class.active]="historialFiltroFecha === 'rango'" (click)="filtrarHistorialFecha('rango')">Rango</button>
+          </div>
+          @if (historialFiltroFecha === 'rango') {
+            <div class="pd-hist-rango">
+              <input type="date" [(ngModel)]="historialRangoDesde" class="pd-hist-date" />
+              <span>–</span>
+              <input type="date" [(ngModel)]="historialRangoHasta" class="pd-hist-date" />
+              <button type="button" class="pi-btn pi-btn-sm" [disabled]="!historialRangoDesde || !historialRangoHasta" (click)="aplicarRangoHistorial()">Aplicar</button>
+            </div>
+          }
+          <div class="pd-hist-resumen">
+            Mostrando {{ historial.length }} de {{ historialTotal }} registros
+          </div>
+        </div>
+
         @if (historial.length === 0 && !historialCargando) {
-          <div class="pd-empty"><p>Sin cambios registrados.</p></div>
+          <div class="pd-empty"><p>Sin cambios en este periodo.</p></div>
         }
         <ul class="pd-hist-lista">
           @for (h of historial; track h.id) {

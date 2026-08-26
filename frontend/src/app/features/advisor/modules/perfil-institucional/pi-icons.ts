@@ -39,6 +39,9 @@ import {
   CheckCircle2,
   AlertCircle,
   Loader2,
+  Clock,
+  Sun,
+  CalendarClock,
 } from 'lucide-angular';
 
 export const PI_ICONS = {
@@ -82,6 +85,9 @@ export const PI_ICONS = {
   CheckCircle2,
   AlertCircle,
   Loader2,
+  Clock,
+  Sun,
+  CalendarClock,
 };
 
 export type PiIconName = keyof typeof PI_ICONS;

@@ -317,6 +317,77 @@
   padding: 18px 22px;
 }
 
+.pd-hist-filtros {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border, #f1f5f9);
+}
+
+.pd-hist-pills {
+  display: flex;
+  gap: 4px;
+}
+
+.pd-hist-pill {
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border, #e5e7eb);
+  background: transparent;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-secondary, #64748b);
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: var(--bg-hover, #f8fafc);
+    color: var(--text-primary, #0f172a);
+  }
+
+  &.active {
+    background: var(--primary, #2563eb);
+    color: #fff;
+    border-color: var(--primary, #2563eb);
+  }
+}
+
+.pd-hist-rango {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  span {
+    color: var(--text-secondary, #94a3b8);
+    font-size: 0.8rem;
+  }
+}
+
+.pd-hist-date {
+  padding: 4px 8px;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-family: inherit;
+  color: var(--text-primary, #0f172a);
+  background: var(--bg-surface, #fff);
+
+  &:focus {
+    outline: 2px solid var(--primary, #2563eb);
+    outline-offset: -1px;
+  }
+}
+
+.pd-hist-resumen {
+  margin-left: auto;
+  font-size: 0.76rem;
+  color: var(--text-secondary, #94a3b8);
+  white-space: nowrap;
+}
+
 .pd-hist-lista {
   list-style: none;
   margin: 0;

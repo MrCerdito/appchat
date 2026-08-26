@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy, ElementRef, HostListener } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy, ElementRef, HostListener, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ToastContainerComponent } from '../../../shared/components/toast-container.component';
@@ -18,6 +18,8 @@ import { InternalChatService } from '../../../core/services/internal-chat.servic
 import { ThemeService } from '../../../core/services/theme.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { LayoutService } from '../../../core/services/layout.service';
+import { FaqService, ChatMessage } from '../../../core/services/faq.service';
+import { formatFaqText } from '../../../shared/utils/faq-format';
 import { User } from '../../../core/models/user.model';
 import { Session } from '../../../core/models/session.model';
 import { Message } from '../../../core/models/message.model';
@@ -45,6 +47,7 @@ interface ConnectedAdvisor {
 export class DashboardComponent implements OnInit, OnDestroy {
   protected readonly trackByIndex = trackByIndex;
   protected readonly trackById = trackById;
+  @ViewChild('faqScroll') faqScrollRef!: ElementRef<HTMLElement>;
 
   currentAdvisor: User | null = null;
   advisorStatus: 'online' | 'busy' | 'offline' = 'offline';
@@ -59,11 +62,18 @@ export class DashboardComponent implements OnInit, OnDestroy {
   totalUnreadCount = 0;
   topbarTitle = 'CHAT EN LINEA';
 
-  teamsPanelOpen = false;
-  isTeamsConnected = false;
-  isLoadingTeams = false;
-  teamsAccountName = '';
-  teamsMessage = '';
+  // ── FAQ Chat panel ────────────────────────────────────────────────────────
+  faqPanelOpen = false;
+  faqInput = '';
+  faqMessages: ChatMessage[] = [];
+  faqIsStreaming = false;
+  faqSuggestions: string[] = [];
+  faqDocName = '';
+  faqHasDocument = false;
+  faqUploading = false;
+  faqLoadingSuggestions = false;
+  @ViewChild('faqFileInput') faqFileInputRef!: ElementRef<HTMLInputElement>;
+  private faqAbortCtrl: AbortController | null = null;
 
   allAdvisors: ConnectedAdvisor[] = [];
   teamPanelOpen = false;
@@ -176,6 +186,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private elementRef: ElementRef,
     private notification: NotificationService,
     private layout: LayoutService,
+    private faqService: FaqService,
   ) {}
 
   whatsappMode: 'clients' | 'advisors' | null = null;
@@ -248,8 +259,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.topbarTitle = this.router.url.includes('/dashboard/whatsapp')
       ? 'CHAT WHATSAPP'
       : 'CHAT EN LINEA';
-    window.addEventListener('message', this.handleTeamsAuthMessage);
-    this.loadTeamsStatus();
   }
 
   private registerSocketListeners(): void {
@@ -1027,106 +1036,154 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
   }
 
-  @HostListener('document:click', ['$event'])
-  onDocumentClick(event: MouseEvent): void {
-    if (!this.teamPanelOpen) return;
-    const clickedInside = this.elementRef.nativeElement.querySelector('.team-panel-wrap')?.contains(event.target as Node);
-    if (!clickedInside) {
-      this.teamPanelOpen = false;
-      this.cdr.detectChanges();
-    }
-  }
-
   toggleTeamPanel(): void {
     this.teamPanelOpen = !this.teamPanelOpen;
   }
 
-  toggleTeamsPanel(): void {
-    this.teamsPanelOpen = !this.teamsPanelOpen;
-    if (this.teamsPanelOpen) {
-      this.teamsMessage = '';
-      this.loadTeamsStatus();
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    if (!this.faqPanelOpen) return;
+    const clickedInside = this.elementRef.nativeElement.querySelector('.faq-panel-wrap')?.contains(event.target as Node);
+    if (!clickedInside) {
+      this.faqPanelOpen = false;
+      this.cdr.detectChanges();
     }
   }
 
-  connectTeams(): void {
-    if (this.isLoadingTeams) return;
-    const popup = window.open('', 'innovaTeamsAuth', 'width=520,height=720');
-    this.isLoadingTeams = true;
-    this.teamsMessage = 'Abriendo inicio de sesion de Microsoft...';
-    this.cdr.detectChanges();
+  toggleFaqPanel(): void {
+    this.faqPanelOpen = !this.faqPanelOpen;
+    if (this.faqPanelOpen && this.faqSuggestions.length === 0) {
+      this.faqLoadingSuggestions = true;
+      this.faqService.getDocumentInfo().subscribe({
+        next: (info) => {
+          this.faqDocName = info.name;
+          this.faqHasDocument = info.hasDocument;
+          this.cdr.detectChanges();
 
-    this.whatsapp.getTeamsAuthUrl().subscribe({
-      next: res => {
-        this.isLoadingTeams = false;
-        if (popup) {
-          popup.location.href = res.authUrl;
-        } else {
-          window.location.href = res.authUrl;
-        }
-        this.cdr.detectChanges();
-      },
-      error: () => {
-        popup?.close();
-        this.isLoadingTeams = false;
-        this.teamsMessage = 'No se pudo iniciar sesion en Teams.';
-        this.cdr.detectChanges();
-      },
-    });
-  }
-
-  disconnectTeams(): void {
-    if (this.isLoadingTeams) return;
-    this.isLoadingTeams = true;
-    this.teamsMessage = 'Desconectando Teams...';
-    this.cdr.detectChanges();
-
-    this.whatsapp.disconnectTeams().subscribe({
-      next: () => {
-        this.isLoadingTeams = false;
-        this.isTeamsConnected = false;
-        this.teamsAccountName = '';
-        this.teamsMessage = '';
-        this.cdr.detectChanges();
-      },
-      error: () => {
-        this.isLoadingTeams = false;
-        this.teamsMessage = 'No se pudo desconectar Teams.';
-        this.cdr.detectChanges();
-      },
-    });
-  }
-
-  private loadTeamsStatus(): void {
-    this.isLoadingTeams = true;
-    this.cdr.detectChanges();
-    this.whatsapp.getTeamsStatus().subscribe({
-      next: status => {
-        this.isLoadingTeams = false;
-        this.isTeamsConnected = status.connected;
-        this.teamsAccountName = status.accountName || '';
-        this.cdr.detectChanges();
-      },
-      error: () => {
-        this.isLoadingTeams = false;
-        this.isTeamsConnected = false;
-        this.cdr.detectChanges();
-      },
-    });
-  }
-
-  private handleTeamsAuthMessage = (event: MessageEvent): void => {
-    if (event.data?.type !== 'teams-auth') return;
-    if (event.data.success) {
-      this.teamsMessage = 'Teams conectado.';
-      this.loadTeamsStatus();
-    } else {
-      this.isLoadingTeams = false;
-      this.isTeamsConnected = false;
-      this.teamsMessage = event.data.error || 'No se pudo conectar Teams.';
+          // Load suggestions after we know document status
+          if (info.hasDocument) {
+            this.faqService.getSuggestions().subscribe({
+              next: (s) => { this.faqSuggestions = s; this.faqLoadingSuggestions = false; this.cdr.detectChanges(); },
+              error: () => { this.faqLoadingSuggestions = false; this.cdr.detectChanges(); },
+            });
+          } else {
+            this.faqLoadingSuggestions = false;
+            this.cdr.detectChanges();
+          }
+        },
+        error: () => { this.faqLoadingSuggestions = false; this.cdr.detectChanges(); },
+      });
     }
+  }
+
+  faqFormat(text: string): string {
+    return formatFaqText(text);
+  }
+
+  sendFaqMessage(text?: string): void {
+    const query = (text || this.faqInput).trim();
+    if (!query || this.faqIsStreaming) return;
+
+    this.faqMessages.push({ text: query, isUser: true, timestamp: Date.now() });
+    this.faqInput = '';
+    this.faqIsStreaming = true;
+
+    // Add placeholder for bot response
+    this.faqMessages.push({ text: '', isUser: false, timestamp: Date.now() });
     this.cdr.detectChanges();
-  };
+    this.scrollFaqToBottom();
+
+    const botIdx = this.faqMessages.length - 1;
+
+    this.faqService.chatStream(
+      query,
+      (chunk) => {
+        this.faqMessages[botIdx].text += chunk;
+        this.scrollFaqToBottom();
+        this.cdr.detectChanges();
+      },
+      () => {
+        this.faqIsStreaming = false;
+        this.faqAbortCtrl = null;
+        this.cdr.detectChanges();
+      },
+      (errMsg) => {
+        this.faqMessages[botIdx].text = errMsg || 'Error al obtener respuesta.';
+        this.faqIsStreaming = false;
+        this.faqAbortCtrl = null;
+        this.cdr.detectChanges();
+      },
+    );
+  }
+
+  private scrollFaqToBottom(): void {
+    try {
+      const el = this.faqScrollRef?.nativeElement;
+      if (el) el.scrollTop = el.scrollHeight;
+    } catch {}
+  }
+
+  cancelFaqStream(): void {
+    this.faqAbortCtrl?.abort();
+    this.faqAbortCtrl = null;
+    this.faqIsStreaming = false;
+    this.cdr.detectChanges();
+  }
+
+  onFaqKeydown(e: KeyboardEvent): void {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      this.sendFaqMessage();
+    }
+  }
+
+  private stripAccents(s: string): string {
+    return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+
+  get faqFilteredSuggestions(): string[] {
+    const q = this.stripAccents(this.faqInput.trim().toLowerCase());
+    if (!q || q.length < 2) return [];
+    return this.faqSuggestions.filter((s) => this.stripAccents(s.toLowerCase()).includes(q)).slice(0, 4);
+  }
+
+  triggerFaqUpload(): void {
+    this.faqFileInputRef?.nativeElement?.click();
+  }
+
+  onFaqFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input?.files?.[0];
+    if (!file) return;
+    input.value = '';
+
+    if (!file.name.endsWith('.docx')) {
+      alert('Solo se permiten archivos Word (.docx)');
+      return;
+    }
+
+    this.faqUploading = true;
+    this.faqService.uploadDocument(file).subscribe({
+      next: (res) => {
+        this.faqDocName = res.name;
+        this.faqHasDocument = true;
+        this.faqUploading = false;
+        this.faqMessages = [];
+        this.faqLoadingSuggestions = true;
+        this.cdr.detectChanges();
+
+        // Reload suggestions from new document via Gemini
+        this.faqService.getSuggestions().subscribe({
+          next: (s) => { this.faqSuggestions = s; this.faqLoadingSuggestions = false; this.cdr.detectChanges(); },
+          error: () => { this.faqSuggestions = []; this.faqLoadingSuggestions = false; this.cdr.detectChanges(); },
+        });
+      },
+      error: () => {
+        this.faqUploading = false;
+        this.cdr.detectChanges();
+      },
+    });
+  }
 
   openWhatsapp(mode: 'clients' | 'advisors' = 'clients', event?: Event): void {
     event?.stopPropagation();
@@ -1162,7 +1219,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.teamBreakpoint.removeEventListener('change', this.onTeamBreakpoint);
     this.smallScreenBreakpoint.removeEventListener('change', this.onSmallScreenBreakpoint);
     document.removeEventListener('visibilitychange', this.handleVisibilityChange);
-    window.removeEventListener('message', this.handleTeamsAuthMessage);
+    this.faqAbortCtrl?.abort();
     this.internalChat.disconnect();
   }
 }

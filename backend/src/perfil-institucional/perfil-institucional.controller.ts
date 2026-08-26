@@ -239,7 +239,9 @@ export class PerfilInstitucionalController {
     @Query('colegioId') colegioId?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Query('desde') desde?: string,
+    @Query('hasta') hasta?: string,
   ) {
-    return this.svc.listarHistorial(colegioId || undefined, page, limit);
+    return this.svc.listarHistorial(colegioId || undefined, page, limit, desde, hasta);
   }
 }

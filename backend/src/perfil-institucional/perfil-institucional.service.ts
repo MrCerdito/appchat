@@ -890,6 +890,8 @@ export class PerfilInstitucionalService {
     colegioId: string | undefined,
     page = '1',
     limit = '30',
+    desde?: string,
+    hasta?: string,
   ) {
     const pag = Math.max(1, parseInt(page, 10) || 1);
     const porPagina = Math.min(100, Math.max(1, parseInt(limit, 10) || 30));
@@ -902,6 +904,8 @@ export class PerfilInstitucionalService {
       .take(porPagina);
 
     if (colegioId) qb.where('h.colegio_id = :colegioId', { colegioId });
+    if (desde) qb.andWhere('h.createdAt >= :desde', { desde });
+    if (hasta) qb.andWhere('h.createdAt <= :hasta', { hasta });
 
     const [data, total] = await qb.getManyAndCount();
     const nombresCampos = await this.nombresDeCampos(data);

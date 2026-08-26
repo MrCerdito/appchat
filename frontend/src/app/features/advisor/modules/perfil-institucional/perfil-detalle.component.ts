@@ -35,6 +35,9 @@ export class PerfilDetalleComponent implements OnInit, OnDestroy {
   historialPage = 1;
   historialTotal = 0;
   historialCargando = false;
+  historialFiltroFecha: 'todos' | 'hoy' | 'ayer' | 'rango' = 'todos';
+  historialRangoDesde = '';
+  historialRangoHasta = '';
 
   grupoEditar: PiGrupoFicha | null = null;
   borrador: Record<string, string | boolean> = {};
@@ -364,13 +367,62 @@ export class PerfilDetalleComponent implements OnInit, OnDestroy {
   }
 
   /* ---------- Historial ---------- */
+  private obtenerFechaColombia(): { year: number; month: number; day: number } {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Bogota',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(new Date());
+    return {
+      year:  parseInt(parts.find(p => p.type === 'year')!.value),
+      month: parseInt(parts.find(p => p.type === 'month')!.value),
+      day:   parseInt(parts.find(p => p.type === 'day')!.value),
+    };
+  }
+
+  private colombiaToIso(y: number, m: number, d: number, h: number, min: number, s: number, ms: number): string {
+    return new Date(Date.UTC(y, m - 1, d, h + 5, min, s, ms)).toISOString();
+  }
+
+  private obtenerRangoFecha(): { desde?: string; hasta?: string } {
+    const { year, month, day } = this.obtenerFechaColombia();
+
+    if (this.historialFiltroFecha === 'hoy') {
+      return {
+        desde: this.colombiaToIso(year, month, day, 0, 0, 0, 0),
+        hasta: this.colombiaToIso(year, month, day, 23, 59, 59, 999),
+      };
+    }
+    if (this.historialFiltroFecha === 'ayer') {
+      const ayer = new Date(Date.UTC(year, month - 1, day - 1));
+      const ay = ayer.getUTCFullYear();
+      const am = ayer.getUTCMonth() + 1;
+      const ad = ayer.getUTCDate();
+      return {
+        desde: this.colombiaToIso(ay, am, ad, 0, 0, 0, 0),
+        hasta: this.colombiaToIso(ay, am, ad, 23, 59, 59, 999),
+      };
+    }
+    if (this.historialFiltroFecha === 'rango' && this.historialRangoDesde && this.historialRangoHasta) {
+      const [dy, dm, dd] = this.historialRangoDesde.split('-').map(Number);
+      const [hy, hm, hd] = this.historialRangoHasta.split('-').map(Number);
+      return {
+        desde: this.colombiaToIso(dy, dm, dd, 0, 0, 0, 0),
+        hasta: this.colombiaToIso(hy, hm, hd, 23, 59, 59, 999),
+      };
+    }
+    return {};
+  }
+
   cargarHistorial(reset: boolean): void {
     if (!this.institucionId) return;
     if (reset) {
       this.historialPage = 1;
       this.historialCargando = true;
     }
-    this.piService.historial(this.institucionId, String(this.historialPage))
+    const rango = this.obtenerRangoFecha();
+    this.piService.historial(this.institucionId, String(this.historialPage), rango.desde, rango.hasta)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (res) => {
@@ -387,6 +439,21 @@ export class PerfilDetalleComponent implements OnInit, OnDestroy {
       });
   }
 
+  filtrarHistorialFecha(filtro: 'todos' | 'hoy' | 'ayer' | 'rango'): void {
+    this.historialFiltroFecha = filtro;
+    if (filtro !== 'rango') {
+      this.historialRangoDesde = '';
+      this.historialRangoHasta = '';
+    }
+    this.cargarHistorial(true);
+  }
+
+  aplicarRangoHistorial(): void {
+    if (this.historialRangoDesde && this.historialRangoHasta) {
+      this.cargarHistorial(true);
+    }
+  }
+
   masHistorial(): void {
     this.historialPage++;
     this.historialCargando = true;
@@ -399,10 +466,10 @@ export class PerfilDetalleComponent implements OnInit, OnDestroy {
 
   formatearFecha(iso: string): string {
     const d = new Date(iso);
-    return isNaN(d.getTime())
-      ? iso
-      : d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' }) +
-          ' · ' + d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+    if (isNaN(d.getTime())) return iso;
+    const tzOpts = { timeZone: 'America/Bogota' as const };
+    return d.toLocaleDateString('es-CO', { ...tzOpts, day: '2-digit', month: 'short', year: 'numeric' }) +
+        ' · ' + d.toLocaleTimeString('es-CO', { ...tzOpts, hour: '2-digit', minute: '2-digit' });
   }
 
   /* ── Export ficha ── */

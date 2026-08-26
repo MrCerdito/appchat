@@ -187,9 +187,11 @@ export class PerfilInstitucionalService {
     return this.http.put<{ ok: boolean }>(`${this.base}/categorias/reordenar`, { items });
   }
 
-  historial(colegioId?: string, page = '1'): Observable<PiPaginado<PiHistorialItem>> {
+  historial(colegioId?: string, page = '1', desde?: string, hasta?: string): Observable<PiPaginado<PiHistorialItem>> {
     let params = new HttpParams().set('page', page);
     if (colegioId) params = params.set('colegioId', colegioId);
+    if (desde) params = params.set('desde', desde);
+    if (hasta) params = params.set('hasta', hasta);
     return this.http.get<PiPaginado<PiHistorialItem>>(`${this.base}/historial`, { params });
   }
 

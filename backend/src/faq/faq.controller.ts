@@ -15,19 +15,24 @@ import {
   UploadedFile,
   UseInterceptors,
   Res,
+  Req,
+  Logger,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles, RolesGuard } from '../auth/roles.guard';
 import { FaqService } from './faq.service';
 import { CreateFaqDto } from './dto/create-faq.dto';
 import { UpdateFaqDto } from './dto/update-faq.dto';
+import { FaqChatDto } from './dto/faq-chat.dto';
 import { SkipThrottle } from '@nestjs/throttler';
 
 @Controller('faq')
 export class FaqController {
+  private readonly logger = new Logger(FaqController.name);
+
   constructor(private readonly faqService: FaqService) {}
 
   @SkipThrottle()
@@ -80,6 +85,80 @@ export class FaqController {
     if (!file) throw new BadRequestException('Archivo no proporcionado');
     const result = await this.faqService.importXlsx(file.buffer);
     return { imported: result.imported, skipped: result.skipped, errors: result.errors, total: result.total };
+  }
+
+  @SkipThrottle()
+  @Post('upload-document')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      fileFilter: (_req, file, cb) => {
+        if (file.originalname.endsWith('.docx') || file.originalname.endsWith('.doc')) {
+          return cb(null, true);
+        }
+        cb(new BadRequestException('Solo se permiten archivos Word (.docx)'), false);
+      },
+      limits: { fileSize: 50 * 1024 * 1024 },
+    }),
+  )
+  async uploadDocument(@UploadedFile() file: Express.Multer.File) {
+    if (!file) throw new BadRequestException('Archivo no proporcionado');
+    return this.faqService.uploadDocument(file.buffer, file.originalname);
+  }
+
+  @SkipThrottle()
+  @Get('suggestions')
+  getSuggestions() {
+    return this.faqService.getSuggestions();
+  }
+
+  @SkipThrottle()
+  @Get('document-info')
+  getDocumentInfo() {
+    return this.faqService.getDocumentInfo();
+  }
+
+  @SkipThrottle()
+  @Post('chat')
+  async chat(@Req() req: Request, @Body() body: FaqChatDto, @Res() res: Response) {
+    if (!body.query?.trim()) {
+      res.status(400).json({ error: 'Query vacía' });
+      return;
+    }
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders();
+
+    const emit = (event: string, data: object) => {
+      if (res.writableEnded || res.destroyed || !res.writable) return;
+      try {
+        res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+        (res as any).flush?.();
+      } catch {
+        /* cliente desconectado */
+      }
+    };
+
+    const abortController = new AbortController();
+    req.on('close', () => abortController.abort());
+
+    try {
+      emit('start', { message: 'Buscando en el documento...' });
+      await this.faqService.chatWithDocument(
+        body.query,
+        emit,
+        abortController.signal,
+      );
+      emit('done', { ok: true });
+    } catch (err: any) {
+      this.logger.error(`[FAQ-CHAT] ${err?.message}`);
+      emit('error', { message: err?.message || 'Error al procesar la consulta' });
+    } finally {
+      if (!res.writableEnded) res.end();
+    }
   }
 
   @SkipThrottle()
