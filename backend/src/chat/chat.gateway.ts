@@ -1069,7 +1069,13 @@ export class ChatGateway
 
     // Broadcast a la sala de sesión para observadores (historial) y al asesor
     // asignado vía su room dedicada. El frontend filtra notificaciones por asignación.
-    this.server.to(data.sessionId).emit('new_message', message);
+    // Se incluye advisorId para que el frontend pueda determinar asignación sin lookup.
+    void this.sessionsService.findOne(data.sessionId).then((sess) => {
+      const advisorId = sess?.advisor?.id ?? null;
+      this.server.to(data.sessionId).emit('new_message', { ...message, sessionId: data.sessionId, advisorId });
+    }).catch(() => {
+      this.server.to(data.sessionId).emit('new_message', message);
+    });
     this.broadcastMessageToAdvisors(data.sessionId, message);
 
     if (senderType === 'client') {
@@ -2862,7 +2868,12 @@ export class ChatGateway
 
   emitMessageToSession(sessionId: string, msg: any) {
     if (!sessionId) return;
-    this.server.to(sessionId).emit('new_message', { ...msg, sessionId });
+    void this.sessionsService.findOne(sessionId).then((sess) => {
+      const advisorId = sess?.advisor?.id ?? null;
+      this.server.to(sessionId).emit('new_message', { ...msg, sessionId, advisorId });
+    }).catch(() => {
+      this.server.to(sessionId).emit('new_message', { ...msg, sessionId });
+    });
     this.broadcastMessageToAdvisors(sessionId, msg);
   }
 

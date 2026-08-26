@@ -10,6 +10,7 @@ import { SocketService } from '../../../core/services/socket.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { SessionService } from '../../../core/services/session.service';
 import { SoundService } from '../../../core/services/sound.service';
+import { AdvisorNotificationService } from '../../../core/services/advisor-notification.service';
 import { TicketService } from '../../../core/services/ticket.service';
 import { AdminService } from '../../../core/services/admin.service';
 import { WhatsappChatService } from '../../../core/services/whatsapp-chat.service';
@@ -175,6 +176,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private auth: AuthService,
     private sessionService: SessionService,
     private sound: SoundService,
+    private advisorNotif: AdvisorNotificationService,
     private ticketService: TicketService,
     private whatsapp: WhatsappChatService,
     private internalChat: InternalChatService,
@@ -432,15 +434,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.socket.on<{ sessionId: string; clientName: string }>('session_assigned')
       .pipe(takeUntil(this.destroy$))
       .subscribe(data => {
-        this.sound.playWhatsappAssignment();
-        this.sound.notify(
-          'CHAT EN LINEA',
-          `${data.clientName || 'Cliente'}\nNuevo chat asignado`,
-          `assigned-${data.sessionId}`,
-        );
+        this.advisorNotif.onSessionAssigned(data);
       });
 
-    this.socket.on<Message & { session?: Session; sessionId?: string }>('new_message')
+    this.socket.on<Message & { session?: Session; sessionId?: string; advisorId?: string }>('new_message')
       .pipe(takeUntil(this.destroy$))
       .subscribe(message => this.handleGlobalChatMessage(message));
 
@@ -579,34 +576,21 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const sessionId = message.session?.id ?? message.sessionId;
     if (!sessionId || message.senderType !== 'client') return;
 
-    const added = this.chatState.addMessage(sessionId, message);
-    if (!added) return;
+    const viewingSessionId = this.router.url.includes('/dashboard/chats')
+      ? this.chatState.getActiveSessionId()
+      : undefined;
 
-    // Determinar si esta sesión pertenece al asesor actual (o es admin).
-    // El backend ahora incluye advisorId en new_message; se mantiene el
-    // fallback por caché de sesiones para mensajes heredados.
-    const session = message.session ?? this.chatState.sessions$.getValue().find(s => s.id === sessionId);
-    const isAssigned = this.currentAdvisor?.role === 'admin' ||
-      message.advisorId === this.currentAdvisor?.id ||
-      session?.advisor?.id === this.currentAdvisor?.id;
+    const { shouldNotify, isAssigned } = this.advisorNotif.onNewMessage(message, this.currentAdvisor, {
+      viewingSessionId,
+      isWindowVisible: document.visibilityState === 'visible',
+    });
 
-    // Solo incrementar unread y mostrar notificaciones para chats asignados
-    if (isAssigned) {
-      const isOpenHere = this.router.url.includes('/dashboard/chats') &&
-        this.chatState.getActiveSessionId() === sessionId;
-      const viendoEseChat = isOpenHere && document.visibilityState === 'visible';
+    if (shouldNotify) {
+      this.chatState.incrementUnread(sessionId);
+    }
 
-      if (viendoEseChat) {
-        this.socket.emit('set_active', { sessionId, active: true });
-      } else {
-        this.chatState.incrementUnread(sessionId);
-        this.sound.playCriticalMessage();
-        this.sound.notify(
-          'CHAT EN LINEA',
-          `${this.sessionFullName(session)}\n${message.content || 'Nuevo mensaje del cliente'}`,
-          `chat-message-${sessionId}`,
-        );
-      }
+    if (isAssigned && !shouldNotify && viewingSessionId === sessionId && document.visibilityState === 'visible') {
+      this.socket.emit('set_active', { sessionId, active: true });
     }
 
     this.loadActiveCount();

@@ -9,6 +9,7 @@ import { SocketService } from '../../../core/services/socket.service';
 import { InternalChatService } from '../../../core/services/internal-chat.service';
 import { WhatsappChatService } from '../../../core/services/whatsapp-chat.service';
 import { SoundService } from '../../../core/services/sound.service';
+import { AdvisorNotificationService } from '../../../core/services/advisor-notification.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { ThemeService } from '../../../core/services/theme.service';
 import { LayoutService } from '../../../core/services/layout.service';
@@ -64,6 +65,7 @@ export class AdminShellComponent implements OnInit, OnDestroy {
     private internalChat: InternalChatService,
     private whatsapp: WhatsappChatService,
     private sound: SoundService,
+    private advisorNotif: AdvisorNotificationService,
     private notifications: NotificationService,
     protected themeService: ThemeService,
     private router: Router,
@@ -166,15 +168,10 @@ export class AdminShellComponent implements OnInit, OnDestroy {
     this.socket.on<{ sessionId: string; clientName: string }>('session_assigned')
       .pipe(takeUntil(this.destroy$))
       .subscribe(data => {
-        this.sound.playWhatsappAssignment();
-        this.sound.notify(
-          'CHAT EN LINEA',
-          `${data.clientName || 'Cliente'}\nNuevo chat asignado`,
-          `assigned-${data.sessionId}`,
-        );
+        this.advisorNotif.onSessionAssigned(data);
       });
 
-    this.socket.on<{ id?: string; senderType?: string; senderName?: string; content?: string; sessionId?: string }>('new_message')
+    this.socket.on<{ id?: string; senderType?: string; senderName?: string; content?: string; sessionId?: string; advisorId?: string }>('new_message')
       .pipe(takeUntil(this.destroy$))
       .subscribe(message => {
         if (message.senderType !== 'client') return;

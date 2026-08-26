@@ -11,6 +11,7 @@ import { AuthService } from '../../../../core/services/auth.service';
 import { ChatStateService } from '../../../../core/services/chat-state.service';
 import { TicketService } from '../../../../core/services/ticket.service';
 import { SoundService } from '../../../../core/services/sound.service';
+import { AdvisorNotificationService } from '../../../../core/services/advisor-notification.service';
 import { NotificationService } from '../../../../core/services/notification.service';
 import { ChatMediaService } from '../../../../core/services/chat-media.service';
 import { Message, Attachment, TimelineItem, TimelineResp, TimelineEvento } from '../../../../core/models/message.model';
@@ -186,6 +187,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     private sanitizer   : DomSanitizer,
     private sound       : SoundService,
     private notification: NotificationService,
+    private advisorNotif: AdvisorNotificationService,
     private aiService   : AiService,
     private configService: ConfiguracionFrontendService,
     private route       : ActivatedRoute,
@@ -493,6 +495,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     this.socket.on<{ sessionId: string; clientName: string }>('session_assigned')
       .pipe(takeUntil(this.destroy$))
       .subscribe((data) => {
+        this.advisorNotif.onSessionAssigned(data);
         this.loadSessions(data.sessionId);
         this.joinRoom(data.sessionId);
         this.showRemitFeedback('ok', `Nuevo chat asignado: ${data.clientName}`);
@@ -552,8 +555,18 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
             if (document.visibilityState === 'visible') {
               this.socket.emit('set_active', { sessionId, active: true });
             }
-          } else if (added && this.state.getActiveSessionId() !== sessionId) {
+          } else if (this.state.getActiveSessionId() !== sessionId) {
             this.state.incrementUnread(sessionId);
+            // Sonido + notificación de escritorio para mensajes de otras sesiones
+            if (added) {
+              const session = this.sessions.find(s => s.id === sessionId);
+              this.sound.playCriticalMessage();
+              this.sound.notify(
+                'CHAT EN LINEA',
+                `${this.sessionFullName(session)}\n${msg.content || 'Nuevo mensaje del cliente'}`,
+                `chat-message-${sessionId}`,
+              );
+            }
           }
         }
 
