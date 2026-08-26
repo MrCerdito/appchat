@@ -182,9 +182,9 @@ export class ColegiosConfigComponent implements OnInit, OnDestroy {
     const payload: any = {
       nombre: this.form.nombre.trim(),
       link: this.form.link.trim(),
-      email: this.form.email.trim() || undefined,
-      calendario: this.form.calendario || undefined,
-      tipoColegio: this.form.tipoColegio || undefined,
+      email: this.form.email.trim(),
+      calendario: this.form.calendario.trim(),
+      tipoColegio: this.form.tipoColegio.trim(),
       advisorId: this.form.advisorId || null,
     };
 
@@ -199,11 +199,17 @@ export class ColegiosConfigComponent implements OnInit, OnDestroy {
           const updated = res as Colegio;
           const idx = this.colegios.findIndex(c => c.id === updated.id);
           if (idx !== -1) {
-            this.colegios[idx] = { ...this.colegios[idx], ...updated, advisorName: updated.advisor?.name || this.colegios[idx].advisorName };
+            this.colegios[idx] = {
+              ...this.colegios[idx],
+              ...updated,
+              advisorName: updated.advisor?.name || null,
+            };
           }
+          this.notification.success('Actualizado', 'Los datos del colegio se guardaron correctamente.');
         } else {
           const created = res as Colegio;
           this.colegios = [{ ...created, advisorName: created.advisor?.name || null }, ...this.colegios];
+          this.notification.success('Creado', 'El colegio fue registrado exitosamente.');
         }
         this.closeForm();
         this.cdr.detectChanges();

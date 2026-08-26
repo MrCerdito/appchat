@@ -1022,6 +1022,7 @@ export class SessionsService {
       throw err;
     }
     try { await this.cache.del(`${this.CACHE_PREFIX}colegios`); } catch {}
+    saved = await this.colegioRepo.findOne({ where: { id: saved.id }, relations: ['advisor'] }) || saved;
     return saved;
   }
 

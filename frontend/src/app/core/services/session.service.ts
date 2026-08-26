@@ -160,7 +160,7 @@ export class SessionService {
     return this.http.post<Colegio>(`${environment.apiUrl}/sessions/colegios`, data);
   }
 
-  updateColegio(id: string, data: { nombre?: string; link?: string; email?: string }): Observable<Colegio> {
+  updateColegio(id: string, data: { nombre?: string; link?: string; email?: string; calendario?: string; tipoColegio?: string; advisorId?: string | null }): Observable<Colegio> {
     return this.http.patch<Colegio>(`${environment.apiUrl}/sessions/colegios/${id}`, data);
   }
 
