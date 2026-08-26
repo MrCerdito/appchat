@@ -94,14 +94,18 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
   }
 
   /* ── Navigation ── */
+  private get baseRoute(): string {
+    return this.router.url.startsWith('/admin') ? '/admin' : '/dashboard';
+  }
+
   verInstitucion(id: string): void {
     this.cerrarMenus();
-    this.router.navigate(['/dashboard/perfil-institucional', id]);
+    this.router.navigate([this.baseRoute, 'perfil-institucional', id]);
   }
 
   editarInstitucion(id: string): void {
     this.cerrarMenus();
-    this.router.navigate(['/dashboard/perfil-institucional', id], { queryParams: { edit: true } });
+    this.router.navigate([this.baseRoute, 'perfil-institucional', id], { queryParams: { edit: true } });
   }
 
   /* ── Filter panel toggle ── */
