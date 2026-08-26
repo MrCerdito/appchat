@@ -114,6 +114,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   faqItems: Faq[] = [];
   faqCategoriaActiva: string | null = null;
   showFaqInChat = false;
+  faqWasVisible = false;
 
   private readonly catIconMap: Record<string, string[]> = {
     'académico':      ['M22 10v6', 'M2 10l10-5 10 5-10 5z', 'M6 12v5c3 3 9 3 12 0v-5'],
@@ -1222,6 +1223,17 @@ get rolLabel(): string {
     ta.style.height = 'auto';
     ta.style.height = `${Math.min(ta.scrollHeight, 120)}px`;
     this.onTyping();
+
+    if (this.aiMode && this.showFaqInChat !== undefined) {
+      if (this.newMessage.trim().length > 0) {
+        if (!this.faqWasVisible) this.faqWasVisible = this.showFaqInChat;
+        this.showFaqInChat = false;
+      } else if (this.faqWasVisible) {
+        this.showFaqInChat = this.faqWasVisible;
+        this.faqWasVisible = false;
+      }
+      this.cdr.detectChanges();
+    }
   }
 
   handleKey(event: KeyboardEvent): void {
@@ -1513,6 +1525,16 @@ get rolLabel(): string {
   getQuotedMessage(msg: Message): Message | null {
     if (!msg.replyToMessageId) return null;
     return this.messages.find(m => m.id === msg.replyToMessageId) ?? null;
+  }
+
+  scrollToQuotedMessage(msg: Message): void {
+    if (!msg.replyToMessageId) return;
+    const el = document.getElementById('msg-' + msg.replyToMessageId);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('msg-highlight');
+      setTimeout(() => el.classList.remove('msg-highlight'), 1500);
+    }
   }
 
   async send(): Promise<void> {
