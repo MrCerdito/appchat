@@ -367,7 +367,7 @@
             @if (inst.tipoColegio) {
               <span class="pi-badge" [class.pi-badge--tipo-sian]="inst.tipoColegio === 'Sian365'" [class.pi-badge--tipo-ctrl]="inst.tipoColegio === 'ControlAcademic'">
                 <lucide-icon [img]="inst.tipoColegio === 'Sian365' ? icons.Cloud : icons.GraduationCap" [size]="12" />
-                {{ inst.tipoColegio === 'Sian365' ? 'Sian365' : 'CtrlAcademic' }}
+                {{ inst.tipoColegio }}
               </span>
             }
           </div>
