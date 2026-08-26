@@ -82,7 +82,7 @@
           <!-- Tipo -->
           <div class="pi-filter-column">
             <div class="pi-filter-section-title">
-              <lucide-icon [img]="icons.Cloud" [size]="14" /> Tipo
+              <lucide-icon [img]="icons.Cloud" [size]="14" /> Proyecto
             </div>
             <div class="pi-filter-options">
               <label class="pi-filter-option" [class.active]="filtroTipo.has('Sian365')" (click)="toggleTipo('Sian365')">
@@ -304,7 +304,7 @@
       }
       @for (tip of filtroTipo; track tip) {
         <span class="pi-chip">
-          Tipo: {{ tip }}
+          Proyecto: {{ tip }}
           <button type="button" (click)="toggleTipo(tip)" [attr.aria-label]="'Quitar filtro tipo ' + tip">
             <lucide-icon [img]="icons.X" [size]="12" />
           </button>
