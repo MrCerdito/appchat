@@ -1521,12 +1521,14 @@ get rolLabel(): string {
     const hasFiles = this.previewFiles.length > 0;
     if (!hasText && !hasFiles) return;
 
+    const replyId = this.replyingTo?.id ?? null;
+
     if (this.aiMode) {
-      // Modo IA = solo texto: los adjuntos solo existen en chat humano.
+      this.replyingTo = null;
       this.cancelarTimerInactividadIa();
       this.iniciarTimerInactividadIa();
       if (hasText) {
-        this.sendToAi();
+        this.sendToAi(replyId);
       }
       return;
     }
@@ -1543,7 +1545,7 @@ get rolLabel(): string {
       content    : this.newMessage.trim(),
       senderName : this.clientName,
       attachments: attachments.length > 0 ? attachments : undefined,
-      replyToMessageId: this.replyingTo?.id ?? null,
+      replyToMessageId: replyId,
     });
     this.newMessage = '';
     this.replyingTo = null;
@@ -1575,6 +1577,7 @@ get rolLabel(): string {
     text      : string,
     showSurvey = false,
     options   : { documentos?: any[] } = {},
+    replyToMessageId?: string | null,
   ): void {
     const newIndex = this.messages.length;
     this.messages.push({
@@ -1584,6 +1587,7 @@ get rolLabel(): string {
       createdAt : new Date().toISOString(),
       readAt    : null,
       documentos: (options?.documentos ?? []),
+      replyToMessageId: replyToMessageId ?? null,
     } as any);
 
     this.cdr.detectChanges();
@@ -1799,7 +1803,7 @@ get rolLabel(): string {
     this.cdr.detectChanges();
   }
 
-  sendToAi(): void {
+  sendToAi(replyToMessageId?: string | null): void {
   if (!this.newMessage.trim()) return;
   const userMsg = this.newMessage.trim();
   this.newMessage = '';
@@ -1808,7 +1812,7 @@ get rolLabel(): string {
   const wantsTransfer    = transferKeywords.some(k => userMsg.toLowerCase().includes(k));
   const historySnapshot  = [...this.aiHistory];
 
-  this.addAiMessage('user', userMsg);
+  this.addAiMessage('user', userMsg, false, {}, replyToMessageId);
 
   if (wantsTransfer) {
     setTimeout(() => this.transferToAdvisor(), 1000);

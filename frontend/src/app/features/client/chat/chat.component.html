@@ -724,8 +724,7 @@
                 <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
               </svg>
             </div>
-            <h4 class="faq-chat-title">¿Sobre qué tema necesitas ayuda?</h4>
-            <p class="faq-chat-subtitle">Selecciona una opción para encontrar rápido la información que necesitas.</p>
+            <h4 class="faq-chat-title">¿Necesitas ayuda?</h4>
           </div>
           <div class="faq-cats-grid">
             @for (cat of faqCategorias; track cat) {
@@ -737,12 +736,7 @@
                   }
                 </svg>
               </div>
-              <div class="faq-cat-info">
-                <span class="faq-cat-name">{{ cat }}</span>
-                @if (getCatDescription(cat)) {
-                <span class="faq-cat-desc">{{ getCatDescription(cat) }}</span>
-                }
-              </div>
+              <span class="faq-cat-name">{{ cat }}</span>
               <svg class="faq-cat-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="9 18 15 12 9 6"/>
               </svg>
@@ -756,7 +750,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
             </svg>
-            Volver a categorías
+            Volver
           </button>
           <div class="faq-cat-active-badge">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
