@@ -33,6 +33,8 @@ export class ColegiosConfigComponent implements OnInit, OnDestroy {
   showForm = false;
   editingColegio: Colegio | null = null;
   form = { nombre: '', link: '', email: '', calendario: '', tipoColegio: '', advisorId: '' };
+  customCalendario = false;
+  customTipoColegio = false;
   selectedIds = new Set<string>();
   deletingId: string | null = null;
   deletingBulk = false;
@@ -55,6 +57,36 @@ export class ColegiosConfigComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  get calendarioOptions(): string[] {
+    const vals = new Set(this.colegios.map(c => c.calendario).filter((v): v is string => !!v));
+    return [...vals].sort();
+  }
+
+  get tipoColegioOptions(): string[] {
+    const vals = new Set(this.colegios.map(c => c.tipoColegio).filter((v): v is string => !!v));
+    return [...vals].sort();
+  }
+
+  onCalendarioSelect(value: string): void {
+    if (value === '__custom__') {
+      this.customCalendario = true;
+      this.form.calendario = '';
+    } else {
+      this.customCalendario = false;
+      this.form.calendario = value;
+    }
+  }
+
+  onTipoColegioSelect(value: string): void {
+    if (value === '__custom__') {
+      this.customTipoColegio = true;
+      this.form.tipoColegio = '';
+    } else {
+      this.customTipoColegio = false;
+      this.form.tipoColegio = value;
+    }
   }
 
   loadColegios(): void {
@@ -162,9 +194,13 @@ export class ColegiosConfigComponent implements OnInit, OnDestroy {
         tipoColegio: colegio.tipoColegio || '',
         advisorId: colegio.advisorId || '',
       };
+      this.customCalendario = !!colegio.calendario && !this.calendarioOptions.includes(colegio.calendario);
+      this.customTipoColegio = !!colegio.tipoColegio && !this.tipoColegioOptions.includes(colegio.tipoColegio);
     } else {
       this.editingColegio = null;
       this.form = { nombre: '', link: '', email: '', calendario: '', tipoColegio: '', advisorId: '' };
+      this.customCalendario = false;
+      this.customTipoColegio = false;
     }
     this.showForm = true;
   }
@@ -173,6 +209,8 @@ export class ColegiosConfigComponent implements OnInit, OnDestroy {
     this.showForm = false;
     this.editingColegio = null;
     this.form = { nombre: '', link: '', email: '', calendario: '', tipoColegio: '', advisorId: '' };
+    this.customCalendario = false;
+    this.customTipoColegio = false;
   }
 
   saveColegio(): void {

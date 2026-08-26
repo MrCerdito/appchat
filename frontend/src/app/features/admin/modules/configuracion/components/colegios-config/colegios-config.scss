@@ -496,6 +496,45 @@ $tmc-font-mono: var(--font-mono, 'Cascadia Code', 'Fira Code', monospace);
   margin-top: 2px;
 }
 
+.tmc-custom-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+
+  input {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.tmc-custom-cancel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid $tmc-border;
+  border-radius: $tmc-radius-sm;
+  background: transparent;
+  color: $tmc-text-muted;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  &:hover {
+    background: $tmc-danger-soft;
+    border-color: color-mix(in srgb, $tmc-danger 35%, transparent);
+    color: $tmc-danger;
+
+    svg { color: $tmc-danger; }
+  }
+}
+
 /* ═══════════════════════════════════════════════════════════
    CARD (table container)
    ═══════════════════════════════════════════════════════════ */

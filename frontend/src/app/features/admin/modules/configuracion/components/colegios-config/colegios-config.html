@@ -150,11 +150,41 @@
       <div class="tmc-form__grid">
         <div class="tmc-field">
           <label for="col-calendario">Calendario</label>
-          <input id="col-calendario" type="text" [(ngModel)]="form.calendario" placeholder="A, B, 0, etc." maxlength="50"/>
+          @if (!customCalendario) {
+          <select id="col-calendario" [ngModel]="form.calendario" (ngModelChange)="onCalendarioSelect($event)">
+            <option value="">Sin definir</option>
+            @for (opt of calendarioOptions; track opt) {
+            <option [value]="opt">{{ opt }}</option>
+            }
+            <option value="__custom__">Otro (escribir...)</option>
+          </select>
+          } @else {
+          <div class="tmc-custom-row">
+            <input id="col-calendario" type="text" [(ngModel)]="form.calendario" placeholder="Escribir valor..." maxlength="50"/>
+            <button type="button" class="tmc-custom-cancel" (click)="customCalendario = false; form.calendario = ''" title="Cancelar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          }
         </div>
         <div class="tmc-field">
           <label for="col-tipo">Proyecto</label>
-          <input id="col-tipo" type="text" [(ngModel)]="form.tipoColegio" placeholder="Sian365, Control Académico, etc." maxlength="100"/>
+          @if (!customTipoColegio) {
+          <select id="col-tipo" [ngModel]="form.tipoColegio" (ngModelChange)="onTipoColegioSelect($event)">
+            <option value="">Sin definir</option>
+            @for (opt of tipoColegioOptions; track opt) {
+            <option [value]="opt">{{ opt }}</option>
+            }
+            <option value="__custom__">Otro (escribir...)</option>
+          </select>
+          } @else {
+          <div class="tmc-custom-row">
+            <input id="col-tipo" type="text" [(ngModel)]="form.tipoColegio" placeholder="Escribir valor..." maxlength="100"/>
+            <button type="button" class="tmc-custom-cancel" (click)="customTipoColegio = false; form.tipoColegio = ''" title="Cancelar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          }
         </div>
       </div>
       <div class="tmc-field">
