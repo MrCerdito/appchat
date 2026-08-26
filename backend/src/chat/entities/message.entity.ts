@@ -52,6 +52,9 @@ export class Message {
   @Column({ name: 'edited_at', nullable: true, type: 'timestamptz' })
   editedAt: Date | null;
 
+  @Column({ name: 'reply_to_message_id', nullable: true, type: 'uuid' })
+  replyToMessageId: string | null;
+
   @Column({ type: 'jsonb', nullable: true })
   attachments: Attachment[] | null;
 

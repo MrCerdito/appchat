@@ -276,6 +276,7 @@ get rolLabel(): string {
   advisorPhotoUrl = '';
   otherTyping = false;
   typingName  = '';
+  replyingTo: Message | null = null;
   private typingTimer : any;
   private isTyping    = false;
 
@@ -1486,6 +1487,19 @@ get rolLabel(): string {
    * Al enviar en modo IA: cancela el timer actual y lo reinicia desde cero.
    * Esto garantiza que el timer de inactividad se resetea con cada mensaje.
    */
+  startReply(msg: Message): void {
+    this.replyingTo = msg;
+  }
+
+  cancelReply(): void {
+    this.replyingTo = null;
+  }
+
+  getQuotedMessage(msg: Message): Message | null {
+    if (!msg.replyToMessageId) return null;
+    return this.messages.find(m => m.id === msg.replyToMessageId) ?? null;
+  }
+
   async send(): Promise<void> {
     if (this.sesionFinalizando) return;
     const hasText = this.newMessage.trim().length > 0;
@@ -1514,8 +1528,10 @@ get rolLabel(): string {
       content    : this.newMessage.trim(),
       senderName : this.clientName,
       attachments: attachments.length > 0 ? attachments : undefined,
+      replyToMessageId: this.replyingTo?.id ?? null,
     });
     this.newMessage = '';
+    this.replyingTo = null;
   }
 
   private buildClientTimer(payload: TimerUpdatePayload) {

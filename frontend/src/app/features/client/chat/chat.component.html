@@ -474,13 +474,24 @@
              [class.streaming]="isStreaming && msg.content === streamingText">
 
           @if (msg.content) {
-          <div class="bubble">
-            @if (msg.senderType === 'advisor') {
-            <span [innerHTML]="formatMessage(msg.content)"></span>
-            }
-            @if (msg.senderType === 'client') {
-            <span [innerHTML]="formatMessage(msg.content)"></span>
-            }
+          <div class="bubble-wrap">
+            <div class="bubble">
+              @if (getQuotedMessage(msg); as quoted) {
+              <div class="quoted-block">
+                <span class="quoted-sender">{{ quoted.senderName }}</span>
+                <span class="quoted-text">{{ quoted.content | slice:0:80 }}{{ quoted.content.length > 80 ? '...' : '' }}</span>
+              </div>
+              }
+              @if (msg.senderType === 'advisor') {
+              <span [innerHTML]="formatMessage(msg.content)"></span>
+              }
+              @if (msg.senderType === 'client') {
+              <span [innerHTML]="formatMessage(msg.content)"></span>
+              }
+            </div>
+            <button type="button" class="bubble-float-reply" (click)="startReply(msg)" title="Responder">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
+            </button>
           </div>
           }
 
@@ -851,6 +862,20 @@
           [style.width.%]="(inactividadIaSegRest / 180) * 100"
         ></div>
       </div>
+    </div>
+    }
+
+    <!-- Reply preview bar -->
+    @if (replyingTo) {
+    <div class="reply-bar">
+      <div class="reply-bar-info">
+        <svg class="reply-bar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
+        <span class="reply-bar-label">Respondiendo a <strong>{{ replyingTo.senderName }}</strong></span>
+      </div>
+      <span class="reply-bar-preview">{{ replyingTo.content | slice:0:60 }}{{ replyingTo.content.length > 60 ? '...' : '' }}</span>
+      <button type="button" class="reply-bar-close" (click)="cancelReply()" title="Cancelar respuesta">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
     </div>
     }
 

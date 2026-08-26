@@ -131,6 +131,8 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   editingText = '';
   readonly EDIT_WINDOW_MS = 15 * 60 * 1000;
 
+  replyingTo: Message | null = null;
+
   // ── File attachments ───────────────────────────────────────────────────────
   previewFiles: { file: File; preview: string | null; uploading: boolean; error: string | null }[] = [];
   pendingAttachments: Attachment[] = [];
@@ -1231,8 +1233,10 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
       sessionId,
       content: formatted,
       attachments: attachments.length > 0 ? attachments : undefined,
+      replyToMessageId: this.replyingTo?.id ?? null,
     });
     this.newMessage = '';
+    this.replyingTo = null;
     this.resizeInput();
     this.showSlashMenu = false;
     this.ghostSuggestion = '';
@@ -1254,6 +1258,21 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   cancelEdit(): void {
     this.editingMessageId = null;
     this.editingText = '';
+  }
+
+  startReply(msg: Message): void {
+    this.replyingTo = msg;
+  }
+
+  cancelReply(): void {
+    this.replyingTo = null;
+  }
+
+  getQuotedMessage(msg: Message): Message | null {
+    if (!msg.replyToMessageId) return null;
+    const found = this.messages.find(m => m.id === msg.replyToMessageId);
+    if (found && 'kind' in found && found.kind === 'message') return found;
+    return null;
   }
 
   submitEdit(): void {

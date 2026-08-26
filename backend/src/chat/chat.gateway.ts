@@ -969,6 +969,7 @@ export class ChatGateway
       content: string;
       senderName?: string;
       attachments?: Attachment[];
+      replyToMessageId?: string | null;
     },
     @ConnectedSocket() client: Socket,
   ) {
@@ -1036,6 +1037,8 @@ export class ChatGateway
         senderType,
         senderName,
         data.attachments,
+        undefined,
+        data.replyToMessageId,
       )
       .catch((error) => {
         client.emit('message_error', {

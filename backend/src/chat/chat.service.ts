@@ -43,6 +43,9 @@ export class ChatService implements OnModuleInit {
     }
     try {
       await this.messageRepo.query(
+        `ALTER TABLE messages ADD COLUMN IF NOT EXISTS reply_to_message_id uuid`,
+      );
+      await this.messageRepo.query(
         `ALTER TABLE messages ADD COLUMN IF NOT EXISTS documentos jsonb`,
       );
       await this.sessionEventoRepo.query(`
@@ -70,6 +73,7 @@ export class ChatService implements OnModuleInit {
     senderName: string,
     attachments?: Attachment[] | null,
     documentos?: Message['documentos'],
+    replyToMessageId?: string | null,
   ): Promise<Message> {
     const safeContent = sanitizeMessage(content);
     if (!safeContent && (!attachments || attachments.length === 0)) {
@@ -82,6 +86,7 @@ export class ChatService implements OnModuleInit {
       senderName: safeSenderName,
       attachments: attachments && attachments.length > 0 ? attachments : null,
       documentos: documentos && documentos.length > 0 ? documentos : null,
+      replyToMessageId: replyToMessageId || null,
       session: { id: sessionId } as Session,
     });
     return this.messageRepo.save(message);
