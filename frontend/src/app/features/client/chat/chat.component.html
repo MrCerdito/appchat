@@ -718,36 +718,66 @@
       <div class="faq-chat-section">
         @if (!faqCategoriaActiva) {
         <div class="faq-chat-bubble">
-          <div class="faq-chat-label">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-            </svg>
-            Preguntas frecuentes
+          <div class="faq-chat-header">
+            <div class="faq-chat-header-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+            </div>
+            <h4 class="faq-chat-title">¿Sobre qué tema necesitas ayuda?</h4>
+            <p class="faq-chat-subtitle">Selecciona una opción para encontrar rápido la información que necesitas.</p>
           </div>
-          <div class="faq-chat-cats">
+          <div class="faq-cats-grid">
             @for (cat of faqCategorias; track cat) {
-            <button class="faq-chat-cat" (click)="selectFaqCategoria(cat)" type="button">
-              {{ cat }}
+            <button class="faq-cat-card" (click)="selectFaqCategoria(cat)" type="button">
+              <div class="faq-cat-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                  @for (seg of getCatIconPaths(cat); track seg) {
+                  <path [attr.d]="seg"/>
+                  }
+                </svg>
+              </div>
+              <div class="faq-cat-info">
+                <span class="faq-cat-name">{{ cat }}</span>
+                @if (getCatDescription(cat)) {
+                <span class="faq-cat-desc">{{ getCatDescription(cat) }}</span>
+                }
+              </div>
+              <svg class="faq-cat-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
             </button>
             }
           </div>
         </div>
         } @else {
         <div class="faq-chat-bubble faq-chat-items">
-          <div class="faq-chat-label faq-chat-label--back">
-            <button class="faq-chat-back" (click)="selectFaqCategoria(faqCategoriaActiva!)" type="button">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
-              </svg>
-            </button>
-            {{ faqCategoriaActiva }}
+          <button class="faq-back-btn" (click)="selectFaqCategoria(faqCategoriaActiva!)" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Volver a categorías
+          </button>
+          <div class="faq-cat-active-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              @for (seg of getCatIconPaths(faqCategoriaActiva); track seg) {
+              <path [attr.d]="seg"/>
+              }
+            </svg>
+            <span>{{ faqCategoriaActiva }}</span>
           </div>
-          <div class="faq-chat-rows">
+          <div class="faq-questions-list">
             @for (item of getFaqItemsPorCategoria(faqCategoriaActiva); track item.id) {
-            <button class="faq-chat-row" (click)="selectFaqItem(item)" type="button">
-              <span class="faq-row-circle">?</span>
-              <span class="faq-row-text">{{ item.pregunta }}</span>
-              <span class="faq-row-arrow">&#8250;</span>
+            <button class="faq-question-card" (click)="selectFaqItem(item)" type="button">
+              <div class="faq-q-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+              </div>
+              <span class="faq-q-text">{{ item.pregunta }}</span>
+              <svg class="faq-q-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
             </button>
             }
             @if (getFaqItemsPorCategoria(faqCategoriaActiva).length === 0) {

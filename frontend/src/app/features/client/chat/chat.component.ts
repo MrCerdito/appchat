@@ -115,6 +115,21 @@ export class ChatComponent implements OnInit, OnDestroy {
   faqCategoriaActiva: string | null = null;
   showFaqInChat = false;
 
+  private readonly catIconMap: Record<string, string[]> = {
+    'académico':      ['M22 10v6', 'M2 10l10-5 10 5-10 5z', 'M6 12v5c3 3 9 3 12 0v-5'],
+    'app móvil':      ['M18 2a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h12z', 'M12 18h.01'],
+    'authenticator':  ['M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'],
+    'soporte general':['M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'],
+  };
+  private readonly defaultCatIcon: string[] = ['M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3', 'M12 17h.01'];
+
+  private readonly catDescriptions: Record<string, string> = {
+    'académico':      'Notas, materias y procesos académicos',
+    'app móvil':      'Acceso y uso de la aplicación móvil',
+    'authenticator':  'Problemas con el acceso y autenticación',
+    'soporte general':'Otras consultas y solicitudes de soporte',
+  };
+
   pqrsCodigo = '';
   showPqrsSuccess = false;
 
@@ -1584,6 +1599,30 @@ get rolLabel(): string {
   }
 
   // ── FAQ en chat — carga y selección ──────────────────────────────────────
+
+  private normalizeStr(s: string): string {
+    return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+
+  getCatIconPaths(cat: string): string[] {
+    const lower = this.normalizeStr(cat);
+    for (const [key, paths] of Object.entries(this.catIconMap)) {
+      if (lower.includes(this.normalizeStr(key)) || this.normalizeStr(key).includes(lower)) {
+        return paths;
+      }
+    }
+    return this.defaultCatIcon;
+  }
+
+  getCatDescription(cat: string): string {
+    const lower = this.normalizeStr(cat);
+    for (const [key, desc] of Object.entries(this.catDescriptions)) {
+      if (lower.includes(this.normalizeStr(key)) || this.normalizeStr(key).includes(lower)) {
+        return desc;
+      }
+    }
+    return '';
+  }
 
   private cargarFaqParaChat(): void {
     this.faqService.getCategorias().subscribe({
