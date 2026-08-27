@@ -577,7 +577,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (!sessionId || message.senderType !== 'client') return;
 
     const viewingSessionId = this.router.url.includes('/dashboard/chats')
-      ? this.chatState.getActiveSessionId()
+      ? this.chatState.getActiveSessionId() ?? undefined
       : undefined;
 
     const { shouldNotify, isAssigned } = this.advisorNotif.onNewMessage(message, this.currentAdvisor, {
