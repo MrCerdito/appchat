@@ -37,6 +37,7 @@ import { WhatsappChat } from './advisor-whatsapp/entities/whatsapp-chat.entity';
 import { WhatsappMessage } from './advisor-whatsapp/entities/whatsapp-message.entity';
 import { FaqModule } from './faq/faq.module';
 import { Faq } from './faq/entities/faq.entity';
+import { FaqCategory } from './faq/entities/faq-category.entity';
 import { TicketsModule } from './tickets/tickets.module';
 import { Ticket } from './tickets/ticket.entity';
 import { PqrsModule } from './pqrs/pqrs.module';
@@ -155,6 +156,7 @@ import { AppService } from './app.service';
           WhatsappChat,
           WhatsappMessage,
           Faq,
+          FaqCategory,
           Ticket,
           Pqrs,
           AuditLog,

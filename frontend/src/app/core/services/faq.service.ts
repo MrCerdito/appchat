@@ -39,6 +39,25 @@ export interface CreateFaqDto {
   activo?: boolean;
 }
 
+export interface FaqCategory {
+  id: number;
+  name: string;
+  icon: string;
+  description: string;
+  orden: number;
+  activo: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateFaqCategoryDto {
+  name: string;
+  icon?: string;
+  description?: string;
+  orden?: number;
+  activo?: boolean;
+}
+
 @Injectable({ providedIn: 'root' })
 export class FaqService {
   constructor(private http: HttpClient) {}
@@ -55,6 +74,25 @@ export class FaqService {
     let params = '';
     if (colegioId) params += `colegioId=${colegioId}`;
     return this.http.get<string[]>(`${environment.apiUrl}/faq/categorias?${params}`);
+  }
+
+  // ── Categorías (tabla faq_categories, editables desde admin) ─────────────
+
+  getCategoryList(bustCache = false): Observable<FaqCategory[]> {
+    const v = bustCache ? `?_t=${Date.now()}` : '';
+    return this.http.get<FaqCategory[]>(`${environment.apiUrl}/faq-categories${v}`);
+  }
+
+  createCategory(dto: CreateFaqCategoryDto): Observable<FaqCategory> {
+    return this.http.post<FaqCategory>(`${environment.apiUrl}/faq-categories`, dto);
+  }
+
+  updateCategory(id: number, dto: Partial<CreateFaqCategoryDto>): Observable<FaqCategory> {
+    return this.http.patch<FaqCategory>(`${environment.apiUrl}/faq-categories/${id}`, dto);
+  }
+
+  removeCategory(id: number): Observable<void> {
+    return this.http.delete<void>(`${environment.apiUrl}/faq-categories/${id}`);
   }
 
   create(dto: CreateFaqDto): Observable<Faq> {

@@ -730,19 +730,19 @@
             <p class="faq-chat-subtitle">Selecciona una opción para encontrar rápido la información que necesitas.</p>
           </div>
           <div class="faq-cats-grid">
-            @for (cat of faqCategorias; track cat) {
-            <button class="faq-cat-card" (click)="selectFaqCategoria(cat)" type="button">
+            @for (cat of faqCategorias; track cat.id !== 0 ? cat.id : cat.name) {
+            <button class="faq-cat-card" (click)="selectFaqCategoria(cat.name)" type="button">
               <div class="faq-cat-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                  @for (seg of getCatIconPaths(cat); track seg) {
+                  @for (seg of getCatIconPaths(cat); track $index) {
                   <path [attr.d]="seg"/>
                   }
                 </svg>
               </div>
               <div class="faq-cat-info">
-                <span class="faq-cat-name">{{ cat }}</span>
-                @if (getCatDescription(cat)) {
-                <span class="faq-cat-desc">{{ getCatDescription(cat) }}</span>
+                <span class="faq-cat-name">{{ cat.name }}</span>
+                @if (cat.description) {
+                <span class="faq-cat-desc">{{ cat.description }}</span>
                 }
               </div>
               <svg class="faq-cat-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -762,7 +762,7 @@
           </button>
           <div class="faq-cat-active-badge">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-              @for (seg of getCatIconPaths(faqCategoriaActiva); track seg) {
+              @for (seg of getCatIconPaths(getCat(faqCategoriaActiva)); track $index) {
               <path [attr.d]="seg"/>
               }
             </svg>

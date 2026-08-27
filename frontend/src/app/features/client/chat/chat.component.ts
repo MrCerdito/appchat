@@ -20,7 +20,7 @@ import { trackByIndex, trackById } from '../../../shared/utils/track-by';
 import { scrollToBottom } from '../../../shared/utils/scroll';
 import { normalizeUploadFile } from '../../../shared/utils/media';
 import { FaqComponent } from '../faq/faq.component';
-import { FaqService, Faq } from '../../../core/services/faq.service';
+import { FaqService, Faq, FaqCategory } from '../../../core/services/faq.service';
 import { PqrsComponent } from '../pqrs/pqrs.component';
 import { ToastContainerComponent } from '../../../shared/components/toast-container.component';
 import { MaintenanceService } from '../../../core/services/maintenance.service';
@@ -110,7 +110,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   marcaChat = 'Soporte en línea';
 
   // ── FAQ en chat ─────────────────────────────────────────────────────────
-  faqCategorias: string[] = [];
+  faqCategorias: FaqCategory[] = [];
   faqItems: Faq[] = [];
   faqCategoriaActiva: string | null = null;
   showFaqInChat = false;
@@ -1630,12 +1630,23 @@ get rolLabel(): string {
     return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   }
 
-  getCatIconPaths(cat: string): string[] {
-    const lower = this.normalizeStr(cat);
-    for (const [key, paths] of Object.entries(this.catIconMap)) {
-      if (lower.includes(this.normalizeStr(key)) || this.normalizeStr(key).includes(lower)) {
-        return paths;
+  getCatIconPaths(cat: FaqCategory | undefined): string[] {
+    // 1. Si la categoría (de la tabla admin) tiene un icono conocido, usarlo
+    if (cat?.icon && this.iconPathsByLucideName[cat.icon]) {
+      return this.iconPathsByLucideName[cat.icon];
+    }
+    // 2. Fallback: matchear por nombre contra el mapa de iconos por defecto
+    if (cat?.name) {
+      const lower = this.normalizeStr(cat.name);
+      for (const [key, paths] of Object.entries(this.catIconMap)) {
+        if (lower.includes(this.normalizeStr(key)) || this.normalizeStr(key).includes(lower)) {
+          return paths;
+        }
       }
+    }
+    // 3. Fallback: matchear por la key del icono
+    if (cat?.icon && this.catIconMap[cat.icon]) {
+      return this.catIconMap[cat.icon];
     }
     return this.defaultCatIcon;
   }
@@ -1650,11 +1661,56 @@ get rolLabel(): string {
     return '';
   }
 
+  private readonly iconPathsByLucideName: Record<string, string[]> = {
+    GraduationCap: ['M22 10v6', 'M2 10l10-5 10 5-10 5z', 'M6 12v5c3 3 9 3 12 0v-5'],
+    BookOpen: ['M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z', 'M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z'],
+    Smartphone: ['M18 2a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h12z', 'M12 18h.01'],
+    TabletSmartphone: ['M11 4H6a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h5', 'M20 4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2z', 'M14 17v2', 'M18 17v2'],
+    MonitorSmartphone: ['M18 8V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h8', 'M10 19h4', 'M22 12v8a2 2 0 0 1-2 2h-6a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2z'],
+    Shield: ['M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'],
+    ShieldCheck: ['M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z', 'M9 12l2 2 4-4'],
+    Lock: ['M5 11h14a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1z', 'M8 11V7a4 4 0 0 1 8 0v4'],
+    LockKeyhole: ['M5 11h14a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1z', 'M8 11V7a4 4 0 0 1 8 0v4', 'M12 15v3'],
+    MessageCircle: ['M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z'],
+    Headphones: ['M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-5a9 9 0 0 1 18 0v5a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3'],
+    HelpCircle: ['M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3', 'M12 17h.01'],
+    MessageCircleMore: ['M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z', 'M8 12h.01', 'M12 12h.01', 'M16 12h.01'],
+    FileText: ['M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z', 'M16 2v6h6', 'M9 13h6', 'M9 17h6'],
+    Users: ['M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2', 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', 'M23 21v-2a4 4 0 0 0-3-3.87', 'M16 3.13a4 4 0 0 1 0 7.75'],
+    Settings: ['M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z', 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z'],
+    CreditCard: ['M3 10h18', 'M3 6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'],
+    Phone: ['M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z'],
+    UsersRound: ['M18 21a8 8 0 0 0-16 0', 'M10 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', 'M22 21a8 8 0 0 0-7-7.94'],
+  };
+
   private cargarFaqParaChat(): void {
-    this.faqService.getCategorias().subscribe({
+    // 1. Cargar categorías editables desde admin (faq_categories)
+    this.faqService.getCategoryList().subscribe({
       next: (cats) => {
-        this.faqCategorias = (cats || []).map(c => c?.trim()).filter((c): c is string => !!c);
-        this.cdr.detectChanges();
+        const activas = (cats || []).filter(c => c.activo);
+        // Merge con categorías heredadas de las FAQs (strings libres)
+        this.faqService.getCategorias().subscribe({
+          next: (legacyCats) => {
+            const existing = new Set(activas.map(c => this.normalizeStr(c.name)));
+            for (const leg of (legacyCats || [])) {
+              const name = leg?.trim();
+              if (name && !existing.has(this.normalizeStr(name))) {
+                activas.push({
+                  id: 0,
+                  name,
+                  icon: this.defaultCatIconKey(name),
+                  description: this.getCatDescription(name),
+                  orden: 999,
+                  activo: true,
+                  createdAt: '',
+                  updatedAt: '',
+                } as FaqCategory);
+              }
+            }
+            this.faqCategorias = activas;
+            this.cdr.detectChanges();
+          },
+        });
       },
     });
     this.faqService.getAll().subscribe({
@@ -1663,6 +1719,16 @@ get rolLabel(): string {
         this.cdr.detectChanges();
       },
     });
+  }
+
+  private defaultCatIconKey(name: string): string {
+    const lower = this.normalizeStr(name);
+    for (const key of Object.keys(this.catIconMap)) {
+      if (lower.includes(this.normalizeStr(key)) || this.normalizeStr(key).includes(lower)) {
+        return key;
+      }
+    }
+    return 'HelpCircle';
   }
 
   selectFaqCategoria(cat: string): void {
@@ -1676,7 +1742,13 @@ get rolLabel(): string {
   }
 
   getFaqItemsPorCategoria(cat: string): Faq[] {
-    return this.faqItems.filter(f => f.categoria === cat);
+    const ncat = this.normalizeStr(cat);
+    return this.faqItems.filter(f => f.categoria && this.normalizeStr(f.categoria) === ncat);
+  }
+
+  getCat(cat: string): FaqCategory | undefined {
+    const ncat = this.normalizeStr(cat);
+    return this.faqCategorias.find(c => this.normalizeStr(c.name) === ncat);
   }
 
   selectFaqItem(item: Faq): void {

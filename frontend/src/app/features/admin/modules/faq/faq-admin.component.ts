@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
-import { FaqService, Faq, CreateFaqDto } from '../../../../core/services/faq.service';
+import { FaqService, Faq, CreateFaqDto, FaqCategory, CreateFaqCategoryDto } from '../../../../core/services/faq.service';
 import { NotificationService } from '../../../../core/services/notification.service';
 import { trackByIndex } from '../../../../shared/utils/track-by';
 import { formatFaqText } from '../../../../shared/utils/faq-format';
@@ -36,6 +36,21 @@ export class FaqAdminComponent implements OnInit, OnDestroy {
   selectedIds = new Set<number>();
   showBulkConfirm = false;
   bulkDeleting = false;
+
+  // ── Categorías (faq_categories) ──────────────────────────────────────────
+  categorias: FaqCategory[] = [];
+  categoriasCargando = false;
+  categoriasModal = false;
+  editandoCategoria: FaqCategory | null = null;
+  categoriaFormVisible = false;
+  guardandoCategoria = false;
+  formCategoria = { name: '', icon: 'HelpCircle', description: '', orden: 0, activo: true };
+  iconosDisponibles: string[] = [
+    'GraduationCap', 'BookOpen', 'Smartphone', 'TabletSmartphone', 'MonitorSmartphone',
+    'Shield', 'ShieldCheck', 'Lock', 'LockKeyhole', 'MessageCircle', 'MessageCircleMore',
+    'Headphones', 'HelpCircle', 'FileText', 'Users', 'UsersRound', 'Settings',
+    'CreditCard', 'Phone',
+  ];
 
   private clickStartedInside = false;
   private destroy$ = new Subject<void>();
@@ -116,6 +131,103 @@ export class FaqAdminComponent implements OnInit, OnDestroy {
         console.error('HTTP Error:', err);
         this.cargando = false;
         this.cdr.detectChanges();
+      },
+    });
+    this.cargarCategorias();
+  }
+
+  cargarCategorias(): void {
+    this.categoriasCargando = true;
+    this.faqService.getCategoryList(true).pipe(takeUntil(this.destroy$)).subscribe({
+      next: (cats) => {
+        this.categorias = (cats || []).sort((a, b) => a.orden - b.orden);
+        this.categoriasCargando = false;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.categoriasCargando = false;
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  // ── CRUD categorías ──────────────────────────────────────────────────────
+
+  abrirModalCategoria(cat?: FaqCategory): void {
+    if (cat) {
+      this.editandoCategoria = cat;
+      this.categoriaFormVisible = true;
+      this.formCategoria = {
+        name: cat.name,
+        icon: cat.icon || 'HelpCircle',
+        description: cat.description || '',
+        orden: cat.orden,
+        activo: cat.activo,
+      };
+    } else {
+      this.editandoCategoria = null;
+      this.categoriaFormVisible = false;
+    }
+    this.categoriasModal = true;
+  }
+
+  nuevaCategoria(): void {
+    this.editandoCategoria = null;
+    this.categoriaFormVisible = true;
+    this.formCategoria = { name: '', icon: 'HelpCircle', description: '', orden: this.categorias.length, activo: true };
+    this.categoriasModal = true;
+  }
+
+  cerrarModalCategoria(): void {
+    this.categoriasModal = false;
+    this.editandoCategoria = null;
+    this.categoriaFormVisible = false;
+    this.guardandoCategoria = false;
+  }
+
+  guardarCategoria(): void {
+    const name = this.formCategoria.name.trim();
+    if (!name) {
+      this.notification.error('Error', 'El nombre de la categoría es obligatorio');
+      return;
+    }
+    this.guardandoCategoria = true;
+    const esEdicion = !!this.editandoCategoria;
+    const dto: CreateFaqCategoryDto = {
+      name,
+      icon: this.formCategoria.icon || 'HelpCircle',
+      description: this.formCategoria.description.trim(),
+      orden: this.formCategoria.orden,
+      activo: this.formCategoria.activo,
+    };
+    const req = esEdicion
+      ? this.faqService.updateCategory(this.editandoCategoria!.id, dto)
+      : this.faqService.createCategory(dto);
+    req.pipe(takeUntil(this.destroy$)).subscribe({
+      next: () => {
+        this.guardandoCategoria = false;
+        this.categoriasModal = false;
+        this.editandoCategoria = null;
+        this.notification.success('Éxito', esEdicion ? 'Categoría actualizada' : 'Categoría creada');
+        this.cargarCategorias();
+      },
+      error: (err) => {
+        this.guardandoCategoria = false;
+        this.cdr.detectChanges();
+        this.notification.error('Error', err.error?.message || 'No se pudo guardar la categoría');
+      },
+    });
+  }
+
+  eliminarCategoria(cat: FaqCategory): void {
+    if (!confirm(`¿Eliminar la categoría "${cat.name}"?`)) return;
+    this.faqService.removeCategory(cat.id).pipe(takeUntil(this.destroy$)).subscribe({
+      next: () => {
+        this.notification.success('Éxito', 'Categoría eliminada');
+        this.cargarCategorias();
+      },
+      error: (err) => {
+        this.notification.error('Error', err.error?.message || 'No se pudo eliminar la categoría');
       },
     });
   }
