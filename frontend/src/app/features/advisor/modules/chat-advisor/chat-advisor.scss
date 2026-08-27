@@ -1639,26 +1639,31 @@ a {
 // SIDE PANEL
 // ══════════════════════════════════════════════════════════════════════════════
 .side-panel {
-  position: absolute;
-  top: 0;
-  right: 0;
-  z-index: 35;
-  width: min(380px, 92vw);
+  flex: 0 0 380px;
+  width: 380px;
   min-width: 0;
   height: 100%;
   background: $surface;
   border-left: 1px solid $border;
-  border-radius: 0 $radius-xl $radius-xl 0;
+  border-radius: 0;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  transform: translateX(100%);
-  transition: transform 0.22s ease, box-shadow 0.22s ease;
-  box-shadow: none;
+  overflow-x: hidden;
+  transition: flex 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              min-width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.25s ease;
+  opacity: 1;
 
-  &.open {
-    transform: translateX(0);
-    box-shadow: $shadow-xl;
+  &:not(.open) {
+    flex: 0 0 0;
+    width: 0;
+    min-width: 0;
+    opacity: 0;
+    overflow: hidden;
+    border-left: 0;
+    pointer-events: none;
   }
 
   &::-webkit-scrollbar { width: 2px; }
@@ -1666,11 +1671,7 @@ a {
 }
 
 .info-backdrop {
-  position: absolute;
-  inset: 0;
-  z-index: 34;
-  background: rgba(17, 24, 39, 0.08);
-  backdrop-filter: blur(2px);
+  display: none;
 }
 
 .panel-close {
@@ -2856,9 +2857,9 @@ a {
   .msg { width: 100%; max-width: 100%; }
 }
 
-// ── ≤1180px: side panel narrower ─────────────────────────
+// ── ≤1180px ────────────────────────────────────────────────
 @media (max-width: 1180px) {
-  .side-panel { width: min(360px, 92vw); }
+  .side-panel { flex: 0 0 340px; width: 340px; }
 }
 
 // ── ≤1100px: panel narrower + msgs wider ─────────────────
@@ -2916,15 +2917,27 @@ a {
     right: 0;
     top: 0;
     bottom: 0;
-    width: min(360px, 85vw);
+    width: min(380px, 85vw);
     border-radius: $radius-xl 0 0 $radius-xl;
     z-index: 50;
+    flex: none;
+
+    &:not(.open) {
+      transform: translateX(100%);
+      width: min(380px, 85vw);
+      flex: none;
+      opacity: 1;
+      overflow: hidden;
+    }
   }
 
   .info-backdrop {
+    display: block;
     position: fixed;
     inset: 0;
     z-index: 49;
+    background: rgba(17, 24, 39, 0.2);
+    backdrop-filter: blur(2px);
   }
 }
 
@@ -2979,9 +2992,19 @@ a {
     width: 100%;
     border-radius: 0;
     z-index: 50;
+    flex: none;
+
+    &:not(.open) {
+      transform: translateX(100%);
+      width: 100%;
+      flex: none;
+      opacity: 1;
+      overflow: hidden;
+    }
   }
 
   .info-backdrop {
+    display: block;
     position: fixed;
     inset: 0;
     z-index: 49;

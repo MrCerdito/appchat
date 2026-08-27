@@ -135,10 +135,16 @@
           <div class="header-info-row">
             <span class="info-status" [ngClass]="clientPresenceClass(activeSession)"
                   [title]="clientPresenceLabel(activeSession)"></span>
+            @if (activeSession.identificacion) {
+            <span class="info-chip" title="Numero de documento">
+              <wa-icon name="hash" size="13"></wa-icon>
+              <span class="info-text">{{ activeSession.identificacion }}</span>
+            </span>
+            }
             @if (activeSession.rol) {
             <span class="info-chip" title="Rol">
               <wa-icon name="id" size="13"></wa-icon>
-              <span class="info-text">{{ activeSession.rol }}</span>
+              <span class="info-text">{{ activeSession.rol | titlecase }}</span>
             </span>
             }
             @if (activeSession.colegio) {
@@ -147,10 +153,10 @@
               <span class="info-text">{{ activeSession.colegio }}</span>
             </span>
             }
-            @if (activeSession.colegioAdvisorName) {
-            <span class="info-chip info-chip--advisor" title="Asesor principal del colegio">
-              <wa-icon name="user" size="13"></wa-icon>
-              <span class="info-text">{{ activeSession.colegioAdvisorName }}</span>
+            @if (activeSession.tipoSolicitud) {
+            <span class="info-chip" title="Tipo de solicitud">
+              <wa-icon name="tag" size="13"></wa-icon>
+              <span class="info-text">{{ activeSession.tipoSolicitud | titlecase }}</span>
             </span>
             }
           </div>
@@ -617,14 +623,17 @@
         </svg>
       </button>
     </footer>
-
-    <!-- Side panel backdrop -->
-    @if (showInfoPanel) {
-    <div class="info-backdrop" (click)="showInfoPanel = false"></div>
     }
+  </main>
 
-    <!-- Side panel -->
-    <aside class="side-panel" [class.open]="showInfoPanel">
+  <!-- Side panel backdrop -->
+  @if (activeSession && showInfoPanel) {
+  <div class="info-backdrop" (click)="showInfoPanel = false"></div>
+  }
+
+  <!-- Side panel -->
+  @if (activeSession) {
+  <aside class="side-panel" [class.open]="showInfoPanel">
       <button class="panel-close" type="button" (click)="showInfoPanel = false" title="Ocultar informacion">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
           <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -783,7 +792,6 @@
 
     </aside>
     }
-  </main>
 
   <!-- ═══ MODALS ═══════════════════════════════════════════════════════════ -->
 
