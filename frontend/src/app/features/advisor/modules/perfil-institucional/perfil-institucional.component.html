@@ -231,26 +231,8 @@
         }
       </div>
 
-      <!-- Sort + Per-page + Apply + Pagination inside filter panel -->
+      <!-- Apply filters inside filter panel -->
       <div class="pi-filter-footer">
-        <div class="pi-filter-footer-controls">
-          <div class="pi-filter-sort-group">
-            <span class="pi-filter-sort-label">Ordenar por</span>
-            <select class="pi-filter-sort-select" [(ngModel)]="orden" (change)="alCambiarFiltros()" aria-label="Ordenar por">
-              <option value="nombre">Nombre A &rarr; Z</option>
-              <option value="nombre-desc">Nombre Z &rarr; A</option>
-            </select>
-          </div>
-          <div class="pi-filter-sort-group">
-            <span class="pi-filter-sort-label">Por p&aacute;gina</span>
-            <select class="pi-filter-sort-select" [(ngModel)]="limitePorPagina" (change)="alCambiarFiltros()" aria-label="Resultados por p&aacute;gina">
-              <option [value]="15">15</option>
-              <option [value]="20">20</option>
-              <option [value]="50">50</option>
-              <option [value]="100">100</option>
-            </select>
-          </div>
-        </div>
         <div class="pi-filter-footer-right">
           <span class="pi-filter-footer-info">
             <lucide-icon [img]="icons.Info" [size]="14" />
@@ -261,32 +243,6 @@
           </button>
         </div>
       </div>
-
-      <!-- Pagination inside filter panel -->
-      @if (!loading && pages > 1) {
-        <div class="pi-filter-pagination">
-          <span class="pi-pagination-info">
-            Mostrando <strong>{{ (page - 1) * limitePorPagina + 1 }}&ndash;{{ page * limitePorPagina < total ? page * limitePorPagina : total }}</strong> de <strong>{{ total }}</strong>
-          </span>
-          <div class="pi-filter-pagination-btns">
-            <button type="button" class="pi-pag-arrow" [disabled]="page <= 1" (click)="irAPagina(1)" title="Primera p&aacute;gina" aria-label="Primera p&aacute;gina">
-              <lucide-icon [img]="icons.ChevronsLeft" [size]="16" />
-            </button>
-            <button type="button" class="pi-pag-arrow" [disabled]="page <= 1" (click)="irAPagina(page - 1)" title="P&aacute;gina anterior" aria-label="P&aacute;gina anterior">
-              <lucide-icon [img]="icons.ChevronLeft" [size]="16" />
-            </button>
-            @for (p of paginasVisibles(); track p) {
-              <button type="button" class="pi-pag-btn" [class.active]="p === page" (click)="irAPagina(p)" [attr.aria-label]="'Ir a p&aacute;gina ' + p" [attr.aria-current]="p === page ? 'page' : null">{{ p }}</button>
-            }
-            <button type="button" class="pi-pag-arrow" [disabled]="page >= pages" (click)="irAPagina(page + 1)" title="P&aacute;gina siguiente" aria-label="P&aacute;gina siguiente">
-              <lucide-icon [img]="icons.ChevronRight" [size]="16" />
-            </button>
-            <button type="button" class="pi-pag-arrow" [disabled]="page >= pages" (click)="irAPagina(pages)" title="&Uacute;ltima p&aacute;gina" aria-label="&Uacute;ltima p&aacute;gina">
-              <lucide-icon [img]="icons.ChevronsRight" [size]="16" />
-            </button>
-          </div>
-        </div>
-      }
     }
   </div>
 
@@ -410,6 +366,55 @@
           <lucide-icon [img]="icons.RefreshCw" [size]="16" /> Limpiar filtros
         </button>
       }
+    </div>
+  }
+
+  <!-- ═══════════════════════════════════════ PAGINATION + SORT + PER-PAGE ═══════════════════════════════════════ -->
+  @if (!loading && instituciones.length > 0) {
+    <div class="pi-paginator-bar">
+      <div class="pi-paginator-sort">
+        <div class="pi-filter-sort-group">
+          <span class="pi-filter-sort-label">Ordenar por</span>
+          <select class="pi-filter-sort-select" [(ngModel)]="orden" (change)="alCambiarFiltros()" aria-label="Ordenar por">
+            <option value="nombre">Nombre A &rarr; Z</option>
+            <option value="nombre-desc">Nombre Z &rarr; A</option>
+          </select>
+        </div>
+        <div class="pi-filter-sort-group">
+          <span class="pi-filter-sort-label">Por p&aacute;gina</span>
+          <select class="pi-filter-sort-select" [(ngModel)]="limitePorPagina" (change)="alCambiarFiltros()" aria-label="Resultados por p&aacute;gina">
+            <option [value]="15">15</option>
+            <option [value]="20">20</option>
+            <option [value]="50">50</option>
+            <option [value]="100">100</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="pi-footer-pagination">
+        <span class="pi-pagination-info">
+          Mostrando <strong>{{ (page - 1) * limitePorPagina + 1 }}&ndash;{{ page * limitePorPagina < total ? page * limitePorPagina : total }}</strong> de <strong>{{ total }}</strong>
+        </span>
+        @if (pages > 1) {
+          <div class="pi-filter-pagination-btns">
+            <button type="button" class="pi-pag-arrow" [disabled]="page <= 1" (click)="irAPagina(1)" title="Primera p&aacute;gina" aria-label="Primera p&aacute;gina">
+              <lucide-icon [img]="icons.ChevronsLeft" [size]="16" />
+            </button>
+            <button type="button" class="pi-pag-arrow" [disabled]="page <= 1" (click)="irAPagina(page - 1)" title="P&aacute;gina anterior" aria-label="P&aacute;gina anterior">
+              <lucide-icon [img]="icons.ChevronLeft" [size]="16" />
+            </button>
+            @for (p of paginasVisibles(); track p) {
+              <button type="button" class="pi-pag-btn" [class.active]="p === page" (click)="irAPagina(p)" [attr.aria-label]="'Ir a p&aacute;gina ' + p" [attr.aria-current]="p === page ? 'page' : null">{{ p }}</button>
+            }
+            <button type="button" class="pi-pag-arrow" [disabled]="page >= pages" (click)="irAPagina(page + 1)" title="P&aacute;gina siguiente" aria-label="P&aacute;gina siguiente">
+              <lucide-icon [img]="icons.ChevronRight" [size]="16" />
+            </button>
+            <button type="button" class="pi-pag-arrow" [disabled]="page >= pages" (click)="irAPagina(pages)" title="&Uacute;ltima p&aacute;gina" aria-label="&Uacute;ltima p&aacute;gina">
+              <lucide-icon [img]="icons.ChevronsRight" [size]="16" />
+            </button>
+          </div>
+        }
+      </div>
     </div>
   }
 

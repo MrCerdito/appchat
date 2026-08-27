@@ -21,6 +21,9 @@ export class Colegio {
   @Column({ type: 'varchar', length: 50, nullable: true, name: 'tipo_colegio' })
   tipoColegio: string | null;
 
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  ciudad: string | null;
+
   @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'advisor_id' })
   advisor: User | null;

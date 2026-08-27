@@ -965,7 +965,7 @@ export class SessionsService {
     return match ? { id: match.id, nombre: match.nombre } : null;
   }
 
-  async createColegio(data: { nombre: string; link: string; email?: string; calendario?: string; tipoColegio?: string; advisorId?: string }): Promise<Colegio> {
+  async createColegio(data: { nombre: string; link: string; email?: string; calendario?: string; tipoColegio?: string; ciudad?: string; advisorId?: string }): Promise<Colegio> {
     const truncate = (s: string, max: number) => s.length > max ? s.slice(0, max) : s;
     const nombre = truncate(data.nombre, 200);
     const link = truncate(data.link, 500);
@@ -978,6 +978,7 @@ export class SessionsService {
       email: data.email ? truncate(data.email, 200) : '',
       calendario: data.calendario || null,
       tipoColegio: data.tipoColegio || null,
+      ciudad: data.ciudad ? truncate(data.ciudad, 100) : null,
       advisorId: data.advisorId || null,
     });
     let saved: Colegio;
@@ -993,7 +994,7 @@ export class SessionsService {
     return saved;
   }
 
-  async updateColegio(id: string, data: { nombre?: string; link?: string; email?: string; calendario?: string; tipoColegio?: string; advisorId?: string | null }): Promise<Colegio> {
+  async updateColegio(id: string, data: { nombre?: string; link?: string; email?: string; calendario?: string; tipoColegio?: string; ciudad?: string; advisorId?: string | null }): Promise<Colegio> {
     const truncate = (s: string, max: number) => s.length > max ? s.slice(0, max) : s;
     const colegio = await this.colegioRepo.findOne({ where: { id } });
     if (!colegio) throw new NotFoundException('Colegio no encontrado');
@@ -1010,6 +1011,7 @@ export class SessionsService {
     if (data.email !== undefined) colegio.email = data.email ? truncate(data.email, 200) : '';
     if (data.calendario !== undefined) colegio.calendario = data.calendario || null;
     if (data.tipoColegio !== undefined) colegio.tipoColegio = data.tipoColegio || null;
+    if (data.ciudad !== undefined) colegio.ciudad = data.ciudad ? truncate(data.ciudad, 100) : null;
     if (data.advisorId !== undefined) colegio.advisorId = data.advisorId || null;
 
     let saved: Colegio;
@@ -1034,7 +1036,7 @@ export class SessionsService {
     return { ok: true };
   }
 
-  async importColegios(data: { nombre: string; link: string; email?: string; calendario?: string; tipoColegio?: string; asesor?: string }[]): Promise<{ created: Colegio[]; skipped: number; warnings: string[] }> {
+  async importColegios(data: { nombre: string; link: string; email?: string; calendario?: string; tipoColegio?: string; ciudad?: string; asesor?: string }[]): Promise<{ created: Colegio[]; skipped: number; warnings: string[] }> {
     const truncate = (s: string, max: number) => s.length > max ? s.slice(0, max) : s;
     const warnings: string[] = [];
 
@@ -1053,6 +1055,7 @@ export class SessionsService {
       const email = d.email ? truncate(d.email, 200) : '';
       const calendario = d.calendario ? truncate(d.calendario, 5) : '';
       const tipoColegio = d.tipoColegio ? truncate(d.tipoColegio, 50) : '';
+      const ciudad = d.ciudad ? truncate(d.ciudad, 100) : '';
       let advisorId: string | null = null;
       if (d.asesor && d.asesor.trim()) {
         const found = advisorMap.get(d.asesor.toLowerCase().trim());
@@ -1062,7 +1065,7 @@ export class SessionsService {
           warnings.push(`Asesor "${d.asesor}" no encontrado para colegio "${nombre}"`);
         }
       }
-      return { nombre, link, email, calendario, tipoColegio, advisorId };
+      return { nombre, link, email, calendario, tipoColegio, ciudad, advisorId };
     });
     const seen = new Set<string>();
     const unique = truncated.filter((d) => {

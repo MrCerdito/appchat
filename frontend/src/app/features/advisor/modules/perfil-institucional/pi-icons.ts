@@ -42,6 +42,12 @@ import {
   Clock,
   Sun,
   CalendarClock,
+  Link,
+  Mail,
+  MapPin,
+  Folder,
+  FolderOpen,
+  Tag,
 } from 'lucide-angular';
 
 export const PI_ICONS = {
@@ -88,6 +94,12 @@ export const PI_ICONS = {
   Clock,
   Sun,
   CalendarClock,
+  Link,
+  Mail,
+  MapPin,
+  Folder,
+  FolderOpen,
+  Tag,
 };
 
 export type PiIconName = keyof typeof PI_ICONS;

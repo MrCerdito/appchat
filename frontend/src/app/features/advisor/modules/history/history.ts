@@ -50,6 +50,11 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
   filterAsesor       = '';
   showAdvancedFilters  = false;
 
+  // ── Filtro por fechas ──
+  dateRangePreset = '';
+  filterDateFrom  = '';
+  filterDateTo    = '';
+
   // ── Dropdowns ──
   colegios   : string[] = [];
   roles      : string[] = [];
@@ -100,7 +105,22 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
       const matchAsesor     = !this.filterAsesor ||
         s.advisor?.name?.toLowerCase() === this.filterAsesor.toLowerCase();
 
-      return matchStatus && matchSearch && matchColegio && matchRol && matchSolicitud && matchId && matchAsesor;
+      let matchDate = true;
+      if ((this.filterDateFrom || this.filterDateTo) && s.createdAt) {
+        const created = new Date(s.createdAt);
+        if (this.filterDateFrom) {
+          const from = new Date(this.filterDateFrom);
+          from.setHours(0, 0, 0, 0);
+          matchDate = matchDate && created >= from;
+        }
+        if (this.filterDateTo) {
+          const to = new Date(this.filterDateTo);
+          to.setHours(23, 59, 59, 999);
+          matchDate = matchDate && created <= to;
+        }
+      }
+
+      return matchStatus && matchSearch && matchColegio && matchRol && matchSolicitud && matchId && matchAsesor && matchDate;
     });
   }
 
@@ -174,6 +194,7 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.currentUserId = this.auth.getUser()?.id ?? null;
     this.socket.connect(this.auth.getToken() ?? undefined);
+    this.applyDatePreset('today');
     this.loadSessions();
     this.listenSocketEvents();
   }
@@ -348,11 +369,57 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
     this.filterSolicitud = '';
     this.filterIdentificacion = '';
     this.filterAsesor = '';
+    this.dateRangePreset = '';
+    this.filterDateFrom = '';
+    this.filterDateTo = '';
   }
 
   get hasActiveFilters(): boolean {
     return !!(this.search || this.filter !== 'all' || this.filterColegio ||
-      this.filterRol || this.filterSolicitud || this.filterIdentificacion || this.filterAsesor);
+      this.filterRol || this.filterSolicitud || this.filterIdentificacion || this.filterAsesor ||
+      this.filterDateFrom || this.filterDateTo);
+  }
+
+  applyDatePreset(preset: string): void {
+    this.dateRangePreset = preset;
+    const today = new Date();
+    const fmt = (d: Date) => d.toISOString().split('T')[0];
+
+    switch (preset) {
+      case 'today': {
+        this.filterDateFrom = fmt(today);
+        this.filterDateTo = fmt(today);
+        break;
+      }
+      case 'yesterday': {
+        const y = new Date(today);
+        y.setDate(y.getDate() - 1);
+        this.filterDateFrom = fmt(y);
+        this.filterDateTo = fmt(y);
+        break;
+      }
+      case 'week': {
+        const w = new Date(today);
+        w.setDate(w.getDate() - 7);
+        this.filterDateFrom = fmt(w);
+        this.filterDateTo = fmt(today);
+        break;
+      }
+      case 'month': {
+        const m = new Date(today);
+        m.setDate(m.getDate() - 30);
+        this.filterDateFrom = fmt(m);
+        this.filterDateTo = fmt(today);
+        break;
+      }
+      case 'custom':
+        this.filterDateFrom = '';
+        this.filterDateTo = '';
+        break;
+      default:
+        this.filterDateFrom = '';
+        this.filterDateTo = '';
+    }
   }
 
   selectSession(session: Session): void {

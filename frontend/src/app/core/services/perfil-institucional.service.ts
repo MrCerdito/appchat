@@ -42,6 +42,7 @@ export interface PiInstitucionCard {
   activo: boolean;
   calendario: string | null;
   tipoColegio: string | null;
+  ciudad: string | null;
   advisorNombre: string | null;
   valores: Record<string, string | null>;
 }
@@ -144,6 +145,29 @@ export class PerfilInstitucionalService {
     return this.http.patch<{ ok: boolean; email: string | null }>(
       `${this.base}/instituciones/${id}/email`,
       { email },
+    );
+  }
+
+  actualizarCiudad(id: string, ciudad: string | null): Observable<{ ok: boolean; ciudad: string | null }> {
+    return this.http.patch<{ ok: boolean; ciudad: string | null }>(
+      `${this.base}/instituciones/${id}/ciudad`,
+      { ciudad },
+    );
+  }
+
+  actualizarBase(
+    id: string,
+    dto: {
+      nombre?: string;
+      link?: string;
+      calendario?: string | null;
+      tipoColegio?: string | null;
+      advisorId?: string | null;
+    },
+  ): Observable<{ ok: boolean; institucion: PiInstitucionCard }> {
+    return this.http.patch<{ ok: boolean; institucion: PiInstitucionCard }>(
+      `${this.base}/instituciones/${id}/base`,
+      dto,
     );
   }
 

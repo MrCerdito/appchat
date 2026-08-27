@@ -156,6 +156,7 @@ export class PerfilInstitucionalService {
         activo: c.activo,
         calendario: c.calendario,
         tipoColegio: c.tipoColegio,
+        ciudad: c.ciudad,
         advisorNombre: c.advisor?.name ?? null,
         valores: Object.fromEntries(valoresPorColegio.get(c.id) ?? []),
       })),
@@ -229,6 +230,7 @@ export class PerfilInstitucionalService {
         activo: colegio.activo,
         calendario: colegio.calendario,
         tipoColegio: colegio.tipoColegio,
+        ciudad: colegio.ciudad,
         advisorNombre: colegio.advisor?.name ?? null,
       },
       grupos,
@@ -353,6 +355,144 @@ export class PerfilInstitucionalService {
     });
 
     return { ok: true, email };
+  }
+
+  async actualizarCiudad(
+    colegioId: string,
+    ciudad: string | null,
+    userId: string,
+  ) {
+    const colegio = await this.colegioRepo.findOneBy({ id: colegioId });
+    if (!colegio) throw new NotFoundException('Institución no encontrada');
+
+    const anterior = colegio.ciudad;
+    const valor = ciudad && ciudad.trim() ? ciudad.trim().slice(0, 100) : null;
+    if (anterior === valor) return { ok: true, ciudad: anterior };
+
+    colegio.ciudad = valor;
+    await this.colegioRepo.save(colegio);
+
+    await this.historialRepo.insert({
+      colegioId,
+      usuario: { id: userId } as User,
+      accion: 'actualizar_valor',
+      valorAnterior: anterior,
+      valorNuevo: valor,
+    });
+
+    return { ok: true, ciudad: valor };
+  }
+
+  async actualizarCamposBase(
+    colegioId: string,
+    dto: {
+      nombre?: string;
+      link?: string;
+      calendario?: string | null;
+      tipoColegio?: string | null;
+      advisorId?: string | null;
+    },
+    userId: string,
+  ) {
+    const colegio = await this.colegioRepo.findOne({
+      where: { id: colegioId },
+      relations: { advisor: true },
+    });
+    if (!colegio) throw new NotFoundException('Institución no encontrada');
+
+    const logs: { campo: string; anterior: string | null; nuevo: string | null }[] = [];
+
+    if (dto.nombre !== undefined) {
+      const nombre = dto.nombre.trim().slice(0, 200);
+      if (nombre && nombre !== colegio.nombre) {
+        const dup = await this.colegioRepo.findOne({ where: { nombre } });
+        if (dup) throw new NotFoundException(`Ya existe un colegio con el nombre "${nombre}"`);
+        logs.push({ campo: 'Nombre', anterior: colegio.nombre, nuevo: nombre });
+        colegio.nombre = nombre;
+      }
+    }
+    if (dto.link !== undefined) {
+      const link = dto.link.trim().slice(0, 500);
+      if (link && link !== colegio.link) {
+        logs.push({ campo: 'Link', anterior: colegio.link, nuevo: link });
+        colegio.link = link;
+      }
+    }
+    if (dto.calendario !== undefined) {
+      const val = dto.calendario && dto.calendario.trim() ? dto.calendario.trim().slice(0, 5) : null;
+      if (val !== colegio.calendario) {
+        logs.push({ campo: 'Calendario', anterior: colegio.calendario, nuevo: val });
+        colegio.calendario = val;
+      }
+    }
+    if (dto.tipoColegio !== undefined) {
+      const val = dto.tipoColegio && dto.tipoColegio.trim() ? dto.tipoColegio.trim().slice(0, 100) : null;
+      if (val !== colegio.tipoColegio) {
+        logs.push({ campo: 'Proyecto', anterior: colegio.tipoColegio, nuevo: val });
+        colegio.tipoColegio = val;
+      }
+    }
+    if (dto.advisorId !== undefined) {
+      const advisorId = dto.advisorId || null;
+      let advisorNombre: string | null = null;
+      if (advisorId) {
+        const user = await this.userRepo.findOne({
+          where: { id: advisorId, role: In(['advisor', 'admin']), active: true },
+          select: ['id', 'name'],
+        }).catch(() => null);
+        if (!user) throw new NotFoundException('Asesor no encontrado');
+        advisorNombre = user.name ?? null;
+      }
+      if (advisorId !== colegio.advisorId) {
+        logs.push({ campo: 'Asesor', anterior: colegio.advisor?.name ?? null, nuevo: advisorNombre });
+        colegio.advisorId = advisorId;
+        colegio.advisor = advisorId ? ({ id: advisorId } as User) : null;
+      }
+    }
+
+    if (logs.length) {
+      try {
+        await this.colegioRepo.save(colegio);
+        for (const log of logs) {
+          await this.historialRepo.insert({
+            colegioId,
+            usuario: { id: userId } as User,
+            accion: 'actualizar_valor',
+            valorAnterior: log.anterior,
+            valorNuevo: log.nuevo,
+          });
+        }
+      } catch (err: any) {
+        if (err?.code === '23505') {
+          throw new NotFoundException('Ya existe un colegio con ese nombre');
+        }
+        throw err;
+      }
+    } else {
+      await this.colegioRepo.save(colegio);
+    }
+
+    const updated = await this.colegioRepo.findOne({
+      where: { id: colegioId },
+      relations: { advisor: true },
+    }) || colegio;
+
+    return {
+      ok: true,
+      institucion: {
+        id: updated.id,
+        nombre: updated.nombre,
+        link: updated.link,
+        email: updated.email,
+        calendario: updated.calendario,
+        tipoColegio: updated.tipoColegio,
+        ciudad: updated.ciudad,
+        logoUrl: updated.logoUrl,
+        activo: updated.activo,
+        advisorNombre: updated.advisor?.name ?? null,
+        advisorId: updated.advisorId,
+      },
+    };
   }
 
   async cambiarEstado(colegioId: string, activo: boolean, userId: string) {
@@ -554,7 +694,7 @@ export class PerfilInstitucionalService {
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet('Instituciones');
 
-    const headers = ['Nombre', 'Email', 'Link', 'Calendario', 'Tipo', 'Asesor', 'Activo'];
+    const headers = ['Nombre', 'Email', 'Link', 'Calendario', 'Ciudad', 'Tipo', 'Asesor', 'Activo'];
     for (const [, cat] of categorias) {
       for (const c of campos.filter(f => f.categoriaId && categoriasMap.has(f.categoriaId) && categoriasMap.get(f.categoriaId)!.nombre === cat.nombre)) {
         headers.push(`${cat.nombre} > ${c.nombre}`);
@@ -574,7 +714,7 @@ export class PerfilInstitucionalService {
     for (const c of colegios) {
       const vals = valoresPorColegio.get(c.id) ?? new Map();
       const row: (string | null)[] = [
-        c.nombre, c.email ?? '', c.link, c.calendario ?? '', c.tipoColegio ?? '',
+        c.nombre, c.email ?? '', c.link, c.calendario ?? '', c.ciudad ?? '', c.tipoColegio ?? '',
         c.advisor?.name ?? '', c.activo ? 'Sí' : 'No',
       ];
       for (const [, cat] of categorias) {
@@ -617,6 +757,7 @@ export class PerfilInstitucionalService {
       ['Email', ficha.institucion.email ?? ''],
       ['Link', ficha.institucion.link],
       ['Calendario', ficha.institucion.calendario ?? ''],
+      ['Ciudad', ficha.institucion.ciudad ?? ''],
       ['Tipo', ficha.institucion.tipoColegio ?? ''],
       ['Asesor', ficha.institucion.advisorNombre ?? ''],
       ['Activo', ficha.institucion.activo ? 'Sí' : 'No'],
@@ -683,7 +824,7 @@ export class PerfilInstitucionalService {
       campoLookup.set(headerName.toLowerCase(), c);
     }
 
-    const baseHeaders = ['nombre', 'email', 'link', 'calendario', 'tipo', 'asesor', 'activo'];
+    const baseHeaders = ['nombre', 'email', 'link', 'calendario', 'ciudad', 'tipo', 'asesor', 'activo'];
     let created = 0;
     let updated = 0;
     const errores: string[] = [];
@@ -699,14 +840,15 @@ export class PerfilInstitucionalService {
       const linkVal = this.getCellValue(row.getCell(3)) || 'https://';
       const emailVal = this.getCellValue(row.getCell(2)) || '';
       const calendarioVal = this.getCellValue(row.getCell(4)) || null;
-      const tipoVal = this.getCellValue(row.getCell(5)) || null;
-      const activoVal = this.getCellValue(row.getCell(7)).toLowerCase().trim();
+      const ciudadVal = this.getCellValue(row.getCell(5)) || null;
+      const tipoVal = this.getCellValue(row.getCell(6)) || null;
+      const activoVal = this.getCellValue(row.getCell(8)).toLowerCase().trim();
       const activoBool = activoVal === 'sí' || activoVal === 'si' || activoVal === 'true' || activoVal === 'activo' || activoVal === 'yes' || activoVal === 's' || activoVal === '';
 
       if (!colegio) {
         const nuevo = this.colegioRepo.create({
           nombre, link: linkVal, email: emailVal,
-          calendario: calendarioVal as any, tipoColegio: tipoVal as any,
+          calendario: calendarioVal as any, ciudad: ciudadVal as any, tipoColegio: tipoVal as any,
           activo: activoBool,
         });
         colegio = await this.colegioRepo.save(nuevo);
@@ -716,6 +858,7 @@ export class PerfilInstitucionalService {
         const anteriorLink = colegio.link;
         const anteriorEmail = colegio.email;
         const anteriorCalendario = colegio.calendario;
+        const anteriorCiudad = colegio.ciudad;
         const anteriorTipo = colegio.tipoColegio;
         const anteriorActivo = colegio.activo;
 
@@ -733,6 +876,11 @@ export class PerfilInstitucionalService {
         if (calendarioVal !== anteriorCalendario) {
           colegio.calendario = calendarioVal;
           logs.push({ colegio: nombre, campo: 'Calendario', anterior: anteriorCalendario, nuevo: calendarioVal, estado: 'exito', detalle: 'Calendario actualizado' });
+          modificado = true;
+        }
+        if (ciudadVal !== anteriorCiudad) {
+          colegio.ciudad = ciudadVal;
+          logs.push({ colegio: nombre, campo: 'Ciudad', anterior: anteriorCiudad, nuevo: ciudadVal, estado: 'exito', detalle: 'Ciudad actualizada' });
           modificado = true;
         }
         if (tipoVal !== anteriorTipo) {

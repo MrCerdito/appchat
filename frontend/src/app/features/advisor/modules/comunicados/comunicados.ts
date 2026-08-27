@@ -69,8 +69,6 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
   cuerpo = '';
   design: unknown[] | null = null;
   destinatarios: Destinatario[] = [];
-  emailInput = '';
-  nombreInput = '';
   showColegiosPicker = false;
   colegioSearch = '';
 
@@ -78,14 +76,19 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
   showFiltersPanel = false;
   filterTipoColegio: '' | 'Sian365' | 'ControlAcademic' = '';
   filterCalendario: '' | 'A' | 'B' = '';
+  filterCiudad = '';
+  openFilter: 'proyecto' | 'calendario' | 'ciudad' | null = null;
 
   // Seleccion masiva
   selectedColegioIds: Set<string> = new Set();
   selectAllMode = false;
+  menuColegioId: string | null = null;
+  recipientTab: 'colegios' | 'todos' = 'colegios';
 
   // Paginacion colegios
   colegioPage = 1;
-  readonly COLEGIO_PAGE_SIZE = 20;
+  colegioPageSize = 5;
+  readonly COLEGIO_PAGE_SIZE_OPTIONS = [5, 10, 20, 50];
 
   @ViewChild('composeFrame') private readonly composeFrame?: ElementRef<HTMLIFrameElement>;
   @ViewChild('detailFrame') private readonly detailFrame?: ElementRef<HTMLIFrameElement>;
@@ -260,6 +263,9 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
     if (this.filterTipoColegio) {
       result = result.filter(c => c.tipoColegio === this.filterTipoColegio);
     }
+    if (this.filterCiudad) {
+      result = result.filter(c => (c as any).ciudad === this.filterCiudad);
+    }
     if (this.colegioSearch) {
       const q = this.colegioSearch.toLowerCase();
       result = result.filter(c =>
@@ -270,13 +276,22 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
     return result;
   }
 
+  get colegioCiudades(): string[] {
+    const set = new Set<string>();
+    this.colegios.forEach(c => {
+      const v = (c as any).ciudad;
+      if (v && typeof v === 'string' && v.trim()) set.add(v.trim());
+    });
+    return [...set].sort();
+  }
+
   get paginatedColegios(): Colegio[] {
-    const start = (this.colegioPage - 1) * this.COLEGIO_PAGE_SIZE;
-    return this.filteredColegios.slice(start, start + this.COLEGIO_PAGE_SIZE);
+    const start = (this.colegioPage - 1) * this.colegioPageSize;
+    return this.filteredColegios.slice(start, start + this.colegioPageSize);
   }
 
   get colegioTotalPages(): number {
-    return Math.max(1, Math.ceil(this.filteredColegios.length / this.COLEGIO_PAGE_SIZE));
+    return Math.max(1, Math.ceil(this.filteredColegios.length / this.colegioPageSize));
   }
 
   get colegioPageNumbers(): number[] {
@@ -285,18 +300,19 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
   }
 
   get paginatedEnd(): number {
-    return Math.min(this.colegioPage * this.COLEGIO_PAGE_SIZE, this.filteredColegios.length);
+    return Math.min(this.colegioPage * this.colegioPageSize, this.filteredColegios.length);
   }
 
   get activeFilterChips(): { label: string; key: string }[] {
     const chips: { label: string; key: string }[] = [];
     if (this.filterCalendario) chips.push({ label: `Cal. ${this.filterCalendario}`, key: 'calendario' });
     if (this.filterTipoColegio) chips.push({ label: this.filterTipoColegio === 'Sian365' ? 'Sian365' : 'Control Academic', key: 'tipo' });
+    if (this.filterCiudad) chips.push({ label: this.filterCiudad, key: 'ciudad' });
     return chips;
   }
 
   get activeFilterCount(): number {
-    return (this.filterCalendario ? 1 : 0) + (this.filterTipoColegio ? 1 : 0);
+    return (this.filterCalendario ? 1 : 0) + (this.filterTipoColegio ? 1 : 0) + (this.filterCiudad ? 1 : 0);
   }
 
   get allFilteredSelected(): boolean {
@@ -346,14 +362,36 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
   removeFilterChip(key: string): void {
     if (key === 'calendario') this.filterCalendario = '';
     if (key === 'tipo') this.filterTipoColegio = '';
+    if (key === 'ciudad') this.filterCiudad = '';
     this.colegioPage = 1;
   }
 
   clearAllFilters(): void {
     this.filterCalendario = '';
     this.filterTipoColegio = '';
+    this.filterCiudad = '';
     this.colegioSearch = '';
     this.colegioPage = 1;
+  }
+
+  toggleFilter(name: 'proyecto' | 'calendario' | 'ciudad'): void {
+    this.openFilter = this.openFilter === name ? null : name;
+  }
+
+  setFilter(name: 'proyecto' | 'calendario' | 'ciudad', value: string): void {
+    if (name === 'proyecto') {
+      this.filterTipoColegio = value as '' | 'Sian365' | 'ControlAcademic';
+    } else if (name === 'calendario') {
+      this.filterCalendario = value as '' | 'A' | 'B';
+    } else {
+      this.filterCiudad = value;
+    }
+    this.openFilter = null;
+    this.colegioPage = 1;
+  }
+
+  isFilterOpen(name: 'proyecto' | 'calendario' | 'ciudad'): boolean {
+    return this.openFilter === name;
   }
 
   onColegioPageChange(page: number): void {
@@ -361,8 +399,36 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
     this.selectedColegioIds.clear();
   }
 
+  onColegioPageSizeChange(): void {
+    this.colegioPage = 1;
+  }
+
   addAllFilteredColegios(): void {
     this.filteredColegios.filter(c => c.email).forEach(c => this.addColegio(c));
+  }
+
+  exportColegios(): void {
+    const list = this.filteredColegios;
+    const enc = (v: unknown) => {
+      const s = String(v ?? '').replace(/"/g, '""');
+      return `"${s}"`;
+    };
+    const header = ['Nombre', 'Correo', 'Proyecto', 'Calendario', 'Ciudad'];
+    const rows = list.map((c) => [
+      enc(c.nombre),
+      enc(c.email),
+      enc(c.tipoColegio === 'Sian365' ? 'Sian365' : c.tipoColegio === 'ControlAcademic' ? 'Control Académico' : ''),
+      enc(c.calendario ? `Cal. ${c.calendario}` : ''),
+      enc((c as any).ciudad ?? ''),
+    ].join(','));
+    const csv = [header.join(','), ...rows].join('\n');
+    const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'destinatarios.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    this.notification.success('Exportación', `${list.length} colegio(s) exportado(s)`);
   }
 
   get draftCount(): number {
@@ -423,16 +489,6 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
     }
   }
 
-  addEmailManual(): void {
-    const email = this.emailInput.trim();
-    const nombre = this.nombreInput.trim() || email;
-    if (!email || !email.includes('@')) return;
-    if (this.destinatarios.some(d => d.email === email)) return;
-    this.destinatarios.push({ email, nombre });
-    this.emailInput = '';
-    this.nombreInput = '';
-  }
-
   addColegio(colegio: Colegio): void {
     if (!colegio.email) return;
     if (this.destinatarios.some(d => d.email === colegio.email)) return;
@@ -446,6 +502,26 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
 
   removeDestinatario(email: string): void {
     this.destinatarios = this.destinatarios.filter(d => d.email !== email);
+  }
+
+  toggleColegioMenu(id: string): void {
+    this.menuColegioId = this.menuColegioId === id ? null : id;
+  }
+
+  selectRecipientTab(tab: 'colegios' | 'todos'): void {
+    this.recipientTab = tab;
+    if (tab === 'todos') {
+      this.clearAllFilters();
+    }
+  }
+
+  buscarColegio(link?: string): void {
+    if (!link) return;
+    window.open(link, '_blank');
+  }
+
+  colegioCiudad(c: Colegio): string {
+    return (c as any).ciudad ?? '';
   }
 
   openRecipientsModal(): void {

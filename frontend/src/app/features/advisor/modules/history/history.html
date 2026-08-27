@@ -7,7 +7,27 @@
 
     <!-- Resumen del historial -->
     <div class="header-stats">
-      <span class="hs-title">Resumen del historial</span>
+      <div class="hs-top">
+        <span class="hs-title">Resumen del historial</span>
+
+        <div class="hs-date-filter">
+          <select [(ngModel)]="dateRangePreset" (ngModelChange)="applyDatePreset($event)">
+            <option value="">Todas las fechas</option>
+            <option value="today">Hoy</option>
+            <option value="yesterday">Ayer</option>
+            <option value="week">Últimos 7 días</option>
+            <option value="month">Últimos 30 días</option>
+            <option value="custom">Rango específico</option>
+          </select>
+          @if (dateRangePreset === 'custom') {
+          <div class="hs-custom-dates">
+            <input type="date" [(ngModel)]="filterDateFrom" placeholder="Desde"/>
+            <span class="hs-date-sep">—</span>
+            <input type="date" [(ngModel)]="filterDateTo" placeholder="Hasta"/>
+          </div>
+          }
+        </div>
+      </div>
 
       <div class="hs-body">
         <div class="metric total">

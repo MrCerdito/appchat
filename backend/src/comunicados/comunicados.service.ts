@@ -134,7 +134,7 @@ export class ComunicadosService {
       );
     }
 
-    const from = this.resolveFrom(rawFrom, c.senderName);
+    const from = this.resolveFrom(rawFrom, 'Soporte');
 
     const { transporter } = await createSmtpTransport({
       host: smtpHost,

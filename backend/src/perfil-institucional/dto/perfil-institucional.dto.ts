@@ -200,3 +200,29 @@ export class ReorderCategoriasDto {
   @Type(() => ReorderItemDto)
   items: ReorderItemDto[];
 }
+
+export class ActualizarBaseInstitucionDto {
+  @IsOptional()
+  @IsString()
+  @Length(1, 200)
+  nombre?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 500)
+  link?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  calendario?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  tipoColegio?: string | null;
+
+  @IsOptional()
+  @IsUUID()
+  advisorId?: string | null;
+}

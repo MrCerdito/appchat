@@ -53,7 +53,7 @@
       <div class="tmc-csv-format">
         <div class="tmc-csv-format__main">
           <span class="tmc-csv-format__label">Columnas requeridas</span>
-          <code class="tmc-csv-format__code">nombre;link;email;calendario;tipo_colegio;asesor</code>
+          <code class="tmc-csv-format__code">nombre;link;email;calendario;tipo_colegio;ciudad;asesor</code>
         </div>
         <div class="tmc-csv-format__divider"></div>
         <div class="tmc-csv-format__item">
@@ -69,6 +69,14 @@
           <div>
             <span class="tmc-csv-format__key">tipo_colegio</span>
             <span class="tmc-csv-format__val">Sian365 o ControlAcademic</span>
+          </div>
+        </div>
+        <div class="tmc-csv-format__divider"></div>
+        <div class="tmc-csv-format__item">
+          <span class="tmc-csv-format__dot tmc-csv-format__dot--blue"></span>
+          <div>
+            <span class="tmc-csv-format__key">ciudad</span>
+            <span class="tmc-csv-format__val">Ciudad donde se ubica el colegio (opcional)</span>
           </div>
         </div>
         <div class="tmc-csv-format__divider"></div>
@@ -188,6 +196,11 @@
         </div>
       </div>
       <div class="tmc-field">
+        <label for="col-ciudad">Ciudad</label>
+        <input id="col-ciudad" type="text" [(ngModel)]="form.ciudad" placeholder="Ej: Bogotá" maxlength="100"/>
+        <span class="tmc-field__hint">Ubicación del colegio.</span>
+      </div>
+      <div class="tmc-field">
         <label for="col-advisor">Asesor principal</label>
         <select id="col-advisor" [(ngModel)]="form.advisorId">
           <option value="">Sin asesor asignado</option>
@@ -250,6 +263,7 @@
             <th>Correo</th>
             <th>Calendario</th>
             <th>Proyecto</th>
+            <th>Ciudad</th>
             <th>Asesor Principal</th>
             <th class="tmc-th-actions">Acciones</th>
           </tr>
@@ -282,6 +296,7 @@
               <span class="tmc-no-data">—</span>
               }
             </td>
+            <td class="tmc-td-ciudad">{{ c.ciudad || '—' }}</td>
             <td class="tmc-td-advisor">
               @if (c.advisorName) {
               <span class="tmc-advisor-badge">

@@ -160,6 +160,7 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.socket.connect();
+    this.applyDatePreset('today');
     this.loadSessions();
     this.listenSocketEvents();
   }

@@ -10,6 +10,7 @@ import {
   PiImportResp,
 } from '../../../../core/services/perfil-institucional.service';
 import { NotificationService } from '../../../../core/services/notification.service';
+import { AuthService } from '../../../../core/services/auth.service';
 import { PI_ICONS } from './pi-icons';
 
 interface FiltroDinamico {
@@ -72,9 +73,14 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
     private notification: NotificationService,
     private cdr: ChangeDetectorRef,
     private router: Router,
+    private auth: AuthService,
   ) {}
 
   ngOnInit(): void {
+    const user = this.auth.getUser();
+    if (user && user.role === 'advisor' && user.name) {
+      this.filtroAsesor.add(user.name.trim());
+    }
     this.cargar();
   }
 

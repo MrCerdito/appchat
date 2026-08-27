@@ -3,87 +3,114 @@
     <div class="pd-loading">Cargando ficha…</div>
   } @else if (ficha) {
     <header class="pd-header">
-      <button type="button" class="pd-back" (click)="volver()" title="Volver">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="15 18 9 12 15 6"/>
-        </svg>
+      <button type="button" class="pd-back" (click)="volver()" title="Volver" aria-label="Volver">
+        <lucide-icon [img]="icons.ChevronLeft" [size]="20" />
       </button>
 
       <div class="pd-logo" (click)="abrirSelectorLogo(logoInput)" title="Cambiar logo">
         @if (subiendoLogo) {
-          <span class="pd-logo-loading">…</span>
+          <span class="pd-logo-loading"><lucide-icon [img]="icons.Loader2" [size]="26" class="pd-spin" /></span>
         } @else if (ficha.institucion.logoUrl) {
           <img [src]="ficha.institucion.logoUrl" [alt]="ficha.institucion.nombre" />
         } @else {
           <span class="pd-logo-initials">{{ iniciales(ficha.institucion.nombre) }}</span>
         }
-        <span class="pd-logo-edit">✎</span>
+        <span class="pd-logo-edit"><lucide-icon [img]="icons.Pencil" [size]="12" /></span>
       </div>
       <input #logoInput type="file" accept="image/jpeg,image/png,image/webp,image/gif"
         (change)="alSeleccionarLogo($event)" hidden />
 
       <div class="pd-titular">
-        <h1>{{ ficha.institucion.nombre }}</h1>
-        <div class="pd-meta">
-          <span class="pd-chip" [class.off]="!ficha.institucion.activo">
-            {{ ficha.institucion.activo ? '● Activo' : '○ Inactivo' }}
+        <div class="pd-title-row">
+          <h1>{{ ficha.institucion.nombre }}</h1>
+          <span class="pd-chip pd-chip--status" [class.off]="!ficha.institucion.activo">
+            <span class="pd-dot" [class.off]="!ficha.institucion.activo"></span>
+            {{ ficha.institucion.activo ? 'Activo' : 'Inactivo' }}
           </span>
+        </div>
+
+        <div class="pd-meta">
           @if (ficha.institucion.calendario) {
-            <span class="pd-chip">Calendario {{ ficha.institucion.calendario }}</span>
+            <span class="pd-chip"><lucide-icon [img]="icons.Calendar" [size]="12" /> Calendario {{ ficha.institucion.calendario }}</span>
           }
           @if (ficha.institucion.tipoColegio) {
-            <span class="pd-chip">{{ ficha.institucion.tipoColegio }}</span>
+            <span class="pd-chip">
+              <lucide-icon [img]="ficha.institucion.tipoColegio === 'Sian365' ? icons.Cloud : icons.GraduationCap" [size]="12" />
+              {{ ficha.institucion.tipoColegio }}
+            </span>
           }
-          <a class="pd-link" [href]="ficha.institucion.link" target="_blank" rel="noopener noreferrer">
-            {{ ficha.institucion.link }} ↗
-          </a>
+          @if (ficha.institucion.ciudad) {
+            <span class="pd-chip"><lucide-icon [img]="icons.MapPin" [size]="12" /> {{ ficha.institucion.ciudad }}</span>
+          }
+          @if (ficha.institucion.link) {
+            <a class="pd-link" [href]="ficha.institucion.link" target="_blank" rel="noopener noreferrer">
+              Ver sitio <lucide-icon [img]="icons.ExternalLink" [size]="12" />
+            </a>
+          }
         </div>
-        <p class="pd-actualizacion">
-          Asesor:
-          {{ ficha.institucion.advisorNombre ?? '—' }}
-          @if (ficha.ultimaActualizacion) {
-            · Última actualización: {{ formatearFecha(ficha.ultimaActualizacion) }}
-          } @else {
-            · Sin información registrada todavía
-          }
-        </p>
+
+        <div class="pd-assignee">
+          <span class="pd-avatar-sm">{{ iniciales(ficha.institucion.advisorNombre ?? '—') }}</span>
+          <div class="pd-assignee-info">
+            <span class="pd-assignee-label">Asesor asignado</span>
+            <span class="pd-assignee-name">{{ ficha.institucion.advisorNombre ?? 'Sin asignar' }}</span>
+          </div>
+        </div>
       </div>
 
       <div class="pd-header-actions">
         <button type="button" class="pi-btn pi-btn-outline" [disabled]="exportando" (click)="exportarFicha()">
-          {{ exportando ? '⏳ Exportando…' : '⬇ Exportar ficha' }}
+          <lucide-icon [img]="icons.Download" [size]="16" />
+          {{ exportando ? 'Exportando…' : 'Exportar ficha' }}
         </button>
       </div>
     </header>
 
     <nav class="pd-tabs">
       <button type="button" [class.active]="tab === 'informacion'" (click)="cambiarTab('informacion')">
-        Información
+        <lucide-icon [img]="icons.Building2" [size]="15" /> Información
       </button>
       <button type="button" [class.active]="tab === 'historial'" (click)="cambiarTab('historial')">
-        Historial
+        <lucide-icon [img]="icons.Clock" [size]="15" /> Historial
       </button>
     </nav>
 
     <!-- ================= Información base ================= -->
     @if (tab === 'informacion') {
+      <div class="pd-alert" role="note">
+        <lucide-icon [img]="icons.Info" [size]="18" class="pd-alert-icon" />
+        <div>
+          <strong>Datos administrados por la institución</strong>
+          <p>Los datos base se gestionan desde la gestión de instituciones. Haz clic en cualquier campo de esta sección para editarlo.</p>
+        </div>
+      </div>
+
       <section class="pd-base">
         <div class="pd-base-grid">
-          <div class="pd-base-item">
-            <span>Nombre</span>
-            <strong>{{ ficha.institucion.nombre }}</strong>
+          <div class="pd-card pd-card--edit" (click)="abrirModalBase('nombre')" role="button" tabindex="0">
+            <span class="pd-card-label"><lucide-icon [img]="icons.Tag" [size]="14" /> Nombre</span>
+            <div class="pd-card-value"><strong>{{ ficha.institucion.nombre }}</strong></div>
+            <span class="pd-card-edit"><lucide-icon [img]="icons.Pencil" [size]="13" /></span>
           </div>
-          <div class="pd-base-item">
-            <span>Link</span>
-            <a [href]="ficha.institucion.link" target="_blank" rel="noopener noreferrer">
-              {{ ficha.institucion.link }}
-            </a>
+
+          <div class="pd-card pd-card--edit" (click)="abrirModalBase('link')" role="button" tabindex="0">
+            <span class="pd-card-label"><lucide-icon [img]="icons.Link" [size]="14" /> Link</span>
+            <div class="pd-card-value">
+              @if (ficha.institucion.link) {
+                <a [href]="ficha.institucion.link" target="_blank" rel="noopener noreferrer" (click)="$event.stopPropagation()">
+                  {{ ficha.institucion.link }}
+                </a>
+              } @else {
+                <span class="pd-empty-value">Sin definir</span>
+              }
+            </div>
+            <span class="pd-card-edit"><lucide-icon [img]="icons.Pencil" [size]="13" /></span>
           </div>
-          <div class="pd-base-item pd-base-email" (click)="abrirModalEmailInstitucion()" role="button" tabindex="0">
-            <span>Correo electrónico</span>
-            <div class="pd-email-values">
-              @if (ficha.institucion.email) {
+
+          <div class="pd-card pd-card--edit" (click)="abrirModalEmailInstitucion()" role="button" tabindex="0">
+            <span class="pd-card-label"><lucide-icon [img]="icons.Mail" [size]="14" /> Correo electrónico</span>
+            <div class="pd-card-value pd-card-value--wrap">
+              @if (parseEmailsInstitucion().length > 0) {
                 @for (email of parseEmailsInstitucion().slice(0, 2); track email) {
                   <a class="pd-email-chip" href="mailto:{{ email }}" (click)="$event.stopPropagation()">{{ email }}</a>
                 }
@@ -91,93 +118,138 @@
                   <span class="pd-email-more">+{{ parseEmailsInstitucion().length - 2 }} más</span>
                 }
               } @else {
-                <span class="pd-email-empty">Sin correos — click para agregar</span>
+                <span class="pd-empty-value">Sin correos — click para agregar</span>
               }
-              <span class="pd-email-arrow">✎</span>
             </div>
+            <span class="pd-card-edit"><lucide-icon [img]="icons.Pencil" [size]="13" /></span>
           </div>
-          <div class="pd-base-item">
-            <span>Calendario</span>
-            <strong>{{ ficha.institucion.calendario ?? '—' }}</strong>
+
+          <div class="pd-card pd-card--edit" (click)="abrirModalBase('calendario')" role="button" tabindex="0">
+            <span class="pd-card-label"><lucide-icon [img]="icons.Calendar" [size]="14" /> Calendario</span>
+            <div class="pd-card-value"><strong>{{ ficha.institucion.calendario ?? 'Sin definir' }}</strong></div>
+            <span class="pd-card-edit"><lucide-icon [img]="icons.Pencil" [size]="13" /></span>
           </div>
-          <div class="pd-base-item">
-            <span>Proyecto</span>
-            <strong>{{ ficha.institucion.tipoColegio ?? '—' }}</strong>
+
+          <div class="pd-card pd-card--edit" (click)="abrirModalCiudadInstitucion()" role="button" tabindex="0">
+            <span class="pd-card-label"><lucide-icon [img]="icons.MapPin" [size]="14" /> Ciudad</span>
+            <div class="pd-card-value">
+              @if (ficha.institucion.ciudad) {
+                <strong>{{ ficha.institucion.ciudad }}</strong>
+              } @else {
+                <span class="pd-empty-value">Sin ciudad — click para agregar</span>
+              }
+            </div>
+            <span class="pd-card-edit"><lucide-icon [img]="icons.Pencil" [size]="13" /></span>
           </div>
-          <div class="pd-base-item">
-            <span>Asesor asignado</span>
-            <strong>{{ ficha.institucion.advisorNombre ?? '—' }}</strong>
+
+          <div class="pd-card pd-card--edit" (click)="abrirModalBase('proyecto')" role="button" tabindex="0">
+            <span class="pd-card-label"><lucide-icon [img]="icons.Cloud" [size]="14" /> Proyecto</span>
+            <div class="pd-card-value">
+              @if (ficha.institucion.tipoColegio) {
+                <span class="pd-proyecto"><lucide-icon [img]="ficha.institucion.tipoColegio === 'Sian365' ? icons.Cloud : icons.GraduationCap" [size]="14" /> {{ ficha.institucion.tipoColegio }}</span>
+              } @else {
+                <span class="pd-empty-value">Sin definir</span>
+              }
+            </div>
+            <span class="pd-card-edit"><lucide-icon [img]="icons.Pencil" [size]="13" /></span>
+          </div>
+
+          <div class="pd-card pd-card--edit pd-card--asesor" (click)="abrirModalBase('asesor')" role="button" tabindex="0">
+            <span class="pd-card-label"><lucide-icon [img]="icons.User" [size]="14" /> Asesor asignado</span>
+            <div class="pd-card-value pd-assigne-row">
+              <span class="pd-avatar-sm">{{ iniciales(ficha.institucion.advisorNombre ?? '—') }}</span>
+              <strong>{{ ficha.institucion.advisorNombre ?? 'Sin asignar' }}</strong>
+            </div>
+            <span class="pd-card-edit"><lucide-icon [img]="icons.Pencil" [size]="13" /></span>
           </div>
         </div>
-        <p class="pd-nota">
-          Los datos base se administran desde la gestión de instituciones.
+
+        <p class="pd-actualizacion pd-nota-act">
+          Última actualización:
+          @if (ficha.ultimaActualizacion) {
+            {{ formatearFecha(ficha.ultimaActualizacion) }}
+          } @else {
+            Sin información registrada todavía
+          }
         </p>
       </section>
 
       @if (ficha.grupos.length === 0) {
         <div class="pd-empty">
+          <lucide-icon [img]="icons.FolderOpen" [size]="40" class="pd-empty-icon" />
           <p>No hay categorías de información activas.</p>
         </div>
       }
 
       @for (grupo of ficha.grupos; track grupo.categoriaId) {
-        <section class="pd-grupo">
-          <div class="pd-grupo-head">
-            <h2>{{ grupo.categoriaNombre }}</h2>
-            <button type="button" class="pi-btn pi-btn-ghost pi-btn-sm" (click)="abrirEdicion(grupo)">
-              ✎ Editar
+        <section class="pd-grupo" [class.open]="grupoAbierto(grupo.categoriaId)">
+          <div class="pd-grupo-head" (click)="toggleGrupo(grupo.categoriaId)" role="button" tabindex="0"
+            [attr.aria-expanded]="grupoAbierto(grupo.categoriaId)">
+            <div class="pd-grupo-title">
+              <span class="pd-grupo-chevron"><lucide-icon [img]="icons.ChevronDown" [size]="16" /></span>
+              <lucide-icon [img]="icons.Folder" [size]="16" class="pd-grupo-folder" />
+              <h2>{{ grupo.categoriaNombre }}</h2>
+              @if (camposPendientes(grupo) > 0) {
+                <span class="pd-badge-pendiente">{{ camposPendientes(grupo) }} pendiente(s)</span>
+              }
+            </div>
+            <button type="button" class="pi-btn pi-btn-ghost pi-btn-sm" (click)="abrirEdicion(grupo); $event.stopPropagation()">
+              <lucide-icon [img]="icons.Pencil" [size]="13" /> Editar
             </button>
           </div>
 
-          <dl class="pd-items">
-            @for (item of grupo.campos; track item.campo.id) {
-              <div class="pd-item">
-                <dt>
-                  {{ item.campo.nombre }}
-                  @if (item.campo.requerido && !item.valor) {
-                    <span class="pd-falta" title="Campo obligatorio sin completar">pendiente</span>
-                  }
-                </dt>
-                <dd>
-                  @switch (item.campo.tipo) {
-                    @case ('booleano') {
-                      <span class="pd-chip" [class.off]="!esBooleanoActivo(item.valor)">
-                        {{ esBooleanoActivo(item.valor) ? '● Activo' : '○ Inactivo' }}
-                      </span>
+          @if (grupoAbierto(grupo.categoriaId)) {
+            <dl class="pd-items">
+              @for (item of grupo.campos; track item.campo.id) {
+                <div class="pd-item">
+                  <dt>
+                    {{ item.campo.nombre }}
+                    @if (item.campo.requerido && !item.valor) {
+                      <span class="pd-falta" title="Campo obligatorio sin completar">Pendiente</span>
                     }
-                    @case ('url') {
-                      @if (item.valor) {
-                        <a [href]="item.valor" target="_blank" rel="noopener noreferrer">{{ item.valor }} ↗</a>
-                      } @else { — }
-                    }
-                    @case ('email') {
-                      @if (item.valor) {
-                        <a href="mailto:{{ item.valor }}">{{ item.valor }}</a>
-                      } @else { — }
-                    }
-                    @case ('email_lista') {
-                      <button type="button" class="pd-email-trigger" (click)="abrirModalEmails(item)">
+                  </dt>
+                  <dd>
+                    @switch (item.campo.tipo) {
+                      @case ('booleano') {
+                        <span class="pd-chip pd-chip--status" [class.off]="!esBooleanoActivo(item.valor)">
+                          <span class="pd-dot" [class.off]="!esBooleanoActivo(item.valor)"></span>
+                          {{ esBooleanoActivo(item.valor) ? 'Activo' : 'Inactivo' }}
+                        </span>
+                      }
+                      @case ('url') {
                         @if (item.valor) {
-                          <span class="pd-email-count">{{ parseEmails(item.valor).length }} correo(s)</span>
-                        } @else {
-                          <span class="pd-email-empty">Sin correos</span>
-                        }
-                        <span class="pd-email-arrow">→</span>
-                      </button>
+                          <a [href]="item.valor" target="_blank" rel="noopener noreferrer">{{ item.valor }} <lucide-icon [img]="icons.ExternalLink" [size]="12" /></a>
+                        } @else { — }
+                      }
+                      @case ('email') {
+                        @if (item.valor) {
+                          <a href="mailto:{{ item.valor }}">{{ item.valor }}</a>
+                        } @else { — }
+                      }
+                      @case ('email_lista') {
+                        <button type="button" class="pd-email-trigger" (click)="abrirModalEmails(item)">
+                          @if (item.valor) {
+                            <span class="pd-email-count">{{ parseEmails(item.valor).length }} correo(s)</span>
+                          } @else {
+                            <span class="pd-empty-value">Sin correos</span>
+                          }
+                          <lucide-icon [img]="icons.ChevronDown" [size]="14" class="pd-email-arrow" />
+                        </button>
+                      }
+                      @case ('archivo') {
+                        @if (item.valor) {
+                          <a [href]="item.valor" target="_blank" rel="noopener noreferrer">Ver archivo <lucide-icon [img]="icons.ExternalLink" [size]="12" /></a>
+                        } @else { — }
+                      }
+                      @default {
+                        {{ formatearValor(item) }}
+                      }
                     }
-                    @case ('archivo') {
-                      @if (item.valor) {
-                        <a [href]="item.valor" target="_blank" rel="noopener noreferrer">Ver archivo ↗</a>
-                      } @else { — }
-                    }
-                    @default {
-                      {{ formatearValor(item) }}
-                    }
-                  }
-                </dd>
-              </div>
-            }
-          </dl>
+                  </dd>
+                </div>
+              }
+            </dl>
+          }
         </section>
       }
     }
@@ -341,7 +413,7 @@
     <div class="pd-modal-backdrop">
       <div class="pd-modal pd-emails-modal" (click)="$event.stopPropagation()">
         <div class="pd-emails-header">
-          <div class="pd-emails-icon">✉</div>
+          <div class="pd-emails-icon"><lucide-icon [img]="icons.Mail" [size]="20" /></div>
           <div>
             <h3>Correos electrónicos</h3>
             <p class="pd-emails-subtitle">{{ emailInstitucionLista.length }} registrado(s)</p>
@@ -351,7 +423,7 @@
         <div class="pd-emails-list">
           @if (emailInstitucionLista.length === 0) {
             <div class="pd-emails-empty-state">
-              <span class="pd-emails-empty-icon">📭</span>
+              <span class="pd-emails-empty-icon"><lucide-icon [img]="icons.Mail" [size]="32" /></span>
               <p>No hay correos registrados</p>
               <p class="pd-emails-empty-hint">Agrega uno o más correos con el campo de abajo</p>
             </div>
@@ -376,6 +448,110 @@
           <button type="button" class="pi-btn pi-btn-ghost" (click)="cerrarModalEmailInstitucion()">Cancelar</button>
           <button type="button" class="pi-btn pi-btn-primary" [disabled]="guardandoEmailInstitucion" (click)="guardarEmailInstitucion()">
             {{ guardandoEmailInstitucion ? 'Guardando…' : 'Guardar' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================= Modal ciudad institución ================= -->
+  @if (modalCiudadInstitucion) {
+    <div class="pd-modal-backdrop">
+      <div class="pd-modal pd-emails-modal" (click)="$event.stopPropagation()">
+        <div class="pd-emails-header">
+          <div class="pd-emails-icon"><lucide-icon [img]="icons.MapPin" [size]="20" /></div>
+          <div>
+            <h3>Editar ciudad</h3>
+            <p class="pd-emails-subtitle">Ubicación del colegio</p>
+          </div>
+        </div>
+
+        <div class="pd-emails-list">
+          <div class="pd-email-row">
+            <input type="text" [(ngModel)]="ciudadInstitucionValor" maxlength="100"
+              placeholder="Ej: Bogotá" (keydown.enter)="guardarCiudadInstitucion()" />
+          </div>
+        </div>
+
+        <div class="pi-modal-actions">
+          <button type="button" class="pi-btn pi-btn-ghost" (click)="cerrarModalCiudadInstitucion()">Cancelar</button>
+          <button type="button" class="pi-btn pi-btn-primary" [disabled]="guardandoCiudadInstitucion" (click)="guardarCiudadInstitucion()">
+            {{ guardandoCiudadInstitucion ? 'Guardando…' : 'Guardar' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================= Modal edición base ================= -->
+  @if (modalBaseCampo) {
+    <div class="pd-modal-backdrop">
+      <div class="pd-modal pd-emails-modal" (click)="$event.stopPropagation()">
+        <div class="pd-emails-header">
+          <div class="pd-emails-icon"><lucide-icon [img]="icons.Pencil" [size]="18" /></div>
+          <div>
+            <h3>{{ baseCampoTitulo }}</h3>
+            <p class="pd-emails-subtitle">{{ baseCampoEsAsesor ? 'Selecciona el asesor principal' : 'Escribe el nuevo valor' }}</p>
+          </div>
+        </div>
+
+        <div class="pd-emails-list">
+          @if (baseCampoEsAsesor) {
+            <div class="pd-custom-select-container pd-asesor-modal-select">
+              <div class="pd-custom-select-trigger" (click)="toggleDropdownAsesor()" role="combobox" aria-haspopup="listbox" [attr.aria-expanded]="dropdownAsesorAbierto">
+                <div class="pd-custom-select-trigger-content">
+                  @if (baseValor) {
+                    <span class="pd-avatar-sm">{{ asesorSeleccionadoNombre.charAt(0) }}</span>
+                    <span class="pd-selected-text">{{ asesorSeleccionadoNombre }}</span>
+                  } @else {
+                    <span class="pd-placeholder-text">Seleccionar asesor…</span>
+                  }
+                </div>
+                <div class="pd-custom-select-actions">
+                  <lucide-icon [img]="icons.ChevronDown" [size]="16" class="pd-dropdown-arrow" [class.rotated]="dropdownAsesorAbierto" />
+                </div>
+              </div>
+
+              @if (dropdownAsesorAbierto) {
+                <div class="pd-custom-select-dropdown" role="listbox">
+                  <div class="pd-custom-select-search-box">
+                    <lucide-icon [img]="icons.Search" [size]="14" />
+                    <input type="text" placeholder="Buscar asesor…" [(ngModel)]="busquedaAsesor" (click)="$event.stopPropagation()" aria-label="Buscar asesor" />
+                  </div>
+                  <div class="pd-custom-select-options">
+                    <div class="pd-custom-select-option" [class.selected]="!baseValor" (click)="seleccionarAsesorId('')">
+                      <span>Sin asesor asignado</span>
+                    </div>
+                    @if (filtrarAsesoresBusqueda().length === 0) {
+                      <div class="pd-custom-select-empty">No se encontraron asesores</div>
+                    } @else {
+                      @for (a of filtrarAsesoresBusqueda(); track a.id) {
+                        <div class="pd-custom-select-option" [class.selected]="baseValor === a.id" (click)="seleccionarAsesorId(a.id)">
+                          <span class="pd-avatar-sm">{{ a.name.charAt(0) }}</span>
+                          <span class="pd-asesor-name">{{ a.name }}</span>
+                          @if (baseValor === a.id) {
+                            <lucide-icon [img]="icons.CheckCircle2" [size]="14" class="pd-check-icon" />
+                          }
+                        </div>
+                      }
+                    }
+                  </div>
+                </div>
+                <div class="pd-dropdown-backdrop" (click)="dropdownAsesorAbierto = false"></div>
+              }
+            </div>
+          } @else {
+            <div class="pd-email-row">
+              <input type="text" [(ngModel)]="baseValor" [maxlength]="modalBaseCampo === 'link' ? 500 : modalBaseCampo === 'calendario' ? 50 : modalBaseCampo === 'proyecto' ? 100 : 200"
+                placeholder="Nuevo valor" (keydown.enter)="guardarBase()" />
+            </div>
+          }
+        </div>
+
+        <div class="pi-modal-actions">
+          <button type="button" class="pi-btn pi-btn-ghost" (click)="cerrarModalBase()">Cancelar</button>
+          <button type="button" class="pi-btn pi-btn-primary" [disabled]="baseGuardando || (baseCampoEsAsesor ? false : !baseValor.trim())" (click)="guardarBase()">
+            {{ baseGuardando ? 'Guardando…' : 'Guardar' }}
           </button>
         </div>
       </div>

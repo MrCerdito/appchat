@@ -26,6 +26,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles, RolesGuard } from '../auth/roles.guard';
 import { PerfilInstitucionalService } from './perfil-institucional.service';
 import {
+  ActualizarBaseInstitucionDto,
   CreatePiCampoDto,
   CreatePiCategoriaDto,
   ReorderCategoriasDto,
@@ -102,6 +103,24 @@ export class PerfilInstitucionalController {
     @Request() req: { user: { id: string } },
   ) {
     return this.svc.actualizarEmailInstitucion(id, email?.trim() || null, req.user.id);
+  }
+
+  @Patch('instituciones/:id/ciudad')
+  actualizarCiudad(
+    @Param('id') id: string,
+    @Body('ciudad') ciudad: string | null,
+    @Request() req: { user: { id: string } },
+  ) {
+    return this.svc.actualizarCiudad(id, ciudad, req.user.id);
+  }
+
+  @Patch('instituciones/:id/base')
+  actualizarBase(
+    @Param('id') id: string,
+    @Body(new ValidationPipe({ whitelist: true })) dto: ActualizarBaseInstitucionDto,
+    @Request() req: { user: { id: string } },
+  ) {
+    return this.svc.actualizarCamposBase(id, dto as any, req.user.id);
   }
 
   @Patch('instituciones/:id/estado')

@@ -104,6 +104,11 @@ export class CreateColegioDto {
   @MaxLength(100)
   tipoColegio?: string;
 
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  ciudad?: string;
+
   @IsUUID()
   @IsOptional()
   advisorId?: string;
@@ -134,6 +139,11 @@ export class UpdateColegioDto {
   @IsOptional()
   @MaxLength(100)
   tipoColegio?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  ciudad?: string;
 
   @IsUUID()
   @IsOptional()
@@ -504,9 +514,9 @@ export class SessionsController {
   async exportColegios(@Query('format') format: string) {
     const colegios = await this.sessionsService.exportColegios();
     if (format === 'csv') {
-      const header = 'nombre;link;email;calendario;tipo_colegio;asesor\n';
+      const header = 'nombre;link;email;calendario;tipo_colegio;ciudad;asesor\n';
       const rows = colegios
-        .map((c) => `"${c.nombre}";"${c.link}";"${c.email ?? ''}";"${c.calendario ?? ''}";"${c.tipoColegio ?? ''}";"${c.advisor?.name ?? ''}"`)
+        .map((c) => `"${c.nombre}";"${c.link}";"${c.email ?? ''}";"${c.calendario ?? ''}";"${c.tipoColegio ?? ''}";"${c.ciudad ?? ''}";"${c.advisor?.name ?? ''}"`)
         .join('\n');
       return { csv: header + rows, data: colegios };
     }

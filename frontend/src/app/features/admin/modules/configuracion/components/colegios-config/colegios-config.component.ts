@@ -32,7 +32,7 @@ export class ColegiosConfigComponent implements OnInit, OnDestroy {
   search = '';
   showForm = false;
   editingColegio: Colegio | null = null;
-  form = { nombre: '', link: '', email: '', calendario: '', tipoColegio: '', advisorId: '' };
+  form = { nombre: '', link: '', email: '', calendario: '', tipoColegio: '', ciudad: '', advisorId: '' };
   customCalendario = false;
   customTipoColegio = false;
   selectedIds = new Set<string>();
@@ -115,7 +115,8 @@ export class ColegiosConfigComponent implements OnInit, OnDestroy {
       (c.email || '').toLowerCase().includes(q) ||
       (c.advisorName || '').toLowerCase().includes(q) ||
       (c.calendario || '').toLowerCase().includes(q) ||
-      (c.tipoColegio || '').toLowerCase().includes(q)
+      (c.tipoColegio || '').toLowerCase().includes(q) ||
+      (c.ciudad || '').toLowerCase().includes(q)
     );
     return all.slice((this.page - 1) * this.pageSize, this.page * this.pageSize);
   }
@@ -128,7 +129,8 @@ export class ColegiosConfigComponent implements OnInit, OnDestroy {
       (c.email || '').toLowerCase().includes(q) ||
       (c.advisorName || '').toLowerCase().includes(q) ||
       (c.calendario || '').toLowerCase().includes(q) ||
-      (c.tipoColegio || '').toLowerCase().includes(q)
+      (c.tipoColegio || '').toLowerCase().includes(q) ||
+      (c.ciudad || '').toLowerCase().includes(q)
     );
   }
 
@@ -192,13 +194,14 @@ export class ColegiosConfigComponent implements OnInit, OnDestroy {
         email: colegio.email || '',
         calendario: colegio.calendario || '',
         tipoColegio: colegio.tipoColegio || '',
+        ciudad: colegio.ciudad || '',
         advisorId: colegio.advisorId || '',
       };
       this.customCalendario = !!colegio.calendario && !this.calendarioOptions.includes(colegio.calendario);
       this.customTipoColegio = !!colegio.tipoColegio && !this.tipoColegioOptions.includes(colegio.tipoColegio);
     } else {
       this.editingColegio = null;
-      this.form = { nombre: '', link: '', email: '', calendario: '', tipoColegio: '', advisorId: '' };
+      this.form = { nombre: '', link: '', email: '', calendario: '', tipoColegio: '', ciudad: '', advisorId: '' };
       this.customCalendario = false;
       this.customTipoColegio = false;
     }
@@ -208,7 +211,7 @@ export class ColegiosConfigComponent implements OnInit, OnDestroy {
   closeForm(): void {
     this.showForm = false;
     this.editingColegio = null;
-    this.form = { nombre: '', link: '', email: '', calendario: '', tipoColegio: '', advisorId: '' };
+    this.form = { nombre: '', link: '', email: '', calendario: '', tipoColegio: '', ciudad: '', advisorId: '' };
     this.customCalendario = false;
     this.customTipoColegio = false;
   }
@@ -223,6 +226,7 @@ export class ColegiosConfigComponent implements OnInit, OnDestroy {
       email: this.form.email.trim(),
       calendario: this.form.calendario.trim(),
       tipoColegio: this.form.tipoColegio.trim(),
+      ciudad: this.form.ciudad.trim(),
       advisorId: this.form.advisorId || null,
     };
 
@@ -328,14 +332,17 @@ export class ColegiosConfigComponent implements OnInit, OnDestroy {
         const header = lines[0].toLowerCase();
         const hasCalendario = header.includes('calendario');
         const hasTipo = header.includes('tipo');
+        const hasCiudad = header.includes('ciudad') || header.includes('ciudad;');
         const hasAsesor = header.includes('asesor');
 
         const rows = lines.slice(1).map(line => {
           const cols = line.split(';').map(c => c.replace(/"/g, '').trim());
           const row: any = { nombre: cols[0] || '', link: cols[1] || 'https://', email: cols[2] || '' };
-          if (hasCalendario) row.calendario = cols[3] || '';
-          if (hasTipo) row.tipoColegio = cols[hasCalendario ? 4 : 3] || '';
-          if (hasAsesor) row.asesor = cols[hasCalendario && hasTipo ? 5 : hasCalendario || hasTipo ? 4 : 3] || '';
+          let idx = 3;
+          if (hasCalendario) { row.calendario = cols[idx] || ''; idx++; }
+          if (hasTipo) { row.tipoColegio = cols[idx] || ''; idx++; }
+          if (hasCiudad) { row.ciudad = cols[idx] || ''; idx++; }
+          if (hasAsesor) row.asesor = cols[idx] || '';
           return row;
         }).filter(r => r.nombre && r.link);
         this.sessionService.importColegios(rows).pipe(takeUntil(this.destroy$)).subscribe({

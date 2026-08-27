@@ -290,29 +290,35 @@
 
       <div class="mc-compose__form">
 
-        <div class="mc-section mc-dest">
-          <div class="mc-section__header">
-            <div class="mc-section__icon mc-section__icon--teal">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                <circle cx="9" cy="7" r="4"/>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-              </svg>
+        <div class="mc-dest">
+          <div class="mc-dest__hero">
+            <div class="mc-dest__hero-left">
+              <div class="mc-dest__hero-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                  <circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+              </div>
+              <div>
+                <h3 class="mc-dest__title">Destinatarios</h3>
+                <p class="mc-dest__sub">Selecciona y filtra los destinatarios de tu comunicación</p>
+              </div>
             </div>
-            <div>
-              <h3 class="mc-section__title">Destinatarios</h3>
-              <p class="mc-section__sub">Selecciona y filtra los destinatarios de tu comunicacion</p>
-            </div>
+            <button type="button" class="mc-btn mc-btn--outline mc-btn--sm mc-dest__export" (click)="exportColegios()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Exportar lista
+            </button>
           </div>
 
           @if (destinatarios.length > 0) {
           <div class="mc-dest__selected-section">
-            <div class="mc-dest__counter">
+            <div class="mc-dest__selected-count">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
               <span>{{ destinatarios.length }} destinatario{{ destinatarios.length === 1 ? '' : 's' }} seleccionado{{ destinatarios.length === 1 ? '' : 's' }}</span>
             </div>
             <div class="mc-dest__selected-list">
-              @for (d of destinatarios.slice(0, 4); track trackByIndex($index)) {
+              @for (d of destinatarios.slice(0, 5); track trackByIndex($index)) {
               <div class="mc-dest__selected-item">
                 <div class="mc-dest__selected-info">
                   <span class="mc-dest__selected-name">{{ d.nombre }}</span>
@@ -326,89 +332,115 @@
                 </button>
               </div>
               }
-              @if (destinatarios.length > 4) {
-              <button class="mc-dest__selected-more" (click)="openRecipientsModal()">
-                +{{ destinatarios.length - 4 }} mas destinatarios
-              </button>
+              @if (destinatarios.length > 5) {
+              <button class="mc-dest__selected-more" (click)="openRecipientsModal()">+{{ destinatarios.length - 5 }} más</button>
               }
             </div>
           </div>
           }
 
-          <div class="mc-dest__manual">
-            <label class="mc-dest__manual-title">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-              Agregar destinatario manualmente
-            </label>
-            <div class="mc-dest__manual-row">
-              <div class="mc-dest__manual-field">
-                <label class="mc-dest__field-label">Nombre</label>
-                <input type="text" [(ngModel)]="nombreInput" placeholder="Ej: Laura Gomez" class="mc-dest__field-input"/>
-              </div>
-              <div class="mc-dest__manual-field mc-dest__manual-field--grow">
-                <label class="mc-dest__field-label">Correo electronico</label>
-                <input type="email" [(ngModel)]="emailInput" placeholder="correo@ejemplo.com" class="mc-dest__field-input" (keyup.enter)="addEmailManual()"/>
-              </div>
-            </div>
-            <button class="mc-btn mc-btn--primary mc-btn--sm mc-dest__manual-btn" (click)="addEmailManual()">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Agregar destinatario
-            </button>
-          </div>
-
-          <div class="mc-dest__actions">
-            <button class="mc-btn mc-btn--outline mc-btn--sm" (click)="showColegiosPicker = !showColegiosPicker"
-              [class.mc-btn--active]="showColegiosPicker">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                <circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-              </svg>
+          <div class="mc-dest__tabs">
+            <button class="mc-dest__tab" [class.active]="recipientTab === 'colegios'" (click)="selectRecipientTab('colegios')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10h16M5 6h14a1 1 0 0 1 1 1v1H4V7a1 1 0 0 1 1-1z"/><path d="M3 10l1.5 8a1 1 0 0 0 1 .93h13a1 1 0 0 0 1-.93L21 10"/></svg>
               Colegios
             </button>
-            <button class="mc-btn mc-btn--outline mc-btn--sm" (click)="addAllFilteredColegios()">+ Todos ({{ colegios.length }})</button>
+            <button class="mc-dest__tab" [class.active]="recipientTab === 'todos'" (click)="selectRecipientTab('todos')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              Todos <span class="mc-dest__tab-badge">{{ colegios.length }}</span>
+            </button>
           </div>
 
-          @if (showColegiosPicker) {
-          <div class="mc-dest__picker">
-
-            <!-- Filtros colapsables -->
-            <div class="mc-dest__filters">
-              <button class="mc-dest__filters-toggle" (click)="showFiltersPanel = !showFiltersPanel"
-                [class.mc-dest__filters-toggle--active]="showFiltersPanel">
+          <div class="mc-dest__filters-card">
+            <div class="mc-dest__filters-head">
+              <span class="mc-dest__filters-title">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
                 Filtros
-                @if (activeFilterCount > 0) {
-                <span class="mc-dest__filters-badge">{{ activeFilterCount }}</span>
-                }
-                <svg class="mc-dest__filters-chevron" [class.open]="showFiltersPanel" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-              </button>
+              </span>
+              @if (activeFilterCount > 0) {
+              <button type="button" class="mc-dest__clear-filters" (click)="clearAllFilters()">Limpiar</button>
+              }
             </div>
-
-            <!-- Dropdowns de filtro (colapsable) -->
-            @if (showFiltersPanel) {
-            <div class="mc-dest__filter-body">
-              <div class="mc-dest__filter-row">
-                <div class="mc-dest__filter-group">
-                  <label class="mc-dest__filter-label">Sistema / Producto</label>
-                  <select class="mc-dest__filter-select" [(ngModel)]="filterTipoColegio" (ngModelChange)="colegioPage = 1">
-                    <option value="">Todos</option>
-                    <option value="Sian365">Sian365</option>
-                    <option value="ControlAcademic">Control Academic</option>
-                  </select>
+            <div class="mc-dest__filter-controls">
+              <!-- Proyecto -->
+              <div class="mc-dest__dropdown" [class.open]="isFilterOpen('proyecto')" [class.has-value]="!!filterTipoColegio">
+                <button type="button" class="mc-dest__dd-box" (click)="toggleFilter('proyecto')">
+                  <span class="mc-dest__dd-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></span>
+                  <span class="mc-dest__dd-text">
+                    <span class="mc-dest__dd-label">Proyecto</span>
+                    <span class="mc-dest__dd-value">{{ filterTipoColegio ? (filterTipoColegio === 'Sian365' ? 'Sian365' : 'Control Acad.') : 'Todos' }}</span>
+                  </span>
+                  <svg class="mc-dest__dd-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                @if (isFilterOpen('proyecto')) {
+                <div class="mc-dest__dd-menu">
+                  <button type="button" class="mc-dest__dd-option" [class.selected]="!filterTipoColegio" (click)="setFilter('proyecto', '')">
+                    <span>Todos</span>
+                    @if (!filterTipoColegio) { <svg class="mc-dest__dd-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> }
+                  </button>
+                  <button type="button" class="mc-dest__dd-option" [class.selected]="filterTipoColegio === 'Sian365'" (click)="setFilter('proyecto', 'Sian365')">
+                    <span>Sian365</span>
+                    @if (filterTipoColegio === 'Sian365') { <svg class="mc-dest__dd-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> }
+                  </button>
+                  <button type="button" class="mc-dest__dd-option" [class.selected]="filterTipoColegio === 'ControlAcademic'" (click)="setFilter('proyecto', 'ControlAcademic')">
+                    <span>Control Académico</span>
+                    @if (filterTipoColegio === 'ControlAcademic') { <svg class="mc-dest__dd-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> }
+                  </button>
                 </div>
-                <div class="mc-dest__filter-group">
-                  <label class="mc-dest__filter-label">Calendario</label>
-                  <select class="mc-dest__filter-select" [(ngModel)]="filterCalendario" (ngModelChange)="colegioPage = 1">
-                    <option value="">Todos</option>
-                    <option value="A">Calendario A</option>
-                    <option value="B">Calendario B</option>
-                  </select>
+                }
+              </div>
+              <!-- Calendario -->
+              <div class="mc-dest__dropdown" [class.open]="isFilterOpen('calendario')" [class.has-value]="!!filterCalendario">
+                <button type="button" class="mc-dest__dd-box" (click)="toggleFilter('calendario')">
+                  <span class="mc-dest__dd-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
+                  <span class="mc-dest__dd-text">
+                    <span class="mc-dest__dd-label">Calendario</span>
+                    <span class="mc-dest__dd-value">{{ filterCalendario ? 'Cal. ' + filterCalendario : 'Todos' }}</span>
+                  </span>
+                  <svg class="mc-dest__dd-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                @if (isFilterOpen('calendario')) {
+                <div class="mc-dest__dd-menu">
+                  <button type="button" class="mc-dest__dd-option" [class.selected]="!filterCalendario" (click)="setFilter('calendario', '')">
+                    <span>Todos</span>
+                    @if (!filterCalendario) { <svg class="mc-dest__dd-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> }
+                  </button>
+                  <button type="button" class="mc-dest__dd-option" [class.selected]="filterCalendario === 'A'" (click)="setFilter('calendario', 'A')">
+                    <span>Calendario A</span>
+                    @if (filterCalendario === 'A') { <svg class="mc-dest__dd-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> }
+                  </button>
+                  <button type="button" class="mc-dest__dd-option" [class.selected]="filterCalendario === 'B'" (click)="setFilter('calendario', 'B')">
+                    <span>Calendario B</span>
+                    @if (filterCalendario === 'B') { <svg class="mc-dest__dd-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> }
+                  </button>
                 </div>
+                }
+              </div>
+              <!-- Ciudad -->
+              <div class="mc-dest__dropdown" [class.open]="isFilterOpen('ciudad')" [class.has-value]="!!filterCiudad">
+                <button type="button" class="mc-dest__dd-box" (click)="toggleFilter('ciudad')">
+                  <span class="mc-dest__dd-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></span>
+                  <span class="mc-dest__dd-text">
+                    <span class="mc-dest__dd-label">Ciudad</span>
+                    <span class="mc-dest__dd-value">{{ filterCiudad || 'Todas' }}</span>
+                  </span>
+                  <svg class="mc-dest__dd-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                @if (isFilterOpen('ciudad')) {
+                <div class="mc-dest__dd-menu">
+                  <button type="button" class="mc-dest__dd-option" [class.selected]="!filterCiudad" (click)="setFilter('ciudad', '')">
+                    <span>Todas</span>
+                    @if (!filterCiudad) { <svg class="mc-dest__dd-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> }
+                  </button>
+                  @for (ciu of colegioCiudades; track ciu) {
+                  <button type="button" class="mc-dest__dd-option" [class.selected]="filterCiudad === ciu" (click)="setFilter('ciudad', ciu)">
+                    <span>{{ ciu }}</span>
+                    @if (filterCiudad === ciu) { <svg class="mc-dest__dd-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> }
+                  </button>
+                  }
+                </div>
+                }
               </div>
             </div>
-            }
-
-            <!-- Chips de filtros activos -->
             @if (activeFilterChips.length > 0) {
             <div class="mc-dest__active-filters">
               @for (chip of activeFilterChips; track chip.key) {
@@ -419,127 +451,170 @@
                 </button>
               </span>
               }
-              <button class="mc-dest__clear-filters" (click)="clearAllFilters()">Limpiar filtros</button>
             </div>
             }
+            @if (openFilter) {
+            <div class="mc-dest__dd-backdrop" (click)="openFilter = null"></div>
+            }
+          </div>
 
-            <!-- Busqueda -->
-            <div class="mc-dest__search">
-              <svg class="mc-dest__search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              <input type="text" [(ngModel)]="colegioSearch" placeholder="Buscar colegio por nombre o correo..." class="mc-dest__search-input" (ngModelChange)="colegioPage = 1"/>
-              @if (colegioSearch) {
-              <button class="mc-dest__search-clear" (click)="colegioSearch = ''; colegioPage = 1">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          <div class="mc-dest__toolbar">
+            <div class="mc-dest__toolbar-left">
+              <div class="mc-dest__search">
+                <svg class="mc-dest__search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" [(ngModel)]="colegioSearch" placeholder="Buscar colegio por nombre o correo…" class="mc-dest__search-input" (ngModelChange)="colegioPage = 1"/>
+                @if (colegioSearch) {
+                <button class="mc-dest__search-clear" (click)="colegioSearch = ''; colegioPage = 1">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+                }
+              </div>
+              <label class="mc-dest__checkbox-label">
+                <input type="checkbox" class="mc-dest__checkbox" [checked]="allFilteredSelected" (change)="toggleSelectAllColegios()"/>
+                <span class="mc-dest__checkbox-mark"></span>
+                <span class="mc-dest__checkbox-text">Seleccionar todos</span>
+              </label>
+              <span class="mc-dest__toolbar-count">{{ filteredColegios.length }} colegios</span>
+              @if (selectedColegioIds.size > 0) {
+              <span class="mc-dest__selected-pill">{{ selectedColegioIds.size }} seleccionado{{ selectedColegioIds.size === 1 ? '' : 's' }}</span>
+              }
+            </div>
+            <div class="mc-dest__toolbar-right">
+              @if (selectedColegioIds.size > 0) {
+              <button type="button" class="mc-btn mc-btn--ghost mc-btn--xs" (click)="clearColegioSelection()">Quitar selección</button>
+              <button type="button" class="mc-btn mc-btn--primary mc-btn--xs" (click)="addSelectedColegios()">Agregar seleccionados</button>
+              }
+              @if (selectedColegioIds.size === 0 && filteredColegios.length > 0) {
+              <button type="button" class="mc-btn mc-btn--primary mc-dest__add-all" (click)="addAllFilteredColegios()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Agregar todos los filtrados ({{ filteredColegios.length }})
               </button>
               }
             </div>
+          </div>
 
-            <!-- Barra de seleccion -->
-            <div class="mc-dest__select-bar">
-              <div class="mc-dest__select-bar-left">
-                <label class="mc-dest__checkbox-label">
-                  <input type="checkbox" class="mc-dest__checkbox" [checked]="allFilteredSelected" (change)="toggleSelectAllColegios()"/>
-                  <span class="mc-dest__checkbox-mark"></span>
-                  <span class="mc-dest__checkbox-text">Seleccionar todos</span>
-                </label>
-                <span class="mc-dest__select-count">{{ filteredColegios.length }} colegios</span>
-              </div>
-              @if (selectedColegioIds.size > 0) {
-              <div class="mc-dest__select-bar-right">
-                <span class="mc-dest__select-selected">{{ selectedColegioIds.size }} seleccionado{{ selectedColegioIds.size === 1 ? '' : 's' }}</span>
-                <button class="mc-btn mc-btn--primary mc-btn--xs" (click)="addSelectedColegios()">Agregar seleccionados</button>
-                <button class="mc-btn mc-btn--ghost mc-btn--xs" (click)="clearColegioSelection()">Quitar seleccion</button>
-              </div>
-              }
-              @if (selectedColegioIds.size === 0 && filteredColegios.length > 0) {
-              <div class="mc-dest__select-bar-right">
-                <button class="mc-btn mc-btn--ghost mc-btn--xs" (click)="addAllFilteredColegios()">+ Agregar todos los filtrados ({{ filteredColegios.length }})</button>
-              </div>
-              }
-            </div>
-
-            <!-- Tabla de colegios -->
-            @if (filteredColegios.length > 0) {
-            <div class="mc-dest__table-wrap">
-              <table class="mc-dest__table">
-                <thead>
-                  <tr>
-                    <th class="mc-dest__th mc-dest__th--check"></th>
-                    <th class="mc-dest__th mc-dest__th--name">Nombre</th>
-                    <th class="mc-dest__th mc-dest__th--email">Correo</th>
-                    <th class="mc-dest__th mc-dest__th--cal">Calendario</th>
-                    <th class="mc-dest__th mc-dest__th--sys">Sistema</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (c of paginatedColegios; track trackById($index, c)) {
-                  <tr class="mc-dest__row"
-                    [class.mc-dest__row--selected]="isColegioSelected(c.id)"
-                    [class.mc-dest__row--added]="isColegioAdded(c)">
-                    <td class="mc-dest__td mc-dest__td--check">
-                      <label class="mc-dest__checkbox-label">
-                        <input type="checkbox" class="mc-dest__checkbox"
-                          [checked]="isColegioSelected(c.id)"
-                          (change)="toggleColegioSelection(c.id)"/>
-                        <span class="mc-dest__checkbox-mark"></span>
-                      </label>
-                    </td>
-                    <td class="mc-dest__td mc-dest__td--name">
-                      <span class="mc-dest__name">{{ c.nombre }}</span>
-                      @if (isColegioAdded(c)) {
-                      <span class="mc-dest__added-badge">Agregado</span>
-                      }
-                    </td>
-                    <td class="mc-dest__td mc-dest__td--email">{{ c.email || 'Sin email' }}</td>
-                    <td class="mc-dest__td mc-dest__td--cal">
-                      @if (c.calendario) {
-                      <span class="mc-dest__badge" [class.mc-dest__badge--a]="c.calendario === 'A'" [class.mc-dest__badge--b]="c.calendario === 'B'">
-                        Cal. {{ c.calendario }}
+          @if (filteredColegios.length > 0) {
+          <div class="mc-dest__table-wrap">
+            <table class="mc-dest__table">
+              <thead>
+                <tr>
+                  <th class="mc-dest__th mc-dest__th--check"></th>
+                  <th class="mc-dest__th">Nombre</th>
+                  <th class="mc-dest__th">Correo</th>
+                  <th class="mc-dest__th">Proyecto</th>
+                  <th class="mc-dest__th">Calendario</th>
+                  <th class="mc-dest__th">Ciudad</th>
+                  <th class="mc-dest__th">Sistema</th>
+                  <th class="mc-dest__th mc-dest__th--action"></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (c of paginatedColegios; track trackById($index, c)) {
+                <tr class="mc-dest__row"
+                  [class.selected]="isColegioSelected(c.id)"
+                  [class.added]="isColegioAdded(c)">
+                  <td class="mc-dest__td mc-dest__td--check">
+                    <label class="mc-dest__checkbox-label">
+                      <input type="checkbox" class="mc-dest__checkbox"
+                        [checked]="isColegioSelected(c.id)"
+                        (change)="toggleColegioSelection(c.id)"/>
+                      <span class="mc-dest__checkbox-mark"></span>
+                    </label>
+                  </td>
+                  <td class="mc-dest__td">
+                    <div class="mc-dest__name-cell">
+                      <span class="mc-dest__inst-ico">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-4h6v4"/></svg>
                       </span>
+                      <div class="mc-dest__name-box">
+                        <span class="mc-dest__name">{{ c.nombre }}</span>
+                        @if (isColegioAdded(c)) {
+                        <span class="mc-dest__added-badge">Agregado</span>
+                        }
+                      </div>
+                    </div>
+                  </td>
+                  <td class="mc-dest__td">
+                    @if (c.email) {
+                    <span class="mc-dest__email">{{ c.email }}</span>
+                    } @else {
+                    <span class="mc-dest__no-email">Sin email</span>
+                    }
+                  </td>
+                  <td class="mc-dest__td">
+                    @if (c.tipoColegio) {
+                    <span class="mc-dest__badge" [class.sian]="c.tipoColegio === 'Sian365'" [class.ctrl]="c.tipoColegio === 'ControlAcademic'">
+                      {{ c.tipoColegio === 'Sian365' ? 'Sian365' : 'Control Acad.' }}
+                    </span>
+                    } @else { <span class="mc-dest__muted">—</span> }
+                  </td>
+                  <td class="mc-dest__td">
+                    @if (c.calendario) {
+                    <span class="mc-dest__badge" [class.cal-a]="c.calendario === 'A'" [class.cal-b]="c.calendario === 'B'">
+                      Cal. {{ c.calendario }}
+                    </span>
+                    } @else { <span class="mc-dest__muted">—</span> }
+                  </td>
+                  <td class="mc-dest__td">
+                    <span class="mc-dest__city"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>{{ colegioCiudad(c) || '—' }}</span>
+                  </td>
+                  <td class="mc-dest__td">
+                    @if (c.tipoColegio) {
+                    <span class="mc-dest__sys">{{ c.tipoColegio === 'Sian365' ? 'Sian365' : 'Control Acad.' }}</span>
+                    } @else { <span class="mc-dest__muted">—</span> }
+                  </td>
+                  <td class="mc-dest__td mc-dest__td--action">
+                    <div class="mc-dest__menu" [class.open]="menuColegioId === c.id">
+                      <button type="button" class="mc-dest__menu-btn" (click)="toggleColegioMenu(c.id)" title="Acciones">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                      </button>
+                      @if (menuColegioId === c.id) {
+                      <div class="mc-dest__menu-drop">
+                        <button type="button" (click)="isColegioAdded(c) ? removeDestinatario(c.email) : addColegio(c); toggleColegioMenu(c.id)">
+                          {{ isColegioAdded(c) ? 'Quitar de destinatarios' : 'Agregar a destinatarios' }}
+                        </button>
+                        @if (c.link) {
+                        <button type="button" (click)="buscarColegio(c.link)">Ver página del colegio</button>
+                        }
+                      </div>
                       }
-                    </td>
-                    <td class="mc-dest__td mc-dest__td--sys">
-                      @if (c.tipoColegio) {
-                      <span class="mc-dest__badge" [class.mc-dest__badge--sian]="c.tipoColegio === 'Sian365'" [class.mc-dest__badge--ctrl]="c.tipoColegio === 'ControlAcademic'">
-                        {{ c.tipoColegio === 'Sian365' ? 'SIAN365' : 'ControlAcad.' }}
-                      </span>
-                      }
-                    </td>
-                  </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-
-            <!-- Paginador -->
-            <div class="mc-dest__paginator">
-              <span class="mc-dest__paginator-info">
-                Mostrando {{ (colegioPage - 1) * COLEGIO_PAGE_SIZE + 1 }}&ndash;{{ paginatedEnd }} de {{ filteredColegios.length }} colegios
-              </span>
-              <div class="mc-dest__paginator-btns">
-                <button class="mc-dest__page-btn" [disabled]="colegioPage === 1" (click)="onColegioPageChange(colegioPage - 1)">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-                </button>
-                @for (p of colegioPageNumbers; track p) {
-                <button class="mc-dest__page-btn" [class.active]="p === colegioPage" (click)="onColegioPageChange(p)">{{ p }}</button>
+                    </div>
+                  </td>
+                </tr>
                 }
-                <button class="mc-dest__page-btn" [disabled]="colegioPage === colegioTotalPages" (click)="onColegioPageChange(colegioPage + 1)">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-                </button>
-              </div>
-            </div>
-            } @else {
-            <div class="mc-dest__empty">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 15h8"/><circle cx="9" cy="9" r="1"/><circle cx="15" cy="9" r="1"/></svg>
-              <p>No encontramos colegios con estos filtros</p>
-              <button class="mc-btn mc-btn--outline mc-btn--sm" (click)="clearAllFilters()">Limpiar filtros</button>
-            </div>
-            }
+              </tbody>
+            </table>
+          </div>
 
+          <div class="mc-dest__paginator">
+            <span class="mc-dest__paginator-info">
+              Mostrando {{ (colegioPage - 1) * colegioPageSize + 1 }}&ndash;{{ paginatedEnd }} de {{ filteredColegios.length }} colegios
+            </span>
+            <div class="mc-dest__paginator-btns">
+              <select class="mc-dest__page-size" [(ngModel)]="colegioPageSize" (ngModelChange)="onColegioPageSizeChange()" title="Elementos por página">
+                @for (n of COLEGIO_PAGE_SIZE_OPTIONS; track n) {
+                <option [value]="n">{{ n }} por página</option>
+                }
+              </select>
+              <button class="mc-dest__page-btn" [disabled]="colegioPage === 1" (click)="onColegioPageChange(colegioPage - 1)" title="Anterior">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+              @for (p of colegioPageNumbers; track p) {
+              <button class="mc-dest__page-btn" [class.active]="p === colegioPage" (click)="onColegioPageChange(p)">{{ p }}</button>
+              }
+              <button class="mc-dest__page-btn" [disabled]="colegioPage === colegioTotalPages" (click)="onColegioPageChange(colegioPage + 1)" title="Siguiente">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </div>
+          </div>
+          } @else {
+          <div class="mc-dest__empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 15h8"/><circle cx="9" cy="9" r="1"/><circle cx="15" cy="9" r="1"/></svg>
+            <p>No encontramos colegios con estos filtros</p>
+            <button class="mc-btn mc-btn--outline mc-btn--sm" (click)="clearAllFilters()">Limpiar filtros</button>
           </div>
           }
         </div>
-
         <div class="mc-section">
           <div class="mc-section__header">
             <div class="mc-section__icon mc-section__icon--purple">
