@@ -66,8 +66,8 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
   ];
 
   // ── IA Prompt ──────────────────────────────────────────────────────────────
-  aiPromptNombre = 'asistente virtual de atención al cliente';
-  aiPromptEspecialidad = 'colegios';
+  aiPromptNombre = 'Korvix';
+  aiPromptEspecialidad = 'Plataforma Educativa Institucional';
   aiPromptInstrucciones = '';
   aiPromptFrasesTransferencia: string[] = ['asesor', 'humano', 'persona', 'agente'];
   aiPromptFeedback = '';
@@ -76,6 +76,11 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
   newTransferPhrase = '';
   selectedRole: string = 'estudiante';
   newRestrictedTopic = '';
+  temasInstitucionales: { tema: string; mensaje?: string }[] = [];
+  mensajeRedireccionGenerico = 'Este tema lo maneja directamente la institución. Te recomendamos dirigirte a la institución para más información.';
+  newInstitucionalTopic = '';
+  newInstitucionalMensaje = '';
+  editInstitucionalIndex: number | null = null;
   aiPalabrasProhibidas: string[] = ['hijueputa', 'gonorrea', 'malparido', 'marica', 'pendejo', 'idiota', 'estupido', 'imbecil', 'puta', 'mierda'];
   aiMensajeGroseria = 'Por favor, mantengamos un trato respetuoso. No puedo ayudarte si usas lenguaje ofensivo. ¿En qué más puedo ayudarte?';
   aiLimiteGroserias = 3;
@@ -83,7 +88,7 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
   aiMensajeSinInformacion = 'No tengo información registrada sobre eso por el momento. ¿Necesitas un agente para una mejor ayuda?';
   aiSugerirAsesorAutomatico = true;
   newForbiddenWord = '';
-  iaSectionOpen = { identidad: true, instrucciones: true, roles: true, transferencia: false, conducta: false, feedback: false, avanzado: false };
+  iaSectionOpen = { identidad: true, instrucciones: true, roles: true, institucionales: false, transferencia: false, conducta: false, feedback: false, avanzado: false };
 
   // ── Colegios ─────────────────────────────────────────────────────────────
   colegios: Colegio[] = [];
@@ -487,8 +492,8 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
   // ── IA Prompt methods ──────────────────────────────────────────────────────
   private loadAiPromptConfig(aiCfg: Record<string, any> | null | undefined): void {
     if (aiCfg && typeof aiCfg === 'object') {
-      this.aiPromptNombre = aiCfg['nombreAsistente'] || 'asistente virtual de atención al cliente';
-      this.aiPromptEspecialidad = aiCfg['especialidad'] || 'colegios';
+      this.aiPromptNombre = aiCfg['nombreAsistente'] || 'Korvix';
+      this.aiPromptEspecialidad = aiCfg['especialidad'] || 'Plataforma Educativa Institucional';
       this.aiPromptInstrucciones = aiCfg['instruccionesGenerales'] || '';
       this.aiPromptFrasesTransferencia = Array.isArray(aiCfg['frasesTransferencia']) && aiCfg['frasesTransferencia'].length
         ? aiCfg['frasesTransferencia']
@@ -496,6 +501,16 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
       this.aiPromptFeedback = aiCfg['feedbackPositivo'] || '';
       this.aiPromptPersonalizado = aiCfg['promptPersonalizado'] || '';
       this.aiPromptUseCustom = !!aiCfg['promptPersonalizado'];
+
+      this.temasInstitucionales = Array.isArray(aiCfg['temasInstitucionales'])
+        ? aiCfg['temasInstitucionales'].filter((t: any) => t && t.tema).map((t: any) => ({
+            tema: String(t.tema),
+            mensaje: typeof t.mensaje === 'string' ? t.mensaje : '',
+          }))
+        : [];
+      this.mensajeRedireccionGenerico = typeof aiCfg['mensajeRedireccionGenerico'] === 'string'
+        ? aiCfg['mensajeRedireccionGenerico']
+        : 'Este tema lo maneja directamente la institución. Te recomendamos dirigirte a la institución para más información.';
 
       this.aiPalabrasProhibidas = Array.isArray(aiCfg['palabrasProhibidas']) && aiCfg['palabrasProhibidas'].length
         ? aiCfg['palabrasProhibidas']
@@ -523,13 +538,18 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
   }
 
   private resetAiPromptDefaults(): void {
-    this.aiPromptNombre = 'asistente virtual de atención al cliente';
-    this.aiPromptEspecialidad = 'colegios';
+    this.aiPromptNombre = 'Korvix';
+    this.aiPromptEspecialidad = 'Plataforma Educativa Institucional';
     this.aiPromptInstrucciones = '';
     this.aiPromptFrasesTransferencia = ['asesor', 'humano', 'persona', 'agente'];
     this.aiPromptFeedback = '';
     this.aiPromptPersonalizado = '';
     this.aiPromptUseCustom = false;
+    this.temasInstitucionales = [];
+    this.mensajeRedireccionGenerico = 'Este tema lo maneja directamente la institución. Te recomendamos dirigirte a la institución para más información.';
+    this.newInstitucionalTopic = '';
+    this.newInstitucionalMensaje = '';
+    this.editInstitucionalIndex = null;
     this.aiPalabrasProhibidas = ['hijueputa', 'gonorrea', 'malparido', 'marica', 'pendejo', 'idiota', 'estupido', 'imbecil', 'puta', 'mierda'];
     this.aiMensajeGroseria = 'Por favor, mantengamos un trato respetuoso. No puedo ayudarte si usas lenguaje ofensivo. ¿En qué más puedo ayudarte?';
     this.aiLimiteGroserias = 3;
@@ -564,6 +584,8 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
         mensajeSesionTerminada: this.aiMensajeSesionTerminada,
         mensajeSinInformacion: this.aiMensajeSinInformacion,
         sugerirAsesorAutomatico: this.aiSugerirAsesorAutomatico,
+        temasInstitucionales: this.temasInstitucionales,
+        mensajeRedireccionGenerico: this.mensajeRedireccionGenerico,
         promptPersonalizado: null,
       };
     }
@@ -619,6 +641,47 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
 
   removeTransferPhrase(phrase: string): void {
     this.aiPromptFrasesTransferencia = this.aiPromptFrasesTransferencia.filter(p => p !== phrase);
+  }
+
+  addInstitucionalTopic(): void {
+    const topic = this.newInstitucionalTopic.trim();
+    if (!topic) return;
+    if (this.editInstitucionalIndex !== null) {
+      this.temasInstitucionales[this.editInstitucionalIndex] = {
+        tema: topic,
+        mensaje: this.newInstitucionalMensaje.trim() || '',
+      };
+      this.editInstitucionalIndex = null;
+    } else {
+      const existe = this.temasInstitucionales.some(
+        (t) => t.tema.toLowerCase() === topic.toLowerCase(),
+      );
+      if (!existe && this.temasInstitucionales.length < 30) {
+        this.temasInstitucionales.push({
+          tema: topic,
+          mensaje: this.newInstitucionalMensaje.trim() || '',
+        });
+      }
+    }
+    this.newInstitucionalTopic = '';
+    this.newInstitucionalMensaje = '';
+  }
+
+  removeInstitucionalTopic(index: number): void {
+    this.temasInstitucionales.splice(index, 1);
+    if (this.editInstitucionalIndex === index) this.editInstitucionalIndex = null;
+  }
+
+  startEditInstitucional(index: number): void {
+    this.editInstitucionalIndex = index;
+    this.newInstitucionalTopic = this.temasInstitucionales[index].tema;
+    this.newInstitucionalMensaje = this.temasInstitucionales[index].mensaje || '';
+  }
+
+  cancelEditInstitucional(): void {
+    this.editInstitucionalIndex = null;
+    this.newInstitucionalTopic = '';
+    this.newInstitucionalMensaje = '';
   }
 
   resetAiPrompt(): void {

@@ -748,6 +748,25 @@ export class ConfiguracionService implements OnModuleInit {
           }
         }
       }
+      if (Array.isArray(aiCfg.temasInstitucionales)) {
+        aiCfg.temasInstitucionales = aiCfg.temasInstitucionales
+          .slice(0, 30)
+          .map((t: any) => {
+            if (!t || typeof t !== 'object') return null;
+            return {
+              tema: cleanText(String(t.tema ?? ''), 100),
+              mensaje:
+                typeof t.mensaje === 'string' ? cleanText(t.mensaje, 500) : '',
+            };
+          })
+          .filter((x: any) => x && x.tema);
+      }
+      if (typeof aiCfg.mensajeRedireccionGenerico === 'string') {
+        aiCfg.mensajeRedireccionGenerico = cleanText(
+          aiCfg.mensajeRedireccionGenerico,
+          500,
+        );
+      }
       const jsonStr = JSON.stringify(aiCfg);
       if (jsonStr.length > 50000) {
         data.aiPromptConfig = null;

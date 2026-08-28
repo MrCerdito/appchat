@@ -1243,6 +1243,73 @@
               }
             </div>
 
+            <!-- Temas institucionales (redireccion) -->
+            <div class="cfg-accordion">
+              <div class="cfg-accordion__header" (click)="toggleIaSection('institucionales')">
+                <div class="cfg-accordion__head">
+                  <div class="cfg-card__icon cfg-card__icon--amber">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+                    </svg>
+                  </div>
+                  <span class="cfg-accordion__title">Temas institucionales (redireccion)</span>
+                </div>
+                <svg class="cfg-accordion__chevron" [class.open]="iaSectionOpen.institucionales" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+              </div>
+              @if (iaSectionOpen.institucionales) {
+              <div class="cfg-accordion__body">
+                <span class="cfg-field__hint" style="display:block;margin-bottom:12px">Temas que la IA NO debe intentar resolver por si sola, aunque tenga informacion. En vez de responder, redirige al cliente a la institucion. Esto aplica a todos los roles y tiene prioridad sobre la entrega de documentos.</span>
+
+                <div class="cfg-field">
+                  <label class="cfg-field__label">Temas</label>
+                  <div class="cfg-chips">
+                    @for (tema of temasInstitucionales; track $index) {
+                    <span class="cfg-chip cfg-chip--amber">
+                      {{ tema.tema }}
+                      <button type="button" class="cfg-chip__remove" (click)="startEditInstitucional($index)" title="Editar">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12" height="12"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>
+                      </button>
+                      <button type="button" class="cfg-chip__remove" (click)="removeInstitucionalTopic($index)" title="Eliminar">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12" height="12"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
+                      </button>
+                    </span>
+                    }
+                    @if (temasInstitucionales.length === 0) {
+                    <span class="cfg-chips-empty">Sin temas institucionales</span>
+                    }
+                  </div>
+                  @if (editInstitucionalIndex !== null) {
+                  <div style="display:flex;gap:8px;margin-top:8px">
+                    <button type="button" class="cfg-btn cfg-btn--ghost" (click)="cancelEditInstitucional()">Cancelar edicion</button>
+                    <span class="cfg-field__hint">Editando: {{ temasInstitucionales[editInstitucionalIndex].tema }}</span>
+                  </div>
+                  }
+                  <div class="cfg-add-row" style="margin-top:10px">
+                    <input class="cfg-input" type="text" [(ngModel)]="newInstitucionalTopic" placeholder="Ej: becas, convenios, matricula extraordinaria..." maxlength="100"
+                      (keydown.enter)="addInstitucionalTopic()"/>
+                    <button type="button" class="cfg-btn cfg-btn--primary" (click)="addInstitucionalTopic()" [disabled]="!newInstitucionalTopic.trim()">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                      {{ editInstitucionalIndex !== null ? 'Guardar' : 'Agregar' }}
+                    </button>
+                  </div>
+                </div>
+
+                <div class="cfg-field">
+                  <label class="cfg-field__label">Mensaje de redireccion por tema (opcional)</label>
+                  <input class="cfg-input" type="text" [(ngModel)]="newInstitucionalMensaje" placeholder="Si lo dejas vacio se usa el mensaje generico..." maxlength="500"/>
+                  <span class="cfg-field__hint">Se aplica al ultimo tema agregado/editado. Si esta vacio se usa el mensaje generico.</span>
+                </div>
+
+                <div class="cfg-field">
+                  <label class="cfg-field__label">Mensaje de redireccion generico</label>
+                  <textarea class="cfg-textarea" [(ngModel)]="mensajeRedireccionGenerico" rows="3"
+                    placeholder="Este tema lo maneja directamente la institucion..."></textarea>
+                  <span class="cfg-field__hint">Se usa cuando un tema institucional no tiene mensaje propio. Aplica a todos los roles.</span>
+                </div>
+              </div>
+              }
+            </div>
+
             <!-- Transferencia a asesor -->
             <div class="cfg-accordion">
               <div class="cfg-accordion__header" (click)="toggleIaSection('transferencia')">

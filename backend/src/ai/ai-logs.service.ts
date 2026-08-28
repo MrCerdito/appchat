@@ -25,6 +25,8 @@ export interface LogData {
   feedback?: boolean;
   esRestringido?: boolean;
   esOfensivo?: boolean;
+  redireccionInstitucional?: boolean;
+  temaInstitucional?: string;
   huboError?: boolean;
   errorMsg?: string;
 }
@@ -73,6 +75,8 @@ export class AiLogsService {
         transfer: data.transfer ?? false,
         feedback: data.feedback ?? undefined,
         esRestringido: data.esRestringido ?? false,
+        redireccionInstitucional: data.redireccionInstitucional ?? false,
+        temaInstitucional: data.temaInstitucional ?? undefined,
         huboError: data.huboError ?? false,
         errorMsg: data.errorMsg ?? undefined,
       });

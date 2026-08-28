@@ -106,6 +106,25 @@ function coincideTema(mensaje: string, tema: string): boolean {
   return new RegExp(`(^|\\W)${escaped}(\\W|$)`, 'i').test(msg);
 }
 
+// Coincidencia de temas institucionales (redirección, no resolución automática).
+// Independiente del rol: si el tema coincide, NO se busca en RAG ni se entregan
+// documentos, se responde con la redirección (mensaje del tema o genérico).
+function coincideTemaInstitucional(
+  mensaje: string,
+  temas: TemaInstitucional[] | undefined,
+): TemaInstitucional | null {
+  if (!Array.isArray(temas) || temas.length === 0) return null;
+  const msg = normalizarTexto(mensaje);
+  for (const t of temas) {
+    if (!t?.tema) continue;
+    const tt = normalizarTexto(t.tema);
+    if (!tt) continue;
+    const escaped = tt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (new RegExp(`(^|\\W)${escaped}(\\W|$)`, 'i').test(msg)) return t;
+  }
+  return null;
+}
+
 // ── Marcadores de entrega de documentos ─────────────────────────────────────
 // La IA marca al final de la respuesta: [DOCUMENTO: <nombre exacto>]
 // (puede repetirse para entregar varios). Se parsean y validan contra los
@@ -236,6 +255,18 @@ const DEFAULT_MENSAJE_SESION_TERMINADA =
 
 const DEFAULT_MENSAJE_SIN_INFORMACION =
   'Por el momento no tengo información específica sobre eso en los documentos de tu rol. ¿Puedo ayudarte con otra cosa? Si lo prefieres, un asesor humano puede apoyarte mejor.';
+
+const NOMBRE_ASISTENTE_DEFAULT = 'Korvix';
+
+const ESPECIALIDAD_DEFAULT = 'Plataforma Educativa Institucional';
+
+const DEFAULT_MENSAJE_REDIRECCION_GENERICO =
+  'Este tema lo maneja directamente la institución. Te recomendamos dirigirte a la institución para más información.';
+
+interface TemaInstitucional {
+  tema: string;
+  mensaje?: string;
+}
 
 interface ToneRule {
   regla: string;
@@ -685,6 +716,13 @@ export class AiService {
       mensajeRestringido: rolFromDb?.mensajeRestringido || configDefault.mensajeRestringido,
     };
 
+    const temasInstitucionales = Array.isArray(aiCfg?.temasInstitucionales)
+      ? (aiCfg.temasInstitucionales as TemaInstitucional[])
+      : [];
+    const mensajeRedireccionGenerico =
+      aiCfg?.mensajeRedireccionGenerico?.trim() ||
+      DEFAULT_MENSAJE_REDIRECCION_GENERICO;
+
     // ── Conducta (palabras prohibidas / avisos / límites) ───────────────────
     const conducta = this.cargarConducta(aiCfg);
 
@@ -774,6 +812,39 @@ export class AiService {
       };
     }
 
+    // ── D3b: Tema institucional → redirección (independiente del rol).
+    //    Tiene PRIORIDAD sobre RAG y entrega de documentos: si coincide,
+    //    no buscamos documentos ni entregamos nada, y redirigimos a la
+    //    institución con el mensaje específico del tema o el genérico. ──
+    const temaInstitucional = coincideTemaInstitucional(
+      message,
+      temasInstitucionales,
+    );
+    if (temaInstitucional) {
+      const msgRedir =
+        temaInstitucional.mensaje?.trim() || mensajeRedireccionGenerico;
+      this.aiLogs.guardar({
+        colegio,
+        rol: rolNormalizado,
+        tipoSolicitud,
+        clientName,
+        pregunta: message,
+        respuesta: msgRedir,
+        redireccionInstitucional: true,
+        temaInstitucional: temaInstitucional.tema,
+        chunksUsados: [],
+      });
+      this.logger.warn(
+        `[IA] Tema institucional (redirección) tema=${temaInstitucional.tema} | rol=${rolNormalizado}`,
+      );
+      return {
+        reply: msgRedir,
+        transfer: false,
+        showFeedback: false,
+        documentos: [],
+      };
+    }
+
     // ── RAG (con referencia al hilo: el usuario pregunta "¿cuándo es?" y
     //    la búsqueda debe incluir el tema previo). Entrega SOLO por roles. ──
     const ragQuery = this.construirConsultaRag(message, history);
@@ -809,6 +880,9 @@ export class AiService {
       this.buildDocumentosEntregables(documentos),
       conducta.mensajeSinInformacion,
       conducta.sugerirAsesorAutomatico,
+      temasInstitucionales,
+      mensajeRedireccionGenerico,
+      temaInstitucional,
     );
 
     const historyFiltered = filtrarHistorial(history);
@@ -1350,6 +1424,13 @@ ${transcript}`;
       mensajeRestringido: rolFromDb?.mensajeRestringido || configDefault.mensajeRestringido,
     };
 
+    const temasInstitucionales = Array.isArray(aiCfg?.temasInstitucionales)
+      ? (aiCfg.temasInstitucionales as TemaInstitucional[])
+      : [];
+    const mensajeRedireccionGenerico =
+      aiCfg?.mensajeRedireccionGenerico?.trim() ||
+      DEFAULT_MENSAJE_REDIRECCION_GENERICO;
+
     // ── Conducta (palabras prohibidas / avisos / límites) ───────────────────
     const conducta = this.cargarConducta(aiCfg);
 
@@ -1452,6 +1533,36 @@ ${transcript}`;
       return msgRestringido;
     }
 
+    // ── D3b: Tema institucional → redirección (independiente del rol).
+    //    Tiene PRIORIDAD sobre RAG y entrega de documentos: si coincide,
+    //    no buscamos documentos ni entregamos nada, y redirigimos a la
+    //    institución con el mensaje específico del tema o el genérico. ──
+    const temaInstitucional = coincideTemaInstitucional(
+      message,
+      temasInstitucionales,
+    );
+    if (temaInstitucional) {
+      const msgRedir =
+        temaInstitucional.mensaje?.trim() || mensajeRedireccionGenerico;
+      this.aiLogs.guardar({
+        sessionId,
+        colegio,
+        rol: rolNormalizado,
+        tipoSolicitud,
+        clientName,
+        pregunta: message,
+        respuesta: msgRedir,
+        redireccionInstitucional: true,
+        temaInstitucional: temaInstitucional.tema,
+        chunksUsados: [],
+      });
+      this.logger.warn(
+        `[IA] Tema institucional (redirección) tema=${temaInstitucional.tema} | rol=${rolNormalizado}`,
+      );
+      emit('chunk', { text: msgRedir });
+      return msgRedir;
+    }
+
     // ── RAG (con referencia al hilo: el usuario pregunta "¿cuándo es?" y
     //    la búsqueda debe incluir el tema previo). Entrega SOLO por roles. ──
     const ragQuery = this.construirConsultaRag(message, history);
@@ -1502,6 +1613,9 @@ ${transcript}`;
       this.buildDocumentosEntregables(documentos),
       conducta.mensajeSinInformacion,
       conducta.sugerirAsesorAutomatico,
+      temasInstitucionales,
+      mensajeRedireccionGenerico,
+      temaInstitucional,
     );
 
     const historyFiltered = filtrarHistorial(history);
@@ -1648,30 +1762,62 @@ ${transcript}`;
     }
 
     // ── Emitir documentos: los que la IA marcó con [DOCUMENTO: <nombre>] ──
-    // (validados contra el RAG del rol) o, si no marcó ninguno, fallback con
-    // los mejores documentos. Se emiten de forma PROACTIVA siempre que haya
+    // (validados contra el RAG del rol) o, si la IA citó algún documento
+    // candidato en el texto pero no llegó a usar el marcador, fallback con el
+    // mejor de los citados. Se emiten de forma PROACTIVA siempre que haya
     // contexto del rol (no depende de [FEEDBACK:YES]).
     const respondioAlgo = /\[FEEDBACK:YES\]\s*$/.test(textoAcumulado);
     const marcados = parseDocumentoMarkers(textoAcumulado);
     const esTransferencia = textoAcumulado.includes('TRANSFER_TO_ADVISOR');
 
     if (tieneContexto && documentos.length > 0 && !esTransferencia) {
-      const docsEntregar = resolverDocumentosEntregados(
-        marcados,
-        documentos,
-        documentos,
-        3,
-      );
-      emit('metadata', {
-        documentos: docsEntregar.map((d: any) => ({
-          nombre: d.nombre,
-          pdfUrl: d.pdfUrl,
-          categoria: d.categoria,
-          descripcion: d.descripcion ?? null,
-          instructivo: d.instructivo ?? false,
-        })),
-        sugerirAsesor: false,
-      });
+      // Fallback estricto: solo entregamos si la IA marcó documentos o citó
+      // explícitamente (por nombre) algún documento candidato en su respuesta.
+      // Evitamos "entregar papeles por entregar" cuando la IA no usó ninguno.
+      if (marcados.length > 0) {
+        const docsEntregar = resolverDocumentosEntregados(
+          marcados,
+          documentos,
+          documentos,
+          3,
+        );
+        emit('metadata', {
+          documentos: docsEntregar.map((d: any) => ({
+            nombre: d.nombre,
+            pdfUrl: d.pdfUrl,
+            categoria: d.categoria,
+            descripcion: d.descripcion ?? null,
+            instructivo: d.instructivo ?? false,
+          })),
+          sugerirAsesor: false,
+        });
+      } else {
+        const citados = documentos.filter((d: any) =>
+          d?.nombre && normalizarNombreDoc(d.nombre).length > 3
+            ? normalizarTexto(textoAcumulado).includes(
+                normalizarNombreDoc(d.nombre),
+              )
+            : false,
+        );
+        if (citados.length > 0) {
+          emit('metadata', {
+            documentos: citados.slice(0, 3).map((d: any) => ({
+              nombre: d.nombre,
+              pdfUrl: d.pdfUrl,
+              categoria: d.categoria,
+              descripcion: d.descripcion ?? null,
+              instructivo: d.instructivo ?? false,
+            })),
+            sugerirAsesor: false,
+          });
+        } else if (
+          !respondioAlgo &&
+          conducta.sugerirAsesorAutomatico &&
+          !esSoloCharla(message)
+        ) {
+          emit('metadata', { documentos: [], sugerirAsesor: true });
+        }
+      }
     } else if (
       !respondioAlgo &&
       conducta.sugerirAsesorAutomatico &&
@@ -1813,6 +1959,9 @@ ${transcript}`;
     documentosEntregables = '',
     mensajeSinInformacion = '',
     sugerirAsesorAutomatico = true,
+    temasInstitucionales: TemaInstitucional[] = [],
+    mensajeRedireccionGenerico = DEFAULT_MENSAJE_REDIRECCION_GENERICO,
+    temaInstitucional: TemaInstitucional | null = null,
   ): string {
     // Si hay prompt personalizado, usarlo directamente con variables reemplazadas
     if (aiPromptConfig?.promptPersonalizado) {
@@ -1836,6 +1985,18 @@ ${transcript}`;
         prompt = prompt.replace(/\{\{CONTEXTO_RAG\}\}/g, '');
       }
       prompt = prompt.replace(/\{\{DOCUMENTOS_ENTREGABLES\}\}/g, documentosEntregables);
+      prompt = prompt.replace(
+        /\{\{TEMAS_INSTITUCIONALES\}\}/g,
+        temasInstitucionales.map((t) => t.tema).join(', '),
+      );
+      prompt = prompt.replace(
+        /\{\{MENSAJE_REDIRECCION_INSTITUCIONAL\}\}/g,
+        temaInstitucional?.mensaje || mensajeRedireccionGenerico,
+      );
+      prompt = prompt.replace(
+        /\{\{MENSAJE_REDIRECCION_GENERICO\}\}/g,
+        mensajeRedireccionGenerico,
+      );
       prompt +=
         '\n\nREGLA DE ROL: La información de la base de conocimiento es EXCLUSIVA para el rol ' +
         config.label +
@@ -1858,58 +2019,47 @@ ${transcript}`;
       return prompt;
     }
 
-    // Ensamblar desde secciones del formulario
-    const nombre = aiPromptConfig?.nombreAsistente || 'asistente virtual de atención al cliente';
-    const especialidad = aiPromptConfig?.especialidad || 'colegios';
-    const instrucciones = aiPromptConfig?.instruccionesGenerales ||
+    // ── Identidad (Korvix universal) ─────────────────────────────────────────
+    const nombreAsistente = aiPromptConfig?.nombreAsistente || NOMBRE_ASISTENTE_DEFAULT;
+    const identidadPrincipal = aiPromptConfig?.identidadPrincipal || 'asistente virtual';
+    const especialidad = aiPromptConfig?.especialidad || ESPECIALIDAD_DEFAULT;
+    const instruccionesGenerales =
+      aiPromptConfig?.instruccionesGenerales ||
       'Responde de forma natural y conversacional, como un asistente humano cálido y profesional: frases fluidas y breves, en español, y sin repetir la bienvenida ni frases enlatadas. Mantén el hilo de la conversación refiriéndote a lo que ya se ha hablado cuando venga al caso. Trata al usuario por su nombre de forma natural y sin exagerar. Adapta el lenguaje al rol: técnico para administradores/docentes, sencillo para estudiantes y padres.';
     const frasesTransferencia = aiPromptConfig?.frasesTransferencia?.length
       ? aiPromptConfig.frasesTransferencia.join('", "')
       : 'asesor", "humano", "persona", "agente';
-    const feedbackReglas = aiPromptConfig?.feedbackPositivo ||
-      'SOLO si resolviste completamente una pregunta real y concreta';
+    const conductaGroserias =
+      'NO toleres lenguaje ofensivo: sé respetuoso y ofrece continuar de forma amable. No uses emojis en ninguna respuesta.';
+
+    const temasInstitucionalesLista =
+      temasInstitucionales.length > 0
+        ? temasInstitucionales.map((t) => t.tema).join(', ')
+        : '(ninguno)';
+    const mensajeRedirInst = temaInstitucional?.mensaje || mensajeRedireccionGenerico;
 
     const partes: string[] = [];
 
+    // ── IDENTIDAD Y ALCANCE ──────────────────────────────────────────────────
     partes.push(
-      `Eres un/a ${nombre} especializado en ${especialidad}.`,
-      `Estás atendiendo a ${clientName}, quien tiene el rol de ${config.label} en el colegio "${colegio}".`,
-      `El motivo de su consulta es: ${tipoSolicitud}.`,
+      `=== IDENTIDAD Y ALCANCE ===`,
+      `Eres ${nombreAsistente}, ${identidadPrincipal} de ${colegio},`,
+      `especializado en ${especialidad}, atendiendo al rol: ${config.label}.`,
       '',
-      'PERFIL DEL USUARIO:',
-      `- Rol: ${config.label}`,
-      `- ${config.descripcion}`,
+      instruccionesGenerales,
+      '',
+      'Responde solo temas permitidos para este rol. Sé claro, cálido y breve.',
     );
 
-    if (config.temasRestringidos.length > 0) {
-      partes.push(
-        `- Temas que NO debes responder para este rol: ${config.temasRestringidos.join(', ')}.`,
-        `  Si preguntan sobre estos temas, responde: "${config.mensajeRestringido}"`,
-      );
-    } else {
-      partes.push('- Tiene acceso completo a toda la información disponible.');
-    }
-
+    // ── CONTEXTO RECUPERADO (RAG) ────────────────────────────────────────────
+    partes.push('', '=== CONTEXTO RECUPERADO (RAG) ===');
     if (tieneContexto) {
       partes.push(
-        '',
-        'INFORMACIÓN DE LA BASE DE CONOCIMIENTO:',
-        'La siguiente información proviene de documentos oficiales del sistema.',
-        'Úsala para responder con precisión. NO inventes información que no esté aquí.',
-        'Cuando uses datos de un documento, cita su nombre EXACTO tal como aparece.',
-        'Cada fragmento trae su etiqueta [Documento N: <nombre>] como referencia interna;',
-        'no la uses como cita literal, usa el <nombre> real del documento.',
-        'IMPORTANTE: Si los documentos recuperados NO son directamente pertinentes a la',
-        'pregunta del usuario, NO los menciones ni entregues. Responde con la información',
-        'que tengas disponible o indica que no tienes información sobre ese tema específico.',
+        'A continuación tienes los documentos candidatos recuperados para la consulta del cliente. Cada uno indica: nombre exacto, tipo (instructivo/informativo), tier (fuerte/débil), intenciones que cubre, y un resumen de contenido.',
         '',
         contexto,
         '',
-        'FIN DE LA BASE DE CONOCIMIENTO.',
-        '',
-        `Esta información es EXCLUSIVA para el rol ${config.label}.`,
-        'NUNCA respondas con información de documentos destinados a otros roles,',
-        'ni mezcles datos que no correspondan a este rol.',
+        'Si un documento está marcado como "POSIBLEMENTE RELACIONADO: verifica con cuidado", trátalo con escepticismo: NO asumas que resuelve la consulta solo por aparecer aquí.',
       );
       if (documentosEntregables) {
         partes.push(
@@ -1919,36 +2069,114 @@ ${transcript}`;
           'Los marcados como INSTRUCTIVO deben entregarse de forma proactiva y breve.',
         );
       }
+    } else {
+      partes.push('No hay documentos recuperados para esta consulta en este rol.');
     }
 
+    // ── REGLAS DE CONVERSACIÓN ───────────────────────────────────────────────
     partes.push(
       '',
-      'Reglas importantes:',
-      `- ${instrucciones}`,
+      '=== REGLAS DE CONVERSACIÓN ===',
+      '1. Si el mensaje es solo cortesía, ya fue filtrado antes de llegar a ti; si igual ocurre, responde brevemente sin buscar documentos.',
+      '2. Si la consulta es ambigua, pide UNA aclaración concreta antes de resolver.',
+      '3. Usa el historial reciente solo si el cliente hace referencia explícita a algo dicho antes ("eso", "lo anterior", "sigo con...").',
+    );
+
+    // ── TEMAS INSTITUCIONALES (redirección) ──────────────────────────────────
+    partes.push(
+      '',
+      '=== TEMAS INSTITUCIONALES (fuera del alcance de la IA) ===',
+      'Los siguientes temas NO deben resolverse con información propia, aunque existan documentos parecidos en el contexto. Son temas que la institución quiere manejar de forma directa/humana, no automatizada:',
+      '',
+      temasInstitucionalesLista,
+      '',
+      'Si la consulta del cliente coincide con alguno de estos temas:',
+      '- NO busques ni marques documentos.',
+      '- NO intentes resolver con tu propio conocimiento.',
+      '- Responde EXACTAMENTE con el mensaje configurado para ese tema:',
+      `"${mensajeRedirInst}"`,
+      `- Si no hay mensaje específico para ese tema, usa el mensaje genérico: "${mensajeRedireccionGenerico}"`,
+      '',
+      'Esta regla tiene PRIORIDAD sobre la búsqueda de documentos (se evalúa antes de la REGLA 1 de entrega de documentos).',
+    );
+
+    // ── TEMAS RESTRINGIDOS PARA ESTE ROL ─────────────────────────────────────
+    partes.push(
+      '',
+      '=== TEMAS RESTRINGIDOS PARA ESTE ROL ===',
+    );
+    if (config.temasRestringidos.length > 0) {
+      partes.push(
+        config.temasRestringidos.join(', '),
+        `Si el cliente pregunta por alguno, responde con: "${config.mensajeRestringido}"`,
+        'y no marques ningún documento.',
+      );
+    } else {
+      partes.push('(ninguno — acceso completo a la información de este rol).');
+    }
+
+    // ── REGLAS DE ENTREGA DE DOCUMENTOS ──────────────────────────────────────
+    partes.push(
+      '',
+      '=== REGLAS DE ENTREGA DE DOCUMENTOS ===',
+      'Tienes acceso a documentos candidatos en el CONTEXTO RECUPERADO. NO asumas que porque un documento aparece ahí debes entregarlo.',
+      '',
+      'REGLA 1 — Vínculo explícito de intención:',
+      'Antes de marcar cualquier documento, determina internamente cuál es la NECESIDAD REAL del cliente (razonamiento interno, no lo digas al cliente). Ejemplo: "no logro entrar a la plataforma, olvidé mi contraseña" → necesidad: recuperación de acceso/contraseña.',
+      'Solo marca [DOCUMENTO: <nombre exacto>] si el documento resuelve DIRECTAMENTE esa necesidad. Si solo la toca de forma tangencial, NO lo marques.',
+      '',
+      'REGLA 2 — Prioridad de instructivos ante problemas operativos:',
+      'Si la necesidad es un problema de acceso, uso de plataforma, o un proceso paso a paso, y existe un documento tipo instructivo que cubre exactamente ese proceso, DEBES marcarlo. El instructivo es preferente sobre explicar el proceso con tus propias palabras.',
+      '',
+      'REGLA 3 — Un problema, un documento:',
+      'Marca UN SOLO documento, el más específico, salvo que el cliente haya consultado por temas genuinamente distintos en el mismo mensaje (máximo uno por tema, nunca más de 3 en total).',
+      '',
+      'REGLA 4 — Nunca marques por parecido léxico:',
+      'No marques un documento solo porque comparte palabras con el mensaje del cliente. Ante dos candidatos, elige el de alcance más específico respecto a la necesidad real detectada.',
+      '',
+      'REGLA 5 — Si no hay match verdadero, no inventes vínculo:',
+      'Si ningún documento candidato resuelve la necesidad real, NO marques ninguno. Responde con la mejor orientación general posible y ofrece asesor humano.',
+      '',
+      'REGLA 6 — Formato de marcado obligatorio:',
+      'Si y solo si las reglas anteriores se cumplen, agrega al final: [DOCUMENTO: <nombre exacto tal como aparece en el contexto>].',
+      'Nunca inventes, acortes ni traduzcas el nombre. Si dudas del nombre exacto, no lo marques.',
+      '',
+      'REGLA 7 — Transferencia a asesor:',
+      'Si decides [TRANSFER_TO_ADVISOR], nunca marques documentos en el mismo turno.',
+    );
+
+    // ── CONDUCTA Y LÍMITES ───────────────────────────────────────────────────
+    partes.push(
+      '',
+      '=== CONDUCTA Y LÍMITES ===',
+      conductaGroserias,
       `- CONTEXTO IMPLÍCITO DE LA PLATAFORMA EDUCATIVA (CRÍTICO): Tu mundo entero y el único sistema del que se habla es la Plataforma Educativa Institucional del colegio "${colegio}".`,
       `  Si el usuario pregunta por "contraseña", "usuario", "clave", "ingreso", "acceso", "olvido", "restablecer" o "entrar", asume de inmediato al 100% que se refiere al acceso de la Plataforma Educativa del Colegio.`,
       `  NUNCA le preguntes al usuario cosas como "¿a qué te refieres?", "¿en dónde quieres restablecerlo?", o "¿de qué sistema hablas?". Trata de inmediato de guiarlo usando las instrucciones que tengas en la base de conocimiento para ese rol.`,
-      `- NO uses emojis en ninguna respuesta.`,
       tieneContexto
         ? '- Basa tu respuesta PRINCIPALMENTE en la información de la base de conocimiento.'
         : '- No tienes documentos oficiales de este rol sobre esta consulta, así que responde de forma natural.',
       tieneContexto
-        ? '- ENTREGA DE DOCUMENTOS: si un documento (sobre todo un INSTRUCTIVO) resuelve la consulta, responde en 1-3 frases (el paso o dato clave) y entrega el documento con el marcador [DOCUMENTO: <nombre exacto>] al final. NO expliques todo el documento: la tarjeta PDF se muestra debajo.'
-        : '',
-      tieneContexto
         ? '- NO inventes nada que no esté en los documentos provistos.'
         : '- NO inventes datos institucionales concretos (fechas, montos, requisitos, trámites) que no estén en los documentos.',
-      tieneContexto
-        ? ''
-        : `- Si la consulta es de un tema institucional (pagos, notas, calendario, trámites, admisiones, contraseñas, acceso, etc.) y no tienes la información, responde textualmente: "${mensajeSinInformacion || DEFAULT_MENSAJE_SIN_INFORMACION}"${sugerirAsesorAutomatico ? ' y ofrece pasar la consulta a un asesor humano SOLO si el usuario insiste o lo pide' : ' sin ofrecer un asesor humano a menos que el usuario lo pida'}. No inventes datos ni procedimientos.`,
+      `- Si la consulta es de un tema institucional y no tienes la información, responde textualmente: "${mensajeSinInformacion || DEFAULT_MENSAJE_SIN_INFORMACION}"${sugerirAsesorAutomatico ? ' y ofrece pasar la consulta a un asesor humano SOLO si el usuario insiste o lo pide' : ' sin ofrecer un asesor humano a menos que el usuario lo pida'}. No inventes datos ni procedimientos.`,
       '- Si la consulta es charla trivial o conversación cotidiana (saludos, agradecimientos, preguntas personales o de cultura general), responde breve y naturalmente SIN ofrecer transferencia a asesor.',
       `- Si el cliente menciona "${frasesTransferencia}" o pide hablar con alguien, responde ÚNICAMENTE: TRANSFER_TO_ADVISOR`,
-      `- Si la pregunta toca temas restringidos para el rol ${config.label}, redirige amablemente.`,
+    );
+
+    // ── FORMATO DE RESPUESTA ─────────────────────────────────────────────────
+    partes.push(
+      '',
+      '=== FORMATO DE RESPUESTA ===',
+      '- Responde en español, tono cálido y profesional.',
+      '- El marcador [DOCUMENTO: ...] va SIEMPRE al final, en su propia línea, nunca dentro del texto explicativo.',
+      '- No inventes contenido de un documento que no esté en el contexto.',
+      '- Si aplica redirección institucional, responde SOLO con ese mensaje, sin agregar explicaciones adicionales de tu parte.',
       '',
       '────────────────────────────────────────',
       'CONTROL DE FEEDBACK Y ENTREGA DE DOCUMENTOS',
       '────────────────────────────────────────',
-      `Usa [FEEDBACK:YES] ${feedbackReglas}.`,
+      `Usa [FEEDBACK:YES] ${aiPromptConfig?.feedbackPositivo || 'SOLO si resolviste completamente una pregunta real y concreta'}.`,
       'Usa [FEEDBACK:NO] en cualquier otro caso (saludos, ambigüedades, redirects, etc).',
       'Si entregas uno o más documentos, escribe los marcadores [DOCUMENTO: <nombre exacto>]',
       'después de la respuesta y ANTES del marcador de feedback (uno por documento).',
