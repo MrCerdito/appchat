@@ -23,10 +23,6 @@
       <div class="pd-titular">
         <div class="pd-title-row">
           <h1>{{ ficha.institucion.nombre }}</h1>
-          <span class="pd-chip pd-chip--status" [class.off]="!ficha.institucion.activo">
-            <span class="pd-dot" [class.off]="!ficha.institucion.activo"></span>
-            {{ ficha.institucion.activo ? 'Activo' : 'Inactivo' }}
-          </span>
         </div>
 
         <div class="pd-meta">
@@ -63,6 +59,17 @@
           <lucide-icon [img]="icons.Download" [size]="16" />
           {{ exportando ? 'Exportando…' : 'Exportar ficha' }}
         </button>
+        <button type="button" class="pi-btn pi-btn-estado" [class.off]="!ficha.institucion.activo"
+          [disabled]="guardandoEstado" (click)="toggleEstado()"
+          [title]="ficha.institucion.activo ? 'Cambiar a inactivo' : 'Cambiar a activo'">
+          @if (guardandoEstado) {
+            <lucide-icon [img]="icons.Loader2" [size]="16" class="pd-spin" />
+          } @else if (ficha.institucion.activo) {
+            <lucide-icon [img]="icons.CircleCheck" [size]="16" />
+          } @else {
+            <lucide-icon [img]="icons.CircleX" [size]="16" />
+          }
+        </button>
       </div>
     </header>
 
@@ -80,7 +87,7 @@
       <div class="pd-alert" role="note">
         <lucide-icon [img]="icons.Info" [size]="18" class="pd-alert-icon" />
         <div>
-          <strong>Datos administrados por la institución</strong>
+          <strong>Datos generales de la institución</strong>
           <p>Los datos base se gestionan desde la gestión de instituciones. Haz clic en cualquier campo de esta sección para editarlo.</p>
         </div>
       </div>
@@ -498,7 +505,7 @@
         <div class="pd-emails-list">
           @if (baseCampoEsAsesor) {
             <div class="pd-custom-select-container pd-asesor-modal-select">
-              <div class="pd-custom-select-trigger" (click)="toggleDropdownAsesor()" role="combobox" aria-haspopup="listbox" [attr.aria-expanded]="dropdownAsesorAbierto">
+              <div class="pd-custom-select-trigger" #asesorTrigger (click)="toggleDropdownAsesor(asesorTrigger)" role="combobox" aria-haspopup="listbox" [attr.aria-expanded]="dropdownAsesorAbierto">
                 <div class="pd-custom-select-trigger-content">
                   @if (baseValor) {
                     <span class="pd-avatar-sm">{{ asesorSeleccionadoNombre.charAt(0) }}</span>
@@ -508,12 +515,17 @@
                   }
                 </div>
                 <div class="pd-custom-select-actions">
-                  <lucide-icon [img]="icons.ChevronDown" [size]="16" class="pd-dropdown-arrow" [class.rotated]="dropdownAsesorAbierto" />
+                  <lucide-icon [img]="icons.ChevronDown" [size]="16" class="pd-dropdown-arrow" [class.rotated]="dropdownAsesorAbierto && !dropdownExpandArriba" />
                 </div>
               </div>
 
               @if (dropdownAsesorAbierto) {
-                <div class="pd-custom-select-dropdown" role="listbox">
+                <div class="pd-custom-select-dropdown" role="listbox"
+                  [class.expand-up]="dropdownExpandArriba"
+                  [style.top.px]="dropdownExpandArriba ? null : dropdownRect.top"
+                  [style.bottom.px]="dropdownExpandArriba ? dropdownRect.bottom : null"
+                  [style.left.px]="dropdownRect.left"
+                  [style.width.px]="dropdownRect.width">
                   <div class="pd-custom-select-search-box">
                     <lucide-icon [img]="icons.Search" [size]="14" />
                     <input type="text" placeholder="Buscar asesor…" [(ngModel)]="busquedaAsesor" (click)="$event.stopPropagation()" aria-label="Buscar asesor" />

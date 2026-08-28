@@ -10,6 +10,7 @@ import { Session } from '../../../../core/models/session.model';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
 import { scrollToBottom } from '../../../../shared/utils/scroll';
 import { fmtDateTimeShort, fmtDateTimeFull, fmtTime } from '../../../../shared/utils/date';
+import { civilStr, fechaBogotaActual, rangoCivilStr, restarDiasCivil } from '../../../../shared/utils/fecha-bogota.util';
 
 @Component({
   selector: 'app-history-global',
@@ -92,16 +93,14 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
 
       let matchDate = true;
       if ((this.filterDateFrom || this.filterDateTo) && s.createdAt) {
-        const created = new Date(s.createdAt);
+        const createdMs = new Date(s.createdAt).getTime();
         if (this.filterDateFrom) {
-          const from = new Date(this.filterDateFrom);
-          from.setHours(0, 0, 0, 0);
-          matchDate = matchDate && created >= from;
+          const from = rangoCivilStr(this.filterDateFrom);
+          if (from) matchDate = matchDate && createdMs >= new Date(from.desde).getTime();
         }
         if (this.filterDateTo) {
-          const to = new Date(this.filterDateTo);
-          to.setHours(23, 59, 59, 999);
-          matchDate = matchDate && created <= to;
+          const to = rangoCivilStr(this.filterDateTo);
+          if (to) matchDate = matchDate && createdMs <= new Date(to.hasta).getTime();
         }
       }
 
@@ -272,34 +271,31 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
 
   applyDatePreset(preset: string): void {
     this.dateRangePreset = preset;
-    const today = new Date();
-    const fmt = (d: Date) => d.toISOString().split('T')[0];
+    const hoy = fechaBogotaActual();
+    const fmt = civilStr;
 
     switch (preset) {
       case 'today': {
-        this.filterDateFrom = fmt(today);
-        this.filterDateTo = fmt(today);
+        this.filterDateFrom = fmt(hoy);
+        this.filterDateTo = fmt(hoy);
         break;
       }
       case 'yesterday': {
-        const y = new Date(today);
-        y.setDate(y.getDate() - 1);
+        const y = restarDiasCivil(hoy, 1);
         this.filterDateFrom = fmt(y);
         this.filterDateTo = fmt(y);
         break;
       }
       case 'week': {
-        const w = new Date(today);
-        w.setDate(w.getDate() - 7);
+        const w = restarDiasCivil(hoy, 7);
         this.filterDateFrom = fmt(w);
-        this.filterDateTo = fmt(today);
+        this.filterDateTo = fmt(hoy);
         break;
       }
       case 'month': {
-        const m = new Date(today);
-        m.setDate(m.getDate() - 30);
+        const m = restarDiasCivil(hoy, 30);
         this.filterDateFrom = fmt(m);
-        this.filterDateTo = fmt(today);
+        this.filterDateTo = fmt(hoy);
         break;
       }
       case 'custom':

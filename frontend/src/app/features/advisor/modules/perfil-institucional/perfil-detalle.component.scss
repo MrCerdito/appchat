@@ -15,6 +15,11 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 .pd-page {
   max-width: 1200px;
   margin: 0 auto;
@@ -752,6 +757,25 @@
     &:hover { background: $pi-surface-hover; color: $pi-text; }
   }
 
+  &.pi-btn-estado {
+    background: $pi-green-50;
+    color: $pi-green-700;
+    border-color: rgba(22, 163, 74, 0.25);
+    height: auto;
+
+    &:hover { background: $pi-green-100; }
+
+    &.off {
+      background: $pi-slate-100;
+      color: $pi-text-secondary;
+      border-color: $pi-border;
+
+      &:hover { background: $pi-slate-200; }
+    }
+
+    &:disabled { opacity: 0.6; cursor: default; }
+  }
+
   &.pi-btn-sm {
     padding: 6px 12px;
     font-size: $pi-text-xs;
@@ -1022,7 +1046,8 @@
 
 .pd-asesor-modal-select {
   .pd-custom-select-dropdown {
-    z-index: 1300;
+    position: fixed;
+    z-index: 1400;
   }
 }
 
@@ -1066,10 +1091,6 @@
 }
 
 .pd-custom-select-dropdown {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  right: 0;
   background: $pi-surface;
   border: 1px solid $pi-border;
   border-radius: $pi-radius-lg;
@@ -1077,6 +1098,11 @@
   z-index: 100;
   overflow: hidden;
   animation: fadeSlideDown 150ms ease;
+}
+
+.pd-custom-select-dropdown.expand-up {
+  transform-origin: bottom;
+  animation: fadeSlideUp 150ms ease;
 }
 
 .pd-custom-select-search-box {

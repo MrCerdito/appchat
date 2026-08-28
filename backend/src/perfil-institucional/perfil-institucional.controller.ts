@@ -124,7 +124,6 @@ export class PerfilInstitucionalController {
   }
 
   @Patch('instituciones/:id/estado')
-  @Roles('admin')
   cambiarEstado(
     @Param('id') id: string,
     @Body('activo', ParseBoolPipe) activo: boolean,

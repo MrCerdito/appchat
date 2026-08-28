@@ -85,8 +85,13 @@ export class PerfilInstitucionalService {
         const nombre = (c.advisor?.name ?? '').toLowerCase();
         if (!allowed.includes(nombre)) return false;
       }
-      if (query.estado === 'activo' && !c.activo) return false;
-      if (query.estado === 'inactivo' && c.activo) return false;
+      if (query.estado) {
+        const estado = query.estado.trim().toLowerCase();
+        if (estado === 'activo' && !c.activo) return false;
+        if (estado === 'inactivo' && c.activo) return false;
+        if (['true', '1'].includes(estado) && !c.activo) return false;
+        if (['false', '0'].includes(estado) && c.activo) return false;
+      }
 
       const vals =
         valoresPorColegio.get(c.id) ?? new Map<string, string | null>();

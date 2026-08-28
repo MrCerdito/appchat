@@ -14,6 +14,13 @@ import {
 import { NotificationService } from '../../../../core/services/notification.service';
 import { SessionService } from '../../../../core/services/session.service';
 import { PI_ICONS } from './pi-icons';
+import {
+  FechaCivil,
+  bogotaCivilAUtc,
+  fechaBogotaActual,
+  rangoDiaBogotaUtc,
+  restarDiasCivil,
+} from './perfil-detalle-date.util';
 
 type Tab = 'informacion' | 'historial';
 
@@ -37,6 +44,8 @@ export class PerfilDetalleComponent implements OnInit, OnDestroy {
 
   /* Dropdown searchable de asesores (modal base) */
   dropdownAsesorAbierto = false;
+  dropdownExpandArriba = false;
+  dropdownRect: { top?: number; bottom?: number; left: number; width: number } = { left: 0, width: 0 };
   busquedaAsesor = '';
   loading = true;
   guardando = false;
@@ -78,6 +87,7 @@ export class PerfilDetalleComponent implements OnInit, OnDestroy {
 
   subiendoLogo = false;
   exportando = false;
+  guardandoEstado = false;
 
   private readonly ACCIONES_LABEL: Record<string, string> = {
     actualizar_valor: 'Actualizó',
@@ -184,11 +194,11 @@ export class PerfilDetalleComponent implements OnInit, OnDestroy {
 
   /* ---------- Acordeones de grupos ---------- */
   grupoAbierto(id: string): boolean {
-    return this.gruposAbiertos[id] !== false;
+    return this.gruposAbiertos[id] === true;
   }
 
   toggleGrupo(id: string): void {
-    this.gruposAbiertos[id] = this.gruposAbiertos[id] === false;
+    this.gruposAbiertos[id] = !this.grupoAbierto(id);
     this.cdr.detectChanges();
   }
 
@@ -412,6 +422,29 @@ export class PerfilDetalleComponent implements OnInit, OnDestroy {
       });
   }
 
+  toggleEstado(): void {
+    if (!this.institucionId || !this.ficha) return;
+    this.guardandoEstado = true;
+    const nuevo = !this.ficha.institucion.activo;
+    this.piService.cambiarEstado(this.institucionId, nuevo)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.guardandoEstado = false;
+          this.notification.success(
+            nuevo ? 'Institución activada' : 'Institución inactivada',
+            '',
+          );
+          this.cargar();
+        },
+        error: (err: any) => {
+          this.guardandoEstado = false;
+          this.notification.error('Error', err?.error?.message ?? 'No se pudo cambiar el estado');
+          this.cdr.detectChanges();
+        },
+      });
+  }
+
   cargarAsesores(): void {
     this.sessionService.findAdvisors().pipe(takeUntil(this.destroy$)).subscribe({
       next: (users: any[]) => {
@@ -446,8 +479,25 @@ export class PerfilDetalleComponent implements OnInit, OnDestroy {
     this.modalBaseCampo = campo;
   }
 
-  toggleDropdownAsesor(): void {
-    this.dropdownAsesorAbierto = !this.dropdownAsesorAbierto;
+  toggleDropdownAsesor(trigger?: HTMLElement): void {
+    const willOpen = !this.dropdownAsesorAbierto;
+    this.dropdownAsesorAbierto = willOpen;
+    if (willOpen && trigger) {
+      const r = trigger.getBoundingClientRect();
+      const optionsH = Math.min(280, window.innerHeight * 0.4);
+      const spaceBelow = window.innerHeight - r.bottom - 12;
+      if (spaceBelow < optionsH) {
+        this.dropdownExpandArriba = true;
+        this.dropdownRect = {
+          left: r.left,
+          width: r.width,
+          bottom: window.innerHeight - r.top + 12,
+        };
+      } else {
+        this.dropdownExpandArriba = false;
+        this.dropdownRect = { left: r.left, width: r.width, top: r.bottom + 6 };
+      }
+    }
     this.cdr.detectChanges();
   }
 
@@ -543,52 +593,27 @@ export class PerfilDetalleComponent implements OnInit, OnDestroy {
   }
 
   /* ---------- Historial ---------- */
-  private obtenerFechaColombia(): { year: number; month: number; day: number } {
-    const parts = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'America/Bogota',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).formatToParts(new Date());
-    return {
-      year:  parseInt(parts.find(p => p.type === 'year')!.value),
-      month: parseInt(parts.find(p => p.type === 'month')!.value),
-      day:   parseInt(parts.find(p => p.type === 'day')!.value),
-    };
-  }
-
-  private colombiaToIso(y: number, m: number, d: number, h: number, min: number, s: number, ms: number): string {
-    return new Date(Date.UTC(y, m - 1, d, h + 5, min, s, ms)).toISOString();
-  }
-
   private obtenerRangoFecha(): { desde?: string; hasta?: string } {
-    const { year, month, day } = this.obtenerFechaColombia();
+    const hoy = this.fechaHoy;
 
     if (this.historialFiltroFecha === 'hoy') {
-      return {
-        desde: this.colombiaToIso(year, month, day, 0, 0, 0, 0),
-        hasta: this.colombiaToIso(year, month, day, 23, 59, 59, 999),
-      };
+      return rangoDiaBogotaUtc(hoy);
     }
     if (this.historialFiltroFecha === 'ayer') {
-      const ayer = new Date(Date.UTC(year, month - 1, day - 1));
-      const ay = ayer.getUTCFullYear();
-      const am = ayer.getUTCMonth() + 1;
-      const ad = ayer.getUTCDate();
-      return {
-        desde: this.colombiaToIso(ay, am, ad, 0, 0, 0, 0),
-        hasta: this.colombiaToIso(ay, am, ad, 23, 59, 59, 999),
-      };
+      return rangoDiaBogotaUtc(restarDiasCivil(hoy, 1));
     }
     if (this.historialFiltroFecha === 'rango' && this.historialRangoDesde && this.historialRangoHasta) {
       const [dy, dm, dd] = this.historialRangoDesde.split('-').map(Number);
       const [hy, hm, hd] = this.historialRangoHasta.split('-').map(Number);
-      return {
-        desde: this.colombiaToIso(dy, dm, dd, 0, 0, 0, 0),
-        hasta: this.colombiaToIso(hy, hm, hd, 23, 59, 59, 999),
-      };
+      const desde = bogotaCivilAUtc({ year: dy, month: dm, day: dd }, 0, 0, 0, 0);
+      const hasta = bogotaCivilAUtc({ year: hy, month: hm, day: hd }, 23, 59, 59, 999);
+      return { desde: new Date(desde).toISOString(), hasta: new Date(hasta).toISOString() };
     }
     return {};
+  }
+
+  private get fechaHoy(): FechaCivil {
+    return fechaBogotaActual();
   }
 
   cargarHistorial(reset: boolean): void {
