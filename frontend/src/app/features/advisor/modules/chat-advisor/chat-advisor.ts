@@ -28,6 +28,7 @@ import {
   PiFicha,
 } from '../../../../core/services/perfil-institucional.service';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
+import { environment } from '../../../../../environments/environment';
 import { priorityLabel } from '../../../../shared/utils/ticket-categories';
 import { scrollToBottom } from '../../../../shared/utils/scroll';
 import { normalizeUploadFile } from '../../../../shared/utils/media';
@@ -1901,7 +1902,9 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   }
 
   get panelAdvisorPhotoUrl(): string {
-    return this.currentAdvisor?.profilePhotoUrl || '';
+    // La foto del asesor asignado fijo del colegio, no la del asesor en línea.
+    const url = this.activeSession?.colegioAdvisorPhotoUrl || this.currentAdvisor?.profilePhotoUrl || '';
+    return /^https?:\/\//i.test(url) ? url : (url ? `${environment.apiUrl}${url}` : '');
   }
 
   get panelAdvisorInitials(): string {

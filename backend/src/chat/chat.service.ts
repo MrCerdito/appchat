@@ -105,6 +105,17 @@ export class ChatService implements OnModuleInit {
     );
   }
 
+  /** Devuelve true si ya existe un evento de clic para esa FAQ en la sesión. */
+  async existeEventoFaq(sessionId: string, faqId: number): Promise<boolean> {
+    const count = await this.sessionEventoRepo
+      .createQueryBuilder('e')
+      .where('e.session_id = :sessionId', { sessionId })
+      .andWhere('e.tipo = :tipo', { tipo: 'faq_clic' })
+      .andWhere(`e.detalle->>'faqId' = :faqId`, { faqId: String(faqId) })
+      .getCount();
+    return count > 0;
+  }
+
   async getHistory(sessionId: string, limit?: number): Promise<Message[]> {
     const messages = await this.messageRepo.find({
       where: { session: { id: sessionId } },

@@ -210,6 +210,7 @@ export class SessionsService {
         const colegio = byNombre.get(session.colegio);
         if (colegio?.advisor?.name) {
           (session as any).colegioAdvisorName = colegio.advisor.name;
+          (session as any).colegioAdvisorPhotoUrl = colegio.advisor.profilePhotoUrl ?? null;
         }
       }
     }

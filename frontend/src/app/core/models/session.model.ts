@@ -19,6 +19,7 @@ export interface Session {
   colegio?:      string;
   colegioLink?: string;
   colegioAdvisorName?: string;
+  colegioAdvisorPhotoUrl?: string | null;
   email?:        string;
   celular?:      string;
   tipoSolicitud?: string;
