@@ -75,6 +75,10 @@ export class AiService {
     return this.http.post<{ improved: string }>(`${this.baseUrl}/ai/improve`, { text, tone });
   }
 
+  improveAdvisor(text: string): Observable<{ improved: string }> {
+    return this.http.post<{ improved: string }>(`${this.baseUrl}/ai/advisor/improve`, { text });
+  }
+
   chatStream(
     message       : string,
     history       : AiMessage[],

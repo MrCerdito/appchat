@@ -25,6 +25,10 @@ export class Faq {
   @Column({ type: 'simple-array', nullable: true })
   keywords: string[] | null;
 
+  // Roles a los que aplica esta pregunta frecuente. Vacío/null = visible para todos.
+  @Column({ type: 'simple-array', nullable: true })
+  roles: string[] | null;
+
   @Index('idx_faqs_colegio_id')
   @Column({ name: 'colegio_id', type: 'int', nullable: true })
   colegioId: number | null;

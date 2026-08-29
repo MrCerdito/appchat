@@ -44,12 +44,20 @@ export class FaqAdminComponent implements OnInit, OnDestroy {
   editandoCategoria: FaqCategory | null = null;
   categoriaFormVisible = false;
   guardandoCategoria = false;
-  formCategoria = { name: '', icon: 'HelpCircle', description: '', orden: 0, activo: true };
+  formCategoria = { name: '', icon: 'HelpCircle', description: '', roles: [] as string[], orden: 0, activo: true };
   iconosDisponibles: string[] = [
     'GraduationCap', 'BookOpen', 'Smartphone', 'TabletSmartphone', 'MonitorSmartphone',
     'Shield', 'ShieldCheck', 'Lock', 'LockKeyhole', 'MessageCircle', 'MessageCircleMore',
     'Headphones', 'HelpCircle', 'FileText', 'Users', 'UsersRound', 'Settings',
     'CreditCard', 'Phone',
+  ];
+
+  // Roles disponibles en la plataforma para filtrar FAQ por rol.
+  rolesDisponibles: { value: string; label: string }[] = [
+    { value: 'estudiante', label: 'Estudiante' },
+    { value: 'docente', label: 'Docente' },
+    { value: 'padre', label: 'Padre/Acudiente' },
+    { value: 'administrador', label: 'Administrador' },
   ];
 
   private clickStartedInside = false;
@@ -61,6 +69,7 @@ export class FaqAdminComponent implements OnInit, OnDestroy {
     categoria: '',
     orden: 0,
     keywordsStr: '',
+    roles: [] as string[],
     activo: true,
   };
 
@@ -161,6 +170,7 @@ export class FaqAdminComponent implements OnInit, OnDestroy {
         name: cat.name,
         icon: cat.icon || 'HelpCircle',
         description: cat.description || '',
+        roles: cat.roles || [],
         orden: cat.orden,
         activo: cat.activo,
       };
@@ -174,7 +184,7 @@ export class FaqAdminComponent implements OnInit, OnDestroy {
   nuevaCategoria(): void {
     this.editandoCategoria = null;
     this.categoriaFormVisible = true;
-    this.formCategoria = { name: '', icon: 'HelpCircle', description: '', orden: this.categorias.length, activo: true };
+    this.formCategoria = { name: '', icon: 'HelpCircle', description: '', roles: [], orden: this.categorias.length, activo: true };
     this.categoriasModal = true;
   }
 
@@ -197,6 +207,7 @@ export class FaqAdminComponent implements OnInit, OnDestroy {
       name,
       icon: this.formCategoria.icon || 'HelpCircle',
       description: this.formCategoria.description.trim(),
+      roles: this.formCategoria.roles?.length ? this.formCategoria.roles : undefined,
       orden: this.formCategoria.orden,
       activo: this.formCategoria.activo,
     };
@@ -239,6 +250,26 @@ export class FaqAdminComponent implements OnInit, OnDestroy {
       : this.faqs;
   }
 
+  toggleFaqRol(rol: string): void {
+    const i = this.form.roles.indexOf(rol);
+    if (i >= 0) {
+      this.form.roles.splice(i, 1);
+    } else {
+      this.form.roles.push(rol);
+    }
+    this.form.roles = [...this.form.roles];
+  }
+
+  toggleCatRol(rol: string): void {
+    const i = this.formCategoria.roles.indexOf(rol);
+    if (i >= 0) {
+      this.formCategoria.roles.splice(i, 1);
+    } else {
+      this.formCategoria.roles.push(rol);
+    }
+    this.formCategoria.roles = [...this.formCategoria.roles];
+  }
+
   private aplicarFiltroYActualizar(): void {
     this.filtrar();
     this.cdr.detectChanges();
@@ -253,11 +284,12 @@ export class FaqAdminComponent implements OnInit, OnDestroy {
         categoria: faq.categoria || '',
         orden: faq.orden,
         keywordsStr: (faq.keywords || []).join(', '),
+        roles: faq.roles || [],
         activo: faq.activo,
       };
     } else {
       this.editando = null;
-      this.form = { pregunta: '', respuesta: '', categoria: '', orden: 0, keywordsStr: '', activo: true };
+      this.form = { pregunta: '', respuesta: '', categoria: '', orden: 0, keywordsStr: '', roles: [], activo: true };
     }
     this.modalAbierto = true;
   }
@@ -400,6 +432,7 @@ export class FaqAdminComponent implements OnInit, OnDestroy {
       categoria: this.form.categoria?.trim() || undefined,
       orden: this.form.orden,
       keywords: this.form.keywordsStr ? this.form.keywordsStr.split(',').map(s => s.trim()).filter(Boolean) : undefined,
+      roles: this.form.roles?.length ? this.form.roles : undefined,
       activo: this.form.activo,
     };
 

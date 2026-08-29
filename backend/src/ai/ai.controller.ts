@@ -132,13 +132,18 @@ export class AiController {
       descripcion?: string | null;
       instructivo?: boolean | null;
     }[] | null = null;
+    let sugerirAsesor = false;
     const emitConCaptura = (event: string, data: object) => {
-      if (
-        event === 'metadata' &&
-        Array.isArray((data as any)?.documentos) &&
-        (data as any).documentos.length > 0
-      ) {
-        documentosEntregados = (data as any).documentos;
+      if (event === 'metadata') {
+        if (
+          Array.isArray((data as any)?.documentos) &&
+          (data as any).documentos.length > 0
+        ) {
+          documentosEntregados = (data as any).documentos;
+        }
+        if ((data as any)?.sugerirAsesor === true) {
+          sugerirAsesor = true;
+        }
       }
       emit(event, data);
     };
@@ -189,28 +194,46 @@ export class AiController {
         onPartial,
       );
 
-      // Si contiene TRANSFER_TO_ADVISOR, no persistimos el mensaje literal al cliente en BD,
-      // sino que gatillamos la transferencia limpia a un asesor.
-      if (
-        sessionId &&
-        reply &&
-        !reply.includes('TRANSFER_TO_ADVISOR')
-      ) {
+      // Persiste la respuesta de la IA: el `content` guarda el texto limpio
+      // (para el widget cliente) y `aiMarkers` conserva la respuesta completa
+      // con sus marcadores de UI (encuesta, transferencia, documento) para
+      // que el historial pueda mostrarla completa, sin excepción.
+      if (sessionId && reply) {
         const esTerminated = reply.includes('SESSION_TERMINATED');
         const limpio = reply
           .replace(/SESSION_TERMINATED/g, '')
           .replace(/\[FEEDBACK:(YES|NO)\]\s*$/, '')
           .trim();
 
-        if (limpio) {
+        // Marcadores de UI presentes en la respuesta bruta.
+        const opciones: string[] = [];
+        if (/TRANSFER_TO_ADVISOR/.test(reply)) opciones.push('transferencia_asesor');
+        if (sugerirAsesor) opciones.push('agente');
+        // Si fue una oferta de asesor humano, NO la etiquetamos como encuesta
+        // de satisfacción aunque la IA haya usado [FEEDBACK:YES].
+        if (!sugerirAsesor && /\[FEEDBACK:/i.test(reply)) opciones.push('encuesta');
+        if (/\[DOCUMENTO:/i.test(reply)) opciones.push('documento');
+        const aiMarkers = reply.trim()
+          ? { raw: reply.trim(), opciones }
+          : null;
+
+        // Cuando hay TRANSFER_TO_ADVISOR el texto anterior al marcador es la
+        // respuesta real; lo guardamos igual (limpio) para no cortar el
+        // historial, conservando el marcador en aiMarkers.
+        const textoTransfer = reply.replace(/TRANSFER_TO_ADVISOR/g, '').trim();
+        const guardar = limpio || textoTransfer;
+
+        if (guardar) {
           await this.persist(sessionId, () =>
             this.chatService.saveMessage(
               sessionId,
-              limpio,
+              guardar,
               'advisor',
               'Asistente Virtual',
               null,
               documentosEntregados,
+              undefined,
+              aiMarkers,
             ),
           );
         }
@@ -235,6 +258,14 @@ export class AiController {
           .replace(/SESSION_TERMINATED/g, '')
           .replace(/\[FEEDBACK:(YES|NO)\]\s*$/, '')
           .trim();
+        const opciones: string[] = [];
+        if (/TRANSFER_TO_ADVISOR/.test(respuestaParcial)) opciones.push('transferencia_asesor');
+        if (sugerirAsesor) opciones.push('agente');
+        if (!sugerirAsesor && /\[FEEDBACK:/i.test(respuestaParcial)) opciones.push('encuesta');
+        if (/\[DOCUMENTO:/i.test(respuestaParcial)) opciones.push('documento');
+        const aiMarkers = respuestaParcial.trim()
+          ? { raw: respuestaParcial.trim(), opciones }
+          : null;
         if (limpio) {
           await this.persist(sessionId, () =>
             this.chatService.saveMessage(
@@ -244,6 +275,8 @@ export class AiController {
               'Asistente Virtual',
               null,
               documentosEntregados,
+              undefined,
+              aiMarkers,
             ),
           );
         }
@@ -278,6 +311,11 @@ export class AiController {
   @Post('improve')
   async improve(@Body() dto: AiImproveDto) {
     return this.aiService.improveForClient(dto.text, dto.tone);
+  }
+
+  @Post('advisor/improve')
+  async improveAdvisor(@Body() body: { text?: string }) {
+    return this.aiService.improveAdvisorText(body.text ?? '');
   }
 
   @Public()

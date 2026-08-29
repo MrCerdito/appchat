@@ -22,6 +22,7 @@ export interface Faq {
   respuesta: string;
   categoria: string | null;
   keywords: string[] | null;
+  roles?: string[] | null;
   colegioId: number | null;
   orden: number;
   activo: boolean;
@@ -34,6 +35,7 @@ export interface CreateFaqDto {
   respuesta: string;
   categoria?: string;
   keywords?: string[];
+  roles?: string[];
   colegioId?: number;
   orden?: number;
   activo?: boolean;
@@ -44,6 +46,7 @@ export interface FaqCategory {
   name: string;
   icon: string;
   description: string;
+  roles?: string[] | null;
   orden: number;
   activo: boolean;
   createdAt: string;
@@ -54,6 +57,7 @@ export interface CreateFaqCategoryDto {
   name: string;
   icon?: string;
   description?: string;
+  roles?: string[];
   orden?: number;
   activo?: boolean;
 }
@@ -62,24 +66,28 @@ export interface CreateFaqCategoryDto {
 export class FaqService {
   constructor(private http: HttpClient) {}
 
-  getAll(colegioId?: number, q?: string, bustCache = false): Observable<Faq[]> {
+  getAll(colegioId?: number, q?: string, bustCache = false, rol?: string): Observable<Faq[]> {
     let params = '';
     if (colegioId) params += `colegioId=${colegioId}&`;
     if (q) params += `q=${encodeURIComponent(q)}&`;
+    if (rol) params += `rol=${encodeURIComponent(rol)}&`;
     if (bustCache) params += `_t=${Date.now()}`;
     return this.http.get<Faq[]>(`${environment.apiUrl}/faq?${params}`);
   }
 
-  getCategorias(colegioId?: number): Observable<string[]> {
+  getCategorias(colegioId?: number, rol?: string): Observable<string[]> {
     let params = '';
-    if (colegioId) params += `colegioId=${colegioId}`;
+    if (colegioId) params += `colegioId=${colegioId}&`;
+    if (rol) params += `rol=${encodeURIComponent(rol)}`;
     return this.http.get<string[]>(`${environment.apiUrl}/faq/categorias?${params}`);
   }
 
   // ── Categorías (tabla faq_categories, editables desde admin) ─────────────
 
-  getCategoryList(bustCache = false): Observable<FaqCategory[]> {
-    const v = bustCache ? `?_t=${Date.now()}` : '';
+  getCategoryList(bustCache = false, rol?: string): Observable<FaqCategory[]> {
+    const params = new URLSearchParams();
+    if (rol) params.set('rol', rol);
+    const v = (bustCache || params.toString()) ? `?${params.toString()}${bustCache ? (params.toString() ? '&' : '') + '_t=' + Date.now() : ''}` : '';
     return this.http.get<FaqCategory[]>(`${environment.apiUrl}/faq-categories${v}`);
   }
 

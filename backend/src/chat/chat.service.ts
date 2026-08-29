@@ -74,6 +74,7 @@ export class ChatService implements OnModuleInit {
     attachments?: Attachment[] | null,
     documentos?: Message['documentos'],
     replyToMessageId?: string | null,
+    aiMarkers?: Message['aiMarkers'],
   ): Promise<Message> {
     const safeContent = sanitizeMessage(content);
     if (!safeContent && (!attachments || attachments.length === 0)) {
@@ -86,6 +87,7 @@ export class ChatService implements OnModuleInit {
       senderName: safeSenderName,
       attachments: attachments && attachments.length > 0 ? attachments : null,
       documentos: documentos && documentos.length > 0 ? documentos : null,
+      aiMarkers: aiMarkers ?? null,
       replyToMessageId: replyToMessageId || null,
       session: { id: sessionId } as Session,
     });

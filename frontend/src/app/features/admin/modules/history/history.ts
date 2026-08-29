@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { SocketService } from '../../../../core/services/socket.service';
 import { SessionService } from '../../../../core/services/session.service';
 import { Message, TimelineItem, TimelineEvento } from '../../../../core/models/message.model';
@@ -67,6 +68,7 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
     private sessionService: SessionService,
     private socket        : SocketService,
     private cdr           : ChangeDetectorRef,
+    private sanitizer     : DomSanitizer,
   ) {}
 
   get filteredSessions(): Session[] {
@@ -155,6 +157,234 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
       return p ? `Consultó la pregunta frecuente: "${p}"` : 'Consultó una pregunta frecuente';
     }
     return 'Evento de sesión';
+  }
+
+  /** Formatea el contenido (marcadores o HTML) como HTML seguro para la burbuja. */
+  formatMessage(text: string): SafeHtml {
+    if (!text) return '';
+    if (this.isHtmlContent(text)) {
+      return this.sanitizer.bypassSecurityTrustHtml(this.secureHtml(text));
+    }
+    const colorMap: Record<string, string> = {
+      rojo: '#ef4444', verde: '#10b981', azul: '#3b82f6',
+      naranja: '#f97316', morado: '#8b5cf6', amarillo: '#eab308',
+    };
+    const html = this.escapeHtml(text)
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/(^|[\s(])\*([^*\n]+)\*(?=\s|$|[)])/g, '$1<strong>$2</strong>')
+      .replace(
+        /\[color:(rojo|verde|azul|naranja|morado|amarillo)\]([\s\S]*?)\[\/color\]/g,
+        (_, color, inner) => `<span style="color:${colorMap[color]}">${inner}</span>`
+      )
+      .replace(
+        /^(?:\d+\.\s+.+\n?)+/gm,
+        (block) => `<ol>${block.split('\n').filter(Boolean).map(line => `<li>${line.replace(/^\d+\.\s+/, '')}</li>`).join('')}</ol>\n`
+      )
+      .replace(
+        /^(?:[-•*]\s+.+\n?)+/gm,
+        (block) => `<ul>${block.split('\n').filter(Boolean).map(line => `<li>${line.replace(/^[-•*]\s+/, '')}</li>`).join('')}</ul>\n`
+      )
+      .replace(/^#\s+(.+)$/gm, '<strong>$1</strong>')
+      .replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+      .replace(/link:((https?:\/\/|www\.)[^\s<]+)/gi, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>')
+      .replace(
+        /(?<!href="|src=")((https?:\/\/|www\.)[^\s<]+)/g,
+        (match) => {
+          const url = match.startsWith('www.') ? `https://${match}` : match;
+          return `<a href="${url}" target="_blank" rel="noopener noreferrer">${match}</a>`;
+        }
+      )
+      .replace(/\n/g, '<br>');
+    return this.sanitizer.bypassSecurityTrustHtml(html);
+  }
+
+  private escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  private isHtmlContent(text: string): boolean {
+    return /<(strong|b|ul|ol|li|div|p|br|span)[\s>]/i.test(text);
+  }
+
+  private secureHtml(html: string): string {
+    return html
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<\s*(script|iframe|object|embed)/gi, '&lt;$1')
+      .replace(/\son[a-z]+\s*=/gi, ' data-blocked=')
+      .replace(/javascript:/gi, '');
+  }
+
+  /** Busca el mensaje citado por replyToMessageId dentro del timeline. */
+  getQuotedMessage(item: any): { senderName: string; content: string } | null {
+    if (!item?.replyToMessageId) return null;
+    const ref = this.timeline.find(t => t.kind === 'message' && (t as any).id === item.replyToMessageId);
+    if (!ref || ref.kind !== 'message') return null;
+    const m = ref as any;
+    return {
+      senderName: m.senderName ?? (m.senderType === 'client' ? 'Cliente' : 'Asesor'),
+      content: m.content || (m.attachments?.length ? '📎 Adjunto' : ''),
+    };
+  }
+
+  /** Etiqueta humana para una opción que la IA ofreció. */
+  aiOptionLabel(opt: string): string {
+    const map: Record<string, string> = {
+      transferencia_asesor: 'La IA ofreció transferir a un asesor',
+      agente: 'La IA ofreció ayuda de un asesor humano',
+      encuesta: 'La IA mostró encuesta de satisfacción',
+      documento: 'La IA adjuntó un documento',
+    };
+    return map[opt] ?? opt;
+  }
+
+  /** Resumen de la sesión. */
+  get sessionSummary() {
+    if (!this.activeSession) return null;
+    const msgs = this.timeline.filter(t => t.kind === 'message') as any[];
+    const client = msgs.filter(m => m.senderType === 'client').length;
+    const advisor = msgs.filter(m => m.senderType === 'advisor' && m.senderName !== 'Asistente Virtual').length;
+    const ia = msgs.filter(m => m.senderName === 'Asistente Virtual').length;
+    const documentos = msgs.reduce((acc, m) => acc + (m.documentos?.length ?? 0), 0);
+    const adjuntos = msgs.reduce((acc, m) => acc + (m.attachments?.length ?? 0), 0);
+    const opciones = msgs.reduce((acc, m) => acc + (m.aiMarkers?.opciones?.length ?? 0), 0);
+    return { total: msgs.length, client, advisor, ia, documentos, adjuntos, opciones };
+  }
+
+  /** Agrupa el timeline por día. */
+  groupDays(items: TimelineItem[]): { label: string; items: TimelineItem[] }[] {
+    const groups: { label: string; items: TimelineItem[] }[] = [];
+    let lastKey = '';
+    for (const it of [...items]) {
+      const d = new Date(it.createdAt);
+      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      const hoy = new Date();
+      const ayer = new Date(); ayer.setDate(hoy.getDate() - 1);
+      const isHoy = `${hoy.getFullYear()}-${hoy.getMonth()}-${hoy.getDate()}` === key;
+      const isAyer = `${ayer.getFullYear()}-${ayer.getMonth()}-${ayer.getDate()}` === key;
+      const label = isHoy ? 'Hoy' : isAyer ? 'Ayer' : d.toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+      if (key !== lastKey) {
+        groups.push({ label, items: [] });
+        lastKey = key;
+      }
+      groups[groups.length - 1].items.push(it);
+    }
+    return groups;
+  }
+
+  /** Exporta la conversación activa a CSV. */
+  exportCsv(): void {
+    if (!this.activeSession) return;
+    const rows = this.timeline.map(t => {
+      if (t.kind === 'evento') {
+        return { fecha: t.createdAt, remitente: 'Sistema', contenido: this.eventoTexto(t) };
+      }
+      const m = t as any;
+      return {
+        fecha: m.createdAt,
+        remitente: m.senderName ?? (m.senderType === 'client' ? 'Cliente' : 'Asesor'),
+        contenido: (m.content || '') + (m.documentos?.length ? ' [Documentos: ' + m.documentos.map((d: any) => d.nombre).join(', ') + ']' : ''),
+      };
+    });
+    const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const csv = ['fecha,remitente,contenido', ...rows.map(r => [esc(r.fecha), esc(r.remitente), esc(r.contenido)].join(','))].join('\r\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `historial_${this.activeSession.clientName || this.activeSession.id}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  /** Abre una vista imprimible/PDF de la conversación activa. */
+  exportPdf(): void {
+    if (!this.activeSession) return;
+    const s = this.activeSession;
+    const esc = (v: unknown) => String(v ?? '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+    const fm = (iso?: string | null): string => {
+      if (!iso) return '';
+      const d = new Date(iso);
+      return d.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' +
+        d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+    };
+
+    const transcript = this.groupDays(this.timeline).map(grupo => {
+      let html = '';
+      for (const it of grupo.items) {
+        if (it.kind === 'evento') {
+          html += `<div class="evt">${esc(this.eventoTexto(it))}</div>`;
+          continue;
+        }
+        const m = it as any;
+        const sis = m.senderName === 'Sistema';
+        const role = m.senderName ?? (m.senderType === 'client' ? 'Cliente' : 'Asesor');
+        const content = esc(m.content || '');
+        const cls = sis ? 'msg sys' : m.senderType === 'advisor' ? 'msg sent' : 'msg recv';
+        const docs = m.documentos?.length
+          ? `<div class="docs">${m.documentos.map((d: any) => `<span>📄 ${esc(d.nombre)}</span>`).join('')}</div>`
+          : '';
+        html += `<div class="${cls}">
+          <div class="m-top"><span class="role">${esc(role)}</span><span class="time">${fm(m.createdAt)}</span></div>
+          <div class="bubble">${content}${docs}</div>
+        </div>`;
+      }
+      return `<div class="day">${esc(grupo.label)}</div>${html}`;
+    }).join('');
+
+    const cliente = (s.clientName || '') + (s.apellido ? ' ' + s.apellido : '');
+    const chips = [
+      ['Cliente', cliente],
+      ['Identificación', s.identificacion],
+      ['Colegio', s.colegio],
+      ['Rol', s.rol],
+      ['Tipo de solicitud', s.tipoSolicitud],
+      ['Asesor', s.advisor?.name || 'Sin agente'],
+      ['Estado', this.getStatusLabel(s.status)],
+      ['Fecha', fm(s.createdAt)],
+    ].filter(r => r[1]).map(r => `<span class="chip">${esc(r[0])} <b>${esc(r[1])}</b></span>`).join('');
+
+    const w = window.open('', '_blank');
+    if (!w) return;
+    w.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Conversación</title><style>
+      @page { size: A4; margin: 15mm 14mm; }
+      * { box-sizing: border-box; }
+      body { font-family: 'Segoe UI', Arial, sans-serif; color: #1a202c; margin: 0; font-size: 13px; line-height: 1.55; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .no-print { position: fixed; top: 12px; right: 12px; z-index: 99; padding: 10px 18px; background: #111827; color: #fff; border: 0; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; }
+      .report { max-width: 760px; margin: 0 auto; }
+      .head { margin-bottom: 18px; }
+      .head h1 { font-size: 21px; color: #0f172a; margin: 0 0 12px; font-weight: 700; }
+      .chips { display: flex; flex-wrap: wrap; gap: 6px; padding-bottom: 14px; border-bottom: 1px solid #e2e8f0; }
+      .chip { background: #f1f5f9; border: 1px solid #e2e8f0; color: #475569; border-radius: 999px; padding: 4px 12px; font-size: 12px; }
+      .chip b { color: #0f172a; font-weight: 600; }
+      .day { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; margin: 20px 0 8px; }
+      .msg { margin-bottom: 12px; }
+      .m-top { display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px; }
+      .role { font-weight: 700; font-size: 11px; color: #475569; }
+      .time { font-size: 10px; color: #a0aec0; }
+      .bubble { display: inline-block; max-width: 82%; text-align: left; padding: 8px 12px; border-radius: 10px; font-size: 13px; white-space: pre-wrap; word-break: break-word; color: #1a202c; }
+      .recv .bubble { background: #f1f5f9; }
+      .sent { text-align: right; }
+      .sent .m-top { justify-content: flex-end; }
+      .sent .bubble { background: #e0e7ff; }
+      .msg.sys .bubble { background: #fef3c7; color: #92400e; width: 100%; }
+      .docs { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; font-size: 11px; color: #1d4ed8; }
+      .evt { background: #fef3c7; color: #92400e; border-radius: 8px; padding: 6px 10px; margin-bottom: 10px; font-size: 12px; }
+      @media print { .no-print { display: none !important; } body { margin: 0; } .msg { break-inside: avoid; } }
+    </style></head><body>
+      <button class="no-print" onclick="window.print()">Imprimir / PDF</button>
+      <div class="report">
+        <div class="head">
+          <h1>Conversación de ${esc(cliente)}</h1>
+          <div class="chips">${chips}</div>
+        </div>
+        ${transcript || '<p style="color:#94a3b8">Sin mensajes en esta conversación.</p>'}
+      </div>
+    </body></html>`);
+    w.document.close();
   }
 
   ngOnInit(): void {

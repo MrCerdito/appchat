@@ -29,8 +29,8 @@ export class FaqService {
     private readonly config: ConfigService,
   ) {}
 
-  async findAll(colegioId?: number, q?: string): Promise<Faq[]> {
-    const cacheKey = `faq:list:${colegioId ?? 'all'}:${q ?? ''}`;
+  async findAll(colegioId?: number, q?: string, rol?: string): Promise<Faq[]> {
+    const cacheKey = `faq:list:${colegioId ?? 'all'}:${q ?? ''}:${rol ?? 'all'}`;
     const cached = await this.cache.get<Faq[]>(cacheKey);
     if (cached) return cached;
 
@@ -59,12 +59,14 @@ export class FaqService {
       });
     }
 
+    if (rol) result = result.filter((f) => aplicaARol(f.roles, rol));
+
     await this.cache.set(cacheKey, result, this.CACHE_TTL);
     return result;
   }
 
-  async findCategorias(colegioId?: number): Promise<string[]> {
-    const cacheKey = `faq:categorias:${colegioId ?? 'all'}`;
+  async findCategorias(colegioId?: number, rol?: string): Promise<string[]> {
+    const cacheKey = `faq:categorias:${colegioId ?? 'all'}:${rol ?? 'all'}`;
     const cached = await this.cache.get<string[]>(cacheKey);
     if (cached) return cached;
 
@@ -75,11 +77,12 @@ export class FaqService {
 
     const faqs = await this.faqRepo.find({
       where,
-      select: ['categoria'],
+      select: ['categoria', 'roles'],
     });
 
     const categoriasUnicas = new Set<string>();
     for (const faq of faqs) {
+      if (rol && !aplicaARol(faq.roles, rol)) continue;
       if (faq.categoria && faq.categoria.trim()) {
         categoriasUnicas.add(faq.categoria.trim());
       }
@@ -599,4 +602,21 @@ function parseCell(val: any): string {
     }
   }
   return String(val);
+}
+
+// Indica si una pregunta/categoría frecuente aplica al rol dado.
+// roles vacío/null = visible para todos. Se compara normalizado (sin tildes,
+// minúsculas) y por coincidencia exacta de rol.
+function normalizarRolText(rol: string): string {
+  return (rol ?? '')
+    .toLowerCase()
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function aplicaARol(roles: string[] | null | undefined, rol: string): boolean {
+  if (!Array.isArray(roles) || roles.length === 0) return true;
+  const target = normalizarRolText(rol);
+  return roles.some((r) => normalizarRolText(r) === target);
 }

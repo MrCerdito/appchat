@@ -616,13 +616,40 @@
     font-size: 10px; color: var(--text-faint);
     margin-bottom: 2px; padding: 0 4px;
     font-weight: 500;
+    display: flex; align-items: center; gap: 4px;
   }
 
-  .bubble {
+  .sender-ai-icon { width: 12px; height: 12px; }
+
+  .bubble,
+  .bubble-content {
     padding: 8px 12px;
     font-size: 13px; line-height: 1.55;
     word-break: break-word;
     border-radius: var(--radius-lg);
+    display: block;
+    width: 100%;
+
+    ol, ul {
+      display: block; margin: 6px 0; padding-inline-start: 22px;
+      list-style-position: outside;
+    }
+    ol { list-style: decimal; }
+    ul { list-style: disc; padding-inline-start: 18px; }
+    li { line-height: 1.55; margin: 2px 0; padding-left: 2px; }
+    a { text-decoration: underline; word-break: break-all; }
+  }
+
+  .quoted-block {
+    background: rgba(127,127,127,.12);
+    border-left: 3px solid var(--border, #cbd5e1);
+    border-radius: 6px;
+    padding: 4px 8px;
+    margin-bottom: 4px;
+    max-width: 100%;
+    display: flex; flex-direction: column;
+    .quoted-sender { font-size: 10px; font-weight: 600; color: var(--text-secondary, #64748b); }
+    .quoted-text { font-size: 11px; color: var(--text-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   }
 
   .time {
@@ -630,17 +657,20 @@
     margin-top: 2px; padding: 0 4px;
   }
 
+  .edited-tag { font-style: italic; }
+
   &.mine {
     align-self: flex-end; align-items: flex-end;
-    .bubble {
+    .bubble, .bubble-content {
       background: #2455d4; color: var(--text-inverse);
       border-bottom-right-radius: 4px;
     }
+    .bubble-content a { color: #dbeafe; }
   }
 
   &.theirs {
     align-self: flex-start; align-items: flex-start;
-    .bubble {
+    .bubble, .bubble-content {
       background: var(--surface); color: var(--text);
       border-bottom-left-radius: 4px;
       box-shadow: 0 1px 4px rgba(0,0,0,.06);
@@ -649,7 +679,7 @@
 
   @media (max-width: 640px) {
     max-width: 85%;
-    .bubble { font-size: 12.5px; }
+    .bubble, .bubble-content { font-size: 12.5px; }
   }
 
   &.media-only {
@@ -657,6 +687,50 @@
     .msg-attachments { padding: 0; }
   }
 }
+
+// ── Opciones ofrecidas por la IA ─────────────────────────────────────────────
+.ai-options {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin-top: 6px; padding: 0 4px;
+}
+.ai-option-chip {
+  font-size: 11px; font-weight: 500;
+  padding: 4px 10px; border-radius: 999px;
+  background: #eef2ff; color: #4338ca;
+  border: 1px dashed #6366f1;
+}
+
+// ── Tarjetas de documentos entregados por la IA ──────────────────────────────
+.doc-cards {
+  display: flex; flex-direction: column; gap: 6px;
+  margin-top: 8px; padding: 0 4px;
+}
+.doc-cards-label { font-size: 10px; font-weight: 600; color: var(--text-faint); text-transform: uppercase; letter-spacing: .04em; }
+.doc-card {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 10px; max-width: 100%;
+  box-shadow: 0 1px 3px rgba(0,0,0,.05);
+}
+.doc-card-icon { color: #2563eb; flex-shrink: 0; }
+.doc-card-icon svg { width: 20px; height: 20px; }
+.doc-card-body { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.doc-card-name { font-size: 12px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 6px; }
+.doc-card-badge { font-size: 9px; font-style: normal; background: #dbeafe; color: #1d4ed8; padding: 1px 6px; border-radius: 999px; }
+.doc-card-cat { font-size: 10px; color: var(--text-secondary); }
+.doc-card-desc { font-size: 10px; color: var(--text-faint); }
+.doc-card-open { font-size: 11px; font-weight: 600; color: #2563eb; text-decoration: none; flex-shrink: 0; padding: 4px 8px; border: 1px solid currentColor; border-radius: 6px; white-space: nowrap; }
+.doc-card-open:hover { background: #eef2ff; }
+
+// ── Mensaje del sistema ──────────────────────────────────────────────────────
+.message.msg-system { max-width: 90%; align-self: center; }
+.message.msg-system .bubble-content {
+  background: #fef3c7; color: #92400e; font-size: 12px; text-align: center;
+  border: 1px solid #fbbf24;
+}
+
+.message.msg-ia .sender { color: #7c3aed; }
+.message.msg-ia .bubble, .message.msg-ia .bubble-content { border-left: 3px solid #7c3aed; }
 
 // ── Sistema ───────────────────────────────────────────────────────────────────
 .system-msg {
@@ -981,8 +1055,41 @@
   }
 }
 
-// Burbuja IA con acento distintivo
-.message.msg-ia {
-  .sender { color: #7c3aed; }
-  .bubble { border-left: 3px solid #7c3aed; }
+// ── Acciones de exportación (header) ─────────────────────────────────────────
+.history-actions { display: flex; gap: 6px; }
+.ha-btn {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 600;
+  padding: 6px 10px; border-radius: 8px;
+  background: var(--surface); color: var(--text-secondary);
+  border: 1px solid var(--border); cursor: pointer;
+  transition: all .15s ease;
+  svg { width: 14px; height: 14px; }
+  &:hover { background: #eef2ff; color: #2563eb; border-color: #2563eb; }
+}
+
+// ── Resumen de sesión ────────────────────────────────────────────────────────
+.session-summary {
+  display: flex; flex-wrap: wrap; gap: 6px 14px;
+  padding: 8px 16px; border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 12px; color: var(--text-secondary);
+}
+.ss-item b { color: var(--text); font-weight: 700; margin-right: 2px; }
+.ss-item--ai b { color: #7c3aed; }
+
+// ── Separador de día ─────────────────────────────────────────────────────────
+.day-divider {
+  display: flex; align-items: center; justify-content: center;
+  margin: 10px 0; 
+  span {
+    font-size: 11px; font-weight: 600; color: var(--text-faint);
+    background: var(--surface); border: 1px solid var(--border);
+    padding: 2px 12px; border-radius: 999px;
+  }
+}
+
+// ── Audio adjunto ────────────────────────────────────────────────────────────
+.att-audio {
+  width: 100%; max-width: 240px; height: 36px;
 }

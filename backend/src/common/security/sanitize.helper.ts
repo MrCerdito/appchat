@@ -4,12 +4,44 @@ const CONTROL_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g;
 
 export function sanitizeMessage(value: string, maxLength = 1000): string {
   return sanitizeHtml(String(value ?? ''), {
-    allowedTags: [],
-    allowedAttributes: {},
+    allowedTags: [
+      'strong',
+      'b',
+      'em',
+      'i',
+      'u',
+      's',
+      'ul',
+      'ol',
+      'li',
+      'br',
+      'p',
+      'div',
+      'span',
+      'a',
+    ],
+    allowedAttributes: {
+      a: ['href', 'target', 'rel', 'title'],
+      span: ['style', 'class'],
+      ul: ['class'],
+      ol: ['class'],
+    },
+    allowedSchemes: ['http', 'https', 'mailto', 'tel'],
+    allowedStyles: {
+      '*': {
+        color: [/^#[0-9a-fA-F]{3,8}$/, /^rgb\(/, /^rgba\(/],
+        'background-color': [/^#[0-9a-fA-F]{3,8}$/, /^rgb\(/, /^rgba\(/],
+      },
+    },
+    transformTags: {
+      b: 'strong',
+      i: 'em',
+    },
+    exclusiveFilter: (frame) =>
+      Object.keys(frame.attribs || {}).some((a) => a.toLowerCase().startsWith('on')),
+    textFilter: (text) => text.replace(CONTROL_CHARS, ''),
     disallowedTagsMode: 'discard',
-    exclusiveFilter: () => true,
   })
-    .replace(CONTROL_CHARS, '')
     .replace(/\s+\n/g, '\n')
     .trim()
     .slice(0, maxLength);

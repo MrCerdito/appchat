@@ -37,18 +37,20 @@ export class FaqController {
 
   @SkipThrottle()
   @Get()
-  findAll(@Query('colegioId') colegioId?: string, @Query('q') q?: string) {
+  findAll(@Query('colegioId') colegioId?: string, @Query('q') q?: string, @Query('rol') rol?: string) {
     return this.faqService.findAll(
       colegioId ? Number(colegioId) : undefined,
       q,
+      rol,
     );
   }
 
   @SkipThrottle()
   @Get('categorias')
-  findCategorias(@Query('colegioId') colegioId?: string) {
+  findCategorias(@Query('colegioId') colegioId?: string, @Query('rol') rol?: string) {
     return this.faqService.findCategorias(
       colegioId ? Number(colegioId) : undefined,
+      rol,
     );
   }
 

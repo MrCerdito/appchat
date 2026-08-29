@@ -30,6 +30,11 @@ export class CreateFaqDto {
   keywords?: string[];
 
   @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  roles?: string[];
+
+  @IsOptional()
   @IsInt()
   colegioId?: number;
 

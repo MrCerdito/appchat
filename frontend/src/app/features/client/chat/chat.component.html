@@ -485,10 +485,10 @@
               </div>
               }
               @if (msg.senderType === 'advisor') {
-              <span [innerHTML]="formatMessage(msg.content)"></span>
+              <div class="bubble-content" [innerHTML]="formatMessage(msg.content)"></div>
               }
               @if (msg.senderType === 'client') {
-              <span [innerHTML]="formatMessage(msg.content)"></span>
+              <div class="bubble-content" [innerHTML]="formatMessage(msg.content)"></div>
               }
             </div>
             <button type="button" class="bubble-float-reply" (click)="startReply(msg)" title="Responder">

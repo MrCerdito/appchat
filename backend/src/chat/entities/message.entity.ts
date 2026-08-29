@@ -70,6 +70,15 @@ export class Message {
       }[]
     | null;
 
+  /** Respuesta de la IA con sus marcadores de UI sin limpiar (encuesta,
+   *  transferencia, documento). Se usa para renderizar opciones en el
+   *  historial sin perder información. */
+  @Column({ name: 'ai_markers', type: 'jsonb', nullable: true })
+  aiMarkers: {
+    raw: string | null;
+    opciones: string[];
+  } | null;
+
   @ManyToOne(() => Session, (session) => session.messages, {
     onDelete: 'CASCADE',
   })

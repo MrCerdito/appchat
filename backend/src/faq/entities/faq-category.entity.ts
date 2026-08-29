@@ -20,6 +20,10 @@ export class FaqCategory {
   @Column({ type: 'varchar', length: 255, default: '' })
   description: string;
 
+  // Roles a los que aplica esta categoría. Vacío/null = visible para todos.
+  @Column({ type: 'simple-array', nullable: true })
+  roles: string[] | null;
+
   @Column({ type: 'int', default: 0 })
   orden: number;
 

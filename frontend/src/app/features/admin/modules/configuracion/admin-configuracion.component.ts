@@ -113,10 +113,28 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
     { key: 'padre', label: 'Padre/Madre', icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M23 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75' },
   ];
 
+  private readonly DEFAULT_ROLE_RESTRICTED_ESTUDIANTE: string[] = [
+    'pagos',
+    'facturas',
+    'deudas',
+    'boletines',
+    'certificados',
+    'constancias',
+    'notas',
+    'calificaciones',
+    'historial académico',
+    'documento académico',
+    'documentos académicos',
+    'matricula',
+    'pension',
+  ];
+  private readonly DEFAULT_ROLE_MSG_ESTUDIANTE: string =
+    'Para solicitar certificados, boletines u otros documentos académicos, debes comunicarte directamente con la institución, ya que esa documentación debe ser emitida de forma oficial y no la puedo adjuntar desde este canal.';
+
   aiRolesConfig: Record<string, { descripcion: string; temasRestringidos: string[]; mensajeRestringido: string }> = {
     administrador: { descripcion: 'Tienes acceso completo a toda la información del sistema.', temasRestringidos: [], mensajeRestringido: '' },
     docente: { descripcion: 'Tienes acceso a información académica y administrativa.', temasRestringidos: [], mensajeRestringido: '' },
-    estudiante: { descripcion: 'Tienes acceso a información académica y personal.', temasRestringidos: [], mensajeRestringido: '' },
+    estudiante: { descripcion: 'Tienes acceso a información académica y personal.', temasRestringidos: [...this.DEFAULT_ROLE_RESTRICTED_ESTUDIANTE], mensajeRestringido: this.DEFAULT_ROLE_MSG_ESTUDIANTE },
     padre: { descripcion: 'Tienes acceso a información académica y de pagos de tu hijo.', temasRestringidos: [], mensajeRestringido: '' },
   };
 
@@ -559,7 +577,7 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
     this.aiRolesConfig = {
       administrador: { descripcion: 'Tienes acceso completo a toda la información del sistema.', temasRestringidos: [], mensajeRestringido: '' },
       docente: { descripcion: 'Tienes acceso a información académica y administrativa.', temasRestringidos: [], mensajeRestringido: '' },
-      estudiante: { descripcion: 'Tienes acceso a información académica y personal.', temasRestringidos: [], mensajeRestringido: '' },
+      estudiante: { descripcion: 'Tienes acceso a información académica y personal.', temasRestringidos: [...this.DEFAULT_ROLE_RESTRICTED_ESTUDIANTE], mensajeRestringido: this.DEFAULT_ROLE_MSG_ESTUDIANTE },
       padre: { descripcion: 'Tienes acceso a información académica y de pagos de tu hijo.', temasRestringidos: [], mensajeRestringido: '' },
     };
   }

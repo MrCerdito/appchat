@@ -3,6 +3,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsInt,
+  IsArray,
   Length,
   MaxLength,
 } from 'class-validator';
@@ -22,6 +23,11 @@ export class CreateFaqCategoryDto {
   @IsString()
   @MaxLength(255)
   description?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  roles?: string[];
 
   @IsOptional()
   @IsInt()

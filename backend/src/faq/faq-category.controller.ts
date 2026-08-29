@@ -6,6 +6,7 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   ParseIntPipe,
   UseGuards,
   HttpCode,
@@ -24,8 +25,8 @@ export class FaqCategoryController {
 
   @SkipThrottle()
   @Get()
-  findAll() {
-    return this.categoryService.findAll();
+  findAll(@Query('rol') rol?: string) {
+    return this.categoryService.findAll(rol);
   }
 
   @SkipThrottle()

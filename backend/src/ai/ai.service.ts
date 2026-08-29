@@ -61,12 +61,18 @@ const ROL_CONFIG: Record<
       'facturas',
       'deudas',
       'boletines',
+      'certificados',
+      'constancias',
       'notas',
       'calificaciones',
       'historial académico',
+      'documento académico',
+      'documentos académicos',
+      'matricula',
+      'pension',
     ],
     mensajeRestringido:
-      'Para consultar información sobre pagos, boletines o notas, puedes acceder directamente a la plataforma institucional o dirigirte a la institución para que te brinden esa información.',
+      'Para solicitar certificados, boletines u otros documentos académicos, debes comunicarte directamente con la institución, ya que esa documentación debe ser emitida de forma oficial y no la puedo adjuntar desde este canal.',
   },
   padre: {
     label: 'Padre/Madre',
@@ -712,7 +718,10 @@ export class AiService {
     const config = {
       ...configDefault,
       ...(rolFromDb || {}),
-      temasRestringidos: rolFromDb?.temasRestringidos ?? configDefault.temasRestringidos,
+      temasRestringidos: (Array.isArray(rolFromDb?.temasRestringidos) &&
+        rolFromDb.temasRestringidos.length > 0)
+        ? rolFromDb.temasRestringidos
+        : configDefault.temasRestringidos,
       mensajeRestringido: rolFromDb?.mensajeRestringido || configDefault.mensajeRestringido,
     };
 
@@ -1011,13 +1020,32 @@ export class AiService {
       esRestringido: false,
     });
 
-    // Documentos a entregar: los marcados por la IA (validados contra el RAG
-    // del rol) o, si no marcó ninguno, fallback con los mejores documentos.
-    // Se entregan de forma PROACTIVA cada vez que hubo contexto del rol.
-    const docsParaDevolver =
-      tieneContexto && documentos.length > 0
-        ? resolverDocumentosEntregados(marcados, documentos, documentos)
-        : [];
+    // Documentos a entregar: SOLO los que la IA marcó explícitamente con
+    // [DOCUMENTO: <nombre>] (validados contra el RAG del rol) o, si no marcó
+    // ninguno pero citó por nombre algún documento candidato en su respuesta.
+    // NO hacemos fallback con "los mejores del RAG": si la IA declina o
+    // redirige (p.ej. trámites académicos no autorizados) sin marcar ni citar,
+    // no se adjunta ningún documento para no mostrar material irrelevante.
+    let docsParaDevolver: any[] = [];
+    if (tieneContexto && documentos.length > 0) {
+      if (marcados.length > 0) {
+        docsParaDevolver = resolverDocumentosEntregados(
+          marcados,
+          documentos,
+          documentos,
+          3,
+        );
+      } else {
+        docsParaDevolver = documentos
+          .filter(
+            (d: any) =>
+              d?.nombre &&
+              normalizarNombreDoc(d.nombre).length > 3 &&
+              normalizarTexto(raw).includes(normalizarNombreDoc(d.nombre)),
+          )
+          .slice(0, 3);
+      }
+    }
 
     return {
       reply: reply || 'Lo siento, no pude procesar tu consulta.',
@@ -1281,6 +1309,29 @@ Texto: "${text}"`;
     return { improved: this.cleanAiPlainText(result) };
   }
 
+  async improveAdvisorText(text: string): Promise<{ improved: string }> {
+    const cleanInput = this.compactText(text, 1500);
+    if (!cleanInput) return { improved: '' };
+
+    const prompt = `Eres un experto en redaccion de respuestas para atencion al cliente. Mejora y reescribe el texto de abajo.
+
+Instrucciones (obligatorias):
+- Corrige ortografia, gramatica, tildes, puntuacion, mayusculas y errores de digitacion.
+- Hazlo bien estructurado y completo: organiza las ideas de forma clara y ordenada.
+- No cortes ni recortes la informacion: conserva TODOS los datos, fechas, nombres, precios, promesas y preguntas del original.
+- Respeta exactamente la intencion del texto: no agregues informacion nueva ni respondas por el cliente.
+- Usa un tono profesional, amable y respetuoso.
+- NO uses emojis ni emoticones.
+- Evita frases corporativas vacias y rellenos genericos ("Estamos encantados de...", "Esperamos que este mensaje te encuentre bien").
+- Devuelve SOLO el texto mejorado final, sin comillas, sin markdown, sin prefijos ni etiquetas.
+
+Texto a mejorar:
+"${cleanInput}"`;
+
+    const result = await this.generateCompactText(prompt, 3072, 0.7);
+    return { improved: this.cleanAiPlainText(result) };
+  }
+
   async summarizeWhatsappConversation(input: {
     clientName?: string;
     institution?: string;
@@ -1420,7 +1471,10 @@ ${transcript}`;
     const config = {
       ...configDefault,
       ...(rolFromDb || {}),
-      temasRestringidos: rolFromDb?.temasRestringidos ?? configDefault.temasRestringidos,
+      temasRestringidos: (Array.isArray(rolFromDb?.temasRestringidos) &&
+        rolFromDb.temasRestringidos.length > 0)
+        ? rolFromDb.temasRestringidos
+        : configDefault.temasRestringidos,
       mensajeRestringido: rolFromDb?.mensajeRestringido || configDefault.mensajeRestringido,
     };
 
@@ -1585,22 +1639,12 @@ ${transcript}`;
       this.logger.debug(
         `[IA] Sin contexto RAG (rol=${rolNormalizado}) → respuesta conversacional`,
       );
-    } else {
-      // ── ENTREGA PROACTIVA INMEDIATA ──────────────────────────────────────
-      // Emitir las tarjetas de los documentos del rol AHORA, antes de llamar
-      // a Gemini: el instructivo aparece aunque la generación tarde o falle.
-      // La emisión final (con marcadores) la refina después.
-      emit('metadata', {
-        documentos: documentos.slice(0, 3).map((d: any) => ({
-          nombre: d.nombre,
-          pdfUrl: d.pdfUrl,
-          categoria: d.categoria,
-          descripcion: d.descripcion ?? null,
-          instructivo: d.instructivo ?? false,
-        })),
-        sugerirAsesor: false,
-      });
     }
+    // Nota: NO emitimos documentos de forma proactiva antes de generar la
+    // respuesta. Solo se entregan tras la generación, cuando la IA los marca
+    // ([DOCUMENTO: ...]) o los cita por nombre. Así evitamos adjuntar
+    // material irrelevante cuando la IA declina o redirige un trámite no
+    // autorizado (p.ej. certificados/boletines académicos).
 
     const systemPrompt = this.buildSystemPrompt(
       clientName,
@@ -2046,6 +2090,9 @@ ${transcript}`;
       `Eres ${nombreAsistente}, ${identidadPrincipal} de ${colegio},`,
       `especializado en ${especialidad}, atendiendo al rol: ${config.label}.`,
       '',
+      'Al saludar o cuando el usuario te pregunte quién eres o tu nombre, preséntate SIEMPRE así: "Mi nombre es ' +
+        `${nombreAsistente}, ${identidadPrincipal}."` +
+        ' No digas que eres solo "un asistente virtual" sin mencionar tu nombre.',      '',
       instruccionesGenerales,
       '',
       'Responde solo temas permitidos para este rol. Sé claro, cálido y breve.',

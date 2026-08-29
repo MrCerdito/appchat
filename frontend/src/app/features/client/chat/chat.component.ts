@@ -860,7 +860,7 @@ get rolLabel(): string {
     text: `Entendido. Hola ${this.clientName}, como ${this.rolLabel}${colegio.nombre ? ` del colegio "${colegio.nombre}"` : ''}, estoy aquí para ayudarte.`
   }];
 
-  const bienvenida = `Hola ${this.clientName}, soy el asistente virtual. Estoy aquí para ayudarte con tu consulta sobre "${this.tipoSolicitud}". ¿En qué puedo ayudarte?`;
+  const bienvenida = `Hola ${this.clientName}, mi nombre es Korvix, Asistente Virtual. Estoy aquí para ayudarte con tu consulta sobre "${this.tipoSolicitud}". ¿En qué puedo ayudarte?`;
   this.bienvenidaIa = bienvenida;
   this.addAiMessage('model', bienvenida);
 
@@ -868,7 +868,11 @@ get rolLabel(): string {
   setTimeout(() => {
     this.showFaqInChat = true;
     this.cdr.detectChanges();
-    this.scrollToBottom();
+    // Mantener visible el mensaje de bienvenida (arriba) junto a las preguntas
+    // frecuentes; el usuario puede desplazarse para ver el menú de preguntas.
+    if (this.messagesContainer) {
+      this.messagesContainer.nativeElement.scrollTop = 0;
+    }
   }, 300);
 
   this.iniciarTimerInactividadIa();
@@ -1684,12 +1688,13 @@ get rolLabel(): string {
   };
 
   private cargarFaqParaChat(): void {
+    const rol = this.rol || undefined;
     // 1. Cargar categorías editables desde admin (faq_categories)
-    this.faqService.getCategoryList().subscribe({
+    this.faqService.getCategoryList(false, rol).subscribe({
       next: (cats) => {
         const activas = (cats || []).filter(c => c.activo);
         // Merge con categorías heredadas de las FAQs (strings libres)
-        this.faqService.getCategorias().subscribe({
+        this.faqService.getCategorias(undefined, rol).subscribe({
           next: (legacyCats) => {
             const existing = new Set(activas.map(c => this.normalizeStr(c.name)));
             for (const leg of (legacyCats || [])) {
@@ -1700,6 +1705,7 @@ get rolLabel(): string {
                   name,
                   icon: this.defaultCatIconKey(name),
                   description: this.getCatDescription(name),
+                  roles: null,
                   orden: 999,
                   activo: true,
                   createdAt: '',
@@ -1713,7 +1719,7 @@ get rolLabel(): string {
         });
       },
     });
-    this.faqService.getAll().subscribe({
+    this.faqService.getAll(undefined, undefined, false, rol).subscribe({
       next: (faqs) => {
         this.faqItems = faqs.filter(f => f.activo);
         this.cdr.detectChanges();
@@ -1805,8 +1811,9 @@ get rolLabel(): string {
         .subscribe({
           next: (res) => {
             const docs = res?.documentos;
-            if (docs?.length) {
-              (this.messages[botIdx] as any).documentos = docs.slice(0, 3);
+            const relevantes = this.faqDocsRelevantes(docs, item);
+            if (relevantes.length) {
+              (this.messages[botIdx] as any).documentos = relevantes.slice(0, 3);
             }
             // 7. Prompt "ver FAQ de nuevo"
             this.faqMenuPendientes.add(botIdx);
@@ -1823,6 +1830,31 @@ get rolLabel(): string {
       this.scrollToBottom();
       this.cdr.detectChanges();
     }, typingMs);
+  }
+
+  // Solo se adjuntan documentos de una FAQ cuando realmente coinciden con el
+  // tema de la pregunta: el nombre del documento debe compartir al menos un
+  // token informativo con la pregunta o la categoría de la FAQ. Esto evita
+  // entregar documentos irrelevantes (p. ej. "app móvil" → AULA VIRTUAL).
+  private faqDocsRelevantes(docs: any[] | undefined, item: Faq): any[] {
+    if (!Array.isArray(docs) || !docs.length) return [];
+    const stop = new Set(['para','como','puedo','puedes','deseas','quieres','descargar','consultar','necesitas','necesito','cual','cuando','cuenta','tiene','tienen','plataforma','aplicacion','movil','academico','academicos','documento','documentos','que','con','los','las','un','una','del','estas','hacer','obtener','solicitar']);
+    const normalize = (s: string) => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const tokens = new Set<string>();
+    for (const src of [item.pregunta, item.categoria]) {
+      for (const w of (normalize(src || '').split(/\W+/))) {
+        if (w.length >= 4 && !stop.has(w)) tokens.add(w);
+      }
+    }
+    if (!tokens.size) return [];
+    return docs.filter((d: any) => {
+      const nombre = normalize(d?.nombre || '');
+      if (!nombre) return false;
+      for (const t of tokens) {
+        if (nombre.includes(t)) return true;
+      }
+      return false;
+    });
   }
 
   mostrarFaqMenuEn(index: number): boolean {
@@ -2115,6 +2147,9 @@ get rolLabel(): string {
 
   formatMessage(text: string): string {
   if (!text) return '';
+  if (this.isHtmlContent(text)) {
+    return this.secureHtml(text);
+  }
   return this.escapeHtml(text)
     // Negrita: **texto** → <strong>texto</strong>
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
@@ -2151,6 +2186,18 @@ private escapeHtml(value: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+private isHtmlContent(text: string): boolean {
+  return /<(strong|b|ul|ol|li|div|p|br|span)[\s>]/i.test(text);
+}
+
+private secureHtml(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<\s*(script|iframe|object|embed)/gi, '&lt;$1')
+    .replace(/\son[a-z]+\s*=/gi, ' data-blocked=')
+    .replace(/javascript:/gi, '');
 }
 
 private normalizePhotoUrl(url: string): string {

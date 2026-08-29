@@ -18,6 +18,7 @@ import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import { existsSync, mkdirSync, readFileSync, unlinkSync } from 'fs'; // Añadir unlinkSync
 import { DocumentosService } from './documentos.service';
+import { ConfiguracionService } from '../configuracion/configuracion.service';
 import { MAPA_ROLES, ROLES_DEFAULT } from './roles.util';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Public } from '../auth/public.decorator';
@@ -29,7 +30,36 @@ const UPLOADS_DIR = join(process.cwd(), 'uploads', 'documentos');
 
 @Controller('documentos')
 export class DocumentosController {
-  constructor(private readonly docService: DocumentosService) {}
+  constructor(
+    private readonly docService: DocumentosService,
+    private readonly configuracionService: ConfiguracionService,
+  ) {}
+
+  // Normaliza el texto igual que la IA (minúsculas, sin tildes) para comparar temas.
+  private normalizarTexto(texto: string): string {
+    return (texto ?? '')
+      .toLowerCase()
+      .trim()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+  }
+
+  // Coincidencia de tema con límites de palabra (mismo criterio que la IA).
+  private coincideTema(mensaje: string, tema: string): boolean {
+    const msg = this.normalizarTexto(mensaje);
+    const t = this.normalizarTexto(tema);
+    if (!t) return false;
+    const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`(^|\\W)${escaped}(\\W|$)`, 'i').test(msg);
+  }
+
+  private normalizarRol(rol: string): string {
+    const r = this.normalizarTexto(rol ?? '');
+    if (r.includes('admin') || r.includes('administrador')) return 'administrador';
+    if (r.includes('docente') || r.includes('profesor')) return 'docente';
+    if (r.includes('padre') || r.includes('madre') || r.includes('acudiente')) return 'padre';
+    return 'estudiante';
+  }
 
   // ── Listar todos los documentos (admin) ───────────────────────────────────
   @Get()
@@ -193,6 +223,25 @@ export class DocumentosController {
     @Body()
     body: { query: string; rol?: string; topK?: number },
   ) {
+    // Los temas restringidos del rol también aplican a la búsqueda pública (FAQ):
+    // si la consulta coincide con un tema restringido, NO se entrega documento alguno
+    // (mismo comportamiento que cuando el cliente escribe la solicitud a la IA).
+    try {
+      const rolNorm = this.normalizarRol(body.rol || 'estudiante');
+      const global = (await this.configuracionService.getGlobal()) as any;
+      const rolCfg = global?.aiPromptConfig?.roles?.[rolNorm];
+      const temasRestringidos: string[] = Array.isArray(rolCfg?.temasRestringidos)
+        ? rolCfg.temasRestringidos
+        : [];
+      if (temasRestringidos.length > 0) {
+        const q = body.query || '';
+        const esRestringido = temasRestringidos.some((t) => this.coincideTema(q, t));
+        if (esRestringido) return { documentos: [] };
+      }
+    } catch {
+      // Si no se puede leer la config, se continúa con la búsqueda normal.
+    }
+
     const result = await this.docService.buscarRelevantes(
       body.query,
       body.rol || undefined,

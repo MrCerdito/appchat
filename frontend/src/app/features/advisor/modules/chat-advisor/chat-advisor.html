@@ -6,13 +6,6 @@
       <div class="conv-brand-row">
         <img class="conv-logo" src="icon.jpg" alt="Innova Cloud">
         <span class="conv-title">Innova Cloud</span>
-        <div class="conv-stats-inline">
-          <span class="stat-chip stat--active">{{ activeSessions.length }}</span>
-          <span class="stat-chip stat--waiting">{{ waitingCount }}</span>
-          @if (assignedCount > 0) {
-          <span class="stat-chip stat--assigned">{{ assignedCount }}</span>
-          }
-        </div>
       </div>
     </div>
 
@@ -31,10 +24,6 @@
           <span class="badge-unread">{{ unreadCount(session.id) }}</span>
           }
         </div>
-        <div class="status-dot"
-          [class.dot-active]="session.status === 'active'"
-          [class.dot-wait]="session.status === 'waiting'"
-        ></div>
         <div class="session-txt">
           <div class="s-top">
             <span class="s-name">{{ sessionFullName(session) }}</span>
@@ -119,60 +108,82 @@
 
     <!-- Header -->
     <header class="chat-header">
-      <div class="header-left">
-        <button class="icon-btn btn-back" type="button" (click)="closeActiveSessionView()" title="Volver">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="15 18 9 12 15 6"></polyline>
-          </svg>
-        </button>
-        <div class="header-avatar">
-          {{ safeInitial(activeSession.clientName) }}
-          <span class="presence-dot" [ngClass]="clientPresenceClass(activeSession)"
-                [title]="clientPresenceLabel(activeSession)"></span>
-        </div>
-        <div class="header-meta">
+      <button class="icon-btn btn-back" type="button" (click)="closeActiveSessionView()" title="Volver">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+      </button>
+
+      <div class="header-avatar" [ngClass]="clientPresenceClass(activeSession)">
+        {{ safeInitial(activeSession.clientName) }}
+      </div>
+
+      <div class="header-meta">
+        <div class="header-name-row">
           <span class="header-name">{{ sessionFullName(activeSession) }}</span>
-          <div class="header-info-row">
-            <span class="info-status" [ngClass]="clientPresenceClass(activeSession)"
-                  [title]="clientPresenceLabel(activeSession)"></span>
-            @if (activeSession.identificacion) {
-            <span class="info-chip" title="Numero de documento">
-              <wa-icon name="hash" size="13"></wa-icon>
-              <span class="info-text">{{ activeSession.identificacion }}</span>
+        </div>
+        <span class="header-presence" [ngClass]="clientPresenceClass(activeSession)"
+              [title]="clientPresenceLabel(activeSession)">
+          <span class="header-presence-dot" [ngClass]="clientPresenceClass(activeSession)"></span>
+          <span class="header-presence-text">{{ clientPresenceShort(activeSession) }}</span>
+        </span>
+      </div>
+
+      <div class="header-blocks">
+        <button type="button" class="hblock hblock--clickable hblock--colegio" title="Colegio" (click)="abrirInfoColegio(activeSession)">
+          <span class="hblock-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 21h18M5 21V7l7-4 7 4v14M9 9h.01M15 9h.01M9 13h.01M15 13h.01M9 17h.01M15 17h.01"/>
+            </svg>
+          </span>
+          <span class="hblock-body">
+            <span class="hblock-lbl">Colegio</span>
+            <span class="hblock-val">{{ activeSession.colegio || 'Sin colegio' }}</span>
+          </span>
+          <span class="hblock-cta">
+            <span class="hblock-cta-text">Ver ficha</span>
+            <svg class="hblock-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </span>
+        </button>
+        <div class="hblock-cluster">
+          @if (activeSession.rol) {
+          <div class="hblock" title="Rol">
+            <span class="hblock-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
             </span>
-            }
-            @if (activeSession.rol) {
-            <span class="info-chip" title="Rol">
-              <wa-icon name="id" size="13"></wa-icon>
-              <span class="info-text">{{ activeSession.rol | titlecase }}</span>
+            <span class="hblock-body">
+              <span class="hblock-lbl">Rol</span>
+              <span class="hblock-val">{{ activeSession.rol | titlecase }}</span>
             </span>
-            }
-            @if (activeSession.colegio) {
-            <span class="info-chip" title="Colegio">
-              <wa-icon name="building" size="13"></wa-icon>
-              <span class="info-text">{{ activeSession.colegio }}</span>
-            </span>
-            }
-            @if (activeSession.tipoSolicitud) {
-            <span class="info-chip" title="Tipo de solicitud">
-              <wa-icon name="tag" size="13"></wa-icon>
-              <span class="info-text">{{ activeSession.tipoSolicitud | titlecase }}</span>
-            </span>
-            }
           </div>
+          }
+          @if (activeSession.identificacion) {
+          <div class="hblock" title="Documento">
+            <span class="hblock-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="4" y="3" width="16" height="18" rx="2"/>
+                <line x1="9" y1="8" x2="15" y2="8"/>
+                <line x1="9" y1="12" x2="13" y2="12"/>
+              </svg>
+            </span>
+            <span class="hblock-body">
+              <span class="hblock-lbl">Documento</span>
+              <span class="hblock-val">{{ activeSession.identificacion }}</span>
+            </span>
+          </div>
+          }
         </div>
       </div>
+
       <div class="header-actions">
-        <button class="icon-btn" type="button" title="Mostrar informacion" (click)="showInfoPanel = !showInfoPanel">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="12" y1="16" x2="12" y2="12"></line>
-            <line x1="12" y1="8" x2="12.01" y2="8"></line>
-          </svg>
-        </button>
         @if (isCollaborator) {
         <button class="icon-btn icon-leave" type="button" title="Salir del chat" (click)="leaveCollabChat()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
             <polyline points="16 17 21 12 16 7"></polyline>
             <line x1="21" y1="12" x2="9" y2="12"></line>
@@ -181,12 +192,19 @@
         }
         @if (!isCollaborator && !isReadOnlyView) {
         <button class="icon-btn icon-danger" type="button" title="Cerrar chat" (click)="showCloseConfirm = true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="18" y1="6" x2="6" y2="18"></line>
             <line x1="6" y1="6" x2="18" y2="18"></line>
           </svg>
         </button>
         }
+        <button class="icon-btn" type="button" title="Ver informacion del chat" (click)="showInfoPanel = !showInfoPanel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="5" r="1.6"/>
+            <circle cx="12" cy="12" r="1.6"/>
+            <circle cx="12" cy="19" r="1.6"/>
+          </svg>
+        </button>
       </div>
     </header>
 
@@ -305,7 +323,7 @@
                 <span class="quoted-text">{{ quoted.content | slice:0:80 }}{{ quoted.content.length > 80 ? '...' : '' }}</span>
               </div>
               }
-              <span [innerHTML]="formatMessage(msg.content)"></span>
+              <div class="bubble-content" [innerHTML]="formatMessage(msg.content)"></div>
             </div>
             <button type="button" class="bubble-float-reply" (click)="startReply(msg)" title="Responder">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
@@ -474,7 +492,7 @@
           type="button"
           title="Mejorar mensaje"
           (click)="toggleImprovePanel()"
-          [disabled]="!newMessage.trim() || isImproving || isRecordingAudio"
+          [disabled]="isImproving || isRecordingAudio"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/>
@@ -482,7 +500,7 @@
           </svg>
         </button>
 
-        @if (showImprovePanel) {
+        @if (showImprovePanel && !improveMinimized) {
         <div class="improve-panel">
           <div class="improve-header">
             <svg class="improve-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -493,104 +511,162 @@
             <button class="improve-close" type="button" (click)="closeImprovePanel()" title="Cerrar">✕</button>
           </div>
 
-          @if (improveStep === 'tones') {
-          <div class="improve-sub">Selecciona el tono del mensaje</div>
-          <div class="improve-tones">
-            @for (t of improveTones; track t.id) {
-            <button
-              type="button"
-              class="improve-tone"
-              [class.active]="improveTone === t.id"
-              (click)="selectImproveTone(t.id)"
-            >
-              <span class="improve-tone-label">{{ t.label }}</span>
-              <span class="improve-tone-desc">{{ t.desc }}</span>
-            </button>
-            }
-          </div>
+          <textarea
+            #improveInputField
+            class="improve-textarea"
+            [(ngModel)]="improveInput"
+            rows="3"
+            (input)="resizeImproveInput()"
+            placeholder="Escribe aquí el borrador del mensaje para el cliente..."
+          ></textarea>
+
           <button
             class="improve-generate"
             type="button"
-            (click)="generateImprovedText()"
-            [disabled]="isImproving || !newMessage.trim()"
+            (click)="improveText()"
+            [disabled]="isImproving || !improveInput.trim()"
           >
             @if (isImproving) {
             <span class="improve-spinner"></span>
-            Generando...
+            Mejorando...
             } @else {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/>
             </svg>
-            Generar 3 opciones
+            Mejorar
             }
           </button>
-          } @else {
-          <div class="improve-sub">
-            Elige la opcion que mas te guste
-            <span class="improve-tone-badge">Tono {{ improveToneLabel }}</span>
-          </div>
-          <div class="improve-variants">
-            @for (variant of improveVariants; track $index) {
-            <button
-              type="button"
-              class="improve-variant"
-              [class.active]="improveVariantIndex === $index"
-              (click)="selectImproveVariant($index)"
-            >
-              <span class="improve-variant-head">
-                <span class="improve-variant-num">Opción {{ $index + 1 }}</span>
-                <span class="improve-variant-check">✓</span>
-              </span>
-              <span class="improve-variant-text">{{ variant }}</span>
-            </button>
-            }
-          </div>
-          <div class="improve-actions">
-            <button
-              type="button"
-              class="improve-ghost"
-              (click)="backToImproveTones()"
-              [disabled]="isImproving"
-            >
-              ← Cambiar tono
-            </button>
-            <button
-              type="button"
-              class="improve-regenerate"
-              (click)="generateImprovedText()"
-              [disabled]="isImproving || !newMessage.trim()"
-            >
-              @if (isImproving) {
-              <span class="improve-spinner"></span>
-              Generando...
-              } @else {
-              ↻ Regenerar
+
+          @if (improveResult) {
+          <div class="improve-result">
+            <div class="improve-result-head">
+              <svg class="improve-result-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/>
+              </svg>
+              <span>Texto mejorado</span>
+            </div>
+            <div class="improve-result-text">
+              @for (p of improveResultParagraphs; track $index) {
+              <p class="improve-result-p">{{ p }}</p>
               }
-            </button>
+            </div>
+            <div class="improve-result-actions">
+              <button
+                type="button"
+                class="improve-use"
+                (click)="useImproveResult()"
+                [disabled]="isImproving"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M5 13l4 4L19 7"/>
+                </svg>
+                Usar mensaje
+              </button>
+              <button
+                type="button"
+                class="improve-copy"
+                [class.improve-copied]="improveCopied"
+                (click)="copyImproveResult()"
+                [disabled]="isImproving"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2"/>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+                @if (improveCopied) { ¡Copiado! } @else { Copiar }
+              </button>
+            </div>
           </div>
           }
         </div>
         }
       </div>
 
-      @if (showImprovePanel) {
-      <div class="improve-backdrop" (click)="closeImprovePanel()"></div>
+      @if (showImprovePanel && !improveMinimized) {
+      <div class="improve-backdrop" (click)="minimizeImprovePanel()"></div>
       }
 
       <div class="input-field">
-        <textarea
+        <div class="fmt-toolbar">
+          <button
+            type="button"
+            class="fmt-btn"
+            title="Negrita"
+            [disabled]="!canSendMessage"
+            (mousedown)="$event.preventDefault()"
+            (click)="applyBold()"
+          >
+            <strong>B</strong>
+          </button>
+          <button
+            type="button"
+            class="fmt-btn"
+            title="Vinetas"
+            [disabled]="!canSendMessage"
+            (mousedown)="$event.preventDefault()"
+            (click)="applyBullet()"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <circle cx="4" cy="6" r="1.5" fill="currentColor"></circle>
+              <circle cx="4" cy="12" r="1.5" fill="currentColor"></circle>
+              <circle cx="4" cy="18" r="1.5" fill="currentColor"></circle>
+              <line x1="8" y1="6" x2="20" y2="6"></line>
+              <line x1="8" y1="12" x2="20" y2="12"></line>
+              <line x1="8" y1="18" x2="20" y2="18"></line>
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="fmt-btn"
+            title="Lista numerada"
+            [disabled]="!canSendMessage"
+            (mousedown)="$event.preventDefault()"
+            (click)="applyNumbered()"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M10 6h11M10 12h11M10 18h11"></path>
+              <path d="M4 6h1v4M4 10h2M3 16l3-2v6"></path>
+            </svg>
+          </button>
+          <div class="fmt-color">
+            <button
+              type="button"
+              class="fmt-btn fmt-color-btn"
+              title="Color de texto"
+              [disabled]="!canSendMessage"
+              (mousedown)="$event.preventDefault()"
+              (click)="toggleColorMenu()"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <path d="M12 19a7 7 0 1 0 0-14 7 7 0 0 0 0 14z"></path>
+                <line x1="2" y1="12" x2="22" y2="12"></line>
+              </svg>
+            </button>
+            @if (showColorMenu) {
+            <div class="fmt-color-menu">
+              @for (c of fmtColors; track c.id) {
+              <button
+                type="button"
+                class="fmt-color-dot"
+                [style.background]="c.value"
+                [title]="c.label"
+                (click)="applyColor(c.id)"
+              ></button>
+              }
+            </div>
+            }
+          </div>
+        </div>
+        <div
           #msgInput
-          [(ngModel)]="newMessage"
-          (ngModelChange)="onInputChange()"
-          rows="1"
-          [placeholder]="aiModeActive ? 'Escribe para retomar el control...  (Shift+Enter nueva linea)' : 'Escribe un mensaje o / para respuestas rapidas  (Shift+Enter nueva linea)'"
+          class="rich-input"
+          [attr.contenteditable]="canSendMessage ? 'true' : 'false'"
+          [class.rich-active]="aiModeActive"
+          (input)="onRichInput()"
           (keydown)="handleKey($event)"
-          [disabled]="!canSendMessage"
-          maxlength="1000"
-        ></textarea>
-        @if (ghostSuggestion) {
-        <span class="ghost-text">{{ ghostSuggestion }}</span>
-        }
+          (keyup)="onRichInput()"
+          [attr.data-placeholder]="aiModeActive ? 'Escribe para retomar el control...  (Shift+Enter nueva linea)' : 'Escribe un mensaje o / para respuestas rapidas  (Shift+Enter nueva linea)'"
+        ></div>
 
         @if (showSlashMenu && slashFiltered.length > 0) {
         <div class="slash-menu">
@@ -634,164 +710,216 @@
   <!-- Side panel -->
   @if (activeSession) {
   <aside class="side-panel" [class.open]="showInfoPanel">
-      <button class="panel-close" type="button" (click)="showInfoPanel = false" title="Ocultar informacion">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+    <header class="panel-header">
+      <h3 class="panel-title">Información del chat</h3>
+      <button class="panel-close" type="button" (click)="showInfoPanel = false" title="Cerrar panel">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="18" y1="6" x2="6" y2="18"></line>
           <line x1="6" y1="6" x2="18" y2="18"></line>
         </svg>
       </button>
+    </header>
 
-      <section class="panel-profile">
-        <div class="panel-ava">{{ safeInitial(activeSession.clientName) }}</div>
-        <div class="panel-name">{{ sessionFullName(activeSession) }}</div>
-        <div class="panel-req-label">{{ activeSession.identificacion || 'Sin identificacion' }}</div>
-        @if (activeSession.email || activeSession.celular) {
-        <div class="panel-contact">
-          @if (activeSession.email) {
-          <div class="panel-contact-item" title="Correo electrónico">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="2" y="4" width="20" height="16" rx="2"></rect><path d="M22 6l-10 7L2 6"></path>
-            </svg>
-            <span>{{ activeSession.email }}</span>
-          </div>
-          }
-          @if (activeSession.celular) {
-          <div class="panel-contact-item" title="Número celular">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M5 4h4l2 5l-2.5 1.5a11 11 0 0 0 5 5l1.5 -2.5l5 2v4a2 2 0 0 1 -2 2a16 16 0 0 1 -15 -15a2 2 0 0 1 2 -2"></path>
-            </svg>
-            <span>{{ activeSession.celular }}</span>
-          </div>
-          }
+    <div class="pp2">
+      <div class="pp2-ava" [ngClass]="clientPresenceClass(activeSession)">
+        {{ safeInitial(activeSession.clientName) }}
+      </div>
+      <div class="pp2-body">
+        <div class="pp2-name">{{ sessionFullName(activeSession) }}</div>
+        <div class="pp2-status" [ngClass]="clientPresenceClass(activeSession)"
+             [title]="clientPresenceLabel(activeSession)">
+          <span class="pp2-status-dot" [ngClass]="clientPresenceClass(activeSession)"></span>
+          <span>{{ statusLabel(activeSession) }}</span>
         </div>
-        }
-        <span class="req-tag">{{ activeSession.tipoSolicitud || 'Solicitud general' }}</span>
-      </section>
+      </div>
+    </div>
 
-      <section class="panel-actions">
+    <div class="sinfo-card">
+      <div class="sinfo-row">
+        <div class="sinfo-lhs">
+          <span class="sinfo-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+          </span>
+          <span class="sinfo-lbl">Rol</span>
+        </div>
+        <span class="sinfo-val">{{ activeSession.rol || '—' | titlecase }}</span>
+      </div>
+      <div class="sinfo-row">
+        <div class="sinfo-lhs">
+          <span class="sinfo-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="4" y="3" width="16" height="18" rx="2"/>
+              <line x1="9" y1="8" x2="15" y2="8"/>
+              <line x1="9" y1="12" x2="13" y2="12"/>
+            </svg>
+          </span>
+          <span class="sinfo-lbl">Documento</span>
+        </div>
+        <span class="sinfo-val">{{ activeSession.identificacion || '—' }}</span>
+      </div>
+      <button type="button" class="sinfo-row sinfo-row--link" (click)="abrirInfoColegio(activeSession)"
+              title="Abrir ficha del colegio">
+        <div class="sinfo-lhs">
+          <span class="sinfo-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 21h18M5 21V7l7-4 7 4v14M9 9h.01M15 9h.01M9 13h.01M15 13h.01M9 17h.01M15 17h.01"/>
+            </svg>
+          </span>
+          <span class="sinfo-lbl">Colegio</span>
+        </div>
+        <span class="sinfo-val">
+          {{ activeSession.colegio || 'Sin colegio' }}
+          <svg class="sinfo-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </span>
+      </button>
+    </div>
+
+    <div class="advisor-card">
+      <div class="advisor-ava">
+        @if (panelAdvisorPhotoUrl) {
+        <img [src]="panelAdvisorPhotoUrl" [alt]="panelAdvisorName" referrerpolicy="no-referrer" />
+        } @else {
+        <span>{{ panelAdvisorInitials }}</span>
+        }
+      </div>
+      <div class="advisor-body">
+        <span class="advisor-title">Asesor asignado</span>
+        <span class="advisor-name">{{ panelAdvisorName }}</span>
+        <span class="advisor-status">
+          <span class="advisor-dot"></span>
+          En línea
+        </span>
+      </div>
+    </div>
+
+    <div class="panel-divider"></div>
+
+    <section class="panel-actions">
+      <div class="p-actions-grid">
         <button class="p-btn p-btn-ticket" type="button" (click)="openTicketModal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 9a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v1a2 2 0 0 0 0 4v1a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-1a2 2 0 0 0 0-4V9z"/>
+            <path d="M13 7v10"/>
+          </svg>
           Generar ticket
         </button>
         @if (!isCollaborator && !isReadOnlyView) {
-        <button class="p-btn p-btn-transfer" type="button" (click)="openTransferModal()">
+        <button class="p-btn p-btn-transfer" type="button" (click)="openTransferModal()" [disabled]="activeSession.status === 'closed'">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="17 1 21 5 17 9"/>
+            <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+            <polyline points="7 23 3 19 7 15"/>
+            <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+          </svg>
           Transferir
         </button>
         }
-        @if (!aiModeActive && !isReadOnlyView) {
-        <button class="p-btn p-btn-ai" type="button" (click)="remitToAi()" [disabled]="remitLoading">
-          {{ remitLoading ? 'Activando IA...' : 'Remitir a IA' }}
-        </button>
-        }
-        @if (aiModeActive) {
-        <button class="p-btn p-btn-retake" type="button" (click)="retakeControl()">
-          Retomar control
-        </button>
-        }
-        @if (!isCollaborator && !isReadOnlyView) {
-        <button class="p-btn p-btn-close" type="button" (click)="showCloseConfirm = true">
-          Cerrar atencion
-        </button>
-        }
-        @if (isCollaborator) {
-        <button class="p-btn p-btn-transfer" type="button" (click)="leaveCollabChat()">
-          Salir del apoyo
-        </button>
-        }
-      </section>
+      </div>
+      @if (aiModeActive) {
+      <button class="p-btn p-btn-retake" type="button" (click)="retakeControl()" [disabled]="activeSession.status === 'closed'">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="1 4 1 10 7 10"/>
+          <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+        </svg>
+        Retomar control
+      </button>
+      } @else if (!aiModeActive && !isReadOnlyView) {
+      <button class="p-btn p-btn-ai" type="button" (click)="remitToAi()" [disabled]="remitLoading || activeSession.status === 'closed'">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/>
+        </svg>
+        {{ remitLoading ? 'Activando IA...' : 'Remitir a IA' }}
+      </button>
+      }
+      <div class="panel-divider"></div>
+      @if (!isCollaborator && !isReadOnlyView) {
+      <button class="p-btn p-btn-close" type="button" (click)="showCloseConfirm = true" [disabled]="activeSession.status === 'closed'">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 6L6 18"/><path d="M6 6l12 12"/>
+        </svg>
+        Cerrar atencion
+      </button>
+      }
+      @if (isCollaborator) {
+      <button class="p-btn p-btn-transfer" type="button" (click)="leaveCollabChat()" [disabled]="activeSession.status === 'closed'">
+        Salir del apoyo
+      </button>
+      }
+    </section>
 
-      @if (remitFeedback) {
-      <div class="toast" [class.toast-ok]="remitFeedback.type === 'ok'" [class.toast-error]="remitFeedback.type === 'error'">
-        {{ remitFeedback.text }}
+    @if (remitFeedback) {
+    <div class="toast" [class.toast-ok]="remitFeedback.type === 'ok'" [class.toast-error]="remitFeedback.type === 'error'">
+      {{ remitFeedback.text }}
+    </div>
+    }
+
+    <div class="panel-divider"></div>
+
+    <div class="details-head">
+      <svg class="details-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="17" rx="2"/>
+        <path d="M8 2v4M16 2v4M3 9h18"/>
+      </svg>
+      <span class="details-title">Detalles del chat</span>
+    </div>
+
+    <div class="details-card">
+      <div class="dt-row">
+        <span class="dt-lbl">Creado</span>
+        <span class="dt-val">{{ fmtMedium(activeSession.createdAt) }}</span>
+      </div>
+      <div class="dt-row">
+        <span class="dt-lbl">Solicitud</span>
+        <span class="dt-val">{{ activeSession.tipoSolicitud || 'General' | titlecase }}</span>
+      </div>
+    </div>
+
+    <div class="ai-card2" (click)="aiInsight()" [class.loading]="isAiInsightLoading">
+      <div class="ai-card2-head">
+        <span class="ai-card2-ico">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/>
+          </svg>
+        </span>
+        <span class="ai-card2-title">Análisis IA</span>
+      </div>
+      @if (isAiInsightLoading) {
+      <div class="ai-loading-bar"><span></span></div>
+      } @else {
+      <span class="ai-card2-text">{{ aiInsightPreview }}</span>
+      }
+    </div>
+
+    @if (timerState; as timer) {
+    <section class="timer-card"
+      [class.timer-advisor]="timer.tipo === 'advisor_waiting'"
+      [class.timer-client]="timer.tipo === 'client_waiting'"
+      [class.timer-closing]="timer.tipo === 'closing'"
+      [class.timer-alert]="timer.estado === 'alerta'">
+      <div class="timer-head">
+        <span class="timer-dot" [ngClass]="'dot-' + timer.estado"></span>
+        <span class="timer-lbl">{{ timer.tipo === 'advisor_waiting' ? 'Respuesta del agente' : timer.tipo === 'client_waiting' ? 'Respuesta del cliente' : 'Cerrando chat' }}</span>
+        <span class="timer-count" [class.count-alerta]="timer.estado === 'alerta'">{{ timer.restante }}s</span>
+      </div>
+      <div class="timer-bar-track">
+        <div class="timer-bar" [ngClass]="'bar-' + timer.estado" [style.width.%]="timer.pct"></div>
+      </div>
+      @if (timer.mensaje) {
+      <div class="timer-msg-preview">
+        <span class="timer-msg-lbl">Mensaje automatico</span>
+        <span class="timer-msg-txt">{{ timer.mensaje }}</span>
       </div>
       }
-
-      @if (timerState; as timer) {
-      <section class="timer-card"
-        [class.timer-advisor]="timer.tipo === 'advisor_waiting'"
-        [class.timer-client]="timer.tipo === 'client_waiting'"
-        [class.timer-closing]="timer.tipo === 'closing'"
-        [class.timer-alert]="timer.estado === 'alerta'">
-        <div class="timer-head">
-          <span class="timer-dot" [ngClass]="'dot-' + timer.estado"></span>
-          <span class="timer-lbl">{{ timer.tipo === 'advisor_waiting' ? 'Respuesta del agente' : timer.tipo === 'client_waiting' ? 'Respuesta del cliente' : 'Cerrando chat' }}</span>
-          <span class="timer-count" [class.count-alerta]="timer.estado === 'alerta'">{{ timer.restante }}s</span>
-        </div>
-        <div class="timer-bar-track">
-          <div class="timer-bar" [ngClass]="'bar-' + timer.estado" [style.width.%]="timer.pct"></div>
-        </div>
-        @if (timer.mensaje) {
-        <div class="timer-msg-preview">
-          <span class="timer-msg-lbl">Mensaje automatico</span>
-          <span class="timer-msg-txt">{{ timer.mensaje }}</span>
-        </div>
-        }
-      </section>
-      }
-
-      <section class="info-section">
-        <div class="info-row">
-          <span class="info-lbl">Rol</span>
-          <span class="info-val">{{ activeSession.rol || 'Sin rol' }}</span>
-        </div>
-        <div class="info-row">
-          <span class="info-lbl">Colegio</span>
-          <div class="info-val-line">
-            @if (perfilInstitucionalLink(activeSession).length) {
-            <a class="info-link" [routerLink]="perfilInstitucionalLink(activeSession)"
-               title="Ver Perfil Institucional del colegio">
-              {{ activeSession.colegio || 'Sin colegio' }}
-            </a>
-            } @else if (openClientLink(activeSession)) {
-            <a class="info-link" [href]="openClientLink(activeSession)" target="_blank" rel="noopener noreferrer"
-               title="Abrir sitio web del colegio">
-              {{ activeSession.colegio || 'Sin colegio' }}
-            </a>
-            } @else {
-            <span class="info-val">{{ activeSession.colegio || 'Sin colegio' }}</span>
-            }
-            @if (perfilInstitucionalLink(activeSession).length) {
-            <button type="button" class="ci-info-btn" (click)="abrirInfoColegio(activeSession)"
-                    title="Información institucional del colegio" aria-label="Ver información institucional">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="16" x2="12" y2="12"></line>
-                <line x1="12" y1="8" x2="12.01" y2="8"></line>
-              </svg>
-            </button>
-            }
-          </div>
-        </div>
-        @if (activeSession.colegioAdvisorName) {
-        <div class="info-row">
-          <span class="info-lbl">Asesor del colegio</span>
-          <span class="info-val info-val--advisor">{{ activeSession.colegioAdvisorName }}</span>
-        </div>
-        }
-        <div class="info-row">
-          <span class="info-lbl">Estado</span>
-          <span class="info-val">{{ statusLabel(activeSession) }}</span>
-        </div>
-        <div class="info-row">
-          <span class="info-lbl">Creado</span>
-          <span class="info-val">{{ fmtMedium(activeSession.createdAt) }}</span>
-        </div>
-      </section>
-
-      <section class="panel-section ai-card" (click)="aiInsight()" [class.loading]="isAiInsightLoading">
-        <div class="section-title">
-          <i class="ti" [ngClass]="isAiInsightLoading ? 'ti-loader-2' : 'ti-sparkles'"></i>
-          Analisis IA
-        </div>
-        @if (!isAiInsightLoading) {
-        <p>{{ aiInsightPreview }}</p>
-        }
-        @if (isAiInsightLoading) {
-        <div class="ai-loading-bar"><span></span></div>
-        }
-      </section>
-
-    </aside>
+    </section>
     }
+
+  </aside>
+  }
 
   <!-- ═══ MODALS ═══════════════════════════════════════════════════════════ -->
 

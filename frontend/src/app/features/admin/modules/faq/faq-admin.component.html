@@ -299,6 +299,19 @@
         <span class="cfg-field__hint">Separadas por coma. Ayudan a encontrar esta pregunta en la búsqueda.</span>
       </div>
 
+      <div class="cfg-field">
+        <label class="cfg-field__label">Roles</label>
+        <div class="cfg-roles">
+          @for (r of rolesDisponibles; track r.value) {
+          <label class="cfg-role-chip">
+            <input type="checkbox" [checked]="form.roles.includes(r.value)" (change)="toggleFaqRol(r.value)" />
+            <span>{{ r.label }}</span>
+          </label>
+          }
+        </div>
+        <span class="cfg-field__hint">Solo los roles seleccionados verán esta pregunta. Sin selección = visible para todos.</span>
+      </div>
+
       <div class="cfg-toggle-row">
         <div class="cfg-toggle-info">
           <span class="cfg-toggle-label">Activo</span>
@@ -402,6 +415,18 @@
       <div class="cfg-field">
         <label class="cfg-field__label">Descripción</label>
         <input class="cfg-input" type="text" [(ngModel)]="formCategoria.description" placeholder="Breve ayuda para el cliente..." />
+      </div>
+      <div class="cfg-field">
+        <label class="cfg-field__label">Roles</label>
+        <div class="cfg-roles">
+          @for (r of rolesDisponibles; track r.value) {
+          <label class="cfg-role-chip">
+            <input type="checkbox" [checked]="formCategoria.roles.includes(r.value)" (change)="toggleCatRol(r.value)" />
+            <span>{{ r.label }}</span>
+          </label>
+          }
+        </div>
+        <span class="cfg-field__hint">Solo los roles seleccionados verán esta categoría. Sin selección = visible para todos.</span>
       </div>
       <div class="cfg-field">
         <label class="cfg-field__label">Icono</label>

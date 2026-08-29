@@ -261,6 +261,21 @@
               {{ getStatusLabel(activeSession.status) }}
             </span>
 
+            <div class="history-actions">
+              <button class="ha-btn" (click)="exportCsv()" title="Exportar a CSV">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                CSV
+              </button>
+              <button class="ha-btn" (click)="exportPdf()" title="Imprimir / PDF">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
+                </svg>
+                PDF
+              </button>
+            </div>
+
             <!-- ★ Ya estoy en este chat -->
             @if (alreadyInChat) {
             <div class="in-chat-badge">
@@ -301,6 +316,25 @@
           </div>
         </div>
 
+        <!-- Resumen de la sesión -->
+        @if (sessionSummary) {
+        <div class="session-summary">
+          <span class="ss-item"><b>{{ sessionSummary.total }}</b> mensajes</span>
+          <span class="ss-item"><b>{{ sessionSummary.client }}</b> cliente</span>
+          <span class="ss-item"><b>{{ sessionSummary.ia }}</b> IA</span>
+          <span class="ss-item"><b>{{ sessionSummary.advisor }}</b> asesor</span>
+          @if (sessionSummary.documentos) {
+          <span class="ss-item"><b>{{ sessionSummary.documentos }}</b> documentos</span>
+          }
+          @if (sessionSummary.adjuntos) {
+          <span class="ss-item"><b>{{ sessionSummary.adjuntos }}</b> adjuntos</span>
+          }
+          @if (sessionSummary.opciones) {
+          <span class="ss-item ss-item--ai"><b>{{ sessionSummary.opciones }}</b> opciones IA</span>
+          }
+        </div>
+        }
+
         <!-- Toast feedback -->
         @if (takeoverFeedback) {
         <div class="takeover-toast"
@@ -335,7 +369,9 @@
           </button>
           }
 
-          @for (item of filteredMessages; track trackById($index, item)) {
+          @for (group of groupDays(filteredMessages); track $index) {
+          <div class="day-divider"><span>{{ group.label }}</span></div>
+          @for (item of group.items; track trackById($index, item)) {
 
             <!-- Eventos de la sesión -->
             @if (item.kind === 'evento') {
@@ -359,10 +395,30 @@
               [class.mine]="item.senderType === 'advisor'"
               [class.theirs]="item.senderType === 'client'"
               [class.msg-ia]="item.senderName === 'Asistente Virtual'"
+              [class.msg-system]="item.senderName === 'Sistema'"
               [class.media-only]="!item.content && item.attachments && item.attachments.length > 0">
 
+              <!-- Cita / respuesta a mensaje -->
+              @if (getQuotedMessage(item); as quoted) {
+              <div class="quoted-block">
+                <span class="quoted-sender">{{ quoted.senderName }}</span>
+                <span class="quoted-text">{{ (quoted.content | slice:0:80) }}{{ quoted.content.length > 80 ? '...' : '' }}</span>
+              </div>
+              }
+
               @if (item.content || !item.attachments?.length) {
-              <span class="sender">{{ item.senderName }}</span>
+              <span class="sender">
+                @if (item.senderName === 'Asistente Virtual') {
+                <svg class="sender-ai-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/>
+                </svg>
+                IA · Asistente Virtual
+                } @else if (item.senderName === 'Sistema') {
+                ⚙️ Sistema
+                } @else {
+                {{ item.senderName }}
+                }
+              </span>
               }
 
               @if (item.attachments && item.attachments.length > 0) {
@@ -376,6 +432,8 @@
                 <video class="att-video" controls preload="metadata">
                   <source [src]="att.url" [type]="att.mimeType" />
                 </video>
+                } @else if (att.mimeType.startsWith('audio/')) {
+                <audio class="att-audio" controls preload="metadata" [src]="att.url"></audio>
                 } @else {
                 <a class="att-document" [href]="att.url" target="_blank" rel="noopener noreferrer">
                   <div class="att-doc-icon">
@@ -400,29 +458,53 @@
               }
 
               @if (item.content) {
-              <div class="bubble">{{ item.content }}</div>
+              <div class="bubble-content" [innerHTML]="formatMessage(item.content)"></div>
+              }
+
+              @if (item.aiMarkers && item.aiMarkers.opciones && item.aiMarkers.opciones.length > 0) {
+              <div class="ai-options">
+                @for (opt of item.aiMarkers.opciones; track opt) {
+                <span class="ai-option-chip">{{ aiOptionLabel(opt) }}</span>
+                }
+              </div>
               }
 
               @if (item.documentos && item.documentos.length > 0) {
-              <div class="doc-adjuntos">
-                <span class="doc-adjuntos-label">Documentos entregados</span>
+              <div class="doc-cards">
+                <span class="doc-cards-label">Documentos entregados por la IA</span>
                 @for (doc of item.documentos; track $index) {
-                <a class="doc-adjunto-item" [href]="doc.pdfUrl" target="_blank" rel="noopener noreferrer">
-                  <span class="doc-adjunto-nombre">{{ doc.nombre }}</span>
-                  @if (doc.categoria) {
-                  <span class="doc-adjunto-cat">{{ doc.categoria }}</span>
+                <div class="doc-card">
+                  <div class="doc-card-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                      <polyline points="14 2 14 8 20 8"/>
+                    </svg>
+                  </div>
+                  <div class="doc-card-body">
+                    <span class="doc-card-name">
+                      {{ doc.nombre }}
+                      @if (doc.instructivo) {<em class="doc-card-badge">Instructivo</em>}
+                    </span>
+                    @if (doc.categoria) {<span class="doc-card-cat">{{ doc.categoria }}</span>}
+                    @if (doc.descripcion) {<span class="doc-card-desc">{{ doc.descripcion }}</span>}
+                  </div>
+                  @if (doc.pdfUrl) {
+                  <a class="doc-card-open" [href]="doc.pdfUrl" target="_blank" rel="noopener noreferrer">Abrir</a>
                   }
-                </a>
+                </div>
                 }
               </div>
               }
 
               @if (item.content || !item.attachments?.length) {
-              <span class="time">{{ fmtTime(item.createdAt) }}</span>
+              <span class="time">
+                {{ fmtTime(item.createdAt) }}
+                @if (item.editedAt) {<span class="edited-tag"> · editado</span>}
+              </span>
               }
-            </div>
+              </div>
             }
-
+            }
           }
 
           @if (!loading && timeline.length === 0) {

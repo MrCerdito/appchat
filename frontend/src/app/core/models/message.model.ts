@@ -25,6 +25,10 @@ export interface Message {
     descripcion?: string | null;
     instructivo?: boolean | null;
   }[];
+  aiMarkers?: {
+    raw: string | null;
+    opciones: string[];
+  } | null;
 }
 
 /** Hito registrado durante la sesión (solicitud de asesor, clic en FAQ, ...). */

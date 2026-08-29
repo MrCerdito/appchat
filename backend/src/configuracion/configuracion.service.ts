@@ -47,6 +47,24 @@ export class ConfiguracionService implements OnModuleInit {
   private readonly CACHE_PREFIX = 'config:';
   private readonly CACHE_TTL_MS = 30_000;
 
+  private readonly DEFAULT_ROLE_RESTRICTED_ESTUDIANTE = [
+    'pagos',
+    'facturas',
+    'deudas',
+    'boletines',
+    'certificados',
+    'constancias',
+    'notas',
+    'calificaciones',
+    'historial académico',
+    'documento académico',
+    'documentos académicos',
+    'matricula',
+    'pension',
+  ];
+  private readonly DEFAULT_ROLE_MSG_ESTUDIANTE =
+    'Para solicitar certificados, boletines u otros documentos académicos, debes comunicarte directamente con la institución, ya que esa documentación debe ser emitida de forma oficial y no la puedo adjuntar desde este canal.';
+
   constructor(
     @InjectRepository(Configuracion)
     private readonly repo: Repository<Configuracion>,
@@ -369,7 +387,9 @@ export class ConfiguracionService implements OnModuleInit {
     const global = await this.repo.findOne({
       where: { advisorId: IsNull() },
     });
-    if (global) return global;
+    if (global) {
+      return this.backfillAiRoleDefaults(global);
+    }
 
     const defaults: Partial<Configuracion> = {
       mensajeBienvenida: '¡Bienvenido! ¿En qué puedo ayudarte?',
@@ -418,11 +438,146 @@ export class ConfiguracionService implements OnModuleInit {
       smtpUser: '',
       smtpPass: '',
       mailFrom: '',
+      aiPromptConfig: {
+        roles: {
+          administrador: {
+            descripcion: 'Tienes acceso completo a toda la información del sistema.',
+            temasRestringidos: [],
+            mensajeRestringido: '',
+          },
+          docente: {
+            descripcion: 'Tienes acceso a información académica y administrativa.',
+            temasRestringidos: [],
+            mensajeRestringido: '',
+          },
+          estudiante: {
+            descripcion: 'Tienes acceso a información académica y personal.',
+            temasRestringidos: [
+              'pagos',
+              'facturas',
+              'deudas',
+              'boletines',
+              'certificados',
+              'constancias',
+              'notas',
+              'calificaciones',
+              'historial académico',
+              'documento académico',
+              'documentos académicos',
+              'matricula',
+              'pension',
+            ],
+            mensajeRestringido:
+              'Para solicitar certificados, boletines u otros documentos académicos, debes comunicarte directamente con la institución, ya que esa documentación debe ser emitida de forma oficial y no la puedo adjuntar desde este canal.',
+          },
+          padre: {
+            descripcion: 'Tienes acceso a información académica y de pagos de tu hijo.',
+            temasRestringidos: [],
+            mensajeRestringido: '',
+          },
+        },
+      },
     };
     const nueva = this.repo.create({ ...defaults, advisorId: null });
     const saved = await this.repo.save(nueva);
     await this.setCache(this.cacheKey(), saved);
     return saved;
+  }
+
+  private backfillAiRoleDefaults(global: Configuracion): Configuracion {
+    const aiCfg = ((global as any).aiPromptConfig ?? {}) as Record<string, any>;
+    const DEFAULT_ROLES = {
+      administrador: {
+        descripcion: 'Tienes acceso completo a toda la información del sistema.',
+        temasRestringidos: [],
+        mensajeRestringido: '',
+      },
+      docente: {
+        descripcion: 'Tienes acceso a información académica y administrativa.',
+        temasRestringidos: [],
+        mensajeRestringido: '',
+      },
+      estudiante: {
+        descripcion: 'Tienes acceso a información académica y personal.',
+        temasRestringidos: [...this.DEFAULT_ROLE_RESTRICTED_ESTUDIANTE],
+        mensajeRestringido: this.DEFAULT_ROLE_MSG_ESTUDIANTE,
+      },
+      padre: {
+        descripcion: 'Tienes acceso a información académica y de pagos de tu hijo.',
+        temasRestringidos: [],
+        mensajeRestringido: '',
+      },
+    };
+
+    const roles = (aiCfg.roles && typeof aiCfg.roles === 'object')
+      ? (aiCfg.roles as Record<string, any>)
+      : {};
+    const estudiante = roles['estudiante'];
+    const needsBackfill =
+      !estudiante ||
+      typeof estudiante !== 'object' ||
+      !Array.isArray(estudiante.temasRestringidos) ||
+      estudiante.temasRestringidos.length === 0;
+
+    let changed = false;
+    if (needsBackfill) {
+      roles['estudiante'] = {
+        descripcion:
+          estudiante?.descripcion || 'Tienes acceso a información académica y personal.',
+        temasRestringidos: [...this.DEFAULT_ROLE_RESTRICTED_ESTUDIANTE],
+        mensajeRestringido:
+          (typeof estudiante?.mensajeRestringido === 'string' &&
+            estudiante.mensajeRestringido.trim()) ||
+          this.DEFAULT_ROLE_MSG_ESTUDIANTE,
+      };
+      changed = true;
+    }
+    for (const key of Object.keys(DEFAULT_ROLES)) {
+      if (!roles[key]) {
+        roles[key] = DEFAULT_ROLES[key];
+        changed = true;
+      }
+    }
+    aiCfg.roles = roles;
+
+    if (
+      typeof aiCfg.nombreAsistente !== 'string' ||
+      !aiCfg.nombreAsistente.trim()
+    ) {
+      aiCfg.nombreAsistente = 'Korvix';
+      changed = true;
+    }
+    if (
+      typeof aiCfg.especialidad !== 'string' ||
+      !aiCfg.especialidad.trim()
+    ) {
+      aiCfg.especialidad = 'Plataforma Educativa Institucional';
+      changed = true;
+    }
+    if (!Array.isArray(aiCfg.frasesTransferencia) || aiCfg.frasesTransferencia.length === 0) {
+      aiCfg.frasesTransferencia = ['asesor', 'humano', 'persona', 'agente'];
+      changed = true;
+    }
+    if (typeof aiCfg.mensajeSinInformacion !== 'string' || !aiCfg.mensajeSinInformacion.trim()) {
+      aiCfg.mensajeSinInformacion =
+        'No tengo información registrada sobre eso por el momento. ¿Necesitas un agente para una mejor ayuda?';
+      changed = true;
+    }
+    if (typeof aiCfg.sugerirAsesorAutomatico !== 'boolean') {
+      aiCfg.sugerirAsesorAutomatico = true;
+      changed = true;
+    }
+
+    if (changed) {
+      (global as any).aiPromptConfig = aiCfg;
+      this.repo
+        .save(global)
+        .then((saved) => this.setCache(this.cacheKey(), saved))
+        .catch(() => {
+          // Mejor esfuerzo: si falla la persistencia, seguimos con la config en memoria.
+        });
+    }
+    return global;
   }
 
   async getEfectivaBatch(advisorIds: string[]): Promise<Map<string, Configuracion>> {

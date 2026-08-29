@@ -372,6 +372,38 @@
   line-height: 1.5;
 }
 
+.cfg-roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.cfg-role-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-strong);
+  cursor: pointer;
+  background: var(--surface);
+  transition: all 0.15s ease;
+}
+
+.cfg-role-chip:has(input:checked) {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  color: var(--primary);
+}
+
+.cfg-role-chip input {
+  accent-color: var(--primary);
+}
+
+
 .cfg-input, .cfg-textarea {
   padding: 0.6rem 0.85rem;
   border: 1px solid var(--border-strong);

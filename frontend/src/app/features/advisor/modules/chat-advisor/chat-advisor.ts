@@ -38,7 +38,6 @@ import {
   VoiceRecordingResult,
 } from '../../../../shared/components/voice-recorder/voice-recorder.component';
 import { VoicePlayerComponent } from '../../../../shared/components/voice-player/voice-player.component';
-import { WaIconComponent } from '../../../../shared/components/wa-icon/wa-icon.component';
 
 // ── Payload exacto que emite el backend ──────────────────────────────────────
 export interface TimerUpdatePayload {
@@ -69,7 +68,7 @@ const AVATAR_COLORS = ['ava-blue', 'ava-green', 'ava-amber', 'ava-purple'];
 @Component({
   selector   : 'app-chat-advisor',
   standalone : true,
-  imports    : [CommonModule, FormsModule, RouterLink, VoiceRecorderComponent, VoicePlayerComponent, WaIconComponent],
+  imports    : [CommonModule, FormsModule, RouterLink, VoiceRecorderComponent, VoicePlayerComponent],
   templateUrl: './chat-advisor.html',
   styleUrl   : './chat-advisor.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -85,6 +84,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
 
   @ViewChild('messagesContainer') messagesContainer!: ElementRef;
   @ViewChild('msgInput') msgInput!: ElementRef<HTMLTextAreaElement>;
+  @ViewChild('improveInputField') improveInputField!: ElementRef<HTMLTextAreaElement>;
 
   // ── Estado UI ─────────────────────────────────────────────────────────────
   currentAdvisor   : User | null    = null;
@@ -95,7 +95,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   transferSearchQuery = '';
   selectedTransferAdvisorId = '';
   showCloseConfirm = false;
-  showInfoPanel    = false;
+  showInfoPanel    = true;
   newMessage       = '';
   typingMap        = new Map<string, string>();
   compactList      = false;
@@ -107,15 +107,21 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
 
   // ── Mejorar mensaje con IA ────────────────────────────────────────────────
   showImprovePanel = false;
+  improveMinimized = false;
   isImproving      = false;
-  improveTone      = 'formal';
-  improveStep: 'tones' | 'variants' = 'tones';
-  improveVariants: string[] = [];
-  improveVariantIndex = -1;
-  readonly improveTones = [
-    { id: 'formal',  label: 'Formal',  desc: 'Serio e institucional' },
-    { id: 'educado', label: 'Educado', desc: 'Amable y respetuoso' },
-    { id: 'directo', label: 'Directo', desc: 'Claro y sin rodeos' },
+  improveInput     = '';
+  improveResult: string | null = null;
+  improveCopied    = false;
+
+  // ── Formato de mensaje (Word-style) ─────────────────────────────────────
+  showColorMenu = false;
+  readonly fmtColors = [
+    { id: 'rojo',     label: 'Rojo',     value: '#ef4444' },
+    { id: 'verde',    label: 'Verde',    value: '#10b981' },
+    { id: 'azul',     label: 'Azul',     value: '#3b82f6' },
+    { id: 'naranja',  label: 'Naranja',  value: '#f97316' },
+    { id: 'morado',   label: 'Morado',   value: '#8b5cf6' },
+    { id: 'amarillo', label: 'Amarillo', value: '#eab308' },
   ] as const;
 
   showAiInsightModal = false;
@@ -883,7 +889,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     this.activeSession    = session;
     this.showTransfer     = false;
     this.showCloseConfirm = false;
-    this.showInfoPanel    = false;
+    this.showInfoPanel    = true;
     this.remitFeedback    = null;
     this.aiModeActive     = false;
     this.imagePreview     = null;
@@ -1041,11 +1047,66 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     if (!el) return;
     el.style.height = 'auto';
     el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+    el.style.overflowY =
+      el.scrollHeight > 120 ? 'auto' : 'hidden';
   }
 
-  onInputChange(): void {
+  resizeImproveInput(): void {
+    const el = this.improveInputField?.nativeElement;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+    el.style.overflowY = el.scrollHeight > 160 ? 'auto' : 'hidden';
+  }
+
+  toggleColorMenu(): void {
+    if (!this.canSendMessage) return;
+    this.showColorMenu = !this.showColorMenu;
+  }
+
+  private overrideCommand(cmd: string, value?: string): void {
+    this.msgInput?.nativeElement.focus();
+    document.execCommand(cmd, false, value || undefined);
+    this.syncFromEditor();
+  }
+
+  applyBold(): void {
+    if (!this.canSendMessage) return;
+    this.overrideCommand('bold');
+  }
+
+  applyBullet(): void {
+    if (!this.canSendMessage) return;
+    this.overrideCommand('insertUnorderedList');
+  }
+
+  applyNumbered(): void {
+    if (!this.canSendMessage) return;
+    this.overrideCommand('insertOrderedList');
+  }
+
+  applyColor(color: string): void {
+    if (!this.canSendMessage) return;
+    const c = this.fmtColors.find(x => x.id === color);
+    this.overrideCommand('foreColor', c ? c.value : color);
+    this.showColorMenu = false;
+  }
+
+  onRichInput(): void {
+    this.syncFromEditor();
+    this.showColorMenu = false;
+  }
+
+  private syncFromEditor(): void {
+    const el = this.msgInput?.nativeElement;
+    if (!el) return;
+    this.newMessage = (el.innerText || '').trimEnd();
     this.resizeInput();
     this.onTyping();
+    this.detectSlashMenu();
+  }
+
+  private detectSlashMenu(): void {
     const text = this.newMessage;
     const slashIdx = text.lastIndexOf('/');
     if (slashIdx === -1) {
@@ -1054,28 +1115,80 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
       this.ghostSuggestion = '';
       return;
     }
-
     this.slashQuery = text.slice(slashIdx + 1).toLowerCase();
     this.showSlashMenu = true;
     this.slashHighlight = 0;
-    const match = this.configQuickReplies.find(r =>
-      r.name.toLowerCase().startsWith(this.slashQuery) && this.slashQuery.length > 0
-    );
-    this.ghostSuggestion = match ? match.name.slice(this.slashQuery.length) : '';
+    this.ghostSuggestion = '';
+  }
+
+  private setEditorText(text: string): void {
+    const el = this.msgInput?.nativeElement;
+    if (!el) return;
+    el.innerText = text;
+    this.syncFromEditor();
+    this.resizeInput();
+    el.focus();
+  }
+
+  private richToHTML(el: HTMLElement): string {
+    const serializeChildren = (node: Node): string => {
+      let html = '';
+      node.childNodes.forEach(child => {
+        if (child.nodeType === Node.TEXT_NODE) {
+          html += this.escapeHtml(child.textContent ?? '');
+        } else if (child.nodeType === Node.ELEMENT_NODE) {
+          const e = child as HTMLElement;
+          const tag = e.tagName.toLowerCase();
+          if (tag === 'ul' || tag === 'ol') {
+            const items = Array.from(e.children)
+              .map(li => `<li>${serializeChildren(li)}</li>`)
+              .join('');
+            html += `<${tag} class="chat-list">${items}</${tag}>`;
+          } else if (tag === 'li') {
+            html += `<li>${serializeChildren(e)}</li>`;
+          } else if (tag === 'b' || tag === 'strong') {
+            html += `<strong>${serializeChildren(e)}</strong>`;
+          } else if (tag === 'i' || tag === 'em') {
+            html += `<em>${serializeChildren(e)}</em>`;
+          } else if (tag === 'u') {
+            html += `<u>${serializeChildren(e)}</u>`;
+          } else if (tag === 'br') {
+            html += '<br>';
+          } else if (tag === 'div' || tag === 'p') {
+            html += serializeChildren(e) + '<br>';
+          } else if (tag === 'span') {
+            const col = (e.style.color || '').trim();
+            const inner = serializeChildren(e);
+            html += col ? `<span class="chat-color" style="color:${col}">${inner}</span>` : inner;
+          } else {
+            html += serializeChildren(e);
+          }
+        }
+      });
+      return html;
+    };
+
+    return serializeChildren(el)
+      .replace(/<br><\/ul>/g, '</ul>')
+      .replace(/<br><\/ol>/g, '</ol>')
+      .replace(/<br><br>/g, '<br>')
+      .replace(/(<ul[^>]*>.*<\/ul>|<ol[^>]*>.*<\/ol>)\s*<br>/s, '$1<br>')
+      .replace(/\s+<br>\s*$/, '');
   }
 
   selectSlashReply(reply: { name: string; content: string }): void {
     const slashIdx = this.newMessage.lastIndexOf('/');
-    this.newMessage = slashIdx >= 0
+    const text = slashIdx >= 0
       ? this.newMessage.slice(0, slashIdx) + reply.content
       : reply.content;
+    this.setEditorText(text);
     this.showSlashMenu = false;
     this.slashQuery = '';
     this.ghostSuggestion = '';
   }
 
   useQuickReply(reply: { name: string; content: string }): void {
-    this.newMessage = reply.content;
+    this.setEditorText(reply.content);
     this.showSlashMenu = false;
     this.slashQuery = '';
     this.ghostSuggestion = '';
@@ -1239,8 +1352,8 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
       attachments = await this.uploadPendingFiles();
     }
 
-    const formatted = this.newMessage.trim()
-      .replace(/\*\*(.+?)\*\*/g, '*$1*');
+    const editor = this.msgInput?.nativeElement;
+    const formatted = editor ? this.richToHTML(editor) : this.newMessage.trim();
 
     this.socket.emit('send_message', {
       sessionId,
@@ -1248,6 +1361,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
       attachments: attachments.length > 0 ? attachments : undefined,
       replyToMessageId: this.replyingTo?.id ?? null,
     });
+    if (editor) editor.innerText = '';
     this.newMessage = '';
     this.replyingTo = null;
     this.resizeInput();
@@ -1304,70 +1418,63 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   }
 
   toggleImprovePanel(): void {
-    if (!this.newMessage.trim()) return;
+    if (this.showImprovePanel && this.improveMinimized) {
+      this.improveMinimized = false;
+      setTimeout(() => this.resizeImproveInput(), 0);
+      return;
+    }
     this.showImprovePanel = !this.showImprovePanel;
-    if (this.showImprovePanel) this.backToImproveTones();
+    this.improveMinimized = false;
+    if (this.showImprovePanel) {
+      this.improveInput = this.newMessage.trim();
+      this.improveResult = null;
+      this.improveCopied = false;
+      setTimeout(() => this.resizeImproveInput(), 0);
+    }
   }
 
-  selectImproveTone(tone: string): void {
-    this.improveTone = tone;
-    this.improveStep = 'tones';
-    this.improveVariants = [];
-    this.improveVariantIndex = -1;
-  }
-
-  get improveToneLabel(): string {
-    return (
-      this.improveTones.find(t => t.id === this.improveTone)?.label ??
-      this.improveTone
-    );
+  minimizeImprovePanel(): void {
+    this.improveMinimized = true;
   }
 
   closeImprovePanel(): void {
     this.showImprovePanel = false;
-    this.improveStep = 'tones';
+    this.improveMinimized = false;
+    this.improveResult = null;
+    this.improveCopied = false;
   }
 
-  backToImproveTones(): void {
-    this.improveStep = 'tones';
-    this.improveVariants = [];
-    this.improveVariantIndex = -1;
+  get improveResultParagraphs(): string[] {
+    if (!this.improveResult) return [];
+    return this.improveResult
+      .split(/\n+/)
+      .map(p => p.trim())
+      .filter(Boolean);
   }
 
-  async generateImprovedText(): Promise<void> {
-    const draft = this.newMessage.trim();
-    if (!draft || this.isImproving || !this.activeSession) return;
+  async improveText(): Promise<void> {
+    const draft = this.improveInput.trim();
+    if (!draft || this.isImproving) return;
 
     this.isImproving = true;
+    this.improveResult = null;
+    this.improveCopied = false;
     this.cdr.detectChanges();
     try {
-      const res = await firstValueFrom(
-        this.aiService.improveWhatsappDraft({
-          draft,
-          clientName: this.activeSession.clientName,
-          institution: this.activeSession.colegio,
-          role: this.activeSession.rol,
-          tone: this.improveTone,
-        }),
-      );
-      const variants = (res.replies ?? [])
-        .map(v => (v ?? '').trim())
-        .filter(Boolean)
-        .slice(0, 3);
-      if (variants.length) {
-        this.improveVariants = variants;
-        this.improveVariantIndex = -1;
-        this.improveStep = 'variants';
+      const res = await firstValueFrom(this.aiService.improveAdvisor(draft));
+      const improved = (res.improved ?? '').trim();
+      if (improved) {
+        this.improveResult = improved;
       } else {
         this.notification.error(
           'Error de IA',
-          'No se pudo generar opciones, intenta de nuevo.',
+          'No se pudo mejorar el mensaje, intenta de nuevo.',
         );
       }
     } catch {
       this.notification.error(
         'Error de IA',
-        'No se pudo generar opciones, intenta de nuevo.',
+        'No se pudo mejorar el mensaje, intenta de nuevo.',
       );
     } finally {
       this.isImproving = false;
@@ -1375,21 +1482,33 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     }
   }
 
-  selectImproveVariant(index: number): void {
-    const text = this.improveVariants[index];
-    if (!text) return;
-    this.improveVariantIndex = index;
-    this.newMessage = text.slice(0, 1000);
-    this.resizeInput();
+  useImproveResult(): void {
+    if (!this.improveResult) return;
+    this.closeImprovePanel();
+    this.setEditorText(this.improveResult.slice(0, 1000));
     this.showSlashMenu = false;
     this.slashQuery = '';
     this.ghostSuggestion = '';
-    this.msgInput?.nativeElement.focus();
     this.notification.success(
       'Mensaje mejorado',
-      'El texto se reemplazo por la opcion seleccionada.',
+      'El texto mejorado se aplico a tu mensaje.',
     );
-    this.closeImprovePanel();
+  }
+
+  async copyImproveResult(): Promise<void> {
+    if (!this.improveResult) return;
+    try {
+      await navigator.clipboard.writeText(this.improveResult);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = this.improveResult;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    this.improveCopied = true;
+    setTimeout(() => (this.improveCopied = false), 2000);
   }
 
   async aiInsight(): Promise<void> {
@@ -1600,10 +1719,44 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
 
   formatMessage(text: string): SafeHtml {
     if (!text) return '';
+    if (this.isHtmlContent(text)) {
+      return this.sanitizer.bypassSecurityTrustHtml(this.secureHtml(text));
+    }
+    const colorMap: Record<string, string> = {
+      rojo: '#ef4444',
+      verde: '#10b981',
+      azul: '#3b82f6',
+      naranja: '#f97316',
+      morado: '#8b5cf6',
+      amarillo: '#eab308',
+    };
     const html = this.escapeHtml(text)
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>')
-      .replace(/(<li>.*<\/li>\n?)+/g, '<ol>$&</ol>')
+      .replace(/(^|[\s(])\*([^*\n]+)\*(?=\s|$|[)])/g, '$1<strong>$2</strong>')
+      .replace(
+        /\[color:(rojo|verde|azul|naranja|morado|amarillo)\]([\s\S]*?)\[\/color\]/g,
+        (_, color, inner) =>
+          `<span style="color:${colorMap[color]}">${inner}</span>`
+      )
+      .replace(
+        /^(?:\d+\.\s+.+\n?)+/gm,
+        (block) =>
+          `<ol>${block
+            .split('\n')
+            .filter(Boolean)
+            .map(line => `<li>${line.replace(/^\d+\.\s+/, '')}</li>`)
+            .join('')}</ol>\n`
+      )
+      .replace(
+        /^(?:[-•*]\s+.+\n?)+/gm,
+        (block) =>
+          `<ul>${block
+            .split('\n')
+            .filter(Boolean)
+            .map(line => `<li>${line.replace(/^[-•*]\s+/, '')}</li>`)
+            .join('')}</ul>\n`
+      )
+      .replace(/^#\s+(.+)$/gm, '<strong>$1</strong>')
       .replace(
         /\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g,
         '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
@@ -1630,6 +1783,18 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
+  }
+
+  private isHtmlContent(text: string): boolean {
+    return /<(strong|b|ul|ol|li|div|p|br|span)[\s>]/i.test(text);
+  }
+
+  private secureHtml(html: string): string {
+    return html
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<\s*(script|iframe|object|embed)/gi, '&lt;$1')
+      .replace(/\son[a-z]+\s*=/gi, ' data-blocked=')
+      .replace(/javascript:/gi, '');
   }
 
   // ── Ticket ────────────────────────────────────────────────────────────
@@ -1731,12 +1896,31 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     return session.status || 'Sin estado';
   }
 
+  get panelAdvisorName(): string {
+    return this.activeSession?.colegioAdvisorName || this.currentAdvisor?.name || 'Agente';
+  }
+
+  get panelAdvisorPhotoUrl(): string {
+    return this.currentAdvisor?.profilePhotoUrl || '';
+  }
+
+  get panelAdvisorInitials(): string {
+    return this.safeInitial(this.panelAdvisorName);
+  }
+
   clientPresenceLabel(session?: Session | null): string {
     if (!session) return 'Cerrado';
     const presence = this.clientPresenceMap.get(session.id);
     if (session.status === 'closed' || !presence?.online) return 'Cerrado';
     if (presence.active) return 'Cliente activo en el chat';
     return 'Cliente fuera del chat';
+  }
+
+  clientPresenceShort(session?: Session | null): string {
+    if (!session) return 'Cerrado';
+    const presence = this.clientPresenceMap.get(session.id);
+    if (session.status === 'closed' || !presence?.online) return 'Cerrado';
+    return presence.active ? 'Activo' : 'Fuera del chat';
   }
 
   clientPresenceClass(session?: Session | null): string {
