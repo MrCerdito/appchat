@@ -1,5 +1,5 @@
 import { Injectable, OnDestroy } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable, Subject, of, BehaviorSubject } from 'rxjs';
 import { catchError, map, tap, finalize } from 'rxjs/operators';
 import { io, Socket } from 'socket.io-client';
@@ -543,10 +543,11 @@ export class WhatsappChatService implements OnDestroy {
     ).pipe(tap(chat => this.upsertChat(chat)));
   }
 
-  deleteMessage(chatId: string, messageId: string): Observable<WaChat> {
+  deleteMessage(chatId: string, messageId: string, type: 'for_me' | 'for_everyone' = 'for_everyone'): Observable<WaChat> {
+    const params = new HttpParams().set('type', type);
     return this.http.delete<WaChat>(
       `${this.apiUrl}/chats/${chatId}/messages/${messageId}`,
-      { headers: this.headers() },
+      { headers: this.headers(), params },
     ).pipe(tap(chat => this.upsertChat(chat)));
   }
 
@@ -648,6 +649,14 @@ export class WhatsappChatService implements OnDestroy {
     return this.http.post<WaChat>(
       `${this.apiUrl}/chats/${chatId}/admin-unassign`,
       {},
+      { headers: this.headers() },
+    ).pipe(tap(chat => this.upsertChat(chat)));
+  }
+
+  pinMessage(chatId: string, messageId: string): Observable<WaChat> {
+    return this.http.post<WaChat>(
+      `${this.apiUrl}/chats/${chatId}/pin`,
+      { messageId },
       { headers: this.headers() },
     ).pipe(tap(chat => this.upsertChat(chat)));
   }

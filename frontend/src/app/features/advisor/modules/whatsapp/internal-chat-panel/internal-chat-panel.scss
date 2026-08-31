@@ -343,6 +343,23 @@ a { text-decoration: none; color: inherit; }
   wa-icon{pointer-events:none}
 }
 
+.ic-scroll-btn {
+  .ic-scroll-count {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    padding: 2px 7px;
+    border-radius: var(--wa-radius-full, 9999px);
+    background: var(--wa-primary, #008069);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    box-shadow: var(--wa-shadow-sm, 0 1px 3px rgba(0, 0, 0, .2));
+  }
+}
+
 .ic-date-sep {
   position: sticky;
   top: 0;

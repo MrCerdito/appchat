@@ -497,7 +497,13 @@
             Sistema
           </div>
           }
-          @if (msg.type && msg.type !== 'text') {
+          @if (isMessageDeleted(msg)) {
+          <div class="msg-deleted-placeholder">
+            <wa-icon name="trash"></wa-icon>
+            <span>Este mensaje fue eliminado</span>
+          </div>
+          }
+          @if (msg.type && msg.type !== 'text' && !isMessageDeleted(msg)) {
           <div class="media-message">
             @if (!msg.mediaUrl) {
             <div class="media-placeholder">
@@ -559,7 +565,7 @@
             </div>
           </div>
           } @else {
-            @if (msg.replyToMessageId) {
+            @if (msg.replyToMessageId && !isMessageDeleted(msg)) {
             <div class="quoted-block" (click)="$event.stopPropagation(); scrollToQuotedMessage(msg)">
               <div class="quoted-bar"></div>
               <div class="quoted-content">
@@ -568,11 +574,11 @@
         </div>
       </div>
       }
-            @if (shouldShowMessageBody(msg)) {
+            @if (shouldShowMessageBody(msg) && !isMessageDeleted(msg)) {
             <p [innerHTML]="formatWaMessage(msg)"></p>
             }
           }
-          @if (messageReactions(msg, contact.messages).length) {
+          @if (messageReactions(msg, contact.messages).length && !isMessageDeleted(msg)) {
           <div class="message-reactions">
   <!-- Contador clickeable -->
   <button
@@ -641,9 +647,20 @@
           <em>editado</em>
           }
           @if (msg.fromMe && msg.status !== 'failed') {
-          <svg class="bubble-check" viewBox="0 0 16 11" fill="currentColor">
-            <path d="M11.07.65l-5.93 6.2L2.45 4.3l-1.1 1.1 3.08 3.3.7.8.8-.8 6.32-6.6L11.07.65z"/>
-          </svg>
+          <span class="bubble-check" [class.read]="msg.status === 'read'">
+            @if (msg.status === 'sent') {
+            <svg class="check" viewBox="0 0 16 11" fill="currentColor">
+              <path d="M11.07.65l-5.93 6.2L2.45 4.3l-1.1 1.1 3.08 3.3.7.8.8-.8 6.32-6.6L11.07.65z"/>
+            </svg>
+            } @else {
+            <svg class="check" viewBox="0 0 16 11" fill="currentColor">
+              <path d="M11.07.65l-5.93 6.2L2.45 4.3l-1.1 1.1 3.08 3.3.7.8.8-.8 6.32-6.6L11.07.65z"/>
+            </svg>
+            <svg class="check second" viewBox="0 0 16 11" fill="currentColor">
+              <path d="M11.07.65l-5.93 6.2L2.45 4.3l-1.1 1.1 3.08 3.3.7.8.8-.8 6.32-6.6L11.07.65z"/>
+            </svg>
+            }
+          </span>
           }
           @if (msg.status === 'failed') {
           <wa-icon name="alert-circle"></wa-icon>
@@ -1151,10 +1168,25 @@
       Copiar imagen
     </button>
     }
-    <button type="button" class="danger" (click)="deleteMessage(messageMenu.message)">
-      <wa-icon name="trash"></wa-icon>
-      Eliminar
+    @if (canPinMessage(messageMenu.message)) {
+    <button type="button" (click)="isPinnedMessage(messageMenu.message) ? unpinMessage($event) : pinMessage(messageMenu.message)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M12 7v10M9 7h6"/>
+      </svg>
+      {{ isPinnedMessage(messageMenu.message) ? 'Desfijar mensaje' : 'Fijar mensaje' }}
     </button>
+    }
+    @if (canManageMessage(messageMenu.message)) {
+    <button type="button" (click)="deleteMessage(messageMenu.message, 'for_me')">
+      <wa-icon name="trash"></wa-icon>
+      Eliminar para mí
+    </button>
+    <button type="button" class="danger" (click)="deleteMessage(messageMenu.message, 'for_everyone')">
+      <wa-icon name="trash"></wa-icon>
+      Eliminar para todos
+    </button>
+    }
   </div>
   }
 

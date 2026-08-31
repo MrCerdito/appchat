@@ -16,6 +16,9 @@ export interface WaMessage {
   fileName?: string;
   fileSize?: number;
   editedAt?: Date;
+  deletedAt?: Date;
+  deletedBy?: string;
+  deletionType?: 'for_me' | 'for_everyone' | null;
   metaMessageId?: string;
   reactionToMessageId?: string;
   reactionByName?: string;

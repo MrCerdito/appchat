@@ -32,7 +32,7 @@ import {
   InternalMessageType,
 } from '../../../../../core/models/internal-chat.models';
 import { trackByIndex } from '../../../../../shared/utils/track-by';
-import { scrollToBottom as scrollToBottomEl } from '../../../../../shared/utils/scroll';
+import { scrollToBottom as scrollToBottomEl, settleScroll } from '../../../../../shared/utils/scroll';
 import {
   formatBogotaTime,
   fmtDateMedium,
@@ -86,6 +86,13 @@ export class InternalChatPanelComponent implements OnInit, OnDestroy {
   hasMoreMessages = false;
   isLoadingOlder = false;
   showScrollToBottom = false;
+  newMessagesCount = 0;
+  private readonly convState = new Map<
+    string,
+    { scrollTop: number; hasMore: boolean; loaded: boolean }
+  >();
+  private suppressStreamScroll = false;
+  private settleCleanup?: () => void;
 
   searchQuery = '';
   showNewChat = false;
@@ -250,28 +257,51 @@ export class InternalChatPanelComponent implements OnInit, OnDestroy {
     );
     this.subs.add(
       this.internalChat.getMessagesStream().subscribe(list => {
+        const suppressScroll = this.suppressStreamScroll;
+        this.suppressStreamScroll = false;
+        const prevCount = this.messages.length;
         this.messages = list;
         if (list.length) this.isLoadingMessages = false;
+        const grew = list.length > prevCount;
         this.cdr.detectChanges();
-
         if (this.pendingInitialScroll && list.length > 0) {
           this.pendingInitialScroll = false;
+          this.cancelSettle();
           const container = this.messagesContainer?.nativeElement as HTMLElement | undefined;
-          if (container) {
-            if (this.unreadDividerCount > 0 && this.unreadDividerMsgId) {
-              const divider = container.querySelector('[data-unread-divider]') as HTMLElement | null;
-              if (divider) {
-                const top = divider.offsetTop - container.clientHeight / 2 + divider.clientHeight / 2;
-                container.scrollTop = Math.max(0, top);
-              } else {
-                container.scrollTop = container.scrollHeight;
+          this.settleCleanup = settleScroll(
+            container,
+            { mode: 'bottom' },
+            () => {
+              if (!this.activeConversation) return;
+              this.updateInternalNearBottomState();
+              if (container) {
+                const state = this.convState.get(this.activeConversation.id);
+                if (state) state.scrollTop = container.scrollTop;
               }
-            } else {
-              container.scrollTop = container.scrollHeight;
-            }
+              this.chatReady = true;
+              this.cdr.detectChanges();
+            },
+          );
+        } else if (!suppressScroll && grew && this.activeConversation) {
+          const el = this.messagesContainer?.nativeElement as HTMLElement | undefined;
+          const atBottom = el ? el.scrollHeight - el.scrollTop - el.clientHeight < 80 : true;
+          if (atBottom) {
+            this.newMessagesCount = 0;
+            this.cancelSettle();
+            this.settleCleanup = settleScroll(
+              el,
+              { mode: 'bottom' },
+              () => {
+                if (!this.activeConversation) return;
+                this.updateInternalNearBottomState();
+                const state = this.convState.get(this.activeConversation.id);
+                if (state && el) state.scrollTop = el.scrollTop;
+              },
+            );
+          } else {
+            this.newMessagesCount++;
+            this.showScrollToBottom = true;
           }
-          this.chatReady = true;
-          this.cdr.detectChanges();
         }
       }),
     );
@@ -477,18 +507,52 @@ export class InternalChatPanelComponent implements OnInit, OnDestroy {
   }
 
   selectConversation(conv: InternalConversation): void {
+    if (this.activeConversation && this.activeConversation.id !== conv.id) {
+      this.saveConvScroll();
+    }
     this.activeConversation = conv;
     this.replyToMessage = null;
     this.editingMessage = null;
     this.errorMessage = '';
     this.activeChange.emit(true);
     this.showScrollToBottom = false;
-    this.hasMoreMessages = false;
     this.isLoadingOlder = false;
-    this.unreadDividerMsgId = null;
-    this.unreadDividerCount = 0;
+    this.newMessagesCount = 0;
+
+    const state = this.convState.get(conv.id);
+
+    if (state?.loaded) {
+      // Restaurar desde caché (sin refetch) conservando la posición del usuario.
+      this.pendingInitialScroll = false;
+      this.hasMoreMessages = state.hasMore;
+      this.isLoadingMessages = false;
+      this.unreadDividerMsgId = null;
+      this.unreadDividerCount = 0;
+      this.pendingDividerIdx = null;
+      this.suppressStreamScroll = true;
+      this.chatReady = false;
+      this.internalChat.setActiveConversation(conv.id);
+      this.closeImage();
+      this.cdr.detectChanges();
+      this.cancelSettle();
+      const storedTop = state.scrollTop;
+      this.refreshConvMessagesInBackground(conv);
+      this.settleCleanup = settleScroll(
+        this.messagesContainer?.nativeElement as HTMLElement | undefined,
+        { mode: 'restore', top: storedTop },
+        () => {
+          if (!this.activeConversation || this.activeConversation.id !== conv.id) return;
+          this.updateInternalNearBottomState();
+          this.chatReady = true;
+          this.cdr.detectChanges();
+        },
+      );
+      return;
+    }
+
     this.chatReady = false;
     this.pendingInitialScroll = true;
+    this.hasMoreMessages = false;
     const unreadCount = conv.unreadCount || 0;
     if (unreadCount > 0) {
       const dividerIdx = Math.max(0, 50 - unreadCount);
@@ -508,6 +572,7 @@ export class InternalChatPanelComponent implements OnInit, OnDestroy {
           this.unreadDividerMsgId = msgs[idx]?.id || null;
         }
         this.pendingDividerIdx = null;
+        this.convState.set(conv.id, { scrollTop: 0, hasMore: msgs.length >= 50, loaded: true });
       },
       complete: () => {
         this.isLoadingMessages = false;
@@ -516,7 +581,61 @@ export class InternalChatPanelComponent implements OnInit, OnDestroy {
     });
   }
 
+  private cancelSettle(): void {
+    if (this.settleCleanup) {
+      this.settleCleanup();
+      this.settleCleanup = undefined;
+    }
+  }
+
+  private updateInternalNearBottomState(): void {
+    const el = this.messagesContainer?.nativeElement as HTMLElement | undefined;
+    if (!el) return;
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const atBottom = distFromBottom < 80;
+    this.showScrollToBottom = !atBottom;
+  }
+
+  private refreshConvMessagesInBackground(conv: InternalConversation): void {
+    this.subs.add(
+      this.internalChat.loadMessages(conv.id, undefined, 200).subscribe({
+        next: (msgs) => {
+          if (!this.activeConversation || this.activeConversation.id !== conv.id) return;
+          const state = this.convState.get(conv.id);
+          this.hasMoreMessages = msgs.length >= 200;
+          if (state) state.hasMore = msgs.length >= 200;
+          this.cdr.detectChanges();
+          const el = this.messagesContainer?.nativeElement as HTMLElement | undefined;
+          if (!el) return;
+          const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+          if (atBottom) {
+            if (this.chatReady) {
+              this.cancelSettle();
+              this.settleCleanup = settleScroll(
+                el,
+                { mode: 'bottom' },
+                () => {
+                  if (!this.activeConversation || this.activeConversation.id !== conv.id) return;
+                  this.updateInternalNearBottomState();
+                  if (this.convState.get(conv.id)) {
+                    this.convState.get(conv.id)!.scrollTop = el.scrollTop;
+                  }
+                },
+              );
+            }
+          } else if (state) {
+            state.scrollTop = el.scrollTop;
+          }
+        },
+      }),
+    );
+  }
+
   backToList(): void {
+    this.cancelSettle();
+    if (this.activeConversation) {
+      this.saveConvScroll();
+    }
     this.activeConversation = null;
     this.activeChange.emit(false);
     this.unreadDividerMsgId = null;
@@ -526,6 +645,19 @@ export class InternalChatPanelComponent implements OnInit, OnDestroy {
     this.pendingDividerIdx = null;
     this.internalChat.setActiveConversation(null);
     this.cdr.detectChanges();
+  }
+
+  private saveConvScroll(): void {
+    const conv = this.activeConversation;
+    if (!conv) return;
+    const scrollTop = this.messagesContainer
+      ? (this.messagesContainer.nativeElement as HTMLElement)?.scrollTop ?? 0
+      : 0;
+    const state = this.convState.get(conv.id) ?? { scrollTop: 0, hasMore: this.hasMoreMessages, loaded: true };
+    state.scrollTop = scrollTop;
+    state.hasMore = this.hasMoreMessages;
+    state.loaded = true;
+    this.convState.set(conv.id, state);
   }
 
   openNewChat(): void {
@@ -1296,6 +1428,15 @@ export class InternalChatPanelComponent implements OnInit, OnDestroy {
 
     const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
     this.showScrollToBottom = !atBottom;
+
+    const conv = this.activeConversation;
+    if (conv) {
+      const state = this.convState.get(conv.id);
+      if (state) {
+        state.scrollTop = el.scrollTop;
+        if (atBottom) this.newMessagesCount = 0;
+      }
+    }
   }
 
   private loadOlderMessages(): void {
@@ -1317,10 +1458,13 @@ export class InternalChatPanelComponent implements OnInit, OnDestroy {
         next: (msgs) => {
           this.hasMoreMessages = msgs.length >= 50;
           this.isLoadingOlder = false;
+          const state = this.convState.get(conv.id);
+          if (state) { state.hasMore = msgs.length >= 50; }
           this.cdr.detectChanges();
           requestAnimationFrame(() => {
             const newScrollHeight = container.scrollHeight;
             container.scrollTop = prevScrollTop + (newScrollHeight - prevScrollHeight);
+            if (state) state.scrollTop = container.scrollTop;
           });
         },
         error: () => {
@@ -1331,15 +1475,27 @@ export class InternalChatPanelComponent implements OnInit, OnDestroy {
     );
   }
 
+  private scrollToBottom(): void {
+    try {
+      scrollToBottomEl(this.messagesContainer.nativeElement);
+    } catch {
+      // View not ready yet.
+    }
+  }
+
   scrollToBottomSmooth(): void {
     this.showScrollToBottom = false;
+    this.newMessagesCount = 0;
     const el = this.messagesContainer?.nativeElement as HTMLElement | undefined;
     if (el) {
       el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+      const state = this.activeConversation ? this.convState.get(this.activeConversation.id) : undefined;
+      if (state) state.scrollTop = el.scrollHeight;
     }
   }
 
   ngOnDestroy(): void {
+    this.cancelSettle();
     if (this.longPressTimer) clearTimeout(this.longPressTimer);
     this.subs.unsubscribe();
     this.internalChat.setActiveConversation(null);

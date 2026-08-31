@@ -17,6 +17,7 @@ import makeWASocket, {
   type WACallEvent,
   type WAMessage,
   type WAMessageKey,
+  WAMessageStubType,
   type WASocket,
   useMultiFileAuthState,
 } from '@whiskeysockets/baileys';
@@ -100,6 +101,9 @@ export interface WaMessageDto {
   fileName?: string;
   fileSize?: number;
   editedAt?: Date;
+  deletedAt?: Date;
+  deletedBy?: string;
+  deletionType?: 'for_me' | 'for_everyone' | null;
   metaMessageId?: string;
   reactionToMessageId?: string;
   reactionByName?: string;
@@ -597,6 +601,13 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
         );
       });
     });
+    sock.ev.on('messages.reaction', (reactions) => {
+      this.handleBaileysReactions(reactions).catch((err) => {
+        this.logger.warn(
+          `Error procesando reacciones de Baileys: ${err?.message ?? err}`,
+        );
+      });
+    });
     sock.ev.on('call', (calls) => {
       this.handleBaileysCalls(calls).catch((err) => {
         this.logger.warn(
@@ -801,6 +812,18 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     await this.messageRepo.query(`
       ALTER TABLE IF EXISTS public.whatsapp_messages
         ADD COLUMN IF NOT EXISTS reply_to_message_id varchar(255) NULL
+    `);
+    await this.messageRepo.query(`
+      ALTER TABLE IF EXISTS public.whatsapp_messages
+        ADD COLUMN IF NOT EXISTS deleted_at timestamp NULL
+    `);
+    await this.messageRepo.query(`
+      ALTER TABLE IF EXISTS public.whatsapp_messages
+        ADD COLUMN IF NOT EXISTS deleted_by uuid NULL
+    `);
+    await this.messageRepo.query(`
+      ALTER TABLE IF EXISTS public.whatsapp_messages
+        ADD COLUMN IF NOT EXISTS deletion_type varchar(20) NULL
     `);
     await this.chatRepo.query(`
       ALTER TABLE IF EXISTS public.whatsapp_chats
@@ -2120,11 +2143,83 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
 
   async unpinChatMessage(chatId: string): Promise<WaChatDto> {
     const chat = await this.findChatOrFail(chatId);
+    const pinnedMetaId = chat.pinnedMessageId;
     chat.pinnedMessageId = null;
     chat.pinnedMessageBody = null;
     chat.pinnedMessageFrom = null;
     chat.pinnedAt = null;
     await this.chatRepo.save(chat);
+
+    if (pinnedMetaId) {
+      const pinnedMsg = await this.messageRepo.findOne({
+        where: { metaMessageId: pinnedMetaId, chat: { id: chatId } },
+      });
+      const jid = this.getChatJid(chat);
+      const remoteKey: WAMessageKey = {
+        remoteJid: jid,
+        id: pinnedMetaId,
+        fromMe: pinnedMsg?.fromMe ?? false,
+      };
+      try {
+        const sock = await this.getReadySocket();
+        await sock.sendMessage(jid, {
+          pin: remoteKey,
+          type: proto.PinInChat.Type.UNPIN_FOR_ALL,
+        });
+      } catch (err) {
+        this.logger.warn(
+          `No se pudo desfijar el mensaje en WhatsApp: ${err?.message ?? err}`,
+        );
+      }
+    }
+
+    return this.toChatDto(await this.findChatOrFail(chatId), false);
+  }
+
+  async pinChatMessage(
+    chatId: string,
+    messageId: string,
+  ): Promise<WaChatDto> {
+    const chat = await this.findChatOrFail(chatId);
+    const message = await this.messageRepo.findOne({
+      where: { id: messageId, chat: { id: chatId } },
+    });
+    if (!message) throw new NotFoundException('Mensaje no encontrado');
+
+    chat.pinnedMessageId = message.metaMessageId ?? message.id;
+    chat.pinnedMessageBody =
+      message.type === 'reaction' ||
+      !message.body ||
+      message.body === this.removedReactionBody
+        ? ''
+        : message.body;
+    chat.pinnedMessageFrom = message.fromMe
+      ? 'Tú'
+      : message.senderName || chat.name;
+    chat.pinnedAt = new Date();
+    await this.chatRepo.save(chat);
+
+    if (message.metaMessageId) {
+      const jid = this.getChatJid(chat);
+      const remoteKey: WAMessageKey = {
+        remoteJid: jid,
+        id: message.metaMessageId,
+        fromMe: message.fromMe,
+      };
+      try {
+        const sock = await this.getReadySocket();
+        await sock.sendMessage(jid, {
+          pin: remoteKey,
+          type: proto.PinInChat.Type.PIN_FOR_ALL,
+          time: 86400,
+        });
+      } catch (err) {
+        this.logger.warn(
+          `No se pudo fijar el mensaje en WhatsApp: ${err?.message ?? err}`,
+        );
+      }
+    }
+
     return this.toChatDto(await this.findChatOrFail(chatId), false);
   }
 
@@ -2309,6 +2404,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     messageId: string,
     advisorId: string,
     role: string,
+    type: 'for_me' | 'for_everyone' = 'for_everyone',
   ): Promise<WaChatDto> {
     this.assertWhatsappUserRole(role);
     const message = await this.messageRepo.findOne({
@@ -2326,19 +2422,28 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
         'No puedes eliminar mensajes de otro agente',
       );
     }
-    if (Date.now() - new Date(message.createdAt).getTime() > 60 * 60 * 60_000) {
-      throw new BadRequestException(
-        'WhatsApp solo permite eliminar para todos durante 2 dias y 12 horas',
-      );
+
+    const typeForEveryone = type === 'for_everyone';
+    if (typeForEveryone) {
+      if (Date.now() - new Date(message.createdAt).getTime() > 60 * 60 * 60_000) {
+        throw new BadRequestException(
+          'WhatsApp solo permite eliminar para todos durante 2 dias y 12 horas',
+        );
+      }
+      await this.deleteRemoteMessage(message).catch((err) => {
+        this.logger.warn(
+          `No se pudo eliminar el mensaje en WhatsApp: ${err?.message ?? err}`,
+        );
+      });
+      await this.messageRepo.delete(message.id);
+    } else {
+      // "Eliminar para mí": solo se oculta para este asesor, sin borrar remoto
+      // ni dejar de existir para el resto.
+      message.deletedAt = new Date();
+      message.deletedBy = advisorId;
+      message.deletionType = 'for_me';
+      await this.messageRepo.save(message);
     }
-
-    await this.deleteRemoteMessage(message).catch((err) => {
-      this.logger.warn(
-        `No se pudo eliminar el mensaje en WhatsApp: ${err?.message ?? err}`,
-      );
-    });
-
-    await this.messageRepo.delete(message.id);
     const chat = await this.findChatOrFail(chatId);
     chat.lastMessageAt = new Date();
     await this.chatRepo.save(chat);
@@ -3009,12 +3114,18 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
         fromMe: target.fromMe,
       };
 
-      await sock.sendMessage(jid, {
-        react: {
-          text: cleanEmoji,
-          key,
-        },
-      });
+      try {
+        await sock.sendMessage(jid, {
+          react: {
+            text: cleanEmoji,
+            key,
+          },
+        });
+      } catch (err) {
+        this.logger.warn(
+          `No se pudo enviar la reaccion a WhatsApp (${target.metaMessageId}): ${err?.message ?? err}`,
+        );
+      }
     }
 
     const raw: IncomingWhatsappMessage = {
@@ -3214,6 +3325,16 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
           continue;
         }
 
+        const protocolMessage =
+          (message.message as any)?.protocolMessage
+          ?? (message.message as any)?.editedMessage?.message?.protocolMessage;
+        if (
+          protocolMessage?.type === proto.Message.ProtocolMessage.Type.REVOKE
+        ) {
+          await this.handleBaileysRevoke(protocolMessage);
+          continue;
+        }
+
         const raw = await this.baileysMessageToIncoming(message);
         if (!raw) continue;
 
@@ -3282,6 +3403,17 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       message: this.toMessageDto(saved),
       chat: await this.toChatDto(existing.chat, true),
     });
+  }
+
+  private async handleBaileysRevoke(
+    protocol: proto.Message.IProtocolMessage,
+  ): Promise<void> {
+    const revokedKey = protocol?.key;
+    if (!revokedKey?.id || !revokedKey?.remoteJid) return;
+
+    await this.handleBaileysRevokeUpdate(revokedKey.id);
+
+    await this.readBaileysMessage(revokedKey).catch(() => undefined);
   }
 
   private async handlePinMessage(
@@ -3354,15 +3486,134 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
   private async handleBaileysMessageUpdates(updates: any[]): Promise<void> {
     for (const item of updates ?? []) {
       const messageId = item.key?.id;
-      const status = this.mapBaileysStatus(item.update?.status);
-      if (!messageId || !status) continue;
+      if (!messageId) continue;
 
-      const updated = await this.updateMessageStatus({
-        messageId,
-        status,
-        timestamp: new Date().toISOString(),
-      });
-      if (updated) this.messageStatusUpdates$.next(updated);
+      const status = this.mapBaileysStatus(item.update?.status);
+      if (status) {
+        const updated = await this.updateMessageStatus({
+          messageId,
+          status,
+          timestamp: new Date().toISOString(),
+        });
+        if (updated) this.messageStatusUpdates$.next(updated);
+      }
+
+      if (item.update?.message?.editedMessage) {
+        await this.handleBaileysEditedUpdate(item).catch((err) => {
+          this.logger.warn(
+            `Error procesando edicion entrante ${messageId}: ${err?.message ?? err}`,
+          );
+        });
+        continue;
+      }
+
+      if (item.update?.messageStubType === WAMessageStubType.REVOKE) {
+        await this.handleBaileysRevokeUpdate(messageId).catch((err) => {
+          this.logger.warn(
+            `Error procesando revoke entrante ${messageId}: ${err?.message ?? err}`,
+          );
+        });
+        continue;
+      }
+    }
+  }
+
+  private async handleBaileysEditedUpdate(item: any): Promise<void> {
+    const messageId = item.key?.id;
+    const remoteJid = this.normalizeJid(item.key?.remoteJid ?? '');
+    const editedMessage = item.update?.message?.editedMessage?.message;
+    if (!messageId || !remoteJid || !editedMessage) return;
+
+    const existing = await this.messageRepo.findOne({
+      where: { metaMessageId: messageId },
+      relations: ['chat', 'chat.assignedAdvisor'],
+    });
+    if (!existing || this.normalizeJid(existing.chat?.jid ?? '') !== remoteJid)
+      return;
+
+    const content = this.unwrapBaileysContent(editedMessage);
+    if (!content) return;
+    const typeInfo = this.extractBaileysBody(content);
+    const body = typeInfo?.text || '';
+    if (
+      !body ||
+      /^\[Mensaje [^\]]+\]$/.test(body) ||
+      /^enc:v\d+:/i.test(body)
+    ) {
+      return;
+    }
+
+    if (existing.body === body) return;
+
+    existing.body = body;
+    existing.editedAt = new Date();
+    const saved = await this.messageRepo.save(existing);
+
+    this.messageStatusUpdates$.next({
+      advisorId: existing.chat.assignedAdvisor?.id,
+      message: this.toMessageDto(saved),
+      chat: await this.toChatDto(existing.chat, true),
+    });
+  }
+
+  private async handleBaileysRevokeUpdate(messageId: string): Promise<void> {
+    const existing = await this.messageRepo.findOne({
+      where: { metaMessageId: messageId },
+      relations: ['chat', 'chat.assignedAdvisor'],
+    });
+    if (!existing) return;
+
+    existing.deletedAt = new Date();
+    existing.deletedBy = existing.fromMe
+      ? (existing.advisor?.id ?? null)
+      : null;
+    existing.deletionType = 'for_everyone';
+    existing.body = '[Este mensaje fue eliminado]';
+    const saved = await this.messageRepo.save(existing);
+
+    this.incomingResults$.next({
+      chat: await this.toChatDto(existing.chat, true),
+      message: this.toMessageDto(saved),
+      assignedAdvisorId: existing.chat.assignedAdvisor?.id,
+    });
+  }
+
+  private async handleBaileysReactions(items: any[] = []): Promise<void> {
+    for (const item of items ?? []) {
+      try {
+        const rawKey = item?.key;
+        const reactionKey = item?.reaction?.key;
+        const reactionMsgId = rawKey?.id;
+        const remoteJid = this.normalizeJid(rawKey?.remoteJid ?? '');
+        const targetId = reactionKey?.id;
+        if (!reactionMsgId || !remoteJid || !targetId) continue;
+
+        const raw: IncomingWhatsappMessage = {
+          messageId: reactionMsgId,
+          chatJid: remoteJid,
+          from: remoteJid,
+          fromName: '',
+          senderName: '',
+          participantJid: reactionKey?.participant
+            ? this.normalizeJid(reactionKey.participant)
+            : undefined,
+          isGroup: remoteJid.endsWith('@g.us'),
+          type: 'reaction',
+          text: item?.reaction?.text ?? '',
+          mediaId: targetId,
+          reactionToMessageId: targetId,
+          timestamp: new Date().toISOString(),
+        };
+
+        const result = await this.handleIncomingMessage(raw, [
+          ...this.connectedAdvisorIds,
+        ]);
+        this.incomingResults$.next(result);
+      } catch (err) {
+        this.logger.warn(
+          `Error procesando reaccion via messages.reaction: ${err?.message ?? err}`,
+        );
+      }
     }
   }
 
@@ -5048,6 +5299,9 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       fileName: message.fileName ?? undefined,
       fileSize: message.fileSize ?? undefined,
       editedAt: message.editedAt ?? undefined,
+      deletedAt: message.deletedAt ?? undefined,
+      deletedBy: message.deletedBy ?? undefined,
+      deletionType: message.deletionType ?? undefined,
       metaMessageId: message.metaMessageId ?? undefined,
       reactionToMessageId:
         message.type === 'reaction'

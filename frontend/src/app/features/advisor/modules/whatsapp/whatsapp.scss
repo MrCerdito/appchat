@@ -1684,7 +1684,30 @@ input, button, textarea, a { transition: color $duration-fast $ease, background 
   }
 }
 
-.bubble-check { width: 14px; height: 10px; color: var(--wa-primary); flex-shrink: 0; }
+.bubble-check {
+  display: inline-flex;
+  align-items: center;
+  color: var(--wa-muted-sec, #8696a0);
+  flex-shrink: 0;
+  &.read { color: var(--wa-read, #53bdeb); }
+  .check {
+    width: 14px;
+    height: 10px;
+    flex-shrink: 0;
+    &.second { margin-left: -5px; }
+  }
+}
+
+.msg-deleted-placeholder {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  font-size: 13px;
+  font-style: italic;
+  color: var(--wa-muted);
+  wa-icon { opacity: 0.7; }
+}
 
 // Quick emoji picker row
 .msg-emoji-row{
@@ -2641,6 +2664,7 @@ input, button, textarea, a { transition: color $duration-fast $ease, background 
     transition: background $duration-fast $ease;
     &:hover { background: var(--wa-hover); }
     &.danger { color: var(--wa-red); }
+    svg { width: 16px; height: 16px; flex-shrink: 0; }
   }
 }
 @keyframes menuFadeIn{from{opacity:0; transform:scale(.95)}to{opacity:1; transform:scale(1)}}

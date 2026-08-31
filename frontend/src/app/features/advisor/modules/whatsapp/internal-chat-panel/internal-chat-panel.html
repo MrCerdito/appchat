@@ -281,6 +281,9 @@
 
     @if (showScrollToBottom) {
     <button class="ic-scroll-btn" (click)="scrollToBottomSmooth()" title="Ir al ultimo mensaje">
+      @if (newMessagesCount > 0) {
+      <span class="ic-scroll-count">{{ newMessagesCount }} nuevos</span>
+      }
       <wa-icon name="chevrons-down"></wa-icon>
     </button>
     }

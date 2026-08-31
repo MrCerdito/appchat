@@ -36,6 +36,7 @@ import { WhatsappSidebarComponent, WaFilter } from './sidebar/sidebar';
 import { WhatsappInfoPanelComponent } from './info-panel/info-panel';
 import {
   AwChatAssigned,
+  AwMessageStatus,
   AwNewMessage,
   AwQueueUpdated,
   WaChat,
@@ -48,7 +49,7 @@ import { InternalConversation } from '../../../../core/models/internal-chat.mode
 import { User } from '../../../../core/models/user.model';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
 import { priorityLabel, priorityColor } from '../../../../shared/utils/ticket-categories';
-import { scrollToBottom as scrollToBottomEl } from '../../../../shared/utils/scroll';
+import { scrollToBottom as scrollToBottomEl, settleScroll } from '../../../../shared/utils/scroll';
 import { formatBogotaTime as formatBogotaTimeShared } from '../../../../shared/utils/date';
 
 export type { WaChat as Contact };
@@ -361,6 +362,15 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   newMessagesCount = 0;
   private messagePage = 1;
 
+  private readonly messageCache = new Map<
+    string,
+    { messages: WaMessage[]; hasMore: boolean; scrollTop: number; loaded: boolean }
+  >();
+
+  private settleCleanup?: () => void;
+
+  private lastScrollMessageId: string | null = null;
+
   private shouldScroll = false;
   private toastTimer?: ReturnType<typeof setTimeout>;
   private subs = new Subscription();
@@ -502,9 +512,20 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     this.subs.add(
       this.waService.onChatUpdated().subscribe(chat => {
         if (this.activeContact && this.activeContact.id === chat.id) {
+          const merged = this.mergeMessages(
+            this.activeContact.messages ?? [],
+            chat.messages ?? [],
+          );
+          this.activeContact = { ...this.activeContact, ...chat, messages: merged };
+          const cached = this.messageCache.get(chat.id);
+          if (cached) cached.messages = merged;
           this.cdr.detectChanges();
         }
       }),
+    );
+
+    this.subs.add(
+      this.waService.onMessageStatus().subscribe(data => this.handleMessageStatus(data)),
     );
 
     this.subs.add(
@@ -533,6 +554,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
 
   setChatMode(mode: 'clients' | 'advisors'): void {
     if (this.chatMode === mode) return;
+    this.cancelSettle();
     this.saveComposer();
     this.chatMode = mode;
     this.showWhatsappSettings = false;
@@ -617,6 +639,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   }
 
   ngOnDestroy(): void {
+    this.cancelSettle();
     this.stopProgressTimer();
     this.subs.unsubscribe();
     this.resizeObserver?.disconnect();
@@ -898,6 +921,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   selectContact(contact: WaChat): void {
     const switching = !this.activeContact || this.activeContact.id !== contact.id;
     if (this.activeContact && this.activeContact.id !== contact.id) {
+      this.saveActiveMessageState();
       this.saveComposer();
       if (this.forwardingMessage) this.cancelForward();
     }
@@ -910,13 +934,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     this.sendError = '';
     this.newNote = '';
     this.showScrollToBottom = false;
-    this.hasMoreMessages = false;
     this.isLoadingOlder = false;
-    this.isLoadingMessages = true;
-    this.chatReady = false;
-    this.pendingInitialScroll = true;
-    this.isNearBottom = true;
-    this.newMessagesCount = 0;
     this.unreadDividerMsgId = null;
     this.unreadDividerCount = 0;
     this.messagePage = 1;
@@ -931,6 +949,42 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
       this.subs.add(this.waService.markRead(contact.id).subscribe());
     }
 
+    const cached = this.messageCache.get(contact.id);
+    if (cached?.loaded) {
+      // Restore desde caché (sin refetch) y conservar la posición del usuario.
+      this.activeContact = { ...this.activeContact, messages: cached.messages, unread: 0 };
+      this.hasMoreMessages = cached.hasMore;
+      this.isLoadingMessages = false;
+      this.newMessagesCount = 0;
+      this.pendingInitialScroll = false;
+      this.isNearBottom = cached.scrollTop <= 0;
+      this.contactDraft = this.draftFromContact(this.activeContact);
+      this.chatReady = false;
+      this.cdr.detectChanges();
+      this.cancelSettle();
+      const el = this.messagesContainer?.nativeElement as HTMLElement | undefined;
+      const cachedTop = cached.scrollTop;
+      this.settleCleanup = settleScroll(
+        el,
+        { mode: 'restore', top: cachedTop },
+        () => {
+          if (!this.activeContact || this.activeContact.id !== contact.id) return;
+          this.updateNearBottomState();
+          this.chatReady = true;
+          this.cdr.detectChanges();
+        },
+      );
+      this.refreshActiveMessagesInBackground();
+      return;
+    }
+
+    this.isLoadingMessages = true;
+    this.chatReady = false;
+    this.pendingInitialScroll = true;
+    this.hasMoreMessages = false;
+    this.newMessagesCount = 0;
+    this.isNearBottom = true;
+
     this.subs.add(
       this.waService.loadMessages(contact.id, 1, 50).subscribe(({ messages, hasMore }) => {
         if (!this.activeContact || this.activeContact.id !== contact.id) return;
@@ -940,6 +994,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
         this.messagePage = 1;
         this.isLoadingMessages = false;
         this.contactDraft = this.draftFromContact(this.activeContact);
+        this.messageCache.set(contact.id, { messages, hasMore, scrollTop: 0, loaded: true });
 
         if (unreadCount > 0 && messages.length > 0) {
           const dividerIdx = Math.max(0, messages.length - unreadCount);
@@ -951,28 +1006,31 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
 
         if (this.pendingInitialScroll) {
           this.pendingInitialScroll = false;
+          this.cancelSettle();
           const el = this.messagesContainer?.nativeElement as HTMLElement | undefined;
-          if (el) {
-            if (this.unreadDividerMsgId) {
-              const divider = el.querySelector('[data-unread-divider]') as HTMLElement | null;
-              if (divider) {
-                el.scrollTop = Math.max(0, divider.offsetTop - el.clientHeight / 2 + divider.clientHeight / 2);
-              } else {
-                el.scrollTop = el.scrollHeight;
+          this.settleCleanup = settleScroll(
+            el,
+            { mode: 'bottom' },
+            () => {
+              if (!this.activeContact || this.activeContact.id !== contact.id) return;
+              this.updateNearBottomState();
+              if (el) {
+                const c = this.messageCache.get(contact.id);
+                if (c) c.scrollTop = el.scrollTop;
               }
-            } else {
-              el.scrollTop = el.scrollHeight;
-            }
-          }
-          this.chatReady = true;
-          this.cdr.detectChanges();
+              this.chatReady = true;
+              this.cdr.detectChanges();
+            },
+          );
         }
       }),
     );
   }
 
   closeActiveContactView(): void {
+    this.cancelSettle();
     this.saveComposer();
+    this.saveActiveMessageState();
     this.waService.setActiveChat(null);
     this.activeContact = undefined;
     this.showInfoPanel = false;
@@ -983,6 +1041,70 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     this.chatReady = false;
     this.cancelEditMessage();
     this.cdr.detectChanges();
+  }
+
+  private saveActiveMessageState(): void {
+    const contact = this.activeContact;
+    if (!contact) return;
+    const scrollTop = this.messagesContainer
+      ? (this.messagesContainer.nativeElement as HTMLElement)?.scrollTop ?? 0
+      : 0;
+    this.messageCache.set(contact.id, {
+      messages: [...(contact.messages ?? [])],
+      hasMore: this.hasMoreMessages,
+      scrollTop,
+      loaded: true,
+    });
+  }
+
+  private cancelSettle(): void {
+    if (this.settleCleanup) {
+      this.settleCleanup();
+      this.settleCleanup = undefined;
+    }
+  }
+
+  private updateNearBottomState(): void {
+    const el = this.messagesContainer?.nativeElement as HTMLElement | undefined;
+    if (!el) return;
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    this.isNearBottom = distFromBottom < 160;
+    this.showScrollToBottom = !this.isNearBottom;
+  }
+
+  private refreshActiveMessagesInBackground(): void {
+    const contact = this.activeContact;
+    if (!contact) return;
+    const cached = this.messageCache.get(contact.id);
+    this.subs.add(
+      this.waService.loadMessages(contact.id, 1, 200).subscribe({
+        next: ({ messages, hasMore }) => {
+          if (!this.activeContact || this.activeContact.id !== contact.id) return;
+          const merged = this.mergeMessages(this.activeContact.messages ?? [], messages);
+          const currentCount = this.activeContact.messages?.length ?? 0;
+          this.activeContact = { ...this.activeContact, messages: merged };
+          this.hasMoreMessages = hasMore;
+          if (cached) { cached.messages = merged; cached.hasMore = hasMore; }
+          if (merged.length === currentCount) return;
+          this.cdr.detectChanges();
+          if (this.isNearBottom) {
+            this.cancelSettle();
+            const el = this.messagesContainer?.nativeElement as HTMLElement | undefined;
+            this.settleCleanup = settleScroll(
+              el,
+              { mode: 'bottom' },
+              () => {
+                if (!this.activeContact || this.activeContact.id !== contact.id) return;
+                this.updateNearBottomState();
+                if (el && cached) cached.scrollTop = el.scrollTop;
+              },
+            );
+          } else if (cached && this.messagesContainer) {
+            cached.scrollTop = (this.messagesContainer.nativeElement as HTMLElement)?.scrollTop ?? cached.scrollTop;
+          }
+        },
+      }),
+    );
   }
 
   private saveComposer(): void {
@@ -1189,7 +1311,9 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     if (!this.canManageMessage(message) && !this.canReactToMessage(message)) return;
     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
     const menuWidth = 198;
-    const menuHeight = 138;
+    const menuHeight = message.fromMe
+      ? (this.canEditMessage(message) ? 286 : 254)
+      : (this.canEditMessage(message) ? 250 : 218);
     const preferredX = message.fromMe ? rect.left - menuWidth - 10 : rect.right + 10;
     const fallbackX = message.fromMe ? rect.right - menuWidth : rect.left;
     const rawX = preferredX < 8 || preferredX + menuWidth > window.innerWidth - 8 ? fallbackX : preferredX;
@@ -1267,11 +1391,11 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     );
   }
 
-  deleteMessage(message: WaMessage): void {
+  deleteMessage(message: WaMessage, type: 'for_me' | 'for_everyone' = 'for_everyone'): void {
     if (!this.activeContact || !this.canManageMessage(message)) return;
     this.messageMenu = undefined;
     this.subs.add(
-      this.waService.deleteMessage(this.activeContact.id, message.id).subscribe({
+      this.waService.deleteMessage(this.activeContact.id, message.id, type).subscribe({
         next: chat => {
           this.activeContact = chat;
           this.cdr.detectChanges();
@@ -1282,6 +1406,33 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
         },
       }),
     );
+  }
+
+  pinMessage(message: WaMessage): void {
+    if (!this.activeContact) return;
+    this.messageMenu = undefined;
+    this.waService.pinMessage(this.activeContact.id, message.id).subscribe({
+      next: chat => {
+        this.activeContact = chat;
+        this.cdr.detectChanges();
+      },
+      error: err => {
+        this.sendError = this.errorText(err, 'No se pudo fijar el mensaje.');
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  isPinnedMessage(message: WaMessage): boolean {
+    return !!this.activeContact?.pinnedMessageId &&
+      (message.id === this.activeContact.pinnedMessageId ||
+        message.metaMessageId === this.activeContact.pinnedMessageId);
+  }
+
+  canPinMessage(message: WaMessage): boolean {
+    return !!this.canReply &&
+      !this.isReactionMessage(message) &&
+      !message.id.startsWith('tmp-');
   }
 
   canReactToMessage(message: WaMessage): boolean {
@@ -1308,21 +1459,33 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
       this.isWithinEditWindow(message);
   }
 
+  isMessageDeleted(msg: WaMessage): boolean {
+    return !!msg.deletedAt && !!msg.deletionType && msg.deletionType === 'for_everyone';
+  }
+
   messageTime(message: WaMessage): string {
     return this.formatBogotaTime(message.timestamp);
   }
 
   scrollToPinnedMessage(): void {
-    if (!this.activeContact?.pinnedMessageId || !this.messagesContainer) return;
-    const el = this.messagesContainer.nativeElement.querySelector(
-      `[data-msg-id="${this.activeContact.pinnedMessageId}"]`
+  const pinnedId = this.activeContact?.pinnedMessageId;
+  if (!pinnedId || !this.messagesContainer) return;
+const target = (this.activeContact?.messages ?? []).find(
+      m => m.id === pinnedId || m.metaMessageId === pinnedId,
     );
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      el.classList.add('highlight-pin');
-      setTimeout(() => el.classList.remove('highlight-pin'), 1500);
-    }
+  if (!target) {
+    this.goToMessage(pinnedId);
+    return;
   }
+  const el = this.messagesContainer.nativeElement.querySelector(
+    `[data-msg-id="${target.id}"]`
+  );
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('highlight-pin');
+    setTimeout(() => el.classList.remove('highlight-pin'), 1500);
+  }
+}
 
   unpinMessage(event: Event): void {
     event.stopPropagation();
@@ -1333,6 +1496,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   visibleConversationMessages(messages: WaMessage[] = []): WaMessage[] {
     return messages.filter(message =>
       !this.isReactionMessage(message) &&
+      !(message.deletionType === 'for_me' && message.deletedBy === this.currentUserId) &&
       !(message.type === 'text' && message.body && /^\[Mensaje [^\]]+\]$/.test(message.body))
     );
   }
@@ -1509,11 +1673,15 @@ cancelReply(): void {
 }
 
 scrollToQuotedMessage(msg: WaMessage): void {
+  if (!msg.replyToMessageId) return;
+  this.goToMessage(msg.replyToMessageId);
+}
+
+private goToMessage(messageId: string): void {
   const chat = this.activeContact;
-  const quotedId = msg.replyToMessageId;
-  if (!chat || !quotedId) return;
+  if (!chat || !messageId) return;
   const findTarget = (list: WaMessage[]) =>
-    list.find(m => m.id === quotedId || m.metaMessageId === quotedId);
+    list.find(m => m.id === messageId || m.metaMessageId === messageId);
 
   const existing = findTarget(chat.messages ?? []);
   if (existing) {
@@ -1521,7 +1689,7 @@ scrollToQuotedMessage(msg: WaMessage): void {
     return;
   }
 
-  this.waService.loadMessages(chat.id, 1, 100, quotedId).subscribe({
+  this.waService.loadMessages(chat.id, 1, 100, messageId).subscribe({
     next: ({ messages }) => {
       if (!this.activeContact || this.activeContact.id !== chat.id) return;
       this.activeContact = { ...this.activeContact, messages };
@@ -1531,7 +1699,6 @@ scrollToQuotedMessage(msg: WaMessage): void {
         setTimeout(() => this.scrollToMsgElement(target.id), 150);
       }
     },
-    error: (err) => console.error('HTTP Error:', err),
   });
 }
 
@@ -3171,11 +3338,25 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
       this.subs.add(this.waService.markRead(this.activeContact.id).subscribe());
     }
 
+    const cached = this.messageCache.get(this.activeContact.id);
+    if (cached) cached.messages = messages;
+
     this.cdr.detectChanges();
 
     if (this.isNearBottom) {
-      this.scrollToBottom();
       this.newMessagesCount = 0;
+      this.cancelSettle();
+      const el = this.messagesContainer?.nativeElement as HTMLElement | undefined;
+      this.settleCleanup = settleScroll(
+        el,
+        { mode: 'bottom' },
+        () => {
+          if (cached && this.messagesContainer) {
+            cached.scrollTop = (this.messagesContainer.nativeElement as HTMLElement)?.scrollTop ?? cached.scrollTop;
+          }
+          this.updateNearBottomState();
+        },
+      );
     } else {
       this.newMessagesCount++;
       this.showScrollToBottom = true;
@@ -3185,6 +3366,21 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
   private handleAssignment(event: AwChatAssigned): void {
     if (event.advisorId !== this.currentUserId) return;
     this.showAssignmentToast(event.chat);
+  }
+
+  private handleMessageStatus(data: AwMessageStatus): void {
+    if (!data.chatId || !this.activeContact || this.activeContact.id !== data.chatId) return;
+    const msgs = this.activeContact.messages ?? [];
+    const msg = msgs.find(m => m.id === data.messageId);
+    if (!msg || msg.status === data.status) return;
+    msg.status = data.status;
+    this.activeContact = { ...this.activeContact, messages: [...msgs] };
+    const cached = this.messageCache.get(data.chatId);
+    if (cached) {
+      const cachedMsg = cached.messages.find(m => m.id === data.messageId);
+      if (cachedMsg) cachedMsg.status = data.status;
+    }
+    this.cdr.detectChanges();
   }
 
   private handleQueueUpdate(event: AwQueueUpdated): void {
@@ -3221,9 +3417,11 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
   }
 
   private mergeMessages(current: WaMessage[], incoming: WaMessage[]): WaMessage[] {
+    // El servidor es la fuente de verdad: los mensajes entrantes sobrescriben
+    // los locales del mismo id (ediciones, reacciones, borrados, estados).
     const byId = new Map<string, WaMessage>();
-    for (const message of current) byId.set(message.id, message);
-    for (const message of incoming) {
+    for (const message of incoming) byId.set(message.id, message);
+    for (const message of current) {
       if (!byId.has(message.id)) byId.set(message.id, message);
     }
     return [...byId.values()].sort(
@@ -3452,6 +3650,11 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
     this.isNearBottom = distFromBottom < 160;
     this.showScrollToBottom = !this.isNearBottom;
+
+    if (this.activeContact) {
+      const cached = this.messageCache.get(this.activeContact.id);
+      if (cached) cached.scrollTop = el.scrollTop;
+    }
   }
 
   private loadOlderMessages(): void {
@@ -3475,10 +3678,13 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
           this.activeContact = { ...this.activeContact, messages: merged };
           this.hasMoreMessages = hasMore;
           this.isLoadingOlder = false;
+          const cached = this.messageCache.get(contact.id);
+          if (cached) { cached.messages = merged; cached.hasMore = hasMore; }
           this.cdr.detectChanges();
           requestAnimationFrame(() => {
             const newScrollHeight = container.scrollHeight;
             container.scrollTop = prevScrollTop + (newScrollHeight - prevScrollHeight);
+            if (cached) cached.scrollTop = container.scrollTop;
           });
         },
         error: () => {

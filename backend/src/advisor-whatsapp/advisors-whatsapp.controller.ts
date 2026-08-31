@@ -215,10 +215,17 @@ export class AdvisorsWhatsappController {
   deleteMessage(
     @Param('chatId') chatId: string,
     @Param('messageId') messageId: string,
+    @Query('type') type: 'for_me' | 'for_everyone',
     @Req() req: Request & { user: any },
   ) {
     return this.whatsappService
-      .deleteAdvisorMessage(chatId, messageId, req.user.id, req.user.role)
+      .deleteAdvisorMessage(
+        chatId,
+        messageId,
+        req.user.id,
+        req.user.role,
+        type ?? 'for_everyone',
+      )
       .then((chat) => {
         this.whatsappGateway.emitChatUpdated(chat);
         return chat;
@@ -467,6 +474,18 @@ export class AdvisorsWhatsappController {
       priority as any,
       req.user.role,
     );
+    this.whatsappGateway.emitChatUpdated(chat);
+    return chat;
+  }
+
+  @Post('chats/:chatId/pin')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  async pinMessage(
+    @Param('chatId') chatId: string,
+    @Body('messageId') messageId: string,
+  ) {
+    const chat = await this.whatsappService.pinChatMessage(chatId, messageId);
     this.whatsappGateway.emitChatUpdated(chat);
     return chat;
   }
