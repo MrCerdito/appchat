@@ -50,6 +50,9 @@ export class WhatsappSidebarComponent {
   @Input() internalIsLoadingConversations = true;
   @Input() internalActiveConversationId: string | null = null;
   @Input() internalSearchQuery = '';
+  @Input() internalConversationNameFn?: (conv: InternalConversation) => string;
+  @Input() internalConversationAvatarFn?: (conv: InternalConversation) => string;
+  @Input() internalConversationPhotoUrlFn?: (conv: InternalConversation) => string | null;
 
   @Output() modeChange = new EventEmitter<'clients' | 'advisors'>();
   @Output() contactSelect = new EventEmitter<WaChat>();
@@ -258,5 +261,27 @@ export class WhatsappSidebarComponent {
 
   onOpenInternalNewChat(): void {
     this.internalNewChatOpen.emit();
+  }
+
+  private otherMember(conv: InternalConversation) {
+    if (conv.type === 'group') return null;
+    return conv.members.find(m => m.id !== this.currentUserId) ?? null;
+  }
+
+  resolveConversationName(conv: InternalConversation): string {
+    if (this.internalConversationNameFn) return this.internalConversationNameFn(conv);
+    if (conv.type === 'group') return conv.name || 'Grupo';
+    return this.otherMember(conv)?.name || 'Chat directo';
+  }
+
+  resolveConversationPhotoUrl(conv: InternalConversation): string | null {
+    if (this.internalConversationPhotoUrlFn) return this.internalConversationPhotoUrlFn(conv);
+    if (conv.type === 'group') return conv.photoUrl || null;
+    return this.otherMember(conv)?.profilePhotoUrl || null;
+  }
+
+  resolveConversationAvatar(conv: InternalConversation): string {
+    if (this.internalConversationAvatarFn) return this.internalConversationAvatarFn(conv);
+    return (this.resolveConversationName(conv).charAt(0) || '?').toUpperCase();
   }
 }

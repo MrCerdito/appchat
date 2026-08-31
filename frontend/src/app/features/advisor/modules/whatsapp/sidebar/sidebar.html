@@ -233,17 +233,17 @@
       (click)="onSelectInternalConversation(conv)"
     >
       <div class="ic-avatar" [class.is-group]="conv.type === 'group'">
-        @if (conv.photoUrl) {
-        <img [src]="conv.photoUrl" [alt]="conv.name" referrerpolicy="no-referrer" />
+        @if (resolveConversationPhotoUrl(conv)) {
+        <img [src]="resolveConversationPhotoUrl(conv)" [alt]="resolveConversationName(conv)" referrerpolicy="no-referrer" />
         } @else if (conv.type === 'group') {
         <wa-icon name="users-group"></wa-icon>
         } @else {
-        {{ conv.name?.charAt(0) || '?' }}
+        {{ resolveConversationAvatar(conv) }}
         }
       </div>
       <div class="ic-item-info">
         <div class="ic-item-top">
-          <span class="ic-item-name" [class.has-unread]="conv.unreadCount > 0">{{ conv.name }}</span>
+          <span class="ic-item-name" [class.has-unread]="conv.unreadCount > 0">{{ resolveConversationName(conv) }}</span>
           <span class="ic-item-time">{{ conv.lastMessage?.createdAt | date:'shortTime' }}</span>
         </div>
         <div class="ic-item-preview" [class.has-unread]="conv.unreadCount > 0">{{ conv.lastMessage?.body || 'Sin mensajes' }}</div>
