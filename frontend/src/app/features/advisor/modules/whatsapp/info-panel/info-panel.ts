@@ -8,7 +8,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { WaIconComponent } from '../../../../../shared/components/wa-icon/wa-icon.component';
-import { WaChat } from '../../../../../core/models/whatsapp.models';
+import { WaChat, WaColegioOption } from '../../../../../core/models/whatsapp.models';
 import { trackByIndex } from '../../../../../shared/utils/track-by';
 
 interface ContactDraft {
@@ -52,6 +52,8 @@ export class WhatsappInfoPanelComponent {
   @Input() isAiInsightLoading = false;
   @Input() aiInsightPreview = '';
   @Input() newNote = '';
+  @Input() colegios: WaColegioOption[] = [];
+  @Input() colegioLoading = false;
 
   @Output() closeChat = new EventEmitter<void>();
   @Output() toggleEdit = new EventEmitter<void>();
@@ -65,6 +67,7 @@ export class WhatsappInfoPanelComponent {
   @Output() removeNote = new EventEmitter<number>();
   @Output() newNoteChange = new EventEmitter<string>();
   @Output() profilePhotoOpen = new EventEmitter<Event>();
+  @Output() changeColegio = new EventEmitter<string>();
 
   isFixedToOther(): boolean {
     if (!this.contact?.fixedAdvisorId) return false;
@@ -149,5 +152,37 @@ export class WhatsappInfoPanelComponent {
 
   onNewNoteInput(value: string): void {
     this.newNoteChange.emit(value);
+  }
+
+  selectedColegio(): WaColegioOption | undefined {
+    const name = (this.contact?.institution || '').trim();
+    if (!name) return undefined;
+    return this.colegios.find(c => c.nombre.trim().toLowerCase() === name.toLowerCase());
+  }
+
+  currentColegioId(): string {
+    return this.selectedColegio()?.id || '';
+  }
+
+  onColegioChange(id: string): void {
+    this.changeColegio.emit(id);
+  }
+
+  assignedAdvisorName(): string {
+    const col = this.selectedColegio();
+    if (col?.advisorName) return col.advisorName;
+    if (this.contact?.assignedToName) return this.contact.assignedToName;
+    return '';
+  }
+
+  assignedAdvisorPhoto(): string {
+    const col = this.selectedColegio();
+    if (col?.advisorPhotoUrl) return col.advisorPhotoUrl;
+    return this.fallbackAvatar(this.assignedAdvisorName() || 'Asesor');
+  }
+
+  assignedAdvisorPhotoError(event: Event): void {
+    const img = event.target as HTMLImageElement;
+    img.src = this.fallbackAvatar(this.assignedAdvisorName() || 'Asesor');
   }
 }

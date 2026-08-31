@@ -227,6 +227,15 @@ export interface QuickReplyItem {
   content: string;
 }
 
+export interface WaColegioOption {
+  id: string;
+  nombre: string;
+  link: string;
+  advisorId?: string | null;
+  advisorName?: string | null;
+  advisorPhotoUrl?: string | null;
+}
+
 export interface AwNewMessage extends WaMessage {}
 
 export interface AwChatAssigned {

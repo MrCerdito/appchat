@@ -143,25 +143,43 @@
         <span>Cargo</span>
         <strong>{{ contact.role || 'Sin cargo' }}</strong>
       </div>
-      @if (getInstitutionHref()) {
-      <a
-        class="info-card link-card"
-        [href]="getInstitutionHref()"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
+      <label class="info-card colegio-select-wrap">
         <span>Colegio</span>
-        <strong>{{ contact.institution || 'Sin colegio' }}</strong>
-      </a>
-      } @else {
-        <div class="info-card">
-          <span>Colegio</span>
-          <strong>{{ contact.institution || 'Sin colegio' }}</strong>
-        </div>
-      }
+        <select
+          class="colegio-select"
+          [value]="currentColegioId()"
+          (change)="onColegioChange($any($event.target).value)"
+          [disabled]="colegioLoading || colegios.length === 0"
+        >
+          <option value="">{{ contact.institution || 'Seleccionar colegio' }}</option>
+          @for (col of colegios; track trackByIndex($index)) {
+          <option [value]="col.id">{{ col.nombre }}</option>
+          }
+        </select>
+      </label>
       <div>
         <span>Lugar</span>
         <strong>{{ contact.city || 'Sin lugar' }}</strong>
+      </div>
+    </div>
+
+    <div class="advisor-card">
+      <div class="section-title">
+        <wa-icon name="user"></wa-icon>
+        Asesor asignado
+      </div>
+      <div class="advisor-row">
+        <img
+          class="advisor-avatar"
+          [src]="assignedAdvisorPhoto()"
+          [alt]="assignedAdvisorName()"
+          referrerpolicy="no-referrer"
+          (error)="assignedAdvisorPhotoError($event)"
+        />
+        <div class="advisor-info">
+          <strong>{{ assignedAdvisorName() || 'Sin asesor asignado' }}</strong>
+          <span>Asesor del colegio</span>
+        </div>
       </div>
     </div>
 

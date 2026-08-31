@@ -1042,6 +1042,8 @@
       [isAiInsightLoading]="isAiInsightLoading"
       [aiInsightPreview]="aiInsightPreview"
       [newNote]="newNote"
+      [colegios]="colegios"
+      [colegioLoading]="colegioLoading"
       (closeChat)="closeActiveChat()"
       (toggleEdit)="startEditContact()"
       (saveContact)="saveContact()"
@@ -1053,6 +1055,7 @@
       (addNote)="addNote()"
       (removeNote)="removeNote($event)"
       (newNoteChange)="newNote = $event"
+      (changeColegio)="onChangeColegio($event)"
       (profilePhotoOpen)="openProfilePhoto(contact, $event)"
     ></app-whatsapp-info-panel>
   </aside>

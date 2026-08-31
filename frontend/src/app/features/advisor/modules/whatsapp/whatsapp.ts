@@ -20,7 +20,7 @@ import {
   VoiceRecorderComponent,
   VoiceRecordingResult,
 } from '../../../../shared/components/voice-recorder/voice-recorder.component';
-import { firstValueFrom, interval, Subscription, switchMap } from 'rxjs';
+import { firstValueFrom, forkJoin, interval, Subscription, switchMap } from 'rxjs';
 
 import { AiService } from '../../../../core/services/ai.service';
 import { AuthService } from '../../../../core/services/auth.service';
@@ -39,6 +39,7 @@ import {
   AwNewMessage,
   AwQueueUpdated,
   WaChat,
+  WaColegioOption,
   WaConnectionStatus,
   WaContactUpdate,
   WaMessage,
@@ -173,6 +174,8 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   contacts: WaChat[] = [];
   activeContact?: WaChat;
   contactDraft: ContactDraft = this.emptyDraft();
+  colegios: WaColegioOption[] = [];
+  colegioLoading = false;
   settingsDraft: WhatsappSettingsDraft = this.defaultSettingsDraft();
 
   activeFilter: WaFilter = 'mine';
@@ -470,6 +473,8 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
       }),
     );
 
+    this.loadColegios();
+
     this.startLoadingProgress();
 
     this.subs.add(
@@ -733,10 +738,9 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   }
 
   get canTakeQueuedChat(): boolean {
-    return !!this.activeContact &&
-      !this.activeContact.isGroup &&
-      this.isChatWaiting(this.activeContact) &&
-      !this.activeContact.assignedTo;
+    const c = this.activeContact;
+    if (!c || c.isGroup || this.isAttentionClosed || this.isChatClosed(c)) return false;
+    return !c.assignedTo || c.assignedTo !== this.currentUserId;
   }
 
   get isAssignedToSomeoneElse(): boolean {
@@ -2084,6 +2088,83 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
         },
       }),
     );
+  }
+
+  private loadColegios(): void {
+    if (this.colegioLoading || this.colegios.length) return;
+    this.colegioLoading = true;
+    this.subs.add(
+      forkJoin({
+        colegios: this.sessionService.getColegios(),
+        advisors: this.sessionService.findAdvisors(),
+      }).subscribe({
+        next: ({ colegios, advisors }) => {
+          const photoMap = new Map<string, string>();
+          (advisors || []).forEach(a => {
+            if (a.id) photoMap.set(a.id, a.profilePhotoUrl || '');
+          });
+          this.colegios = (colegios || []).map(c => ({
+            id: c.id,
+            nombre: c.nombre,
+            link: c.link || '',
+            advisorId: c.advisorId || c.advisor?.id || null,
+            advisorName: c.advisorName || c.advisor?.name || null,
+            advisorPhotoUrl: photoMap.get(c.advisorId || c.advisor?.id || '') || null,
+          }));
+          this.colegioLoading = false;
+          this.cdr.detectChanges();
+        },
+        error: () => { this.colegioLoading = false; },
+      }),
+    );
+  }
+
+  onChangeColegio(colegioId: string): void {
+    const contact = this.activeContact;
+    if (!contact) return;
+    const colegio = this.colegios.find(c => c.id === colegioId);
+    if (!colegio) return;
+
+    const contactPayload: WaContactUpdate = {
+      name: contact.name || '',
+      role: contact.role || '',
+      institution: colegio.nombre,
+      institutionUrl: colegio.link,
+      city: contact.city || '',
+      phone: contact.phone || '',
+      email: contact.email || '',
+      plan: contact.plan || '',
+      modules: contact.modules || [],
+    };
+
+    this.subs.add(
+      this.waService.updateContact(contact.id, contactPayload).subscribe({
+        next: chat => {
+          this.activeContact = chat;
+          if (this.contactDraft) this.contactDraft.institution = colegio.nombre;
+          this.cdr.detectChanges();
+        },
+        error: () => {},
+      }),
+    );
+
+    if (colegio.advisorId && colegio.advisorId !== contact.assignedTo) {
+      this.subs.add(
+        this.waService.transferChat(contact.id, colegio.advisorId).subscribe({
+          next: chat => {
+            if (chat) {
+              chat.institution = colegio.nombre;
+              chat.assignedToName = colegio.advisorName || chat.assignedToName;
+              this.activeContact = { ...chat };
+            }
+            this.assignmentToast = `Chat reasignado a ${colegio.advisorName || 'asesor del colegio'}`;
+            this.toastTimer = setTimeout(() => this.assignmentToast = '', 3000);
+            this.cdr.detectChanges();
+          },
+          error: () => {},
+        }),
+      );
+    }
   }
 
   closeActiveChat(): void {

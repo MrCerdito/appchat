@@ -1104,12 +1104,12 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
         const chat = await repo
           .createQueryBuilder('chat')
           .where('chat.id = :chatId', { chatId })
-          .andWhere('chat.status = :status', { status: 'waiting' })
+          .andWhere('chat.status IN (:...statuses)', { statuses: ['waiting', 'active'] })
           .andWhere('chat.is_group = false')
           .setLock('pessimistic_write')
           .getOne();
 
-        if (!chat) throw new ConflictException('Este chat ya no esta en cola');
+        if (!chat) throw new ConflictException('Este chat no esta disponible para tomar');
 
         chat.status = 'active';
         chat.operationalStatus = 'in_progress';

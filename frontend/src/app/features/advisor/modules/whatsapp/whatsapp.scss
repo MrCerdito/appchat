@@ -32,66 +32,73 @@ $duration-normal: 180ms;
 $duration-slow: 260ms;
 
 :host {
-  // ── Emerald palette (light) ──────────────────────────
-  --wa-primary: #0F9D7A;
-  --wa-primary-hover: #0D8B6B;
-  --wa-primary-active: #0A7A5E;
-  --wa-primary-light: #ECFDF5;
-  --wa-primary-rgb: 15,157,122;
+  // ── WhatsApp palette (light) ─────────────────────────
+  // Verde WhatsApp #00A884 / #25D366, blanco, gris claro, tonos neutros.
+  --wa-primary: #008069;
+  --wa-primary-hover: #006D5B;
+  --wa-primary-active: #005C4E;
+  --wa-primary-light: #DCF5E8;
+  --wa-primary-rgb: 0,168,132;
+
+  // ── WhatsApp accent (chats por enviar, enlaces) ──────
+  --wa-whatsapp: #00A884;
+  --wa-whatsapp-rgb: 0,168,132;
+  --wa-send-green: #00A884;
+  --wa-out-bubble: #D9FDD3;
 
   // ── Surfaces ─────────────────────────────────────────
-  --wa-bg: #F8FAFC;
+  --wa-bg: #EFEAE2;
   --wa-surface: #FFFFFF;
-  --wa-surface-2: #F1F5F9;
-  --wa-surface-3: #F1F5F9;
-  --wa-surface-hover: #F8FAFC;
-  --wa-surface-active: #EFF6FF;
+  --wa-surface-2: #F0F2F5;
+  --wa-surface-3: #E9EDEF;
+  --wa-surface-hover: #F5F6F6;
+  --wa-surface-active: #E7F8F0;
 
   // ── Borders ──────────────────────────────────────────
-  --wa-line: #E2E8F0;
-  --wa-line-strong: #CBD5E1;
+  --wa-line: #E9EDEF;
+  --wa-line-strong: #D1D7DB;
 
   // ── Text ─────────────────────────────────────────────
-  --wa-text: #0F172A;
-  --wa-text-secondary: #334155;
-  --wa-muted: #64748B;
-  --wa-faint: #94A3B8;
+  --wa-text: #111B21;
+  --wa-text-secondary: #41525D;
+  --wa-muted: #667781;
+  --wa-faint: #8696A0;
 
   // ── Semantic colors ──────────────────────────────────
-  --wa-green: #0F9D7A;
-  --wa-blue: #2563EB;
+  --wa-green: #008069;
+  --wa-blue: #027EB5;
   --wa-purple: #7C3AED;
-  --wa-amber: #D97706;
-  --wa-red: #DC2626;
+  --wa-amber: #B59410;
+  --wa-red: #EA4235;
 
   // ── Message bubbles ──────────────────────────────────
-  --wa-bubble-mine: #DCFCE7;
+  --wa-bubble-mine: #D9FDD3;
   --wa-bubble-other: #FFFFFF;
 
   // ── Input ────────────────────────────────────────────
-  --wa-input-bg: #F1F5F9;
+  --wa-input-bg: #F0F2F5;
 
   // ── Interactive ──────────────────────────────────────
-  --wa-hover: rgba(15,157,122,0.05);
-  --wa-active: rgba(15,157,122,0.08);
+  --wa-hover: rgba(0,168,132,0.06);
+  --wa-active: rgba(0,168,132,0.10);
 
   // ── Elevation ────────────────────────────────────────
-  --wa-shadow-xs: 0 1px 2px rgba(0,0,0,0.05);
-  --wa-shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-  --wa-shadow-md: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -2px rgba(0,0,0,0.05);
-  --wa-shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -4px rgba(0,0,0,0.04);
-  --wa-shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.08), 0 8px 10px -6px rgba(0,0,0,0.04);
+  --wa-shadow-xs: 0 1px 2px rgba(17,27,33,0.10);
+  --wa-shadow-sm: 0 1px 3px rgba(17,27,33,0.12), 0 1px 2px rgba(17,27,33,0.08);
+  --wa-shadow-md: 0 4px 8px -1px rgba(17,27,33,0.14), 0 2px 4px -2px rgba(17,27,33,0.10);
+  --wa-shadow-lg: 0 10px 18px -3px rgba(17,27,33,0.16), 0 4px 8px -4px rgba(17,27,33,0.10);
+  --wa-shadow-xl: 0 20px 30px -5px rgba(17,27,33,0.18), 0 8px 12px -6px rgba(17,27,33,0.12);
   --wa-shadow: var(--wa-shadow-sm);
 
   // ── Overlay ──────────────────────────────────────────
-  --wa-overlay: rgba(15,23,42,0.4);
+  --wa-overlay: rgba(17,27,33,0.45);
 
   // ── RGB variants (for rgba usage) ────────────────────
-  --wa-green-rgb: 15,157,122;
-  --wa-blue-rgb: 37,99,235;
+  --wa-green-rgb: 0,128,105;
+  --wa-blue-rgb: 2,126,181;
   --wa-purple-rgb: 124,58,237;
-  --wa-amber-rgb: 217,119,6;
-  --wa-red-rgb: 220,38,38;
+  --wa-amber-rgb: 181,148,16;
+  --wa-red-rgb: 234,66,53;
 
   // ── Radius ───────────────────────────────────────────
   --wa-radius-sm: #{$radius-sm};
@@ -116,40 +123,45 @@ $duration-slow: 260ms;
 }
 
 :host(.theme-dark) {
-  --wa-primary: #34D399;
-  --wa-primary-hover: #6EE7B7;
-  --wa-primary-active: #A7F3D0;
-  --wa-primary-light: rgba(52,211,153,0.08);
-  --wa-primary-rgb: 52,211,153;
+  --wa-primary: #00A884;
+  --wa-primary-hover: #33BAA0;
+  --wa-primary-active: #66CFBB;
+  --wa-primary-light: rgba(0,168,132,0.10);
+  --wa-primary-rgb: 0,168,132;
 
-  --wa-bg: #0F172A;
-  --wa-surface: #1E293B;
-  --wa-surface-2: #1E293B;
-  --wa-surface-3: #334155;
-  --wa-surface-hover: #1E293B;
-  --wa-surface-active: #1E3A5F;
+  --wa-whatsapp: #00A884;
+  --wa-whatsapp-rgb: 0,168,132;
+  --wa-send-green: #008069;
+  --wa-out-bubble: #005C4B;
 
-  --wa-line: #334155;
-  --wa-line-strong: #475569;
+  --wa-bg: #0B141A;
+  --wa-surface: #111B21;
+  --wa-surface-2: #202C33;
+  --wa-surface-3: #2A3942;
+  --wa-surface-hover: #1F2C33;
+  --wa-surface-active: #182229;
 
-  --wa-text: #F1F5F9;
-  --wa-text-secondary: #CBD5E1;
-  --wa-muted: #94A3B8;
-  --wa-faint: #64748B;
+  --wa-line: #2A3942;
+  --wa-line-strong: #45565F;
 
-  --wa-green: #34D399;
-  --wa-blue: #60A5FA;
-  --wa-purple: #A78BFA;
-  --wa-amber: #FBBF24;
-  --wa-red: #F87171;
+  --wa-text: #E9EDEF;
+  --wa-text-secondary: #D1D7DB;
+  --wa-muted: #8696A0;
+  --wa-faint: #667781;
 
-  --wa-bubble-mine: #064E3B;
-  --wa-bubble-other: #1E293B;
+  --wa-green: #00A884;
+  --wa-blue: #53BDEB;
+  --wa-purple: #B79CF7;
+  --wa-amber: #FAAD4D;
+  --wa-red: #F15C6D;
 
-  --wa-input-bg: #334155;
+  --wa-bubble-mine: #005C4B;
+  --wa-bubble-other: #202C33;
 
-  --wa-hover: rgba(52,211,153,0.08);
-  --wa-active: rgba(52,211,153,0.12);
+  --wa-input-bg: #2A3942;
+
+  --wa-hover: rgba(0,168,132,0.10);
+  --wa-active: rgba(0,168,132,0.14);
 
   --wa-shadow-xs: 0 1px 2px rgba(0,0,0,0.3);
   --wa-shadow-sm: 0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
@@ -160,11 +172,11 @@ $duration-slow: 260ms;
 
   --wa-overlay: rgba(0,0,0,0.6);
 
-  --wa-green-rgb: 52,211,153;
-  --wa-blue-rgb: 96,165,250;
-  --wa-purple-rgb: 167,139,250;
-  --wa-amber-rgb: 251,191,36;
-  --wa-red-rgb: 248,113,113;
+  --wa-green-rgb: 0,168,132;
+  --wa-blue-rgb: 83,189,235;
+  --wa-purple-rgb: 183,156,247;
+  --wa-amber-rgb: 250,173,77;
+  --wa-red-rgb: 241,92,109;
 }
 
 *,*::before,*::after { box-sizing: border-box; }
@@ -183,8 +195,7 @@ input, button, textarea, a { transition: color $duration-fast $ease, background 
   width: 100%;
   height: 100%;
   overflow: hidden;
-  box-shadow: var(--wa-shadow-md);
-  border-radius: var(--wa-radius-lg);
+  background: var(--wa-bg);
 }
 
 .layout-body {
@@ -1181,8 +1192,8 @@ input, button, textarea, a { transition: color $duration-fast $ease, background 
   display: flex;
   align-items: center;
   gap: $sp-3;
-  min-height: 56px;
-  padding: $sp-3 $sp-4;
+  min-height: 60px;
+  padding: $sp-2 $sp-4;
   border-bottom: 1px solid var(--wa-line);
   background: var(--wa-surface);
   flex-shrink: 0;
@@ -1190,9 +1201,9 @@ input, button, textarea, a { transition: color $duration-fast $ease, background 
 .mobile-back-btn {
   display: none;
   place-items: center;
-  width: 34px;
-  height: 34px;
-  border-radius: var(--wa-radius-md);
+  width: 38px;
+  height: 38px;
+  border-radius: var(--wa-radius-full);
   cursor: pointer;
   background: transparent;
   color: var(--wa-muted);
@@ -1305,10 +1316,10 @@ input, button, textarea, a { transition: color $duration-fast $ease, background 
 .info-toggle-btn {
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
-  flex: 0 0 34px;
-  border-radius: var(--wa-radius-md);
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  border-radius: var(--wa-radius-full);
   border: none;
   background: transparent;
   color: var(--wa-muted);
@@ -1323,10 +1334,10 @@ input, button, textarea, a { transition: color $duration-fast $ease, background 
 .close-header-btn {
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
-  flex: 0 0 34px;
-  border-radius: var(--wa-radius-md);
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  border-radius: var(--wa-radius-full);
   border: none;
   background: transparent;
   color: var(--wa-muted);
@@ -1336,10 +1347,10 @@ input, button, textarea, a { transition: color $duration-fast $ease, background 
 .transfer-header-btn {
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
-  flex: 0 0 34px;
-  border-radius: var(--wa-radius-md);
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  border-radius: var(--wa-radius-full);
   border: none;
   background: transparent;
   color: var(--wa-muted);
@@ -1352,10 +1363,13 @@ input, button, textarea, a { transition: color $duration-fast $ease, background 
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: $sp-6 $sp-8;
-  background: var(--wa-bg);
+  padding: $sp-5 $sp-6;
+  background-color: var(--wa-bg);
   min-height: 0;
-  background-image: radial-gradient(ellipse at 20% 50%, rgba(var(--wa-primary-rgb), 0.02) 0%, transparent 50%);
+  background-image:
+    radial-gradient(circle at 25% 15%, rgba(var(--wa-whatsapp-rgb), 0.05) 0, transparent 34%),
+    radial-gradient(circle at 80% 85%, rgba(var(--wa-whatsapp-rgb), 0.04) 0, transparent 36%),
+    radial-gradient(circle at 60% 25%, rgba(255,255,255,0.4) 0, transparent 30%);
 }
 
 // Loading spinner for older messages
@@ -1416,13 +1430,15 @@ input, button, textarea, a { transition: color $duration-fast $ease, background 
 
   span {
     padding: 5px $sp-3;
-    border-radius: var(--wa-radius-md);
-    background: var(--wa-surface);
-    color: var(--wa-muted);
-    font-size: 12px;
+    border-radius: var(--wa-radius-full);
+    background: rgba(var(--wa-whatsapp-rgb), 0.10);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    color: var(--wa-text-secondary);
+    font-size: 11.5px;
     font-weight: 600;
     white-space: nowrap;
-    box-shadow: var(--wa-shadow-xs);
+    box-shadow: none;
   }
 }
 
@@ -1575,23 +1591,23 @@ input, button, textarea, a { transition: color $duration-fast $ease, background 
 
 .msg-bubble {
   width: fit-content;
-  max-width: 50%;
+  max-width: 78%;
   min-width: 0;
-  padding: 6px 8px 6px 9px;
-  border-radius: var(--wa-radius-md);
+  padding: 7px 9px 7px 10px;
+  border-radius: 10px;
   position: relative;
   word-wrap: break-word;
   white-space: pre-wrap;
-  box-shadow: var(--wa-shadow-xs);
+  box-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.08);
   border: 0;
 
   .msg-row:not(.out) & {
     background: var(--wa-bubble-other);
-    border-top-left-radius: 0;
+    border-top-left-radius: 3px;
   }
   .msg-row.out & {
     background: var(--wa-bubble-mine);
-    border-top-right-radius: 0;
+    border-top-right-radius: 3px;
   }
   &.ai-bubble { background: rgba(var(--wa-purple-rgb), 0.08); }
   &.failed { box-shadow: inset 0 0 0 1px rgba(var(--wa-red-rgb), 0.3); }
@@ -1608,7 +1624,7 @@ input, button, textarea, a { transition: color $duration-fast $ease, background 
     white-space: pre-wrap;
     overflow-wrap: anywhere;
     font-size: 13.5px;
-    line-height: 1.5;
+    line-height: 1.45;
     color: inherit;
   }
 }
@@ -1624,7 +1640,7 @@ input, button, textarea, a { transition: color $duration-fast $ease, background 
 
 .msg-bubble:has(.media-message):not(.voice-bubble) {
   width: fit-content;
-  max-width: 50%;
+  max-width: 78%;
 }
 
 .msg-bubble.voice-bubble {
@@ -1811,24 +1827,24 @@ input, button, textarea, a { transition: color $duration-fast $ease, background 
 }
 .quick-row {
   display: flex;
-  gap: 7px;
+  gap: 6px;
   overflow: auto;
   padding: $sp-2 $sp-3 0;
   button {
-    max-width: 230px;
+    max-width: 220px;
     overflow: hidden;
-    padding: 6px $sp-3;
+    padding: 5px $sp-3;
     border: 1px solid var(--wa-line);
-    border-radius: var(--wa-radius-md);
-    background: var(--wa-surface-2);
+    border-radius: var(--wa-radius-full);
+    background: var(--wa-surface);
     color: var(--wa-muted);
     cursor: pointer;
-    font-size: 12px;
+    font-size: 11.5px;
     font-weight: 600;
     white-space: nowrap;
     text-overflow: ellipsis;
     transition: all $duration-fast $ease;
-    &:hover:not(:disabled) { border-color: var(--wa-primary); color: var(--wa-primary); background: var(--wa-primary-light); }
+    &:hover:not(:disabled) { border-color: rgba(var(--wa-primary-rgb), 0.35); color: var(--wa-primary); background: var(--wa-primary-light); }
     &:disabled { opacity: 0.45; }
   }
 }
@@ -1873,32 +1889,32 @@ input, button, textarea, a { transition: color $duration-fast $ease, background 
 .attach-btn {
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
-  flex: 0 0 36px;
-  border: 1px solid var(--wa-line);
-  border-radius: var(--wa-radius-md);
-  background: var(--wa-surface-2);
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  border: none;
+  border-radius: var(--wa-radius-full);
+  background: transparent;
   color: var(--wa-muted);
   cursor: pointer;
-  font-size: 16px;
+  font-size: 18px;
   transition: all $duration-fast $ease;
-  &:hover { color: var(--wa-primary); border-color: rgba(var(--wa-primary-rgb), 0.3); background: var(--wa-primary-light); }
+  &:hover { background: var(--wa-hover); color: var(--wa-primary); }
   &:disabled { opacity: 0.4; }
 }
 .input-box {
   position: relative;
   flex: 1;
-  min-height: 40px;
-  padding: $sp-2 $sp-3;
-  border: 1px solid var(--wa-line);
+  min-height: 44px;
+  padding: $sp-2 $sp-4;
+  border: 0;
   border-radius: var(--wa-radius-md);
-  background: var(--wa-surface-2);
+  background: var(--wa-surface);
+  box-shadow: var(--wa-shadow-xs);
   min-width: 0;
-  transition: border-color $duration-fast $ease, box-shadow $duration-fast $ease;
+  transition: box-shadow $duration-fast $ease;
   &:focus-within {
-    border-color: var(--wa-primary);
-    box-shadow: 0 0 0 3px rgba(var(--wa-primary-rgb), 0.1);
+    box-shadow: 0 0 0 3px rgba(var(--wa-primary-rgb), 0.12);
   }
   textarea {
     position: relative;
@@ -1912,26 +1928,26 @@ input, button, textarea, a { transition: color $duration-fast $ease, background 
     resize: none;
     background: transparent;
     color: var(--wa-text);
-    font-size: 13.5px;
+    font-size: 14px;
     overflow-y: auto;
     line-height: 1.45;
   }
   .ghost-text {
     position: absolute;
     top: $sp-2;
-    left: $sp-3;
+    left: $sp-4;
     color: var(--wa-faint);
-    font-size: 13.5px;
+    font-size: 14px;
     opacity: 0.5;
   }
 }
 .ai-btn, .send-btn {
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
-  flex: 0 0 40px;
-  border-radius: var(--wa-radius-md);
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  border-radius: var(--wa-radius-full);
   cursor: pointer;
   transition: all $duration-fast $ease;
   &:disabled { opacity: 0.4; }
@@ -2167,9 +2183,10 @@ input, button, textarea, a { transition: color $duration-fast $ease, background 
 }
 
 .right-panel {
-  flex: 0 0 340px;
-  width: 340px;
+  flex: 20 1 0;
+  width: 20%;
   min-width: 0;
+  max-width: 380px;
   height: 100%;
   border-left: 1px solid var(--wa-line);
   overflow-y: auto;
