@@ -1484,9 +1484,10 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   }
 
   useImproveResult(): void {
-    if (!this.improveResult) return;
+    const result = this.improveResult;
+    if (!result) return;
     this.closeImprovePanel();
-    this.setEditorText(this.improveResult.slice(0, 1000));
+    this.setEditorText(result.slice(0, 1000));
     this.showSlashMenu = false;
     this.slashQuery = '';
     this.ghostSuggestion = '';
