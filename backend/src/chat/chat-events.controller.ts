@@ -28,13 +28,15 @@ export class ChatEventsController {
   @Post('eventos-faq')
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   async registrarFaqClic(
-    @Body() body: { sessionId?: string; faqId?: number },
+    @Body() body: { sessionId?: string; faqId?: number; fecha?: string; soloEvento?: boolean },
   ) {
     const sessionId = typeof body?.sessionId === 'string' ? body.sessionId.trim() : '';
     const faqId = Number(body?.faqId);
     if (!sessionId || !Number.isInteger(faqId)) {
       throw new BadRequestException('sessionId y faqId son obligatorios');
     }
+    const fecha = typeof body?.fecha === 'string' && body.fecha.trim() ? body.fecha.trim() : null;
+    const soloEvento = body?.soloEvento === true;
     try {
       const faq = await this.faqService.findOne(faqId);
       if (!faq) return { ok: false };
@@ -50,13 +52,15 @@ export class ChatEventsController {
           respuesta: faq.respuesta,
           categoria: faq.categoria ?? null,
         },
+        fecha,
       );
 
-      // Primera interacción con este FAQ: persiste la pregunta del cliente y la
-      // respuesta del Asistente Virtual como mensajes reales, para que el
-      // historial muestre la interacción completa (de lo contrario solo
-      // ocurriría en memoria del cliente y no quedaría registrada).
-      if (!yaExiste && faq.pregunta?.trim()) {
+      // En modo "soloEvento" se persiste únicamente el evento (formato chip),
+      // sin burbujas de mensaje. En el resto de casos, si es la primera
+      // interacción con este FAQ, se persisten la pregunta del cliente y la
+      // respuesta del Asistente Virtual como mensajes reales para que el
+      // historial muestre la interacción completa.
+      if (!soloEvento && !yaExiste && faq.pregunta?.trim()) {
         await this.chatService.saveMessage(
           sessionId,
           faq.pregunta,
@@ -64,7 +68,7 @@ export class ChatEventsController {
           'Cliente',
         );
       }
-      if (!yaExiste && faq.respuesta?.trim()) {
+      if (!soloEvento && !yaExiste && faq.respuesta?.trim()) {
         await this.chatService.saveMessage(
           sessionId,
           faq.respuesta,

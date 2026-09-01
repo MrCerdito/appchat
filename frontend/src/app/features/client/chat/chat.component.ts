@@ -116,6 +116,10 @@ export class ChatComponent implements OnInit, OnDestroy {
   showFaqInChat = false;
   faqWasVisible = false;
 
+  // FAQs leídas en la pantalla inicial (STEP 0) antes de crear la sesión.
+  // Se registran en el historial una vez creada la sesión, en orden de lectura.
+  faqPendientes: { faqId: number; fecha: string }[] = [];
+
   private readonly catIconMap: Record<string, string[]> = {
     'académico':      ['M22 10v6', 'M2 10l10-5 10 5-10 5z', 'M6 12v5c3 3 9 3 12 0v-5'],
     'app móvil':      ['M18 2a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h12z', 'M12 18h.01'],
@@ -834,6 +838,18 @@ get rolLabel(): string {
     }).subscribe({
       next: (session) => {
   this.session = session;
+  // Registrar en el historial las FAQs leídas en la pantalla inicial (STEP 0),
+  // en su orden real de lectura y únicamente como evento (formato chip).
+  if (this.faqPendientes.length) {
+    for (const p of this.faqPendientes) {
+      if (p.faqId == null) continue;
+      this.sessionService.registrarFaqClic(session.id, p.faqId, {
+        fecha: p.fecha,
+        soloEvento: true,
+      }).subscribe({ error: () => undefined });
+    }
+    this.faqPendientes = [];
+  }
   this.aiMode  = true;
   this.fueraDeHorario = false;
   this.step    = 'chat';
@@ -1755,6 +1771,14 @@ get rolLabel(): string {
   getCat(cat: string): FaqCategory | undefined {
     const ncat = this.normalizeStr(cat);
     return this.faqCategorias.find(c => this.normalizeStr(c.name) === ncat);
+  }
+
+  // Recoge una FAQ leída en la pantalla inicial (antes de crear la sesión).
+  // Se registra en el historial una vez creada la sesión (dedup por faqId).
+  registrarFaqPendiente(faq: Faq): void {
+    if (faq?.id == null) return;
+    if (this.faqPendientes.some(p => p.faqId === faq.id)) return;
+    this.faqPendientes.push({ faqId: faq.id, fecha: new Date().toISOString() });
   }
 
   selectFaqItem(item: Faq): void {

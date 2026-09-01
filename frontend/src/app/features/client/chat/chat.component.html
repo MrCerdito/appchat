@@ -101,7 +101,7 @@
   ══════════════════════════════════════════════════════════════════ -->
   @if (step === 'faq') {
   <div class="screen-faq">
-    <app-faq (iniciarChat)="irAFormulario()" (abrirPqrs)="irAPqrs()"></app-faq>
+    <app-faq (iniciarChat)="irAFormulario()" (abrirPqrs)="irAPqrs()" (faqAbierta)="registrarFaqPendiente($event)"></app-faq>
 
     @if (showPqrsSuccess) {
     <div class="pqrs-success-banner">

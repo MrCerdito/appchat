@@ -99,9 +99,11 @@ export class ChatService implements OnModuleInit {
     sessionId: string,
     tipo: string,
     detalle: Record<string, any> | null = null,
+    fecha?: string | null,
   ): Promise<SessionEvento> {
+    const createdAt = fecha ? new Date(fecha) : new Date();
     return this.sessionEventoRepo.save(
-      this.sessionEventoRepo.create({ sessionId, tipo, detalle }),
+      this.sessionEventoRepo.create({ sessionId, tipo, detalle, createdAt }),
     );
   }
 

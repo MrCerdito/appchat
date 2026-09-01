@@ -23,6 +23,7 @@ export class FaqComponent implements OnInit, OnDestroy, AfterViewInit {
 
   @Output() iniciarChat = new EventEmitter<void>();
   @Output() abrirPqrs   = new EventEmitter<void>();
+  @Output() faqAbierta  = new EventEmitter<Faq>();
 
   faqs: Faq[] = [];
   categorias: string[] = [];
@@ -93,7 +94,12 @@ export class FaqComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   toggleFaq(id: number): void {
+    const abriendo = this.faqExpandida !== id;
     this.faqExpandida = this.faqExpandida === id ? null : id;
+    if (abriendo) {
+      const faq = this.faqs.find(f => f.id === id);
+      if (faq) this.faqAbierta.emit(faq);
+    }
   }
 
   selectCategoria(cat: string): void {

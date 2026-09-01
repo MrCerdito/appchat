@@ -162,10 +162,19 @@ export class SessionService {
   }
 
   /** Fire-and-forget: registra que el cliente abrió una FAQ durante su chat. */
-  registrarFaqClic(sessionId: string, faqId: number): Observable<{ ok: boolean }> {
+  registrarFaqClic(
+    sessionId: string,
+    faqId: number,
+    opts?: { fecha?: string; soloEvento?: boolean },
+  ): Observable<{ ok: boolean }> {
     return this.http.post<{ ok: boolean }>(
       `${environment.apiUrl}/chat/eventos-faq`,
-      { sessionId, faqId },
+      {
+        sessionId,
+        faqId,
+        fecha: opts?.fecha,
+        soloEvento: opts?.soloEvento,
+      },
     );
   }
 
