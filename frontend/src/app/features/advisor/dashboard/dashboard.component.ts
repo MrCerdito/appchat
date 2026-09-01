@@ -342,6 +342,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe(data => {
         if (data.enAlmuerzo) return;
+        if (this.almuerzoProximoActivo || this.almuerzoPendiente) return;
         this.resetAlmuerzo(false, 'sync');
       });
 
@@ -737,7 +738,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
       const segs = Math.floor((diff % 60000) / 1000);
       this.almuerzoProximoRestante = `${String(mins).padStart(2, '0')}:${String(segs).padStart(2, '0')}`;
       this.cdr.detectChanges();
-      if (diff === 0) this.stopLunchApproachingCountdown();
+      if (diff === 0) {
+        this.stopLunchApproachingCountdown();
+        // Fin del aviso de 5 min: pedir al servidor que evalúe la transición
+        // (pendiente por chats activos o inicio del almuerzo) sin esperar el
+        // barrido de 30s.
+        if (this.almuerzoProximoActivo && !this.almuerzoPendiente && !this.enAlmuerzo) {
+          this.socket.emit('get_lunch_state');
+        }
+      }
     };
 
     tick();

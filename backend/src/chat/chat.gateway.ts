@@ -402,6 +402,24 @@ export class ChatGateway
       });
       return;
     }
+
+    // El aviso de 5 min del cliente llegó a 00:00 y pide la transición ya:
+    // evaluar la entrada al horario sin esperar el barrido de 30s.
+    const ahora = new Date();
+    const config = await this.configuracionService
+      .getEfectivaBatch([advisorId])
+      .catch(() => new Map());
+    const almuerzos: Array<{ dia: number; inicio: string; fin: string }> =
+      config.get(advisorId)?.almuerzos ?? [];
+    const almuerzoHoy = almuerzos.find((a) => a.dia === ahora.getDay());
+    if (almuerzoHoy) {
+      const resultado = await this.transicionarEntradaAlmuerzo(
+        advisorId,
+        almuerzoHoy,
+        ahora,
+      );
+      if (resultado !== 'none') return;
+    }
     client.emit('lunch_state', { enAlmuerzo: false });
   }
 
@@ -2518,7 +2536,8 @@ export class ChatGateway
             if (
               diffToStart > 0 &&
               diffToStart <= cincoMinMs &&
-              !(await this.redisState.isLunchNotified(advisorId))
+              !(await this.redisState.isLunchNotified(advisorId)) &&
+              !(await this.redisState.isLunchSkipped(advisorId, fechaHoy))
             ) {
               await this.redisState.addLunchNotified(advisorId);
               const minsRest = Math.ceil(diffToStart / 60000);
@@ -2803,6 +2822,72 @@ export class ChatGateway
 
   private async estaEnAlmuerzo(advisorId: string): Promise<boolean> {
     return this.redisState.isOnLunch(advisorId);
+  }
+
+  // Transición al inicio del horario de almuerzo (misma regla que la rama
+  // "ENTRÓ al horario" del barrido de 30s). Se usa bajo demanda desde
+  // get_lunch_state para que el aviso de 5 min pase a pendiente/inicio en el
+  // momento exacto en que el countdown del cliente llega a 00:00. Es
+  // idempotente: los flags de Redis evitan doble transición con el barrido.
+  private async transicionarEntradaAlmuerzo(
+    advisorId: string,
+    almuerzoHoy: { dia: number; inicio: string; fin: string },
+    ahora: Date,
+  ): Promise<'pending' | 'started' | 'none'> {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const hhmm = `${pad(ahora.getHours())}:${pad(ahora.getMinutes())}`;
+    const enHorario = hhmm >= almuerzoHoy.inicio && hhmm < almuerzoHoy.fin;
+
+    if (await this.estaEnAlmuerzo(advisorId)) return 'started';
+    if (await this.tieneAlmuerzoPendiente(advisorId)) return 'pending';
+    if (!enHorario) return 'none';
+    if (await this.redisState.isLunchSkipped(advisorId, this.todayStr(ahora))) {
+      return 'none';
+    }
+
+    await this.redisState.removeLunchNotified(advisorId);
+    const advisorRecord = await this.sessionsService
+      .setAdvisorStatus(advisorId, 'busy')
+      .catch(() => null);
+    await this.redisState.setAdvisorStatus(advisorId, 'busy');
+    this.server.emit('advisor_status_changed', {
+      advisorId,
+      name: advisorRecord?.name ?? '',
+      status: 'busy',
+    });
+
+    const [ih, im] = almuerzoHoy.inicio.split(':').map(Number);
+    const [fh, fm] = almuerzoHoy.fin.split(':').map(Number);
+    const duracionMs = (fh * 60 + fm - (ih * 60 + im)) * 60_000;
+
+    const chatsActivos = await this.countChatsActivosAlmuerzo(advisorId);
+
+    if (chatsActivos.total > 0) {
+      await this.redisState.setPendingLunch(advisorId, {
+        inicioOriginal: almuerzoHoy.inicio,
+        finOriginal: almuerzoHoy.fin,
+        duracionMs,
+        inicioReal: ahora.toISOString(),
+      });
+      this.server.to(`advisor:${advisorId}`).emit('lunch_pending', {
+        mensaje: `Tienes ${chatsActivos.total} chat(s) activo(s). Termínalos para iniciar tu pausa de almuerzo.`,
+        chats: chatsActivos.total,
+        chatsWeb: chatsActivos.web,
+        chatsWhatsapp: chatsActivos.whatsapp,
+        inicio: almuerzoHoy.inicio,
+        finOriginal: almuerzoHoy.fin,
+      });
+      return 'pending';
+    }
+
+    await this.iniciarAlmuerzoAhora(
+      advisorId,
+      almuerzoHoy.inicio,
+      almuerzoHoy.fin,
+      duracionMs,
+      ahora,
+    );
+    return 'started';
   }
 
   private todayStr(now: Date = new Date()): string {
