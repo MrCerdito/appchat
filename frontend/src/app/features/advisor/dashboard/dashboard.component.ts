@@ -151,8 +151,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
   almuerzoError = '';
   terminarAlmuerzoLoading = false;
   confirmarFinAlmuerzo = false;
+  almuerzoProximoActivo = false;
+  almuerzoProximoRestante = '';
+  almuerzoProximoFinEpoch = 0;
+  almuerzoModalMinimizado = false;
 
   private lunchInterval: ReturnType<typeof setInterval> | null = null;
+  private lunchApproachingInterval: ReturnType<typeof setInterval> | null = null;
   private destroy$ = new Subject<void>();
   private readonly STATUS_KEY = 'advisor_status';
   private readonly LUNCH_STATE_KEY = 'advisor_lunch_state';
@@ -325,6 +330,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.almuerzoMensaje = '';
         this.almuerzoProximoMensaje = '';
         this.almuerzoError = '';
+        this.almuerzoProximoActivo = false;
+        this.stopLunchApproachingCountdown();
         this.advisorStatus = 'busy';
         this.persistLunchState();
         this.startLunchCountdown();
@@ -370,7 +377,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       .subscribe(data => {
         this.almuerzoMensaje = data.mensaje;
         this.almuerzoPendiente = true;
-        this.almuerzoModalVisible = true;
+        if (!this.almuerzoModalMinimizado) this.almuerzoModalVisible = true;
         this.almuerzoChatsPendientes = data.chats;
         this.almuerzoChatsWeb = data.chatsWeb;
         this.almuerzoChatsWhatsapp = data.chatsWhatsapp;
@@ -378,6 +385,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.almuerzoFinOriginal = data.finOriginal;
         this.almuerzoProximoMensaje = '';
         this.almuerzoError = '';
+        this.almuerzoProximoActivo = false;
+        this.stopLunchApproachingCountdown();
         this.advisorStatus = 'busy';
         this.cdr.detectChanges();
       });
@@ -396,6 +405,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.almuerzoProgreso = 0;
         this.almuerzoProximoMensaje = '';
         this.almuerzoError = '';
+        this.almuerzoProximoActivo = false;
+        this.stopLunchApproachingCountdown();
         this.advisorStatus = 'online';
         this.cdr.detectChanges();
       });
@@ -404,6 +415,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe(data => {
         this.almuerzoProximoMensaje = data.mensaje;
+        this.almuerzoProximoActivo = true;
+        if (!this.almuerzoModalMinimizado) this.almuerzoModalVisible = true;
+        this.almuerzoPendiente = false;
+        this.startLunchApproachingCountdown(data.inicio);
         this.cdr.detectChanges();
       });
   }
@@ -568,6 +583,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
         if (this.router.url.includes('/dashboard/whatsapp')) return;
         this.whatsapp.refreshUnreadTotal().subscribe();
         this.whatsapp.loadChats(1).subscribe();
+        if (this.almuerzoPendiente && !this.enAlmuerzo) {
+          this.socket.emit('get_lunch_state');
+        }
       });
     document.addEventListener('visibilitychange', this.handleVisibilityChange);
   }
@@ -704,6 +722,31 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.lunchInterval = null;
   }
 
+  private startLunchApproachingCountdown(inicio: string): void {
+    this.stopLunchApproachingCountdown();
+    const [h, m] = (inicio || '12:00').split(':').map(Number);
+    const finMs = new Date().setHours(h, m, 0, 0);
+    this.almuerzoProximoFinEpoch = finMs;
+
+    const tick = () => {
+      const diff = Math.max(0, this.almuerzoProximoFinEpoch - Date.now());
+      const mins = Math.floor(diff / 60000);
+      const segs = Math.floor((diff % 60000) / 1000);
+      this.almuerzoProximoRestante = `${String(mins).padStart(2, '0')}:${String(segs).padStart(2, '0')}`;
+      this.cdr.detectChanges();
+      if (diff === 0) this.stopLunchApproachingCountdown();
+    };
+
+    tick();
+    this.lunchApproachingInterval = setInterval(tick, 1000);
+  }
+
+  private stopLunchApproachingCountdown(): void {
+    if (!this.lunchApproachingInterval) return;
+    clearInterval(this.lunchApproachingInterval);
+    this.lunchApproachingInterval = null;
+  }
+
   private computeLunchFinEpoch(data: {
     fin?: string;
     inicioReal?: string;
@@ -791,8 +834,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.almuerzoError = '';
     this.confirmarFinAlmuerzo = false;
     this.terminarAlmuerzoLoading = false;
+    this.almuerzoProximoActivo = false;
+    this.almuerzoProximoRestante = '';
+    this.almuerzoProximoFinEpoch = 0;
+    this.almuerzoModalMinimizado = false;
     if (restoreOnline) this.advisorStatus = 'online';
     this.stopLunchCountdown();
+    this.stopLunchApproachingCountdown();
     localStorage.removeItem(this.LUNCH_STATE_KEY);
     this.cdr.detectChanges();
 
@@ -902,12 +950,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   cerrarModalAlmuerzo(): void {
     this.almuerzoModalVisible = false;
+    this.almuerzoModalMinimizado = true;
     this.almuerzoError = '';
     this.confirmarFinAlmuerzo = false;
   }
 
   reabrirModalAlmuerzo(): void {
     this.almuerzoModalVisible = true;
+    this.almuerzoModalMinimizado = false;
     this.almuerzoError = '';
   }
 
@@ -924,6 +974,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.almuerzoProgreso = 0;
     this.almuerzoProximoMensaje = '';
     this.stopLunchCountdown();
+    this.stopLunchApproachingCountdown();
     setTimeout(() => {
       this.socket.disconnect();
       this.whatsapp.disconnect();

@@ -111,6 +111,111 @@
     }
   }
 
+  <!-- ── Ventana emergente de almuerzo (pendiente / próximo) no bloqueante ─── -->
+  @if (!enAlmuerzo && (almuerzoPendiente || almuerzoProximoActivo)) {
+    @if (almuerzoModalVisible) {
+    <div class="lunch-popup" [class.lunch-popup--pending]="almuerzoPendiente" [class.lunch-popup--approaching]="!almuerzoPendiente && almuerzoProximoActivo">
+      <button class="lunch-widget-close" (click)="cerrarModalAlmuerzo()" title="Minimizar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+
+      @if (almuerzoPendiente) {
+      <div class="lunch-widget-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/>
+          <path d="M7 2v20"/>
+          <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7"/>
+        </svg>
+      </div>
+
+      <div class="lunch-widget-body">
+        <h3>Almuerzo pendiente</h3>
+        <p class="lunch-widget-sub">{{ almuerzoMensaje }}</p>
+
+        @if (almuerzoChatsWeb > 0 || almuerzoChatsWhatsapp > 0) {
+        <div class="pending-breakdown popup-breakdown">
+          @if (almuerzoChatsWeb > 0) {
+          <span class="breakdown-item popup-breakdown-item">● Chat agente: {{ almuerzoChatsWeb }} sin finalizar</span>
+          }
+          @if (almuerzoChatsWhatsapp > 0) {
+          <span class="breakdown-item popup-breakdown-item">● WhatsApp: {{ almuerzoChatsWhatsapp }} sin finalizar</span>
+          }
+        </div>
+        }
+
+        @if (almuerzoInicio) {
+        <div class="almuerzo-schedule">
+          <span class="schedule-range">{{ almuerzoInicio }} — {{ almuerzoFinOriginal }}</span>
+        </div>
+        }
+
+        @if (almuerzoPendiente && almuerzoChatsPendientes === 0) {
+        <div class="lunch-widget-actions">
+          <button class="lunch-btn lunch-btn--end" (click)="iniciarAlmuerzoManual()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/>
+              <path d="M7 2v20"/>
+              <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7"/>
+            </svg>
+            Iniciar almuerzo
+          </button>
+        </div>
+        }
+      </div>
+      } @else {
+      <div class="lunch-widget-icon lunch-popup-icon--approaching">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="12" x2="12" y2="6"/>
+          <line x1="12" y1="12" x2="16" y2="14"/>
+        </svg>
+      </div>
+
+      <div class="lunch-widget-body">
+        <h3>Almuerzo próximamente</h3>
+        <div class="almuerzo-countdown-wrap">
+          <span class="countdown-label">Faltan</span>
+          <span class="countdown-timer">{{ almuerzoProximoRestante }}</span>
+          <span class="countdown-sub">{{ almuerzoProximoMensaje }}</span>
+        </div>
+      </div>
+      }
+    </div>
+    } @else {
+    <button class="lunch-float-badge lunch-float-badge--popup" (click)="reabrirModalAlmuerzo()" title="Ver almuerzo">
+      <span class="lunch-float-icon">
+        @if (almuerzoPendiente) {
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+          stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        } @else {
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+          stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="12" x2="12" y2="6"/>
+          <line x1="12" y1="12" x2="16" y2="14"/>
+        </svg>
+        }
+      </span>
+      @if (almuerzoPendiente) {
+      <span class="lunch-float-timer">{{ almuerzoChatsPendientes }} chat(s) sin finalizar</span>
+      } @else {
+      <span class="lunch-float-timer">{{ almuerzoProximoRestante }}</span>
+      }
+    </button>
+    }
+  }
+
   <!-- ── Sidebar ────────────────────────────────────────────────────────── -->
   <aside class="shell-sidebar" [class.open]="sidebarOpen">
 
@@ -852,61 +957,6 @@
         }
       </div>
     </header>
-
-    <!-- Banner almuerzo próximo -->
-    @if (almuerzoProximoMensaje && !enAlmuerzo && !almuerzoMensaje) {
-    <div class="lunch-approaching-banner">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-        stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"/>
-        <line x1="12" y1="12" x2="12" y2="6"/>
-        <line x1="12" y1="12" x2="16" y2="14"/>
-      </svg>
-      <span>{{ almuerzoProximoMensaje }}</span>
-    </div>
-    }
-
-    <!-- Banner almuerzo pendiente -->
-    @if (almuerzoPendiente && !enAlmuerzo) {
-    <div class="lunch-pending-banner">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-        stroke-linecap="round" stroke-linejoin="round">
-        <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/>
-        <path d="M7 2v20"/>
-        <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7"/>
-      </svg>
-      <div class="lunch-pending-text">
-        <span class="pending-title">Almuerzo pendiente</span>
-        <span class="pending-desc">{{ almuerzoMensaje }}</span>
-        @if (almuerzoChatsWeb > 0 || almuerzoChatsWhatsapp > 0) {
-        <div class="pending-breakdown">
-          @if (almuerzoChatsWeb > 0) {
-          <span class="breakdown-item">● Chat agente: {{ almuerzoChatsWeb }} sin finalizar</span>
-          }
-          @if (almuerzoChatsWhatsapp > 0) {
-          <span class="breakdown-item">● WhatsApp: {{ almuerzoChatsWhatsapp }} sin finalizar</span>
-          }
-        </div>
-        }
-        @if (almuerzoInicio) {
-        <span class="pending-hours">
-          Horario: {{ almuerzoInicio }} — {{ almuerzoFinOriginal }}
-        </span>
-        }
-      </div>
-      @if (almuerzoPendiente && almuerzoChatsPendientes === 0) {
-      <button class="pending-start-btn" (click)="iniciarAlmuerzoManual()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/>
-          <path d="M7 2v20"/>
-          <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7"/>
-        </svg>
-        Iniciar almuerzo
-      </button>
-      }
-    </div>
-    }
 
     <!-- Banner error almuerzo -->
     @if (almuerzoError && !enAlmuerzo) {

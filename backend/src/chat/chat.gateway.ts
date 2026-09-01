@@ -2768,12 +2768,27 @@ export class ChatGateway
     if (!pendiente) return;
 
     const chatsActivos = await this.countChatsActivosAlmuerzo(advisorId);
-    if (chatsActivos.total > 0) return;
 
     // Check if advisor is still connected
     const connected = await this.redisState.getConnectedAdvisorIds();
     if (!connected.includes(advisorId)) {
       await this.redisState.removePendingLunch(advisorId);
+      return;
+    }
+
+    if (chatsActivos.total > 0) {
+      // Re-emitir el desglose actualizado para que la ventana pendiente refleje
+      // en tiempo real la cantidad de chats (p. ej. 2 → 1 al cerrar uno).
+      // Esta re-emisión ocurre en el barrido de 30s solo mientras haya
+      // almuerzo pendiente, por lo que el coste es mínimo.
+      this.server.to(`advisor:${advisorId}`).emit('lunch_pending', {
+        mensaje: `Tienes ${chatsActivos.total} chat(s) activo(s). Termínalos para iniciar tu pausa de almuerzo.`,
+        chats: chatsActivos.total,
+        chatsWeb: chatsActivos.web,
+        chatsWhatsapp: chatsActivos.whatsapp,
+        inicio: pendiente.inicioOriginal,
+        finOriginal: pendiente.finOriginal,
+      });
       return;
     }
 

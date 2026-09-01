@@ -3063,6 +3063,111 @@
   }
 }
 
+// ── Ventana emergente almuerzo (pendiente / próximo) ────────
+.lunch-popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 9989;
+  width: 320px;
+  max-width: calc(100vw - 28px);
+  max-height: calc(100vh - 28px);
+  overflow: auto;
+  background: var(--surface);
+  border: 1px solid #bfdbfe;
+  border-radius: 18px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.18);
+  padding: 1.1rem 1.15rem 1.15rem;
+  font-family: var(--font);
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  text-align: center;
+  animation: fadeIn 0.3s ease;
+
+  &--pending { border-color: #fde68a; }
+
+  .lunch-widget-close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: #94a3b8;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+
+    &:hover { background: #f1f5f9; color: #334155; }
+    svg { width: 15px; height: 15px; }
+  }
+
+  .lunch-widget-icon {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto;
+    border-radius: 50%;
+    background: #fffbeb;
+    border: 2px solid #fde68a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: float 3s ease-in-out infinite;
+    svg { width: 26px; height: 26px; stroke: #f59e0b; }
+  }
+
+  .lunch-popup-icon--approaching {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+    svg { stroke: #3b82f6; }
+  }
+
+  .lunch-widget-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.65rem;
+
+    h3 { font-size: 1.05rem; font-weight: 700; color: #1e293b; margin: 0; }
+    .lunch-widget-sub { font-size: 0.78rem; color: #64748b; line-height: 1.5; margin: 0; }
+  }
+
+  .popup-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    width: 100%;
+    padding: 0.6rem 0.75rem;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 12px;
+    text-align: left;
+  }
+  .popup-breakdown-item { font-size: 0.78rem; font-weight: 600; color: #b45309; }
+
+  .almuerzo-schedule .schedule-range { font-size: 0.82rem; }
+
+  .almuerzo-countdown-wrap { padding: 0.75rem 1.25rem; }
+  .countdown-timer { font-size: 2.4rem; }
+
+  .lunch-widget-actions { width: 100%; }
+
+  @media (max-width: 1268px) {
+    max-width: calc(100vw - 20px);
+  }
+}
+
+.lunch-float-badge--popup {
+  background: #3b82f6;
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.4);
+}
+
 // ── Animaciones ────────────────────────────────────────────
 @keyframes fadeIn      { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slideUp     { from { opacity: 0; transform: translateY(20px) scale(0.95); } to { opacity: 1; transform: none; } }
