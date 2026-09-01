@@ -612,6 +612,11 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
       .subscribe((data) => {
         if (!data?.sessionId || data.readBy !== 'client') return;
         this.state.markRead(data.sessionId, 'advisor');
+        this.patchTimeline(
+          data.sessionId,
+          (t) => t.kind === 'message' && t.senderType === 'advisor' && !t.readAt,
+          { readAt: new Date().toISOString() },
+        );
         this.cdr.detectChanges();
       });
 
@@ -620,6 +625,11 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
       .subscribe((data) => {
         if (!data?.sessionId || data.senderType !== 'advisor') return;
         this.state.markDelivered(data.sessionId, 'advisor');
+        this.patchTimeline(
+          data.sessionId,
+          (t) => t.kind === 'message' && t.senderType === 'advisor' && !t.readAt && !t.deliveredAt,
+          { deliveredAt: new Date().toISOString() },
+        );
         this.cdr.detectChanges();
       });
 
@@ -629,6 +639,11 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
         const sessionId = msg.session?.id ?? msg.sessionId;
         if (!sessionId) return;
         this.state.updateMessage(sessionId, msg);
+        this.patchTimeline(
+          sessionId,
+          (t) => t.kind === 'message' && t.id === msg.id,
+          msg,
+        );
         this.cdr.detectChanges();
       });
 
@@ -924,6 +939,22 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     this.imagePreview  = null;
     this.state.setActiveSession(null);
     this.cdr.detectChanges();
+  }
+
+  private patchTimeline(
+    sessionId: string,
+    predicate: (item: TimelineItem) => boolean,
+    patch: Partial<Message> | TimelineEvento,
+  ): void {
+    const tl = this.timelineMap.get(sessionId);
+    if (!tl) return;
+    let changed = false;
+    const next = tl.map((item) => {
+      if (!predicate(item)) return item;
+      changed = true;
+      return { ...item, ...patch };
+    });
+    if (changed) this.timelineMap.set(sessionId, next);
   }
 
   // ── Cerrar sesión ─────────────────────────────────────────────────────────

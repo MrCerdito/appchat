@@ -607,11 +607,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.chatState.incrementUnread(sessionId);
     }
 
-    if (isAssigned && !shouldNotify && viewingSessionId === sessionId && document.visibilityState === 'visible') {
+    const isViewing = isAssigned && !shouldNotify && viewingSessionId === sessionId;
+    if (isViewing && document.visibilityState === 'visible') {
       this.socket.emit('set_active', { sessionId, active: true });
     }
 
-    this.loadActiveCount();
+    if (!isViewing) {
+      this.loadActiveCount();
+    }
     this.cdr.detectChanges();
   }
 
@@ -863,7 +866,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
         // Sembrar el conteo desde el servidor (readAt) para que al refrescar
         // la página el contador de "chat en línea" sea consistente.
         sessions.forEach(s => {
-          if (typeof s.unreadCount === 'number') {
+          if (
+            typeof s.unreadCount === 'number' &&
+            s.id !== this.chatState.getActiveSessionId()
+          ) {
             this.chatState.setUnread(s.id, s.unreadCount);
           }
         });
