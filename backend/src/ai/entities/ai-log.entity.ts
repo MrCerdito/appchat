@@ -62,6 +62,9 @@ export class AiLog {
   esRestringido: boolean;
 
   @Column({ default: false })
+  esOfensivo: boolean;
+
+  @Column({ default: false })
   redireccionInstitucional: boolean;
 
   @Column({ nullable: true })

@@ -4,6 +4,7 @@ import { Repository, In, DataSource, LessThan } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import * as crypto from 'crypto';
+import * as ExcelJS from 'exceljs';
 import { Session } from './entities/session.entity';
 import { User } from 'src/auth/entities/user.entity';
 import { Message } from '../chat/entities/message.entity';
@@ -11,6 +12,7 @@ import { SessionEvento } from '../chat/entities/session-evento.entity';
 import { Colegio } from './entities/colegio.entity';
 import { Rating } from './entities/rating.entity';
 import { matchColegio } from '../common/url/url-match.util';
+import { AiLogsService } from 'src/ai/ai-logs.service';
 
 @Injectable()
 export class SessionsService {
@@ -31,6 +33,7 @@ export class SessionsService {
     @Inject(CACHE_MANAGER)
     private readonly cache: Cache,
     @InjectDataSource() private readonly dataSource: DataSource,
+    private readonly aiLogs: AiLogsService,
   ) {}
 
   async invalidateCache(pattern?: string): Promise<void> {
@@ -828,6 +831,194 @@ export class SessionsService {
       await this.cache.set(cacheKey, result, 30_000);
     } catch {}
     return result;
+  }
+
+  async getAiStats(filtros: { desde?: string; hasta?: string } = {}) {
+    const [detallado, porAsesor, ranking] = await Promise.all([
+      this.aiLogs.getStatsDetallado(filtros),
+      this.aiLogs.getStatsPorAsesor(filtros),
+      this.getRankingAsesores(),
+    ]);
+    return { ...detallado, porAsesor, ranking };
+  }
+
+  async getAiStatsByAdvisor(
+    advisorId: string,
+    filtros: { desde?: string; hasta?: string } = {},
+  ) {
+    return this.aiLogs.getStatsDetallado({
+      ...filtros,
+      asesorId: advisorId,
+    });
+  }
+
+  async generateReport(
+    role: string,
+    userId: string,
+    desde?: string,
+    hasta?: string,
+  ): Promise<Buffer> {
+    const isAdmin = role === 'admin';
+    const filtros = { desde, hasta };
+
+    // ── Datos según alcance (admin = global, asesor = solo su información) ──
+    const ranking = (await this.getRankingAsesores()) as any[];
+    const comentarios = isAdmin
+      ? await this.getAllComentarios(1, 200)
+      : await this.getComentariosByAdvisor(userId, 1, 200);
+    const aiStats = (
+      isAdmin
+        ? await this.getAiStats(filtros)
+        : await this.getAiStatsByAdvisor(userId, filtros)
+    ) as any;
+    const base = isAdmin
+      ? await this.getMetrics()
+      : await this.getMetricsByAdvisor(userId);
+
+    // ── Hojas de trabajo ────────────────────────────────────────────────────
+    const workbook = new ExcelJS.Workbook();
+
+    const resumen = workbook.addWorksheet('Resumen');
+    resumen.columns = [
+      { header: 'Métrica', key: 'metrica', width: 42 },
+      { header: 'Valor', key: 'valor', width: 22 },
+    ];
+    const now = new Date();
+    const resumenRows: Array<{ metrica: string; valor: string | number }> = [
+      { metrica: 'Fecha de generación', valor: now.toLocaleString('es-CO', { timeZone: 'America/Bogota' }) },
+      ...(desde ? [{ metrica: 'Desde', valor: desde }] : []),
+      ...(hasta ? [{ metrica: 'Hasta', valor: hasta }] : []),
+      { metrica: 'Total sesiones', valor: (base as any).total ?? 0 },
+      { metrica: 'Sesiones activas', valor: (base as any).active ?? (base as any).totalActivas ?? 0 },
+      { metrica: 'Sesiones cerradas', valor: (base as any).closed ?? (base as any).totalCerradas ?? 0 },
+      { metrica: 'Tiempo promedio resolución (min)', valor: (base as any).avgMinutes ?? (base as any).avgResolucionMin ?? 0 },
+    ];
+    resumen.addRows(resumenRows);
+    resumen.getColumn('metrica').font = { bold: true };
+    resumen.getCell('A1').value = isAdmin
+      ? 'Reporte general del sistema'
+      : `Reporte del asesor`;
+
+    // ── Rendimiento IA ──────────────────────────────────────────────────────
+    const ia = workbook.addWorksheet('Rendimiento IA');
+    ia.columns = [
+      { header: 'Métrica', key: 'metrica', width: 40 },
+      { header: 'Valor', key: 'valor', width: 18 },
+      { header: 'Tasa', key: 'tasa', width: 12 },
+    ];
+    ia.addRows([
+      { metrica: 'Interacciones totales', valor: aiStats.total ?? 0 },
+      { metrica: 'Con contexto RAG', valor: aiStats.conContexto ?? 0, tasa: `${aiStats.tasas?.contexto ?? 0}%` },
+      { metrica: 'Transferencias a asesor', valor: aiStats.transfers ?? 0, tasa: `${aiStats.tasas?.transfer ?? 0}%` },
+      { metrica: 'Errores', valor: aiStats.errores ?? 0, tasa: `${aiStats.tasas?.error ?? 0}%` },
+      { metrica: 'Temas restringidos', valor: aiStats.esRestringido ?? 0, tasa: `${aiStats.tasas?.restringido ?? 0}%` },
+      { metrica: 'Ofensas detectadas', valor: aiStats.esOfensivo ?? 0, tasa: `${aiStats.tasas?.ofensas ?? 0}%` },
+      { metrica: 'Feedback útil', valor: aiStats.feedbackPositivo ?? 0, tasa: `${aiStats.tasas?.feedbackUtil ?? 0}%` },
+      { metrica: 'Feedback no útil', valor: aiStats.feedbackNegativo ?? 0 },
+      { metrica: 'Feedback sin responder', valor: aiStats.feedbackSinResponder ?? 0 },
+      { metrica: 'Tiempo promedio respuesta (ms)', valor: aiStats.tiempoPromedioMs ?? 0 },
+      { metrica: 'Mediana respuesta (ms)', valor: aiStats.medianaMs ?? 0 },
+      { metrica: 'P95 respuesta (ms)', valor: aiStats.p95Ms ?? 0 },
+      { metrica: 'Tokens promedio', valor: aiStats.tokensPromedio ?? 0 },
+      { metrica: 'Tokens totales estimados', valor: aiStats.tokensTotales ?? 0 },
+    ]);
+    ia.getColumn('metrica').font = { bold: true };
+
+    const iaDetalle = workbook.addWorksheet('IA por rol y tema');
+    iaDetalle.columns = [
+      { header: 'Categoría', key: 'categoria', width: 22 },
+      { header: 'Valor', key: 'valor', width: 30 },
+      { header: 'Cantidad', key: 'cantidad', width: 12 },
+    ];
+    const push = (categoria: string, arr: Array<{ valor: string; count: string | number }>) => {
+      for (const item of arr ?? []) {
+        iaDetalle.addRow({
+          categoria,
+          valor: item.valor,
+          cantidad: Number(item.count),
+        });
+      }
+    };
+    push('Rol', aiStats.porRol);
+    push('Tipo de solicitud', aiStats.porSolicitud);
+    push('Colegio', aiStats.porColegio);
+    push('Tema institucional', aiStats.porTema);
+    iaDetalle.getColumn('categoria').font = { bold: true };
+
+    // ── Ranking de asesores ────────────────────────────────────────────────
+    const rankSheet = workbook.addWorksheet('Ranking asesores');
+    rankSheet.columns = [
+      { header: 'Posición', key: 'pos', width: 10 },
+      { header: 'Asesor', key: 'nombre', width: 24 },
+      { header: 'Sesiones', key: 'total', width: 12 },
+      { header: 'Cerradas', key: 'cerradas', width: 12 },
+      { header: 'Reseñas', key: 'reseñas', width: 12 },
+      { header: 'Promedio estrellas', key: 'estrellas', width: 20 },
+    ];
+    ranking.forEach((r: any, i: number) => {
+      rankSheet.addRow({
+        pos: i + 1,
+        nombre: r.name,
+        total: r.total,
+        cerradas: r.totalCerradas,
+        reseñas: r.totalRatings,
+        estrellas: r.avgEstrellas > 0 ? r.avgEstrellas : '—',
+      });
+    });
+    rankSheet.getColumn('nombre').font = { bold: true };
+
+    // ── No asesores: por asesor IA ─────────────────────────────────────────
+    if (isAdmin && aiStats.porAsesor && aiStats.porAsesor.length) {
+      const porAsesor = workbook.addWorksheet('IA por asesor');
+      porAsesor.columns = [
+        { header: 'Asesor', key: 'nombre', width: 26 },
+        { header: 'Interacciones', key: 'total', width: 16 },
+        { header: 'Con contexto', key: 'conContexto', width: 16 },
+        { header: 'Transfers', key: 'transfers', width: 14 },
+        { header: 'Errores', key: 'errores', width: 14 },
+        { header: 'Ofensas', key: 'ofensas', width: 14 },
+        { header: 'Feedback útil', key: 'feedbackUtil', width: 16 },
+        { header: 'Tiempo prom (ms)', key: 'tiempo', width: 18 },
+      ];
+      for (const r of aiStats.porAsesor) {
+        porAsesor.addRow({
+          nombre: r.nombre,
+          total: r.total,
+          conContexto: r.conContexto,
+          transfers: r.transfers,
+          errores: r.errores,
+          ofensas: r.ofensas,
+          feedbackUtil: r.feedbackUtil,
+          tiempo: r.tiempoPromedioMs,
+        });
+      }
+      porAsesor.getColumn('nombre').font = { bold: true };
+    }
+
+    // ── Comentarios ────────────────────────────────────────────────────────
+    const comentariosSheet = workbook.addWorksheet('Comentarios clientes');
+    comentariosSheet.columns = [
+      { header: 'Cliente', key: 'cliente', width: 20 },
+      ...(isAdmin ? [{ header: 'Asesor', key: 'asesor', width: 20 }] : []),
+      { header: 'Comentario', key: 'comentario', width: 50 },
+      { header: 'Estrellas', key: 'estrellas', width: 12 },
+      { header: 'Fecha', key: 'fecha', width: 18 },
+    ];
+    for (const c of comentarios.data ?? []) {
+      comentariosSheet.addRow({
+        cliente: c.clientName,
+        asesor: isAdmin ? (c.advisorName ?? '') : undefined,
+        comentario: c.comentario,
+        estrellas: c.estrellas,
+        fecha: c.createdAt
+          ? new Date(c.createdAt).toISOString().slice(0, 19)
+          : '',
+      });
+    }
+    comentariosSheet.getColumn('cliente').font = { bold: true };
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return buffer as unknown as Buffer;
   }
 
   async findAllAdmin(): Promise<Session[]> {

@@ -6,7 +6,7 @@ import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { AdminService, Metrics } from '../../../../core/services/admin.service';
-import { SessionService, RankingAsesor } from '../../../../core/services/session.service';
+import { SessionService, RankingAsesor, AiStats } from '../../../../core/services/session.service';
 import { SocketService } from '../../../../core/services/socket.service';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
 import { fmtDateMedium } from '../../../../shared/utils/date';
@@ -24,6 +24,7 @@ export class MetricsComponent implements OnInit, OnDestroy {
   protected readonly trackById = trackById;
   protected readonly fmtDateMedium = fmtDateMedium;
   metrics : Metrics | null   = null;
+  aiStats : AiStats  | null  = null;
   ranking : RankingAsesor[]  = [];
   loading = true;
   error   = false;
@@ -34,6 +35,11 @@ export class MetricsComponent implements OnInit, OnDestroy {
   comentPages     = 1;
   comentTotal     = 0;
   selectedAdvisor = '';
+
+  // ── Filtros de fecha ──
+  desde = '';
+  hasta = '';
+  exporting = false;
 
   private destroy$ = new Subject<void>();
 
@@ -47,6 +53,7 @@ export class MetricsComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.fetchMetrics();
     this.loadComentarios();
+    this.fetchAiStats();
 
     // Escucha eventos del socket para refrescar métricas en tiempo real
     // sin necesidad de polling
@@ -74,6 +81,40 @@ export class MetricsComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
+  onFechasCambiadas(): void {
+    if (this.desde && this.hasta && this.desde > this.hasta) {
+      this.hasta = this.desde;
+    }
+    if (this.hasta && this.desde && this.hasta < this.desde) {
+      this.desde = this.hasta;
+    }
+    this.fetchAiStats();
+  }
+
+  exportarExcel(): void {
+    if (this.exporting) return;
+    this.exporting = true;
+    this.sessionService.exportReport(this.desde || undefined, this.hasta || undefined).subscribe({
+      next: (blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `reporte-metricas_${this.desde || 'todo'}_a_${this.hasta || 'hoy'}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        this.exporting = false;
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error('HTTP Error:', err);
+        this.exporting = false;
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
   private fetchMetrics(): void {
     this.adminService.getMetrics().subscribe({
       next: (m) => {
@@ -94,6 +135,16 @@ export class MetricsComponent implements OnInit, OnDestroy {
     this.sessionService.getRankingAsesores().subscribe({
       next: (r) => {
         this.ranking = r;
+        this.cdr.detectChanges();
+      },
+      error: (err) => console.error('HTTP Error:', err),
+    });
+  }
+
+  private fetchAiStats(): void {
+    this.sessionService.getAiStats(this.desde || undefined, this.hasta || undefined).subscribe({
+      next: (s) => {
+        this.aiStats = s;
         this.cdr.detectChanges();
       },
       error: (err) => console.error('HTTP Error:', err),
@@ -143,5 +194,22 @@ export class MetricsComponent implements OnInit, OnDestroy {
     if (tasa >= 75) return '#16a34a';
     if (tasa >= 50) return '#b45309';
     return '#dc2626';
+  }
+
+  fmtPct(valor: number | undefined): string {
+    return `${valor ?? 0}%`;
+  }
+
+  fmtS(num: number | undefined): string {
+    return new Intl.NumberFormat('es-CO').format(num ?? 0);
+  }
+
+  paginas(): number[] {
+    const max = 10;
+    const start = Math.max(1, this.comentPage - Math.floor(max / 2));
+    const end = Math.min(this.comentPages, start + max - 1);
+    const out: number[] = [];
+    for (let p = start; p <= end; p++) out.push(p);
+    return out;
   }
 }

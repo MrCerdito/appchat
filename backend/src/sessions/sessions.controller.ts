@@ -17,7 +17,10 @@ import {
   ForbiddenException,
   BadRequestException,
   ValidationPipe,
+  Res,
+  StreamableFile,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SessionsService } from './sessions.service';
@@ -220,6 +223,88 @@ export class SessionsController {
   @UseGuards(JwtAuthGuard)
   getMetricsByAdvisor(@Param('id') id: string, @Query('tz') tz?: string) {
     return this.sessionsService.getMetricsByAdvisor(id, tz);
+  }
+
+  @Get('metrics/ai')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  getAiStats(
+    @Query('desde') desde?: string,
+    @Query('hasta') hasta?: string,
+  ) {
+    return this.sessionsService.getAiStats({ desde, hasta });
+  }
+
+  @Get('metrics/ai/asesor/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin', 'advisor')
+  getAiStatsByAdvisor(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Query('desde') desde?: string,
+    @Query('hasta') hasta?: string,
+  ) {
+    // Admin puede consultar a cualquier asesor; un asesor solo sus propios datos
+    if (req.user.role !== 'admin' && req.user.id !== id) {
+      throw new ForbiddenException(
+        'No tienes permiso para consultar las métricas de otro asesor',
+      );
+    }
+    return this.sessionsService.getAiStatsByAdvisor(id, { desde, hasta });
+  }
+
+  @Get('metrics/export')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @HttpCode(HttpStatus.OK)
+  async exportReport(
+    @Request() req: any,
+    @Res({ passthrough: true }) res: Response,
+    @Query('desde') desde?: string,
+    @Query('hasta') hasta?: string,
+  ): Promise<StreamableFile> {
+    const file = await this.sessionsService.generateReport(
+      req.user.role,
+      req.user.id,
+      desde,
+      hasta,
+    );
+    res.set({
+      'Content-Type':
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="reporte-completo-${Date.now()}.xlsx"`,
+    });
+    return new StreamableFile(file);
+  }
+
+  @Get('metrics/export/asesor/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin', 'advisor')
+  @HttpCode(HttpStatus.OK)
+  async exportReportAsesor(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Res({ passthrough: true }) res: Response,
+    @Query('desde') desde?: string,
+    @Query('hasta') hasta?: string,
+  ): Promise<StreamableFile> {
+    if (req.user.role !== 'admin' && req.user.id !== id) {
+      throw new ForbiddenException(
+        'No tienes permiso para exportar el reporte de otro asesor',
+      );
+    }
+    const file = await this.sessionsService.generateReport(
+      req.user.role,
+      req.user.id,
+      desde,
+      hasta,
+    );
+    res.set({
+      'Content-Type':
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="reporte-asesor-${Date.now()}.xlsx"`,
+    });
+    return new StreamableFile(file);
   }
 
   @Get('admin/all')

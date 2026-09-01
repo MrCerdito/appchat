@@ -11,6 +11,7 @@ import { Colegio } from './entities/colegio.entity';
 import { Rating } from './entities/rating.entity';
 import { TicketsModule } from '../tickets/tickets.module';
 import { ChatModule } from '../chat/chat.module';
+import { AiModule } from '../ai/ai.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { ChatModule } from '../chat/chat.module';
     AuthModule,
     TicketsModule,
     forwardRef(() => ChatModule),
+    AiModule,
   ],
   controllers: [SessionsController],
   providers: [SessionsService],

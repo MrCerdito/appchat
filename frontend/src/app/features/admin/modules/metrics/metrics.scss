@@ -190,11 +190,12 @@
 .page-btn {
   width: 28px; height: 28px; border-radius: 7px;
   border: 1px solid var(--border); background: var(--surface);
-  color: var(--text); cursor: pointer; font-size: 1rem;
+  color: var(--text); cursor: pointer; font-size: 0.8rem;
   display: flex; align-items: center; justify-content: center;
   transition: background 0.15s;
   &:hover:not(:disabled) { background: var(--bg); }
   &:disabled { color: var(--border); cursor: not-allowed; }
+  &.active { background: #3b82f6; border-color: #3b82f6; color: #fff; }
 }
 .page-info { font-size: 0.7rem; color: var(--text-muted); font-family: 'DM Mono', monospace; }
 
@@ -331,6 +332,67 @@
 .header-actions {
   display: flex; align-items: center; gap: 0.75rem;
 }
+
+.range-filter {
+  display: flex; align-items: center; gap: 0.4rem;
+  input {
+    font-size: 0.72rem; color: var(--text);
+    border: 1px solid var(--border); border-radius: 7px;
+    padding: 0.3rem 0.5rem; background: var(--surface);
+    outline: none;
+    &:focus { border-color: #3b82f6; }
+  }
+  .range-sep { font-size: 0.7rem; color: var(--text-muted); }
+}
+
+.btn-export {
+  font-size: 0.72rem; font-weight: 600;
+  color: #fff; background: #3b82f6; border: none;
+  border-radius: 7px; padding: 0.42rem 0.9rem;
+  cursor: pointer; white-space: nowrap;
+  transition: background 0.15s;
+  &:hover:not(:disabled) { background: #2563eb; }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+// ── Rendimiento IA ────────────────────────────────────────
+.ai-kpis {
+  display: grid; grid-template-columns: repeat(6, 1fr);
+  gap: 1px; background: var(--border);
+  border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+}
+.ai-kpi {
+  background: var(--surface); padding: 1rem 0.75rem;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.ai-kpi-num {
+  font-size: 1.5rem; font-weight: 300; color: var(--text);
+  font-family: 'DM Mono', monospace; letter-spacing: -0.03em; line-height: 1;
+  &.blue   { color: #3b82f6; }
+  &.gold   { color: #f59e0b; }
+  &.red    { color: #ef4444; }
+  &.purple { color: #a78bfa; }
+  &.teal   { color: #0d9488; }
+}
+.ai-kpi-label {
+  font-size: 0.6rem; color: var(--text-muted); text-align: center;
+  text-transform: uppercase; letter-spacing: 0.05em; font-weight: 500;
+}
+
+.ai-stats-row {
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.75rem;
+}
+.ai-stat {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 10px; padding: 0.75rem;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.ai-stat-val { font-size: 0.95rem; font-weight: 600; color: var(--text); font-family: 'DM Mono', monospace; }
+.ai-stat-label { font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+.ai-breakdown { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--border); padding-top: 0.75rem; }
+.ai-asesores { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--border); padding-top: 0.75rem; }
+.comments-table.mini th, .comments-table.mini td { padding: 0.45rem 0.6rem; font-size: 0.7rem; }
 
 .advisor-filter {
   font-size: 0.72rem; color: var(--text);

@@ -112,6 +112,62 @@ function coincideTema(mensaje: string, tema: string): boolean {
   return new RegExp(`(^|\\W)${escaped}(\\W|$)`, 'i').test(msg);
 }
 
+// Detecta groserías con límites de palabra (evita falsos positivos por substring,
+// p. ej. "tonto" ya no pega dentro de "atontado", ni "perra" dentro de "perramea").
+// Cada palabra prohibida se compara como palabra completa, cubriendo variantes
+// morfológicas reales del español (género -o/-a, número -s/-es, aumentativo -ón)
+// para no perder detección sin excederse en falsos positivos.
+function formasDePalabra(t: string): string[] {
+  const formas = new Set<string>([t]);
+  if (t.length < 3) return [...formas];
+
+  // Plural -es para palabras que terminan en consonante o -ón (maricon→maricones,
+  // inutil→inutiles).
+  if (/[bcdfghjklmnñpqrstvwxyz]$/.test(t)) {
+    formas.add(`${t}es`);
+  }
+  if (t.endsWith('on')) {
+    formas.add(`${t}es`);
+    formas.add(`${t.replace(/on$/, 'a')}`);
+    formas.add(`${t.replace(/on$/, 'as')}`);
+  }
+  // Terminación en -o: femenino -a, plural -os/-as, aumentativo -on/-ones.
+  if (t.endsWith('o')) {
+    const base = t.slice(0, -1);
+    formas.add(`${base}a`);
+    formas.add(`${t}s`);
+    formas.add(`${base}as`);
+    formas.add(`${base}on`);
+    formas.add(`${base}ones`);
+  }
+  // Terminación en -a: plural -as y masculino -o (perra→perro) y variantes -on.
+  if (t.endsWith('a')) {
+    const base = t.slice(0, -1);
+    formas.add(`${t}s`);
+    formas.add(`${base}o`);
+    formas.add(`${base}os`);
+    formas.add(`${base}on`);
+    formas.add(`${base}ones`);
+  }
+  return [...formas];
+}
+
+function esGroseria(mensaje: string, palabras: string[]): boolean {
+  const msg = normalizarTexto(mensaje);
+  if (!msg || !Array.isArray(palabras) || palabras.length === 0) {
+    return false;
+  }
+  for (const p of palabras) {
+    const t = normalizarTexto(p);
+    if (!t) continue;
+    for (const f of formasDePalabra(t)) {
+      const escaped = f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      if (new RegExp(`(^|\\W)${escaped}(\\W|$)`, 'i').test(msg)) return true;
+    }
+  }
+  return false;
+}
+
 // Coincidencia de temas institucionales (redirección, no resolución automática).
 // Independiente del rol: si el tema coincide, NO se busca en RAG ni se entregan
 // documentos, se responde con la redirección (mensaje del tema o genérico).
@@ -736,9 +792,7 @@ export class AiService {
     const conducta = this.cargarConducta(aiCfg);
 
     // ── D1: groserías → aviso (endpoint legacy sin sesión, siempre avisa) ──
-    const ofensa = conducta.palabrasProhibidas.some((w) =>
-      normalizarTexto(message).includes(normalizarTexto(w)),
-    );
+    const ofensa = esGroseria(message, conducta.palabrasProhibidas);
     if (ofensa) {
       this.aiLogs.guardar({
         colegio,
@@ -1489,9 +1543,7 @@ ${transcript}`;
     const conducta = this.cargarConducta(aiCfg);
 
     // ── D1: groserías → aviso (1ª/2ª) o cierre de sesión (3ª) ───────────────
-    const ofensa = conducta.palabrasProhibidas.some((w) =>
-      normalizarTexto(message).includes(normalizarTexto(w)),
-    );
+    const ofensa = esGroseria(message, conducta.palabrasProhibidas);
     if (ofensa) {
       const key = sessionId ?? '';
       const contador = (this.contadorOfensas.get(key) ?? 0) + 1;

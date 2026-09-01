@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { Session } from '../models/session.model';
@@ -56,6 +56,56 @@ export interface AdvisorMetrics {
   avgEstrellas: number;
   topEtiquetas: { etiqueta: string; count: number }[];
   comentarios: string[];
+}
+
+export interface AiStatsDetallado {
+  total: number;
+  conContexto: number;
+  transfers: number;
+  errores: number;
+  esRestringido: number;
+  esOfensivo: number;
+  redireccion: number;
+  feedbackPositivo: number;
+  feedbackNegativo: number;
+  feedbackSinResponder: number;
+  tiempoPromedioMs: number;
+  medianaMs: number;
+  p95Ms: number;
+  tokensPromedio: number;
+  tokensTotales: number;
+  tasas: {
+    contexto: number;
+    transfer: number;
+    error: number;
+    restringido: number;
+    ofensas: number;
+    redireccion: number;
+    feedbackUtil: number;
+  };
+  porRol: { valor: string; count: string }[];
+  porSolicitud: { valor: string; count: string }[];
+  porColegio: { valor: string; count: string }[];
+  porTema: { valor: string; count: string }[];
+  tendencia: { fecha: string; count: string }[];
+}
+
+export interface AiStats extends AiStatsDetallado {
+  ofensas: number;
+  porAsesor: {
+    asesorId: string;
+    nombre: string;
+    total: number;
+    conContexto: number;
+    transfers: number;
+    errores: number;
+    ofensas: number;
+    feedbackUtil: number;
+    tiempoPromedioMs: number;
+    tasaTransfer: number;
+    tasaError: number;
+  }[];
+  ranking: RankingAsesor[];
 }
 
 @Injectable({ providedIn: 'root' })
@@ -204,6 +254,52 @@ export class SessionService {
     return this.http.get<RankingAsesor[]>(
       `${environment.apiUrl}/sessions/metrics/ranking`
     );
+  }
+
+  getAiStats(desde?: string, hasta?: string): Observable<AiStats> {
+    const params = this.rangoParams(desde, hasta);
+    return this.http.get<AiStats>(`${environment.apiUrl}/sessions/metrics/ai`, {
+      params,
+    });
+  }
+
+  getAiStatsByAdvisor(
+    advisorId: string,
+    desde?: string,
+    hasta?: string,
+  ): Observable<AiStatsDetallado> {
+    const params = this.rangoParams(desde, hasta);
+    return this.http.get<AiStatsDetallado>(
+      `${environment.apiUrl}/sessions/metrics/ai/asesor/${advisorId}`,
+      { params },
+    );
+  }
+
+  exportReport(desde?: string, hasta?: string): Observable<Blob> {
+    const params = this.rangoParams(desde, hasta);
+    return this.http.get(`${environment.apiUrl}/sessions/metrics/export`, {
+      params,
+      responseType: 'blob',
+    });
+  }
+
+  exportReportAsesor(
+    advisorId: string,
+    desde?: string,
+    hasta?: string,
+  ): Observable<Blob> {
+    const params = this.rangoParams(desde, hasta);
+    return this.http.get(
+      `${environment.apiUrl}/sessions/metrics/export/asesor/${advisorId}`,
+      { params, responseType: 'blob' },
+    );
+  }
+
+  private rangoParams(desde?: string, hasta?: string): HttpParams {
+    let params = new HttpParams();
+    if (desde) params = params.set('desde', desde);
+    if (hasta) params = params.set('hasta', hasta);
+    return params;
   }
 
   getComentariosByAdvisor(advisorId: string, page = 1, limit = 10) {

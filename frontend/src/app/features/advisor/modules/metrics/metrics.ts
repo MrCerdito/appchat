@@ -1,8 +1,9 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
-import { SessionService, AdvisorMetrics, RankingAsesor } from '../../../../core/services/session.service';
+import { SessionService, AdvisorMetrics, RankingAsesor, AiStatsDetallado } from '../../../../core/services/session.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { SocketService } from '../../../../core/services/socket.service';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
@@ -11,7 +12,7 @@ import { fmtTimeSec, fmtMonthYear, fmtDateMedium } from '../../../../shared/util
 @Component({
   selector: 'app-advisor-metrics',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './metrics.html',
   styleUrl: './metrics.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -23,16 +24,22 @@ export class AdvisorMetricsComponent implements OnInit, OnDestroy {
   protected readonly fmtMonthYear = fmtMonthYear;
   protected readonly fmtDateMedium = fmtDateMedium;
   metrics: AdvisorMetrics | null = null;
+  aiStats: AiStatsDetallado | null = null;
   ranking: RankingAsesor[]       = [];
   loading  = true;
   error    = false;
   Math     = Math;
   lastUpdated: Date | null = null;
-  
+
   comentarios: any[]  = [];
   comentPage  = 1;
   comentPages = 1;
   comentTotal = 0;
+
+  // ── Filtro fechas + exportación ──
+  desde = '';
+  hasta = '';
+  exporting = false;
 
   private destroy$ = new Subject<void>();
   private userId: string | null = null;
@@ -51,6 +58,7 @@ export class AdvisorMetricsComponent implements OnInit, OnDestroy {
 
     this.fetchMetrics();
     this.loadComentarios();
+    this.fetchAiStats();
 
     this.socket.on('metrics_updated')
       .pipe(takeUntil(this.destroy$))
@@ -74,6 +82,40 @@ export class AdvisorMetricsComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  onFechasCambiadas(): void {
+    if (this.desde && this.hasta && this.desde > this.hasta) {
+      this.hasta = this.desde;
+    }
+    if (this.hasta && this.desde && this.hasta < this.desde) {
+      this.desde = this.hasta;
+    }
+    this.fetchAiStats();
+  }
+
+  exportarExcel(): void {
+    if (!this.userId || this.exporting) return;
+    this.exporting = true;
+    this.sessionService.exportReportAsesor(this.userId, this.desde || undefined, this.hasta || undefined).subscribe({
+      next: (blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `mi-reporte_${this.desde || 'todo'}_a_${this.hasta || 'hoy'}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        this.exporting = false;
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error('HTTP Error:', err);
+        this.exporting = false;
+        this.cdr.detectChanges();
+      },
+    });
   }
 
   private fetchMetrics(): void {
@@ -151,5 +193,33 @@ export class AdvisorMetricsComponent implements OnInit, OnDestroy {
     const resolucion = Math.min(this.metrics.tasaResolucion, 100) * 0.4;
     const respuesta = Math.max(0, 25 - Math.min(this.metrics.avgPrimeraRespuestaMin, 25));
     return Math.round(rating + resolucion + respuesta);
+  }
+
+  private fetchAiStats(): void {
+    if (!this.userId) return;
+    this.sessionService.getAiStatsByAdvisor(this.userId, this.desde || undefined, this.hasta || undefined).subscribe({
+      next: (s) => {
+        this.aiStats = s;
+        this.cdr.detectChanges();
+      },
+      error: (err) => console.error('HTTP Error:', err),
+    });
+  }
+
+  fmtPct(valor: number | undefined): string {
+    return `${valor ?? 0}%`;
+  }
+
+  fmtS(num: number | undefined): string {
+    return new Intl.NumberFormat('es-CO').format(num ?? 0);
+  }
+
+  paginas(): number[] {
+    const max = 10;
+    const start = Math.max(1, this.comentPage - Math.floor(max / 2));
+    const end = Math.min(this.comentPages, start + max - 1);
+    const out: number[] = [];
+    for (let p = start; p <= end; p++) out.push(p);
+    return out;
   }
 }

@@ -914,7 +914,8 @@ a {
     word-break: break-word;
     box-shadow: $shadow-xs;
 
-    a {
+    a,
+    ::ng-deep a {
       color: $primary;
       text-decoration: underline;
       word-break: break-all;
@@ -938,7 +939,8 @@ a {
     word-break: break-word;
     box-shadow: 0 2px 8px rgba($primary, 0.2);
 
-    a {
+    a,
+    ::ng-deep a {
       color: #ffffff;
       text-decoration: underline;
       word-break: break-all;

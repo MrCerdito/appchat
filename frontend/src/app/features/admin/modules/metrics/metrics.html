@@ -8,6 +8,16 @@
         <span class="meta-label">Métricas globales</span>
       </div>
     </div>
+    <div class="header-actions">
+      <div class="range-filter">
+        <input type="date" [value]="desde" (change)="desde = $any($event.target).value; onFechasCambiadas()" />
+        <span class="range-sep">→</span>
+        <input type="date" [value]="hasta" (change)="hasta = $any($event.target).value; onFechasCambiadas()" />
+      </div>
+      <button class="btn-export" [disabled]="exporting" (click)="exportarExcel()">
+        {{ exporting ? 'Generando…' : 'Descargar Excel' }}
+      </button>
+    </div>
   </header>
 
   @if (loading) {
@@ -98,6 +108,115 @@
         </table>
       </section>
 
+      <!-- Rendimiento IA -->
+      <section class="comments-card">
+        <div class="comments-header">
+          <span class="section-title">Rendimiento de la IA</span>
+          @if (aiStats) {
+          <span class="comments-total">{{ fmtS(aiStats.total) }} interacciones</span>
+          }
+        </div>
+
+        @if (!aiStats) {
+        <div class="empty-state">Cargando datos de la IA…</div>
+        }
+
+        @if (aiStats) {
+        <div class="ai-kpis">
+          <div class="ai-kpi">
+            <span class="ai-kpi-num">{{ fmtS(aiStats.total) }}</span>
+            <span class="ai-kpi-label">Interacciones</span>
+          </div>
+          <div class="ai-kpi">
+            <span class="ai-kpi-num blue">{{ fmtS(aiStats.conContexto) }}</span>
+            <span class="ai-kpi-label">Con contexto ({{ fmtPct(aiStats.tasas.contexto) }})</span>
+          </div>
+          <div class="ai-kpi">
+            <span class="ai-kpi-num gold">{{ fmtS(aiStats.transfers) }}</span>
+            <span class="ai-kpi-label">Transfers ({{ fmtPct(aiStats.tasas.transfer) }})</span>
+          </div>
+          <div class="ai-kpi">
+            <span class="ai-kpi-num red">{{ fmtS(aiStats.errores) }}</span>
+            <span class="ai-kpi-label">Errores ({{ fmtPct(aiStats.tasas.error) }})</span>
+          </div>
+          <div class="ai-kpi">
+            <span class="ai-kpi-num purple">{{ fmtS(aiStats.ofensas) }}</span>
+            <span class="ai-kpi-label">Ofensas ({{ fmtPct(aiStats.tasas.ofensas) }})</span>
+          </div>
+          <div class="ai-kpi">
+            <span class="ai-kpi-num teal">{{ fmtS(aiStats.feedbackPositivo) }}</span>
+            <span class="ai-kpi-label">Feedback útil ({{ fmtPct(aiStats.tasas.feedbackUtil) }})</span>
+          </div>
+        </div>
+
+        <div class="ai-stats-row">
+          <div class="ai-stat">
+            <span class="ai-stat-val">{{ (aiStats.tiempoPromedioMs / 1000).toFixed(2) }}s</span>
+            <span class="ai-stat-label">Tiempo prom. respuesta</span>
+          </div>
+          <div class="ai-stat">
+            <span class="ai-stat-val">{{ (aiStats.medianaMs / 1000).toFixed(2) }}s</span>
+            <span class="ai-stat-label">Mediana</span>
+          </div>
+          <div class="ai-stat">
+            <span class="ai-stat-val">{{ (aiStats.p95Ms / 1000).toFixed(2) }}s</span>
+            <span class="ai-stat-label">P95</span>
+          </div>
+          <div class="ai-stat">
+            <span class="ai-stat-val">{{ fmtS(aiStats.tokensPromedio) }}</span>
+            <span class="ai-stat-label">Tokens prom.</span>
+          </div>
+          <div class="ai-stat">
+            <span class="ai-stat-val">{{ fmtS(aiStats.tokensTotales) }}</span>
+            <span class="ai-stat-label">Tokens totales</span>
+          </div>
+          <div class="ai-stat">
+            <span class="ai-stat-val">{{ fmtS(aiStats.esRestringido) }}</span>
+            <span class="ai-stat-label">Temas restringidos</span>
+          </div>
+        </div>
+
+        @if (aiStats.porRol && aiStats.porRol.length) {
+        <div class="ai-breakdown">
+          <span class="section-micro">Por rol</span>
+          <div class="chip-row">
+            @for (p of aiStats.porRol; track $index) {
+            <span class="chip-tag">{{ p.valor }}</span>
+            }
+          </div>
+        </div>
+        }
+
+        @if (aiStats.porAsesor && aiStats.porAsesor.length) {
+        <div class="ai-asesores">
+          <span class="section-micro">Interacciones IA por asesor</span>
+          <table class="comments-table mini">
+            <thead>
+              <tr>
+                <th>Asesor</th>
+                <th>Interacciones</th>
+                <th>Transfers</th>
+                <th>Errores</th>
+                <th>Feedback útil</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (a of aiStats.porAsesor; track trackById($index, a)) {
+              <tr>
+                <td class="td-client">{{ a.nombre }}</td>
+                <td class="td-date">{{ fmtS(a.total) }}</td>
+                <td class="td-date">{{ fmtS(a.transfers) }} ({{ fmtPct(a.tasaTransfer) }})</td>
+                <td class="td-date">{{ fmtS(a.errores) }} ({{ fmtPct(a.tasaError) }})</td>
+                <td class="td-date">{{ fmtS(a.feedbackUtil) }}</td>
+              </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        }
+        }
+      </section>
+
       <!-- Tabla comentarios -->
       <section class="comments-card">
         <div class="comments-header">
@@ -162,8 +281,11 @@
 
         @if (comentPages > 1) {
         <div class="pagination">
+          <span class="page-info">{{ comentTotal }} comentarios</span>
           <button class="page-btn" [disabled]="comentPage === 1" (click)="loadComentarios(comentPage - 1)">‹</button>
-          <span class="page-info">{{ comentPage }} / {{ comentPages }}</span>
+          @for (p of paginas(); track p) {
+          <button class="page-btn" [class.active]="p === comentPage" (click)="loadComentarios(p)">{{ p }}</button>
+          }
           <button class="page-btn" [disabled]="comentPage === comentPages" (click)="loadComentarios(comentPage + 1)">›</button>
         </div>
         }
