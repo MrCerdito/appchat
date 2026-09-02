@@ -177,16 +177,9 @@
             </button>
             <div class="avatar">{{ activeSession.clientName.charAt(0) }}</div>
             <div class="header-text">
-              <span class="client-name">{{ activeSession.clientName }}</span>
-              <span class="session-meta">
-                {{ activeSession.advisor?.name ? 'Atendido por ' + activeSession.advisor!.name : 'Sin agente asignado' }}
-                · {{ fmtDateTimeFull(activeSession.createdAt) }}
+              <span class="client-name">
+                {{ activeSession.clientName }}{{ activeSession.apellido ? ' ' + activeSession.apellido : '' }}
               </span>
-              @if (activeSession.colegio || activeSession.rol) {
-              <span class="session-meta">
-                {{ activeSession.colegio }}{{ activeSession.rol ? ' · ' + activeSession.rol : '' }}
-              </span>
-              }
             </div>
           </div>
 
