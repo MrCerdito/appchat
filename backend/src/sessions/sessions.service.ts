@@ -600,40 +600,49 @@ export class SessionsService {
     const hoyAtendidas = Number(countsRow?.today ?? 0);
     const semanaAtendidas = Number(countsRow?.week ?? 0);
 
-    const [timingRow, advisor, ratings, firstResponseRow] = await Promise.all([
-      this.sessionRepo
-        .createQueryBuilder('s')
-        .select('AVG(EXTRACT(EPOCH FROM (s.closed_at - s.created_at)) / 60)', 'avgResolution')
-        .addSelect('PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (s.closed_at - s.created_at)) / 60)', 'medianResolution')
-        .addSelect('PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (s.closed_at - s.created_at)) / 60)', 'p95Resolution')
-        .where('s.advisor_id = :id', { id: advisorId })
-        .andWhere("s.status = 'closed'")
-        .andWhere('s.closed_at IS NOT NULL')
-        .getRawOne<{ avgResolution: string | null; medianResolution: string | null; p95Resolution: string | null }>(),
-      this.userRepo.findOne({
-        where: { id: advisorId },
-        select: ['id', 'name', 'email', 'status', 'activeChats', 'createdAt'],
-      }),
-      this.ratingRepo
-        .createQueryBuilder('r')
-        .select('AVG(r.estrellas)', 'avgStars')
-        .addSelect('COUNT(r.id)', 'totalRatings')
-        .addSelect("jsonb_agg(DISTINCT jsonb_build_object('e', unnest_etiquetas.e))", 'etiquetasRaw')
-        .innerJoin('r.session', 's')
-        .where('s.advisor_id = :id', { id: advisorId })
-        .groupBy()
-        .getRawOne<{ avgStars: string | null; totalRatings: string; etiquetasRaw: any }>()
-        .catch(() => null),
-      this.messageRepo
-        .createQueryBuilder('m')
-        .select('AVG(EXTRACT(EPOCH FROM (m.created_at - s.created_at)) / 60)', 'avgFirstResponse')
-        .innerJoin('m.session', 's')
-        .where('s.advisor_id = :id', { id: advisorId })
-        .andWhere("s.status = 'closed'")
-        .andWhere("m.sender_type = 'advisor'")
-        .getRawOne<{ avgFirstResponse: string | null }>()
-        .catch(() => null),
-    ]);
+    const [timingRow, advisor, ratings, firstResponseRow, etiquetasRow] =
+      await Promise.all([
+        this.sessionRepo
+          .createQueryBuilder('s')
+          .select('AVG(EXTRACT(EPOCH FROM (s.closed_at - s.created_at)) / 60)', 'avgResolution')
+          .addSelect('PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (s.closed_at - s.created_at)) / 60)', 'medianResolution')
+          .addSelect('PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (s.closed_at - s.created_at)) / 60)', 'p95Resolution')
+          .where('s.advisor_id = :id', { id: advisorId })
+          .andWhere("s.status = 'closed'")
+          .andWhere('s.closed_at IS NOT NULL')
+          .getRawOne<{ avgResolution: string | null; medianResolution: string | null; p95Resolution: string | null }>(),
+        this.userRepo.findOne({
+          where: { id: advisorId },
+          select: ['id', 'name', 'email', 'status', 'activeChats', 'createdAt'],
+        }),
+        this.ratingRepo
+          .createQueryBuilder('r')
+          .select('AVG(r.estrellas)', 'avgStars')
+          .addSelect('COUNT(r.id)', 'totalRatings')
+          .innerJoin('r.session', 's')
+          .where('s.advisor_id = :id', { id: advisorId })
+          .getRawOne<{ avgStars: string | null; totalRatings: string }>()
+          .catch(() => null),
+        this.messageRepo
+          .createQueryBuilder('m')
+          .select('AVG(EXTRACT(EPOCH FROM (m.created_at - s.created_at)) / 60)', 'avgFirstResponse')
+          .innerJoin('m.session', 's')
+          .where('s.advisor_id = :id', { id: advisorId })
+          .andWhere("s.status = 'closed'")
+          .andWhere("m.sender_type = 'advisor'")
+          .getRawOne<{ avgFirstResponse: string | null }>()
+          .catch(() => null),
+        this.dataSource.query(
+          `SELECT etiqueta.e AS "etiqueta", COUNT(*)::int AS "cnt"
+             FROM ratings r
+             INNER JOIN sessions s ON s.id = r.session_id
+             CROSS JOIN LATERAL jsonb_array_elements_text(r.etiquetas) AS etiqueta(e)
+            WHERE s.advisor_id = $1
+            GROUP BY etiqueta.e
+            ORDER BY COUNT(*) DESC`,
+          [advisorId],
+        ).catch(() => [] as { etiqueta: string; cnt: number }[]),
+      ]);
 
     const sesionesAtendidas = totalCerradas + totalActivas;
     const tasaResolucion =
@@ -645,9 +654,14 @@ export class SessionsService {
     const avgEstrellas = totalRatings > 0 ? Number(ratings?.avgStars ?? 0) : 0;
 
     const etiquetaCount = new Map<string, number>();
-    if (ratings?.etiquetasRaw && Array.isArray(ratings.etiquetasRaw)) {
-      for (const item of ratings.etiquetasRaw) {
-        if (item?.e) etiquetaCount.set(item.e, (etiquetaCount.get(item.e) ?? 0) + 1);
+    if (Array.isArray(etiquetasRow)) {
+      for (const item of etiquetasRow) {
+        if (item?.etiqueta) {
+          etiquetaCount.set(
+            item.etiqueta,
+            (etiquetaCount.get(item.etiqueta) ?? 0) + Number(item.cnt ?? 1),
+          );
+        }
       }
     }
     const topEtiquetas = [...etiquetaCount.entries()]
