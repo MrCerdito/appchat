@@ -161,12 +161,15 @@ export class ChatGateway
 
         const isAdvisor = fullUser?.role === 'advisor';
         if (isAdvisor) {
-          // Store in Redis + join advisor room for cross-instance messaging
+          // Store in Redis + join advisor room for cross-instance messaging.
+          // NO se fuerza el estado a 'online': el status de BD refleja la
+          // intención del usuario (Disponible/Ocupado/Inactivo) y debe
+          // respetarse tras refrescar/reconectar. El SET de conectados
+          // (Redis) marca si hay socket activo; la asignación usa el status
+          // de BD para decidir quién es elegible.
           await this.redisState.addConnectedAdvisor(payload.sub, client.id);
           client.join(`advisor:${payload.sub}`);
-          // Sync DB status so findAvailableAdvisorFromList can find this advisor
-          await this.sessionsService.setAdvisorStatus(payload.sub, 'online');
-          await this.redisState.setAdvisorStatus(payload.sub, 'online');
+          await this.syncAdvisorStatusAfterConnect(payload.sub, fullUser);
         }
         if (fullUser?.role === 'admin') {
           // Los admins se unen a la sala 'admins' para recibir notificaciones
@@ -314,10 +317,23 @@ export class ChatGateway
     const advisor = await this.sessionsService.findAdvisorById(
       client.data.user.id,
     );
-    // Preservar el estado si ya era 'busy' (o 'online'), de lo contrario pasar a 'online'
-    const currentStatus = (advisor?.status === 'busy' || advisor?.status === 'online')
-      ? advisor.status
-      : 'online';
+    // Respetar el estado persistido del asesor (Disponible/Ocupado/Inactivo).
+    // No forzar 'online' al reconectar: si el usuario dejó su estado en
+    // 'offline' (Inactivo/ausente), debe permanecer así tras refrescar/recargar.
+    // Solo se usa 'online' como valor inicial cuando no hay estado previo.
+    const VALID_STATUSES = ['online', 'busy', 'offline'];
+    const persisted =
+      advisor?.status && VALID_STATUSES.includes(advisor.status)
+        ? (advisor.status as 'online' | 'busy' | 'offline')
+        : null;
+    let currentStatus = persisted ?? 'online';
+
+    // Si está en almuerzo (activo o pendiente), el estado efectivo es 'busy'
+    // (no recibe chats nuevos mientras dure la pausa), pero se respeta el
+    // estado pre-almuerzo una vez termine.
+    if (await this.estaEnAlmuerzo(client.data.user.id)) {
+      currentStatus = 'busy';
+    }
 
     await this.sessionsService.setAdvisorStatus(client.data.user.id, currentStatus);
     await this.redisState.setAdvisorStatus(client.data.user.id, currentStatus);
@@ -332,6 +348,34 @@ export class ChatGateway
       await this.assignPendingSessions();
       await this.assignWaitingWhatsappChats();
     }
+  }
+
+  // Sincroniza el estado al conectar el socket SIN forzarlo a 'online':
+  // conserva el estado persistido (Disponible/Ocupado/Inactivo) y solo usa
+  // 'online' como valor inicial si no hay estado previo. Emite el estado real
+  // para que todos los paneles queden consistentes.
+  private async syncAdvisorStatusAfterConnect(
+    advisorId: string,
+    advisor: { status?: string | null; name?: string | null; profilePhotoUrl?: string | null } | null,
+  ): Promise<void> {
+    const VALID_STATUSES = ['online', 'busy', 'offline'];
+    const persisted =
+      advisor?.status && VALID_STATUSES.includes(advisor.status)
+        ? (advisor.status as 'online' | 'busy' | 'offline')
+        : null;
+    let status: 'online' | 'busy' | 'offline' = persisted ?? 'online';
+
+    if (await this.estaEnAlmuerzo(advisorId).catch(() => false)) {
+      status = 'busy';
+    }
+
+    await this.redisState.setAdvisorStatus(advisorId, status);
+    this.server.emit('advisor_status_changed', {
+      advisorId,
+      name: advisor?.name ?? null,
+      status,
+      profilePhotoUrl: advisor?.profilePhotoUrl ?? null,
+    });
   }
 
   @SubscribeMessage('set_advisor_status')
