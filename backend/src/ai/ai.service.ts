@@ -413,6 +413,39 @@ function normalizarTexto(texto: string): string {
     .replace(/[\u0300-\u036f]/g, '');
 }
 
+// Patrones de una respuesta hostil/inapropiada que la IA NUNCA debería
+// producir hacia un usuario que NO lo haya ofendido. Se usan como defensa
+// extra (reaseguro) por si el modelo se sale de tono pese al system prompt.
+const PATRONES_RESPUESTA_HOSTIL = [
+  /eres (muy )?groser[oa]/i,
+  /eres (muy )?maleducad[oa]/i,
+  /te voy a sacar del chat/i,
+  /voy a finalizar(el | la | esta )?(chat|conversacion)/i,
+  /te sacare del chat/i,
+  /no tolero (a )?(insulto|groser)/i,
+  /marchate del chat/i,
+  /salte del chat/i,
+];
+
+// Un mensaje de RESPUESTA (de la IA) se considera hostil injustificado si
+// contiene al menos un patrón de los anteriores y la pregunta del cliente NO
+// fue detectada como ofensa real por el detector de groserías.
+function esRespuestaHostilInjustificada(
+  respuestaIA: string,
+  preguntaCliente: string,
+  palabrasProhibidas: string[],
+): boolean {
+  if (!respuestaIA) return false;
+  const normalizada = respuestaIA.toLowerCase();
+  if (!PATRONES_RESPUESTA_HOSTIL.some((r) => r.test(normalizada))) {
+    return false;
+  }
+  // Si el cliente sí ofendió de verdad, la respuesta hostil está justificada.
+  if (esGroseria(preguntaCliente, palabrasProhibidas)) return false;
+  // Si la respuesta no tiene patrón hostil, no hacemos nada.
+  return true;
+}
+
 // Detecta si un mensaje es SOLO cortesía (saludo, "cómo estás", gracias, etc.)
 // y devuelve el tipo de charla. Devuelve null si contiene una consulta real,
 // que debe pasar a RAG/Gemini para entregar la información.
@@ -1048,9 +1081,22 @@ export class AiService {
     const feedbackMatch = raw.match(/\[FEEDBACK:(YES|NO)\]\s*$/);
     const showFeedback = feedbackMatch?.[1] === 'YES';
     const marcados = parseDocumentoMarkers(raw);
-    const reply = limpiarMarcadoresDocumento(
+    let reply = limpiarMarcadoresDocumento(
       raw.replace(/\[FEEDBACK:(YES|NO)\]\s*$/, ''),
     );
+
+    // ── Defensa extra: respuesta hostil injustificada (reaseguro) ──────────
+    if (
+      esRespuestaHostilInjustificada(reply, message, conducta.palabrasProhibidas)
+    ) {
+      this.logger.warn(
+        '[IA] Respuesta hostil injustificada bloqueada (flujo legacy).',
+      );
+      reply =
+        'Te entendí bien. No busco descalificarte; mi intención es ayudarte. ' +
+        'Por favor, explícame con más detalle qué necesitas saber y te ayudo ' +
+        'de inmediato.';
+    }
     const tokens = Math.round((systemPrompt.length + message.length) / 4);
 
     this.aiLogs.guardar({
@@ -1837,7 +1883,6 @@ ${transcript}`;
             if (fr) finishReason = fr;
             if (text) {
               textoAcumulado += text;
-              emit('chunk', { text });
             }
           } catch {
             /* ignorar */
@@ -1853,8 +1898,34 @@ ${transcript}`;
       const aviso =
         '\n\n(La respuesta se cortó por extensión; intenta reformular tu pregunta.)';
       textoAcumulado += aviso;
-      emit('chunk', { text: aviso });
       this.logger.warn('Gemini truncado por MAX_TOKENS en chatStream()');
+    }
+
+    // ── Defensa extra: respuesta hostil injustificada ──────────────────────
+    // Si el LLM (pese al system prompt) emitió un tono hostil/inapropiado
+    // hacia un usuario que NO lo ofendió de verdad, lo reemplazamos por una
+    // respuesta cordial, para que el cliente nunca vea "eres grosero" ni
+    // amenazas de sacarlo del chat ante una consulta legítima.
+    if (
+      esRespuestaHostilInjustificada(
+        textoAcumulado,
+        message,
+        conducta.palabrasProhibidas,
+      )
+    ) {
+      this.logger.warn(
+        '[IA] Respuesta hostil injustificada bloqueada (recordatorio de puntos/trámites).',
+      );
+      const reparo =
+        'Te entendí bien. No busco descalificarte; mi intención es ayudarte con ' +
+        'tu consulta. Por favor, explícame con más detalle qué necesitas saber ' +
+        '(por ejemplo, si es sobre notas, puestos, certificados o un trámite) y ' +
+        'te ayudo de inmediato.';
+      textoAcumulado = reparo;
+      emit('chunk', { text: reparo });
+    } else {
+      // Emisión en un único tramo al final (permite la validación previa).
+      emit('chunk', { text: textoAcumulado });
     }
 
     // ── Emitir documentos: los que la IA marcó con [DOCUMENTO: <nombre>] ──
@@ -2126,7 +2197,16 @@ ${transcript}`;
       ? aiPromptConfig.frasesTransferencia.join('", "')
       : 'asesor", "humano", "persona", "agente';
     const conductaGroserias =
-      'NO toleres lenguaje ofensivo: sé respetuoso y ofrece continuar de forma amable. No uses emojis en ninguna respuesta.';
+      'MANEJO DEL LENGUAJE DEL USUARIO (muy importante): ' +
+      'Consideras "lenguaje ofensivo" SOLO si el usuario te insulta directamente, usa groserías explícitas, ' +
+      'te amenaza o usa lenguaje de odio hacia ti. ' +
+      'NUNCA trates como ofensa la frustración, la confusión, las quejas, la duda o las preguntas legítimas ' +
+      'sobre notas, puestos, calificaciones, certificados, autorizaciones, problemas de acceso o trámites, ' +
+      'aunque el usuario escriba molesto, en mayúsculas o con signos de exclamación. ' +
+      'Ante una ofensa real, responde de forma amable y serena que prefieres mantener un trato respetuoso y sigue ayudando. ' +
+      'En NINGÚN caso: respondas con tono agresivo, insultes, amenaces con sacar al usuario del chat, digas que es grosero/a, ' +
+      'finalices la conversación ni dejes de ayudar por algo que NO sea una ofensa directa y clara hacia ti. ' +
+      'Mantén SIEMPRE un tono cálido, paciente y servicial. No uses emojis en ninguna respuesta.';
 
     const temasInstitucionalesLista =
       temasInstitucionales.length > 0
