@@ -320,20 +320,10 @@ export class ChatGateway
     // Respetar el estado persistido del asesor (Disponible/Ocupado/Inactivo).
     // No forzar 'online' al reconectar: si el usuario dejó su estado en
     // 'offline' (Inactivo/ausente), debe permanecer así tras refrescar/recargar.
-    // Solo se usa 'online' como valor inicial cuando no hay estado previo.
-    const VALID_STATUSES = ['online', 'busy', 'offline'];
-    const persisted =
-      advisor?.status && VALID_STATUSES.includes(advisor.status)
-        ? (advisor.status as 'online' | 'busy' | 'offline')
-        : null;
-    let currentStatus = persisted ?? 'online';
-
-    // Si está en almuerzo (activo o pendiente), el estado efectivo es 'busy'
-    // (no recibe chats nuevos mientras dure la pausa), pero se respeta el
-    // estado pre-almuerzo una vez termine.
-    if (await this.estaEnAlmuerzo(client.data.user.id)) {
-      currentStatus = 'busy';
-    }
+    const currentStatus = await this.resolveAdvisorStatus(
+      client.data.user.id,
+      advisor?.status,
+    );
 
     await this.sessionsService.setAdvisorStatus(client.data.user.id, currentStatus);
     await this.redisState.setAdvisorStatus(client.data.user.id, currentStatus);
@@ -350,24 +340,38 @@ export class ChatGateway
     }
   }
 
-  // Sincroniza el estado al conectar el socket SIN forzarlo a 'online':
-  // conserva el estado persistido (Disponible/Ocupado/Inactivo) y solo usa
-  // 'online' como valor inicial si no hay estado previo. Emite el estado real
-  // para que todos los paneles queden consistentes.
-  private async syncAdvisorStatusAfterConnect(
+  // Calcula el estado del asesor respetando el estado persistido. Devuelve el
+  // estado guardado (Disponible/Ocupado/Inactivo) si existe; si no hay estado
+  // previo usa 'online' como valor inicial. Si el asesor está en almuerzo
+  // (activo o pendiente) el estado efectivo es 'busy' (no recibe chats nuevos
+  // durante la pausa), respetándose el estado pre-almuerzo una vez termine.
+  private async resolveAdvisorStatus(
     advisorId: string,
-    advisor: { status?: string | null; name?: string | null; profilePhotoUrl?: string | null } | null,
-  ): Promise<void> {
+    persistedStatus?: string | null,
+  ): Promise<'online' | 'busy' | 'offline'> {
     const VALID_STATUSES = ['online', 'busy', 'offline'];
     const persisted =
-      advisor?.status && VALID_STATUSES.includes(advisor.status)
-        ? (advisor.status as 'online' | 'busy' | 'offline')
+      persistedStatus && VALID_STATUSES.includes(persistedStatus)
+        ? (persistedStatus as 'online' | 'busy' | 'offline')
         : null;
     let status: 'online' | 'busy' | 'offline' = persisted ?? 'online';
 
     if (await this.estaEnAlmuerzo(advisorId).catch(() => false)) {
       status = 'busy';
     }
+    return status;
+  }
+
+  // Sincroniza el estado al conectar el socket SIN forzarlo a 'online':
+  // conserva el estado persistido (Disponible/Ocupado/Inactivo) y solo usa
+  // 'online' como valor inicial si no hay estado previo. Emite el estado real
+  // para que todos los paneles queden consistentes. No persiste en BD (el
+  // 'advisor_ready' posterior lo hace).
+  private async syncAdvisorStatusAfterConnect(
+    advisorId: string,
+    advisor: { status?: string | null; name?: string | null; profilePhotoUrl?: string | null } | null,
+  ): Promise<void> {
+    const status = await this.resolveAdvisorStatus(advisorId, advisor?.status);
 
     await this.redisState.setAdvisorStatus(advisorId, status);
     this.server.emit('advisor_status_changed', {
