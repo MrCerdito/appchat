@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef, HostListener, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -13,7 +13,7 @@ import { Session } from '../../../../core/models/session.model';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
 import { scrollToBottom } from '../../../../shared/utils/scroll';
 import { fmtDateTimeShort, fmtDateTimeFull, fmtTime } from '../../../../shared/utils/date';
-import { civilStr, fechaBogotaActual, rangoCivilStr, restarDiasCivil } from '../../../../shared/utils/fecha-bogota.util';
+import { rangoCivilStr } from '../../../../shared/utils/fecha-bogota.util';
 
 @Component({
   selector: 'app-history-global',
@@ -50,10 +50,8 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
   filterSolicitud    = '';
   filterIdentificacion = '';
   filterAsesor       = '';
-  showAdvancedFilters  = false;
 
   // ── Filtro por fechas ──
-  dateRangePreset = '';
   filterDateFrom  = '';
   filterDateTo    = '';
 
@@ -68,6 +66,10 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
 
   // ── Preview de imagen ──
   imagePreview: { src: string; name: string } | null = null;
+
+  // ── Tabs del chat ──
+  activeTab: 'conversation' | 'info' | 'attachments' = 'conversation';
+  showKebab = false;
 
   // ── Takeover ──
   takeoverLoading  = false;
@@ -136,6 +138,7 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
       total,
       conAsesor,
       porIa,
+      cerradas: list.filter(s => s.status === 'closed').length,
       pctAsesor: pct(conAsesor),
       pctIa    : pct(porIa),
     };
@@ -301,6 +304,28 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
     return { total: msgs.length, client, advisor, ia, documentos, adjuntos, opciones };
   }
 
+  /** Todos los adjuntos de la conversación (para la pestaña Adjuntos). */
+  get allAttachments(): { id: string; url: string; originalName: string; mimeType: string; size: number; senderName: string; createdAt: string }[] {
+    const atts: { id: string; url: string; originalName: string; mimeType: string; size: number; senderName: string; createdAt: string }[] = [];
+    for (const item of this.timeline) {
+      if (item.kind !== 'message') continue;
+      const m = item as any;
+      if (!m.attachments?.length) continue;
+      for (const a of m.attachments) {
+        atts.push({
+          id: a.id,
+          url: a.url,
+          originalName: a.originalName ?? a.originalname ?? 'archivo',
+          mimeType: a.mimeType ?? 'application/octet-stream',
+          size: a.size ?? 0,
+          senderName: m.senderName ?? (m.senderType === 'client' ? 'Cliente' : 'Asesor'),
+          createdAt: m.createdAt,
+        });
+      }
+    }
+    return atts;
+  }
+
   /** Agrupa el timeline por día para mostrar separadores de fecha. */
   groupDays(items: TimelineItem[]): { label: string; items: TimelineItem[] }[] {
     const groups: { label: string; items: TimelineItem[] }[] = [];
@@ -449,7 +474,6 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.currentUserId = this.auth.getUser()?.id ?? null;
     this.socket.connect(this.auth.getToken() ?? undefined);
-    this.applyDatePreset('today');
     this.loadSessions();
     this.listenSocketEvents();
   }
@@ -624,7 +648,6 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
     this.filterSolicitud = '';
     this.filterIdentificacion = '';
     this.filterAsesor = '';
-    this.dateRangePreset = '';
     this.filterDateFrom = '';
     this.filterDateTo = '';
   }
@@ -633,45 +656,6 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
     return !!(this.search || this.filter !== 'all' || this.filterColegio ||
       this.filterRol || this.filterSolicitud || this.filterIdentificacion || this.filterAsesor ||
       this.filterDateFrom || this.filterDateTo);
-  }
-
-  applyDatePreset(preset: string): void {
-    this.dateRangePreset = preset;
-    const hoy = fechaBogotaActual();
-    const fmt = civilStr;
-
-    switch (preset) {
-      case 'today': {
-        this.filterDateFrom = fmt(hoy);
-        this.filterDateTo = fmt(hoy);
-        break;
-      }
-      case 'yesterday': {
-        const y = restarDiasCivil(hoy, 1);
-        this.filterDateFrom = fmt(y);
-        this.filterDateTo = fmt(y);
-        break;
-      }
-      case 'week': {
-        const w = restarDiasCivil(hoy, 7);
-        this.filterDateFrom = fmt(w);
-        this.filterDateTo = fmt(hoy);
-        break;
-      }
-      case 'month': {
-        const m = restarDiasCivil(hoy, 30);
-        this.filterDateFrom = fmt(m);
-        this.filterDateTo = fmt(hoy);
-        break;
-      }
-      case 'custom':
-        this.filterDateFrom = '';
-        this.filterDateTo = '';
-        break;
-      default:
-        this.filterDateFrom = '';
-        this.filterDateTo = '';
-    }
   }
 
   selectSession(session: Session): void {
@@ -683,6 +667,7 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
     this.loading          = true;
     this.takeoverFeedback = null;
     this.mobileView       = 'chat';
+    this.activeTab        = 'conversation';
 
     this.socket.emit('join_session', { sessionId: session.id });
 
@@ -697,6 +682,17 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
       },
       error: () => { this.loading = false; this.cdr.detectChanges(); },
     });
+  }
+
+  /** Vuelve a la lista de sesiones (oculta el chat). */
+  backToList(): void {
+    if (this.activeSession) {
+      this.socket.emit('set_active', { sessionId: this.activeSession.id, active: false });
+    }
+    this.activeSession = null;
+    sessionStorage.removeItem(this.STORAGE_KEY);
+    this.mobileView = 'list';
+    this.cdr.detectChanges();
   }
 
   /** Carga el bloque anterior del historial conservando la posición de scroll. */
@@ -764,5 +760,18 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
       this.takeoverFeedback = null;
       this.cdr.detectChanges();
     }, 3500);
+  }
+
+  switchTab(tab: 'conversation' | 'info' | 'attachments'): void {
+    this.activeTab = tab;
+    this.cdr.detectChanges();
+  }
+
+  @HostListener('document:click')
+  onDocumentClick(): void {
+    if (this.showKebab) {
+      this.showKebab = false;
+      this.cdr.detectChanges();
+    }
   }
 }

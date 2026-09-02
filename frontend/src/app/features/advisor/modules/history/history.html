@@ -1,241 +1,175 @@
 <div class="history-page">
+
+  @if (!activeSession) {
+  <!-- ════════════ HEADER ════════════ -->
   <div class="page-header">
-    <div>
-      <h1>Historial</h1>
-      <p>Consulta todas las conversaciones</p>
-    </div>
-
-    <!-- Resumen del historial -->
-    <div class="header-stats">
-      <div class="hs-top">
-        <span class="hs-title">Resumen del historial</span>
-
-        <div class="hs-date-filter">
-          <select [(ngModel)]="dateRangePreset" (ngModelChange)="applyDatePreset($event)">
-            <option value="">Todas las fechas</option>
-            <option value="today">Hoy</option>
-            <option value="yesterday">Ayer</option>
-            <option value="week">Últimos 7 días</option>
-            <option value="month">Últimos 30 días</option>
-            <option value="custom">Rango específico</option>
-          </select>
-          @if (dateRangePreset === 'custom') {
-          <div class="hs-custom-dates">
-            <input type="date" [(ngModel)]="filterDateFrom" placeholder="Desde"/>
-            <span class="hs-date-sep">—</span>
-            <input type="date" [(ngModel)]="filterDateTo" placeholder="Hasta"/>
-          </div>
-          }
+    <div class="ph-left">
+      <div class="ph-title-row">
+        <div class="ph-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+        </div>
+        <div class="ph-titles">
+          <h1>Historial de conversaciones</h1>
+          <p class="ph-subtitle">Gestiona y consulta todos los chats atendidos por el sistema</p>
         </div>
       </div>
-
-      <div class="hs-body">
-        <div class="metric total">
-          <div class="m-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-            </svg>
-          </div>
-          <div class="m-data">
-            <span class="m-num">{{ stats.total }}</span>
-            <span class="m-lbl">Total</span>
-          </div>
+    </div>
+    <div class="ph-right">
+      <div class="ph-inline-stats">
+        <div class="ph-stat">
+          <span class="ph-stat-value">{{ stats.total }}</span>
+          <span class="ph-stat-label">Total</span>
         </div>
-
-        <span class="m-sep"></span>
-
-        <div class="metric asesor">
-          <div class="m-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/>
-            </svg>
-          </div>
-          <div class="m-data">
-            <span class="m-num">{{ stats.conAsesor }}<span class="pct">{{ stats.pctAsesor }}%</span></span>
-            <span class="m-lbl">Asesor</span>
-          </div>
+        <div class="ph-stat">
+          <span class="ph-stat-value">{{ stats.conAsesor }}</span>
+          <span class="ph-stat-label">Asesor</span>
         </div>
-
-        <span class="m-sep"></span>
-
-        <div class="metric ia">
-          <div class="m-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3z"/>
-            </svg>
-          </div>
-          <div class="m-data">
-            <span class="m-num">{{ stats.porIa }}<span class="pct">{{ stats.pctIa }}%</span></span>
-            <span class="m-lbl">IA</span>
-          </div>
+        <div class="ph-stat">
+          <span class="ph-stat-value">{{ stats.porIa }}</span>
+          <span class="ph-stat-label">IA</span>
+        </div>
+        <div class="ph-stat">
+          <span class="ph-stat-value">{{ stats.cerradas }}</span>
+          <span class="ph-stat-label">Cerradas</span>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Mobile Tab Bar -->
-  <div class="mobile-tab-bar">
-    <button [class.active]="mobileView === 'list'" (click)="mobileView = 'list'">Sesiones</button>
-    <button [class.active]="mobileView === 'chat'" [disabled]="!activeSession"
-      (click)="mobileView = 'chat'">Conversación</button>
-  </div>
+  <!-- ════════════ BARRA DE FILTROS (siempre visible) ════════════ -->
+  <div class="filters-nav">
+    <div class="filters-title-bar">
+      <span class="filters-title">Filtrar conversaciones</span>
+      @if (hasActiveFilters) {
+      <button class="ff-clear-btn" (click)="clearFilters()">Limpiar filtros</button>
+      }
+    </div>
 
-  <div class="history-layout">
-
-    <!-- ══ SIDEBAR ══════════════════════════════════════════════════════════ -->
-    <aside class="sessions-sidebar" [class.mobile-hidden]="mobileView === 'chat'">
-
-      <div class="search-bar">
+    <div class="filters-grid">
+      <div class="filters-search">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
           <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
         </svg>
-        <input type="text" [(ngModel)]="search"
-          placeholder="Buscar por nombre, agente, colegio o ID..."/>
+        <input type="text" [(ngModel)]="search" placeholder="Buscar por nombre, agente, colegio o ID..."/>
       </div>
 
-      <div class="filter-tabs">
-        <button [class.active]="filter === 'active'" (click)="filter = 'active'">Activos</button>
-        <button [class.active]="filter === 'closed'" (click)="filter = 'closed'">Cerrados</button>
-        <button [class.active]="filter === 'all'"    (click)="filter = 'all'">Todos</button>
+      <div class="ff-group">
+        <label>Estado</label>
+        <select [(ngModel)]="filter">
+          <option value="all">Todos</option>
+          <option value="active">Activos</option>
+          <option value="closed">Cerrados</option>
+        </select>
       </div>
 
-      <div class="advanced-toggle">
-        <button (click)="showAdvancedFilters = !showAdvancedFilters">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px">
-            <line x1="4" y1="6" x2="20" y2="6"/>
-            <line x1="8" y1="12" x2="16" y2="12"/>
-            <line x1="11" y1="18" x2="13" y2="18"/>
-          </svg>
-          {{ showAdvancedFilters ? 'Ocultar filtros' : 'Más filtros' }}
-          @if (hasActiveFilters) {
-          <span class="filter-dot"></span>
-          }
-        </button>
-        @if (hasActiveFilters) {
-        <button class="clear-btn" (click)="clearFilters()">
-          Limpiar todo
-        </button>
-        }
+      <div class="ff-group">
+        <label>Colegio</label>
+        <select [(ngModel)]="filterColegio">
+          <option value="">Todos</option>
+          @for (c of colegios; track trackByIndex($index)) { <option [value]="c">{{ c }}</option> }
+        </select>
       </div>
 
-      @if (showAdvancedFilters) {
-      <div class="advanced-filters">
-        <div class="filter-group">
-          <label>Colegio</label>
-          <select [(ngModel)]="filterColegio">
-            <option value="">Todos</option>
-            @for (c of colegios; track trackByIndex($index)) {
-            <option [value]="c">{{ c }}</option>
-            }
-          </select>
-        </div>
-        <div class="filter-group">
-          <label>Rol</label>
-          <select [(ngModel)]="filterRol">
-            <option value="">Todos</option>
-            @for (r of roles; track trackByIndex($index)) {
-            <option [value]="r">{{ r }}</option>
-            }
-          </select>
-        </div>
-        <div class="filter-group">
-          <label>Solicitud</label>
-          <select [(ngModel)]="filterSolicitud">
-            <option value="">Todas</option>
-            @for (s of solicitudes; track trackByIndex($index)) {
-            <option [value]="s">{{ s }}</option>
-            }
-          </select>
-        </div>
-        <div class="filter-group">
-          <label>Asesor</label>
-          <select [(ngModel)]="filterAsesor">
-            <option value="">Todos</option>
-            @for (a of asesores; track trackByIndex($index)) {
-            <option [value]="a">{{ a }}</option>
-            }
-          </select>
-        </div>
-        <div class="filter-group">
-          <label>Identificación</label>
-          <input type="text" [(ngModel)]="filterIdentificacion"
-            placeholder="Buscar por documento..."/>
+      <div class="ff-group">
+        <label>Rol</label>
+        <select [(ngModel)]="filterRol">
+          <option value="">Todos</option>
+          @for (r of roles; track trackByIndex($index)) { <option [value]="r">{{ r }}</option> }
+        </select>
+      </div>
+
+      <div class="ff-group">
+        <label>Solicitud</label>
+        <select [(ngModel)]="filterSolicitud">
+          <option value="">Todas</option>
+          @for (s of solicitudes; track trackByIndex($index)) { <option [value]="s">{{ s }}</option> }
+        </select>
+      </div>
+
+      <div class="ff-group">
+        <label>Asesor</label>
+        <select [(ngModel)]="filterAsesor">
+          <option value="">Todos</option>
+          @for (a of asesores; track trackByIndex($index)) { <option [value]="a">{{ a }}</option> }
+        </select>
+      </div>
+
+      <div class="ff-group ff-date">
+        <label>Rango de fechas</label>
+        <div class="ff-date-range">
+          <input type="date" [(ngModel)]="filterDateFrom" placeholder="Desde"/>
+          <span class="ff-date-sep">—</span>
+          <input type="date" [(ngModel)]="filterDateTo" placeholder="Hasta"/>
         </div>
       </div>
-      }
+    </div>
+  </div>
+  }
+
+  <!-- ════════════ LAYOUT PRINCIPAL ════════════ -->
+  <div class="history-layout">
+
+    <!-- ─── TABLA DE SESIONES (vista lista) ─── -->
+    @if (!activeSession) {
+    <section class="sessions-table">
 
       <div class="results-count">
-        {{ filteredSessions.length }} sesión{{ filteredSessions.length !== 1 ? 'es' : '' }}
+        {{ filteredSessions.length }} sesión{{ filteredSessions.length !== 1 ? 'es' : '' }} encontrada{{ filteredSessions.length !== 1 ? 's' : '' }}
       </div>
 
-      <div class="sessions-list">
-        @for (session of filteredSessions; track trackById($index, session)) {
-        <div class="session-card"
-          [class.selected]="activeSession?.id === session.id"
-          [class.is-closed]="session.status === 'closed'"
-          (click)="selectSession(session)">
-
-          <div class="session-avatar" [class.closed]="session.status === 'closed'">
-            {{ session.clientName.charAt(0) }}
-          </div>
-
-          <div class="session-info">
-            <span class="session-name">{{ session.clientName }}</span>
-            @if (session.colegio) {
-            <span class="session-detail">{{ session.colegio }}</span>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Cliente</th>
+              <th>Colegio</th>
+              <th>Rol</th>
+              <th>Asesor</th>
+              <th>Estado</th>
+              <th>Fecha</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (session of filteredSessions; track trackById($index, session)) {
+            <tr
+              [class.is-closed]="session.status === 'closed'"
+              (click)="selectSession(session)">
+              <td>
+                <span class="tc-avatar">{{ session.clientName.charAt(0) }}</span>
+                <span class="tc-client">{{ session.clientName }}</span>
+              </td>
+              <td>{{ session.colegio || '—' }}</td>
+              <td>{{ session.rol || '—' }}</td>
+              <td>{{ session.advisor?.name || 'Sin agente' }}</td>
+              <td><span class="badge" [ngClass]="'badge-' + session.status">{{ getStatusLabel(session.status) }}</span></td>
+              <td class="tc-date">{{ fmtDateTimeShort(session.createdAt) }}</td>
+            </tr>
             }
-            <span class="session-preview">
-              {{ session.advisor?.name ? 'Agente: ' + session.advisor!.name : 'Sin agente' }}
-            </span>
-          </div>
 
-          <div class="session-right">
-            <span class="session-time">{{ fmtDateTimeShort(session.createdAt) }}</span>
-            <span class="badge" [ngClass]="'badge-' + session.status">
-              {{ getStatusLabel(session.status) }}
-            </span>
-          </div>
-        </div>
-        }
-
-        @if (filteredSessions.length === 0) {
-        <div class="empty-list">
-          Sin resultados para los filtros aplicados
-        </div>
-        }
+            @if (filteredSessions.length === 0) {
+            <tr class="empty-row">
+              <td colspan="6">Sin resultados para los filtros aplicados</td>
+            </tr>
+            }
+          </tbody>
+        </table>
       </div>
-    </aside>
+    </section>
+    }
 
-    <!-- ══ CHAT AREA ═════════════════════════════════════════════════════════ -->
-    <div class="chat-area" [class.mobile-hidden]="mobileView === 'list'">
+    <!-- ─── ÁREA CHAT (vista detalle) ─── -->
+    @if (activeSession) {
+    <div class="chat-area">
 
-      <!-- Estado vacío -->
-      @if (!activeSession) {
-      <div class="empty-state">
-        <div class="empty-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"
-            stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-          </svg>
-        </div>
-        <h3>Selecciona una sesión</h3>
-        <p>Visualiza el historial completo de cualquier conversación.</p>
-      </div>
-      }
-
-      <!-- Chat panel -->
-      @if (activeSession) {
       <div class="chat-panel">
 
-        <!-- Cabecera -->
+        <!-- Cabecera del chat -->
         <div class="chat-header">
           <div class="client-info">
-            <button class="back-btn" (click)="mobileView = 'list'" aria-label="Volver">
+            <button class="back-btn" (click)="backToList()" aria-label="Volver a la lista">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                 stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="15 18 9 12 15 6"/>
@@ -257,26 +191,6 @@
           </div>
 
           <div class="header-right">
-            <span class="badge" [ngClass]="'badge-' + activeSession.status">
-              {{ getStatusLabel(activeSession.status) }}
-            </span>
-
-            <div class="history-actions">
-              <button class="ha-btn" (click)="exportCsv()" title="Exportar a CSV">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-                </svg>
-                CSV
-              </button>
-              <button class="ha-btn" (click)="exportPdf()" title="Imprimir / PDF">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
-                </svg>
-                PDF
-              </button>
-            </div>
-
-            <!-- ★ Ya estoy en este chat -->
             @if (alreadyInChat) {
             <div class="in-chat-badge">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -288,7 +202,6 @@
             </div>
             }
 
-            <!-- ★ Botón unirse -->
             @if (canTakeOver) {
             <button class="takeover-btn"
               [class.takeover-btn--loading]="takeoverLoading"
@@ -316,26 +229,7 @@
           </div>
         </div>
 
-        <!-- Resumen de la sesión -->
-        @if (sessionSummary) {
-        <div class="session-summary">
-          <span class="ss-item"><b>{{ sessionSummary.total }}</b> mensajes</span>
-          <span class="ss-item"><b>{{ sessionSummary.client }}</b> cliente</span>
-          <span class="ss-item"><b>{{ sessionSummary.ia }}</b> IA</span>
-          <span class="ss-item"><b>{{ sessionSummary.advisor }}</b> asesor</span>
-          @if (sessionSummary.documentos) {
-          <span class="ss-item"><b>{{ sessionSummary.documentos }}</b> documentos</span>
-          }
-          @if (sessionSummary.adjuntos) {
-          <span class="ss-item"><b>{{ sessionSummary.adjuntos }}</b> adjuntos</span>
-          }
-          @if (sessionSummary.opciones) {
-          <span class="ss-item ss-item--ai"><b>{{ sessionSummary.opciones }}</b> opciones IA</span>
-          }
-        </div>
-        }
-
-        <!-- Toast feedback -->
+        <!-- Toast takeover -->
         @if (takeoverFeedback) {
         <div class="takeover-toast"
           [class.takeover-toast--ok]="takeoverFeedback.type === 'ok'"
@@ -344,191 +238,405 @@
         </div>
         }
 
-        <!-- Buscar en mensajes -->
-        <div class="msg-search">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
-            <circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path>
-          </svg>
-          <input type="text" placeholder="Buscar en mensajes..." [(ngModel)]="msgSearchQuery">
+        <!-- ─── TABS ─── -->
+        <div class="chat-tabs">
+          <div class="chat-tabs-left">
+            <button class="chat-tab" [class.active]="activeTab === 'conversation'" (click)="switchTab('conversation')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              Conversación
+            </button>
+            <button class="chat-tab" [class.active]="activeTab === 'info'" (click)="switchTab('info')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              Información
+            </button>
+            <button class="chat-tab" [class.active]="activeTab === 'attachments'" (click)="switchTab('attachments')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+              Adjuntos
+              @if (allAttachments.length > 0) {
+              <span class="tab-count">{{ allAttachments.length }}</span>
+              }
+            </button>
+          </div>
+          <div class="chat-tabs-right">
+            <button class="ha-btn ha-btn--icon" (click)="exportCsv()" [disabled]="!activeSession" title="Exportar a CSV">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              CSV
+            </button>
+            <button class="ha-btn ha-btn--icon" (click)="exportPdf()" [disabled]="!activeSession" title="Exportar PDF">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
+              </svg>
+              PDF
+            </button>
+          </div>
         </div>
 
-        <!-- Mensajes -->
-        <div class="messages" #messagesContainer>
-          @if (loading) {
-          <div class="no-messages">
-            <span class="loading-dots">
-              <span></span><span></span><span></span>
-            </span>
-            Cargando mensajes...
+        <!-- ─── TAB: CONVERSACIÓN ─── -->
+        @if (activeTab === 'conversation') {
+        <div class="tab-content tab-conversation">
+
+          @if (sessionSummary) {
+          <div class="session-summary">
+            <span class="ss-item"><b>{{ sessionSummary.total }}</b> mensajes</span>
+            <span class="ss-item"><b>{{ sessionSummary.client }}</b> cliente</span>
+            <span class="ss-item"><b>{{ sessionSummary.ia }}</b> IA</span>
+            <span class="ss-item"><b>{{ sessionSummary.advisor }}</b> asesor</span>
+            @if (sessionSummary.documentos) {
+            <span class="ss-item"><b>{{ sessionSummary.documentos }}</b> documentos</span>
+            }
+            @if (sessionSummary.adjuntos) {
+            <span class="ss-item"><b>{{ sessionSummary.adjuntos }}</b> adjuntos</span>
+            }
+            @if (sessionSummary.opciones) {
+            <span class="ss-item ss-item--ai"><b>{{ sessionSummary.opciones }}</b> opciones IA</span>
+            }
           </div>
           }
 
-          @if (hasMoreHistorial) {
-          <button type="button" class="load-older" (click)="cargarAnteriores()" [disabled]="loadingMore">
-            {{ loadingMore ? 'Cargando…' : 'Cargar mensajes anteriores' }}
-          </button>
-          }
+          <div class="msg-search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+              <circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path>
+            </svg>
+            <input type="text" placeholder="Buscar en mensajes..." [(ngModel)]="msgSearchQuery">
+          </div>
 
-          @for (group of groupDays(filteredMessages); track $index) {
-          <div class="day-divider"><span>{{ group.label }}</span></div>
-          @for (item of group.items; track trackById($index, item)) {
-
-            <!-- Eventos de la sesión -->
-            @if (item.kind === 'evento') {
-            <div class="event-chip"
-                 [class.event-chip--asesor]="item.tipo === 'solicitud_asesor'"
-                 [class.event-chip--faq]="item.tipo === 'faq_clic'">
-              <span class="event-icon">{{ eventoIcono(item.tipo) }}</span>
-              <div class="event-body">
-                <span class="event-text">{{ eventoTexto(item) }}</span>
-                @if (item.tipo === 'faq_clic' && item.detalle?.['respuesta']) {
-                <span class="event-detail">El sistema respondió: {{ item.detalle?.['respuesta'] }}</span>
-                }
-              </div>
-              <span class="event-time">{{ fmtTime(item.createdAt) }}</span>
+          <div class="messages" #messagesContainer>
+            @if (loading) {
+            <div class="no-messages">
+              <span class="loading-dots"><span></span><span></span><span></span></span>
+              Cargando mensajes...
             </div>
             }
 
-            <!-- Mensajes -->
-            @else {
-            <div class="message"
-              [class.mine]="item.senderType === 'advisor'"
-              [class.theirs]="item.senderType === 'client'"
-              [class.msg-ia]="item.senderName === 'Asistente Virtual'"
-              [class.msg-system]="item.senderName === 'Sistema'"
-              [class.media-only]="!item.content && item.attachments && item.attachments.length > 0">
+            @if (hasMoreHistorial) {
+            <button type="button" class="load-older" (click)="cargarAnteriores()" [disabled]="loadingMore">
+              {{ loadingMore ? 'Cargando…' : 'Cargar mensajes anteriores' }}
+            </button>
+            }
 
-              <!-- Cita / respuesta a mensaje -->
-              @if (getQuotedMessage(item); as quoted) {
-              <div class="quoted-block">
-                <span class="quoted-sender">{{ quoted.senderName }}</span>
-                <span class="quoted-text">{{ (quoted.content | slice:0:80) }}{{ quoted.content.length > 80 ? '...' : '' }}</span>
+            @for (group of groupDays(filteredMessages); track $index) {
+            <div class="day-divider"><span>{{ group.label }}</span></div>
+            @for (item of group.items; track trackById($index, item)) {
+
+              @if (item.kind === 'evento') {
+              <div class="event-chip"
+                   [class.event-chip--asesor]="item.tipo === 'solicitud_asesor'"
+                   [class.event-chip--faq]="item.tipo === 'faq_clic'">
+                <span class="event-icon">{{ eventoIcono(item.tipo) }}</span>
+                <div class="event-body">
+                  <span class="event-text">{{ eventoTexto(item) }}</span>
+                  @if (item.tipo === 'faq_clic' && item.detalle?.['respuesta']) {
+                  <span class="event-detail">El sistema respondió: {{ item.detalle?.['respuesta'] }}</span>
+                  }
+                </div>
+                <span class="event-time">{{ fmtTime(item.createdAt) }}</span>
               </div>
               }
 
-              @if (item.content || !item.attachments?.length) {
-              <span class="sender">
-                @if (item.senderName === 'Asistente Virtual') {
-                <svg class="sender-ai-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/>
-                </svg>
-                IA · Asistente Virtual
-                } @else if (item.senderName === 'Sistema') {
-                ⚙️ Sistema
-                } @else {
-                {{ item.senderName }}
-                }
-              </span>
-              }
+              @else {
+              <div class="message"
+                [class.mine]="item.senderType === 'advisor'"
+                [class.theirs]="item.senderType === 'client'"
+                [class.msg-ia]="item.senderName === 'Asistente Virtual'"
+                [class.msg-system]="item.senderName === 'Sistema'"
+                [class.media-only]="!item.content && item.attachments && item.attachments.length > 0">
 
-              @if (item.attachments && item.attachments.length > 0) {
-              <div class="msg-attachments">
-                @for (att of item.attachments; track att.id) {
-                @if (att.mimeType.startsWith('image/')) {
-                <button type="button" class="att-image-link" (click)="openImagePreview(att.url, att.originalName)">
-                  <img [src]="att.url" [alt]="att.originalName" class="att-image" loading="lazy" />
-                </button>
-                } @else if (att.mimeType.startsWith('video/')) {
-                <video class="att-video" controls preload="metadata">
-                  <source [src]="att.url" [type]="att.mimeType" />
-                </video>
-                } @else if (att.mimeType.startsWith('audio/')) {
-                <audio class="att-audio" controls preload="metadata" [src]="att.url"></audio>
-                } @else {
-                <a class="att-document" [href]="att.url" target="_blank" rel="noopener noreferrer">
-                  <div class="att-doc-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                      <polyline points="14 2 14 8 20 8"/>
-                    </svg>
-                  </div>
-                  <div class="att-doc-info">
-                    <span class="att-doc-name">{{ att.originalName }}</span>
-                    <span class="att-doc-size">{{ att.size < 1048576 ? ((att.size / 1024) | number:'1.0-0') + ' KB' : ((att.size / 1048576) | number:'1.1-1') + ' MB' }}</span>
-                  </div>
-                  <svg class="att-doc-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                    <polyline points="17 8 12 3 7 8"/>
-                    <line x1="12" y1="3" x2="12" y2="15"/>
+                @if (getQuotedMessage(item); as quoted) {
+                <div class="quoted-block">
+                  <span class="quoted-sender">{{ quoted.senderName }}</span>
+                  <span class="quoted-text">{{ (quoted.content | slice:0:80) }}{{ quoted.content.length > 80 ? '...' : '' }}</span>
+                </div>
+                }
+
+                @if (item.content || !item.attachments?.length) {
+                <span class="sender">
+                  @if (item.senderName === 'Asistente Virtual') {
+                  <svg class="sender-ai-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/>
                   </svg>
-                </a>
+                  IA · Asistente Virtual
+                  } @else if (item.senderName === 'Sistema') { ⚙️ Sistema }
+                  @else { {{ item.senderName }} }
+                </span>
                 }
-                }
-              </div>
-              }
 
-              @if (item.content) {
-              <div class="bubble-content" [innerHTML]="formatMessage(item.content)"></div>
-              }
-
-              @if (item.aiMarkers && item.aiMarkers.opciones && item.aiMarkers.opciones.length > 0) {
-              <div class="ai-options">
-                @for (opt of item.aiMarkers.opciones; track opt) {
-                <span class="ai-option-chip">{{ aiOptionLabel(opt) }}</span>
-                }
-              </div>
-              }
-
-              @if (item.documentos && item.documentos.length > 0) {
-              <div class="doc-cards">
-                <span class="doc-cards-label">Documentos entregados por la IA</span>
-                @for (doc of item.documentos; track $index) {
-                <div class="doc-card">
-                  <div class="doc-card-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                      <polyline points="14 2 14 8 20 8"/>
+                @if (item.attachments && item.attachments.length > 0) {
+                <div class="msg-attachments">
+                  @for (att of item.attachments; track att.id) {
+                  @if (att.mimeType.startsWith('image/')) {
+                  <button type="button" class="att-image-link" (click)="openImagePreview(att.url, att.originalName)">
+                    <img [src]="att.url" [alt]="att.originalName" class="att-image" loading="lazy" />
+                  </button>
+                  } @else if (att.mimeType.startsWith('video/')) {
+                  <video class="att-video" controls preload="metadata"><source [src]="att.url" [type]="att.mimeType" /></video>
+                  } @else if (att.mimeType.startsWith('audio/')) {
+                  <audio class="att-audio" controls preload="metadata" [src]="att.url"></audio>
+                  } @else {
+                  <a class="att-document" [href]="att.url" target="_blank" rel="noopener noreferrer">
+                    <div class="att-doc-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+                      </svg>
+                    </div>
+                    <div class="att-doc-info">
+                      <span class="att-doc-name">{{ att.originalName }}</span>
+                      <span class="att-doc-size">{{ att.size < 1048576 ? ((att.size / 1024) | number:'1.0-0') + ' KB' : ((att.size / 1048576) | number:'1.1-1') + ' MB' }}</span>
+                    </div>
+                    <svg class="att-doc-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
                     </svg>
-                  </div>
-                  <div class="doc-card-body">
-                    <span class="doc-card-name">
-                      {{ doc.nombre }}
-                      @if (doc.instructivo) {<em class="doc-card-badge">Instructivo</em>}
-                    </span>
-                    @if (doc.categoria) {<span class="doc-card-cat">{{ doc.categoria }}</span>}
-                    @if (doc.descripcion) {<span class="doc-card-desc">{{ doc.descripcion }}</span>}
-                  </div>
-                  @if (doc.pdfUrl) {
-                  <a class="doc-card-open" [href]="doc.pdfUrl" target="_blank" rel="noopener noreferrer">Abrir</a>
+                  </a>
+                  }
                   }
                 </div>
                 }
+
+                @if (item.content) {
+                <div class="bubble-content" [innerHTML]="formatMessage(item.content)"></div>
+                }
+
+                @if (item.aiMarkers && item.aiMarkers.opciones && item.aiMarkers.opciones.length > 0) {
+                <div class="ai-options">
+                  @for (opt of item.aiMarkers.opciones; track opt) {
+                  <span class="ai-option-chip">{{ aiOptionLabel(opt) }}</span>
+                  }
+                </div>
+                }
+
+                @if (item.documentos && item.documentos.length > 0) {
+                <div class="doc-cards">
+                  <span class="doc-cards-label">Documentos entregados por la IA</span>
+                  @for (doc of item.documentos; track $index) {
+                  <div class="doc-card">
+                    <div class="doc-card-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+                      </svg>
+                    </div>
+                    <div class="doc-card-body">
+                      <span class="doc-card-name">
+                        {{ doc.nombre }}
+                        @if (doc.instructivo) {<em class="doc-card-badge">Instructivo</em>}
+                      </span>
+                      @if (doc.categoria) {<span class="doc-card-cat">{{ doc.categoria }}</span>}
+                      @if (doc.descripcion) {<span class="doc-card-desc">{{ doc.descripcion }}</span>}
+                    </div>
+                    @if (doc.pdfUrl) {
+                    <a class="doc-card-open" [href]="doc.pdfUrl" target="_blank" rel="noopener noreferrer">Abrir</a>
+                    }
+                  </div>
+                  }
+                </div>
+                }
+
+                @if (item.content || !item.attachments?.length) {
+                <span class="time">
+                  {{ fmtTime(item.createdAt) }}
+                  @if (item.editedAt) {<span class="edited-tag"> · editado</span>}
+                </span>
+                }
               </div>
               }
+            }
+            }
 
-              @if (item.content || !item.attachments?.length) {
-              <span class="time">
-                {{ fmtTime(item.createdAt) }}
-                @if (item.editedAt) {<span class="edited-tag"> · editado</span>}
-              </span>
-              }
+            @if (!loading && timeline.length === 0) {
+            <div class="no-messages">Sin mensajes en esta conversación</div>
+            }
+          </div>
+        </div>
+        }
+
+        <!-- ─── TAB: INFORMACIÓN ─── -->
+        @if (activeTab === 'info') {
+        <div class="tab-content tab-info">
+          <div class="info-scroll">
+
+            <!-- Tarjeta de perfil -->
+            <div class="info-profile">
+              <div class="profile-avatar">{{ activeSession.clientName.charAt(0) }}</div>
+              <div class="profile-data">
+                <h3 class="profile-name">
+                  {{ activeSession.clientName }}{{ activeSession.apellido ? ' ' + activeSession.apellido : '' }}
+                </h3>
+                <div class="profile-meta">
+                  <span class="badge" [ngClass]="'badge-' + activeSession.status">{{ getStatusLabel(activeSession.status) }}</span>
+                  <span class="profile-role">{{ activeSession.rol || 'Sin rol' }}</span>
+                </div>
               </div>
-            }
-            }
-          }
+              <div class="profile-colegio">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 21h18"/>
+                  <path d="M5 21V8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v13"/>
+                  <path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>
+                  <line x1="9" y1="12" x2="9" y2="12.01"/>
+                  <line x1="15" y1="12" x2="15" y2="12.01"/>
+                  <line x1="9" y1="16" x2="9" y2="16.01"/>
+                  <line x1="15" y1="16" x2="15" y2="16.01"/>
+                </svg>
+                <span class="profile-colegio-name">{{ activeSession.colegio || 'Sin colegio' }}</span>
+              </div>
+            </div>
 
-          @if (!loading && timeline.length === 0) {
-          <div class="no-messages">
-            Sin mensajes en esta conversación
+            <!-- Tarjeta de resumen -->
+            <div class="info-assign">
+              <div class="assign-item">
+                <div class="assign-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                  </svg>
+                </div>
+                <div class="assign-data">
+                  <span class="assign-label">Asesor asignado</span>
+                  <span class="assign-value">{{ activeSession.advisor?.name || 'Sin agente' }}</span>
+                </div>
+              </div>
+              <div class="assign-item">
+                <div class="assign-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="4" width="20" height="16" rx="2"/>
+                    <line x1="2" y1="9" x2="22" y2="9"/>
+                  </svg>
+                </div>
+                <div class="assign-data">
+                  <span class="assign-label">Canal</span>
+                  <span class="assign-value">Web</span>
+                </div>
+              </div>
+              <div class="assign-item">
+                <div class="assign-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                    <polyline points="22 4 12 14.01 9 11.01"/>
+                  </svg>
+                </div>
+                <div class="assign-data">
+                  <span class="assign-label">Tipo de solicitud</span>
+                  <span class="assign-value">{{ activeSession.tipoSolicitud || '—' }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Datos del cliente -->
+            <div class="info-card">
+              <div class="info-card-head">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                  <circle cx="12" cy="7" r="4"/>
+                </svg>
+                <span>Datos del cliente</span>
+              </div>
+              <div class="info-rows">
+                <div class="info-row">
+                  <span class="info-label">Identificación</span>
+                  <span class="info-value">{{ activeSession.identificacion || '—' }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Rol</span>
+                  <span class="info-value">{{ activeSession.rol || '—' }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Colegio</span>
+                  <span class="info-value">{{ activeSession.colegio || '—' }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Detalle de la sesión -->
+            <div class="info-card">
+              <div class="info-card-head">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <polyline points="12 6 12 12 16 14"/>
+                </svg>
+                <span>Detalle de la sesión</span>
+              </div>
+              <div class="info-rows">
+                <div class="info-row">
+                  <span class="info-label">Fecha de creación</span>
+                  <span class="info-value">{{ fmtDateTimeFull(activeSession.createdAt) }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Última actividad</span>
+                  <span class="info-value">{{ fmtDateTimeFull(activeSession.closedAt || activeSession.createdAt) }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Estado</span>
+                  <span class="info-value">
+                    <span class="badge" [ngClass]="'badge-' + activeSession.status">{{ getStatusLabel(activeSession.status) }}</span>
+                  </span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">ID de conversación</span>
+                  <span class="info-value info-id" [title]="activeSession.id">{{ activeSession.id }}</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+        }
+
+        <!-- ─── TAB: ADJUNTOS ─── -->
+        @if (activeTab === 'attachments') {
+        <div class="tab-content tab-attachments">
+          @if (allAttachments.length === 0) {
+          <div class="att-empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+            </svg>
+            <p>No hay adjuntos en esta conversación</p>
+          </div>
+          } @else {
+          <div class="att-grid">
+            @for (att of allAttachments; track att.id) {
+              @if (att.mimeType.startsWith('image/')) {
+              <button class="att-card att-card--image" (click)="openImagePreview(att.url, att.originalName)">
+                <img [src]="att.url" [alt]="att.originalName" loading="lazy"/>
+                <span class="att-card-name">{{ att.originalName }}</span>
+              </button>
+              } @else if (att.mimeType.startsWith('video/')) {
+              <div class="att-card att-card--video">
+                <video controls preload="metadata"><source [src]="att.url" [type]="att.mimeType"/></video>
+                <span class="att-card-name">{{ att.originalName }}</span>
+              </div>
+              } @else if (att.mimeType.startsWith('audio/')) {
+              <div class="att-card att-card--audio">
+                <audio controls preload="metadata" [src]="att.url"></audio>
+                <span class="att-card-name">{{ att.originalName }}</span>
+              </div>
+              } @else {
+              <a class="att-card att-card--doc" [href]="att.url" target="_blank" rel="noopener noreferrer">
+                <div class="att-card-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+                  </svg>
+                </div>
+                <div class="att-card-info">
+                  <span class="att-card-name">{{ att.originalName }}</span>
+                  <span class="att-card-meta">{{ att.size < 1048576 ? ((att.size / 1024) | number:'1.0-0') + ' KB' : ((att.size / 1048576) | number:'1.1-1') + ' MB' }}</span>
+                </div>
+                <svg class="att-card-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+              </a>
+              }
+            }
           </div>
           }
         </div>
+        }
 
-        <div class="readonly-notice">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-          </svg>
-          Solo lectura — vista de administrador
-        </div>
       </div>
-      }
     </div>
+    }
 
   </div>
 
-  <!-- ═══ IMAGE LIGHTBOX ══════════════════════════════════════════════════ -->
+  <!-- ═══ IMAGE LIGHTBOX ═══ -->
   @if (imagePreview) {
   <div class="image-backdrop" (click)="closeImagePreview()">
     <figure class="image-viewer" (click)="$event.stopPropagation()">
