@@ -865,24 +865,38 @@
 
 // â”€â”€ Tab: InformaciÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 .tab-info {
-  padding: 20px 24px;
+  padding: 16px 20px;
   background: var(--bg);
   overflow-y: auto;
+  display: flex;
+  align-items: stretch;
+  height: 100%;
 }
 
 .info-scroll {
-  max-width: 720px;
-  display: flex; flex-direction: column;
-  gap: 16px;
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-areas:
+    "profile profile"
+    "assign assign"
+    "cards  cards";
+  grid-template-rows: auto auto 1fr;
+  align-content: stretch;
+  gap: 12px;
 }
 
 // ── Tarjeta de perfil ──
 .info-profile {
+  grid-area: profile;
   display: flex; align-items: center;
   gap: 16px;
   background: linear-gradient(135deg, #2455d4 0%, #3b82f6 100%);
   border-radius: 16px;
-  padding: 20px 22px;
+  padding: 16px 20px;
   color: #fff;
   box-shadow: 0 8px 20px rgba(36, 85, 212, 0.25);
   position: relative;
@@ -947,9 +961,10 @@
 
 // ── Tarjeta de resumen / asignación ──
 .info-assign {
+  grid-area: assign;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
+  gap: 12px;
 }
 
 .assign-item {
@@ -992,6 +1007,33 @@
   font-size: 13px; font-weight: 600;
   color: var(--text);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+// ── Tarjetas de datos (grid a 2 columnas) ──
+.info-cards-grid {
+  grid-area: cards;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  align-items: stretch;
+  min-height: 0;
+
+  .info-card {
+    display: flex; flex-direction: column;
+  }
+
+  .info-card-head { flex-shrink: 0; }
+  .info-rows { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .tab-info { padding: 12px; }
+  .info-scroll { grid-template-columns: 1fr; grid-template-areas: "profile" "assign" "cards"; }
+  .info-assign { grid-template-columns: 1fr; }
 }
 
 // ── Tarjetas de datos ──

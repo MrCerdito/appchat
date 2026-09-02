@@ -520,58 +520,59 @@
               </div>
             </div>
 
-            <!-- Datos del cliente -->
-            <div class="info-card">
-              <div class="info-card-head">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                  <circle cx="12" cy="7" r="4"/>
-                </svg>
-                <span>Datos del cliente</span>
+            <!-- Datos del cliente y detalle de la sesión -->
+            <div class="info-cards-grid">
+              <div class="info-card">
+                <div class="info-card-head">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                  </svg>
+                  <span>Datos del cliente</span>
+                </div>
+                <div class="info-rows">
+                  <div class="info-row">
+                    <span class="info-label">Identificación</span>
+                    <span class="info-value">{{ activeSession.identificacion || '—' }}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Rol</span>
+                    <span class="info-value">{{ activeSession.rol || '—' }}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Colegio</span>
+                    <span class="info-value">{{ activeSession.colegio || '—' }}</span>
+                  </div>
+                </div>
               </div>
-              <div class="info-rows">
-                <div class="info-row">
-                  <span class="info-label">Identificación</span>
-                  <span class="info-value">{{ activeSession.identificacion || '—' }}</span>
-                </div>
-                <div class="info-row">
-                  <span class="info-label">Rol</span>
-                  <span class="info-value">{{ activeSession.rol || '—' }}</span>
-                </div>
-                <div class="info-row">
-                  <span class="info-label">Colegio</span>
-                  <span class="info-value">{{ activeSession.colegio || '—' }}</span>
-                </div>
-              </div>
-            </div>
 
-            <!-- Detalle de la sesión -->
-            <div class="info-card">
-              <div class="info-card-head">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="12" r="10"/>
-                  <polyline points="12 6 12 12 16 14"/>
-                </svg>
-                <span>Detalle de la sesión</span>
-              </div>
-              <div class="info-rows">
-                <div class="info-row">
-                  <span class="info-label">Fecha de creación</span>
-                  <span class="info-value">{{ fmtDateTimeFull(activeSession.createdAt) }}</span>
+              <div class="info-card">
+                <div class="info-card-head">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12 6 12 12 16 14"/>
+                  </svg>
+                  <span>Detalle de la sesión</span>
                 </div>
-                <div class="info-row">
-                  <span class="info-label">Última actividad</span>
-                  <span class="info-value">{{ fmtDateTimeFull(activeSession.closedAt || activeSession.createdAt) }}</span>
-                </div>
-                <div class="info-row">
-                  <span class="info-label">Estado</span>
-                  <span class="info-value">
-                    <span class="badge" [ngClass]="'badge-' + activeSession.status">{{ getStatusLabel(activeSession.status) }}</span>
-                  </span>
-                </div>
-                <div class="info-row">
-                  <span class="info-label">ID de conversación</span>
-                  <span class="info-value info-id" [title]="activeSession.id">{{ activeSession.id }}</span>
+                <div class="info-rows">
+                  <div class="info-row">
+                    <span class="info-label">Fecha de creación</span>
+                    <span class="info-value">{{ fmtDateTimeFull(activeSession.createdAt) }}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Última actividad</span>
+                    <span class="info-value">{{ fmtDateTimeFull(activeSession.closedAt || activeSession.createdAt) }}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Estado</span>
+                    <span class="info-value">
+                      <span class="badge" [ngClass]="'badge-' + activeSession.status">{{ getStatusLabel(activeSession.status) }}</span>
+                    </span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">ID de conversación</span>
+                    <span class="info-value info-id" [title]="activeSession.id">{{ activeSession.id }}</span>
+                  </div>
                 </div>
               </div>
             </div>
