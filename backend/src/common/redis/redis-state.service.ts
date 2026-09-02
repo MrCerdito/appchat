@@ -35,7 +35,8 @@ export interface OnLunchData {
 
 // Keys
 const K = {
-  CONNECTED_ADVISORS: 'chat:connected-advisors', // SET
+  CONNECTED_ADVISORS: 'chat:connected-advisors', // SET (advisorId único por asesor)
+  ADVISOR_SOCKETS: 'chat:advisor-sockets', // SET "advisorId:socketId" (referencia por socket)
   ADVISOR_STATUSES: 'chat:advisor-statuses', // HASH advisorId→status
   WAITING_QUEUE: 'chat:waiting-queue', // LIST of sessionIds
   SESSION_TO_SOCKET: 'chat:session-to-socket', // HASH sessionId→socketId
@@ -71,12 +72,25 @@ export class RedisStateService implements OnModuleDestroy {
   // CONNECTED ADVISORS (SET)
   // ═══════════════════════════════════════════════════════════════════════════
 
-  async addConnectedAdvisor(advisorId: string): Promise<void> {
+  async addConnectedAdvisor(advisorId: string, socketId: string): Promise<void> {
+    // Registro por socket id (idempotente): el asesor permanece "conectado"
+    // mientras tenga AL MENOS un socket activo. Evita el race de reconexión
+    // rápida (desconexión del socket viejo procesada tras la conexión del
+    // nuevo) y de múltiples pestañas.
+    await this.redis.sadd(K.ADVISOR_SOCKETS, `${advisorId}:${socketId}`);
     await this.redis.sadd(K.CONNECTED_ADVISORS, advisorId);
   }
 
-  async removeConnectedAdvisor(advisorId: string): Promise<void> {
-    await this.redis.srem(K.CONNECTED_ADVISORS, advisorId);
+  async removeAdvisorSocket(advisorId: string, socketId: string): Promise<boolean> {
+    await this.redis.srem(K.ADVISOR_SOCKETS, `${advisorId}:${socketId}`);
+    // ¿Quedan más sockets de este asesor?
+    const restantes = await this.redis.smembers(K.ADVISOR_SOCKETS);
+    const quedan = restantes.some((e) => e.startsWith(`${advisorId}:`));
+    if (!quedan) {
+      await this.redis.srem(K.CONNECTED_ADVISORS, advisorId);
+      return false;
+    }
+    return true;
   }
 
   async getConnectedAdvisorIds(): Promise<string[]> {
@@ -362,9 +376,17 @@ export class RedisStateService implements OnModuleDestroy {
   // CLEANUP — remove stale advisor data on disconnect
   // ═══════════════════════════════════════════════════════════════════════════
 
-  async cleanupAdvisor(advisorId: string): Promise<void> {
+  async cleanupAdvisor(
+    advisorId: string,
+    socketId: string,
+  ): Promise<boolean> {
+    // Registro por socket id: solo cuando YA no queda ningún socket del asesor
+    // se elimina del SET de conectados y se limpia su estado.
+    const quedanSockets = await this.removeAdvisorSocket(advisorId, socketId);
+    if (quedanSockets) {
+      return true;
+    }
     const pipeline = this.redis.pipeline();
-    pipeline.srem(K.CONNECTED_ADVISORS, advisorId);
     pipeline.hdel(K.ADVISOR_STATUSES, advisorId);
     // NOTA: NO se borra chat:on-lunch ni chat:pending-lunch a propósito. Si el
     // asesor se desconecta durante el almuerzo (activo o pendiente), al
@@ -373,6 +395,7 @@ export class RedisStateService implements OnModuleDestroy {
     // asesores que ya no vuelven.
     pipeline.srem(K.LUNCH_NOTIFIED, advisorId);
     await pipeline.exec();
+    return false;
   }
 
   async cleanupSession(sessionId: string): Promise<void> {

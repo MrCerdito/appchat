@@ -1145,10 +1145,11 @@ export class SessionsService {
   }
 
   async findColegioByNombre(nombre: string): Promise<Colegio | null> {
-    return this.colegioRepo.findOne({
-      where: { nombre },
-      relations: ['advisor'],
-    });
+    return this.colegioRepo
+      .createQueryBuilder('c')
+      .where('LOWER(TRIM(c.nombre)) = LOWER(TRIM(:nombre))', { nombre })
+      .leftJoinAndSelect('c.advisor', 'advisor')
+      .getOne();
   }
 
   async detectarColegio(url: string): Promise<{ id: string; nombre: string } | null> {

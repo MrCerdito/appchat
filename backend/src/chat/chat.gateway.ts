@@ -162,7 +162,7 @@ export class ChatGateway
         const isAdvisor = fullUser?.role === 'advisor';
         if (isAdvisor) {
           // Store in Redis + join advisor room for cross-instance messaging
-          await this.redisState.addConnectedAdvisor(payload.sub);
+          await this.redisState.addConnectedAdvisor(payload.sub, client.id);
           client.join(`advisor:${payload.sub}`);
           // Sync DB status so findAvailableAdvisorFromList can find this advisor
           await this.sessionsService.setAdvisorStatus(payload.sub, 'online');
@@ -241,24 +241,31 @@ export class ChatGateway
         }
       }
 
-      // Remove from Redis + local state
+      // Remove from Redis + local state. El cleanup usa conteo de referencias:
+      // solo marca al asesor como desconectado cuando YA no quedan más sockets
+      // de ese asesor (evita quedar "offline" al cerrar una de varias pestañas
+      // o por un blip momentáneo de reconexión).
       const estabaEnAlmuerzo = advisorId
         ? await this.redisState.isOnLunch(advisorId).catch(() => false)
         : false;
-      await this.redisState.cleanupAdvisor(advisorId);
-      await this.sessionsService.setAdvisorStatus(advisorId, 'offline');
-      this.server.emit('advisor_status_changed', {
-        advisorId,
-        name: client.data.user.name,
-        status: 'offline',
-        profilePhotoUrl: client.data.user?.profilePhotoUrl ?? null,
-      });
-      if (estabaEnAlmuerzo) {
-        this.server.emit('lunch_status_changed', {
+      const sigueConSocket = await this.redisState
+        .cleanupAdvisor(advisorId, client.id)
+        .catch(() => false);
+      if (!sigueConSocket) {
+        await this.sessionsService.setAdvisorStatus(advisorId, 'offline');
+        this.server.emit('advisor_status_changed', {
           advisorId,
-          enAlmuerzo: false,
-          fin: null,
+          name: client.data.user.name,
+          status: 'offline',
+          profilePhotoUrl: client.data.user?.profilePhotoUrl ?? null,
         });
+        if (estabaEnAlmuerzo) {
+          this.server.emit('lunch_status_changed', {
+            advisorId,
+            enAlmuerzo: false,
+            fin: null,
+          });
+        }
       }
     }
 
@@ -2132,6 +2139,13 @@ export class ChatGateway
           colegio.advisorId,
         );
         if (assigned) return true;
+        this.logger.log(
+          `[Assign:Colegio] ${sessionId}: fallback a cola. Colegio="${session.colegio}", asesor principal ${colegio.advisorId} no disponible.`,
+        );
+      } else if (!colegio) {
+        this.logger.log(
+          `[Assign:Colegio] ${sessionId}: no se encontró colegio "${session.colegio}" en el catálogo, se usa cola.`,
+        );
       }
     }
 
