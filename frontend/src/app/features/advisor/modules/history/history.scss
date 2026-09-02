@@ -334,7 +334,9 @@
 // â”€â”€ Chat area â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 .chat-area {
   flex: 1; min-width: 0;
-  display: flex; flex-direction: column;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
   overflow: hidden; background: var(--bg); height: 100%;
 
   @media (max-width: 640px) {
@@ -360,6 +362,70 @@
 .chat-panel {
   flex: 1; display: flex;
   flex-direction: column; overflow: hidden;
+  min-width: 0;
+}
+
+// ── Panel lateral de información (estilo WhatsApp) ──
+.info-panel {
+  width: 0;
+  max-width: 340px;
+  flex-shrink: 0;
+  background: var(--bg);
+  border-left: 1px solid var(--border);
+  overflow: hidden;
+  opacity: 0;
+  transform: translateX(12px);
+  transition: width .25s ease, opacity .25s ease, transform .25s ease;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+
+  &.open {
+    width: 340px;
+    opacity: 1;
+    transform: translateX(0);
+
+    @media (max-width: 900px) { width: 300px; }
+    @media (max-width: 640px) {
+      position: absolute; top: 0; right: 0; bottom: 0;
+      width: 88vw; max-width: 88vw; z-index: 60;
+      box-shadow: -8px 0 24px rgba(0,0,0,.15);
+    }
+  }
+}
+
+.info-panel-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  font-size: 13px; font-weight: 700; color: var(--text);
+  flex-shrink: 0;
+}
+
+.info-panel-close {
+  display: grid; place-items: center;
+  width: 26px; height: 26px; border-radius: 6px;
+  background: transparent; border: none; cursor: pointer;
+  color: var(--text-faint);
+  transition: background .12s, color .12s;
+
+  svg { width: 15px; height: 15px; }
+  &:hover { background: var(--surface-hover); color: var(--text); }
+}
+
+// Button hamburguesa del header
+.header-icon-btn {
+  display: grid; place-items: center;
+  width: 32px; height: 32px; border-radius: 8px;
+  background: transparent; border: none; cursor: pointer;
+  color: var(--text-muted);
+  transition: background .13s, color .13s;
+  flex-shrink: 0;
+
+  svg { width: 18px; height: 18px; }
+  &:hover { background: var(--surface-hover); color: #2455d4; }
+  &.active { background: #edf2ff; color: #2455d4; }
 }
 
 // â”€â”€ Chat header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -864,39 +930,24 @@
 }
 
 // â”€â”€ Tab: InformaciÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-.tab-info {
-  padding: 16px 20px;
-  background: var(--bg);
-  overflow-y: auto;
-  display: flex;
-  align-items: stretch;
-  height: 100%;
-}
-
 .info-scroll {
-  max-width: 900px;
-  margin: 0 auto;
-  width: 100%;
-  height: 100%;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-areas:
-    "profile profile"
-    "assign assign"
-    "cards  cards";
-  grid-template-rows: auto auto 1fr;
-  align-content: stretch;
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 16px;
+  display: flex; flex-direction: column;
   gap: 12px;
+
+  &::-webkit-scrollbar { width: 3px; }
+  &::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
 }
 
 // ── Tarjeta de perfil ──
 .info-profile {
-  grid-area: profile;
   display: flex; align-items: center;
   gap: 16px;
   background: linear-gradient(135deg, #2455d4 0%, #3b82f6 100%);
   border-radius: 16px;
-  padding: 16px 20px;
+  padding: 16px 18px;
   color: #fff;
   box-shadow: 0 8px 20px rgba(36, 85, 212, 0.25);
   position: relative;
@@ -961,10 +1012,9 @@
 
 // ── Tarjeta de resumen / asignación ──
 .info-assign {
-  grid-area: assign;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  grid-template-columns: 1fr;
+  gap: 10px;
 }
 
 .assign-item {
@@ -1009,11 +1059,10 @@
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
-// ── Tarjetas de datos (grid a 2 columnas) ──
+// ── Tarjetas de datos (una columna dentro del panel lateral) ──
 .info-cards-grid {
-  grid-area: cards;
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 1fr;
   gap: 12px;
   align-items: stretch;
   min-height: 0;
@@ -1021,19 +1070,6 @@
   .info-card {
     display: flex; flex-direction: column;
   }
-
-  .info-card-head { flex-shrink: 0; }
-  .info-rows { flex: 1; display: flex; flex-direction: column; justify-content: center; }
-
-  @media (max-width: 640px) {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 640px) {
-  .tab-info { padding: 12px; }
-  .info-scroll { grid-template-columns: 1fr; grid-template-areas: "profile" "assign" "cards"; }
-  .info-assign { grid-template-columns: 1fr; }
 }
 
 // ── Tarjetas de datos ──

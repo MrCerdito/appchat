@@ -184,6 +184,13 @@
           </div>
 
           <div class="header-right">
+            <button class="header-icon-btn" (click)="toggleInfo()"
+              [class.active]="infoOpen"
+              [title]="infoOpen ? 'Ocultar información' : 'Mostrar información'"
+              aria-label="Información de la conversación">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            </button>
+
             @if (alreadyInChat) {
             <div class="in-chat-badge">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -237,10 +244,6 @@
             <button class="chat-tab" [class.active]="activeTab === 'conversation'" (click)="switchTab('conversation')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
               Conversación
-            </button>
-            <button class="chat-tab" [class.active]="activeTab === 'info'" (click)="switchTab('info')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-              Información
             </button>
             <button class="chat-tab" [class.active]="activeTab === 'attachments'" (click)="switchTab('attachments')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
@@ -442,138 +445,6 @@
         </div>
         }
 
-        <!-- ─── TAB: INFORMACIÓN ─── -->
-        @if (activeTab === 'info') {
-        <div class="tab-content tab-info">
-          <div class="info-scroll">
-
-            <!-- Tarjeta de perfil -->
-            <div class="info-profile">
-              <div class="profile-avatar">{{ activeSession.clientName.charAt(0) }}</div>
-              <div class="profile-data">
-                <h3 class="profile-name">
-                  {{ activeSession.clientName }}{{ activeSession.apellido ? ' ' + activeSession.apellido : '' }}
-                </h3>
-                <div class="profile-meta">
-                  <span class="badge" [ngClass]="'badge-' + activeSession.status">{{ getStatusLabel(activeSession.status) }}</span>
-                  <span class="profile-role">{{ activeSession.rol || 'Sin rol' }}</span>
-                </div>
-              </div>
-              <div class="profile-colegio">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M3 21h18"/>
-                  <path d="M5 21V8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v13"/>
-                  <path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>
-                  <line x1="9" y1="12" x2="9" y2="12.01"/>
-                  <line x1="15" y1="12" x2="15" y2="12.01"/>
-                  <line x1="9" y1="16" x2="9" y2="16.01"/>
-                  <line x1="15" y1="16" x2="15" y2="16.01"/>
-                </svg>
-                <span class="profile-colegio-name">{{ activeSession.colegio || 'Sin colegio' }}</span>
-              </div>
-            </div>
-
-            <!-- Tarjeta de resumen -->
-            <div class="info-assign">
-              <div class="assign-item">
-                <div class="assign-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                    <circle cx="12" cy="7" r="4"/>
-                  </svg>
-                </div>
-                <div class="assign-data">
-                  <span class="assign-label">Asesor asignado</span>
-                  <span class="assign-value">{{ activeSession.advisor?.name || 'Sin agente' }}</span>
-                </div>
-              </div>
-              <div class="assign-item">
-                <div class="assign-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="2" y="4" width="20" height="16" rx="2"/>
-                    <line x1="2" y1="9" x2="22" y2="9"/>
-                  </svg>
-                </div>
-                <div class="assign-data">
-                  <span class="assign-label">Canal</span>
-                  <span class="assign-value">Web</span>
-                </div>
-              </div>
-              <div class="assign-item">
-                <div class="assign-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                    <polyline points="22 4 12 14.01 9 11.01"/>
-                  </svg>
-                </div>
-                <div class="assign-data">
-                  <span class="assign-label">Tipo de solicitud</span>
-                  <span class="assign-value">{{ activeSession.tipoSolicitud || '—' }}</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Datos del cliente y detalle de la sesión -->
-            <div class="info-cards-grid">
-              <div class="info-card">
-                <div class="info-card-head">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                    <circle cx="12" cy="7" r="4"/>
-                  </svg>
-                  <span>Datos del cliente</span>
-                </div>
-                <div class="info-rows">
-                  <div class="info-row">
-                    <span class="info-label">Identificación</span>
-                    <span class="info-value">{{ activeSession.identificacion || '—' }}</span>
-                  </div>
-                  <div class="info-row">
-                    <span class="info-label">Rol</span>
-                    <span class="info-value">{{ activeSession.rol || '—' }}</span>
-                  </div>
-                  <div class="info-row">
-                    <span class="info-label">Colegio</span>
-                    <span class="info-value">{{ activeSession.colegio || '—' }}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div class="info-card">
-                <div class="info-card-head">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"/>
-                    <polyline points="12 6 12 12 16 14"/>
-                  </svg>
-                  <span>Detalle de la sesión</span>
-                </div>
-                <div class="info-rows">
-                  <div class="info-row">
-                    <span class="info-label">Fecha de creación</span>
-                    <span class="info-value">{{ fmtDateTimeFull(activeSession.createdAt) }}</span>
-                  </div>
-                  <div class="info-row">
-                    <span class="info-label">Última actividad</span>
-                    <span class="info-value">{{ fmtDateTimeFull(activeSession.closedAt || activeSession.createdAt) }}</span>
-                  </div>
-                  <div class="info-row">
-                    <span class="info-label">Estado</span>
-                    <span class="info-value">
-                      <span class="badge" [ngClass]="'badge-' + activeSession.status">{{ getStatusLabel(activeSession.status) }}</span>
-                    </span>
-                  </div>
-                  <div class="info-row">
-                    <span class="info-label">ID de conversación</span>
-                    <span class="info-value info-id" [title]="activeSession.id">{{ activeSession.id }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-          </div>
-        </div>
-        }
-
         <!-- ─── TAB: ADJUNTOS ─── -->
         @if (activeTab === 'attachments') {
         <div class="tab-content tab-attachments">
@@ -625,6 +496,142 @@
         }
 
       </div>
+
+      <!-- ─── PANEL LATERAL: INFORMACIÓN ─── -->
+      <aside class="info-panel" [class.open]="infoOpen">
+        <div class="info-panel-head">
+          <span>Información</span>
+          <button class="info-panel-close" (click)="toggleInfo()" aria-label="Cerrar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
+        </div>
+        <div class="info-scroll">
+
+          <!-- Tarjeta de perfil -->
+          <div class="info-profile">
+            <div class="profile-avatar">{{ activeSession.clientName.charAt(0) }}</div>
+            <div class="profile-data">
+              <h3 class="profile-name">
+                {{ activeSession.clientName }}{{ activeSession.apellido ? ' ' + activeSession.apellido : '' }}
+              </h3>
+              <div class="profile-meta">
+                <span class="badge" [ngClass]="'badge-' + activeSession.status">{{ getStatusLabel(activeSession.status) }}</span>
+                <span class="profile-role">{{ activeSession.rol || 'Sin rol' }}</span>
+              </div>
+            </div>
+            <div class="profile-colegio">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 21h18"/>
+                <path d="M5 21V8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v13"/>
+                <path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>
+                <line x1="9" y1="12" x2="9" y2="12.01"/>
+                <line x1="15" y1="12" x2="15" y2="12.01"/>
+                <line x1="9" y1="16" x2="9" y2="16.01"/>
+                <line x1="15" y1="16" x2="15" y2="16.01"/>
+              </svg>
+              <span class="profile-colegio-name">{{ activeSession.colegio || 'Sin colegio' }}</span>
+            </div>
+          </div>
+
+          <!-- Tarjeta de resumen -->
+          <div class="info-assign">
+            <div class="assign-item">
+              <div class="assign-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                  <circle cx="12" cy="7" r="4"/>
+                </svg>
+              </div>
+              <div class="assign-data">
+                <span class="assign-label">Asesor asignado</span>
+                <span class="assign-value">{{ activeSession.advisor?.name || 'Sin agente' }}</span>
+              </div>
+            </div>
+            <div class="assign-item">
+              <div class="assign-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="2" y="4" width="20" height="16" rx="2"/>
+                  <line x1="2" y1="9" x2="22" y2="9"/>
+                </svg>
+              </div>
+              <div class="assign-data">
+                <span class="assign-label">Canal</span>
+                <span class="assign-value">Web</span>
+              </div>
+            </div>
+            <div class="assign-item">
+              <div class="assign-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                  <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+              </div>
+              <div class="assign-data">
+                <span class="assign-label">Tipo de solicitud</span>
+                <span class="assign-value">{{ activeSession.tipoSolicitud || '—' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Datos del cliente y detalle de la sesión -->
+          <div class="info-cards-grid">
+            <div class="info-card">
+              <div class="info-card-head">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                  <circle cx="12" cy="7" r="4"/>
+                </svg>
+                <span>Datos del cliente</span>
+              </div>
+              <div class="info-rows">
+                <div class="info-row">
+                  <span class="info-label">Identificación</span>
+                  <span class="info-value">{{ activeSession.identificacion || '—' }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Rol</span>
+                  <span class="info-value">{{ activeSession.rol || '—' }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Colegio</span>
+                  <span class="info-value">{{ activeSession.colegio || '—' }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="info-card">
+              <div class="info-card-head">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <polyline points="12 6 12 12 16 14"/>
+                </svg>
+                <span>Detalle de la sesión</span>
+              </div>
+              <div class="info-rows">
+                <div class="info-row">
+                  <span class="info-label">Fecha de creación</span>
+                  <span class="info-value">{{ fmtDateTimeFull(activeSession.createdAt) }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Última actividad</span>
+                  <span class="info-value">{{ fmtDateTimeFull(activeSession.closedAt || activeSession.createdAt) }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Estado</span>
+                  <span class="info-value">
+                    <span class="badge" [ngClass]="'badge-' + activeSession.status">{{ getStatusLabel(activeSession.status) }}</span>
+                  </span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">ID de conversación</span>
+                  <span class="info-value info-id" [title]="activeSession.id">{{ activeSession.id }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </aside>
     </div>
     }
 

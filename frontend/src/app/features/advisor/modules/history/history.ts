@@ -71,6 +71,9 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
   activeTab: 'conversation' | 'info' | 'attachments' = 'conversation';
   showKebab = false;
 
+  // ── Panel lateral de información ──
+  infoOpen = false;
+
   // ── Takeover ──
   takeoverLoading  = false;
   takeoverFeedback : { type: 'ok' | 'error'; text: string } | null = null;
@@ -765,6 +768,10 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
   switchTab(tab: 'conversation' | 'info' | 'attachments'): void {
     this.activeTab = tab;
     this.cdr.detectChanges();
+  }
+
+  toggleInfo(): void {
+    this.infoOpen = !this.infoOpen;
   }
 
   @HostListener('document:click')
