@@ -66,6 +66,9 @@ export interface TimerPanelState {
 // Colores de avatar por índice (cíclico)
 const AVATAR_COLORS = ['ava-blue', 'ava-green', 'ava-amber', 'ava-purple'];
 
+// Máximo de chats activos en paralelo antes de considerarse "Ocupado"
+const MAX_CHATS_OCUPADO = 4;
+
 @Component({
   selector   : 'app-chat-advisor',
   standalone : true,
@@ -90,6 +93,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   // ── Estado UI ─────────────────────────────────────────────────────────────
   currentAdvisor   : User | null    = null;
   advisors         : User[]         = [];
+  private advisorLiveStatus = new Map<string, { status: string; activeChats: number }>();
   sessions         : Session[]      = [];
   activeSession    : Session | null = null;
   showTransfer     = false;
@@ -495,6 +499,13 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
         } else {
           this.loadAdvisors();
         }
+        if (data.advisorId) {
+          const prev = this.advisorLiveStatus.get(data.advisorId);
+          this.advisorLiveStatus.set(data.advisorId, {
+            status: data.status,
+            activeChats: data.activeChats !== undefined ? data.activeChats : (prev?.activeChats ?? 0),
+          });
+        }
         this.loadSessions();
         this.cdr.detectChanges();
       });
@@ -840,12 +851,11 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   }
 
   // ── Colaborador ───────────────────────────────────────────────────────────
-  leaveCollabChat(): void {
+leaveCollabChat(): void {
     if (!this.activeSession) return;
     const sessionId = this.activeSession.id;
     this.socket.emit('leave_active_chat', sessionId);
     this.clearSession(sessionId);
-    this.loadSessions();
     this.cdr.detectChanges();
   }
 
@@ -890,6 +900,13 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     this.sessionService.findAdvisors().subscribe({
       next: (a) => {
         this.advisors = a.filter(x => x.id !== this.currentAdvisor?.id);
+        this.advisorLiveStatus.clear();
+        for (const adv of a) {
+          this.advisorLiveStatus.set(adv.id, {
+            status: adv.status ?? 'offline',
+            activeChats: adv.activeChats ?? 0,
+          });
+        }
         this.cdr.detectChanges();
       },
       error: (err) => console.error('HTTP Error:', err),
@@ -911,6 +928,13 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     this.imagePreview     = null;
     this.state.setActiveSession(session.id);
     this.state.setUnread(session.id, 0);
+
+    if (session.colegioAdvisorId) {
+      this.advisorLiveStatus.set(session.colegioAdvisorId, {
+        status: session.colegioAdvisorStatus ?? 'offline',
+        activeChats: session.colegioAdvisorActiveChats ?? 0,
+      });
+    }
 
     this.joinRoom(session.id);
     this.socket.emit('set_active', { sessionId: session.id, active: true });
@@ -1929,18 +1953,44 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     return session.status || 'Sin estado';
   }
 
+  get panelAdvisorId(): string | null {
+    return this.activeSession?.colegioAdvisorId
+      ?? this.activeSession?.advisor?.id
+      ?? this.currentAdvisor?.id
+      ?? null;
+  }
+
   get panelAdvisorName(): string {
     return this.activeSession?.colegioAdvisorName || this.currentAdvisor?.name || 'Agente';
   }
 
   get panelAdvisorPhotoUrl(): string {
-    // La foto del asesor asignado fijo del colegio, no la del asesor en línea.
-    const url = this.activeSession?.colegioAdvisorPhotoUrl || this.currentAdvisor?.profilePhotoUrl || '';
+    // Si el colegio tiene un asesor asignado (id presente), su foto es la única
+    // fuente: no se mezcla con la del usuario que está viendo el panel.
+    const url = this.activeSession?.colegioAdvisorId
+      ? (this.activeSession?.colegioAdvisorPhotoUrl ?? '')
+      : (this.currentAdvisor?.profilePhotoUrl ?? '');
     return /^https?:\/\//i.test(url) ? url : (url ? `${environment.apiUrl}${url}` : '');
   }
 
   get panelAdvisorInitials(): string {
     return this.safeInitial(this.panelAdvisorName);
+  }
+
+  get panelAdvisorStatus(): { key: 'online' | 'busy' | 'offline'; label: string } {
+    const id = this.panelAdvisorId;
+    const live = id ? this.advisorLiveStatus.get(id) : undefined;
+    const status = (live?.status
+      ?? this.activeSession?.colegioAdvisorStatus
+      ?? this.currentAdvisor?.status
+      ?? 'offline') as 'online' | 'busy' | 'offline';
+    const activeChats = live?.activeChats
+      ?? this.activeSession?.colegioAdvisorActiveChats
+      ?? this.currentAdvisor?.activeChats
+      ?? 0;
+    if (status === 'offline') return { key: 'offline', label: 'Inactivo' };
+    if (status === 'busy' || activeChats >= MAX_CHATS_OCUPADO) return { key: 'busy', label: 'Ocupado' };
+    return { key: 'online', label: 'En línea' };
   }
 
   clientPresenceLabel(session?: Session | null): string {

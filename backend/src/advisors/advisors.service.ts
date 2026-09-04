@@ -77,7 +77,7 @@ export class AdvisorsService {
     page: number,
     limit: number,
     search?: string,
-    role?: 'admin' | 'advisor' | 'todos',
+    role?: 'admin' | 'advisor' | 'desarrollador' | 'todos',
   ): Promise<PaginatedResult<User>> {
     const qb = this.userRepo
       .createQueryBuilder('user')
@@ -146,7 +146,7 @@ export class AdvisorsService {
     name: string,
     email: string,
     password: string,
-    role: 'admin' | 'advisor' = 'advisor',
+    role: 'admin' | 'advisor' | 'desarrollador' = 'advisor',
   ): Promise<User> {
     const exists = await this.userRepo.findOne({ where: { email } });
     if (exists) throw new ConflictException('El email ya está registrado');
@@ -165,7 +165,7 @@ export class AdvisorsService {
 
   async update(
     id: string,
-    dto: { name?: string; email?: string; role?: 'admin' | 'advisor' },
+    dto: { name?: string; email?: string; role?: 'admin' | 'advisor' | 'desarrollador' },
     actorId?: string,
   ): Promise<User> {
     const user = await this.userRepo.findOne({ where: { id } });
@@ -241,7 +241,7 @@ export class AdvisorsService {
 
   private async assertCanChangeRole(
     target: User,
-    newRole: 'admin' | 'advisor',
+    newRole: 'admin' | 'advisor' | 'desarrollador',
     actorId?: string,
   ): Promise<void> {
     if (actorId && target.id === actorId) {

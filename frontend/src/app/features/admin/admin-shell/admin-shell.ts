@@ -13,13 +13,14 @@ import { AdvisorNotificationService } from '../../../core/services/advisor-notif
 import { NotificationService } from '../../../core/services/notification.service';
 import { ThemeService } from '../../../core/services/theme.service';
 import { LayoutService } from '../../../core/services/layout.service';
+import { NotificationBellComponent } from '../../../shared/components/notification-bell.component';
 import { User } from '../../../core/models/user.model';
 import { trackByIndex, trackById } from '../../../shared/utils/track-by';
 
 @Component({
   selector: 'app-admin-shell',
   standalone: true,
-  imports: [CommonModule, RouterModule, ToastContainerComponent],
+  imports: [CommonModule, RouterModule, ToastContainerComponent, NotificationBellComponent],
   templateUrl: './admin-shell.html',
   styleUrl: './admin-shell.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -33,25 +34,7 @@ export class AdminShellComponent implements OnInit, OnDestroy {
   sidebarCollapsed = false;
   appearanceOpen = false;
   internalUnread = 0;
-  notificationPermission: 'granted' | 'denied' | 'default' | 'unsupported' = 'default';
 
-  get notificationPermissionTitle(): string {
-    switch (this.notificationPermission) {
-      case 'granted': return 'Notificaciones activadas';
-      case 'denied': return 'Notificaciones bloqueadas';
-      case 'unsupported': return 'No soportadas';
-      default: return 'Activar notificaciones';
-    }
-  }
-
-  get notificationPermissionDetail(): string {
-    switch (this.notificationPermission) {
-      case 'granted': return 'Recibirás avisos de asignaciones y mensajes.';
-      case 'denied': return 'Haz clic y habilita el permiso en tu navegador.';
-      case 'unsupported': return 'Tu navegador no soporta notificaciones.';
-      default: return 'Actívalas para no perderte ninguna novedad.';
-    }
-  }
 
   private routerSub?: Subscription;
   private layoutSub?: Subscription;
@@ -87,15 +70,6 @@ export class AdminShellComponent implements OnInit, OnDestroy {
     this.socket.connect(this.auth.getToken() ?? undefined);
     this.internalChat.connect();
     this.sound.init();
-    this.sound.notificationPermission$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (permission) => {
-          this.notificationPermission = permission;
-          this.cdr.markForCheck();
-        },
-        error: (err) => console.error('HTTP Error:', err),
-      });
     this.internalUnreadSub = this.internalChat.getUnreadTotalStream().subscribe({
       next: total => {
         this.internalUnread = total;
@@ -139,29 +113,6 @@ export class AdminShellComponent implements OnInit, OnDestroy {
     this.internalUnreadSub?.unsubscribe();
     this.whatsapp.disconnect();
     this.internalChat.disconnect();
-  }
-
-  requestNotifications(): void {
-    this.sound.requestNotifications().then(permission => {
-      this.notificationPermission = permission;
-      if (permission === 'granted') {
-        this.notifications.success(
-          'Notificaciones activadas',
-          'Recibirás avisos de mensajes y asignaciones.',
-        );
-      } else if (permission === 'denied') {
-        this.notifications.warning(
-          'Notificaciones bloqueadas',
-          'Habilita el permiso de notificaciones para este sitio en la configuración del navegador.',
-        );
-      } else if (permission === 'unsupported') {
-        this.notifications.info(
-          'Notificaciones no disponibles',
-          'Este navegador no soporta notificaciones de escritorio.',
-        );
-      }
-      this.cdr.markForCheck();
-    });
   }
 
   private registerGlobalNotificationListeners(): void {
@@ -211,6 +162,39 @@ export class AdminShellComponent implements OnInit, OnDestroy {
         );
       });
 
+    this.socket.on<any>('ticket:created')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        this.sound.playTicketNotification();
+        this.sound.notify(
+          'TICKET CREADO',
+          data?.titulo || 'Se creo un nuevo ticket',
+          `ticket-created-${data?.id}`,
+        );
+      });
+
+    this.socket.on<any>('ticket:updated')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        this.sound.playTicketNotification();
+        this.sound.notify(
+          'TICKET ACTUALIZADO',
+          data?.titulo || 'Un ticket fue actualizado',
+          `ticket-updated-${data?.id}`,
+        );
+      });
+
+    this.socket.on<any>('ticket:deleted')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        this.sound.playTicketNotification();
+        this.sound.notify(
+          'TICKET ELIMINADO',
+          data?.titulo || 'Un ticket fue eliminado',
+          `ticket-deleted-${data?.id}`,
+        );
+      });
+
     this.sound.notificationFallback$
       .pipe(takeUntil(this.destroy$))
       .subscribe(ev => {
@@ -234,6 +218,10 @@ export class AdminShellComponent implements OnInit, OnDestroy {
 
   get isOperacionesRoute(): boolean {
     return this.router.url.includes('/admin/operaciones');
+  }
+
+  get roleLabel(): string {
+    return 'Administrador';
   }
 
   get sidebarForcedCollapsed(): boolean {

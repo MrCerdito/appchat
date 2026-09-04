@@ -956,62 +956,6 @@
   opacity: 1 !important;
 }
 
-// ── Notificaciones de Windows: botón (topbar) ──────────────
-.notif-panel-wrap {
-  position: relative;
-  flex-shrink: 0;
-}
-
-.notif-trigger {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: none;
-  border-radius: 9px;
-  background: var(--sidebar-hover);
-  color: var(--sidebar-text-muted);
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
-
-  svg { width: 18px; height: 18px; }
-
-  &:hover {
-    background: var(--sidebar-accent);
-    color: var(--sidebar-text);
-  }
-
-  &.on {
-    color: var(--sidebar-text);
-    background: rgba(37, 211, 102, 0.14);
-    border: 1px solid rgba(37, 211, 102, 0.45);
-  }
-
-  &.denied {
-    color: var(--sidebar-text);
-    background: rgba(244, 63, 94, 0.14);
-    border: 1px solid rgba(244, 63, 94, 0.45);
-  }
-}
-
-.notif-trigger-dot {
-  position: absolute;
-  top: -3px;
-  right: -3px;
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  background: #64748b;
-  border: 2px solid var(--sidebar-bg);
-
-  &.on {
-    background: #25d366;
-    box-shadow: 0 0 6px rgba(37, 211, 102, 0.6);
-  }
-}
-
 // ── FAQ Chat panel (topbar) — Blanco / Light ─────────────────
 .faq-panel-wrap {
   position: relative;

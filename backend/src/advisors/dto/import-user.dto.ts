@@ -14,9 +14,9 @@ export class ImportUserDto {
 
   @IsString({ message: 'Rol debe ser un texto' })
   @IsNotEmpty({ message: 'Rol es requerido' })
-  @Matches(/^(admin|advisor)$/, { message: 'Rol inválido (debe ser admin o advisor)' })
+  @Matches(/^(admin|advisor|desarrollador)$/, { message: 'Rol inválido' })
   @Transform(({ value }) => value.toLowerCase())
-  role: 'admin' | 'advisor';
+  role: 'admin' | 'advisor' | 'desarrollador';
 
   @IsBoolean({ message: 'Activo debe ser un valor booleano' })
   @IsOptional()

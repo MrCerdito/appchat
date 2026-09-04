@@ -114,15 +114,16 @@ export class SessionService {
   constructor(private http: HttpClient) {}
 
   create(data: {
-    clientName:     string;
-    identificacion: string;
-    apellido:       string;
-    rol:            string;
-    colegio:        string;
-    colegioLink?:   string | null;
-    email?:         string;
-    celular?:       string;
-    tipoSolicitud:  string;
+    clientName:          string;
+    identificacion:      string;
+    apellido:            string;
+    rol:                 string;
+    colegio:             string;
+    colegioLink?:        string | null;
+    email?:              string;
+    celular?:            string;
+    tipoSolicitud:       string;
+    tratamientoDatosAt?: string | null;
   }): Observable<Session> {
     return this.http.post<Session>(`${environment.apiUrl}/sessions`, data);
   }
@@ -301,6 +302,14 @@ export class SessionService {
     return this.http.get(
       `${environment.apiUrl}/sessions/metrics/export/asesor/${advisorId}`,
       { params, responseType: 'blob' },
+    );
+  }
+
+  exportHistorial(rows: unknown[]): Observable<Blob> {
+    return this.http.post(
+      `${environment.apiUrl}/sessions/historial/export`,
+      { rows },
+      { responseType: 'blob' },
     );
   }
 

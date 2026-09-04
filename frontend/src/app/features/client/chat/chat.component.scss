@@ -2082,6 +2082,25 @@ textarea {
   margin-top: 4px;
 }
 
+.faq-chat-footnote {
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: rgba(100, 116, 139, 0.08);
+  border: 1px dashed rgba(100, 116, 139, 0.3);
+  border-radius: 10px;
+  font-size: 11px;
+  line-height: 1.55;
+  color: $text-secondary;
+  text-align: center;
+  box-sizing: border-box;
+
+  strong {
+    color: $text;
+    font-weight: 600;
+  }
+}
+
 .faq-chat-bubble {
   background: var(--chat-bubble, $surface);
   color: var(--chat-bubble-text, $text);

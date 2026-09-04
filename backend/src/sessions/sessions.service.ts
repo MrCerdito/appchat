@@ -72,6 +72,7 @@ export class SessionsService {
     email?: string | null;
     celular?: string | null;
     tipoSolicitud: string;
+    tratamientoDatosAt?: string;
   }): Promise<Session> {
     let codigo = this.generarCodigo();
     let exists = await this.sessionRepo.findOneBy({ codigo });
@@ -101,6 +102,9 @@ export class SessionsService {
       email: data.email,
       celular: data.celular,
       tipoSolicitud: data.tipoSolicitud,
+      tratamientoDatosAt: data.tratamientoDatosAt
+        ? new Date(data.tratamientoDatosAt)
+        : null,
       codigo,
       status: 'ai',
     });
@@ -123,13 +127,18 @@ export class SessionsService {
   }
 
   // ── Solicitar asesor ──────────────────────────────────────────────────────
-  // Cambia el estado de 'ai' a 'waiting' cuando el cliente decide hablar
-  // con un humano. A partir de este momento el gateway puede asignarle asesor.
-  // Si la sesión no está en estado 'ai', no hace nada (idempotente).
+  // Pone la sesión 'en cola' ('waiting') para que el gateway pueda asignarle
+  // asesor, SIN importar el modo/forma en que el cliente lo haya solicitado:
+  // - 'ai'     → transición normal (chateaba con la IA)
+  // - 'closed' → se reabre y se re-encola (se cerró por inactividad, etc.)
+  // - 'waiting'/'active' → ya está en cola o asignada: se devuelve tal cual.
   async requestAdvisor(sessionId: string): Promise<Session> {
     const session = await this.findOne(sessionId);
-    if (session.status !== 'ai') return session; // ya está en waiting/active/closed
+    if (session.status === 'waiting' || session.status === 'active') {
+      return session; // ya está en cola o ya tiene asesor
+    }
     session.status = 'waiting';
+    session.closedAt = null;
     return this.sessionRepo.save(session);
   }
 
@@ -209,13 +218,15 @@ export class SessionsService {
     const byNombre = new Map(colegios.map(c => [c.nombre, c]));
 
     for (const session of sessions) {
-      if (session.colegio) {
-        const colegio = byNombre.get(session.colegio);
-        if (colegio?.advisor?.name) {
-          (session as any).colegioAdvisorName = colegio.advisor.name;
-          (session as any).colegioAdvisorPhotoUrl = colegio.advisor.profilePhotoUrl ?? null;
-        }
-      }
+      if (!session.colegio) continue;
+      const colegio = byNombre.get(session.colegio);
+      const advisor = colegio?.advisor;
+      if (!advisor) continue;
+      (session as any).colegioAdvisorId = advisor.id;
+      (session as any).colegioAdvisorName = advisor.name;
+      (session as any).colegioAdvisorPhotoUrl = advisor.profilePhotoUrl ?? null;
+      (session as any).colegioAdvisorStatus = advisor.status ?? 'offline';
+      (session as any).colegioAdvisorActiveChats = advisor.activeChats ?? 0;
     }
     return sessions;
   }
@@ -548,6 +559,8 @@ export class SessionsService {
       if (cached) return cached;
     } catch {}
 
+    // Solo asesores: los desarrolladores (rol 'desarrollador') no forman parte
+    // del equipo de atención ni de la asignación de sesiones.
     const result = await this.userRepo.find({
       where: { role: 'advisor' },
       select: [
@@ -1030,6 +1043,50 @@ export class SessionsService {
       });
     }
     comentariosSheet.getColumn('cliente').font = { bold: true };
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return buffer as unknown as Buffer;
+  }
+
+  /** Exporta el historial de conversaciones a Excel (.xlsx). */
+  async exportHistorial(
+    rows: Array<{
+      cliente?: string;
+      identificacion?: string;
+      colegio?: string;
+      rol?: string;
+      solicitud?: string;
+      asesor?: string;
+      asesorAsignado?: string;
+      estado?: string;
+      fecha?: string;
+      tratamiento?: string;
+    }>,
+  ): Promise<Buffer> {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Historial');
+
+    sheet.columns = [
+      { header: 'Cliente', key: 'cliente', width: 28 },
+      { header: 'Identificación', key: 'identificacion', width: 16 },
+      { header: 'Colegio', key: 'colegio', width: 28 },
+      { header: 'Rol', key: 'rol', width: 16 },
+      { header: 'Tipo de solicitud', key: 'solicitud', width: 20 },
+      { header: 'Asesor', key: 'asesor', width: 24 },
+      { header: 'Asesor asignado', key: 'asesorAsignado', width: 24 },
+      { header: 'Estado', key: 'estado', width: 14 },
+      { header: 'Fecha', key: 'fecha', width: 22 },
+      { header: 'Tratamiento de datos', key: 'tratamiento', width: 32 },
+    ];
+
+    const headRow = sheet.getRow(1);
+    headRow.font = { bold: true };
+    headRow.height = 20;
+
+    for (const row of rows) {
+      const excelRow = sheet.addRow(row ?? {});
+      excelRow.alignment = { vertical: 'middle' };
+    }
 
     const buffer = await workbook.xlsx.writeBuffer();
     return buffer as unknown as Buffer;

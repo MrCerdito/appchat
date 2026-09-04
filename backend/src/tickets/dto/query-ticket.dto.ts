@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsIn } from 'class-validator';
+import { IsOptional, IsString } from 'class-validator';
 
 export class QueryTicketDto {
   @IsString()
@@ -7,12 +7,10 @@ export class QueryTicketDto {
 
   @IsString()
   @IsOptional()
-  @IsIn(['open', 'in_progress', 'resolved', 'closed'])
   status?: string;
 
   @IsString()
   @IsOptional()
-  @IsIn(['low', 'medium', 'high', 'critical'])
   priority?: string;
 
   @IsString()
@@ -21,7 +19,6 @@ export class QueryTicketDto {
 
   @IsString()
   @IsOptional()
-  @IsIn(['web', 'whatsapp'])
   sourceType?: string;
 
   @IsString()

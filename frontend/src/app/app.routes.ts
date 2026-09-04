@@ -169,5 +169,19 @@ export const routes: Routes = [
       },
     ],
   },
+  {
+    path: 'developer',
+    canActivate: [authGuard, roleGuard('desarrollador')],
+    loadComponent: () =>
+      import('./features/developer/developer-shell').then(m => m.DeveloperShellComponent),
+    children: [
+      { path: '', redirectTo: 'tickets', pathMatch: 'full' },
+      {
+        path: 'tickets',
+        loadComponent: () =>
+          import('./shared/tickets/tickets.component').then(m => m.TicketsComponent),
+      },
+    ],
+  },
   { path: '**', redirectTo: 'chat' },
 ];

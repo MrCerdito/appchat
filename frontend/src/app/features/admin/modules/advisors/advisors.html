@@ -48,7 +48,7 @@
     <div class="stat total">
       <span class="stat-dot"></span>
       <strong>{{ total }}</strong>
-      <span>Total{{ filtroRol === 'admin' ? ' administradores' : (filtroRol === 'advisor' ? ' agentes' : ' registros') }}</span>
+      <span>Total{{ filtroRol === 'admin' ? ' administradores' : filtroRol === 'advisor' ? ' agentes' : filtroRol === 'desarrollador' ? ' desarrolladores' : ' registros' }}</span>
     </div>
   </div>
 
@@ -85,6 +85,7 @@
       <button class="filter-chip" [class.active]="filtroRol === 'todos'" (click)="setFiltroRol('todos')">Todos</button>
       <button class="filter-chip" [class.active]="filtroRol === 'advisor'" (click)="setFiltroRol('advisor')">Agentes</button>
       <button class="filter-chip" [class.active]="filtroRol === 'admin'" (click)="setFiltroRol('admin')">Administradores</button>
+      <button class="filter-chip" [class.active]="filtroRol === 'desarrollador'" (click)="setFiltroRol('desarrollador')">Desarrolladores</button>
     </div>
     <div class="search-box">
       <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -346,6 +347,13 @@
               <div>
                 <strong>Administrador</strong>
                 <small>Gestión y acceso total</small>
+              </div>
+            </label>
+            <label class="role-option" [class.active]="form.role === 'desarrollador'">
+              <input type="radio" name="formRole" [value]="'desarrollador'" [(ngModel)]="form.role" />
+              <div>
+                <strong>Desarrollador</strong>
+                <small>Gestiona tickets asignados</small>
               </div>
             </label>
           </div>

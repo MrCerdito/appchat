@@ -7,17 +7,28 @@ export interface ConversationMessage {
   timestamp: string;
 }
 
+export interface TicketNote {
+  id: string;
+  authorId: string | null;
+  authorName: string;
+  content: string;
+  images: string[];
+  createdAt: string;
+}
+
 export interface Ticket {
   id: string;
   codigo: string;
   titulo: string;
   descripcion: string | null;
-  status: 'open' | 'in_progress' | 'resolved' | 'closed';
+  status: 'open' | 'in_progress' | 'on_hold' | 'denied' | 'resolved' | 'closed';
   priority: 'low' | 'medium' | 'high' | 'critical';
   category: string | null;
   conversation: ConversationMessage[] | null;
-  sourceType: 'web' | 'whatsapp';
+  sourceType: 'web' | 'whatsapp' | 'internal' | 'email';
   sourceId: string | null;
+  institucion: string | null;
+  canal: string;
   assignedTo: { id: string; name: string } | null;
   assignedToName: string | null;
   clientName: string;
@@ -27,6 +38,10 @@ export interface Ticket {
   updatedAt: string;
   closedAt: string | null;
   closedBy: { id: string; name: string } | null;
+  slaDeadline: string | null;
+  pausedAt: string | null;
+  totalPausedMs: number;
+  notes: TicketNote[] | null;
   emailEnviado?: boolean;
 }
 
@@ -35,16 +50,19 @@ export interface TicketCreateDto {
   descripcion?: string;
   priority?: 'low' | 'medium' | 'high' | 'critical';
   category?: string;
-  sourceType: 'web' | 'whatsapp';
-  sourceId: string;
+  sourceType: 'web' | 'whatsapp' | 'internal' | 'email';
+  sourceId?: string;
   clientName: string;
   clientInfo?: Record<string, any>;
+  assignedToId?: string;
+  institucion?: string;
+  canal?: string;
 }
 
 export interface TicketUpdateDto {
   titulo?: string;
   descripcion?: string;
-  status?: 'open' | 'in_progress' | 'resolved' | 'closed';
+  status?: 'open' | 'in_progress' | 'on_hold' | 'denied' | 'resolved' | 'closed';
   priority?: 'low' | 'medium' | 'high' | 'critical';
   category?: string;
   assignedToId?: string;
@@ -68,4 +86,12 @@ export interface TicketListResponse {
   page: number;
   limit: number;
   pages: number;
+}
+
+export interface TicketCountsResponse {
+  total: number;
+  statusCounts: Record<string, number>;
+  priorityCounts: Record<string, number>;
+  sourceCounts: Record<string, number>;
+  categoryCounts: Record<string, number>;
 }

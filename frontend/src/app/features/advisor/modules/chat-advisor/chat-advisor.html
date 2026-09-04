@@ -790,9 +790,11 @@
       <div class="advisor-body">
         <span class="advisor-title">Asesor asignado</span>
         <span class="advisor-name">{{ panelAdvisorName }}</span>
-        <span class="advisor-status">
+        <span class="advisor-status"
+              [class.advisor-status--busy]="panelAdvisorStatus.key === 'busy'"
+              [class.advisor-status--offline]="panelAdvisorStatus.key === 'offline'">
           <span class="advisor-dot"></span>
-          En línea
+          {{ panelAdvisorStatus.label }}
         </span>
       </div>
     </div>

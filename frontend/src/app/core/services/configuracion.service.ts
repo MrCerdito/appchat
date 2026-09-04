@@ -57,6 +57,8 @@ export interface ConfiguracionData {
   smtpUser: string;
   smtpPass: string;
   mailFrom: string;
+  ticketSlaEnabled: boolean;
+  ticketSlaHours: Record<string, number>;
 }
 
 @Injectable({ providedIn: 'root' })

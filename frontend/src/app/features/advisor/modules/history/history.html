@@ -1,167 +1,327 @@
-<div class="history-page">
+<div class="history-page rediseno-chat">
 
   @if (!activeSession) {
-  <!-- ════════════ HEADER ════════════ -->
-  <div class="page-header">
-    <div class="ph-left">
-      <div class="ph-title-row">
-        <div class="ph-icon">
+  <!-- ════════════ VISTA LISTADO ════════════ -->
+  <div class="hv-view">
+
+    <!-- ─── HEADER ─── -->
+    <header class="hv-header">
+      <div class="hv-header-left">
+        <div class="hv-header-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
           </svg>
         </div>
-        <div class="ph-titles">
+        <div class="hv-header-titles">
           <h1>Historial de conversaciones</h1>
-          <p class="ph-subtitle">Gestiona y consulta todos los chats atendidos por el sistema</p>
+          <p>Gestiona y consulta todos los chats atendidos por el sistema</p>
         </div>
       </div>
-    </div>
-    <div class="ph-right">
-      <div class="ph-inline-stats">
-        <div class="ph-stat">
-          <span class="ph-stat-value">{{ stats.total }}</span>
-          <span class="ph-stat-label">Total</span>
+      <div class="hv-header-stats">
+        <div class="hv-stat">
+          <span class="hv-stat-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 8.5-8.5 8.38 8.38 0 0 1 8.5 8.5z"/></svg>
+          </span>
+          <span class="hv-stat-body">
+            <span class="hv-stat-value">{{ stats.total }}</span>
+            <span class="hv-stat-label">Total</span>
+          </span>
         </div>
-        <div class="ph-stat">
-          <span class="ph-stat-value">{{ stats.conAsesor }}</span>
-          <span class="ph-stat-label">Asesor</span>
+        <div class="hv-stat hv-stat--advisor">
+          <span class="hv-stat-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
+          </span>
+          <span class="hv-stat-body">
+            <span class="hv-stat-value">{{ stats.conAsesor }}</span>
+            <span class="hv-stat-label">Asesor</span>
+          </span>
         </div>
-        <div class="ph-stat">
-          <span class="ph-stat-value">{{ stats.porIa }}</span>
-          <span class="ph-stat-label">IA</span>
+        <div class="hv-stat hv-stat--ai">
+          <span class="hv-stat-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.7L19.6 10l-5.7 1.9L12 17.6l-1.9-5.7L4.4 10l5.7-1.3z"/><path d="M5 3l.7 2.1L7.8 5.8l-2.1.7L5 8.6l-.7-2.1-2.1-.7 2.1-.7zM19 15l.7 2.1 2.1.7-2.1.7-.7 2.1-.7-2.1-2.1-.7 2.1-.7z"/></svg>
+          </span>
+          <span class="hv-stat-body">
+            <span class="hv-stat-value">{{ stats.porIa }}</span>
+            <span class="hv-stat-label">IA</span>
+          </span>
         </div>
-        <div class="ph-stat">
-          <span class="ph-stat-value">{{ stats.cerradas }}</span>
-          <span class="ph-stat-label">Cerradas</span>
+        <div class="hv-stat hv-stat--closed">
+          <span class="hv-stat-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </span>
+          <span class="hv-stat-body">
+            <span class="hv-stat-value">{{ stats.cerradas }}</span>
+            <span class="hv-stat-label">Cerradas</span>
+          </span>
         </div>
       </div>
-    </div>
-  </div>
+    </header>
 
-  <!-- ════════════ BARRA DE FILTROS (siempre visible) ════════════ -->
-  <div class="filters-nav">
-    <div class="filters-title-bar">
-      <span class="filters-title">Filtrar conversaciones</span>
-      @if (hasActiveFilters) {
-      <button class="ff-clear-btn" (click)="clearFilters()">Limpiar filtros</button>
+    <!-- ─── LAYOUT: FILTROS + LISTADO ─── -->
+    <div class="hv-layout">
+
+      <aside class="hv-filters" [class.open]="filtersMobileOpen">
+        <div class="hv-filters-head">
+          <h3>Filtros</h3>
+          <div class="hv-filters-head-actions">
+            @if (hasActiveFilters) {
+            <button class="hv-filters-clear" (click)="clearFilters()">Limpiar filtros</button>
+            }
+            <button class="hv-filters-close" (click)="filtersMobileOpen = false" aria-label="Cerrar filtros">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="hv-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+          <input type="text" [(ngModel)]="search" placeholder="Buscar por nombre, agente, colegio o ID..."/>
+        </div>
+
+        <div class="hv-filters-group">
+          <label for="hv-filter-estado">Estado</label>
+          <select id="hv-filter-estado" [(ngModel)]="filter">
+            <option value="all">Todos</option>
+            <option value="active">Activos</option>
+            <option value="closed">Cerrados</option>
+          </select>
+        </div>
+
+        <div class="hv-filters-group">
+          <label for="hv-filter-colegio">Colegio</label>
+          <select id="hv-filter-colegio" [(ngModel)]="filterColegio">
+            <option value="">Todos</option>
+            @for (c of colegios; track trackByIndex($index)) { <option [value]="c">{{ c }}</option> }
+          </select>
+        </div>
+
+        <div class="hv-filters-group">
+          <label for="hv-filter-rol">Rol</label>
+          <select id="hv-filter-rol" [(ngModel)]="filterRol">
+            <option value="">Todos</option>
+            @for (r of roles; track trackByIndex($index)) { <option [value]="r">{{ r }}</option> }
+          </select>
+        </div>
+
+        <div class="hv-filters-group">
+          <label for="hv-filter-solicitud">Solicitud</label>
+          <select id="hv-filter-solicitud" [(ngModel)]="filterSolicitud">
+            <option value="">Todas</option>
+            @for (s of solicitudes; track trackByIndex($index)) { <option [value]="s">{{ s }}</option> }
+          </select>
+        </div>
+
+        <div class="hv-filters-group">
+          <label for="hv-filter-asesor">Asesor</label>
+          <select id="hv-filter-asesor" [(ngModel)]="filterAsesor">
+            <option value="">Todos</option>
+            @for (a of asesores; track trackByIndex($index)) { <option [value]="a">{{ a }}</option> }
+          </select>
+        </div>
+
+        <div class="hv-filters-group">
+          <label>Fecha de conversación</label>
+          <div class="hv-date-presets">
+            <button type="button" [class.active]="datePreset === 'today'" (click)="applyDatePreset('today')">Hoy</button>
+            <button type="button" [class.active]="datePreset === 'yesterday'" (click)="applyDatePreset('yesterday')">Ayer</button>
+            <button type="button" [class.active]="datePreset === 'last7'" (click)="applyDatePreset('last7')">Últimos 7 días</button>
+            <button type="button" [class.active]="datePreset === 'last30'" (click)="applyDatePreset('last30')">Últimos 30 días</button>
+            <button type="button" class="hv-date-presets--full" [class.active]="datePreset === 'custom'" (click)="applyDatePreset('custom')">Rango de fechas</button>
+          </div>
+          @if (datePreset === 'custom') {
+          <div class="hv-date-range">
+            <input type="date" [(ngModel)]="filterDateFrom" placeholder="Desde"/>
+            <span>—</span>
+            <input type="date" [(ngModel)]="filterDateTo" placeholder="Hasta"/>
+          </div>
+          }
+        </div>
+
+        @if (hasActiveFilters) {
+        <div class="hv-filter-chips">
+          <span class="hv-filter-chips-label">Filtros activos</span>
+          @for (chip of activeFilterChips; track chip.key) {
+          <span class="hv-chip">
+            {{ chip.label }}
+            <button type="button" (click)="removeChip(chip.key)" aria-label="Quitar filtro">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </span>
+          }
+        </div>
+        }
+      </aside>
+
+      @if (filtersMobileOpen) {
+      <div class="hv-filters-backdrop" (click)="filtersMobileOpen = false"></div>
       }
-    </div>
 
-    <div class="filters-grid">
-      <div class="filters-search">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-        </svg>
-        <input type="text" [(ngModel)]="search" placeholder="Buscar por nombre, agente, colegio o ID..."/>
-      </div>
-
-      <div class="ff-group">
-        <label>Estado</label>
-        <select [(ngModel)]="filter">
-          <option value="all">Todos</option>
-          <option value="active">Activos</option>
-          <option value="closed">Cerrados</option>
-        </select>
-      </div>
-
-      <div class="ff-group">
-        <label>Colegio</label>
-        <select [(ngModel)]="filterColegio">
-          <option value="">Todos</option>
-          @for (c of colegios; track trackByIndex($index)) { <option [value]="c">{{ c }}</option> }
-        </select>
-      </div>
-
-      <div class="ff-group">
-        <label>Rol</label>
-        <select [(ngModel)]="filterRol">
-          <option value="">Todos</option>
-          @for (r of roles; track trackByIndex($index)) { <option [value]="r">{{ r }}</option> }
-        </select>
-      </div>
-
-      <div class="ff-group">
-        <label>Solicitud</label>
-        <select [(ngModel)]="filterSolicitud">
-          <option value="">Todas</option>
-          @for (s of solicitudes; track trackByIndex($index)) { <option [value]="s">{{ s }}</option> }
-        </select>
-      </div>
-
-      <div class="ff-group">
-        <label>Asesor</label>
-        <select [(ngModel)]="filterAsesor">
-          <option value="">Todos</option>
-          @for (a of asesores; track trackByIndex($index)) { <option [value]="a">{{ a }}</option> }
-        </select>
-      </div>
-
-      <div class="ff-group ff-date">
-        <label>Rango de fechas</label>
-        <div class="ff-date-range">
-          <input type="date" [(ngModel)]="filterDateFrom" placeholder="Desde"/>
-          <span class="ff-date-sep">—</span>
-          <input type="date" [(ngModel)]="filterDateTo" placeholder="Hasta"/>
+      <!-- ─── LISTADO ─── -->
+      <section class="hv-list">
+        <div class="hv-list-head">
+          <div class="hv-list-titles">
+            <h2 class="hv-list-count">{{ filteredSessions.length }} sesión{{ filteredSessions.length !== 1 ? 'es' : '' }} encontrada{{ filteredSessions.length !== 1 ? 's' : '' }}</h2>
+            <p class="hv-list-sub">Conversaciones registradas</p>
+          </div>
+          <div class="hv-list-tools">
+            <button class="hv-filters-toggle" (click)="filtersMobileOpen = true" aria-label="Abrir filtros">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+              Filtros
+            </button>
+            <select [(ngModel)]="sortOrder" (ngModelChange)="applySort()" title="Ordenar por">
+              <option value="recent">Más recientes</option>
+              <option value="oldest">Más antiguos</option>
+            </select>
+            <button class="hv-btn-export" (click)="downloadListExcel()" title="Exportar listado a Excel">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Exportar
+            </button>
+          </div>
         </div>
-      </div>
+
+        <div class="hv-table-wrap">
+          <table class="hv-table">
+            <colgroup>
+              <col style="width:23%"/>
+              <col style="width:16%"/>
+              <col style="width:10%"/>
+              <col style="width:12%"/>
+              <col style="width:13%"/>
+              <col style="width:10%"/>
+              <col style="width:9%"/>
+              <col style="width:7%"/>
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Cliente</th>
+                <th>Colegio</th>
+                <th>Rol</th>
+                <th>Atendido por</th>
+                <th>Asesor asignado</th>
+                <th>Estado</th>
+                <th>Fecha</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (session of pagedSessions; track trackById($index, session)) {
+              <tr
+                [class.is-closed]="session.status === 'closed'"
+                (click)="selectSession(session)">
+                <td>
+                  <div class="tc-client">
+                    <span class="tc-avatar">{{ session.clientName.charAt(0) }}</span>
+                    <span class="tc-client-body">
+                      <span class="tc-client-name">{{ session.clientName }}{{ session.apellido ? ' ' + session.apellido : '' }}</span>
+                      <span class="tc-client-id" [title]="session.id">ID: {{ session.id }}</span>
+                    </span>
+                  </div>
+                </td>
+                <td>
+                  <div class="tc-colegio">
+                    <span class="tc-colegio-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v13"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
+                    </span>
+                    <span class="tc-colegio-name">{{ session.colegio || '—' }}</span>
+                  </div>
+                </td>
+                <td>
+                  @if (session.rol) {
+                  <span class="hv-rol" [ngClass]="rolBadge(session.rol)">{{ session.rol }}</span>
+                  } @else {
+                  <span class="hv-rol">—</span>
+                  }
+                </td>
+                <td>
+                  @if (session.advisor?.name; as advisorName) {
+                  <div class="tc-asesor">
+                    <span class="tc-asesor-avatar">{{ advisorName.charAt(0) }}</span>
+                    <span class="tc-asesor-name">{{ advisorName }}</span>
+                  </div>
+                  } @else {
+                  <span class="tc-sin-agente">Sin agente</span>
+                  }
+                </td>
+                <td>
+                  @if (session.colegioAdvisorName; as colegioAdvisorName) {
+                  <div class="tc-asesor">
+                    <span class="tc-asesor-avatar">{{ colegioAdvisorName.charAt(0) }}</span>
+                    <span class="tc-asesor-name">{{ colegioAdvisorName }}</span>
+                  </div>
+                  } @else {
+                  <span class="tc-sin-agente">—</span>
+                  }
+                </td>
+                <td>
+                  <span class="hv-badge" [ngClass]="'hv-badge--' + session.status">
+                    @if (session.status === 'closed') {
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    <span>{{ getStatusLabel(session.status) }}</span>
+                    } @else {
+                    <span>{{ getStatusLabel(session.status) }}</span>
+                    }
+                  </span>
+                </td>
+                <td>
+                  <div class="tc-date">
+                    <span class="tc-date-main">{{ fmtDateList(session.createdAt) }}</span>
+                    <span class="tc-date-time">{{ fmtTime(session.createdAt) }}</span>
+                  </div>
+                </td>
+                <td>
+                  <button class="hv-row-action" (click)="selectSession(session); $event.stopPropagation()" aria-label="Ver conversación">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                  </button>
+                </td>
+              </tr>
+              }
+
+              @if (pagedSessions.length === 0) {
+              <tr class="empty-row">
+                <td colspan="7">Sin resultados para los filtros aplicados</td>
+              </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        @if (sortedSessions.length > 0) {
+        <div class="hv-pagination">
+          <span class="hv-pagination-info">
+            Mostrando {{ (page - 1) * pageSize + 1 }} a {{ page * pageSize < sortedSessions.length ? page * pageSize : sortedSessions.length }} de {{ sortedSessions.length }} resultados
+          </span>
+          <div class="hv-pagination-pages">
+            <button class="hv-page-btn" [disabled]="page === 1" (click)="prevPage()" aria-label="Página anterior">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            @for (p of pageNumbers; track $index) {
+              @if (p === '…') {
+              <span class="hv-page-ellipsis">…</span>
+              } @else {
+              <button class="hv-page-btn" [class.active]="page === p" (click)="goToPage(p)">{{ p }}</button>
+              }
+            }
+            <button class="hv-page-btn" [disabled]="page === totalPages" (click)="nextPage()" aria-label="Página siguiente">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+          <select class="hv-pagination-size" [(ngModel)]="pageSize" (ngModelChange)="changePageSize($event)" title="Resultados por página">
+            <option [ngValue]="10">10 por página</option>
+            <option [ngValue]="25">25 por página</option>
+            <option [ngValue]="50">50 por página</option>
+          </select>
+        </div>
+        }
+      </section>
     </div>
   </div>
   }
 
-  <!-- ════════════ LAYOUT PRINCIPAL ════════════ -->
+  <!-- ════════════ ÁREA CHAT (vista detalle) ════════════ -->
+  @if (activeSession) {
   <div class="history-layout">
-
-    <!-- ─── TABLA DE SESIONES (vista lista) ─── -->
-    @if (!activeSession) {
-    <section class="sessions-table">
-
-      <div class="results-count">
-        {{ filteredSessions.length }} sesión{{ filteredSessions.length !== 1 ? 'es' : '' }} encontrada{{ filteredSessions.length !== 1 ? 's' : '' }}
-      </div>
-
-      <div class="table-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th>Cliente</th>
-              <th>Colegio</th>
-              <th>Rol</th>
-              <th>Asesor</th>
-              <th>Estado</th>
-              <th>Fecha</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (session of filteredSessions; track trackById($index, session)) {
-            <tr
-              [class.is-closed]="session.status === 'closed'"
-              (click)="selectSession(session)">
-              <td>
-                <span class="tc-avatar">{{ session.clientName.charAt(0) }}</span>
-                <span class="tc-client">{{ session.clientName }}</span>
-              </td>
-              <td>{{ session.colegio || '—' }}</td>
-              <td>{{ session.rol || '—' }}</td>
-              <td>{{ session.advisor?.name || 'Sin agente' }}</td>
-              <td><span class="badge" [ngClass]="'badge-' + session.status">{{ getStatusLabel(session.status) }}</span></td>
-              <td class="tc-date">{{ fmtDateTimeShort(session.createdAt) }}</td>
-            </tr>
-            }
-
-            @if (filteredSessions.length === 0) {
-            <tr class="empty-row">
-              <td colspan="6">Sin resultados para los filtros aplicados</td>
-            </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-    </section>
-    }
-
-    <!-- ─── ÁREA CHAT (vista detalle) ─── -->
-    @if (activeSession) {
     <div class="chat-area">
 
       <div class="chat-panel">
@@ -180,11 +340,17 @@
               <span class="client-name">
                 {{ activeSession.clientName }}{{ activeSession.apellido ? ' ' + activeSession.apellido : '' }}
               </span>
+              <span class="session-meta">
+                <span>{{ activeSession.rol || 'Sin rol' }}</span>
+                <span class="meta-sep">·</span>
+                <span>{{ activeSession.colegio || 'Sin colegio' }}</span>
+                <span class="badge" [ngClass]="'badge-' + activeSession.status">{{ getStatusLabel(activeSession.status) }}</span>
+              </span>
             </div>
           </div>
 
           <div class="header-right">
-            <button class="header-icon-btn" (click)="toggleInfo()"
+            <button class="header-icon-btn info-toggle-btn" (click)="toggleInfo()"
               [class.active]="infoOpen"
               [title]="infoOpen ? 'Ocultar información' : 'Mostrar información'"
               aria-label="Información de la conversación">
@@ -254,17 +420,11 @@
             </button>
           </div>
           <div class="chat-tabs-right">
-            <button class="ha-btn ha-btn--icon" (click)="exportCsv()" [disabled]="!activeSession" title="Exportar a CSV">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-              </svg>
-              CSV
-            </button>
-            <button class="ha-btn ha-btn--icon" (click)="exportPdf()" [disabled]="!activeSession" title="Exportar PDF">
+            <button class="chat-export-btn" (click)="exportPdf()" [disabled]="!activeSession" title="Exportar PDF">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
               </svg>
-              PDF
+              Exportar PDF
             </button>
           </div>
         </div>
@@ -442,6 +602,13 @@
             <div class="no-messages">Sin mensajes en esta conversación</div>
             }
           </div>
+
+          <div class="chat-footbar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <span>Solo lectura</span>
+          </div>
         </div>
         }
 
@@ -507,34 +674,21 @@
         </div>
         <div class="info-scroll">
 
-          <!-- Tarjeta de perfil -->
-          <div class="info-profile">
-            <div class="profile-avatar">{{ activeSession.clientName.charAt(0) }}</div>
-            <div class="profile-data">
-              <h3 class="profile-name">
-                {{ activeSession.clientName }}{{ activeSession.apellido ? ' ' + activeSession.apellido : '' }}
-              </h3>
-              <div class="profile-meta">
-                <span class="badge" [ngClass]="'badge-' + activeSession.status">{{ getStatusLabel(activeSession.status) }}</span>
-                <span class="profile-role">{{ activeSession.rol || 'Sin rol' }}</span>
-              </div>
-            </div>
-            <div class="profile-colegio">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M3 21h18"/>
-                <path d="M5 21V8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v13"/>
-                <path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>
-                <line x1="9" y1="12" x2="9" y2="12.01"/>
-                <line x1="15" y1="12" x2="15" y2="12.01"/>
-                <line x1="9" y1="16" x2="9" y2="16.01"/>
-                <line x1="15" y1="16" x2="15" y2="16.01"/>
-              </svg>
-              <span class="profile-colegio-name">{{ activeSession.colegio || 'Sin colegio' }}</span>
-            </div>
-          </div>
-
           <!-- Tarjeta de resumen -->
           <div class="info-assign">
+            <div class="assign-item">
+              <div class="assign-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                  <circle cx="12" cy="7" r="4"/>
+                  <polyline points="9 11 11 13 15 9"/>
+                </svg>
+              </div>
+              <div class="assign-data">
+                <span class="assign-label">Atendido por</span>
+                <span class="assign-value">{{ activeSession.advisor?.name || 'Sin agente' }}</span>
+              </div>
+            </div>
             <div class="assign-item">
               <div class="assign-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -544,7 +698,7 @@
               </div>
               <div class="assign-data">
                 <span class="assign-label">Asesor asignado</span>
-                <span class="assign-value">{{ activeSession.advisor?.name || 'Sin agente' }}</span>
+                <span class="assign-value">{{ activeSession.colegioAdvisorName || '—' }}</span>
               </div>
             </div>
             <div class="assign-item">
@@ -633,9 +787,8 @@
         </div>
       </aside>
     </div>
-    }
-
   </div>
+  }
 
   <!-- ═══ IMAGE LIGHTBOX ═══ -->
   @if (imagePreview) {

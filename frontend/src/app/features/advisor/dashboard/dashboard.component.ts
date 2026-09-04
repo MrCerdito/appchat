@@ -18,6 +18,7 @@ import { ChatStateService } from '../../../core/services/chat-state.service';
 import { InternalChatService } from '../../../core/services/internal-chat.service';
 import { ThemeService } from '../../../core/services/theme.service';
 import { NotificationService } from '../../../core/services/notification.service';
+import { NotificationBellComponent } from '../../../shared/components/notification-bell.component';
 import { LayoutService } from '../../../core/services/layout.service';
 import { FaqService, ChatMessage } from '../../../core/services/faq.service';
 import { formatFaqText } from '../../../shared/utils/faq-format';
@@ -40,7 +41,7 @@ interface ConnectedAdvisor {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, ToastContainerComponent],
+  imports: [CommonModule, RouterModule, FormsModule, ToastContainerComponent, NotificationBellComponent],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -94,7 +95,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   get roleLabel(): string {
-    return this.currentAdvisor?.role === 'admin' ? 'Administrador' : 'Agente';
+    switch (this.currentAdvisor?.role) {
+      case 'admin': return 'Administrador';
+      case 'desarrollador': return 'Desarrollador';
+      default: return 'Agente';
+    }
   }
 
   private isSelfAdvisor(adv: ConnectedAdvisor): boolean {
@@ -120,20 +125,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   enAlmuerzo = false;
   almuerzoPendiente = false;
-  notificationPermission: 'granted' | 'denied' | 'default' | 'unsupported' = 'default';
-
-  get notificationPermissionTitle(): string {
-    switch (this.notificationPermission) {
-      case 'granted':
-        return 'Notificaciones de Windows activadas';
-      case 'denied':
-        return 'Notificaciones bloqueadas por el navegador. Haz clic para ver cómo activarlas.';
-      case 'unsupported':
-        return 'Este navegador no soporta notificaciones de escritorio';
-      default:
-        return 'Activar notificaciones de Windows';
-    }
-  }
   almuerzoModalVisible = true;
   almuerzoRestante = '';
   almuerzoFinHora = '';
@@ -222,24 +213,18 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
     this.sound.init();
     this.sound.ping();
-    this.sound.notificationPermission$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(p => {
-        this.notificationPermission = p;
-        this.cdr.detectChanges();
-      });
     this.socket.connect(this.auth.getToken() ?? undefined);
     if (this.currentAdvisor?.id) {
       this.whatsapp.joinAsAdvisor(this.currentAdvisor.id);
     }
     this.internalChat.connect();
 
-    const saved = localStorage.getItem(this.STATUS_KEY) as 'online' | 'busy' | 'offline';
-    this.advisorStatus = saved ?? 'online';
-    // No forzar 'online' al recargar: se respeta el estado guardado (saved) o el del servidor
-    if (saved) {
-      this.applyStatus(saved);
-    }
+    // Al iniciar sesión el asesor entra automáticamente en estado Disponible
+    // (online), sin heredar un 'offline' de un logout/desconexión anterior,
+    // para que la asignación por colegio y la cola lo tomen en cuenta de inmediato.
+    this.advisorStatus = 'online';
+    localStorage.setItem(this.STATUS_KEY, 'online');
+    this.applyStatus('online');
     this.socket.emit('advisor_ready');
     this.loadActiveCount();
     this.registerSocketListeners();
@@ -422,28 +407,39 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.startLunchApproachingCountdown(data.inicio);
         this.cdr.detectChanges();
       });
-  }
 
-  requestNotifications(): void {
-    this.sound.requestNotifications().then(permission => {
-      this.notificationPermission = permission;
-      if (permission === 'granted') {
-        this.notification.success(
-          'Notificaciones activadas',
-          'Recibirás avisos de mensajes y asignaciones.',
+    this.socket.on<any>('ticket:created')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        this.sound.playTicketNotification();
+        this.sound.notify(
+          'TICKET CREADO',
+          data?.titulo || 'Se creo un nuevo ticket',
+          `ticket-created-${data?.id}`,
         );
-      } else if (permission === 'denied') {
-        this.notification.warning(
-          'Notificaciones bloqueadas',
-          'Habilita el permiso de notificaciones para este sitio en la configuración del navegador.',
+      });
+
+    this.socket.on<any>('ticket:updated')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        this.sound.playTicketNotification();
+        this.sound.notify(
+          'TICKET ACTUALIZADO',
+          data?.titulo || 'Un ticket fue actualizado',
+          `ticket-updated-${data?.id}`,
         );
-      } else if (permission === 'unsupported') {
-        this.notification.info(
-          'Notificaciones no disponibles',
-          'Este navegador no soporta notificaciones de escritorio.',
+      });
+
+    this.socket.on<any>('ticket:deleted')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        this.sound.playTicketNotification();
+        this.sound.notify(
+          'TICKET ELIMINADO',
+          data?.titulo || 'Un ticket fue eliminado',
+          `ticket-deleted-${data?.id}`,
         );
-      }
-    });
+      });
   }
 
   private registerGlobalNotificationListeners(): void {

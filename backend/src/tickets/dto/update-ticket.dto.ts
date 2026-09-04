@@ -13,7 +13,7 @@ export class UpdateTicketDto {
 
   @IsString()
   @IsOptional()
-  @IsIn(['open', 'in_progress', 'resolved', 'closed'])
+  @IsIn(['open', 'in_progress', 'on_hold', 'denied', 'resolved', 'closed'])
   status?: string;
 
   @IsString()

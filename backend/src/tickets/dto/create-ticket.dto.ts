@@ -30,12 +30,12 @@ export class CreateTicketDto {
 
   @IsString()
   @IsNotEmpty()
-  @IsIn(['web', 'whatsapp'])
+  @IsIn(['web', 'whatsapp', 'internal', 'email'])
   sourceType: string;
 
   @IsString()
-  @IsNotEmpty()
-  sourceId: string;
+  @IsOptional()
+  sourceId?: string;
 
   @IsString()
   @IsNotEmpty()
@@ -52,6 +52,16 @@ export class CreateTicketDto {
   @IsString()
   @IsOptional()
   assignedToId?: string;
+
+  @IsString()
+  @IsOptional()
+  @Length(1, 255)
+  institucion?: string;
+
+  @IsString()
+  @IsOptional()
+  @IsIn(['web', 'whatsapp', 'internal', 'email'])
+  canal?: string;
 
   @IsOptional()
   conversation?: any[];

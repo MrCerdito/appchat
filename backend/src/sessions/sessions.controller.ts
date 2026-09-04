@@ -29,9 +29,51 @@ import { Message } from '../chat/entities/message.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { RolesGuard, Roles } from '../auth/roles.guard';
-import { IsString, IsNotEmpty, Length, IsOptional, IsEmail, MaxLength, Matches, IsUUID, IsIn } from 'class-validator';
+import { IsString, IsNotEmpty, Length, IsOptional, IsEmail, MaxLength, Matches, IsUUID, IsIn, IsDateString } from 'class-validator';
 import { SkipThrottle } from '@nestjs/throttler';
 import { ChatGateway } from '../chat/chat.gateway';
+
+export class ExportHistorialRowDto {
+  @IsString()
+  @IsOptional()
+  cliente?: string;
+
+  @IsString()
+  @IsOptional()
+  identificacion?: string;
+
+  @IsString()
+  @IsOptional()
+  colegio?: string;
+
+  @IsString()
+  @IsOptional()
+  rol?: string;
+
+  @IsString()
+  @IsOptional()
+  solicitud?: string;
+
+  @IsString()
+  @IsOptional()
+  asesor?: string;
+
+  @IsString()
+  @IsOptional()
+  asesorAsignado?: string;
+
+  @IsString()
+  @IsOptional()
+  estado?: string;
+
+  @IsString()
+  @IsOptional()
+  fecha?: string;
+
+  @IsString()
+  @IsOptional()
+  tratamiento?: string;
+}
 
 export class CreateSessionDto {
   @IsString()
@@ -79,6 +121,10 @@ export class CreateSessionDto {
   @IsNotEmpty()
   @Length(1, 100)
   tipoSolicitud: string;
+
+  @IsDateString()
+  @IsOptional()
+  tratamientoDatosAt?: string;
 }
 
 export class CreateColegioDto {
@@ -203,7 +249,7 @@ export class SessionsController {
     const statuses = await this.chatGateway.getAdvisorStatuses();
     return advisors.map((a) => ({
       ...a,
-      status: (statuses[a.id] ?? a.status) as 'online' | 'busy' | 'offline',
+      status: (a.status ?? statuses[a.id]) as 'online' | 'busy' | 'offline',
     }));
   }
 
@@ -303,6 +349,25 @@ export class SessionsController {
       'Content-Type':
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'Content-Disposition': `attachment; filename="reporte-asesor-${Date.now()}.xlsx"`,
+    });
+    return new StreamableFile(file);
+  }
+
+  // Exporta el listado visible del módulo Historial a Excel (.xlsx).
+  @Post('historial/export')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin', 'advisor')
+  @HttpCode(HttpStatus.OK)
+  async exportHistorial(
+    @Body('rows', new ValidationPipe({ transform: true }))
+    rows: ExportHistorialRowDto[],
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    const file = await this.sessionsService.exportHistorial(rows ?? []);
+    res.set({
+      'Content-Type':
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="historial_conversaciones_${new Date().toISOString().slice(0, 10)}.xlsx"`,
     });
     return new StreamableFile(file);
   }

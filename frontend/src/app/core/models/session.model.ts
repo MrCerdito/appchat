@@ -20,9 +20,13 @@ export interface Session {
   colegioLink?: string;
   colegioAdvisorName?: string;
   colegioAdvisorPhotoUrl?: string | null;
+  colegioAdvisorId?: string;
+  colegioAdvisorStatus?: string;
+  colegioAdvisorActiveChats?: number;
   email?:        string;
   celular?:      string;
   tipoSolicitud?: string;
+  tratamientoDatosAt?: string | null;
   status:        string;
   unreadCount?:  number;
   advisor?:      { id?: string; name: string } | null;

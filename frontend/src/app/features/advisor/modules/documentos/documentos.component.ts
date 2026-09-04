@@ -37,7 +37,7 @@ export class DocumentosComponent implements OnInit, OnDestroy {
     nombre         : '',
     descripcion    : '',
     colegio        : '',
-    rolesPermitidos: ['administrador', 'docente', 'estudiante', 'padre'] as string[],
+    rolesPermitidos: ['administrador', 'docente', 'coordinador', 'estudiante', 'padre'] as string[],
     instructivo    : false,
   };
 
@@ -61,6 +61,7 @@ export class DocumentosComponent implements OnInit, OnDestroy {
   readonly rolesDisponibles = [
     { value: 'administrador', label: 'Administrador' },
     { value: 'docente',       label: 'Docente' },
+    { value: 'coordinador',   label: 'Coordinador' },
     { value: 'estudiante',    label: 'Estudiante' },
     { value: 'padre',         label: 'Padre/Madre' },
   ];
@@ -230,7 +231,7 @@ export class DocumentosComponent implements OnInit, OnDestroy {
     // roles_permitidos viene como string "administrador,docente" — parsear a array y normalizar "admin" -> "administrador"
     const rawRoles = typeof doc.roles_permitidos === 'string' && doc.roles_permitidos
       ? doc.roles_permitidos.split(',').map((r: string) => r.trim().toLowerCase()).filter(Boolean)
-      : ['administrador', 'docente', 'estudiante', 'padre'];
+: ['administrador', 'docente', 'coordinador', 'estudiante', 'padre'];
 
     const mapaLocal: Record<string, string> = { admin: 'administrador', profesor: 'docente', alumno: 'estudiante', madre: 'padre', acudiente: 'padre' };
     const roles = [...new Set(rawRoles.map(r => mapaLocal[r] ?? r))];
@@ -317,19 +318,20 @@ export class DocumentosComponent implements OnInit, OnDestroy {
 
   getRolesArray(roles: string | null): string[] {
     if (!roles || (typeof roles === 'string' && !roles.trim())) {
-      return ['administrador', 'docente', 'estudiante', 'padre'];
+      return ['administrador', 'docente', 'coordinador', 'estudiante', 'padre'];
     }
     if (typeof roles === 'string') {
       const arr = roles.split(',').map((r: string) => r.trim()).filter(Boolean);
-      return arr.length ? arr : ['administrador', 'docente', 'estudiante', 'padre'];
+      return arr.length ? arr : ['administrador', 'docente', 'coordinador', 'estudiante', 'padre'];
     }
-    return ['administrador', 'docente', 'estudiante', 'padre'];
+    return ['administrador', 'docente', 'coordinador', 'estudiante', 'padre'];
   }
 
   getRolLabel(value: string): string {
     const v = (value || '').toLowerCase().trim();
     if (v === 'admin' || v === 'administrador') return 'Administrador';
     if (v === 'docente' || v === 'profesor') return 'Docente';
+    if (v === 'coordinador') return 'Coordinador';
     if (v === 'estudiante' || v === 'alumno') return 'Estudiante';
     if (v === 'padre' || v === 'madre' || v === 'acudiente') return 'Padre/Madre';
     return this.rolesDisponibles.find(r => r.value === value)?.label ?? value;
@@ -351,7 +353,7 @@ export class DocumentosComponent implements OnInit, OnDestroy {
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   resetForm(): void {
-    this.form = { nombre: '', descripcion: '', colegio: '', rolesPermitidos: ['administrador','docente','estudiante','padre'], instructivo: false };
+    this.form = { nombre: '', descripcion: '', colegio: '', rolesPermitidos: ['administrador','docente','coordinador','estudiante','padre'], instructivo: false };
     this.archivoSeleccionado = null;
     this.archivoNombre       = '';
     this.submitted           = false;

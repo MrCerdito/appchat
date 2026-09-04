@@ -222,6 +222,121 @@ export class TicketMailService {
     }
   }
 
+  /**
+   * Envia un correo de confirmacion cuando un ticket web pasa a
+   * `resolved` o `closed`. Devuelve `true` si el correo salio OK.
+   */
+  async enviarConfirmacionCierre(ticket: Ticket, to: string): Promise<boolean> {
+    try {
+      const email = String(to ?? '').trim();
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        this.logger.warn(`Sin email valido para ${ticket.codigo}; no se envio confirmacion de cierre.`);
+        return false;
+      }
+
+      const cfg = await this.configuracion.getGlobal();
+      if (cfg.ticketEmailActivo === false) {
+        return false;
+      }
+
+      const subject = `Tu solicitud ${ticket.codigo} ha sido resuelta`;
+      const html = this.buildCloseHtml(ticket);
+      const { html: htmlFinal, smtpAttachments, resendAttachments } = await embedInlineImages(html);
+      const smtpFinal: Array<{ filename: string; path: string; cid?: string; contentType?: string }> = [...smtpAttachments];
+      const resendFinal = resendAttachments;
+
+      const smtpUser = cfg.smtpUser?.trim() || '';
+      const smtpHost = cfg.smtpHost?.trim() || '';
+      const smtpPass = cfg.smtpPass?.trim() || '';
+      const rawFrom = cfg.mailFrom?.trim() || smtpUser || String(this.config.get('MAIL_FROM') ?? '');
+      const from = this.resolveFrom(rawFrom, cfg.ticketEmailSenderName);
+
+      if (smtpHost && smtpUser && smtpPass) {
+        await this.sendSmtp(cfg, smtpHost, smtpUser, smtpPass, from, ticket, email, subject, htmlFinal, smtpFinal);
+        return true;
+      }
+
+      if (!from) {
+        this.logger.warn(`Sin remitente configurado; no se envio confirmacion de cierre de ${ticket.codigo}.`);
+        return false;
+      }
+
+      const { data, error } = await this.resend.emails.send({
+        from,
+        to: email,
+        subject,
+        html: htmlFinal,
+        attachments: resendFinal.length ? resendFinal : undefined,
+      });
+      if (error) {
+        this.logger.error(`Error enviando confirmacion de cierre ${ticket.codigo}: ${error.message}`);
+        return false;
+      }
+      this.logger.log(`Confirmacion de cierre enviada a ${email} para ${ticket.codigo}${data?.id ? ` (${data.id})` : ''}`);
+      return true;
+    } catch (err: any) {
+      this.logger.error(`Error enviando confirmacion de cierre ${ticket.codigo}: ${err?.message ?? err}`);
+      return false;
+    }
+  }
+
+  private buildCloseHtml(ticket: Ticket): string {
+    const nombre = this.escapeHtml(ticket.clientName || 'Cliente');
+    const codigo = this.escapeHtml(ticket.codigo);
+    const info = ticket.clientInfo ?? {};
+    const sesion = String(info['sesion'] ?? info['session'] ?? info['codigo_sesion'] ?? '').trim();
+    const sesionHtml = sesion
+      ? `<tr>
+                <td style="padding:8px 14px;border-top:1px solid #eef2f7;color:#64748b;font-size:12px;width:35%;">Sesion</td>
+                <td style="padding:8px 14px;border-top:1px solid #eef2f7;color:#1e293b;font-size:13px;font-weight:600;">${this.escapeHtml(sesion)}</td>
+              </tr>`
+      : '';
+    return `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+</head>
+<body style="margin:0;padding:0;background:#f4f6fb;font-family:Arial,Helvetica,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6fb;">
+    <tr>
+      <td align="center" style="padding:24px 12px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;">
+          <tr>
+            <td style="padding:22px 28px;background:#10b981;">
+              <p style="margin:0 0 4px;color:#d1fae5;font-size:13px;">Actualizacion de tu solicitud</p>
+              <h1 style="margin:0;color:#ffffff;font-size:20px;">Tu solicitud ha sido resuelta</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px 28px;color:#1e293b;font-size:15px;line-height:1.6;">
+              <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:20px;">
+                <tr>
+                  <td style="padding:8px 14px;color:#64748b;font-size:12px;width:35%;">Ticket</td>
+                  <td style="padding:8px 14px;color:#1e293b;font-size:13px;font-weight:600;">${codigo}</td>
+                </tr>
+                ${sesionHtml}
+              </table>
+              <p style="margin:0 0 16px;">Hola <strong>${nombre}</strong>,</p>
+              <p style="margin:0 0 16px;">Te informamos que tu solicitud <strong>${codigo}</strong> ha sido <strong>resuelta satisfactoriamente</strong> y el caso se encuentra actualmente en estado <strong>Cerrado</strong>.</p>
+              <p style="margin:0 0 16px;">Esperamos que la solucion brindada haya resuelto tu requerimiento. Si necesitas ayuda adicional o el inconveniente persiste, puedes responder a este correo para continuar con la atencion o registrar una nueva solicitud.</p>
+              <p style="margin:0 0 16px;">Gracias por comunicarte con nuestro equipo.</p>
+              <p style="margin:0;"><strong>Saludos,</strong><br/><strong>Equipo de Soporte</strong></p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:16px 28px;border-top:1px solid #e2e8f0;color:#64748b;font-size:12px;line-height:1.5;">
+              Este correo fue enviado automaticamente al actualizar y resolver tu solicitud ${codigo}.
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+  }
+
   private resolveSubject(ticket: Ticket, cfg: Configuracion): string {
     const raw =
       cfg.ticketEmailAsunto?.trim() || 'Tu caso {{codigo}} fue registrado';

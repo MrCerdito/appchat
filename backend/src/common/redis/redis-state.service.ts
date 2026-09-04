@@ -48,6 +48,7 @@ const K = {
   LUNCH_NOTIFIED: 'chat:lunch-notified', // SET of advisorIds
   LUNCH_SKIPPED: 'chat:lunch-skipped', // HASH advisorId→fecha (YYYY-MM-DD)
   ASSIGN_LOCK: 'chat:assign-lock', // STRING (SETNX for distributed lock)
+  ADVISOR_HEARTBEAT_PREFIX: 'chat:advisor-heartbeat:', // STRING "{advisorId}"→socketId, con TTL (presencia viva)
 } as const;
 
 @Injectable()
@@ -99,6 +100,58 @@ export class RedisStateService implements OnModuleDestroy {
 
   async getConnectedAdvisorCount(): Promise<number> {
     return this.redis.scard(K.CONNECTED_ADVISORS);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ADVISOR HEARTBEAT (presencia viva)
+  // ───────────────────────────────────────────────────────────────────────────
+  // El SET de conectados solo refleja intención; si un proceso muere (crash/
+  // restart), sus sockets quedan registrados en Redis para siempre y la
+  // asignación seguiría enviando sesiones a asesores "fantasma" que ya no
+  // están realmente conectados. Con el heartbeat, cada socket vivo renueva su
+  // clave con TTL; al expirar, sweepStaleAdvisorPresence limpia al fantasma.
+  // ───────────────────────────────────────────────────────────────────────────
+
+  async touchAdvisorHeartbeat(
+    advisorId: string,
+    socketId: string,
+    ttlMs = 90_000,
+  ): Promise<void> {
+    await this.redis.set(
+      `${K.ADVISOR_HEARTBEAT_PREFIX}${advisorId}`,
+      socketId,
+      'PX',
+      ttlMs,
+    );
+  }
+
+  async clearAdvisorHeartbeat(advisorId: string): Promise<void> {
+    await this.redis.del(`${K.ADVISOR_HEARTBEAT_PREFIX}${advisorId}`);
+  }
+
+  // Elimina de CONNECTED_ADVISORS/ADVISOR_SOCKETS/ADVISOR_STATUSES a todo
+  // asesor que NO tenga un heartbeat fresco (es decir, sin ningún socket vivo
+  // en ninguna instancia). Devuelve cuántos fantasmas se limpiaron.
+  async sweepStaleAdvisorPresence(): Promise<number> {
+    const connected = await this.getConnectedAdvisorIds();
+    if (!connected.length) return 0;
+
+    const socketEntries = await this.redis.smembers(K.ADVISOR_SOCKETS);
+    let removed = 0;
+    const pipeline = this.redis.pipeline();
+    for (const id of connected) {
+      const alive = await this.redis.exists(
+        `${K.ADVISOR_HEARTBEAT_PREFIX}${id}`,
+      );
+      if (alive) continue;
+      pipeline.srem(K.CONNECTED_ADVISORS, id);
+      const stale = socketEntries.filter((e) => e.startsWith(`${id}:`));
+      if (stale.length) pipeline.srem(K.ADVISOR_SOCKETS, ...stale);
+      pipeline.hdel(K.ADVISOR_STATUSES, id);
+      removed += 1;
+    }
+    if (removed) await pipeline.exec();
+    return removed;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════

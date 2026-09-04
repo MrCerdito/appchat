@@ -18,7 +18,7 @@ import { LayoutService } from '../../../../core/services/layout.service';
 import { SmtpConfigComponent } from './components/smtp-config/smtp-config.component';
 import { ColegiosConfigComponent } from './components/colegios-config/colegios-config.component';
 
-type ConfigGrupo = 'chat' | 'whatsapp' | 'general';
+type ConfigGrupo = 'chat' | 'whatsapp' | 'general' | 'tickets';
 type ConfigTab =
   | 'bienvenida'
   | 'inactividad'
@@ -28,7 +28,8 @@ type ConfigTab =
   | 'jornada'
   | 'sonidos'
   | 'ia'
-  | 'colegios';
+  | 'colegios'
+  | 'sla';
 
 @Component({
   selector: 'app-admin-configuracion',
@@ -62,6 +63,7 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
   readonly grupos: Array<{ key: ConfigGrupo; label: string; tabInicial: ConfigTab }> = [
     { key: 'chat', label: 'Chat en línea', tabInicial: 'bienvenida' },
     { key: 'whatsapp', label: 'WhatsApp', tabInicial: 'whatsapp' },
+    { key: 'tickets', label: 'Tickets', tabInicial: 'sla' },
     { key: 'general', label: 'General', tabInicial: 'jornada' },
   ];
 
@@ -109,6 +111,7 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
   readonly aiRoles = [
     { key: 'administrador', label: 'Administrador', icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' },
     { key: 'docente', label: 'Docente', icon: 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z' },
+    { key: 'coordinador', label: 'Coordinador', icon: 'M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2 M12 11l1.5 1.5L16 10 M9 2h6v6H9z' },
     { key: 'estudiante', label: 'Estudiante', icon: 'M22 10v6M2 10l10-5 10 5-10 5z M6 12v5c3 3 6 3 12 0v-5' },
     { key: 'padre', label: 'Padre/Madre', icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M23 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75' },
   ];
@@ -134,6 +137,7 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
   aiRolesConfig: Record<string, { descripcion: string; temasRestringidos: string[]; mensajeRestringido: string }> = {
     administrador: { descripcion: 'Tienes acceso completo a toda la información del sistema.', temasRestringidos: [], mensajeRestringido: '' },
     docente: { descripcion: 'Tienes acceso a información académica y administrativa.', temasRestringidos: [], mensajeRestringido: '' },
+    coordinador: { descripcion: 'Tienes acceso a información académica y de gestión de la comunidad educativa.', temasRestringidos: [], mensajeRestringido: '' },
     estudiante: { descripcion: 'Tienes acceso a información académica y personal.', temasRestringidos: [...this.DEFAULT_ROLE_RESTRICTED_ESTUDIANTE], mensajeRestringido: this.DEFAULT_ROLE_MSG_ESTUDIANTE },
     padre: { descripcion: 'Tienes acceso a información académica y de pagos de tu hijo.', temasRestringidos: [], mensajeRestringido: '' },
   };
@@ -504,6 +508,8 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
       smtpUser: config.smtpUser || '',
       smtpPass: config.smtpPass || '',
       mailFrom: config.mailFrom || '',
+      ticketSlaEnabled: config.ticketSlaEnabled ?? true,
+      ticketSlaHours: config.ticketSlaHours ?? { low: 168, medium: 72, high: 24, critical: 8 },
     };
   }
 
@@ -659,6 +665,14 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
 
   removeTransferPhrase(phrase: string): void {
     this.aiPromptFrasesTransferencia = this.aiPromptFrasesTransferencia.filter(p => p !== phrase);
+  }
+
+  setSlaHours(priority: string, hours: number): void {
+    if (!this.config) return;
+    if (!this.config.ticketSlaHours) {
+      this.config.ticketSlaHours = { low: 168, medium: 72, high: 24, critical: 8 };
+    }
+    this.config.ticketSlaHours[priority] = Math.max(1, Math.min(720, Number(hours) || 1));
   }
 
   addInstitucionalTopic(): void {

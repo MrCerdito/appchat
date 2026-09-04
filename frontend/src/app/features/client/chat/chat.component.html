@@ -240,7 +240,7 @@
 
         <div class="consent-field" [class.error]="submitted && !aceptaTratamiento">
           <label class="consent-check">
-            <input type="checkbox" [(ngModel)]="aceptaTratamiento"/>
+            <input type="checkbox" [(ngModel)]="aceptaTratamiento" (change)="onTratamientoChange($any($event.target).checked)"/>
             <span class="consent-box">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M20 6L9 17l-5-5"/>
@@ -788,6 +788,10 @@
           </div>
         </div>
         }
+
+        <div class="faq-chat-footnote">
+          Si ninguna de estas opciones satisface tus necesidades, comunícate con el equipo de soporte técnico, escribiendo la palabra <strong>"asesor"</strong>.
+        </div>
       </div>
       }
 
@@ -1128,7 +1132,7 @@
         <p>Los datos recopilados serán utilizados exclusivamente para la prestación del servicio de atención al usuario, garantizando la confidencialidad, seguridad y reserva de la información, y no serán compartidos con terceros sin tu autorización.</p>
         <p>Puedes ejercer tus derechos de acceso, rectificación, actualización, supresión y revocación de la autorización contactando a tu institución educativa.</p>
       </div>
-      <button class="terms-accept" type="button" (click)="showTratamientoDatos = false; aceptaTratamiento = true">
+      <button class="terms-accept" type="button" (click)="showTratamientoDatos = false; aceptaTratamiento = true; onTratamientoChange(true)">
         Entendido
       </button>
     </div>

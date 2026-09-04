@@ -97,6 +97,26 @@
         </div>
 
         <div class="cfg-side-section">
+          <span class="cfg-side-label">Tickets</span>
+
+          <button class="cfg-side-item cfg-side-item--lg"
+            [class.active]="grupo === 'tickets'" (click)="setGrupo('tickets')">
+            <span class="cfg-side-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </span>
+            <span class="cfg-side-text">
+              <strong>SLA de tickets</strong>
+              <small>Tiempos de respuesta por prioridad</small>
+            </span>
+            <svg class="cfg-side-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="cfg-side-section">
           <span class="cfg-side-label">General</span>
 
           <button class="cfg-side-item" [class.active]="grupo === 'general' && tab === 'jornada'" (click)="irA('general','jornada')">
@@ -182,6 +202,15 @@
               <path d="M9.5 8.5c.3 3 2 4.8 5 5"/>
             </svg>
             Mensajes automáticos
+          </button>
+        </div>
+        } @else if (grupo === 'tickets') {
+        <div class="cfg-seg">
+          <button class="cfg-seg__btn" [class.active]="tab === 'sla'" (click)="tab = 'sla'">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+            SLA por prioridad
           </button>
         </div>
         } @else {
@@ -578,6 +607,85 @@
       ══════════════════════════════════════════════════════════ -->
       @if (tab === 'correoTickets') {
       <app-smtp-config [config]="config" (configChange)="onMailConfigChange($event)"></app-smtp-config>
+      }
+
+      <!-- ══════════════════════════════════════════════════════════
+           TAB — SLA (Tickets)
+      ══════════════════════════════════════════════════════════ -->
+      @if (tab === 'sla') {
+      <div class="cfg-panel">
+
+        <div class="cfg-card">
+          <div class="cfg-card__header">
+            <div class="cfg-card__icon cfg-card__icon--amber">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </div>
+            <div class="cfg-card__titles">
+              <h3>SLA de tickets</h3>
+              <p>Define el tiempo maximo de respuesta para cada prioridad. El sistema avisara antes de que se venza.</p>
+            </div>
+            <div class="cfg-card__actions">
+              <label class="cfg-toggle">
+                <input type="checkbox" [ngModel]="config?.ticketSlaEnabled ?? true" (ngModelChange)="config.ticketSlaEnabled = $event">
+                <span class="cfg-toggle__track"><span class="cfg-toggle__thumb"></span></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="cfg-card__body">
+            @if (!config?.ticketSlaEnabled) {
+              <div class="cfg-empty-hint">
+                <p>El SLA esta desactivado. Los tickets no tendran limite de tiempo.</p>
+              </div>
+            } @else {
+            <div class="cfg-sla-grid">
+              <div class="cfg-sla-card">
+                <div class="cfg-sla-dot" style="background:#dc2626"></div>
+                <span class="cfg-sla-label">Critica</span>
+                <div class="cfg-sla-input-wrap">
+                  <input type="number" class="cfg-input" min="1" max="168"
+                    [ngModel]="config?.ticketSlaHours?.['critical'] ?? 8"
+                    (ngModelChange)="setSlaHours('critical', $event)">
+                  <span class="cfg-sla-unit">horas</span>
+                </div>
+              </div>
+              <div class="cfg-sla-card">
+                <div class="cfg-sla-dot" style="background:#ef4444"></div>
+                <span class="cfg-sla-label">Alta</span>
+                <div class="cfg-sla-input-wrap">
+                  <input type="number" class="cfg-input" min="1" max="336"
+                    [ngModel]="config?.ticketSlaHours?.['high'] ?? 24"
+                    (ngModelChange)="setSlaHours('high', $event)">
+                  <span class="cfg-sla-unit">horas</span>
+                </div>
+              </div>
+              <div class="cfg-sla-card">
+                <div class="cfg-sla-dot" style="background:#f59e0b"></div>
+                <span class="cfg-sla-label">Media</span>
+                <div class="cfg-sla-input-wrap">
+                  <input type="number" class="cfg-input" min="1" max="720"
+                    [ngModel]="config?.ticketSlaHours?.['medium'] ?? 72"
+                    (ngModelChange)="setSlaHours('medium', $event)">
+                  <span class="cfg-sla-unit">horas</span>
+                </div>
+              </div>
+              <div class="cfg-sla-card">
+                <div class="cfg-sla-dot" style="background:#6b7280"></div>
+                <span class="cfg-sla-label">Baja</span>
+                <div class="cfg-sla-input-wrap">
+                  <input type="number" class="cfg-input" min="1" max="720"
+                    [ngModel]="config?.ticketSlaHours?.['low'] ?? 168"
+                    (ngModelChange)="setSlaHours('low', $event)">
+                  <span class="cfg-sla-unit">horas</span>
+                </div>
+              </div>
+            </div>
+            }
+          </div>
+        </div>
+      </div>
       }
 
       <!-- ══════════════════════════════════════════════════════════

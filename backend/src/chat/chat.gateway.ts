@@ -55,6 +55,7 @@ export class ChatGateway
   // ── Local-only state (timers hold NodeJS.Timeout objects) ────────────────
   private pollingInterval!: NodeJS.Timeout;
   private lunchInterval!: NodeJS.Timeout;
+  private heartbeatInterval!: NodeJS.Timeout;
   private timers = new Map<string, TimerEntry>();
   private aiCloseTimers = new Map<string, NodeJS.Timeout>();
   private static readonly AI_CLOSE_DELAY_MS = 3 * 60 * 1000; // 3 minutos
@@ -138,6 +139,50 @@ export class ChatGateway
     );
     this.checkLunchBreaks();
     this.lunchInterval = setInterval(() => this.checkLunchBreaks(), 30_000);
+
+    // Heartbeat de presencia: cada socket de asesor vivo renueva su clave con
+    // TTL y el barrido limpia los "fantasmas" que dejan un crash/restart.
+    this.heartbeatInterval = setInterval(
+      () => this.touchAdvisorHeartbeats(),
+      30_000,
+    );
+    setTimeout(() => this.sweepStalePresence(), 5_000);
+  }
+
+  // Renueva el heartbeat de todos los sockets de asesor vivos en ESTA instancia.
+  // Los asesores con socket vivo en cualquier instancia mantienen presencia;
+  // los fantasmas (sin socket) dejan expirar su clave y son purgados.
+  private async touchAdvisorHeartbeats(): Promise<void> {
+    try {
+      for (const s of this.server.sockets.sockets.values()) {
+        if (
+          s.data?.role === 'advisor' &&
+          s.data?.user?.role === 'advisor' &&
+          s.data?.user?.id
+        ) {
+          await this.redisState.touchAdvisorHeartbeat(s.data.user.id, s.id);
+        }
+      }
+    } catch (err) {
+      this.logger.warn(
+        `[Presence] Error renovando heartbeats: ${(err as Error).message}`,
+      );
+    }
+  }
+
+  private async sweepStalePresence(): Promise<void> {
+    try {
+      const removed = await this.redisState.sweepStaleAdvisorPresence();
+      if (removed) {
+        this.logger.log(
+          `[Presence] ${removed} asesor(es) fantasma(s) limpiados (sin heartbeat).`,
+        );
+      }
+    } catch (err) {
+      this.logger.warn(
+        `[Presence] Error en barrido de fantasmas: ${(err as Error).message}`,
+      );
+    }
   }
 
   // ── Conexión ──────────────────────────────────────────────────────────────
@@ -162,12 +207,11 @@ export class ChatGateway
         const isAdvisor = fullUser?.role === 'advisor';
         if (isAdvisor) {
           // Store in Redis + join advisor room for cross-instance messaging.
-          // NO se fuerza el estado a 'online': el status de BD refleja la
-          // intención del usuario (Disponible/Ocupado/Inactivo) y debe
-          // respetarse tras refrescar/reconectar. El SET de conectados
-          // (Redis) marca si hay socket activo; la asignación usa el status
-          // de BD para decidir quién es elegible.
+          // Al conectar (login/refresh) el asesor se coloca automáticamente en
+          // 'online' (Disponible), de modo que la asignación (colegio/cola) lo
+          // tome en cuenta de inmediato. Si estuviera en almuerzo queda 'busy'.
           await this.redisState.addConnectedAdvisor(payload.sub, client.id);
+          await this.redisState.touchAdvisorHeartbeat(payload.sub, client.id);
           client.join(`advisor:${payload.sub}`);
           await this.syncAdvisorStatusAfterConnect(payload.sub, fullUser);
         }
@@ -255,6 +299,7 @@ export class ChatGateway
         .cleanupAdvisor(advisorId, client.id)
         .catch(() => false);
       if (!sigueConSocket) {
+        await this.redisState.clearAdvisorHeartbeat(advisorId).catch(() => null);
         await this.sessionsService.setAdvisorStatus(advisorId, 'offline');
         this.server.emit('advisor_status_changed', {
           advisorId,
@@ -317,9 +362,8 @@ export class ChatGateway
     const advisor = await this.sessionsService.findAdvisorById(
       client.data.user.id,
     );
-    // Respetar el estado persistido del asesor (Disponible/Ocupado/Inactivo).
-    // No forzar 'online' al reconectar: si el usuario dejó su estado en
-    // 'offline' (Inactivo/ausente), debe permanecer así tras refrescar/recargar.
+    // Al conectar, el asesor queda 'online' (Disponible) por defecto; si está
+    // en almuerzo el estado efectivo es 'busy' (no recibe chats nuevos).
     const currentStatus = await this.resolveAdvisorStatus(
       client.data.user.id,
       advisor?.status,
@@ -327,6 +371,7 @@ export class ChatGateway
 
     await this.sessionsService.setAdvisorStatus(client.data.user.id, currentStatus);
     await this.redisState.setAdvisorStatus(client.data.user.id, currentStatus);
+    await this.redisState.touchAdvisorHeartbeat(client.data.user.id, client.id);
     this.server.emit('advisor_status_changed', {
       advisorId: client.data.user.id,
       name: advisor?.name ?? client.data.user.name,
@@ -340,21 +385,17 @@ export class ChatGateway
     }
   }
 
-  // Calcula el estado del asesor respetando el estado persistido. Devuelve el
-  // estado guardado (Disponible/Ocupado/Inactivo) si existe; si no hay estado
-  // previo usa 'online' como valor inicial. Si el asesor está en almuerzo
-  // (activo o pendiente) el estado efectivo es 'busy' (no recibe chats nuevos
-  // durante la pausa), respetándose el estado pre-almuerzo una vez termine.
+  // Calcula el estado del asesor al conectar/reconectar.
+  // Por defecto el asesor entra en 'online' (Disponible) al conectar: si quedó
+  // 'offline' por un logout/desconexión anterior, se reinicia a 'online' para
+  // que la asignación (por colegio o cola) lo tome en cuenta de inmediato.
+  // El estado 'busy' (Ocupado) manual se respeta, y el almuerzo fuerza 'busy'
+  // mientras dure, respetándose el estado pre-almuerzo una vez termine.
   private async resolveAdvisorStatus(
     advisorId: string,
-    persistedStatus?: string | null,
+    _persistedStatus?: string | null,
   ): Promise<'online' | 'busy' | 'offline'> {
-    const VALID_STATUSES = ['online', 'busy', 'offline'];
-    const persisted =
-      persistedStatus && VALID_STATUSES.includes(persistedStatus)
-        ? (persistedStatus as 'online' | 'busy' | 'offline')
-        : null;
-    let status: 'online' | 'busy' | 'offline' = persisted ?? 'online';
+    let status: 'online' | 'busy' | 'offline' = 'online';
 
     if (await this.estaEnAlmuerzo(advisorId).catch(() => false)) {
       status = 'busy';
@@ -362,17 +403,17 @@ export class ChatGateway
     return status;
   }
 
-  // Sincroniza el estado al conectar el socket SIN forzarlo a 'online':
-  // conserva el estado persistido (Disponible/Ocupado/Inactivo) y solo usa
-  // 'online' como valor inicial si no hay estado previo. Emite el estado real
-  // para que todos los paneles queden consistentes. No persiste en BD (el
-  // 'advisor_ready' posterior lo hace).
+  // Sincroniza el estado al conectar el socket: el asesor pasa a 'online'
+  // (Disponible) por defecto. Se persiste en BD + Redis y se emite el cambio
+  // para que todos los paneles queden consistentes y la asignación lo
+  // considere elegible desde el primer momento (login/refresh).
   private async syncAdvisorStatusAfterConnect(
     advisorId: string,
     advisor: { status?: string | null; name?: string | null; profilePhotoUrl?: string | null } | null,
   ): Promise<void> {
     const status = await this.resolveAdvisorStatus(advisorId, advisor?.status);
 
+    await this.sessionsService.setAdvisorStatus(advisorId, status);
     await this.redisState.setAdvisorStatus(advisorId, status);
     this.server.emit('advisor_status_changed', {
       advisorId,
@@ -545,7 +586,7 @@ export class ChatGateway
     const list = advisors.map((a) => ({
       advisorId: a.id,
       name: a.name,
-      status: (statuses[a.id] ?? a.status) as 'online' | 'busy' | 'offline',
+      status: (a.status ?? statuses[a.id]) as 'online' | 'busy' | 'offline',
       profilePhotoUrl: a.profilePhotoUrl ?? null,
       enAlmuerzo: !!onLunch[a.id],
       lunchFin: onLunch[a.id]?.fin ?? null,
@@ -2152,6 +2193,8 @@ export class ChatGateway
     const locked = await this.redisState.acquireAssignLock(8000);
     if (!locked) return;
     try {
+      // Limpiar asesores fantasma (heartbeat expirado) antes de asignar.
+      await this.redisState.sweepStaleAdvisorPresence();
       // Auto-cierre por inactividad de sesiones IA (barrido DB, cada ciclo)
       await this.sweepStaleAiSessions();
       // Re-encolar sesiones activas con asesor huérfano
@@ -2365,6 +2408,23 @@ export class ChatGateway
     if (advisor.activeChats >= maxChats) {
       this.logger.log(
         `[Assign:Colegio] Asesor principal ${advisorId} saturado (${advisor.activeChats}/${maxChats}), fallback a cola.`,
+      );
+      return false;
+    }
+
+    // Re-chequeo final (TOCTOU) justo antes del UPDATE atómico: si entre el
+    // análisis anterior y aquí el asesor se desconectó o entró a almuerzo,
+    // NO asignar y dejar la sesión en cola para el fallback del próximo ciclo.
+    const finalConnected = await this.redisState.getConnectedAdvisorIds();
+    if (!finalConnected.includes(advisor.id)) {
+      this.logger.log(
+        `[Assign:Colegio] Asesor principal ${advisorId} se desconectó antes de asignar, fallback a cola.`,
+      );
+      return false;
+    }
+    if (await this.estaEnAlmuerzo(advisor.id)) {
+      this.logger.log(
+        `[Assign:Colegio] Asesor principal ${advisorId} entró a almuerzo antes de asignar, fallback a cola.`,
       );
       return false;
     }

@@ -31,7 +31,7 @@ export class AdminService {
     page = 1,
     limit = 20,
     search?: string,
-    role?: 'admin' | 'advisor' | 'todos',
+    role?: 'admin' | 'advisor' | 'desarrollador' | 'todos',
   ): Observable<PaginatedResponse<User>> {
     let params = new HttpParams().set('page', page).set('limit', limit);
     if (search) params = params.set('search', search);
@@ -47,14 +47,14 @@ export class AdminService {
     name: string,
     email: string,
     password: string,
-    role: 'admin' | 'advisor' = 'advisor',
+    role: 'admin' | 'advisor' | 'desarrollador' = 'advisor',
   ): Observable<User> {
     return this.http.post<User>(`${environment.apiUrl}/advisors`, { name, email, password, role });
   }
 
   updateAdvisor(
     id: string,
-    data: { name?: string; email?: string; role?: 'admin' | 'advisor' },
+    data: { name?: string; email?: string; role?: 'admin' | 'advisor' | 'desarrollador' },
   ): Observable<User> {
     return this.http.put<User>(`${environment.apiUrl}/advisors/${id}`, data);
   }

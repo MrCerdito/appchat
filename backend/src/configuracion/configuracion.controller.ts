@@ -84,7 +84,7 @@ export class ConfiguracionController {
   @Post('global')
   @HttpCode(HttpStatus.OK)
   @UseGuards(RolesGuard)
-  @Roles('admin')
+  @Roles('admin', 'advisor')
   guardarGlobal(@Body() body: GuardarConfigGlobalDto) {
     return this.svc.guardar(body, undefined);
   }

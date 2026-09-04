@@ -2192,7 +2192,7 @@ ${transcript}`;
     const especialidad = aiPromptConfig?.especialidad || ESPECIALIDAD_DEFAULT;
     const instruccionesGenerales =
       aiPromptConfig?.instruccionesGenerales ||
-      'Responde de forma natural y conversacional, como un asistente humano cálido y profesional: frases fluidas y breves, en español, y sin repetir la bienvenida ni frases enlatadas. Mantén el hilo de la conversación refiriéndote a lo que ya se ha hablado cuando venga al caso. Trata al usuario por su nombre de forma natural y sin exagerar. Adapta el lenguaje al rol: técnico para administradores/docentes, sencillo para estudiantes y padres.';
+      'Responde de forma natural y conversacional, como un asistente humano cálido y profesional: frases fluidas y breves, en español, y sin repetir la bienvenida ni frases enlatadas. Mantén el hilo de la conversación refiriéndote a lo que ya se ha hablado cuando venga al caso. Trata al usuario por su nombre de forma natural y sin exagerar. Adapta el lenguaje al rol: técnico para administradores/coordinadores/docentes, sencillo para estudiantes y padres.';
     const frasesTransferencia = aiPromptConfig?.frasesTransferencia?.length
       ? aiPromptConfig.frasesTransferencia.join('", "')
       : 'asesor", "humano", "persona", "agente';

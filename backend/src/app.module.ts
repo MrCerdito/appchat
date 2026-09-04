@@ -52,6 +52,12 @@ import { PiCampo } from './perfil-institucional/entities/pi-campo.entity';
 import { PiValor } from './perfil-institucional/entities/pi-valor.entity';
 import { PiHistorial } from './perfil-institucional/entities/pi-historial.entity';
 import { SeedModule } from './seed/seed.module';
+import { ModulosModule } from './modulos/modulos.module';
+import { Modulo } from './modulos/modulo.entity';
+import { NotificationsModule } from './notifications/notifications.module';
+import { Notification } from './notifications/notification.entity';
+import { UserNotificationPreference } from './notifications/user-notification-preference.entity';
+import { SlaModule } from './slaprotection/sla.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -168,6 +174,9 @@ import { AppService } from './app.service';
           PiValor,
           PiHistorial,
           SessionEvento,
+          Modulo,
+          Notification,
+          UserNotificationPreference,
         ],
         synchronize: config.get<string>('NODE_ENV') === 'development',
         logging: config.get<string>('NODE_ENV') !== 'production',
@@ -190,6 +199,9 @@ import { AppService } from './app.service';
     InternalChatModule,
     PerfilInstitucionalModule,
     SeedModule,
+    ModulosModule,
+    NotificationsModule,
+    SlaModule,
   ],
   controllers: [AppController],
   providers: [

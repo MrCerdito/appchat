@@ -15,7 +15,7 @@ interface SortState {
   direction: 'asc' | 'desc';
 }
 
-type RoleFilter = 'todos' | 'advisor' | 'admin';
+type RoleFilter = 'todos' | 'advisor' | 'admin' | 'desarrollador';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PASSWORD_STRENGTH_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).+$/;
@@ -49,7 +49,7 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
 
   // ── Modal crear/editar ────────────────────────────────
   formModal: { mode: 'create' | 'edit'; advisor: User | null } | null = null;
-  form = { name: '', email: '', password: '', confirm: '', role: 'advisor' as 'admin' | 'advisor' };
+  form = { name: '', email: '', password: '', confirm: '', role: 'advisor' as 'admin' | 'advisor' | 'desarrollador' };
   formErrors: Record<string, string> = {};
   formBusy = false;
   showPasswordField = false;

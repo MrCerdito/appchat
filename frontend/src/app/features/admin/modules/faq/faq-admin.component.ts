@@ -56,6 +56,7 @@ export class FaqAdminComponent implements OnInit, OnDestroy {
   rolesDisponibles: { value: string; label: string }[] = [
     { value: 'estudiante', label: 'Estudiante' },
     { value: 'docente', label: 'Docente' },
+    { value: 'coordinador', label: 'Coordinador' },
     { value: 'padre', label: 'Padre/Acudiente' },
     { value: 'administrador', label: 'Administrador' },
   ];

@@ -45,6 +45,12 @@ export class Ticket {
   @Column({ name: 'source_id', type: 'varchar', length: 64, nullable: true })
   sourceId: string | null;
 
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  institucion: string | null;
+
+  @Column({ type: 'varchar', length: 20, default: 'web' })
+  canal: string;
+
   @Column({ type: 'jsonb', nullable: true })
   conversation: any[] | null;
 
@@ -82,4 +88,20 @@ export class Ticket {
   @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'closed_by_id' })
   closedBy: User | null;
+
+  // ── SLA ────────────────────────────────────────────────────────────────────
+  @Column({ name: 'sla_deadline', type: 'timestamptz', nullable: true })
+  slaDeadline: Date | null;
+
+  @Column({ name: 'sla_alerted_at', type: 'timestamptz', nullable: true })
+  slaAlertedAt: Date | null;
+
+  @Column({ name: 'paused_at', type: 'timestamptz', nullable: true })
+  pausedAt: Date | null;
+
+  @Column({ name: 'total_paused_ms', type: 'int', default: 0 })
+  totalPausedMs: number;
+
+  @Column({ type: 'jsonb', nullable: true })
+  notes: any[] | null;
 }

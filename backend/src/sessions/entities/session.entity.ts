@@ -81,6 +81,13 @@ export class Session {
   })
   tipoSolicitud: string | null;
 
+  @Column({
+    name: 'tratamiento_datos_at',
+    type: 'timestamptz',
+    nullable: true,
+  })
+  tratamientoDatosAt: Date | null;
+
   // ── Estado del ciclo de vida de la sesión ─────────────────────────────────
   // 'ai'      → El cliente está siendo atendido por el asistente virtual.
   //             NO aparece en la cola de asesores. No se asigna a nadie.

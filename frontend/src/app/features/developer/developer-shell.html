@@ -1,0 +1,159 @@
+<app-toast-container />
+<div class="dev-shell" [class.sidebar-forced-collapsed]="forceSidebarHidden">
+
+  <div class="sidebar-overlay" [class.visible]="sidebarOpen" (click)="closeSidebar()"></div>
+
+  <aside class="shell-sidebar" [class.open]="sidebarOpen">
+
+    <div class="shell-logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+          <path d="M2 17l10 5 10-5"/>
+          <path d="M2 12l10 5 10-5"/>
+        </svg>
+      </div>
+      <span class="logo-text">Panel</span>
+
+      <app-notification-bell class="logo-notif"></app-notification-bell>
+
+      <button class="sidebar-close" (click)="closeSidebar()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+
+    <nav class="shell-nav">
+      <span class="nav-label">Módulos</span>
+
+      <a class="nav-item" data-label="Tickets" routerLink="tickets" routerLinkActive="active" (click)="closeSidebarOnMobile()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+        </svg>
+        <span>Tickets</span>
+      </a>
+    </nav>
+
+    <div class="shell-spacer"></div>
+
+    <div class="shell-profile">
+      <div class="profile-row" (click)="menuOpen = !menuOpen" [class.open]="menuOpen">
+        <div class="profile-avatar">
+          @if (currentUser?.profilePhotoUrl) {
+          <img [src]="currentUser!.profilePhotoUrl" [alt]="currentUser?.name" class="profile-avatar-img" />
+          } @else {
+          {{ currentUser?.name?.charAt(0) }}
+          }
+        </div>
+        <div class="profile-info">
+          <span class="profile-name">{{ currentUser?.name }}</span>
+          <span class="profile-role">Desarrollador</span>
+        </div>
+        <svg class="chevron" [class.rotated]="menuOpen" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </div>
+
+      @if (menuOpen) {
+      <div class="status-dropdown">
+        <span class="dropdown-label">Apariencia</span>
+        <button class="status-option"
+                [class.active]="themeService.currentMode === 'light'"
+                (click)="themeService.setMode('light')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </svg>
+          Claro
+        </button>
+        <button class="status-option"
+                [class.active]="themeService.currentMode === 'dark'"
+                (click)="themeService.setMode('dark')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+          Oscuro
+        </button>
+        <button class="status-option"
+                [class.active]="themeService.currentMode === 'system'"
+                (click)="themeService.setMode('system')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="3" width="20" height="14" rx="2"/>
+            <line x1="8" y1="21" x2="16" y2="21"/>
+            <line x1="12" y1="17" x2="12" y2="21"/>
+          </svg>
+          Sistema
+        </button>
+        <div class="dropdown-divider"></div>
+        <button class="status-option logout" (click)="logout()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+          Cerrar sesión
+        </button>
+      </div>
+      }
+    </div>
+
+  </aside>
+
+  <div class="shell-content">
+    <header class="mobile-topbar">
+      @if (showHamburger) {
+      <button class="hamburger" (click)="openSidebar()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <line x1="3" y1="6" x2="21" y2="6"/>
+          <line x1="3" y1="12" x2="21" y2="12"/>
+          <line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
+      </button>
+      }
+      <div class="topbar-logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+            <path d="M2 17l10 5 10-5"/>
+            <path d="M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <span>Panel</span>
+      </div>
+      <app-notification-bell></app-notification-bell>
+      <div class="profile-avatar topbar-avatar">
+        @if (currentUser?.profilePhotoUrl) {
+        <img [src]="currentUser!.profilePhotoUrl" [alt]="currentUser?.name" class="profile-avatar-img" />
+        } @else {
+        {{ currentUser?.name?.charAt(0) }}
+        }
+      </div>
+    </header>
+
+    <div class="shell-outlet">
+      <router-outlet/>
+    </div>
+  </div>
+</div>

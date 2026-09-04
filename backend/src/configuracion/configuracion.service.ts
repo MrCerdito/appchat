@@ -450,6 +450,11 @@ export class ConfiguracionService implements OnModuleInit {
             temasRestringidos: [],
             mensajeRestringido: '',
           },
+          coordinador: {
+            descripcion: 'Tienes acceso a información académica y de gestión de la comunidad educativa.',
+            temasRestringidos: [],
+            mensajeRestringido: '',
+          },
           estudiante: {
             descripcion: 'Tienes acceso a información académica y personal.',
             temasRestringidos: [
@@ -494,6 +499,11 @@ export class ConfiguracionService implements OnModuleInit {
       },
       docente: {
         descripcion: 'Tienes acceso a información académica y administrativa.',
+        temasRestringidos: [],
+        mensajeRestringido: '',
+      },
+      coordinador: {
+        descripcion: 'Tienes acceso a información académica y de gestión de la comunidad educativa.',
         temasRestringidos: [],
         mensajeRestringido: '',
       },
@@ -882,7 +892,7 @@ export class ConfiguracionService implements OnModuleInit {
         aiCfg.sugerirAsesorAutomatico = Boolean(aiCfg.sugerirAsesorAutomatico);
       }
       if (aiCfg.roles && typeof aiCfg.roles === 'object') {
-        const validKeys = ['administrador', 'docente', 'estudiante', 'padre'];
+        const validKeys = ['administrador', 'docente', 'coordinador', 'estudiante', 'padre'];
         for (const key of Object.keys(aiCfg.roles)) {
           if (!validKeys.includes(key)) {
             delete aiCfg.roles[key];

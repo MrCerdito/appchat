@@ -7,46 +7,74 @@
         <line x1="16" y1="13" x2="8" y2="13"/>
         <line x1="16" y1="17" x2="8" y2="17"/>
       </svg>
-      <span>Tickets</span>
+      <div class="ts-sidebar-header-text">
+        <span class="ts-sidebar-header-title">Tickets</span>
+        <span class="ts-sidebar-header-desc">Gestiona y da seguimiento a los tickets</span>
+      </div>
     </div>
 
     <nav class="ts-sidebar-nav">
-      @for (section of sidebarSections; track $index) {
-        <span class="ts-nav-label">{{ section.label }}</span>
-        @for (item of section.items; track $index) {
-        <button
-          class="ts-nav-btn"
-          [class.active]="activeView === 'list' && sidebarFilterType === item.type && sidebarFilter === item.id"
-          (click)="selectFilter(item.id, item.type)"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-            @switch (item.icon) {
-              @case ('inbox') { <path d="M22 12h-6l-2 3H10l-2-3H2"/><path d="M2 12v5a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5"/> }
-              @case ('circle') { <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3" fill="currentColor"/> }
-              @case ('play') { <circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16" fill="currentColor"/> }
-              @case ('check') { <circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/> }
-              @case ('x') { <circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/> }
-              @case ('arrow-down') { <path d="M12 5v14"/><path d="m19 12-7 7-7-7"/> }
-              @case ('minus') { <path d="M5 12h14"/> }
-              @case ('arrow-up') { <path d="M12 19V5"/><path d="m5 12 7-7 7 7"/> }
-              @case ('chevrons-up') { <path d="m7 7 5-5 5 5"/><path d="m7 13 5-5 5 5"/> }
-              @case ('globe') { <circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/> }
-              @case ('message-circle') { <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/> }
-            }
-          </svg>
-          <span>{{ item.label }}</span>
-          @if (getItemCount(item) > 0) {
-          <span class="ts-count">{{ getItemCount(item) }}</span>
-          }
-        </button>
+      <div class="ts-sidebar-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        <input type="text" placeholder="Buscar por codigo, titulo o cliente..." [ngModel]="search" (ngModelChange)="onSearchChange($event)">
+      </div>
+
+      <span class="ts-nav-label">Estado</span>
+      @for (s of statuses; track $index) {
+      <button
+        class="ts-nav-btn"
+        [class.active]="activeView === 'list' && isFilterActive(s.value, 'status')"
+        [style.--ts-color]="statusColor(s.value)"
+        (click)="filterByStatus(s.value)"
+      >
+        <span class="ts-nav-dot" [style.background]="statusColor(s.value)"></span>
+        <span>{{ s.label }}</span>
+        @if (statusCounts[s.value]) {
+        <span class="ts-count">{{ statusCounts[s.value] }}</span>
         }
+      </button>
+      }
+
+      <span class="ts-nav-label ts-nav-label-spacer">Prioridad</span>
+      @for (p of priorities; track $index) {
+      <button
+        class="ts-nav-btn"
+        [class.active]="activeView === 'list' && isFilterActive(p.value, 'priority')"
+        [style.--ts-color]="priorityColor(p.value)"
+        (click)="selectFilter(p.value, 'priority')"
+      >
+        <span class="ts-nav-dot" [style.background]="priorityColor(p.value)"></span>
+        <span>{{ p.label }}</span>
+        @if (priorityCounts[p.value]) {
+        <span class="ts-count">{{ priorityCounts[p.value] }}</span>
+        }
+      </button>
+      }
+
+      <span class="ts-nav-label ts-nav-label-spacer">Canal</span>
+      @for (c of canalOptions; track c.value) {
+      <button
+        class="ts-nav-btn"
+        [class.active]="activeView === 'list' && isFilterActive(c.value, 'source')"
+        (click)="selectFilter(c.value, 'source')"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+          <circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+        </svg>
+        <span>{{ c.label }}</span>
+        @if (sourceCounts[c.value]) {
+        <span class="ts-count">{{ sourceCounts[c.value] }}</span>
+        }
+      </button>
       }
 
       <span class="ts-nav-label ts-nav-label-spacer">Categorias</span>
       @for (cat of categories; track $index) {
       <button
         class="ts-nav-btn"
-        [class.active]="activeView === 'list' && sidebarFilterType === 'category' && sidebarFilter === cat"
+        [class.active]="activeView === 'list' && isFilterActive(cat, 'category')"
         (click)="filterByCategory(cat)"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
@@ -59,8 +87,8 @@
       </button>
       }
 
-      @if (isAdmin) {
-      <span class="ts-nav-label ts-nav-label-spacer">Configuracion</span>
+      @if (isAdmin || isAdvisor) {
+      <span class="ts-nav-label ts-nav-label-spacer">Administracion</span>
       <button
         class="ts-nav-btn"
         [class.active]="activeView === 'categories'"
@@ -70,6 +98,26 @@
           <path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
         </svg>
         <span>Editar categorias</span>
+      </button>
+      <button
+        class="ts-nav-btn"
+        [class.active]="activeView === 'modules'"
+        (click)="selectFilter('modules', 'action')"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+          <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+        </svg>
+        <span>Modulos y desarrolladores</span>
+      </button>
+      <button
+        class="ts-nav-btn"
+        [class.active]="activeView === 'mail'"
+        (click)="openMailConfig()"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+          <rect x="2" y="4" width="20" height="16" rx="2"/><line x1="22" y1="7" x2="12" y2="13"/><line x1="2" y1="7" x2="12" y2="13"/>
+        </svg>
+        <span>Correo de tickets</span>
       </button>
       }
     </nav>
@@ -119,6 +167,150 @@
     </div>
     }
 
+    @if (activeView === 'modules') {
+    <div class="ts-view">
+      <div class="ts-page-header">
+        <div class="ts-page-header-text">
+          <h1 class="ts-page-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+              <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>
+            </svg>
+            Modulos y desarrolladores
+          </h1>
+          <p class="ts-page-desc">Organiza cada division creando modulos y asignandoles desarrolladores para mantener la conexion con los tickets.</p>
+        </div>
+        <div class="ts-page-actions">
+          <div class="ts-modulo-stats">
+            <div class="ts-modulo-stat">
+              <span class="ts-modulo-stat-value">{{ modulos.length }}</span>
+              <span class="ts-modulo-stat-label">modulos</span>
+            </div>
+            <div class="ts-modulo-stat">
+              <span class="ts-modulo-stat-value">{{ totalModuloDevelopers }}</span>
+              <span class="ts-modulo-stat-label">desarrolladores</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ts-modulo-create-panel">
+        <div class="ts-modulo-create-head">
+          <div class="ts-modulo-create-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Nuevo modulo
+          </div>
+          <span class="ts-modulo-create-hint">Crea el modulo y luego asigna sus desarrolladores</span>
+        </div>
+        <div class="ts-modulo-create">
+          <input type="text" [(ngModel)]="moduloForm.nombre" placeholder="Nombre del modulo" (keyup.enter)="addModulo()">
+          <input type="text" [(ngModel)]="moduloForm.descripcion" (keyup.enter)="addModulo()" placeholder="Descripcion (opcional)">
+          <button class="ts-btn ts-btn-primary" (click)="addModulo()" [disabled]="!moduloForm.nombre.trim()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Crear modulo
+          </button>
+        </div>
+      </div>
+
+      @if (modulos.length === 0) {
+      <div class="ts-modulo-empty">
+        <div class="ts-modulo-empty-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="28" height="28">
+            <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>
+          </svg>
+        </div>
+        <p class="ts-modulo-empty-title">Aun no hay modulos</p>
+        <p class="ts-modulo-empty-hint">Crea el primer modulo para empezar a organizar a los desarrolladores de cada division.</p>
+      </div>
+      } @else {
+      <div class="ts-modulo-grid">
+        @for (m of modulos; track m.id) {
+        <div class="ts-modulo-card">
+          <div class="ts-modulo-card-top">
+            <div class="ts-modulo-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>
+              </svg>
+            </div>
+            <div class="ts-modulo-card-head">
+              @if (editingModuloId === m.id) {
+              <input class="ts-modulo-input ts-modulo-input--name" type="text" [(ngModel)]="moduloFormEdit.nombre" placeholder="Nombre del modulo">
+              <input class="ts-modulo-input ts-modulo-input--sub" type="text" [(ngModel)]="moduloFormEdit.descripcion" placeholder="Descripcion (opcional)">
+              } @else {
+              <h3 class="ts-modulo-name">{{ m.nombre }}</h3>
+              <p class="ts-modulo-desc">{{ m.descripcion || 'Sin descripcion.' }}</p>
+              }
+            </div>
+            <div class="ts-modulo-card-actions">
+              @if (editingModuloId === m.id) {
+              <button class="ts-modulo-btn-save" (click)="saveEditModulo()" title="Guardar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M20 6 9 17l-5-5"/></svg>
+              </button>
+              <button class="ts-modulo-btn-cancel" (click)="cancelEditModulo()" title="Cancelar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+              } @else {
+              <button class="ts-modulo-btn-edit" (click)="startEditModulo(m)" title="Editar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/>
+                </svg>
+              </button>
+              <button class="ts-modulo-btn-delete" (click)="removeModulo(m.id, m.nombre)" title="Eliminar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                </svg>
+              </button>
+              }
+            </div>
+          </div>
+
+          <div class="ts-modulo-section">
+            <div class="ts-modulo-section-head">
+              <span class="ts-modulo-section-label">Desarrolladores</span>
+              <span class="ts-modulo-section-count">{{ m.desarrolladores.length }}</span>
+            </div>
+            @if (m.desarrolladores.length > 0) {
+            <div class="ts-modulo-chips">
+              @for (d of m.desarrolladores; track d.id) {
+              <span class="ts-chip ts-chip--dev">
+                <span class="ts-chip-avatar">{{ initials(d.name) }}</span>
+                <span class="ts-chip-name">{{ d.name }}</span>
+                <button class="ts-chip-close" (click)="toggleDesarrolladorEnModulo(m, d.id)" title="Quitar del modulo">&times;</button>
+              </span>
+              }
+            </div>
+            } @else {
+            <p class="ts-modulo-hint">Sin desarrolladores asignados.</p>
+            }
+            @if (advisors.length > 0) {
+              @if (hasAvailableDevelopers(m)) {
+              <div class="ts-modulo-add-row">
+                <select class="ts-modulo-select" (change)="onAddDesarrolladorToModulo(m, $event)">
+                  <option value="">+ Agregar desarrollador</option>
+                  @for (dev of advisors; track dev.id) {
+                    @if (!isDesarrolladorInModulo(m, dev.id)) {
+                    <option [value]="dev.id">{{ dev.name }}</option>
+                    }
+                  }
+                </select>
+              </div>
+              } @else {
+              <p class="ts-modulo-hint">Todos los desarrolladores estan asignados a este modulo.</p>
+              }
+            } @else {
+            <p class="ts-modulo-hint">No hay desarrolladores registrados en el sistema.</p>
+            }
+          </div>
+        </div>
+        }
+      </div>
+      }
+    </div>
+    }
+
     @if (activeView === 'mail') {
     <div class="ts-view ts-view--mail">
       <div class="ts-mail-header">
@@ -155,54 +347,95 @@
 
     @if (activeView === 'list') {
     <div class="ts-view">
-      <div class="ts-content-header">
-        <div class="ts-search">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-          </svg>
-          <input type="text" placeholder="Buscar por codigo, titulo o cliente..." [ngModel]="search" (ngModelChange)="onSearchChange($event)">
+      <div class="ts-page-header">
+        <div class="ts-page-actions">
+          @if (hasActiveFilters) {
+          <button class="ts-btn ts-btn-ghost ts-btn-sm" (click)="clearFilters()">Limpiar</button>
+          }
         </div>
-        @if (search || sidebarFilter !== 'all') {
-        <button class="ts-btn ts-btn-ghost ts-btn-sm" (click)="clearFilters()">Limpiar</button>
-        }
-        <button class="ts-btn ts-btn-ghost ts-btn-sm ts-gear-btn" (click)="openMailConfig()" title="Configurar correo de tickets">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
-            <circle cx="12" cy="12" r="3"/>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-          </svg>
-          Correo de tickets
-        </button>
-        <div class="ts-view-toggle">
-          <button class="ts-toggle-btn" [class.active]="viewMode === 'table'" (click)="switchView('table')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
-              <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/>
+        <div class="ts-header-tools">
+          <div class="ts-view-toggle">
+            <button class="ts-toggle-btn" [class.active]="viewMode === 'table'" (click)="switchView('table')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+                <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/>
+              </svg>
+              Tabla
+            </button>
+            <button class="ts-toggle-btn" [class.active]="viewMode === 'kanban'" (click)="switchView('kanban')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+                <rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="10" rx="1"/><rect x="14" y="16" width="7" height="5" rx="1"/>
+              </svg>
+              Kanban
+            </button>
+          </div>
+          <button class="ts-btn ts-btn-primary" type="button" (click)="openCreateModal()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
             </svg>
-            Tabla
-          </button>
-          <button class="ts-toggle-btn" [class.active]="viewMode === 'kanban'" (click)="switchView('kanban')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
-              <rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="10" rx="1"/><rect x="14" y="16" width="7" height="5" rx="1"/>
-            </svg>
-            Kanban
+            Nuevo ticket
           </button>
         </div>
-        <button class="ts-btn ts-btn-primary" type="button" (click)="openCreateModal()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
-            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>
-          Nuevo ticket
-        </button>
       </div>
 
-      @if (viewMode === 'table') {
-      <div class="ts-pills">
-        <button class="ts-pill" [class.active]="!sidebarFilter || sidebarFilter === 'all'" (click)="selectFilter('all', 'quick')">Todos</button>
-        <button class="ts-pill" [class.active]="sidebarFilter==='open'" (click)="selectFilter('open', 'status')">Abierto</button>
-        <button class="ts-pill" [class.active]="sidebarFilter==='in_progress'" (click)="selectFilter('in_progress', 'status')">En progreso</button>
-        <button class="ts-pill" [class.active]="sidebarFilter==='resolved'" (click)="selectFilter('resolved', 'status')">Resuelto</button>
-        <button class="ts-pill" [class.active]="sidebarFilter==='closed'" (click)="selectFilter('closed', 'status')">Cerrado</button>
+      <div class="ts-summary">
+        @for (card of summaryCards; track card.label) {
+        <button
+          class="ts-summary-card"
+          [style.--ts-color]="card.color"
+          [class.ts-summary-card--active]="card.status ? isFilterActive(card.status, 'status') : false"
+          [class.ts-summary-card--total]="!card.status"
+          (click)="card.status ? filterByStatus(card.status) : clearStatusQuickFilter()"
+        >
+          <span class="ts-summary-icon" [style.background]="'color-mix(in srgb, ' + card.color + ' 12%, transparent)'" [style.color]="card.color">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+              @switch (card.icon) {
+                @case ('clipboard') { <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/> }
+                @case ('circle') { <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3" fill="currentColor"/> }
+                @case ('clock') { <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/> }
+                @case ('check-circle') { <path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="10"/> }
+                @case ('x-circle') { <circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/> }
+              }
+            </svg>
+          </span>
+          <span class="ts-summary-info">
+            <span class="ts-summary-label">{{ card.label }}</span>
+            <span class="ts-summary-count">{{ card.count }}</span>
+            <span class="ts-summary-desc">{{ card.description }}</span>
+          </span>
+        </button>
+        }
       </div>
-      }
+
+      <div class="ts-table-section">
+        <div class="ts-table-toolbar">
+          <span class="ts-table-toolbar-info">{{ paginationInfo }}</span>
+          <div class="ts-sort-wrapper">
+            <button class="ts-sort-btn" (click)="toggleSortMenu($event)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+                <path d="M3 6h18M6 12h12M10 18h4"/>
+              </svg>
+              {{ sortOptions.find(o => o.value === sortBy)?.label || 'Fecha' }}
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
+            @if (showSortMenu) {
+            <div class="ts-sort-dropdown">
+              @for (o of sortOptions; track o.value) {
+              <button class="ts-sort-option" [class.active]="sortBy === o.value" (click)="setSortBy(o.value)">
+                {{ o.label }}
+                @if (sortBy === o.value) {
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                  @if (sortDirection === 'asc') { <path d="M12 5v14"/><path d="m18 13-6 6-6-6"/> }
+                  @if (sortDirection !== 'asc') { <path d="M12 19V5"/><path d="m18 11-6-6-6 6"/> }
+                </svg>
+                }
+              </button>
+              }
+            </div>
+            }
+          </div>
+        </div>
 
       <div class="ts-body">
         @if (loading) {
@@ -283,10 +516,12 @@
         <div class="ts-kanban" cdkDropListGroup>
           @for (col of kanbanColumns; track $index) {
           <div class="ts-kanban-column"
+            [style.--ts-color]="statusColor(col.status)"
             cdkDropList
             [cdkDropListData]="col.tickets"
             (cdkDropListDropped)="onDrop($event, col.status)">
             <div class="ts-kanban-header">
+              <span class="ts-kanban-dot" [style.background]="statusColor(col.status)"></span>
               <span class="ts-kanban-label">{{ col.label }}</span>
               <span class="ts-kanban-count">{{ col.tickets.length }}</span>
             </div>
@@ -309,8 +544,97 @@
                     {{ t.sourceType === 'web' ? 'Web' : 'WA' }}
                   </span>
                 </div>
+                @if (canOpenCloseEmail(t)) {
+                <button class="ts-kanban-close-btn" type="button" (click)="$event.stopPropagation(); openCloseEmailModal(t, 'kanban')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                  Cerrar y enviar correo
+                </button>
+                }
               </div>
               }
+
+@if (showCloseEmailModal && closeEmailTicket) {
+<div class="ts-modal-backdrop ts-modal-backdrop--clear" (click)="cancelCloseEmail()">
+  <section class="ts-modal ts-close-email-modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+    <div class="ts-close-email-header">
+      <span class="ts-close-email-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+          <polyline points="22,6 12,13 2,6"/>
+        </svg>
+      </span>
+      <div>
+        <h3 class="ts-close-email-title">Confirmar notificacion al cliente</h3>
+        <p class="ts-close-email-subtitle">Enviar correo de confirmacion y marcar como cerrado</p>
+      </div>
+      <button class="ts-close-email-x" type="button" (click)="cancelCloseEmail()" aria-label="Cerrar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <div class="ts-close-email-body">
+      <div class="ts-close-email-card">
+        <div class="ts-close-email-row">
+          <span class="ts-close-email-lbl">Cliente</span>
+          <span class="ts-close-email-val">{{ closeEmailTicket.clientName }}</span>
+        </div>
+        <div class="ts-close-email-row">
+          <span class="ts-close-email-lbl">Ticket</span>
+          <span class="ts-close-email-val ts-close-email-code">{{ closeEmailTicket.codigo }}</span>
+        </div>
+        @if (sesionDe(closeEmailTicket)) {
+        <div class="ts-close-email-row">
+          <span class="ts-close-email-lbl">Sesion</span>
+          <span class="ts-close-email-val">{{ sesionDe(closeEmailTicket) }}</span>
+        </div>
+        }
+        <div class="ts-close-email-row">
+          <span class="ts-close-email-lbl">Titulo</span>
+          <span class="ts-close-email-val">{{ closeEmailTicket.titulo }}</span>
+        </div>
+        <div class="ts-close-email-row">
+          <span class="ts-close-email-lbl">Correo</span>
+          <span class="ts-close-email-val ts-close-email-mail">{{ closeEmailAddress || 'Sin correo registrado' }}</span>
+        </div>
+        <div class="ts-close-email-row">
+          <span class="ts-close-email-lbl">Estado</span>
+          <span class="ts-badge ts-badge-pill" [style.--ts-color]="statusColor('closed')">
+            Cerrado
+          </span>
+        </div>
+      </div>
+
+      <div class="ts-close-email-warn" [class.ts-close-email-warn--error]="!closeEmailAddress">
+        @if (closeEmailAddress) {
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          El correo de "tu solicitud ha sido resuelta" se enviara a la direccion registrada del cliente.
+        } @else {
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          El cliente no tiene un correo registrado. El estado se actualizara sin enviar correo.
+        }
+      </div>
+
+      <div class="ts-close-email-preview">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        <span>El cliente recibira: <strong>&ldquo;Tu solicitud {{ closeEmailTicket.codigo }} ha sido resuelta&rdquo;</strong></span>
+      </div>
+    </div>
+
+    <div class="ts-modal-actions ts-close-email-actions">
+      <button class="ts-btn ts-btn-primary" type="button" [disabled]="closeEmailSending || !closeEmailAddress" (click)="confirmCloseEmail(true)">
+        @if (closeEmailSending) {
+          <span class="ts-btn-spinner"></span>
+        }
+        Enviar correo y marcar como cerrado
+      </button>
+      <button class="ts-btn ts-btn-secondary" type="button" [disabled]="closeEmailSending" (click)="confirmCloseEmail(false)">
+        Solo marcar como cerrado
+      </button>
+      <button class="ts-btn ts-btn-ghost" type="button" [disabled]="closeEmailSending" (click)="cancelCloseEmail()">Cancelar</button>
+    </div>
+  </section>
+</div>
+}
               @if (col.tickets.length === 0) {
               <div class="ts-kanban-empty">
                 <span>Sin tickets</span>
@@ -322,193 +646,288 @@
         </div>
         }
       </div>
+      </div>
     </div>
     }
   </div>
 
-  @if (selectedTicket) {
+@if (selectedTicket) {
   <div class="ts-modal-backdrop ts-detail-backdrop" (click)="closeDetail()">
-    <section class="ts-modal ts-detail-modal" (click)="$event.stopPropagation()">
-      <div class="ts-detail-modal-head">
-        <span class="ts-detail-code">{{ selectedTicket.codigo }}</span>
-        <button class="ts-btn ts-btn-ghost ts-btn-sm" type="button" (click)="closeDetail()" title="Cerrar">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16">
-            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
+    <section class="ts-modal ts-detail-modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+
+      <!-- Status bar -->
+      <div class="ts-detail-statusbar">
+        <div class="ts-detail-status-item">
+          <span class="ts-detail-status-lbl">Ticket</span>
+          <span class="ts-detail-status-code">{{ selectedTicket.codigo }}</span>
+        </div>
+        <span class="ts-detail-status-sep"></span>
+        <div class="ts-detail-status-item">
+          <span class="ts-detail-status-lbl">Estado</span>
+          <span class="ts-badge ts-badge-pill" [style.--ts-color]="statusColor(selectedTicket.status)">{{ statusLabel(selectedTicket.status) }}</span>
+        </div>
+        <div class="ts-detail-status-item">
+          <span class="ts-detail-status-lbl">Prioridad</span>
+          <span class="ts-badge ts-badge-pill" [style.--ts-color]="priorityColor(selectedTicket.priority)">{{ priorityLabel(selectedTicket.priority) }}</span>
+        </div>
+        <div class="ts-detail-status-item">
+          <span class="ts-detail-status-lbl">Canal</span>
+          <span class="ts-badge ts-badge-pill ts-badge-canal">{{ selectedTicket.sourceType === 'web' ? 'Web' : selectedTicket.sourceType === 'whatsapp' ? 'WhatsApp' : selectedTicket.sourceType === 'internal' ? 'Interno' : 'Correo' }}</span>
+        </div>
+        <button class="ts-detail-close" type="button" (click)="closeDetail()" aria-label="Cerrar ticket" title="Cerrar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
 
-      <div class="ts-detail-modal-body">
-        <div class="ts-detail-head">
-          <span class="ts-detail-code">{{ selectedTicket.codigo }}</span>
-          <div class="ts-detail-badges">
-            <span class="ts-badge ts-badge-status" [style.--ts-color]="statusColor(selectedTicket.status)">{{ statusLabel(selectedTicket.status) }}</span>
-            <span class="ts-badge ts-badge-priority" [style.--ts-color]="priorityColor(selectedTicket.priority)">{{ priorityLabel(selectedTicket.priority) }}</span>
-            <span class="ts-badge ts-badge-source" [class.ts-badge-whatsapp]="selectedTicket.sourceType === 'whatsapp'">
-              {{ selectedTicket.sourceType === 'web' ? 'Web' : 'WhatsApp' }}
-            </span>
-          </div>
+      <!-- Body: two columns -->
+      <div class="ts-detail-body">
+        <!-- Main -->
+        <div class="ts-detail-main">
+
+          <section class="ts-detail-card ts-detail-card-main">
+            <div class="ts-detail-card-head">
+              <h3 class="ts-detail-card-title">Información principal</h3>
+              <button class="ts-btn ts-btn-ghost ts-btn-sm" type="button" (click)="openEditModal()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                Editar ticket
+              </button>
+            </div>
+            <div class="ts-info-grid">
+              <div class="ts-info-field">
+                <span class="ts-info-lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Cliente</span>
+                <span class="ts-info-val">{{ selectedTicket.clientName }}</span>
+              </div>
+              <div class="ts-info-field">
+                <span class="ts-info-lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="9" y1="6" x2="15" y2="6"/><line x1="9" y1="10" x2="15" y2="10"/><line x1="9" y1="14" x2="13" y2="14"/></svg> Institución</span>
+                <span class="ts-info-val">{{ selectedTicket.institucion || '—' }}</span>
+              </div>
+              <div class="ts-info-field">
+                <span class="ts-info-lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> Categoría</span>
+                <span class="ts-info-val">{{ selectedTicket.category || '—' }}</span>
+              </div>
+              <div class="ts-info-field">
+                <span class="ts-info-lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Creado por</span>
+                <span class="ts-info-val">{{ selectedTicket.createdBy?.name || 'Sistema' }}</span>
+              </div>
+              <div class="ts-info-field">
+                <span class="ts-info-lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></svg> Asignado a</span>
+                <span class="ts-info-val">{{ selectedTicket.assignedToName || selectedTicket.assignedTo?.name || 'Sin asignar' }}</span>
+              </div>
+              <div class="ts-info-field">
+                <span class="ts-info-lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Creado</span>
+                <span class="ts-info-val">{{ fmtMedium(selectedTicket.createdAt) }}</span>
+              </div>
+              <div class="ts-info-field">
+                <span class="ts-info-lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Última actualización</span>
+                <span class="ts-info-val">{{ fmtMedium(selectedTicket.updatedAt) }}</span>
+              </div>
+              @if (selectedTicket.closedAt) {
+              <div class="ts-info-field">
+                <span class="ts-info-lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Cerrado</span>
+                <span class="ts-info-val">{{ fmtMedium(selectedTicket.closedAt) }} @if (selectedTicket.closedBy) { · {{ selectedTicket.closedBy.name }} }</span>
+              </div>
+              }
+            </div>
+          </section>
+
+          <section class="ts-detail-card ts-detail-card-main">
+            <h3 class="ts-detail-card-title">Descripción del ticket</h3>
+            @if (selectedTicket.descripcion) {
+              <p class="ts-detail-desc">{{ selectedTicket.descripcion }}</p>
+            } @else {
+              <p class="ts-detail-empty">Sin descripción</p>
+            }
+          </section>
+
+          <section class="ts-detail-card ts-detail-card-main">
+            <h3 class="ts-detail-card-title">
+              Notas y adjuntos
+              @if (selectedTicket.notes?.length) {
+                <span class="ts-note-count">{{ selectedTicket.notes!.length }}</span>
+              }
+            </h3>
+
+            <div class="ts-note-composer">
+              <textarea [(ngModel)]="noteContent" rows="3" placeholder="Escribe una nota... (puedes adjuntar imagenes)" aria-label="Escribe una nota"></textarea>
+              <div class="ts-note-composer-actions">
+                <label class="ts-btn ts-btn-ghost ts-btn-sm ts-note-upload-btn">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                  @if (noteUploading) { <span>Subiendo...</span> }
+                  @if (!noteUploading) { <span>Adjuntar imagen</span> }
+                  <input type="file" accept="image/*" multiple hidden (change)="onNoteImageSelected($event)">
+                </label>
+                <button class="ts-btn ts-btn-primary ts-btn-sm" (click)="sendNote()" [disabled]="noteSending || (noteContent.trim().length === 0 && noteImages.length === 0)">
+                  {{ noteSending ? 'Guardando...' : 'Agregar nota' }}
+                </button>
+              </div>
+              @if (noteImages.length > 0) {
+              <div class="ts-note-composer-images">
+                @for (img of noteImages; track $index) {
+                <div class="ts-note-preview">
+                  <img [src]="noteImageUrl(img)" alt="adjunto">
+                  <button class="ts-note-preview-del" (click)="removeNoteImage($index)" title="Quitar">×</button>
+                </div>
+                }
+              </div>
+              }
+            </div>
+
+            <div class="ts-note-list">
+              @for (note of selectedTicket.notes || []; track note.id) {
+              <div class="ts-note-item">
+                <div class="ts-note-head">
+                  <span class="ts-note-avatar">{{ (note.authorName || '?').charAt(0).toUpperCase() }}</span>
+                  <strong>{{ note.authorName }}</strong>
+                  <span class="ts-note-time">{{ fmtDateTime(note.createdAt) }}</span>
+                  @if (canDeleteNote(note)) {
+                  <button class="ts-note-del" (click)="deleteNote(note.id)" title="Eliminar nota" aria-label="Eliminar nota">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+                  </button>
+                  }
+                </div>
+                @if (note.content) { <p class="ts-note-content">{{ note.content }}</p> }
+                @if (note.images.length) {
+                <div class="ts-note-images">
+                  @for (img of note.images; track $index) {
+                  <a [href]="noteImageUrl(img)" target="_blank" rel="noopener" class="ts-note-img-link">
+                    <img [src]="noteImageUrl(img)" alt="adjunto de nota" class="ts-note-img">
+                  </a>
+                  }
+                </div>
+                }
+              </div>
+              } @empty {
+              <p class="ts-note-empty">No hay notas registradas</p>
+              }
+            </div>
+          </section>
         </div>
 
-        @if (!editingDetail) {
-        <div class="ts-detail-card">
-          <h2>{{ selectedTicket.titulo }}</h2>
-          @if (selectedTicket.descripcion) {
-          <p class="ts-detail-desc">{{ selectedTicket.descripcion }}</p>
-          } @else {
-          <p class="ts-detail-desc ts-detail-desc-empty">Sin descripcion</p>
+        <!-- Actions sidebar -->
+        <aside class="ts-detail-actions-side">
+          <h3 class="ts-detail-actions-title">Acciones</h3>
+
+          @if (canOpenCloseEmail(selectedTicket)) {
+          <div class="ts-close-email-cta">
+            <div class="ts-close-email-cta-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            </div>
+            <div class="ts-close-email-cta-text">
+              <strong>Ticket resuelto</strong>
+              <span>Listo para cerrar y notificar al cliente.</span>
+            </div>
+            <button class="ts-close-email-cta-btn" type="button" [disabled]="closeEmailSending" (click)="sendCloseEmailDirect(selectedTicket)">
+              Enviar correo y cerrar
+            </button>
+          </div>
           }
 
-          <div class="ts-detail-info">
-            <div class="ts-detail-row">
-              <span class="ts-detail-lbl">Cliente</span>
-              <span class="ts-detail-val">{{ selectedTicket.clientName }}</span>
-            </div>
-            <div class="ts-detail-row">
-              <span class="ts-detail-lbl">Categoria</span>
-              <span class="ts-detail-val">{{ selectedTicket.category || '?' }}</span>
-            </div>
-            <div class="ts-detail-row">
-              <span class="ts-detail-lbl">Asignado</span>
-              <span class="ts-detail-val">{{ selectedTicket.assignedToName || selectedTicket.createdBy?.name || 'Sin asignar' }}</span>
-            </div>
-            <div class="ts-detail-row">
-              <span class="ts-detail-lbl">Creado por</span>
-              <span class="ts-detail-val">{{ selectedTicket.createdBy?.name || 'Sistema' }}</span>
-            </div>
-            <div class="ts-detail-row">
-              <span class="ts-detail-lbl">Creado</span>
-              <span class="ts-detail-val">{{ fmtMedium(selectedTicket.createdAt) }}</span>
-            </div>
-            @if (selectedTicket.closedAt) {
-            <div class="ts-detail-row">
-              <span class="ts-detail-lbl">Cerrado</span>
-              <span class="ts-detail-val">{{ fmtMedium(selectedTicket.closedAt) }} {{ selectedTicket.closedBy ? 'por ' + selectedTicket.closedBy.name : '' }}</span>
-            </div>
-            }
-          </div>
-
-          <div class="ts-detail-actions">
-            <button class="ts-btn ts-btn-ghost" type="button" (click)="startEditing()">Editar ticket</button>
-          </div>
-        </div>
-
-        @if (!editingDetail && selectedTicket.conversation && selectedTicket.conversation.length > 0) {
-        <div class="ts-detail-card">
-          <h3 class="ts-detail-card-title">Conversacion</h3>
-          <div class="ts-detail-conv">
-            @for (msg of selectedTicket.conversation; track $index) {
-            <div class="ts-detail-msg"
-              [class.ts-detail-msg-client]="msg.role === 'client'"
-              [class.ts-detail-msg-advisor]="msg.role === 'advisor'">
-              <div class="ts-detail-bubble">
-                <strong>{{ msg.name }}</strong>
-                <p>{{ msg.content }}</p>
-                <span class="ts-detail-time">{{ fmtDateTime(msg.timestamp) }}</span>
-              </div>
-            </div>
-            }
-          </div>
-        </div>
-        }
-        }
-
-        @if (editingDetail) {
-        <div class="ts-detail-card">
-          <h3 class="ts-detail-card-title">Editar ticket</h3>
-          <label class="ts-detail-field">
-            <span>Titulo</span>
-            <input type="text" [(ngModel)]="editDto.titulo" maxlength="255">
-          </label>
-          <label class="ts-detail-field">
-            <span>Descripcion</span>
-            <textarea [(ngModel)]="editDto.descripcion" rows="3"></textarea>
-          </label>
-          <label class="ts-detail-field">
-            <span>Estado</span>
-            <select [(ngModel)]="editDto.status">
-              @for (s of statuses; track $index) {
-              <option [value]="s.value">{{ s.label }}</option>
+          <div class="ts-action-card" [class.open]="detailMenu === 'status'">
+            <button class="ts-action-card-btn ts-action-card--status" type="button" (click)="toggleDetailMenu('status')" [attr.aria-expanded]="detailMenu === 'status'">
+              <span class="ts-action-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="17" height="17"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></span>
+              <span class="ts-action-label">Cambiar estado</span>
+              <span class="ts-action-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="9 18 15 12 9 6"/></svg></span>
+            </button>
+            @if (detailMenu === 'status') {
+            <div class="ts-action-options">
+              @for (s of statusChangeOptions; track $index) {
+              <button class="ts-action-option" type="button" (click)="changeDetailStatus(s.value)">
+                <span class="ts-dot" [style.background]="statusColor(s.value)"></span>
+                {{ s.label }}
+              </button>
               }
-            </select>
-          </label>
-          <label class="ts-detail-field">
-            <span>Prioridad</span>
-            <select [(ngModel)]="editDto.priority">
+            </div>
+            }
+          </div>
+
+          <div class="ts-action-card">
+            <button class="ts-action-card-btn ts-action-card--assign" type="button" (click)="openAssignTicket()">
+              <span class="ts-action-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="17" height="17"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></svg></span>
+              <span class="ts-action-label">Asignar ticket</span>
+              <span class="ts-action-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="9 18 15 12 9 6"/></svg></span>
+            </button>
+          </div>
+
+          <div class="ts-action-card" [class.open]="detailMenu === 'priority'">
+            <button class="ts-action-card-btn ts-action-card--priority" type="button" (click)="toggleDetailMenu('priority')" [attr.aria-expanded]="detailMenu === 'priority'">
+              <span class="ts-action-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="17" height="17"><path d="M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3z"/></svg></span>
+              <span class="ts-action-label">Cambiar prioridad</span>
+              <span class="ts-action-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="9 18 15 12 9 6"/></svg></span>
+            </button>
+            @if (detailMenu === 'priority') {
+            <div class="ts-action-options">
               @for (p of priorities; track $index) {
-              <option [value]="p.value">{{ p.label }}</option>
+              <button class="ts-action-option" type="button" (click)="changeDetailPriority(p.value)">
+                <span class="ts-dot" [style.background]="priorityColor(p.value)"></span>
+                {{ p.label }}
+              </button>
               }
-            </select>
-          </label>
-          <label class="ts-detail-field">
-            <span>Categoria</span>
-            <select [(ngModel)]="editDto.category">
-              <option value="">Sin categoria</option>
-              @for (c of categories; track $index) {
-              <option [value]="c">{{ c }}</option>
-              }
-            </select>
-          </label>
-          <label class="ts-detail-field">
-            <span>Asignar a</span>
-            <select [(ngModel)]="editDto.assignedToId">
-              <option value="">Sin asignar</option>
-              @for (a of advisors; track $index) {
-              <option [value]="a.id">{{ a.name }}</option>
-              }
-            </select>
-          </label>
-          <div class="ts-detail-edit-actions">
-            <button class="ts-btn ts-btn-ghost" (click)="cancelEditing()">Cancelar</button>
-            <button class="ts-btn ts-btn-primary" (click)="saveDetail()" [disabled]="!editDto.titulo.trim()">Guardar</button>
+            </div>
+            }
           </div>
-        </div>
-        }
 
-        @if (selectedTicket.clientInfo) {
-        <div class="ts-detail-card">
-          <h3 class="ts-detail-card-title">Informacion del cliente</h3>
-          <div class="ts-detail-client-info">
-            @if (selectedTicket.clientInfo!['identificacion']) {
-            <div class="ts-detail-client-row">
-              <span>Identificacion</span>
-              <span>{{ selectedTicket.clientInfo!['identificacion'] }}</span>
-            </div>
-            }
-            @if (selectedTicket.clientInfo!['rol']) {
-            <div class="ts-detail-client-row">
-              <span>Rol</span>
-              <span>{{ selectedTicket.clientInfo!['rol'] }}</span>
-            </div>
-            }
-            @if (selectedTicket.clientInfo!['colegio']) {
-            <div class="ts-detail-client-row">
-              <span>Colegio</span>
-              <span>{{ selectedTicket.clientInfo!['colegio'] }}</span>
-            </div>
-            }
-            @if (selectedTicket.clientInfo!['tipoSolicitud']) {
-            <div class="ts-detail-client-row">
-              <span>Tipo</span>
-              <span>{{ selectedTicket.clientInfo!['tipoSolicitud'] }}</span>
-            </div>
-            }
-            @if (selectedTicket.clientInfo!['phone']) {
-            <div class="ts-detail-client-row">
-              <span>Telefono</span>
-              <span>{{ selectedTicket.clientInfo!['phone'] }}</span>
-            </div>
-            }
-            @if (selectedTicket.clientInfo!['email']) {
-            <div class="ts-detail-client-row">
-              <span>Correo</span>
-              <span>{{ selectedTicket.clientInfo!['email'] }}</span>
+          <div class="ts-action-card" [class.open]="detailMenu === 'category'">
+            <button class="ts-action-card-btn ts-action-card--category" type="button" (click)="toggleDetailMenu('category')" [attr.aria-expanded]="detailMenu === 'category'">
+              <span class="ts-action-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="17" height="17"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>
+              <span class="ts-action-label">Cambiar categoría</span>
+              <span class="ts-action-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="9 18 15 12 9 6"/></svg></span>
+            </button>
+            @if (detailMenu === 'category') {
+            <div class="ts-action-options">
+              <button class="ts-action-option" type="button" (click)="changeDetailCategory('')">Sin categoría</button>
+              @for (c of categories; track $index) {
+              <button class="ts-action-option" type="button" (click)="changeDetailCategory(c)">{{ c }}</button>
+              }
             </div>
             }
           </div>
-        </div>
-        }
+        </aside>
       </div>
+    </section>
+  </div>
+  }
+
+  <!-- Edit ticket modal -->
+  @if (showEditModal && selectedTicket) {
+  <div class="ts-modal-backdrop" (click)="closeEditModal()">
+    <section class="ts-modal ts-edit-modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+      <header class="ts-edit-header">
+        <div class="ts-edit-header-title">
+          <span class="ts-edit-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </span>
+          <div>
+            <h2>Editar ticket</h2>
+            <p>{{ selectedTicket.codigo }}</p>
+          </div>
+        </div>
+        <button class="ts-edit-close" type="button" (click)="closeEditModal()" aria-label="Cerrar" title="Cerrar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </header>
+      <div class="ts-edit-body">
+        <label class="ts-edit-field">
+          <span>Título <span class="ts-req">*</span></span>
+          <input type="text" [(ngModel)]="editModalDto.titulo" maxlength="255">
+        </label>
+        <label class="ts-edit-field">
+          <span>Categoría</span>
+          <select [(ngModel)]="editModalDto.category">
+            <option value="">Sin categoría</option>
+            @for (c of categories; track $index) {
+            <option [value]="c">{{ c }}</option>
+            }
+          </select>
+        </label>
+        <label class="ts-edit-field">
+          <span>Descripción</span>
+          <textarea [(ngModel)]="editModalDto.descripcion" rows="4"></textarea>
+        </label>
+      </div>
+      <footer class="ts-edit-footer">
+        <button class="ts-btn ts-btn-ghost" type="button" (click)="closeEditModal()">Cancelar</button>
+        <button class="ts-btn ts-btn-primary" type="button" (click)="saveEditModal()" [disabled]="!editModalDto.titulo.trim()">Guardar cambios</button>
+      </footer>
     </section>
   </div>
   }
@@ -516,39 +935,211 @@
 
 @if (showCreateModal) {
 <div class="ts-modal-backdrop" (click)="closeCreateModal()">
-  <section class="ts-modal" (click)="$event.stopPropagation()">
-    <h2>Nuevo ticket</h2>
-    <div class="ts-modal-body">
-      <label>
-        <span>Titulo</span>
-        <input type="text" [(ngModel)]="createDto.titulo" maxlength="255" placeholder="Describe el ticket">
-      </label>
-      <label>
-        <span>Descripcion</span>
-        <textarea [(ngModel)]="createDto.descripcion" rows="3" placeholder="Detalles opcionales"></textarea>
-      </label>
-      <label>
-        <span>Prioridad</span>
-        <select [(ngModel)]="createDto.priority">
-          @for (p of priorities; track $index) {
-          <option [value]="p.value">{{ priorityLabel(p.value) }}</option>
-          }
-        </select>
-      </label>
-      <label>
-        <span>Categoria</span>
-        <select [(ngModel)]="createDto.category">
-          <option value="">Sin categoria</option>
-          @for (c of categories; track $index) {
-          <option [value]="c">{{ c }}</option>
-          }
-        </select>
-      </label>
+  <section class="ts-modal ts-create-modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+
+    <!-- Header -->
+    <div class="ts-create-header">
+      <div class="ts-create-header-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>
+        </svg>
+      </div>
+      <div class="ts-create-header-text">
+        <h2>Nuevo ticket</h2>
+        <p>Registra una nueva solicitud de soporte</p>
+      </div>
+      <button class="ts-create-close" (click)="closeCreateModal()" aria-label="Cerrar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
     </div>
-    <div class="ts-modal-actions">
-      <button class="ts-btn ts-btn-ghost" (click)="closeCreateModal()">Cancelar</button>
-      <button class="ts-btn ts-btn-primary" (click)="createTicket()" [disabled]="!createDto.titulo.trim()">Crear</button>
+
+    <!-- Body -->
+    <div class="ts-create-body">
+
+      <!-- Seccion: Detalles del ticket -->
+      <div class="ts-create-section">
+        <div class="ts-create-section-header">
+          <span class="ts-create-section-dot" style="background: #6366f1"></span>
+          <span class="ts-create-section-title">Detalles del ticket</span>
+        </div>
+        <div class="ts-create-fields">
+          <label class="ts-create-field">
+            <span class="ts-create-label">Titulo <span class="ts-create-required">*</span></span>
+            <input type="text" [(ngModel)]="createDto.titulo" maxlength="255" placeholder="Ej: Error al generar reporte de inventario">
+          </label>
+          <label class="ts-create-field">
+            <span class="ts-create-label">Descripcion</span>
+            <textarea [(ngModel)]="createDto.descripcion" rows="3" placeholder="Describe el problema o solicitud con detalle..."></textarea>
+          </label>
+        </div>
+      </div>
+
+      <!-- Seccion: Clasificacion -->
+      <div class="ts-create-section">
+        <div class="ts-create-section-header">
+          <span class="ts-create-section-dot" style="background: #f59e0b"></span>
+          <span class="ts-create-section-title">Clasificacion</span>
+        </div>
+        <div class="ts-create-grid-2">
+          <label class="ts-create-field">
+            <span class="ts-create-label">Prioridad</span>
+            <select [(ngModel)]="createDto.priority">
+              @for (p of priorities; track $index) {
+              <option [value]="p.value">{{ p.label }}</option>
+              }
+            </select>
+          </label>
+          <label class="ts-create-field">
+            <span class="ts-create-label">Categoria</span>
+            <select [(ngModel)]="createDto.category">
+              <option value="">Sin categoria</option>
+              @for (c of categories; track $index) {
+              <option [value]="c">{{ c }}</option>
+              }
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <!-- Seccion: Cliente -->
+      <div class="ts-create-section">
+        <div class="ts-create-section-header">
+          <span class="ts-create-section-dot" style="background: #10b981"></span>
+          <span class="ts-create-section-title">Cliente</span>
+        </div>
+        <div class="ts-create-grid-2">
+          <label class="ts-create-field">
+            <span class="ts-create-label">Nombre <span class="ts-create-required">*</span></span>
+            <input type="text" [(ngModel)]="createDto.clientName" maxlength="255" placeholder="Nombre del cliente">
+          </label>
+          <label class="ts-create-field">
+            <span class="ts-create-label">Institucion</span>
+            <select [(ngModel)]="createDto.institucion">
+              <option value="">Sin institucion</option>
+              @for (col of colegios; track col.id) {
+              <option [value]="col.nombre">{{ col.nombre }}</option>
+              }
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <!-- Seccion: Asignacion -->
+      <div class="ts-create-section">
+        <div class="ts-create-section-header">
+          <span class="ts-create-section-dot" style="background: #8b5cf6"></span>
+          <span class="ts-create-section-title">Asignacion</span>
+        </div>
+        <div class="ts-create-grid-2">
+          <label class="ts-create-field">
+            <span class="ts-create-label">Canal <span class="ts-create-required">*</span></span>
+            <select [(ngModel)]="createDto.canal">
+              @for (c of canalOptions; track c.value) {
+              <option [value]="c.value">{{ c.label }}</option>
+              }
+            </select>
+          </label>
+          <label class="ts-create-field">
+            <span class="ts-create-label">Desarrollador</span>
+            <div class="ts-create-assign">
+              @if (createDto.assignedToId) {
+                <span class="ts-create-assigned">
+                  <span class="ts-create-assigned-modulo">{{ getModuloNombre(createDto.assignedToId) }}</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="9 18 15 12 9 6"/></svg>
+                  <span class="ts-create-assigned-name">{{ getAssignedDevName(createDto.assignedToId) }}</span>
+                  <button class="ts-create-assigned-clear" (click)="createDto.assignedToId = ''" title="Quitar asignacion">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </span>
+              } @else {
+                <button class="ts-create-assign-btn" type="button" (click)="openModuloPicker('create')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                    <line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
+                  </svg>
+                  Seleccionar modulo y desarrollador
+                </button>
+              }
+            </div>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="ts-create-footer">
+      <div class="ts-create-meta">
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Se genera automaticamente</span>
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Estado: Abierto</span>
+      </div>
+      <div class="ts-create-actions">
+        <button class="ts-btn ts-btn-ghost" (click)="closeCreateModal()">Cancelar</button>
+        <button class="ts-btn ts-btn-primary" (click)="createTicket()" [disabled]="!createDto.titulo.trim() || !createDto.clientName.trim()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Crear ticket
+        </button>
+      </div>
     </div>
   </section>
+</div>
+}
+
+@if (showModuloPicker) {
+<div class="ts-modulo-picker-overlay" (click)="closeModuloPicker()">
+  <div class="ts-modulo-picker" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+    <div class="ts-modulo-picker-header">
+      <h3>Seleccionar modulo y desarrollador</h3>
+      <button class="ts-modulo-picker-close" (click)="closeModuloPicker()" aria-label="Cerrar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    @if (!selectedModulo) {
+      <!-- Paso 1: Elegir modulo -->
+      <p class="ts-modulo-picker-hint">Selecciona un modulo para ver sus desarrolladores:</p>
+      <div class="ts-modulo-picker-list">
+        @for (m of getFilteredModulos(); track m.id) {
+          <button class="ts-modulo-picker-item" (click)="selectModuloInPicker(m)">
+            <div class="ts-modulo-picker-item-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            </div>
+            <div class="ts-modulo-picker-item-info">
+              <span class="ts-modulo-picker-item-name">{{ m.nombre }}</span>
+              <span class="ts-modulo-picker-item-count">{{ m.desarrolladores.length }} desarrollador{{ m.desarrolladores.length !== 1 ? 'es' : '' }}</span>
+            </div>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        }
+        @if (getFilteredModulos().length === 0) {
+          <p class="ts-modulo-picker-empty">No hay modulos con desarrolladores asignados.</p>
+        }
+      </div>
+    } @else {
+      <!-- Paso 2: Elegir desarrollador del modulo -->
+      <div class="ts-modulo-picker-devs-header">
+        <button class="ts-modulo-picker-back" (click)="selectedModulo = null">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          Volver
+        </button>
+        <span class="ts-modulo-picker-devs-title">{{ selectedModulo.nombre }}</span>
+      </div>
+      <div class="ts-modulo-picker-list">
+        @for (d of selectedModulo.desarrolladores; track d.id) {
+          <button class="ts-modulo-picker-item" (click)="selectDesarrolladorInPicker(d)">
+            <div class="ts-modulo-picker-dev-avatar">
+              {{ d.name.charAt(0) }}
+            </div>
+            <div class="ts-modulo-picker-item-info">
+              <span class="ts-modulo-picker-item-name">{{ d.name }}</span>
+              <span class="ts-modulo-picker-item-email">{{ d.email }}</span>
+            </div>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>
+          </button>
+        }
+      </div>
+    }
+  </div>
 </div>
 }

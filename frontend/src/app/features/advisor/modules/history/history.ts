@@ -7,6 +7,7 @@ import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { SocketService } from '../../../../core/services/socket.service';
 import { SessionService } from '../../../../core/services/session.service';
+import { LayoutService } from '../../../../core/services/layout.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { Message, TimelineItem, TimelineEvento } from '../../../../core/models/message.model';
 import { Session } from '../../../../core/models/session.model';
@@ -30,6 +31,12 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
   protected readonly fmtDateTimeShort = fmtDateTimeShort;
   protected readonly fmtDateTimeFull = fmtDateTimeFull;
   protected readonly fmtTime = fmtTime;
+  protected readonly fmtDateList = (iso?: string | null): string => {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  };
 
   @ViewChild('messagesContainer') messagesContainer!: ElementRef;
 
@@ -64,6 +71,13 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
   // ── Mobile ──
   mobileView: 'list' | 'chat' = 'list';
 
+  // ── Listado: paginación, orden y fechas rápidas ──
+  page = 1;
+  pageSize = 10;
+  sortOrder: 'recent' | 'oldest' = 'recent';
+  datePreset: '' | 'today' | 'yesterday' | 'last7' | 'last30' | 'custom' = '';
+  filtersMobileOpen = false;
+
   // ── Preview de imagen ──
   imagePreview: { src: string; name: string } | null = null;
 
@@ -72,7 +86,7 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
   showKebab = false;
 
   // ── Panel lateral de información ──
-  infoOpen = false;
+  infoOpen = typeof window !== 'undefined' ? window.innerWidth > 900 : true;
 
   // ── Takeover ──
   takeoverLoading  = false;
@@ -88,6 +102,7 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
     private router        : Router,
     private cdr           : ChangeDetectorRef,
     private sanitizer     : DomSanitizer,
+    private layout        : LayoutService,
   ) {}
 
   // ── Filtro de sesiones ────────────────────────────────────────────────────
@@ -145,6 +160,157 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
       pctAsesor: pct(conAsesor),
       pctIa    : pct(porIa),
     };
+  }
+
+  // ── Listado: orden, paginación y fechas rápidas ──────────────────────────
+  get sortedSessions(): Session[] {
+    const time = (s: Session) => (s.createdAt ? +new Date(s.createdAt) : 0);
+    const list = [...this.filteredSessions];
+    list.sort((a, b) =>
+      this.sortOrder === 'oldest' ? time(a) - time(b) : time(b) - time(a)
+    );
+    return list;
+  }
+
+  get totalPages(): number {
+    return Math.max(1, Math.ceil(this.sortedSessions.length / this.pageSize));
+  }
+
+  get pagedSessions(): Session[] {
+    if (this.page > this.totalPages) this.page = this.totalPages;
+    if (this.page < 1) this.page = 1;
+    const start = (this.page - 1) * this.pageSize;
+    return this.sortedSessions.slice(start, start + this.pageSize);
+  }
+
+  get pageNumbers(): (number | '…')[] {
+    const total     = this.totalPages;
+    const current   = this.page;
+    if (total <= 5) return Array.from({ length: total }, (_, i) => i + 1);
+    const set = new Set<number>([1, total, current - 1, current, current + 1]);
+    const nums = [...set].filter(n => n >= 1 && n <= total).sort((a, b) => a - b);
+    const out: (number | '…')[] = [];
+    let prev = 0;
+    for (const n of nums) {
+      if (n - prev > 1) out.push('…');
+      out.push(n);
+      prev = n;
+    }
+    return out;
+  }
+
+  goToPage(p: number): void {
+    if (p < 1 || p > this.totalPages || p === this.page) return;
+    this.page = p;
+  }
+
+  prevPage(): void { this.goToPage(this.page - 1); }
+  nextPage(): void { this.goToPage(this.page + 1); }
+
+  changePageSize(size: number): void {
+    this.pageSize = size;
+    this.page = 1;
+  }
+
+  applySort(): void { this.page = 1; }
+
+  applyDatePreset(preset: '' | 'today' | 'yesterday' | 'last7' | 'last30' | 'custom'): void {
+    this.datePreset = preset;
+    this.page = 1;
+    const iso = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    if (preset === '') {
+      this.filterDateFrom = '';
+      this.filterDateTo = '';
+      return;
+    }
+    if (preset === 'custom') return;
+    const now   = new Date();
+    const from  = new Date(now);
+    let to      = now;
+    if (preset === 'today') from.setDate(now.getDate());
+    else if (preset === 'yesterday') { from.setDate(now.getDate() - 1); to = from; }
+    else if (preset === 'last7') from.setDate(now.getDate() - 6);
+    else from.setDate(now.getDate() - 29);
+    this.filterDateFrom = iso(from);
+    this.filterDateTo   = iso(to);
+  }
+
+  get activeFilterChips(): { key: string; label: string }[] {
+    const chips: { key: string; label: string }[] = [];
+    if (this.search) chips.push({ key: 'search', label: `Búsqueda: ${this.search}` });
+    if (this.filter !== 'all') chips.push({ key: 'filter', label: `Estado: ${this.getStatusLabel(this.filter)}` });
+    if (this.filterColegio) chips.push({ key: 'filterColegio', label: `Colegio: ${this.filterColegio}` });
+    if (this.filterRol) chips.push({ key: 'filterRol', label: `Rol: ${this.filterRol}` });
+    if (this.filterSolicitud) chips.push({ key: 'filterSolicitud', label: `Solicitud: ${this.filterSolicitud}` });
+    if (this.filterAsesor) chips.push({ key: 'filterAsesor', label: `Asesor: ${this.filterAsesor}` });
+    if (this.datePreset) {
+      const labels: Record<string, string> = {
+        today: 'Hoy',
+        yesterday: 'Ayer',
+        last7: 'Últimos 7 días',
+        last30: 'Últimos 30 días',
+        custom: this.filterDateFrom && this.filterDateTo
+          ? `${this.filterDateFrom} al ${this.filterDateTo}`
+          : 'Rango de fechas',
+      };
+      chips.push({ key: 'date', label: labels[this.datePreset] });
+    } else if (this.filterDateFrom || this.filterDateTo) {
+      chips.push({ key: 'date', label: `${this.filterDateFrom || '…'} al ${this.filterDateTo || '…'}` });
+    }
+    return chips;
+  }
+
+  removeChip(key: string): void {
+    this.page = 1;
+    switch (key) {
+      case 'search': this.search = ''; break;
+      case 'filter': this.filter = 'all'; break;
+      case 'filterColegio': this.filterColegio = ''; break;
+      case 'filterRol': this.filterRol = ''; break;
+      case 'filterSolicitud': this.filterSolicitud = ''; break;
+      case 'filterAsesor': this.filterAsesor = ''; break;
+      case 'date':
+        this.datePreset = '';
+        this.filterDateFrom = '';
+        this.filterDateTo = '';
+        break;
+    }
+  }
+
+  rolBadge(rol?: string | null): string {
+    const r = (rol ?? '').toLowerCase();
+    if (r.includes('docente')) return 'hv-rol--docente';
+    if (r.includes('coordinador')) return 'hv-rol--coordinador';
+    if (r.includes('estudiante')) return 'hv-rol--estudiante';
+    if (r.includes('administrador') || r.includes('admin')) return 'hv-rol--admin';
+    return '';
+  }
+
+  /** Exporta el listado filtrado/ordenado a Excel (.xlsx). */
+  downloadListExcel(): void {
+    const rows = this.sortedSessions.map(s => ({
+      cliente: s.clientName + (s.apellido ? ' ' + s.apellido : ''),
+      identificacion: s.identificacion ?? '',
+      colegio: s.colegio ?? '',
+      rol: s.rol ?? '',
+      solicitud: s.tipoSolicitud ?? '',
+      asesor: s.advisor?.name || 'Sin agente',
+      asesorAsignado: s.colegioAdvisorName || '',
+      estado: this.getStatusLabel(s.status),
+      fecha: this.fmtDateList(s.createdAt),
+      tratamiento: s.tratamientoDatosAt ? `Sí, a las ${this.fmtTime(s.tratamientoDatosAt)}` : 'No',
+    }));
+    this.sessionService.exportHistorial(rows).subscribe({
+      next: (blob) => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `historial_conversaciones_${new Date().toISOString().slice(0, 10)}.xlsx`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      },
+      error: (err) => console.error('Error exportando Excel:', err),
+    });
   }
 
   get canTakeOver(): boolean {
@@ -350,30 +516,6 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
     return groups;
   }
 
-  /** Exporta la conversación activa a CSV. */
-  exportCsv(): void {
-    if (!this.activeSession) return;
-    const rows = this.timeline.map(t => {
-      if (t.kind === 'evento') {
-        return { fecha: t.createdAt, remitente: 'Sistema', contenido: this.eventoTexto(t) };
-      }
-      const m = t as any;
-      return {
-        fecha: m.createdAt,
-        remitente: m.senderName ?? (m.senderType === 'client' ? 'Cliente' : 'Asesor'),
-        contenido: (m.content || '') + (m.documentos?.length ? ' [Documentos: ' + m.documentos.map((d: any) => d.nombre).join(', ') + ']' : ''),
-      };
-    });
-    const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    const csv = ['fecha,remitente,contenido', ...rows.map(r => [esc(r.fecha), esc(r.remitente), esc(r.contenido)].join(','))].join('\r\n');
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `historial_${this.activeSession.clientName || this.activeSession.id}.csv`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  }
-
   /** Abre una vista imprimible/PDF de la conversación activa en otra ventana. */
   exportPdf(): void {
     if (!this.activeSession) return;
@@ -475,13 +617,17 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
 
   // ── Init ──────────────────────────────────────────────────────────────────
   ngOnInit(): void {
+    this.layout.setSidebarForcedCollapsed(true);
     this.currentUserId = this.auth.getUser()?.id ?? null;
+    this.applyDatePreset('today');
     this.socket.connect(this.auth.getToken() ?? undefined);
     this.loadSessions();
     this.listenSocketEvents();
   }
 
   ngOnDestroy(): void {
+    this.layout.setSidebarForcedCollapsed(false);
+    sessionStorage.removeItem(this.STORAGE_KEY);
     if (this.activeSession) {
       this.socket.emit('set_active', { sessionId: this.activeSession.id, active: false });
     }
@@ -653,6 +799,8 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
     this.filterAsesor = '';
     this.filterDateFrom = '';
     this.filterDateTo = '';
+    this.datePreset = '';
+    this.page = 1;
   }
 
   get hasActiveFilters(): boolean {

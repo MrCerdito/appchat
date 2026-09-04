@@ -123,6 +123,15 @@ export class GuardarConfigGlobalDto {
   @MaxLength(100, { each: true })
   ticketCategories?: string[];
 
+  // ── SLA de tickets ────────────────────────────────────────────────────────
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  ticketSlaEnabled?: boolean;
+
+  @IsOptional()
+  ticketSlaHours?: Record<string, number>;
+
   @IsOptional()
   @Type(() => Boolean)
   @IsBoolean()

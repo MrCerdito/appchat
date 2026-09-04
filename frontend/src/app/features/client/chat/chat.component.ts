@@ -166,6 +166,7 @@ isStreaming      = false;
   celular        = '';
   tipoSolicitud  = '';
   aceptaTratamiento = false;
+  tratamientoDatosAt: string | null = null;
   showTratamientoDatos = false;
   submitted      = false;
 
@@ -188,6 +189,7 @@ isStreaming      = false;
   estudiante   : 'Estudiante',
   docente      : 'Docente',
   administrador: 'Administrador',
+  coordinador  : 'Coordinador',
   padre        : 'Padre / Madre',
   admin        : 'Administrativo',
 };
@@ -792,6 +794,14 @@ get rolLabel(): string {
     this.cdr.detectChanges();
   }
 
+  onTratamientoChange(acepto: boolean): void {
+    if (acepto && !this.tratamientoDatosAt) {
+      this.tratamientoDatosAt = new Date().toISOString();
+    } else if (!acepto) {
+      this.tratamientoDatosAt = null;
+    }
+  }
+
   // ══════════════════════════════════════════════════════════════════════════
   // INICIO DEL CHAT
   // ══════════════════════════════════════════════════════════════════════════
@@ -835,6 +845,7 @@ get rolLabel(): string {
       email         : this.email.trim().toLowerCase(),
       celular       : this.celular.trim(),
       tipoSolicitud : this.tipoSolicitud,
+      tratamientoDatosAt: this.tratamientoDatosAt ?? undefined,
     }).subscribe({
       next: (session) => {
   this.session = session;
@@ -876,7 +887,9 @@ get rolLabel(): string {
     text: `Entendido. Hola ${this.clientName}, como ${this.rolLabel}${colegio.nombre ? ` del colegio "${colegio.nombre}"` : ''}, estoy aquí para ayudarte.`
   }];
 
-  const bienvenida = `Hola ${this.clientName}, mi nombre es Korvix, Asistente Virtual. Estoy aquí para ayudarte con tu consulta sobre "${this.tipoSolicitud}". ¿En qué puedo ayudarte?`;
+  const bienvenida = `Hola ${this.clientName}, mi nombre es Korvix, Asistente Virtual. Estoy aquí para ayudarte con tu consulta sobre "${this.tipoSolicitud}". ¿En qué puedo ayudarte?
+
+En el siguiente menú encontrarás varias opciones en las que te puedes apoyar, haciendo clic sobre ellas.`;
   this.bienvenidaIa = bienvenida;
   this.addAiMessage('model', bienvenida);
 
@@ -2488,7 +2501,7 @@ private normalizePhotoUrl(url: string): string {
     this.identificacion = ''; this.apellido = ''; this.rol = '';
     this.colegio = ''; this.colegioLink = '';
     this.email = ''; this.celular = ''; this.tipoSolicitud = '';
-    this.aceptaTratamiento = false; this.showTratamientoDatos = false;
+    this.aceptaTratamiento = false; this.showTratamientoDatos = false; this.tratamientoDatosAt = null;
     this.ratingEstrellas = 0; this.ratingHover = 0; this.ratingComentario = '';
     this.ratingEtiquetas = []; this.ratingEnviado = false; this.sessionIdParaRating = null;
     this.mostrarAsesoresOcupados = false; this.queuePosition = -1; this.queueTotal = null; this.clientTimer = null;

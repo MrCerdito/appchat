@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Normalización canónica de roles para documentos.
 // Garantiza que upload y edición persistan SIEMPRE el mismo valor canónico
-// ("administrador", "docente", "estudiante", "padre") independientemente de
+// ("administrador", "docente", "coordinador", "estudiante", "padre") independientemente de
 // los sinónimos que escriba el usuario ("admin", "profesor", "alumno", ...).
 // ─────────────────────────────────────────────────────────────────────────────
 export const MAPA_ROLES: Record<string, string> = {
@@ -9,6 +9,7 @@ export const MAPA_ROLES: Record<string, string> = {
   administrador: 'administrador',
   docente: 'docente',
   profesor: 'docente',
+  coordinador: 'coordinador',
   estudiante: 'estudiante',
   alumno: 'estudiante',
   padre: 'padre',
@@ -19,6 +20,7 @@ export const MAPA_ROLES: Record<string, string> = {
 export const ROLES_DEFAULT: string[] = [
   'administrador',
   'docente',
+  'coordinador',
   'estudiante',
   'padre',
 ];

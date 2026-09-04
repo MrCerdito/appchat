@@ -198,6 +198,17 @@ export class Configuracion {
   @Column({ name: 'ticket_email_attachments', type: 'boolean', default: false })
   ticketEmailAttachments: boolean;
 
+  // ── SLA de tickets ────────────────────────────────────────────────────────
+  @Column({ name: 'ticket_sla_enabled', type: 'boolean', default: true })
+  ticketSlaEnabled: boolean;
+
+  @Column({
+    name: 'ticket_sla_hours',
+    type: 'jsonb',
+    default: () => `'{"low":168,"medium":72,"high":24,"critical":8}'::jsonb`,
+  })
+  ticketSlaHours: Record<string, number>;
+
   // ── Remitente SMTP (correo propio que envia los tickets) ──────────────────
   @Column({ name: 'smtp_host', type: 'text', nullable: true, default: '' })
   smtpHost: string;

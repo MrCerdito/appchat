@@ -55,7 +55,9 @@ export class LoginComponent {
     this.auth.login(this.email, this.password).subscribe({
       next: () => {
         this.loading = false;
-        this.router.navigate(['/dashboard']);
+        const user = this.auth.getUser();
+        const target = user?.role === 'admin' ? '/admin' : user?.role === 'desarrollador' ? '/developer' : '/dashboard';
+        this.router.navigate([target]);
       },
       error: (err) => {
         this.loading = false;  // ← sin finalize, aquí mismo
