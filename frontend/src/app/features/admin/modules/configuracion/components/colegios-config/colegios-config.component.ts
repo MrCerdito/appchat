@@ -33,6 +33,7 @@ export class ColegiosConfigComponent implements OnInit, OnDestroy {
   showForm = false;
   editingColegio: Colegio | null = null;
   form = { nombre: '', link: '', email: '', calendario: '', tipoColegio: '', ciudad: '', advisorId: '' };
+  additionalLinks: string[] = [];
   customCalendario = false;
   customTipoColegio = false;
   selectedIds = new Set<string>();
@@ -197,11 +198,13 @@ export class ColegiosConfigComponent implements OnInit, OnDestroy {
         ciudad: colegio.ciudad || '',
         advisorId: colegio.advisorId || '',
       };
+      this.additionalLinks = (colegio.links || []).filter(l => l !== colegio.link);
       this.customCalendario = !!colegio.calendario && !this.calendarioOptions.includes(colegio.calendario);
       this.customTipoColegio = !!colegio.tipoColegio && !this.tipoColegioOptions.includes(colegio.tipoColegio);
     } else {
       this.editingColegio = null;
       this.form = { nombre: '', link: '', email: '', calendario: '', tipoColegio: '', ciudad: '', advisorId: '' };
+      this.additionalLinks = [];
       this.customCalendario = false;
       this.customTipoColegio = false;
     }
@@ -212,8 +215,19 @@ export class ColegiosConfigComponent implements OnInit, OnDestroy {
     this.showForm = false;
     this.editingColegio = null;
     this.form = { nombre: '', link: '', email: '', calendario: '', tipoColegio: '', ciudad: '', advisorId: '' };
+    this.additionalLinks = [];
     this.customCalendario = false;
     this.customTipoColegio = false;
+  }
+
+  addAdditionalLink(): void {
+    if (this.additionalLinks.length < 9) {
+      this.additionalLinks.push('');
+    }
+  }
+
+  removeAdditionalLink(index: number): void {
+    this.additionalLinks.splice(index, 1);
   }
 
   saveColegio(): void {
@@ -223,6 +237,7 @@ export class ColegiosConfigComponent implements OnInit, OnDestroy {
     const payload: any = {
       nombre: this.form.nombre.trim(),
       link: this.form.link.trim(),
+      links: [this.form.link.trim(), ...this.additionalLinks.filter(l => l.trim())],
       email: this.form.email.trim(),
       calendario: this.form.calendario.trim(),
       tipoColegio: this.form.tipoColegio.trim(),
@@ -334,11 +349,13 @@ export class ColegiosConfigComponent implements OnInit, OnDestroy {
         const hasTipo = header.includes('tipo');
         const hasCiudad = header.includes('ciudad') || header.includes('ciudad;');
         const hasAsesor = header.includes('asesor');
+        const hasLinks = header.includes('links');
 
         const rows = lines.slice(1).map(line => {
           const cols = line.split(';').map(c => c.replace(/"/g, '').trim());
           const row: any = { nombre: cols[0] || '', link: cols[1] || 'https://', email: cols[2] || '' };
           let idx = 3;
+          if (hasLinks) { row.links = (cols[idx] || '').split('|').filter((l: string) => l.trim()); idx++; }
           if (hasCalendario) { row.calendario = cols[idx] || ''; idx++; }
           if (hasTipo) { row.tipoColegio = cols[idx] || ''; idx++; }
           if (hasCiudad) { row.ciudad = cols[idx] || ''; idx++; }

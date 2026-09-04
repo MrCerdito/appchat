@@ -29,7 +29,7 @@ import { Message } from '../chat/entities/message.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { RolesGuard, Roles } from '../auth/roles.guard';
-import { IsString, IsNotEmpty, Length, IsOptional, IsEmail, MaxLength, Matches, IsUUID, IsIn, IsDateString } from 'class-validator';
+import { IsString, IsNotEmpty, Length, IsOptional, IsEmail, MaxLength, Matches, IsUUID, IsIn, IsDateString, IsArray, ArrayMaxSize } from 'class-validator';
 import { SkipThrottle } from '@nestjs/throttler';
 import { ChatGateway } from '../chat/chat.gateway';
 
@@ -161,6 +161,12 @@ export class CreateColegioDto {
   @IsUUID()
   @IsOptional()
   advisorId?: string;
+
+  @IsArray()
+  @IsOptional()
+  @IsString({ each: true })
+  @ArrayMaxSize(10)
+  links?: string[];
 }
 
 export class UpdateColegioDto {
@@ -197,6 +203,12 @@ export class UpdateColegioDto {
   @IsUUID()
   @IsOptional()
   advisorId?: string | null;
+
+  @IsArray()
+  @IsOptional()
+  @IsString({ each: true })
+  @ArrayMaxSize(10)
+  links?: string[];
 }
 
 @Controller('sessions')
@@ -664,9 +676,9 @@ export class SessionsController {
   async exportColegios(@Query('format') format: string) {
     const colegios = await this.sessionsService.exportColegios();
     if (format === 'csv') {
-      const header = 'nombre;link;email;calendario;tipo_colegio;ciudad;asesor\n';
+      const header = 'nombre;link;links;email;calendario;tipo_colegio;ciudad;asesor\n';
       const rows = colegios
-        .map((c) => `"${c.nombre}";"${c.link}";"${c.email ?? ''}";"${c.calendario ?? ''}";"${c.tipoColegio ?? ''}";"${c.ciudad ?? ''}";"${c.advisor?.name ?? ''}"`)
+        .map((c) => `"${c.nombre}";"${c.link}";"${(c.links || []).join('|')}";"${c.email ?? ''}";"${c.calendario ?? ''}";"${c.tipoColegio ?? ''}";"${c.ciudad ?? ''}";"${c.advisor?.name ?? ''}"`)
         .join('\n');
       return { csv: header + rows, data: colegios };
     }

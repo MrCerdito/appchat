@@ -5,6 +5,7 @@ export interface UrlLike {
 
 export interface LinkLike {
   link?: string | null;
+  links?: string[] | null;
 }
 
 export function normalizeUrl(raw: string | null | undefined): UrlLike | null {
@@ -53,21 +54,31 @@ export function matchColegio<T extends LinkLike>(
   const page = normalizeUrl(pageUrl);
   if (!page) return null;
 
+  // Construir todas las URLs candidatas: link principal + links[] array
   const normalized: Array<{
     item: T;
     host: string;
     path: string;
     exactHost: boolean;
   }> = [];
+  const seen = new Set<string>();
   for (const item of items) {
-    const link = normalizeUrl(item.link);
-    if (link)
+    const allLinks = [item.link, ...(item.links || [])].filter(
+      (l): l is string => typeof l === 'string' && l.trim().length > 0,
+    );
+    for (const raw of allLinks) {
+      const normalizedUrl = normalizeUrl(raw);
+      if (!normalizedUrl) continue;
+      const key = `${normalizedUrl.host}|${normalizedUrl.path}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
       normalized.push({
         item,
-        host: link.host,
-        path: link.path,
-        exactHost: link.host === page.host,
+        host: normalizedUrl.host,
+        path: normalizedUrl.path,
+        exactHost: normalizedUrl.host === page.host,
       });
+    }
   }
 
   // Candidatos por host: coincidencia exacta o relación de subdominio.

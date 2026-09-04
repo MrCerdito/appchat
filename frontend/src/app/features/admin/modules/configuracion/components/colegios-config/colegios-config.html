@@ -146,7 +146,7 @@
       </div>
       <div class="tmc-form__grid">
         <div class="tmc-field">
-          <label for="col-link">Link <span class="tmc-field__req">*</span></label>
+          <label for="col-link">Link principal <span class="tmc-field__req">*</span></label>
           <input id="col-link" type="url" [(ngModel)]="form.link" placeholder="https://ejemplo.com" maxlength="500"/>
         </div>
         <div class="tmc-field">
@@ -154,6 +154,24 @@
           <input id="col-email" type="email" [(ngModel)]="form.email" placeholder="contacto@colegio.com" maxlength="255"/>
           <span class="tmc-field__hint">Un solo correo por colegio.</span>
         </div>
+      </div>
+      <div class="tmc-field">
+        <label>URLs adicionales</label>
+        <span class="tmc-field__hint">Si el colegio tiene múltiples dominios (ej. login y home), agrégalos aquí. El widget se detectará en todos.</span>
+        @for (link of additionalLinks; track $index; let i = $index) {
+        <div class="tmc-additional-link">
+          <input type="url" [(ngModel)]="additionalLinks[i]" [attr.aria-label]="'URL adicional ' + (i + 1)" placeholder="https://ejemplo.com" maxlength="500"/>
+          <button type="button" class="tmc-btn-sm tmc-btn-sm--ghost" (click)="removeAdditionalLink(i)" title="Eliminar URL">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        }
+        @if (additionalLinks.length < 9) {
+        <button type="button" class="tmc-btn-sm tmc-btn-sm--outline" (click)="addAdditionalLink()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Agregar URL
+        </button>
+        }
       </div>
       <div class="tmc-form__grid">
         <div class="tmc-field">
@@ -259,7 +277,7 @@
               <input type="checkbox" [checked]="allSelected" (change)="toggleAll()"/>
             </th>
             <th>Colegio</th>
-            <th>Link</th>
+            <th>Links</th>
             <th>Correo</th>
             <th>Calendario</th>
             <th>Proyecto</th>
@@ -280,6 +298,9 @@
             </td>
             <td class="tmc-td-link">
               <a [href]="c.link" target="_blank" rel="noopener noreferrer">{{ c.link }}</a>
+              @if (c.links && c.links.length > 1) {
+              <span class="tmc-pill tmc-pill--links" [title]="c.links.join(', ')">+{{ c.links.length - 1 }}</span>
+              }
             </td>
             <td class="tmc-td-email">{{ c.email || '—' }}</td>
             <td class="tmc-td-calendario">

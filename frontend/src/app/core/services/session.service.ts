@@ -10,6 +10,7 @@ export interface Colegio {
   id: string;
   nombre: string;
   link: string;
+  links?: string[];
   email?: string | null;
   calendario?: string | null;
   tipoColegio?: string | null;
@@ -214,6 +215,7 @@ export class SessionService {
   createColegio(data: {
     nombre: string;
     link: string;
+    links?: string[];
     email?: string;
     calendario?: string;
     tipoColegio?: string;
@@ -222,7 +224,7 @@ export class SessionService {
     return this.http.post<Colegio>(`${environment.apiUrl}/sessions/colegios`, data);
   }
 
-  updateColegio(id: string, data: { nombre?: string; link?: string; email?: string; calendario?: string; tipoColegio?: string; ciudad?: string; advisorId?: string | null }): Observable<Colegio> {
+  updateColegio(id: string, data: { nombre?: string; link?: string; links?: string[]; email?: string; calendario?: string; tipoColegio?: string; ciudad?: string; advisorId?: string | null }): Observable<Colegio> {
     return this.http.patch<Colegio>(`${environment.apiUrl}/sessions/colegios/${id}`, data);
   }
 
