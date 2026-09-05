@@ -45,31 +45,6 @@
   min-width: 0;
 }
 
-.cfg-hamburger {
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface);
-  color: var(--text-muted);
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: background 0.15s, color 0.15s;
-
-  svg { width: 20px; height: 20px; }
-
-  &:hover {
-    background: var(--sidebar-hover);
-    color: var(--text);
-  }
-
-  @media (max-width: 768px) {
-    display: none;
-  }
-}
-
 .cfg-header-text {
   min-width: 0;
   .cfg-eyebrow {

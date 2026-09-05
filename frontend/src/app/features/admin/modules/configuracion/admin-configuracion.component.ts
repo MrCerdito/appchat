@@ -305,10 +305,6 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
     }
   }
 
-  toggleAdminSidebar(): void {
-    this.layoutService.requestSidebarToggle();
-  }
-
   getDiaNombre(dia: number): string {
     return this.dias.find(d => d.value === dia)?.label ?? '';
   }

@@ -14,7 +14,7 @@
 
 // ── Overlay ────────────────────────────────────────────────
 .sidebar-overlay {
-  display: none;
+  display: block;
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.5);
@@ -27,35 +27,28 @@
     opacity: 1;
     pointer-events: all;
   }
-
-  @media (max-width: 768px) {
-    display: block;
-  }
 }
 
-// ── Sidebar ────────────────────────────────────────────────
+// ── Sidebar (drawer en todos los tamaños) ──────────────────
 .shell-sidebar {
-  width: 220px;
-  min-width: 220px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 235px;
   height: 100%;
   background: var(--sidebar-bg);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   flex-shrink: 0;
-  transition: width 0.25s ease, transform 0.25s ease, min-width 0.25s ease;
+  z-index: 300;
+  transform: translateX(-100%);
+  transition: transform 0.25s ease;
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.3);
 
-  @media (max-width: 768px) {
-    position: fixed;
-    top: 0;
-    left: 0;
-    height: 100%;
-    z-index: 300;
-    transform: translateX(-100%);
-
-    &.open {
-      transform: translateX(0);
-    }
+  &.open {
+    transform: translateX(0);
   }
 }
 
@@ -88,9 +81,9 @@
   }
 }
 
-// ── Botón cerrar (solo móvil) ──────────────────────────────
+// ── Botón cerrar (siempre visible en el drawer) ────────────
 .sidebar-close {
-  display: none;
+  display: flex;
   align-items: center;
   justify-content: center;
   width: 30px;
@@ -106,10 +99,6 @@
   svg { width: 16px; height: 16px; }
 
   &:hover { background: var(--sidebar-hover); color: var(--sidebar-text); }
-
-  @media (max-width: 768px) {
-    display: flex;
-  }
 }
 
 // ── Nav ────────────────────────────────────────────────────
@@ -118,6 +107,8 @@
   flex-direction: column;
   padding: 1rem 0.7rem 0.5rem;
   gap: 2px;
+  overflow-y: auto;
+  min-height: 0;
 
   .nav-label {
     font-size: 0.65rem;
@@ -315,68 +306,72 @@
   overflow: hidden;
 }
 
-// ── Topbar móvil ───────────────────────────────────────────
-.mobile-topbar {
-  display: none;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0 1rem;
-  height: 56px;
-  background: var(--sidebar-bg);
-  border-bottom: 1px solid var(--sidebar-border);
-  flex-shrink: 0;
-
-  .topbar-logo {
-    flex: 1;
+// ── Topbar superior ────────────────────────────────────────
+.admin-topbar {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    font-size: 0.9rem;
-    font-weight: 700;
-    color: var(--sidebar-text);
+    gap: 0.75rem;
+    padding: 0 1rem;
+    height: 60px;
+    background: var(--sidebar-bg);
+    border-bottom: 1px solid var(--sidebar-border);
+    flex-shrink: 0;
 
-    .logo-icon {
-      width: 28px;
-      height: 28px;
-      border-radius: 7px;
-      background: var(--sidebar-accent);
+    .topbar-right {
+      margin-left: auto;
       display: flex;
       align-items: center;
-      justify-content: center;
+      gap: 0.5rem;
+    }
 
-      svg { width: 15px; height: 15px; color: var(--sidebar-text); }
+    .topbar-avatar {
+      width: 32px;
+      height: 32px;
+      font-size: 0.82rem;
     }
   }
-
-  .topbar-avatar {
-    width: 30px;
-    height: 30px;
-    font-size: 0.8rem;
-  }
-
-  @media (max-width: 768px) {
-    display: flex;
-  }
-}
 
 // ── Hamburger ──────────────────────────────────────────────
 .hamburger {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  gap: 4.5px;
+  width: 38px;
+  height: 38px;
   border: none;
   border-radius: 8px;
   background: var(--sidebar-hover);
-  color: var(--sidebar-text);
   cursor: pointer;
   flex-shrink: 0;
   transition: background 0.15s;
 
-  svg { width: 18px; height: 18px; }
+  &:hover { background: var(--sidebar-hover); filter: brightness(1.05); }
+  &:active { transform: scale(0.96); }
 
-  &:hover { background: var(--sidebar-hover); }
+  .hamburger-bar {
+    display: block;
+    width: 19px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--sidebar-text);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-origin: center;
+  }
+
+  &.active {
+    .hamburger-bar:nth-child(1) {
+      transform: translateY(6.5px) rotate(45deg);
+    }
+    .hamburger-bar:nth-child(2) {
+      opacity: 0;
+      transform: scaleX(0.2);
+    }
+    .hamburger-bar:nth-child(3) {
+      transform: translateY(-6.5px) rotate(-45deg);
+    }
+  }
 }
 
 // ── Outlet ─────────────────────────────────────────────────
@@ -386,63 +381,4 @@
   display: flex;
   flex-direction: column;
   position: relative;
-}
-
-// ── Sidebar collapsed (Operaciones) ────────────────────────
-.admin-shell.sidebar-collapsed {
-  .shell-sidebar {
-    width: 0;
-    min-width: 0;
-    transform: translateX(-100%);
-    border: 0;
-    overflow: hidden;
-  }
-}
-
-.admin-shell:not(.sidebar-collapsed) {
-  @media (max-width: 768px) {
-    .sidebar-overlay {
-      display: block;
-      opacity: 1;
-      pointer-events: all;
-    }
-
-    .shell-sidebar {
-      position: fixed;
-      inset: 0 auto 0 0;
-      z-index: 300;
-      transform: translateX(0);
-    }
-  }
-}
-
-// ── Toggle button (flotante) ──────────────────────────────
-.sidebar-toggle-btn {
-  position: absolute;
-  top: 14px;
-  left: 14px;
-  z-index: 50;
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-
-  svg { width: 18px; height: 18px; }
-
-  &:hover {
-    background: var(--sidebar-hover);
-    color: var(--text);
-  }
-
-  // En Operaciones la hamburguesa se integra en el nav de cada página
-  &.operaciones-hidden {
-    visibility: hidden;
-    pointer-events: none;
-  }
 }

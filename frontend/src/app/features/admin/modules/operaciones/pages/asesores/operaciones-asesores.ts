@@ -69,11 +69,6 @@ export class OperacionesAsesoresComponent implements OnInit, OnDestroy {
     this.router.navigate(['/admin/operaciones']);
   }
 
-  openAdminSidebar(): void {
-    const btn = document.querySelector('.sidebar-toggle-btn') as HTMLButtonElement;
-    btn?.click();
-  }
-
   capacidadColor(pct: number): string {
     if (pct > 110) return '#DC2626';
     if (pct > 100) return '#F59E0B';

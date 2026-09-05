@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Patch,
+  Delete,
   Param,
   Body,
   Query,
@@ -47,6 +48,18 @@ export class NotificationsController {
   @HttpCode(HttpStatus.OK)
   markAllAsRead(@Request() req: any) {
     return this.svc.markAllAsRead(req.user.id);
+  }
+
+  @Delete()
+  @HttpCode(HttpStatus.OK)
+  removeMany(@Request() req: any, @Body() body: { ids?: string[] }) {
+    return this.svc.removeMany(req.user.id, body?.ids);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.OK)
+  remove(@Param('id') id: string, @Request() req: any) {
+    return this.svc.remove(id, req.user.id);
   }
 
   @Get('preferences')

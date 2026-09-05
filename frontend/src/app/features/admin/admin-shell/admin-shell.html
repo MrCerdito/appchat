@@ -1,5 +1,5 @@
 <app-toast-container />
-<div class="admin-shell" [class.sidebar-collapsed]="sidebarCollapsed">
+<div class="admin-shell">
 
   <!-- Overlay para cerrar sidebar en móvil -->
   <div class="sidebar-overlay" [class.visible]="sidebarOpen" (click)="collapseSidebar()"></div>
@@ -28,7 +28,16 @@
     </div>
 
     <nav class="shell-nav">
-      <span class="nav-label">Gestión</span>
+      <span class="nav-label">Chat en línea</span>
+
+      <a class="nav-item" routerLink="history" routerLinkActive="active" (click)="closeSidebarOnMobile()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+        <span>Historial</span>
+      </a>
 
       <a class="nav-item" routerLink="advisors" routerLinkActive="active" (click)="closeSidebarOnMobile()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -41,44 +50,6 @@
         <span>Agentes</span>
       </a>
 
-      <a class="nav-item" routerLink="history" routerLinkActive="active" (click)="closeSidebarOnMobile()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"/>
-          <polyline points="12 6 12 12 16 14"/>
-        </svg>
-        <span>Historial</span>
-      </a>
-
-      <a class="nav-item" routerLink="operaciones" routerLinkActive="active" (click)="closeSidebarOnMobile()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="3"/>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-        </svg>
-        <span>Operaciones 2.0</span>
-      </a>
-
-      <a class="nav-item" routerLink="operaciones/reportes" routerLinkActive="active" (click)="closeSidebarOnMobile()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
-        </svg>
-        <span>Reportes</span>
-      </a>
-
-      <span class="nav-label section-spacer">Comunicación</span>
-
-      <a class="nav-item" routerLink="operaciones/chats" [queryParams]="{ modo: 'asesores' }" (click)="closeSidebarOnMobile()">
-        <img src="chat_interno.png" alt="">
-        <span>Chat interno</span>
-        @if (internalUnread > 0) {
-        <b class="nav-item-badge">{{ internalUnread > 99 ? '99+' : internalUnread }}</b>
-        }
-      </a>
-
-      <span class="nav-label section-spacer">Análisis</span>
-
       <a class="nav-item" routerLink="metrics" routerLinkActive="active" (click)="closeSidebarOnMobile()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
@@ -89,44 +60,30 @@
         <span>Métricas</span>
       </a>
 
-      <span class="nav-label section-spacer">Configuración</span>
+      <span class="nav-label section-spacer">WhatsApp</span>
 
-      <a class="nav-item" routerLink="configuracion" routerLinkActive="active" (click)="closeSidebarOnMobile()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="3"/>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06
-                   a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09
-                   A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83
-                   l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09
-                   A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83
-                   l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09
-                   a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83
-                   l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09
-                   a1.65 1.65 0 0 0-1.51 1z"/>
-        </svg>
-        <span>Configuración</span>
+      <a class="nav-item" routerLink="operaciones" [routerLinkActiveOptions]="{ exact: true }" routerLinkActive="active" (click)="closeSidebarOnMobile()">
+        <img src="whatsapp.png" alt="">
+        <span>WhatsApp</span>
       </a>
 
-      <a class="nav-item" routerLink="widget" routerLinkActive="active" (click)="closeSidebarOnMobile()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="3" width="18" height="18" rx="3"/>
-          <path d="M3 9h18"/>
-          <circle cx="17" cy="6" r="1" fill="currentColor"/>
-        </svg>
-        <span>Widget</span>
+      <a class="nav-item" routerLink="operaciones/chats" [queryParams]="{ modo: 'asesores' }" (click)="closeSidebarOnMobile()">
+        <img src="chat_interno.png" alt="">
+        <span>Chat interno</span>
+        @if (internalUnread > 0) {
+        <b class="nav-item-badge">{{ internalUnread > 99 ? '99+' : internalUnread }}</b>
+        }
       </a>
 
-      <a class="nav-item" routerLink="faq" routerLinkActive="active" (click)="closeSidebarOnMobile()">
+      <a class="nav-item" routerLink="operaciones/reportes" routerLinkActive="active" (click)="closeSidebarOnMobile()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"/>
-          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
-          <line x1="12" y1="17" x2="12.01" y2="17"/>
+          <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
         </svg>
-        <span>FAQ</span>
+        <span>Reporte</span>
       </a>
+
+      <span class="nav-label section-spacer">Gestión</span>
 
       <a class="nav-item" routerLink="tickets" routerLinkActive="active" (click)="closeSidebarOnMobile()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -148,6 +105,45 @@
           <path d="M10 21v-4h4v4"/>
         </svg>
         <span>Perfil Institucional</span>
+      </a>
+
+      <a class="nav-item" routerLink="faq" routerLinkActive="active" (click)="closeSidebarOnMobile()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+          <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        <span>FAQ</span>
+      </a>
+
+      <a class="nav-item" routerLink="widget" routerLinkActive="active" (click)="closeSidebarOnMobile()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="3"/>
+          <path d="M3 9h18"/>
+          <circle cx="17" cy="6" r="1" fill="currentColor"/>
+        </svg>
+        <span>Widget</span>
+      </a>
+
+      <span class="nav-label section-spacer">Configuración</span>
+
+      <a class="nav-item" routerLink="configuracion" routerLinkActive="active" (click)="closeSidebarOnMobile()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06
+                   a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09
+                   A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83
+                   l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09
+                   A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83
+                   l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09
+                   a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83
+                   l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09
+                   a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+        <span>Configuración</span>
       </a>
     </nav>
 
@@ -234,56 +230,28 @@
   <!-- Área de contenido con topbar en móvil -->
   <div class="shell-content">
 
-    <header class="mobile-topbar">
-      <button class="hamburger" (click)="openSidebar()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <line x1="3" y1="6" x2="21" y2="6"/>
-          <line x1="3" y1="12" x2="21" y2="12"/>
-          <line x1="3" y1="18" x2="21" y2="18"/>
-        </svg>
+    <header class="admin-topbar">
+      <button class="hamburger" [class.active]="sidebarOpen" (click)="toggleSidebar()" title="Menu" aria-label="Abrir menú">
+        <span class="hamburger-bar"></span>
+        <span class="hamburger-bar"></span>
+        <span class="hamburger-bar"></span>
       </button>
-      <div class="topbar-logo">
-        <div class="logo-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-            <path d="M2 17l10 5 10-5"/>
-            <path d="M2 12l10 5 10-5"/>
-          </svg>
+      <div class="topbar-right">
+        <app-notification-bell></app-notification-bell>
+        <div class="profile-avatar topbar-avatar">
+          @if (currentAdmin?.profilePhotoUrl) {
+          <img
+               [src]="currentAdmin!.profilePhotoUrl"
+               [alt]="currentAdmin?.name"
+               class="profile-avatar-img" />
+          } @else {
+          {{ currentAdmin?.name?.charAt(0) }}
+          }
         </div>
-        <span>Admin</span>
-      </div>
-      <app-notification-bell></app-notification-bell>
-      <div class="profile-avatar topbar-avatar">
-        @if (currentAdmin?.profilePhotoUrl) {
-        <img
-             [src]="currentAdmin!.profilePhotoUrl"
-             [alt]="currentAdmin?.name"
-             class="profile-avatar-img" />
-        } @else {
-        {{ currentAdmin?.name?.charAt(0) }}
-        }
       </div>
     </header>
 
     <div class="shell-outlet">
-      @if (sidebarCollapsed && !sidebarForcedCollapsed) {
-      <button
-        class="sidebar-toggle-btn"
-        [class.operaciones-hidden]="isOperacionesRoute"
-        type="button"
-        (click)="openSidebar()"
-        title="Mostrar menu"
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <line x1="3" y1="6" x2="21" y2="6"/>
-          <line x1="3" y1="12" x2="21" y2="12"/>
-          <line x1="3" y1="18" x2="21" y2="18"/>
-        </svg>
-      </button>
-      }
       <router-outlet/>
     </div>
 

@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
-import { Subject } from 'rxjs';
+import { Subject, interval } from 'rxjs';
 import { debounceTime, distinctUntilChanged, takeUntil, finalize } from 'rxjs/operators';
 import { TicketService } from '../../core/services/ticket.service';
 import { ModuloService } from '../../core/services/modulo.service';
@@ -23,7 +23,10 @@ import {
 } from '../utils/ticket-categories';
 import { trackByIndex, trackById } from '../utils/track-by';
 import { fmtDateShort, fmtMedium, fmtDateTime } from '../utils/date';
+import { minutesSince, formatShortDuration } from '../utils/duration';
 import { TicketMailTemplateComponent } from './components/ticket-mail-template/ticket-mail-template.component';
+
+const SLA_HOURS: Record<string, number> = { low: 168, medium: 72, high: 24, critical: 8 };
 
 @Component({
   selector: 'app-tickets',
@@ -329,6 +332,10 @@ export class TicketsComponent implements OnInit, OnDestroy {
     this.socket.on<any>('ticket:deleted')
       .pipe(takeUntil(this.destroy$))
       .subscribe(() => { this.load(); this.loadCounts(); });
+
+    interval(15000)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => this.cdr.markForCheck());
 
     this.search$.pipe(
       debounceTime(300),
@@ -871,6 +878,76 @@ export class TicketsComponent implements OnInit, OnDestroy {
       next: () => { this.load(); this.loadCounts(); this.notification.success('Eliminado', 'Ticket eliminado correctamente.'); },
       error: (err) => { this.notification.error('Error', err.error?.message || 'No se pudo eliminar.'); },
     });
+  }
+
+  slaIsPaused(t: Ticket): boolean {
+    return t.status === 'on_hold';
+  }
+
+  slaDone(t: Ticket): boolean {
+    return t.status === 'closed' || t.status === 'resolved' || t.status === 'denied';
+  }
+
+  slaUrgent(t: Ticket): boolean {
+    if (this.slaDone(t) || this.slaIsPaused(t) || !t.slaDeadline) return false;
+    const rem = slaTimeRemaining(t.slaDeadline, t.totalPausedMs);
+    return !rem.expired && rem.ms <= 3600000;
+  }
+
+  slaBadgeText(t: Ticket): string {
+    if (!t.slaDeadline) return 'Sin SLA';
+    const rem = slaTimeRemaining(t.slaDeadline, t.totalPausedMs);
+    if (rem.expired) return 'Vencido';
+    if (rem.ms <= 3600000) return `Por vencer · ${rem.label}`;
+    return rem.label;
+  }
+
+  slaBadgeColor(t: Ticket): string {
+    if (!t.slaDeadline) return 'transparent';
+    const rem = slaTimeRemaining(t.slaDeadline, t.totalPausedMs);
+    if (rem.expired) return '#dc2626';
+    if (rem.ms <= 3600000) return '#ef4444';
+    if (rem.ms <= 21600000) return '#f59e0b';
+    return '#16a34a';
+  }
+
+  slaPct(t: Ticket): number {
+    if (!t.slaDeadline) return 0;
+    const baseMs = (SLA_HOURS[t.priority] ?? 24) * 3600000;
+    const rem = slaTimeRemaining(t.slaDeadline, t.totalPausedMs);
+    if (rem.expired) return 100;
+    const used = baseMs - rem.ms;
+    return Math.max(0, Math.min(100, Math.round((used / baseMs) * 100)));
+  }
+
+  kanbanPrioMod(t: Ticket): string {
+    return 'ts-kanban-card--' + t.priority;
+  }
+
+  kanbanPriorityColor(p: string): string {
+    const colors: Record<string, string> = { critical: '#EF4444', high: '#F97316', medium: '#3B82F6', low: '#94A3B8' };
+    return colors[p] ?? '#94A3B8';
+  }
+
+  kanbanAge(t: Ticket): string {
+    return formatShortDuration(minutesSince(t.createdAt));
+  }
+
+  kanbanAssigned(t: Ticket): string {
+    return t.assignedToName || '—';
+  }
+
+  kanbanSource(t: Ticket): string {
+    if (t.sourceType === 'whatsapp') return 'WhatsApp';
+    if (t.sourceType === 'web') return 'Web';
+    if (t.sourceType === 'internal') return 'Interno';
+    if (t.sourceType === 'email') return 'Correo';
+    return 'Web';
+  }
+
+  refresh(): void {
+    this.load();
+    this.loadCounts();
   }
 
   changeTicketStatus(ticket: Ticket, newStatus: string, event: Event): void {

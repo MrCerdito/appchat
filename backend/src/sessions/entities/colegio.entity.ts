@@ -34,7 +34,7 @@ export class Colegio {
   @Column({ name: 'logo_url', type: 'text', nullable: true })
   logoUrl: string | null;
 
-  @Column({ type: 'jsonb', default: "'[]'" })
+  @Column({ type: 'jsonb', default: () => "'[]'::jsonb" })
   links: string[];
 
   @Column({ type: 'boolean', default: true })

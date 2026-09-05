@@ -109,6 +109,17 @@ export class NotificationsService {
     );
   }
 
+  async remove(id: string, userId: string): Promise<void> {
+    await this.notifRepo.delete({ id, recipientId: userId });
+  }
+
+  async removeMany(userId: string, ids?: string[]): Promise<{ removed: number }> {
+    const where: Record<string, unknown> = { recipientId: userId };
+    if (ids && ids.length) where.id = In(ids);
+    const result = await this.notifRepo.delete(where);
+    return { removed: result.affected ?? 0 };
+  }
+
   async getPreferences(userId: string): Promise<NotificationPreferences> {
     const pref = await this.prefRepo.findOne({ where: { userId } });
     if (!pref?.prefs) return DEFAULT_NOTIFICATION_PREFERENCES;

@@ -246,6 +246,31 @@ export class NotificationRealtimeService {
       );
   }
 
+  remove(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.api}/${id}`).pipe(
+      map(() => {
+        const removed = this.notifications().find((n) => n.id === id);
+        this.notifications.set(this.notifications().filter((n) => n.id !== id));
+        this.total.update((t) => Math.max(0, t - 1));
+        if (removed && !removed.read) {
+          this.unreadCount.update((c) => Math.max(0, c - 1));
+        }
+      }),
+    );
+  }
+
+  removeMany(ids?: string[]): Observable<void> {
+    return this.http.request<void>('delete', this.api, { body: { ids } }).pipe(
+      map(() => {
+        const toRemove = new Set<string>(ids ?? this.notifications().map((n) => n.id));
+        const keep = this.notifications().filter((n) => !toRemove.has(n.id));
+        this.notifications.set(keep);
+        this.total.set(keep.length);
+        this.unreadCount.set(keep.filter((n) => !n.read).length);
+      }),
+    );
+  }
+
   getPreferences(): Observable<NotificationPreferences> {
     return this.http.get<NotificationPreferences>(`${this.api}/preferences`);
   }

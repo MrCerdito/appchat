@@ -261,11 +261,6 @@ export class OperacionesAsignarComponent implements OnInit, OnDestroy {
     this.router.navigate(['/admin/operaciones']);
   }
 
-  openAdminSidebar(): void {
-    const btn = document.querySelector('.sidebar-toggle-btn') as HTMLButtonElement;
-    btn?.click();
-  }
-
   ngOnDestroy(): void {
     this.subs.forEach(s => s.unsubscribe());
   }

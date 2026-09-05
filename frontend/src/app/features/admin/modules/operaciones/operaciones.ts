@@ -1062,11 +1062,6 @@ export class OperacionesComponent implements OnInit, OnDestroy {
     });
   }
 
-  openAdminSidebar(): void {
-    const btn = document.querySelector('.sidebar-toggle-btn') as HTMLButtonElement;
-    btn?.click();
-  }
-
   ngOnDestroy(): void {
     this.stopProgressTimer();
     this.subs.forEach(s => s.unsubscribe());

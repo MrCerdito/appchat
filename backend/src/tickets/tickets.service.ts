@@ -149,7 +149,7 @@ export class TicketsService {
       message: `Se creo el ticket ${codigo}: "${dto.titulo}"`,
       entityId: saved.id,
       entityCodigo: codigo,
-      recipientId: createdBy?.id ?? userId,
+      recipientIds: [createdBy?.id ?? userId],
       senderId: userId,
       meta: { priority: saved.priority, sourceType: saved.sourceType },
     });
@@ -161,7 +161,7 @@ export class TicketsService {
         message: `${createdBy?.name ?? 'Sistema'} te asigno el ticket ${codigo}: "${dto.titulo}"`,
         entityId: saved.id,
         entityCodigo: codigo,
-        recipientId: assignedTo.id,
+        recipientIds: [assignedTo.id],
         senderId: userId,
         meta: { priority: saved.priority },
       });
@@ -400,35 +400,31 @@ export class TicketsService {
 
       const recipients = this.collectTicketRecipients(ticket, userId);
 
-      for (const rid of recipients) {
-        await this.emitNotification({
-          type: 'ticket_priority_changed',
-          title: `Prioridad cambiada: ${ticket.codigo}`,
-          message: `${sender?.name ?? 'Sistema'} cambio la prioridad de ${PRIORITY_LABELS[oldPriority] ?? oldPriority} a ${PRIORITY_LABELS[dto.priority] ?? dto.priority} en ${ticket.codigo}`,
-          entityId: ticket.id,
-          entityCodigo: ticket.codigo,
-          recipientId: rid,
-          senderId: userId,
-          meta: { oldPriority, newPriority: dto.priority },
-        });
-      }
+      await this.emitNotification({
+        type: 'ticket_priority_changed',
+        title: `Prioridad cambiada: ${ticket.codigo}`,
+        message: `${sender?.name ?? 'Sistema'} cambio la prioridad de ${PRIORITY_LABELS[oldPriority] ?? oldPriority} a ${PRIORITY_LABELS[dto.priority] ?? dto.priority} en ${ticket.codigo}`,
+        entityId: ticket.id,
+        entityCodigo: ticket.codigo,
+        recipientIds: recipients,
+        senderId: userId,
+        meta: { oldPriority, newPriority: dto.priority },
+      });
     }
 
     if (baseChanges.length > 0) {
       const recipients = this.collectTicketRecipients(ticket, userId);
 
-      for (const rid of recipients) {
-        await this.emitNotification({
-          type: 'ticket_updated',
-          title: `Ticket actualizado: ${ticket.codigo}`,
-          message: `${sender?.name ?? 'Sistema'} modifico ${baseChanges.join(', ')} en ${ticket.codigo}: "${ticket.titulo}"`,
-          entityId: ticket.id,
-          entityCodigo: ticket.codigo,
-          recipientId: rid,
-          senderId: userId,
-          meta: { changes: baseChanges },
-        });
-      }
+      await this.emitNotification({
+        type: 'ticket_updated',
+        title: `Ticket actualizado: ${ticket.codigo}`,
+        message: `${sender?.name ?? 'Sistema'} modifico ${baseChanges.join(', ')} en ${ticket.codigo}: "${ticket.titulo}"`,
+        entityId: ticket.id,
+        entityCodigo: ticket.codigo,
+        recipientIds: recipients,
+        senderId: userId,
+        meta: { changes: baseChanges },
+      });
     }
 
     if (dto.status !== undefined && dto.status !== oldStatus) {
@@ -475,21 +471,19 @@ export class TicketsService {
       const toLabel = STATUS_LABELS[dto.status] ?? dto.status;
       const fromLabel = STATUS_LABELS[prevStatus] ?? prevStatus;
 
-      for (const rid of recipients) {
-        await this.emitNotification({
-          type: notifType,
-          title: `${toLabel}: ${ticket.codigo}`,
-          message:
-            closed || denied
-              ? `${sender?.name ?? 'Sistema'} ${action} el ticket ${ticket.codigo}: "${ticket.titulo}" (estado previo: "${fromLabel}")`
-              : `${sender?.name ?? 'Sistema'} ${action} "${fromLabel}" a "${toLabel}" en ${ticket.codigo}: "${ticket.titulo}"`,
-          entityId: ticket.id,
-          entityCodigo: ticket.codigo,
-          recipientId: rid,
-          senderId: userId,
-          meta: { oldStatus: prevStatus, newStatus: dto.status },
-        });
-      }
+      await this.emitNotification({
+        type: notifType,
+        title: `${toLabel}: ${ticket.codigo}`,
+        message:
+          closed || denied
+            ? `${sender?.name ?? 'Sistema'} ${action} el ticket ${ticket.codigo}: "${ticket.titulo}" (estado previo: "${fromLabel}")`
+            : `${sender?.name ?? 'Sistema'} ${action} "${fromLabel}" a "${toLabel}" en ${ticket.codigo}: "${ticket.titulo}"`,
+        entityId: ticket.id,
+        entityCodigo: ticket.codigo,
+        recipientIds: recipients,
+        senderId: userId,
+        meta: { oldStatus: prevStatus, newStatus: dto.status },
+      });
     }
 
     if (dto.assignedToId !== undefined) {
@@ -509,7 +503,7 @@ export class TicketsService {
             message: `${sender?.name ?? 'Sistema'} reasigno ${ticket.codigo} a ${newAssigned.name}`,
             entityId: ticket.id,
             entityCodigo: ticket.codigo,
-            recipientId: prevAssignedId,
+            recipientIds: [prevAssignedId],
             senderId: userId,
             meta: { reassignedTo: newAssigned.name, reassignedToId: newAssigned.id },
           });
@@ -522,7 +516,7 @@ export class TicketsService {
             message: `${sender?.name ?? 'Sistema'} te asigno ${ticket.codigo}: "${ticket.titulo}"`,
             entityId: ticket.id,
             entityCodigo: ticket.codigo,
-            recipientId: newAssigned.id,
+            recipientIds: [newAssigned.id],
             senderId: userId,
             meta: { priority: ticket.priority },
           });
@@ -538,27 +532,9 @@ export class TicketsService {
   async delete(id: string, userId?: string): Promise<void> {
     const ticket = await this.findById(id);
 
-    const recipientIds = new Set<string>();
-    const admins = await this.userRepo.find({ where: { role: 'admin' } });
-    for (const admin of admins) recipientIds.add(admin.id);
-
     const result = await this.repo.delete(id);
     if (result.affected === 0)
       throw new NotFoundException('Ticket no encontrado');
-
-    for (const rid of recipientIds) {
-      if (rid === userId) continue;
-      await this.emitNotification({
-        type: 'ticket_deleted',
-        title: `Ticket eliminado: ${ticket.codigo}`,
-        message: `El ticket ${ticket.codigo}: "${ticket.titulo}" fue eliminado`,
-        entityId: id,
-        entityCodigo: ticket.codigo,
-        recipientId: rid,
-        senderId: userId,
-        meta: { priority: ticket.priority },
-      });
-    }
 
     this.gateway.broadcastTicketEvent('ticket:deleted', { id, codigo: ticket.codigo });
   }
@@ -588,18 +564,16 @@ export class TicketsService {
     const actorName = user?.name ?? 'Sistema';
     const recipients = this.collectTicketRecipients(ticket, user?.id);
 
-    for (const rid of recipients) {
-      await this.emitNotification({
-        type: 'ticket_note',
-        title: `Nueva nota: ${ticket.codigo}`,
-        message: `${actorName} agrego una nota a ${ticket.codigo}: "${ticket.titulo}"`,
-        entityId: ticket.id,
-        entityCodigo: ticket.codigo,
-        recipientId: rid,
-        senderId: user?.id,
-        meta: { priority: ticket.priority },
-      });
-    }
+    await this.emitNotification({
+      type: 'ticket_note',
+      title: `Nueva nota: ${ticket.codigo}`,
+      message: `${actorName} agrego una nota a ${ticket.codigo}: "${ticket.titulo}"`,
+      entityId: ticket.id,
+      entityCodigo: ticket.codigo,
+      recipientIds: recipients,
+      senderId: user?.id,
+      meta: { priority: ticket.priority },
+    });
 
     this.gateway.broadcastTicketEvent('ticket:updated', { id: updated.id, codigo: updated.codigo });
     return updated;
@@ -669,28 +643,46 @@ export class TicketsService {
     message: string;
     entityId: string;
     entityCodigo?: string;
-    recipientId?: string | null;
+    recipientIds?: (string | null | undefined)[] | Set<string>;
     senderId?: string | null;
     meta?: Record<string, any>;
   }): Promise<void> {
-    if (!data.recipientId) return;
-    const recipientId: string = data.recipientId;
-    try {
-      await this.notifications.create({
-        type: data.type,
-        title: data.title,
-        message: data.message,
-        entityType: 'ticket',
-        entityId: data.entityId,
-        entityCodigo: data.entityCodigo,
-        recipientId,
-        senderId: data.senderId ?? undefined,
-        meta: data.meta,
-      });
-    } catch (err) {
-      this.logger.warn(
-        `Failed to emit notification ${data.type}: ${(err as Error).message}`,
-      );
+    const recipients = new Set<string>();
+
+    if (data.recipientIds) {
+      for (const id of data.recipientIds) {
+        if (id) recipients.add(id);
+      }
+    }
+
+    const admins = await this.userRepo.find({
+      where: { role: 'admin' as any },
+      select: ['id'],
+    });
+    for (const admin of admins) recipients.add(admin.id);
+
+    if (data.senderId) recipients.delete(data.senderId);
+
+    if (recipients.size === 0) return;
+
+    for (const recipientId of recipients) {
+      try {
+        await this.notifications.create({
+          type: data.type,
+          title: data.title,
+          message: data.message,
+          entityType: 'ticket',
+          entityId: data.entityId,
+          entityCodigo: data.entityCodigo,
+          recipientId,
+          senderId: data.senderId ?? undefined,
+          meta: data.meta,
+        });
+      } catch (err) {
+        this.logger.warn(
+          `Failed to emit notification ${data.type}: ${(err as Error).message}`,
+        );
+      }
     }
   }
 }

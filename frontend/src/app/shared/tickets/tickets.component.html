@@ -346,10 +346,26 @@
     }
 
     @if (activeView === 'list') {
-    <div class="ts-view">
+    <div class="ts-view" [class.ts-view--kanban]="viewMode === 'kanban'">
       <div class="ts-page-header">
+        @if (viewMode === 'kanban') {
+        <div class="ts-kanban-heading">
+          <div class="ts-kanban-heading-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <path d="M16 13l-5 5-3-3"/>
+            </svg>
+          </div>
+          <div class="ts-kanban-heading-text">
+            <h1>Tablero de Tickets</h1>
+            <p>Gestiona y da seguimiento a los tickets de soporte en cada estado.</p>
+          </div>
+        </div>
+        }
         <div class="ts-page-actions">
-          @if (hasActiveFilters) {
+          @if (hasActiveFilters && viewMode !== 'kanban') {
           <button class="ts-btn ts-btn-ghost ts-btn-sm" (click)="clearFilters()">Limpiar</button>
           }
         </div>
@@ -368,15 +384,26 @@
               Kanban
             </button>
           </div>
+          @if (viewMode === 'kanban') {
+          <button class="ts-refresh-btn" type="button" (click)="refresh()" title="Actualizar" aria-label="Actualizar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="17" height="17"
+              stroke-linecap="round" stroke-linejoin="round" [class.ts-spin]="loading">
+              <polyline points="23 4 23 10 17 10"/>
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+          </button>
+          } @else {
           <button class="ts-btn ts-btn-primary" type="button" (click)="openCreateModal()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
               <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
             </svg>
             Nuevo ticket
           </button>
+          }
         </div>
       </div>
 
+      @if (viewMode !== 'kanban') {
       <div class="ts-summary">
         @for (card of summaryCards; track card.label) {
         <button
@@ -405,6 +432,7 @@
         </button>
         }
       </div>
+      }
 
       <div class="ts-table-section">
         <div class="ts-table-toolbar">
@@ -494,11 +522,13 @@
                 <th>Fuente</th>
                 <th>Prioridad</th>
                 <th>Estado</th>
+                <th>SLA</th>
                 <th>Categoria</th>
                 <th>Modulo</th>
                 <th>Asignado a</th>
                 <th>Creado por</th>
                 <th>Fecha</th>
+                @if (isAdmin) { <th class="th-actions"></th> }
               </tr>
             </thead>
             <tbody>
@@ -525,11 +555,44 @@
                     {{ statusLabel(t.status) }}
                   </span>
                 </td>
+                <td class="cell-sla">
+                  @if (slaIsPaused(t)) {
+                  <span class="ts-sla-badge ts-sla-paused">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><circle cx="12" cy="12" r="10"/><line x1="9" y1="9" x2="9" y2="15"/><line x1="15" y1="9" x2="15" y2="15"/></svg>
+                    Pausado
+                  </span>
+                  } @else if (slaDone(t)) {
+                  <span class="ts-sla-badge ts-sla-done">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="20 6 9 17 4 12"/></svg>
+                    Cumplido
+                  </span>
+                  } @else if (!t.slaDeadline) {
+                  <span class="ts-sla-badge ts-sla-none">Sin SLA</span>
+                  } @else {
+                  <div class="ts-sla-cell" [class.ts-sla-cell--urgent]="slaUrgent(t)" [title]="'Vence: ' + fmtMedium(t.slaDeadline)">
+                    <span class="ts-sla-badge" [style.background]="slaBadgeColor(t)">
+                      {{ slaBadgeText(t) }}
+                    </span>
+                    <span class="ts-sla-bar">
+                      <span class="ts-sla-fill" [style.width.%]="slaPct(t)" [style.background]="slaBadgeColor(t)"></span>
+                    </span>
+                  </div>
+                  }
+                </td>
                 <td>{{ t.category || '?' }}</td>
                 <td>{{ getModuloNombre(t.assignedTo?.id || '') || '—' }}</td>
                 <td>{{ t.assignedToName || '—' }}</td>
                 <td>{{ t.createdBy?.name || '—' }}</td>
                 <td class="cell-date">{{ fmtDateShort(t.createdAt) }}</td>
+                @if (isAdmin) {
+                <td class="ts-actions-cell" (click)="$event.stopPropagation()">
+                  <button class="ts-action-trigger ts-action-delete" type="button" title="Eliminar ticket" aria-label="Eliminar ticket" (click)="deleteTicket(t, $event)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+                      <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>
+                    </svg>
+                  </button>
+                </td>
+                }
               </tr>
               }
             </tbody>
@@ -571,7 +634,17 @@
             [cdkDropListData]="col.tickets"
             (cdkDropListDropped)="onDrop($event, col.status)">
             <div class="ts-kanban-header">
-              <span class="ts-kanban-dot" [style.background]="statusColor(col.status)"></span>
+              <span class="ts-kanban-ico" [style.background]="'color-mix(in srgb, ' + statusColor(col.status) + ' 16%, transparent)'" [style.color]="statusColor(col.status)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+                  @switch (col.status) {
+                    @case ('open') { <circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3" fill="currentColor"/> }
+                    @case ('in_progress') { <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/> }
+                    @case ('on_hold') { <circle cx="12" cy="12" r="10"/><line x1="9" y1="9" x2="9" y2="15"/><line x1="15" y1="9" x2="15" y2="15"/> }
+                    @case ('denied') { <circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/> }
+                    @default { <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/> }
+                  }
+                </svg>
+              </span>
               <span class="ts-kanban-label">{{ col.label }}</span>
               <span class="ts-kanban-count">{{ col.tickets.length }}</span>
             </div>
@@ -579,29 +652,47 @@
               @for (t of col.tickets; track t.id) {
               <div
                 class="ts-kanban-card"
+                [ngClass]="kanbanPrioMod(t)"
+                [style.--ts-priority]="kanbanPriorityColor(t.priority)"
                 cdkDrag
                 (click)="selectTicket(t)">
                 <div class="ts-kanban-card-head">
                   <span class="ts-kanban-code">{{ t.codigo }}</span>
-                  <span class="ts-badge ts-badge-priority" [style.--ts-color]="priorityColor(t.priority)">
-                    {{ priorityLabel(t.priority) }}
-                  </span>
+                  <span class="ts-kanban-badge" [ngClass]="'ts-kanban-badge--' + t.priority">{{ priorityLabel(t.priority) }}</span>
                 </div>
-                <div class="ts-kanban-title">{{ t.titulo }}</div>
+                <div class="ts-kanban-title" title="{{ t.titulo }}">{{ t.titulo }}</div>
+                @if (t.descripcion) {
+                <p class="ts-kanban-desc">{{ t.descripcion }}</p>
+                }
                 <div class="ts-kanban-footer">
-                  <span class="ts-kanban-client">{{ t.clientName }}</span>
-                  <span class="ts-kanban-source" [class.ts-kanban-source-whatsapp]="t.sourceType === 'whatsapp'">
-                    {{ t.sourceType === 'web' ? 'Web' : 'WA' }}
+                  <span class="ts-kanban-time">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    {{ kanbanAge(t) }}
                   </span>
+                  <span class="ts-kanban-assigned">{{ kanbanAssigned(t) }}</span>
+                  <span class="ts-kanban-source" [ngClass]="'ts-kanban-source--' + t.sourceType">{{ kanbanSource(t) }}</span>
                 </div>
                 @if (canOpenCloseEmail(t)) {
                 <button class="ts-kanban-close-btn" type="button" (click)="$event.stopPropagation(); openCloseEmailModal(t, 'kanban')">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                  Cerrar y enviar correo
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                  Enviar correo y marcar cerrado
                 </button>
                 }
               </div>
+              } @empty {
+              <div class="ts-kanban-empty">
+                <span class="ts-kanban-empty-ico" [style.background]="'color-mix(in srgb, ' + statusColor(col.status) + ' 14%, transparent)'" [style.color]="statusColor(col.status)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><circle cx="12" cy="12" r="9"/><path d="M4.5 4.5 2 7"/><path d="M19.5 4.5 22 7"/><circle cx="12" cy="12" r="3"/><path d="M9 15.3c.7.8 1.8 1.2 3 1.2s2.3-.4 3-1.2"/></svg>
+                </span>
+                <span class="ts-kanban-empty-title">Sin tickets</span>
+                <span class="ts-kanban-empty-desc">No hay tickets en este estado.</span>
+              </div>
               }
+            </div>
+          </div>
+          }
+        </div>
+        }
 
 @if (showCloseEmailModal && closeEmailTicket) {
 <div class="ts-modal-backdrop ts-modal-backdrop--clear" (click)="cancelCloseEmail()">
@@ -685,17 +776,7 @@
   </section>
 </div>
 }
-              @if (col.tickets.length === 0) {
-              <div class="ts-kanban-empty">
-                <span>Sin tickets</span>
               </div>
-              }
-            </div>
-          </div>
-          }
-        </div>
-        }
-      </div>
       </div>
     </div>
     }

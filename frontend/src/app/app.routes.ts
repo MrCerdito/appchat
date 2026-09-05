@@ -99,7 +99,7 @@ export const routes: Routes = [
       {
         path: 'history',
         loadComponent: () =>
-          import('./features/admin/modules/history/history').then(m => m.HistoryGlobalComponent),
+          import('./features/advisor/modules/history/history').then(m => m.HistoryGlobalComponent),
       },
       {
         path: 'operaciones',

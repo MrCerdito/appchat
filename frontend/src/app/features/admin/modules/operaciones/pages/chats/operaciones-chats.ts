@@ -537,11 +537,6 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
     this.router.navigate(['/admin/operaciones']);
   }
 
-  openAdminSidebar(): void {
-    const btn = document.querySelector('.sidebar-toggle-btn') as HTMLButtonElement;
-    btn?.click();
-  }
-
   enviarMensaje(): void {
     if (this.selectedFile) {
       this.enviarMedia();

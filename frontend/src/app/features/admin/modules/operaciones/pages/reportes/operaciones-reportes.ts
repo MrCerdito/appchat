@@ -144,11 +144,6 @@ export class OperacionesReportesComponent implements OnInit, OnDestroy {
     this.router.navigate(['/admin/operaciones']);
   }
 
-  openAdminSidebar(): void {
-    const btn = document.querySelector('.sidebar-toggle-btn') as HTMLButtonElement;
-    btn?.click();
-  }
-
   serieMax(series: WaReportSeries[] | undefined): number {
     if (!series || series.length === 0) return 1;
     return Math.max(...series.map((s) => Math.max(s.recibidos, s.asignados, s.cerrados)), 1);

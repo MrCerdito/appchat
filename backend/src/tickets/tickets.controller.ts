@@ -86,7 +86,7 @@ export class TicketsController {
     return this.ticketsService.update(id, dto, req.user.id, req.user.role);
   }
 
-  @Roles('admin', 'advisor', 'desarrollador')
+  @Roles('admin')
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   delete(@Param('id') id: string) {
