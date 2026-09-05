@@ -27,6 +27,26 @@ export class QueryTicketDto {
 
   @IsString()
   @IsOptional()
+  createdById?: string;
+
+  @IsString()
+  @IsOptional()
+  dateFrom?: string;
+
+  @IsString()
+  @IsOptional()
+  dateTo?: string;
+
+  @IsString()
+  @IsOptional()
+  sortBy?: string;
+
+  @IsString()
+  @IsOptional()
+  sortDirection?: string;
+
+  @IsString()
+  @IsOptional()
   page?: string;
 
   @IsString()

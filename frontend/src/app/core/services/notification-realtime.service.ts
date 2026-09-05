@@ -16,6 +16,7 @@ export class NotificationRealtimeService {
   private readonly api = `${environment.apiUrl}/notifications`;
   private destroy$ = new Subject<void>();
   private initialized = false;
+  private currentUserId = '';
 
   readonly notifications = signal<AppNotification[]>([]);
   readonly total = signal<number>(0);
@@ -37,21 +38,44 @@ export class NotificationRealtimeService {
     if (this.initialized) return;
     this.initialized = true;
 
-    this.fetchUnreadCount().subscribe();
+    this.auth.user$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((user) => {
+        const id = user?.id ?? '';
+        if (id && id !== this.currentUserId) {
+          this.currentUserId = id;
+          this.resetState();
+          this.loadAll();
+        }
+      });
 
     socket.on<any>('notification')
       .pipe(takeUntil(this.destroy$))
       .subscribe((notif) => {
-        if (notif && notif.id) {
-          this.notifications.update((list) => [notif, ...list]);
-          this.unreadCount.update((c) => c + 1);
-          this.total.update((t) => t + 1);
+        if (!notif || !notif.id) return;
+        if (notif.recipientId && notif.recipientId !== this.currentUserId) return;
+        const exists = this.notifications().some((n) => n.id === notif.id);
+        if (exists) return;
+        this.notifications.update((list) => [notif, ...list]);
+        this.unreadCount.update((c) => c + 1);
+        this.total.update((t) => t + 1);
 
-          if (notif._desktop && this.permission() === 'granted') {
-            this.showDesktopNotification(notif);
-          }
+        if (notif._desktop && this.permission() === 'granted') {
+          this.showDesktopNotification(notif);
         }
       });
+  }
+
+  private resetState(): void {
+    this.notifications.set([]);
+    this.total.set(0);
+    this.unreadCount.set(0);
+    this.nextPage.set(2);
+  }
+
+  private loadAll(): void {
+    this.fetchUnreadCount().subscribe({ error: () => undefined });
+    this.fetchAll(50).subscribe({ error: () => undefined });
   }
 
   requestPermission(): void {
@@ -124,6 +148,40 @@ export class NotificationRealtimeService {
           return res;
         }),
       );
+  }
+
+  fetchAll(limit = 50): Observable<NotificationListResponse> {
+    return new Observable<NotificationListResponse>((subscriber) => {
+      const requestPage = (page: number, accumulated: AppNotification[]): void => {
+        this.http
+          .get<NotificationListResponse>(this.api, {
+            params: { page: String(page), limit: String(limit) },
+          })
+          .subscribe({
+            next: (res) => {
+              const merged = new Map<string, AppNotification>();
+              for (const n of accumulated) merged.set(n.id, n);
+              for (const n of res.data) merged.set(n.id, n);
+              const sorted = [...merged.values()].sort(
+                (a, b) =>
+                  new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+              );
+              this.notifications.set(sorted);
+              this.total.set(res.total);
+              this.unreadCount.set(res.unreadCount);
+              this.nextPage.set(page + 1);
+              if (sorted.length < res.total && res.data.length > 0) {
+                requestPage(page + 1, sorted);
+              } else {
+                subscriber.next(res);
+                subscriber.complete();
+              }
+            },
+            error: (err) => subscriber.error(err),
+          });
+      };
+      requestPage(1, []);
+    });
   }
 
   loadMore(limit = 20): Observable<NotificationListResponse> {

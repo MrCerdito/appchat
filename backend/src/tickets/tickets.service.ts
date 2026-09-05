@@ -227,6 +227,21 @@ export class TicketsService {
         assignedTo: query.assignedTo,
       });
     }
+    if (query.createdById) {
+      qb.andWhere('t.createdBy = :createdBy', {
+        createdBy: query.createdById,
+      });
+    }
+    if (query.dateFrom) {
+      qb.andWhere('t.createdAt >= :dateFrom', {
+        dateFrom: new Date(query.dateFrom),
+      });
+    }
+    if (query.dateTo) {
+      qb.andWhere('t.createdAt < :dateTo', {
+        dateTo: new Date(query.dateTo),
+      });
+    }
 
     const page = Math.max(1, parseInt(query.page ?? '1', 10));
     const limit = Math.min(
@@ -234,7 +249,27 @@ export class TicketsService {
       Math.max(1, parseInt(query.limit ?? '20', 10)),
     );
 
-    qb.orderBy('t.createdAt', 'DESC');
+    const direction = query.sortDirection === 'asc' ? 'ASC' : 'DESC';
+    if (query.sortBy === 'priority') {
+      qb.addSelect(
+        `CASE t.priority WHEN 'critical' THEN 4 WHEN 'high' THEN 3 WHEN 'medium' THEN 2 WHEN 'low' THEN 1 ELSE 0 END`,
+        'ticket_priority_order',
+      ).addOrderBy('ticket_priority_order', direction);
+    } else if (query.sortBy === 'status') {
+      qb.addSelect(
+        `CASE t.status WHEN 'open' THEN 1 WHEN 'in_progress' THEN 2 WHEN 'on_hold' THEN 3 WHEN 'denied' THEN 4 WHEN 'resolved' THEN 5 WHEN 'closed' THEN 6 ELSE 7 END`,
+        'ticket_status_order',
+      ).addOrderBy('ticket_status_order', direction);
+    } else if (query.sortBy === 'codigo') {
+      qb.addOrderBy('t.codigo', direction);
+    } else if (query.sortBy === 'titulo') {
+      qb.addOrderBy('t.titulo', direction);
+    } else if (query.sortBy === 'clientName') {
+      qb.addOrderBy('t.clientName', direction);
+    } else {
+      qb.addOrderBy('t.createdAt', direction);
+    }
+    qb.addOrderBy('t.createdAt', 'DESC');
     qb.skip((page - 1) * limit).take(limit);
 
     const [data, total] = await qb.getManyAndCount();
@@ -278,6 +313,20 @@ export class TicketsService {
 
     if (query.assignedTo) {
       qb.andWhere('t.assignedTo = :assignedTo', { assignedTo: query.assignedTo });
+    }
+    if (query.createdById) {
+      qb.andWhere('t.createdBy = :createdBy', { createdBy: query.createdById });
+    }
+
+    if (query.dateFrom) {
+      qb.andWhere('t.createdAt >= :dateFrom', {
+        dateFrom: new Date(query.dateFrom),
+      });
+    }
+    if (query.dateTo) {
+      qb.andWhere('t.createdAt < :dateTo', {
+        dateTo: new Date(query.dateTo),
+      });
     }
 
     const tickets = await qb
@@ -411,11 +460,29 @@ export class TicketsService {
 
       const recipients = this.collectTicketRecipients(ticket, userId);
 
+      const closed = dto.status === 'closed';
+      const denied = dto.status === 'denied';
+      const notifType = closed
+        ? 'ticket_closed'
+        : denied
+          ? 'ticket_denied'
+          : 'ticket_status_changed';
+      const action = closed
+        ? 'cerro'
+        : denied
+          ? 'nego'
+          : 'cambio el estado de';
+      const toLabel = STATUS_LABELS[dto.status] ?? dto.status;
+      const fromLabel = STATUS_LABELS[prevStatus] ?? prevStatus;
+
       for (const rid of recipients) {
         await this.emitNotification({
-          type: 'ticket_status_changed',
-          title: `Estado cambiado: ${ticket.codigo}`,
-          message: `${sender?.name ?? 'Sistema'} cambio el estado de "${STATUS_LABELS[prevStatus] ?? prevStatus}" a "${STATUS_LABELS[dto.status] ?? dto.status}" en ${ticket.codigo}`,
+          type: notifType,
+          title: `${toLabel}: ${ticket.codigo}`,
+          message:
+            closed || denied
+              ? `${sender?.name ?? 'Sistema'} ${action} el ticket ${ticket.codigo}: "${ticket.titulo}" (estado previo: "${fromLabel}")`
+              : `${sender?.name ?? 'Sistema'} ${action} "${fromLabel}" a "${toLabel}" en ${ticket.codigo}: "${ticket.titulo}"`,
           entityId: ticket.id,
           entityCodigo: ticket.codigo,
           recipientId: rid,
@@ -523,7 +590,7 @@ export class TicketsService {
 
     for (const rid of recipients) {
       await this.emitNotification({
-        type: 'ticket_updated',
+        type: 'ticket_note',
         title: `Nueva nota: ${ticket.codigo}`,
         message: `${actorName} agrego una nota a ${ticket.codigo}: "${ticket.titulo}"`,
         entityId: ticket.id,

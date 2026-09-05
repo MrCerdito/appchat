@@ -111,7 +111,8 @@ export class NotificationsService {
 
   async getPreferences(userId: string): Promise<NotificationPreferences> {
     const pref = await this.prefRepo.findOne({ where: { userId } });
-    return pref?.prefs ?? DEFAULT_NOTIFICATION_PREFERENCES;
+    if (!pref?.prefs) return DEFAULT_NOTIFICATION_PREFERENCES;
+    return { ...DEFAULT_NOTIFICATION_PREFERENCES, ...pref.prefs };
   }
 
   async updatePreferences(

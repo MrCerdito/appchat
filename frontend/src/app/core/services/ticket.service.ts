@@ -41,6 +41,10 @@ export class TicketService {
       if (query.sourceType) params = params.set('sourceType', query.sourceType);
       if (query.assignedTo) params = params.set('assignedTo', query.assignedTo);
       if (query.createdById) params = params.set('createdById', query.createdById);
+      if (query.dateFrom) params = params.set('dateFrom', query.dateFrom);
+      if (query.dateTo) params = params.set('dateTo', query.dateTo);
+      if (query.sortBy) params = params.set('sortBy', query.sortBy);
+      if (query.sortDirection) params = params.set('sortDirection', query.sortDirection);
       if (query.page) params = params.set('page', query.page);
       if (query.limit) params = params.set('limit', query.limit);
     }
@@ -57,6 +61,8 @@ export class TicketService {
       if (query.sourceType) params = params.set('sourceType', query.sourceType);
       if (query.assignedTo) params = params.set('assignedTo', query.assignedTo);
       if (query.createdById) params = params.set('createdById', query.createdById);
+      if (query.dateFrom) params = params.set('dateFrom', query.dateFrom);
+      if (query.dateTo) params = params.set('dateTo', query.dateTo);
     }
     return this.http.get<TicketCountsResponse>(`${environment.apiUrl}/tickets/counts`, { params });
   }

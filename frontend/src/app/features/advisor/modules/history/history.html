@@ -91,10 +91,33 @@
 
         <div class="hv-filters-group">
           <label for="hv-filter-colegio">Colegio</label>
-          <select id="hv-filter-colegio" [(ngModel)]="filterColegio">
-            <option value="">Todos</option>
-            @for (c of colegios; track trackByIndex($index)) { <option [value]="c">{{ c }}</option> }
-          </select>
+          <div class="hv-colegio-dropdown">
+            <button type="button" class="hv-colegio-select" (click)="toggleColegioMenu()">
+              <span>{{ filterColegio || 'Todos' }}</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
+            @if (colegioMenuOpen) {
+            <div class="hv-colegio-panel">
+              <div class="hv-colegio-search">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                </svg>
+                <input type="text" [(ngModel)]="colegioSearch" (ngModelChange)="onColegioSearch()" (keydown)="onColegioKey($event)" autofocus placeholder="Buscar colegio..."/>
+              </div>
+              <div class="hv-colegio-list">
+                <button type="button" class="hv-colegio-option" [class.active]="!filterColegio" (click)="selectColegio('')">Todos</button>
+                @for (c of filteredColegios; track trackByIndex($index)) {
+                <button type="button" class="hv-colegio-option" [class.active]="filterColegio === c" (click)="selectColegio(c)">{{ c }}</button>
+                }
+                @if (filteredColegios.length === 0) {
+                <div class="hv-colegio-empty">Sin resultados</div>
+                }
+              </div>
+            </div>
+            }
+          </div>
         </div>
 
         <div class="hv-filters-group">

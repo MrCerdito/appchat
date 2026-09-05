@@ -429,7 +429,7 @@ export class InternalChatPanelComponent implements OnInit, OnDestroy {
     if (!c) return '';
     if (c.type === 'group') return `${c.members.length} participantes`;
     const other = c.members.find(m => m.id !== this.currentUserId);
-    if (other) return other.role === 'admin' ? 'Administrador' : 'Agente';
+    if (other) return other.role === 'admin' ? 'Administrador' : other.role === 'desarrollador' ? 'Desarrollador' : 'Agente';
     return 'Chat directo';
   }
 

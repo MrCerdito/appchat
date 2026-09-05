@@ -23,6 +23,7 @@ export interface NotificationPreferences {
   ticket_priority_changed: NotificationPreferenceItem;
   ticket_closed: NotificationPreferenceItem;
   ticket_denied: NotificationPreferenceItem;
+  ticket_note: NotificationPreferenceItem;
   ticket_deleted: NotificationPreferenceItem;
   ticket_sla_warning: NotificationPreferenceItem;
   ticket_sla_expired: NotificationPreferenceItem;
@@ -37,6 +38,7 @@ export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   ticket_priority_changed: { inApp: true, desktop: false },
   ticket_closed:         { inApp: true, desktop: true },
   ticket_denied:         { inApp: true, desktop: true },
+  ticket_note:           { inApp: true, desktop: false },
   ticket_deleted:        { inApp: true, desktop: false },
   ticket_sla_warning:    { inApp: true, desktop: true },
   ticket_sla_expired:    { inApp: true, desktop: true },

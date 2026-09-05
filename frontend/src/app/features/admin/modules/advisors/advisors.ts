@@ -225,7 +225,7 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
       email: advisor.email,
       password: '',
       confirm: '',
-      role: advisor.role === 'admin' ? 'admin' : 'advisor',
+      role: advisor.role === 'admin' ? 'admin' : advisor.role === 'desarrollador' ? 'desarrollador' : 'advisor',
     };
     this.formErrors = {};
     this.formBusy = false;
@@ -540,7 +540,7 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
   }
 
   getRoleLabel(role?: string): string {
-    return role === 'admin' ? 'Administrador' : 'Agente';
+    return role === 'admin' ? 'Administrador' : role === 'desarrollador' ? 'Desarrollador' : 'Agente';
   }
 
   formatDate(date?: string): string {

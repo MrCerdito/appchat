@@ -64,6 +64,8 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
 
   // ── Dropdowns ──
   colegios   : string[] = [];
+  colegioSearch = '';
+  colegioMenuOpen = false;
   roles      : string[] = [];
   solicitudes: string[] = [];
   asesores   : string[] = [];
@@ -106,6 +108,39 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
   ) {}
 
   // ── Filtro de sesiones ────────────────────────────────────────────────────
+  get filteredColegios(): string[] {
+    const q = this.colegioSearch.trim().toLowerCase();
+    if (!q) return this.colegios;
+    return this.colegios.filter(c => c?.toLowerCase().includes(q));
+  }
+
+  onColegioSearch(): void {
+    this.cdr.detectChanges();
+  }
+
+  toggleColegioMenu(): void {
+    this.colegioMenuOpen = !this.colegioMenuOpen;
+    if (this.colegioMenuOpen) {
+      this.colegioSearch = '';
+    }
+    this.cdr.detectChanges();
+  }
+
+  selectColegio(value: string): void {
+    this.filterColegio = value;
+    this.colegioMenuOpen = false;
+    this.colegioSearch = '';
+    this.cdr.detectChanges();
+  }
+
+  onColegioKey(event: KeyboardEvent): void {
+    event.stopPropagation();
+    if (event.key === 'Escape') {
+      this.colegioMenuOpen = false;
+      this.cdr.detectChanges();
+    }
+  }
+
   get filteredSessions(): Session[] {
     return this.sessions.filter(s => {
       const matchStatus =
@@ -920,6 +955,14 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
 
   toggleInfo(): void {
     this.infoOpen = !this.infoOpen;
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocClickColegio(event: Event): void {
+    if (this.colegioMenuOpen && !(event.target as HTMLElement).closest('.hv-colegio-dropdown')) {
+      this.colegioMenuOpen = false;
+      this.cdr.detectChanges();
+    }
   }
 
   @HostListener('document:click')

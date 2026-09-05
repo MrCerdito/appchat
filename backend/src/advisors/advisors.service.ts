@@ -94,7 +94,7 @@ export class AdvisorsService {
       ])
       .orderBy('user.createdAt', 'DESC');
 
-    if (role === 'admin' || role === 'advisor') {
+    if (role && role !== 'todos') {
       qb.andWhere('user.role = :role', { role });
     }
 
@@ -309,7 +309,12 @@ export class AdvisorsService {
         const rawUser = {
           email: rawEmail,
           name: rawName,
-          role: (rawRoleStr === 'admin' || rawRoleStr === 'administrador') ? 'admin' : 'advisor',
+          role:
+            rawRoleStr === 'admin' || rawRoleStr === 'administrador'
+              ? 'admin'
+              : rawRoleStr === 'desarrollador'
+                ? 'desarrollador'
+                : 'advisor',
           active: rawActive ? (rawActive.toLowerCase() === 'true' || rawActive === '1') : undefined,
         };
 

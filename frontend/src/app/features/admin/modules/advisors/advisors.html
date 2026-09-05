@@ -193,7 +193,7 @@
             </td>
             <td class="center" data-label="Chats">{{ a.activeChats ?? 0 }}</td>
             <td data-label="Rol">
-              <span class="badge" [class]="a.role === 'admin' ? 'badge-admin' : 'badge-advisor'">
+              <span class="badge" [class]="a.role === 'admin' ? 'badge-admin' : a.role === 'desarrollador' ? 'badge-developer' : 'badge-advisor'">
                 {{ getRoleLabel(a.role) }}
               </span>
             </td>
@@ -467,7 +467,7 @@
     <div class="modal-card delete-modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
       <div class="modal-header danger">
         <div>
-          <h3>¿Eliminar {{ confirmAction.advisor.role === 'admin' ? 'administrador' : 'agente' }}?</h3>
+          <h3>¿Eliminar {{ confirmAction.advisor.role === 'admin' ? 'administrador' : confirmAction.advisor.role === 'desarrollador' ? 'desarrollador' : 'agente' }}?</h3>
           <p>{{ confirmAction.advisor.name }} · {{ confirmAction.advisor.email }}</p>
         </div>
       </div>

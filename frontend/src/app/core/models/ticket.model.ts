@@ -76,6 +76,10 @@ export interface TicketQuery {
   sourceType?: string;
   assignedTo?: string;
   createdById?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  sortBy?: string;
+  sortDirection?: 'asc' | 'desc';
   page?: number;
   limit?: number;
 }

@@ -127,6 +127,11 @@ export class TicketsComponent implements OnInit, OnDestroy {
   sortDirection: 'asc' | 'desc' = 'desc';
   showSortMenu = false;
 
+  dateKey: 'all' | 'today' | 'yesterday' | '7d' | '30d' | 'range' = 'all';
+  dateRangeFrom = '';
+  dateRangeTo = '';
+  showDateMenu = false;
+
   showCloseEmailModal = false;
   closeEmailTicket: Ticket | null = null;
   closeEmailStatus: 'resolved' | 'closed' | '' = '';
@@ -138,6 +143,15 @@ export class TicketsComponent implements OnInit, OnDestroy {
     { value: 'priority', label: 'Prioridad' },
     { value: 'status', label: 'Estado' },
     { value: 'codigo', label: 'Codigo' },
+  ];
+
+  readonly dateFilterOptions: { value: 'all' | 'today' | 'yesterday' | '7d' | '30d' | 'range'; label: string }[] = [
+    { value: 'all', label: 'Todas las fechas' },
+    { value: 'today', label: 'Hoy' },
+    { value: 'yesterday', label: 'Ayer' },
+    { value: '7d', label: 'Ultimos 7 dias' },
+    { value: '30d', label: 'Ultimos 30 dias' },
+    { value: 'range', label: 'Rango de fechas' },
   ];
 
   readonly canalOptions = [
@@ -162,11 +176,59 @@ export class TicketsComponent implements OnInit, OnDestroy {
   }
 
   get hasActiveFilters(): boolean {
-    return Object.values(this.selectedFilters).some(arr => arr.length > 0) || this.search.length > 0;
+    return Object.values(this.selectedFilters).some(arr => arr.length > 0) || this.search.length > 0 || this.hasActiveDateFilter;
   }
 
   get activeFiltersCount(): number {
-    return Object.values(this.selectedFilters).reduce((sum, arr) => sum + arr.length, 0);
+    return Object.values(this.selectedFilters).reduce((sum, arr) => sum + arr.length, 0) + (this.hasActiveDateFilter ? 1 : 0);
+  }
+
+  get hasActiveDateFilter(): boolean {
+    return this.dateKey !== 'all' && this.dateKey !== 'range' || (this.dateKey === 'range' && !!this.dateRangeFrom && !!this.dateRangeTo);
+  }
+
+  get dateFilterLabel(): string {
+    if (this.dateKey === 'range' && this.dateRangeFrom && this.dateRangeTo) {
+      return `${this.fmtDateShort(this.dateRangeFrom)} - ${this.fmtDateShort(this.dateRangeTo)}`;
+    }
+    return this.dateFilterOptions.find(o => o.value === this.dateKey)?.label ?? 'Fecha';
+  }
+
+  private dateBoundaries(): { from: Date; to: Date } {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const addDays = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+    switch (this.dateKey) {
+      case 'today':
+        return { from: startOfToday, to: addDays(startOfToday, 1) };
+      case 'yesterday':
+        return { from: addDays(startOfToday, -1), to: startOfToday };
+      case '7d':
+        return { from: addDays(startOfToday, -6), to: addDays(startOfToday, 1) };
+      case '30d':
+        return { from: addDays(startOfToday, -29), to: addDays(startOfToday, 1) };
+      case 'range': {
+        if (!this.dateRangeFrom || !this.dateRangeTo) return { from: null as any, to: null as any };
+        const from = this.parseDateInput(this.dateRangeFrom);
+        const to = addDays(this.parseDateInput(this.dateRangeTo), 1);
+        return { from, to };
+      }
+      default:
+        return { from: null as any, to: null as any };
+    }
+  }
+
+  private parseDateInput(value: string): Date {
+    const [y, m, d] = value.split('-').map(Number);
+    return new Date(y, (m || 1) - 1, d || 1);
+  }
+
+  private applyActiveDateFilter(query: { dateFrom?: string; dateTo?: string }): void {
+    const { from, to } = this.dateBoundaries();
+    if (from && to) {
+      query.dateFrom = from.toISOString();
+      query.dateTo = to.toISOString();
+    }
   }
 
   get paginationInfo(): string {
@@ -178,6 +240,24 @@ export class TicketsComponent implements OnInit, OnDestroy {
 
   get pageNumbers(): number[] {
     return Array.from({ length: this.pages }, (_, i) => i + 1);
+  }
+
+  get visiblePages(): (number | '...')[] {
+    const total = this.pages;
+    const current = this.page;
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+    const candidates = new Set<number>([1, total, current - 1, current, current + 1]);
+    const sorted = [...candidates]
+      .filter(p => p >= 1 && p <= total)
+      .sort((a, b) => a - b);
+    const result: (number | '...')[] = [];
+    let prev = 0;
+    for (const p of sorted) {
+      if (prev && p - prev > 1) result.push('...');
+      result.push(p);
+      prev = p;
+    }
+    return result;
   }
 
   getPriorityLabel(value: string): string {
@@ -402,6 +482,13 @@ export class TicketsComponent implements OnInit, OnDestroy {
     if (filterParams['category']) query.category = filterParams['category'];
     if (this.isDesarrollador && this.currentUserId) {
       query.assignedTo = this.currentUserId;
+    } else if (this.isAdvisor && this.currentUserId) {
+      query.createdById = this.currentUserId;
+    }
+    this.applyActiveDateFilter(query);
+    if (this.sortBy !== 'createdAt' || this.sortDirection !== 'desc') {
+      query.sortBy = this.sortBy;
+      query.sortDirection = this.sortDirection;
     }
 
     this.ticketService.findAll(query).subscribe({
@@ -424,7 +511,10 @@ export class TicketsComponent implements OnInit, OnDestroy {
     if (this.search) query.search = this.search;
     if (this.isDesarrollador && this.currentUserId) {
       query.assignedTo = this.currentUserId;
+    } else if (this.isAdvisor && this.currentUserId) {
+      query.createdById = this.currentUserId;
     }
+    this.applyActiveDateFilter(query);
 
     this.ticketService.findCounts(query).subscribe({
       next: (res) => {
@@ -470,6 +560,9 @@ export class TicketsComponent implements OnInit, OnDestroy {
   clearFilters(): void {
     this.search = '';
     this.selectedFilters = {};
+    this.dateKey = 'all';
+    this.dateRangeFrom = '';
+    this.dateRangeTo = '';
     this.page = 1;
     this.load();
     this.loadCounts();
@@ -640,6 +733,7 @@ export class TicketsComponent implements OnInit, OnDestroy {
     if (this.detailMenu) { this.detailMenu = null; this.cdr.detectChanges(); return; }
     if (this.actionMenuTicketId) { this.actionMenuTicketId = null; return; }
     if (this.showSortMenu) { this.showSortMenu = false; return; }
+    if (this.showDateMenu) { this.showDateMenu = false; return; }
     if (this.selectedTicket) this.closeDetail();
     if (this.showCreateModal) this.closeCreateModal();
   }
@@ -652,6 +746,9 @@ export class TicketsComponent implements OnInit, OnDestroy {
     }
     if (!target.closest('.ts-sort-wrapper')) {
       this.showSortMenu = false;
+    }
+    if (!target.closest('.ts-date-wrapper')) {
+      this.showDateMenu = false;
     }
   }
 
@@ -711,6 +808,46 @@ export class TicketsComponent implements OnInit, OnDestroy {
     event.stopPropagation();
     this.showSortMenu = !this.showSortMenu;
     this.cdr.detectChanges();
+  }
+
+  toggleDateMenu(event: Event): void {
+    event.stopPropagation();
+    this.showDateMenu = !this.showDateMenu;
+    this.cdr.detectChanges();
+  }
+
+  setDateFilter(value: 'all' | 'today' | 'yesterday' | '7d' | '30d' | 'range'): void {
+    this.dateKey = value;
+    if (value === 'range') {
+      if (!this.dateRangeFrom || !this.dateRangeTo) {
+        this.showDateMenu = true;
+        this.cdr.detectChanges();
+        return;
+      }
+    } else {
+      this.dateRangeFrom = '';
+      this.dateRangeTo = '';
+    }
+    this.showDateMenu = false;
+    this.page = 1;
+    this.load();
+    this.loadCounts();
+  }
+
+  applyDateRange(): void {
+    if (!this.dateRangeFrom || !this.dateRangeTo) {
+      this.notification.error('Campo requerido', 'Selecciona una fecha inicial y final.');
+      return;
+    }
+    if (this.dateRangeFrom > this.dateRangeTo) {
+      this.notification.error('Rango invalido', 'La fecha inicial no puede ser mayor que la final.');
+      return;
+    }
+    this.dateKey = 'range';
+    this.showDateMenu = false;
+    this.page = 1;
+    this.load();
+    this.loadCounts();
   }
 
   // ── Action handlers ────────────────────────────────

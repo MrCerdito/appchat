@@ -513,6 +513,12 @@
   padding: 0 24px 6px;
 }
 
+.ts-toolbar-menu-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .ts-table-toolbar-info {
   font-size: 11px;
   color: var(--text-faint);
@@ -582,6 +588,123 @@
 
   &:hover { background: var(--surface-hover); color: var(--text); }
   &.active { color: #6366f1; font-weight: 600; background: rgba(99, 102, 241, 0.06); }
+}
+
+.ts-date-wrapper {
+  position: relative;
+}
+
+.ts-date-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  svg { width: 12px !important; height: 12px !important; }
+
+  &:hover { border-color: var(--border-strong); color: var(--text); }
+
+  &.active {
+    border-color: #6366f1;
+    color: #6366f1;
+    background: rgba(99, 102, 241, 0.06);
+  }
+}
+
+.ts-date-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 50;
+  padding: 4px;
+  animation: ts-dropdown-in 0.15s ease;
+}
+
+.ts-date-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font);
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.12s ease;
+
+  &:hover { background: var(--surface-hover); color: var(--text); }
+  &.active { color: #6366f1; font-weight: 600; background: rgba(99, 102, 241, 0.06); }
+}
+
+.ts-date-range {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 6px 4px;
+  border-top: 1px solid var(--border);
+
+  label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    span {
+      min-width: 42px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    input[type="date"] {
+      flex: 1;
+      height: 30px;
+      padding: 0 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 12px;
+      font-family: var(--font);
+
+      &:focus { outline: none; border-color: #6366f1; }
+    }
+  }
+}
+
+.ts-date-range-apply {
+  height: 30px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: #6366f1;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: filter 0.15s ease;
+
+  &:hover { filter: brightness(1.1); }
 }
 
 .ts-sort-divider {
@@ -927,6 +1050,16 @@
     border-color: #6366f1;
     box-shadow: 0 1px 3px rgba(99, 102, 241, 0.3);
   }
+}
+
+.ts-page-ellipsis {
+  min-width: 24px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  pointer-events: none;
 }
 
 // ═══════════════════════════════════════════════════════════════════════

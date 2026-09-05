@@ -68,6 +68,7 @@ import { NotificationRealtimeService } from '../../core/services/notification-re
                     @case ('ticket_updated') { <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/> }
                     @case ('ticket_status_changed') { <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/> }
                     @case ('ticket_priority_changed') { <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/> }
+                    @case ('ticket_note') { <line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="13" y2="18"/> }
                     @case ('ticket_closed') { <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/> }
                     @case ('ticket_denied') { <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/> }
                     @case ('ticket_deleted') { <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/> }
@@ -417,6 +418,7 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
       ticket_priority_changed: '#f97316',
       ticket_closed: '#10b981',
       ticket_denied: '#ef4444',
+      ticket_note: '#0ea5e9',
       ticket_deleted: '#6b7280',
       ticket_sla_warning: '#f59e0b',
       ticket_sla_expired: '#dc2626',
