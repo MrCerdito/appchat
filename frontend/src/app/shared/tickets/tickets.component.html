@@ -948,7 +948,7 @@
               <span>Listo para cerrar y notificar al cliente.</span>
             </div>
             <button class="ts-close-email-cta-btn" type="button" [disabled]="closeEmailSending" (click)="sendCloseEmailDirect(selectedTicket)">
-              Enviar correo y cerrar
+              {{ ticketEmail(selectedTicket) ? 'Enviar correo y cerrar' : 'El cliente no tiene correo' }}
             </button>
           </div>
           }

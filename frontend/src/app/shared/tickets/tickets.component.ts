@@ -1228,10 +1228,13 @@ export class TicketsComponent implements OnInit, OnDestroy {
   }
 
   get closeEmailAddress(): string {
-    const t = this.closeEmailTicket;
-    if (!t) return '';
-    if (!t.clientInfo) return '';
-    return String(t.clientInfo['email'] ?? t.clientInfo['correo'] ?? '').trim();
+    return this.ticketEmail(this.closeEmailTicket);
+  }
+
+  ticketEmail(ticket: Ticket | null): string {
+    if (!ticket?.clientInfo) return '';
+    const info = ticket.clientInfo;
+    return String(info['email'] ?? info['correo'] ?? '').trim();
   }
 
   tryOpenCloseEmailModal(ticket: Ticket, newStatus: string, source: 'detail' | 'table' | 'kanban'): boolean {
@@ -1324,6 +1327,11 @@ export class TicketsComponent implements OnInit, OnDestroy {
 
   sendCloseEmailDirect(ticket: Ticket): void {
     if (!ticket || this.closeEmailSending) return;
+
+    if (!this.ticketEmail(ticket)) {
+      this.notification.error('El cliente no tiene correo', 'No se envio el correo y no se marco como cerrado.');
+      return;
+    }
 
     this.closeEmailSending = true;
     this.ticketService.update(ticket.id, { status: 'closed' as any }).pipe(
