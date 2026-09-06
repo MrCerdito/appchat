@@ -10,12 +10,14 @@ import { SessionService } from '../../../../core/services/session.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { ChatStateService } from '../../../../core/services/chat-state.service';
 import { TicketService } from '../../../../core/services/ticket.service';
+import { ModuloService } from '../../../../core/services/modulo.service';
 import { SoundService } from '../../../../core/services/sound.service';
 import { AdvisorNotificationService } from '../../../../core/services/advisor-notification.service';
 import { NotificationService } from '../../../../core/services/notification.service';
 import { ChatMediaService } from '../../../../core/services/chat-media.service';
 import { Message, Attachment, TimelineItem, TimelineResp, TimelineEvento } from '../../../../core/models/message.model';
 import { Session } from '../../../../core/models/session.model';
+import { Modulo } from '../../../../core/models/modulo.model';
 import { User } from '../../../../core/models/user.model';
 import { Subject, Observable, firstValueFrom } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
@@ -153,8 +155,11 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
 
   // Ticket modal
   showTicketModal = false;
-  ticketDto = { titulo: '', descripcion: '', priority: 'medium' as const, category: '' };
+  ticketDto = { titulo: '', descripcion: '', priority: 'medium' as const, category: '', clientName: '', institucion: '', canal: 'web' as const, assignedToId: '' };
   ticketCategories: string[] = [];
+  ticketModulos: Modulo[] = [];
+  showModuloPicker = false;
+  selectedModulo: Modulo | null = null;
   creatingTicket = false;
   ticketFeedback: { type: 'ok' | 'error'; text: string } | null = null;
 
@@ -195,6 +200,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     private auth        : AuthService,
     private state       : ChatStateService,
     private ticketService: TicketService,
+    private moduloService: ModuloService,
     private sanitizer   : DomSanitizer,
     private sound       : SoundService,
     private notification: NotificationService,
@@ -1857,14 +1863,80 @@ leaveCollabChat(): void {
   // ── Ticket ────────────────────────────────────────────────────────────
   openTicketModal(): void {
     if (!this.activeSession) return;
+    const s = this.activeSession;
     this.ticketDto = {
-      titulo: `Ticket desde sesion ${this.activeSession.codigo || this.activeSession.id}`,
+      titulo: '',
       descripcion: '',
       priority: 'medium',
       category: '',
+      clientName: `${s.clientName || ''} ${s.apellido || ''}`.trim() || 'Cliente',
+      institucion: s.colegio || '',
+      canal: 'web',
+      assignedToId: '',
     };
+    this.selectedModulo = null;
+    this.showModuloPicker = false;
     this.loadTicketCategories();
+    this.loadTicketModulos();
     this.showTicketModal = true;
+  }
+
+  loadTicketModulos(): void {
+    this.moduloService.getAll().subscribe({
+      next: (modulos) => {
+        this.ticketModulos = modulos;
+        this.cdr.detectChanges();
+      },
+      error: () => this.cdr.detectChanges(),
+    });
+  }
+
+  // ── Modulo picker (desarrollador por modulo, igual que tickets) ──
+  openModuloPicker(): void {
+    this.selectedModulo = null;
+    this.showModuloPicker = true;
+    this.loadTicketModulos();
+  }
+
+  selectModuloInPicker(modulo: Modulo): void {
+    this.selectedModulo = modulo;
+  }
+
+  selectDesarrolladorInPicker(dev: User): void {
+    this.ticketDto.assignedToId = dev.id;
+    this.showModuloPicker = false;
+    this.selectedModulo = null;
+    this.cdr.detectChanges();
+  }
+
+  closeModuloPicker(): void {
+    this.showModuloPicker = false;
+    this.selectedModulo = null;
+  }
+
+  getFilteredModulos(): Modulo[] {
+    return this.ticketModulos.filter((m) => m.desarrolladores.length > 0);
+  }
+
+  getAssignedModuloName(): string {
+    if (!this.ticketDto.assignedToId) return '';
+    const m = this.ticketModulos.find((m) =>
+      m.desarrolladores.some((d) => d.id === this.ticketDto.assignedToId),
+    );
+    return m?.nombre || '';
+  }
+
+  getAssignedDevName(): string {
+    if (!this.ticketDto.assignedToId) return '';
+    const dev = this.ticketModulos
+      .flatMap((m) => m.desarrolladores)
+      .find((d) => d.id === this.ticketDto.assignedToId);
+    return dev?.name || '';
+  }
+
+  clearTicketAssignee(): void {
+    this.ticketDto.assignedToId = '';
+    this.cdr.detectChanges();
   }
 
   closeTicketModal(): void {
@@ -1891,6 +1963,10 @@ leaveCollabChat(): void {
       descripcion: this.ticketDto.descripcion?.trim() || undefined,
       priority: this.ticketDto.priority,
       category: this.ticketDto.category || undefined,
+      clientName: this.ticketDto.clientName?.trim() || undefined,
+      institucion: this.ticketDto.institucion?.trim() || undefined,
+      canal: this.ticketDto.canal,
+      assignedToId: this.ticketDto.assignedToId || undefined,
     };
     this.ticketService.createFromSession(session.id, body).subscribe({
       next: (ticket: Ticket) => {

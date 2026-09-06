@@ -539,7 +539,15 @@
                 (click)="selectTicket(t)">
                 <td class="cell-code">{{ t.codigo }}</td>
                 <td class="cell-title">{{ t.titulo }}</td>
-                <td>{{ t.clientName }}</td>
+                <td class="cell-client">
+                  <span class="ts-client-name">{{ t.clientName }}</span>
+                  @if (t.institucion) {
+                  <span class="ts-client-school">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11"><path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/></svg>
+                    {{ t.institucion }}
+                  </span>
+                  }
+                </td>
                 <td>
                   <span class="ts-badge ts-badge-source" [class.ts-badge-whatsapp]="t.sourceType === 'whatsapp'">
                     {{ t.sourceType === 'web' ? 'Web' : 'WhatsApp' }}
@@ -828,9 +836,9 @@
                 <span class="ts-info-lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Cliente</span>
                 <span class="ts-info-val">{{ selectedTicket.clientName }}</span>
               </div>
-              <div class="ts-info-field">
-                <span class="ts-info-lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="9" y1="6" x2="15" y2="6"/><line x1="9" y1="10" x2="15" y2="10"/><line x1="9" y1="14" x2="13" y2="14"/></svg> Institución</span>
-                <span class="ts-info-val">{{ selectedTicket.institucion || '—' }}</span>
+              <div class="ts-info-field ts-info-field--school">
+                <span class="ts-info-lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/></svg> Colegio</span>
+                <span class="ts-info-val ts-info-val--school">{{ selectedTicket.institucion || '—' }}</span>
               </div>
               <div class="ts-info-field">
                 <span class="ts-info-lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> Categoría</span>
@@ -936,6 +944,15 @@
 
         <!-- Actions sidebar -->
         <aside class="ts-detail-actions-side">
+          @if (canViewConversation(selectedTicket)) {
+          <button class="ts-action-card-btn ts-action-card--conversation" type="button" (click)="openConversation()">
+            <span class="ts-action-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="17" height="17"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="14" y2="14"/></svg></span>
+            <span class="ts-action-label">Ver Conversación</span>
+            <span class="ts-action-conv-count">{{ selectedTicket.conversation!.length }}</span>
+            <span class="ts-action-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="9 18 15 12 9 6"/></svg></span>
+          </button>
+          }
+
           <h3 class="ts-detail-actions-title">Acciones</h3>
 
           @if (canOpenCloseEmail(selectedTicket)) {
@@ -1014,6 +1031,77 @@
           </div>
         </aside>
       </div>
+    </section>
+  </div>
+  }
+
+  <!-- Conversation modal -->
+  @if (showConversationModal && selectedTicket) {
+  <div class="ts-modal-backdrop ts-modal-backdrop--conv" (click)="closeConversation()">
+    <section class="ts-modal ts-conv-modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+      <header class="ts-conv-header">
+        <div class="ts-conv-title">
+          <h2>Conversación</h2>
+          <p>{{ selectedTicket.codigo }} · {{ selectedTicket.clientName }}</p>
+        </div>
+        <button class="ts-conv-close" type="button" (click)="closeConversation()" aria-label="Cerrar" title="Cerrar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </header>
+
+      <div class="ts-conv-body">
+        @for (m of selectedTicket.conversation!; track $index) {
+          @if (showConversationDay(m, $index)) {
+          <div class="ts-conv-day">
+            <span>{{ conversationDay(m.timestamp) }}</span>
+          </div>
+          }
+          <div class="ts-conv-msg" [class.ts-conv-msg--client]="m.role === 'client'" [class.ts-conv-msg--advisor]="m.role === 'advisor'">
+            <div class="ts-conv-msg-main">
+              <div class="ts-conv-msg-head">
+                <span class="ts-conv-msg-name">{{ m.name || (m.role === 'client' ? 'Cliente' : 'Asesor') }}</span>
+                <span class="ts-conv-msg-time">{{ fmtDateTime(m.timestamp) }}</span>
+              </div>
+              @if (m.content) {
+              <p class="ts-conv-msg-text">{{ m.content }}</p>
+              }
+              @if (m.attachments?.length) {
+              <div class="ts-conv-attachments">
+                @for (att of m.attachments!; track att.id ?? $index) {
+                  @if (isImageMessageAttachment(att.mimeType, att.url)) {
+                  <button class="ts-conv-img-wrap" type="button" (click)="openLightbox(conversationMediaUrl(att.url))" [attr.aria-label]="att.fileName || 'ver imagen'">
+                    <img [src]="conversationMediaUrl(att.url)" [alt]="att.fileName || 'imagen adjunta'" class="ts-conv-img">
+                  </button>
+                  } @else {
+                  <a [href]="conversationMediaUrl(att.url)" target="_blank" rel="noopener" class="ts-conv-file">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    <span class="ts-conv-file-name">{{ att.fileName || att.originalName || 'Adjunto' }}</span>
+                  </a>
+                  }
+                }
+              </div>
+              }
+            </div>
+          </div>
+        } @empty {
+        <p class="ts-conv-empty">No hay mensajes en la conversación</p>
+        }
+      </div>
+
+      @if (convLightboxUrl) {
+      <div class="ts-conv-lightbox" (click)="closeLightbox()">
+        <div class="ts-conv-lightbox-fig" (click)="$event.stopPropagation()">
+          <img [src]="convLightboxUrl" alt="Imagen de la conversación">
+          <span class="ts-conv-lightbox-name">{{ convLightboxUrl.split('/').pop() }}</span>
+        </div>
+        <button class="ts-conv-lightbox-close" type="button" (click)="closeLightbox()" aria-label="Cerrar imagen" title="Cerrar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <button class="ts-conv-lightbox-dl" type="button" (click)="downloadLightboxImage()" aria-label="Descargar imagen" title="Descargar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </button>
+      </div>
+      }
     </section>
   </div>
   }

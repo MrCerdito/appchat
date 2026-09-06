@@ -576,6 +576,10 @@ export class SessionsController {
       descripcion?: string;
       priority?: string;
       category?: string;
+      clientName?: string;
+      institucion?: string;
+      canal?: string;
+      assignedToId?: string;
     },
     @Request() req: any,
   ) {
@@ -604,8 +608,11 @@ export class SessionsController {
       sourceType: 'web' as const,
       sourceId: id,
       clientName:
+        body.clientName?.trim() ||
         `${session.clientName || ''} ${session.apellido || ''}`.trim() ||
         'Cliente',
+      institucion: body.institucion?.trim() || (session.colegio ?? ''),
+      canal: body.canal || 'web',
       clientInfo: {
         identificacion: session.identificacion,
         rol: session.rol,
@@ -616,6 +623,7 @@ export class SessionsController {
       },
       email: session.email ?? undefined,
       conversation,
+      assignedToId: body.assignedToId ?? undefined,
     };
     return this.ticketsService.create(dto, req.user.id);
   }

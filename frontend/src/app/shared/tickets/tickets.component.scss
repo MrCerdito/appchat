@@ -3603,6 +3603,358 @@
 .ts-action-card--priority { --ts-accent: #f59e0b; }
 .ts-action-card--category { --ts-accent: #8b5cf6; }
 
+.ts-client-name {
+  display: block;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.ts-client-school {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #0369a1;
+
+  svg { flex-shrink: 0; }
+}
+
+.ts-info-field--school {
+  .ts-info-val--school {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 700;
+    color: #0369a1;
+    background: #f0f9ff;
+    border: 1px solid rgba(14, 165, 233, 0.25);
+    border-radius: 8px;
+    padding: 3px 10px;
+  }
+}
+.ts-action-card--conversation {
+  --ts-accent: #0ea5e9;
+  border: 1px solid color-mix(in srgb, #0ea5e9 30%, var(--border));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, #0ea5e9 5%, var(--surface));
+  margin-bottom: 10px;
+}
+
+.ts-action-conv-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 11px;
+  background: color-mix(in srgb, #0ea5e9 16%, transparent);
+  color: #0369a1;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+// CONVERSATION MODAL
+.ts-modal-backdrop--conv {
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: none;
+}
+
+.ts-conv-modal {
+  width: min(1100px, 96vw);
+  height: min(90vh, 940px);
+  max-width: 96vw;
+  max-height: 92vh;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-xl, 18px);
+  box-shadow: 0 16px 50px rgba(2, 6, 23, 0.35);
+  transition: width 0.2s ease;
+}
+
+.ts-conv-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.ts-conv-title {
+  min-width: 0;
+}
+
+.ts-conv-title h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.25;
+}
+
+.ts-conv-title p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ts-conv-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+
+  &:hover {
+    background: var(--surface-hover);
+    color: var(--text);
+  }
+}
+
+.ts-conv-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  background: #f1f5f9;
+  scrollbar-width: thin;
+}
+
+.ts-conv-day {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 12px 0 6px;
+
+  span {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #94a3b8;
+    letter-spacing: 0.3px;
+  }
+}
+
+.ts-conv-msg {
+  display: flex;
+  align-items: flex-start;
+  max-width: 84%;
+}
+
+.ts-conv-msg--client {
+  align-self: flex-start;
+}
+
+.ts-conv-msg--advisor {
+  align-self: flex-end;
+}
+
+.ts-conv-msg-main {
+  min-width: 0;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px 10px 10px 10px;
+  padding: 8px 11px 9px;
+  box-shadow: 0 1px 2px rgba(2, 6, 23, 0.05);
+}
+
+.ts-conv-msg--advisor .ts-conv-msg-main {
+  background: #dcf5ff;
+  border-color: #bfe7f9;
+  border-radius: 10px 4px 10px 10px;
+}
+
+.ts-conv-msg-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 2px;
+}
+
+.ts-conv-msg-name {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #0369a1;
+}
+
+.ts-conv-msg--client .ts-conv-msg-name { color: #475569; }
+
+.ts-conv-msg-time {
+  font-size: 10px;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+.ts-conv-msg-text {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #0f172a;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ts-conv-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.ts-conv-img-wrap {
+  position: relative;
+  display: block;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: zoom-in;
+  background: #e2e8f0;
+}
+
+.ts-conv-img {
+  display: block;
+  width: 110px;
+  height: 88px;
+  object-fit: cover;
+  transition: transform 0.2s ease;
+}
+
+.ts-conv-img-wrap:hover .ts-conv-img { transform: scale(1.06); }
+
+.ts-conv-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 11px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  color: #475569;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.15s ease;
+  max-width: 230px;
+
+  &:hover {
+    border-color: #94a3b8;
+    color: #0f172a;
+  }
+
+  svg { flex-shrink: 0; color: #64748b; }
+}
+
+.ts-conv-file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ts-conv-empty {
+  margin: auto;
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+// LIGHTBOX (estilo WhatsApp)
+.ts-conv-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  background: rgba(0, 0, 0, 0.55);
+  display: grid;
+  place-items: center;
+  animation: ts-lightbox-in 0.2s ease;
+}
+
+@keyframes ts-lightbox-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.ts-conv-lightbox-fig {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 92vw;
+  max-height: 88vh;
+  animation: ts-lightbox-zoom 0.25s ease;
+
+  img {
+    max-width: 92vw;
+    max-height: 84vh;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    border-radius: 6px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  }
+}
+
+@keyframes ts-lightbox-zoom {
+  from { transform: scale(0.94); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.ts-conv-lightbox-name {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 12px;
+  word-break: break-all;
+  text-align: center;
+  max-width: 80vw;
+}
+
+.ts-conv-lightbox-close,
+.ts-conv-lightbox-dl {
+  position: fixed;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.55);
+  color: #ffffff;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.ts-conv-lightbox-close {
+  top: 16px;
+  right: 16px;
+
+  &:hover { background: rgba(15, 23, 42, 0.85); }
+}
+
+.ts-conv-lightbox-dl {
+  bottom: 16px;
+  right: 16px;
+
+  &:hover { background: rgba(15, 23, 42, 0.85); }
+}
+
 // EDIT TICKET MODAL
 .ts-edit-modal {
   width: 520px;

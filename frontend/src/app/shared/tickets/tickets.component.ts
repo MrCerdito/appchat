@@ -12,7 +12,7 @@ import { SessionService, Colegio } from '../../core/services/session.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { LayoutService } from '../../core/services/layout.service';
 import { SocketService } from '../../core/services/socket.service';
-import { Ticket, TicketQuery, TicketUpdateDto } from '../../core/models/ticket.model';
+import { Ticket, TicketQuery, TicketUpdateDto, ConversationMessage } from '../../core/models/ticket.model';
 import { User } from '../../core/models/user.model';
 import { Modulo } from '../../core/models/modulo.model';
 import { environment } from '../../../environments/environment';
@@ -22,7 +22,7 @@ import {
   slaTimeRemaining, slaColor,
 } from '../utils/ticket-categories';
 import { trackByIndex, trackById } from '../utils/track-by';
-import { fmtDateShort, fmtMedium, fmtDateTime } from '../utils/date';
+import { fmtDateShort, fmtMedium, fmtDateTime, sameBogotaDay } from '../utils/date';
 import { minutesSince, formatShortDuration } from '../utils/duration';
 import { TicketMailTemplateComponent } from './components/ticket-mail-template/ticket-mail-template.component';
 
@@ -43,6 +43,7 @@ export class TicketsComponent implements OnInit, OnDestroy {
   protected readonly fmtDateShort = fmtDateShort;
   protected readonly fmtMedium = fmtMedium;
   protected readonly fmtDateTime = fmtDateTime;
+  protected readonly sameBogotaDay = sameBogotaDay;
   protected readonly priorityColor = priorityColor;
   protected readonly statusLabel = statusLabel;
   protected readonly statusColor = statusColor;
@@ -98,6 +99,8 @@ export class TicketsComponent implements OnInit, OnDestroy {
   };
 
   selectedTicket: Ticket | null = null;
+  showConversationModal = false;
+  convLightboxUrl: string | null = null;
   advisors: User[] = [];
   colegios: Colegio[] = [];
   editingDetail = false;
@@ -277,6 +280,64 @@ export class TicketsComponent implements OnInit, OnDestroy {
 
   getConversationCount(ticket: Ticket): number {
     return ticket.conversation?.length || 0;
+  }
+
+  canViewConversation(ticket: Ticket | null): boolean {
+    return !!ticket && ticket.sourceType === 'web' && (ticket.conversation?.length ?? 0) > 0;
+  }
+
+  openConversation(): void {
+    if (!this.canViewConversation(this.selectedTicket)) return;
+    this.detailMenu = null;
+    this.convLightboxUrl = null;
+    this.showConversationModal = true;
+    this.cdr.detectChanges();
+  }
+
+  closeConversation(): void {
+    this.convLightboxUrl = null;
+    this.showConversationModal = false;
+    this.cdr.detectChanges();
+  }
+
+  openLightbox(url: string): void {
+    this.convLightboxUrl = url;
+    this.cdr.detectChanges();
+  }
+
+  closeLightbox(): void {
+    this.convLightboxUrl = null;
+    this.cdr.detectChanges();
+  }
+
+  downloadLightboxImage(): void {
+    if (!this.convLightboxUrl) return;
+    const a = document.createElement('a');
+    a.href = this.convLightboxUrl;
+    a.download = this.convLightboxUrl.split('/').pop() || 'imagen';
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
+  showConversationDay(msg: ConversationMessage, index: number): boolean {
+    const list = this.selectedTicket?.conversation ?? [];
+    const prev = list[index - 1];
+    return !prev || !sameBogotaDay(prev.timestamp, msg.timestamp);
+  }
+
+  conversationDay(iso: string): string {
+    return fmtDateShort(iso);
+  }
+
+  conversationMediaUrl(path: string): string {
+    return /^https?:\/\//.test(path) ? path : `${environment.apiUrl}${path}`;
+  }
+
+  isImageMessageAttachment(mimeType?: string, url?: string): boolean {
+    const mime = (mimeType ?? url ?? '').toLowerCase();
+    return mime.startsWith('image/');
   }
 
   private updateKanbanColumns(): void {
@@ -734,6 +795,7 @@ export class TicketsComponent implements OnInit, OnDestroy {
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
+    if (this.convLightboxUrl) { this.closeLightbox(); return; }
     if (this.showCloseEmailModal) { this.cancelCloseEmail(); return; }
     if (this.showEditModal) { this.closeEditModal(); return; }
     if (this.showModuloPicker) { this.closeModuloPicker(); return; }

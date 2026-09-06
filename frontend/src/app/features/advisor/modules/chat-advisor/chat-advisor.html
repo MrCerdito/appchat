@@ -992,39 +992,124 @@
     <div class="floating-modal-inner" (click)="$event.stopPropagation()">
       <h3>Generar ticket</h3>
       <div class="ticket-modal-body">
+        <div class="ticket-modal-locked-row">
+          <label class="ticket-modal-locked">
+            <span>Nombre del cliente</span>
+            <input type="text" [(ngModel)]="ticketDto.clientName" disabled>
+          </label>
+          <label class="ticket-modal-locked">
+            <span>Colegio</span>
+            <input type="text" [(ngModel)]="ticketDto.institucion" disabled>
+          </label>
+        </div>
+        <div class="ticket-modal-divider"></div>
         <label>
           <span>Titulo</span>
-          <input type="text" [(ngModel)]="ticketDto.titulo" maxlength="255">
+          <input type="text" [(ngModel)]="ticketDto.titulo" maxlength="255" placeholder="Ej: Error al generar reporte de inventario">
         </label>
+        <div class="ticket-assign-wrap">
+          <span class="ticket-assign-lbl">Asignar desarrollador</span>
+          @if (ticketDto.assignedToId) {
+          <div class="ticket-assign">
+            <span class="ticket-assign-modulo">{{ getAssignedModuloName() }}</span>
+            <span class="ticket-assign-name">{{ getAssignedDevName() }}</span>
+            <button class="ticket-assign-clear" type="button" (click)="clearTicketAssignee()" title="Quitar asignacion">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          } @else {
+          <button class="ticket-assign-btn" type="button" (click)="openModuloPicker()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Seleccionar modulo y desarrollador
+          </button>
+          }
+        </div>
+        <div class="ticket-modal-row">
+          <label>
+            <span>Prioridad</span>
+            <select [(ngModel)]="ticketDto.priority">
+              <option value="low">Baja</option>
+              <option value="medium">Media</option>
+              <option value="high">Alta</option>
+              <option value="critical">Critica</option>
+            </select>
+          </label>
+          <label>
+            <span>Categoria</span>
+            <select [(ngModel)]="ticketDto.category">
+              <option value="">Sin categoria</option>
+              @for (c of ticketCategories; track $index) {
+              <option [value]="c">{{ c }}</option>
+              }
+            </select>
+          </label>
+        </div>
         <label>
           <span>Descripcion</span>
           <textarea [(ngModel)]="ticketDto.descripcion" rows="3" placeholder="Detalles opcionales"></textarea>
         </label>
-        <label>
-          <span>Prioridad</span>
-          <select [(ngModel)]="ticketDto.priority">
-            <option value="low">Baja</option>
-            <option value="medium">Media</option>
-            <option value="high">Alta</option>
-            <option value="critical">Critica</option>
-          </select>
-        </label>
-        <label>
-          <span>Categoria</span>
-          <select [(ngModel)]="ticketDto.category">
-            <option value="">Sin categoria</option>
-            @for (c of ticketCategories; track $index) {
-            <option [value]="c">{{ c }}</option>
-            }
-          </select>
-        </label>
       </div>
       <div class="modal-actions">
         <button class="modal-cancel" type="button" (click)="closeTicketModal()">Cancelar</button>
-        <button class="modal-confirm" type="button" (click)="createTicket()" [disabled]="!ticketDto.titulo.trim() || creatingTicket">
+        <button class="modal-confirm" type="button" (click)="createTicket()" [disabled]="!ticketDto.titulo.trim() || !ticketDto.clientName.trim() || creatingTicket">
           {{ creatingTicket ? 'Creando...' : 'Crear ticket' }}
         </button>
       </div>
+    </div>
+  </div>
+  }
+
+  <!-- Modulo picker -->
+  @if (showModuloPicker) {
+  <div class="cat-modulo-picker-overlay" (click)="closeModuloPicker()">
+    <div class="cat-modulo-picker" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+      <div class="cat-modulo-picker-header">
+        <h3>Seleccionar modulo y desarrollador</h3>
+        <button class="cat-modulo-picker-close" (click)="closeModuloPicker()" aria-label="Cerrar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      @if (!selectedModulo) {
+      <p class="cat-modulo-picker-hint">Selecciona un modulo para ver sus desarrolladores:</p>
+      <div class="cat-modulo-picker-list">
+        @for (m of getFilteredModulos(); track m.id) {
+        <button class="cat-modulo-picker-item" (click)="selectModuloInPicker(m)">
+          <div class="cat-modulo-picker-item-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          </div>
+          <div class="cat-modulo-picker-item-info">
+            <span class="cat-modulo-picker-item-name">{{ m.nombre }}</span>
+            <span class="cat-modulo-picker-item-count">{{ m.desarrolladores.length }} desarrollador{{ m.desarrolladores.length !== 1 ? 'es' : '' }}</span>
+          </div>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+        }
+        @if (getFilteredModulos().length === 0) {
+        <p class="cat-modulo-picker-empty">No hay modulos con desarrolladores asignados.</p>
+        }
+      </div>
+      } @else {
+      <div class="cat-modulo-picker-devs-header">
+        <button class="cat-modulo-picker-back" (click)="selectedModulo = null">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          Volver
+        </button>
+        <span class="cat-modulo-picker-devs-title">{{ selectedModulo.nombre }}</span>
+      </div>
+      <div class="cat-modulo-picker-list">
+        @for (d of selectedModulo.desarrolladores; track d.id) {
+        <button class="cat-modulo-picker-item" (click)="selectDesarrolladorInPicker(d)">
+          <div class="cat-modulo-picker-dev-avatar">{{ d.name.charAt(0) }}</div>
+          <div class="cat-modulo-picker-item-info">
+            <span class="cat-modulo-picker-item-name">{{ d.name }}</span>
+            <span class="cat-modulo-picker-item-email">{{ d.email }}</span>
+          </div>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>
+        </button>
+        }
+      </div>
+      }
     </div>
   </div>
   }

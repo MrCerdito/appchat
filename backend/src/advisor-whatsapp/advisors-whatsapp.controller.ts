@@ -853,6 +853,7 @@ export class AdvisorsWhatsappController {
       sourceType: 'whatsapp' as const,
       sourceId: id,
       clientName: chat.name || 'Cliente WhatsApp',
+      institucion: chat.institution ?? undefined,
       clientInfo: {
         phone: chat.phone,
         institution: chat.institution,

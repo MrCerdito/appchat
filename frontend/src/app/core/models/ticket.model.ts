@@ -1,9 +1,19 @@
+export interface ConversationAttachment {
+  id: string;
+  fileName: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  url: string;
+}
+
 export interface ConversationMessage {
   role: 'client' | 'advisor';
   name: string;
   content: string;
   type?: string;
   mediaUrl?: string | null;
+  attachments?: ConversationAttachment[] | null;
   timestamp: string;
 }
 
