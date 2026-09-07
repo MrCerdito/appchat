@@ -77,6 +77,9 @@
       <button type="button" [class.active]="tab === 'informacion'" (click)="cambiarTab('informacion')">
         <lucide-icon [img]="icons.Building2" [size]="15" /> Información
       </button>
+      <button type="button" [class.active]="tab === 'tickets'" (click)="cambiarTab('tickets')">
+        <lucide-icon [img]="icons.Ticket" [size]="15" /> Tickets
+      </button>
       <button type="button" [class.active]="tab === 'historial'" (click)="cambiarTab('historial')">
         <lucide-icon [img]="icons.Clock" [size]="15" /> Historial
       </button>
@@ -259,6 +262,71 @@
           }
         </section>
       }
+    }
+
+    <!-- ================= Tickets ================= -->
+    @if (tab === 'tickets') {
+      <section class="pd-tickets">
+        <!-- Date filter bar -->
+        <div class="pd-hist-filtros">
+          <div class="pd-tickets-search">
+            <lucide-icon [img]="icons.Search" [size]="15" class="pd-tickets-search-icon" />
+            <input type="search" placeholder="Buscar por código, título o cliente…"
+              [ngModel]="ticketsBusqueda"
+              (ngModelChange)="onTicketsBuscar($event)"
+              class="pd-tickets-search-input" />
+            @if (ticketsBusqueda) {
+              <button type="button" class="pd-tickets-search-clear" (click)="onTicketsBuscar('')" title="Limpiar búsqueda" aria-label="Limpiar búsqueda">✕</button>
+            }
+          </div>
+          <div class="pd-hist-pills">
+            <button type="button" class="pd-hist-pill" [class.active]="ticketsFiltroFecha === 'todos'" (click)="filtrarTicketsFecha('todos')">Todos</button>
+            <button type="button" class="pd-hist-pill" [class.active]="ticketsFiltroFecha === 'hoy'" (click)="filtrarTicketsFecha('hoy')">Hoy</button>
+            <button type="button" class="pd-hist-pill" [class.active]="ticketsFiltroFecha === 'ayer'" (click)="filtrarTicketsFecha('ayer')">Ayer</button>
+            <button type="button" class="pd-hist-pill" [class.active]="ticketsFiltroFecha === 'rango'" (click)="filtrarTicketsFecha('rango')">Rango</button>
+          </div>
+          @if (ticketsFiltroFecha === 'rango') {
+            <div class="pd-hist-rango">
+              <input type="date" [(ngModel)]="ticketsRangoDesde" class="pd-hist-date" />
+              <span>–</span>
+              <input type="date" [(ngModel)]="ticketsRangoHasta" class="pd-hist-date" />
+              <button type="button" class="pi-btn pi-btn-sm" [disabled]="!ticketsRangoDesde || !ticketsRangoHasta" (click)="aplicarRangoTickets()">Aplicar</button>
+            </div>
+          }
+          <div class="pd-hist-resumen">
+            Mostrando {{ ticketsInstitucion.length }} de {{ ticketsTotal }} tickets
+          </div>
+        </div>
+
+        @if (ticketsInstitucion.length === 0 && !ticketsCargando) {
+          <div class="pd-empty">
+            <lucide-icon [img]="icons.Ticket" [size]="40" class="pd-empty-icon" />
+            <p>{{ ticketsBusqueda.trim() ? 'No se encontraron tickets con tu búsqueda.' : 'Sin tickets en este periodo.' }}</p>
+          </div>
+        }
+        <ul class="pd-tickets-lista">
+          @for (t of ticketsInstitucion; track t.id) {
+            <li class="pd-ticket-item" (click)="abrirTicketModal(t)" role="button" tabindex="0"
+              (keydown.enter)="abrirTicketModal(t)" (keydown.space)="abrirTicketModal(t)">
+              <div class="pd-ticket-left">
+                <span class="pd-ticket-codigo">{{ t.codigo }}</span>
+                <div class="pd-ticket-titulo">{{ t.titulo }}</div>
+                <div class="pd-ticket-meta">
+                  <span class="pd-ticket-chip pd-ticket-chip--estado pd-estado-{{ t.status }}">{{ statusTicketLabel(t.status) }}</span>
+                  <span class="pd-ticket-chip pd-ticket-chip--prioridad pd-prioridad-{{ t.priority }}">{{ priorityTicketLabel(t.priority) }}</span>
+                  <span class="pd-ticket-fecha">{{ formatearFecha(t.createdAt) }}</span>
+                </div>
+              </div>
+              <lucide-icon [img]="icons.ChevronRight" [size]="18" class="pd-ticket-chevron" />
+            </li>
+          }
+        </ul>
+        @if (ticketsInstitucion.length < ticketsTotal) {
+          <button type="button" class="pi-btn pi-btn-ghost pd-mas" [disabled]="ticketsCargando" (click)="masTickets()">
+            {{ ticketsCargando ? 'Cargando…' : 'Cargar más' }}
+          </button>
+        }
+      </section>
     }
 
     <!-- ================= Historial ================= -->
@@ -565,6 +633,213 @@
           <button type="button" class="pi-btn pi-btn-primary" [disabled]="baseGuardando || (baseCampoEsAsesor ? false : !baseValor.trim())" (click)="guardarBase()">
             {{ baseGuardando ? 'Guardando…' : 'Guardar' }}
           </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================= Modal detalle ticket ================= -->
+  @if (modalTicket) {
+    <div class="pd-modal-backdrop" (click)="cerrarTicketModal()">
+      <div class="pd-ticket-modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+        <header class="pd-ticket-modal-head">
+          <div class="pd-ticket-modal-title">
+            <lucide-icon [img]="icons.Ticket" [size]="20" class="pd-ticket-modal-icon" />
+            <div>
+              <h3>{{ modalTicket.titulo }}</h3>
+              <p>{{ modalTicket.codigo }}</p>
+            </div>
+          </div>
+          <button type="button" class="pd-ticket-modal-close" (click)="cerrarTicketModal()" title="Cerrar" aria-label="Cerrar">
+            <lucide-icon [img]="icons.X" [size]="18" />
+          </button>
+        </header>
+
+        <div class="pd-ticket-modal-badges">
+          <span class="pd-ticket-chip pd-ticket-chip--estado pd-estado-{{ modalTicket.status }}">{{ statusTicketLabel(modalTicket.status) }}</span>
+          <span class="pd-ticket-chip pd-ticket-chip--prioridad pd-prioridad-{{ modalTicket.priority }}">{{ priorityTicketLabel(modalTicket.priority) }}</span>
+          @if (modalTicket.category) {
+            <span class="pd-ticket-chip pd-ticket-chip--cat">{{ modalTicket.category }}</span>
+          }
+        </div>
+
+        <div class="pd-ticket-modal-grid">
+          <div class="pd-ticket-modal-field">
+            <span>Cliente</span>
+            <strong>{{ modalTicket.clientName }}</strong>
+          </div>
+          <div class="pd-ticket-modal-field">
+            <span>Correo</span>
+            <strong>{{ ticketClienteEmail(modalTicket) || '—' }}</strong>
+          </div>
+          <div class="pd-ticket-modal-field">
+            <span>Institución</span>
+            <strong>{{ modalTicket.institucion || '—' }}</strong>
+          </div>
+          <div class="pd-ticket-modal-field">
+            <span>Canal</span>
+            <strong>{{ sourceTicketLabel(modalTicket.sourceType) }}</strong>
+          </div>
+          <div class="pd-ticket-modal-field">
+            <span>Asesor asignado</span>
+            <strong>{{ modalTicket.assignedToName || 'Sin asignar' }}</strong>
+          </div>
+          <div class="pd-ticket-modal-field">
+            <span>Creado por</span>
+            <strong>{{ modalTicket.createdBy?.name ?? '—' }}</strong>
+          </div>
+          <div class="pd-ticket-modal-field">
+            <span>Creado</span>
+            <strong>{{ formatearFecha(modalTicket.createdAt) }}</strong>
+          </div>
+          <div class="pd-ticket-modal-field">
+            <span>Vence SLA</span>
+            <strong>{{ ticketSlaLabel(modalTicket) }}</strong>
+          </div>
+          @if (modalTicket.closedAt) {
+            <div class="pd-ticket-modal-field">
+              <span>Cerrado</span>
+              <strong>{{ formatearFecha(modalTicket.closedAt) }}</strong>
+            </div>
+          }
+        </div>
+
+        @if (modalTicket.descripcion) {
+          <div class="pd-ticket-modal-block">
+            <h4>Descripción</h4>
+            <p class="pd-ticket-modal-desc">{{ modalTicket.descripcion }}</p>
+          </div>
+        }
+
+        <div class="pd-ticket-modal-acciones">
+          <button type="button" class="pd-ticket-modal-boton" (click)="abrirModalConversacion()" [disabled]="!modalTicket.conversation?.length">
+            <lucide-icon [img]="icons.MessageSquare" [size]="16" />
+            Ver conversación
+            @if (modalTicket.conversation?.length) {
+              <span class="pd-ticket-modal-boton-count">{{ modalTicket.conversation!.length }}</span>
+            }
+          </button>
+          <button type="button" class="pd-ticket-modal-boton" (click)="abrirModalNotas()" [disabled]="!modalTicket.notes?.length">
+            <lucide-icon [img]="icons.StickyNote" [size]="16" />
+            Ver notas
+            @if (modalTicket.notes?.length) {
+              <span class="pd-ticket-modal-boton-count">{{ modalTicket.notes!.length }}</span>
+            }
+          </button>
+        </div>
+
+        <div class="pi-modal-actions">
+          <button type="button" class="pi-btn pi-btn-ghost" (click)="cerrarTicketModal()">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================= Modal conversación ================= -->
+  @if (modalConversacionAbierto && modalTicket) {
+    <div class="pd-modal-backdrop" (click)="cerrarModalConversacion()">
+      <div class="pd-conv-modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+        <header class="pd-conv-header">
+          <div class="pd-conv-title">
+            <h3>Conversación</h3>
+            <p>{{ modalTicket.codigo }} · {{ modalTicket.clientName }}</p>
+          </div>
+          <button type="button" class="pd-ticket-modal-close" (click)="cerrarModalConversacion()" aria-label="Cerrar" title="Cerrar">
+            <lucide-icon [img]="icons.X" [size]="18" />
+          </button>
+        </header>
+
+        <div class="pd-conv-body">
+          @for (m of modalTicket!.conversation!; track $index) {
+            @if (showConvDay(m, $index)) {
+              <div class="pd-conv-day"><span>{{ convDay(m.timestamp) }}</span></div>
+            }
+            <div class="pd-conv-msg" [class.msg-client]="m.role === 'client'" [class.msg-advisor]="m.role === 'advisor'">
+              <div class="pd-conv-msg-head">
+                <span class="pd-conv-msg-name">{{ m.name || (m.role === 'client' ? 'Cliente' : 'Asesor') }}</span>
+                <span class="pd-conv-msg-time">{{ convDateTime(m.timestamp) }}</span>
+              </div>
+              @if (m.content) {
+                <p class="pd-conv-msg-text">{{ m.content }}</p>
+              }
+              @if (m.attachments?.length) {
+                <div class="pd-conv-attachments">
+                  @for (att of m.attachments!; track att.id ?? $index) {
+                    @if (isImageConvAttachment(att.mimeType, att.url)) {
+                      <button type="button" class="pd-conv-img-wrap" (click)="openLightboxConv(conversationMediaUrl(att.url))" [attr.aria-label]="att.fileName || 'ver imagen'">
+                        <img [src]="conversationMediaUrl(att.url)" [alt]="att.fileName || 'imagen adjunta'" class="pd-conv-img">
+                      </button>
+                    } @else {
+                      <a [href]="conversationMediaUrl(att.url)" target="_blank" rel="noopener" class="pd-conv-file">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        <span>{{ att.fileName || att.originalName || 'Adjunto' }}</span>
+                      </a>
+                    }
+                  }
+                </div>
+              }
+            </div>
+          } @empty {
+            <p class="pd-conv-empty">No hay mensajes en la conversación</p>
+          }
+        </div>
+
+        @if (convLightboxUrl) {
+          <div class="pd-conv-lightbox" (click)="closeLightboxConv()">
+            <div class="pd-conv-lightbox-fig" (click)="$event.stopPropagation()">
+              <img [src]="convLightboxUrl" alt="Imagen de la conversación">
+              <span class="pd-conv-lightbox-name">{{ convLightboxUrl.split('/').pop() }}</span>
+            </div>
+            <button type="button" class="pd-conv-lightbox-btn" (click)="closeLightboxConv()" aria-label="Cerrar imagen" title="Cerrar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+            <button type="button" class="pd-conv-lightbox-btn pd-conv-lightbox-dl" (click)="downloadLightboxConvImage()" aria-label="Descargar imagen" title="Descargar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </button>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- ================= Modal notas ================= -->
+  @if (modalNotasAbierto && modalTicket) {
+    <div class="pd-modal-backdrop" (click)="cerrarModalNotas()">
+      <div class="pd-notes-modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+        <header class="pd-conv-header">
+          <div class="pd-conv-title">
+            <h3>Notas</h3>
+            <p>{{ modalTicket.codigo }} · {{ modalTicket.clientName }}</p>
+          </div>
+          <button type="button" class="pd-ticket-modal-close" (click)="cerrarModalNotas()" aria-label="Cerrar" title="Cerrar">
+            <lucide-icon [img]="icons.X" [size]="18" />
+          </button>
+        </header>
+
+        <div class="pd-notes-body">
+          @for (n of modalTicket!.notes!; track n.id) {
+            <div class="pd-note-item">
+              <div class="pd-note-head">
+                <span class="pd-note-avatar">{{ (n.authorName || 'Sistema').charAt(0).toUpperCase() }}</span>
+                <strong>{{ n.authorName || 'Sistema' }}</strong>
+                <time>{{ convDateTime(n.createdAt) }}</time>
+              </div>
+              @if (n.content) {
+                <p class="pd-note-content">{{ n.content }}</p>
+              }
+              @if (n.images?.length) {
+                <div class="pd-note-images">
+                  @for (img of n.images; track $index) {
+                    <a [href]="conversationMediaUrl(img)" target="_blank" rel="noopener" class="pd-note-img-link">
+                      <img [src]="conversationMediaUrl(img)" alt="adjunto de nota" class="pd-note-img">
+                    </a>
+                  }
+                </div>
+              }
+            </div>
+          } @empty {
+            <p class="pd-conv-empty">No hay notas registradas</p>
+          }
         </div>
       </div>
     </div>

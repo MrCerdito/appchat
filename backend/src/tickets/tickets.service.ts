@@ -232,6 +232,11 @@ export class TicketsService {
         createdBy: query.createdById,
       });
     }
+    if (query.institucion) {
+      qb.andWhere('t.institucion = :institucion', {
+        institucion: query.institucion,
+      });
+    }
     if (query.dateFrom) {
       qb.andWhere('t.createdAt >= :dateFrom', {
         dateFrom: new Date(query.dateFrom),

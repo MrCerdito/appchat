@@ -4,16 +4,20 @@ import { FormsModule } from '@angular/forms';
 import { Location } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
-import { Subject, takeUntil } from 'rxjs';
+import { Subject, debounceTime, takeUntil } from 'rxjs';
 import {
   PerfilInstitucionalService,
   PiFicha,
   PiGrupoFicha,
   PiHistorialItem,
 } from '../../../../core/services/perfil-institucional.service';
+import { TicketService } from '../../../../core/services/ticket.service';
+import { Ticket, ConversationMessage } from '../../../../core/models/ticket.model';
 import { NotificationService } from '../../../../core/services/notification.service';
 import { SessionService } from '../../../../core/services/session.service';
 import { PI_ICONS } from './pi-icons';
+import { fmtDateShort, fmtDateTime, sameBogotaDay } from '../../../../shared/utils/date';
+import { environment } from '../../../../../environments/environment';
 import {
   FechaCivil,
   bogotaCivilAUtc,
@@ -22,7 +26,7 @@ import {
   restarDiasCivil,
 } from './perfil-detalle-date.util';
 
-type Tab = 'informacion' | 'historial';
+type Tab = 'informacion' | 'tickets' | 'historial';
 
 @Component({
   selector: 'app-perfil-detalle',
@@ -59,6 +63,21 @@ export class PerfilDetalleComponent implements OnInit, OnDestroy {
   historialFiltroFecha: 'todos' | 'hoy' | 'ayer' | 'rango' = 'todos';
   historialRangoDesde = '';
   historialRangoHasta = '';
+
+  ticketsInstitucion: Ticket[] = [];
+  ticketsPage = 1;
+  ticketsTotal = 0;
+  ticketsCargando = false;
+  ticketsFiltroFecha: 'todos' | 'hoy' | 'ayer' | 'rango' = 'todos';
+  ticketsRangoDesde = '';
+  ticketsRangoHasta = '';
+  ticketsBusqueda = '';
+  modalTicket: Ticket | null = null;
+  modalNotasAbierto = false;
+  modalConversacionAbierto = false;
+  convLightboxUrl: string | null = null;
+
+  private ticketsSearch$ = new Subject<string>();
 
   grupoEditar: PiGrupoFicha | null = null;
   borrador: Record<string, string | boolean> = {};
@@ -104,6 +123,7 @@ export class PerfilDetalleComponent implements OnInit, OnDestroy {
     private notification: NotificationService,
     private route: ActivatedRoute,
     private location: Location,
+    private ticketService: TicketService,
     private cdr: ChangeDetectorRef,
   ) {}
 
@@ -115,6 +135,15 @@ export class PerfilDetalleComponent implements OnInit, OnDestroy {
     }
     this.cargar(id);
     this.cargarAsesores();
+
+    this.ticketsSearch$.pipe(
+      debounceTime(300),
+      takeUntil(this.destroy$),
+    ).subscribe(() => {
+      this.ticketsPage = 1;
+      this.ticketsCargando = true;
+      this.cargarTickets(true);
+    });
   }
 
   ngOnDestroy(): void {
@@ -154,7 +183,206 @@ export class PerfilDetalleComponent implements OnInit, OnDestroy {
   cambiarTab(tab: Tab): void {
     this.tab = tab;
     if (tab === 'historial' && this.historial.length === 0) this.cargarHistorial(true);
+    if (tab === 'tickets' && this.ticketsInstitucion.length === 0) this.cargarTickets(true);
     this.cdr.detectChanges();
+  }
+
+  /* ---------- Tickets de la institución ---------- */
+  private obtenerRangoTickets(): { desde?: string; hasta?: string } {
+    const hoy = this.fechaHoy;
+
+    if (this.ticketsFiltroFecha === 'hoy') {
+      return rangoDiaBogotaUtc(hoy);
+    }
+    if (this.ticketsFiltroFecha === 'ayer') {
+      return rangoDiaBogotaUtc(restarDiasCivil(hoy, 1));
+    }
+    if (this.ticketsFiltroFecha === 'rango' && this.ticketsRangoDesde && this.ticketsRangoHasta) {
+      const [dy, dm, dd] = this.ticketsRangoDesde.split('-').map(Number);
+      const [hy, hm, hd] = this.ticketsRangoHasta.split('-').map(Number);
+      const desde = bogotaCivilAUtc({ year: dy, month: dm, day: dd }, 0, 0, 0, 0);
+      const hasta = bogotaCivilAUtc({ year: hy, month: hm, day: hd }, 23, 59, 59, 999);
+      return { desde: new Date(desde).toISOString(), hasta: new Date(hasta).toISOString() };
+    }
+    return {};
+  }
+
+  cargarTickets(reset: boolean): void {
+    const institucionNombre = this.ficha?.institucion.nombre;
+    if (!institucionNombre) return;
+    if (reset) {
+      this.ticketsPage = 1;
+      this.ticketsCargando = true;
+    }
+    const rango = this.obtenerRangoTickets();
+    const busqueda = this.ticketsBusqueda.trim();
+    this.ticketService.findAll({
+      institucion: institucionNombre,
+      search: busqueda || undefined,
+      page: this.ticketsPage,
+      limit: 20,
+      sortBy: 'createdAt',
+      sortDirection: 'desc',
+      dateFrom: rango.desde,
+      dateTo: rango.hasta,
+    }).pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (res) => {
+          this.ticketsInstitucion = reset ? res.data : [...this.ticketsInstitucion, ...res.data];
+          this.ticketsTotal = res.total;
+          this.ticketsCargando = false;
+          this.cdr.detectChanges();
+        },
+        error: () => {
+          this.ticketsCargando = false;
+          this.notification.error('Error', 'No se pudieron cargar los tickets');
+          this.cdr.detectChanges();
+        },
+      });
+  }
+
+  onTicketsBuscar(valor: string): void {
+    this.ticketsBusqueda = valor;
+    this.ticketsSearch$.next(valor);
+  }
+
+  filtrarTicketsFecha(filtro: 'todos' | 'hoy' | 'ayer' | 'rango'): void {
+    this.ticketsFiltroFecha = filtro;
+    if (filtro !== 'rango') {
+      this.ticketsRangoDesde = '';
+      this.ticketsRangoHasta = '';
+    }
+    this.cargarTickets(true);
+  }
+
+  aplicarRangoTickets(): void {
+    if (this.ticketsRangoDesde && this.ticketsRangoHasta) {
+      this.cargarTickets(true);
+    }
+  }
+
+  masTickets(): void {
+    this.ticketsPage++;
+    this.ticketsCargando = true;
+    this.cargarTickets(false);
+  }
+
+  abrirTicketModal(ticket: Ticket): void {
+    this.modalTicket = ticket;
+    this.cdr.detectChanges();
+  }
+
+  cerrarTicketModal(): void {
+    this.modalTicket = null;
+    this.cdr.detectChanges();
+  }
+
+  abrirModalNotas(): void {
+    this.modalNotasAbierto = true;
+    this.cdr.detectChanges();
+  }
+
+  cerrarModalNotas(): void {
+    this.modalNotasAbierto = false;
+    this.cdr.detectChanges();
+  }
+
+  abrirModalConversacion(): void {
+    this.convLightboxUrl = null;
+    this.modalConversacionAbierto = true;
+    this.cdr.detectChanges();
+  }
+
+  cerrarModalConversacion(): void {
+    this.convLightboxUrl = null;
+    this.modalConversacionAbierto = false;
+    this.cdr.detectChanges();
+  }
+
+  openLightboxConv(url: string): void {
+    this.convLightboxUrl = url;
+    this.cdr.detectChanges();
+  }
+
+  closeLightboxConv(): void {
+    this.convLightboxUrl = null;
+    this.cdr.detectChanges();
+  }
+
+  downloadLightboxConvImage(): void {
+    if (!this.convLightboxUrl) return;
+    const a = document.createElement('a');
+    a.href = this.convLightboxUrl;
+    a.download = this.convLightboxUrl.split('/').pop() || 'imagen';
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
+  conversationMediaUrl(path: string): string {
+    return /^https?:\/\//.test(path) ? path : `${environment.apiUrl}${path}`;
+  }
+
+  isImageConvAttachment(mimeType?: string, url?: string): boolean {
+    const mime = (mimeType ?? url ?? '').toLowerCase();
+    return mime.startsWith('image/');
+  }
+
+  showConvDay(msg: ConversationMessage, index: number): boolean {
+    const list = this.modalTicket?.conversation ?? [];
+    const prev = list[index - 1];
+    return !prev || !sameBogotaDay(prev.timestamp, msg.timestamp);
+  }
+
+  convDay(iso: string): string {
+    return fmtDateShort(iso);
+  }
+
+  convDateTime(iso: string): string {
+    return fmtDateTime(iso);
+  }
+
+  statusTicketLabel(status: string): string {
+    switch (status) {
+      case 'open': return 'Abierto';
+      case 'in_progress': return 'En progreso';
+      case 'on_hold': return 'En espera';
+      case 'denied': return 'Denegado';
+      case 'resolved': return 'Resuelto';
+      case 'closed': return 'Cerrado';
+      default: return status;
+    }
+  }
+
+  priorityTicketLabel(priority: string): string {
+    switch (priority) {
+      case 'low': return 'Baja';
+      case 'medium': return 'Media';
+      case 'high': return 'Alta';
+      case 'critical': return 'Critica';
+      default: return priority;
+    }
+  }
+
+  sourceTicketLabel(sourceType: string): string {
+    switch (sourceType) {
+      case 'web': return 'Web';
+      case 'whatsapp': return 'WhatsApp';
+      case 'internal': return 'Interno';
+      case 'email': return 'Correo';
+      default: return sourceType;
+    }
+  }
+
+  ticketClienteEmail(ticket: Ticket): string {
+    if (!ticket.clientInfo) return '';
+    return String(ticket.clientInfo['email'] ?? ticket.clientInfo['correo'] ?? '').trim();
+  }
+
+  ticketSlaLabel(ticket: Ticket): string {
+    if (!ticket.slaDeadline) return 'Sin SLA';
+    return this.formatearFecha(ticket.slaDeadline);
   }
 
   /* ---------- Logo ---------- */

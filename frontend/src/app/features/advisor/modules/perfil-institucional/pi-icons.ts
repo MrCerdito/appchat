@@ -48,6 +48,9 @@ import {
   Folder,
   FolderOpen,
   Tag,
+  Ticket,
+  MessageSquare,
+  StickyNote,
 } from 'lucide-angular';
 
 export const PI_ICONS = {
@@ -100,6 +103,9 @@ export const PI_ICONS = {
   Folder,
   FolderOpen,
   Tag,
+  Ticket,
+  MessageSquare,
+  StickyNote,
 };
 
 export type PiIconName = keyof typeof PI_ICONS;

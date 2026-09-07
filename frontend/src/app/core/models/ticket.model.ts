@@ -86,6 +86,7 @@ export interface TicketQuery {
   sourceType?: string;
   assignedTo?: string;
   createdById?: string;
+  institucion?: string;
   dateFrom?: string;
   dateTo?: string;
   sortBy?: string;

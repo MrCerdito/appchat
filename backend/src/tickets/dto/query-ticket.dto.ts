@@ -31,6 +31,10 @@ export class QueryTicketDto {
 
   @IsString()
   @IsOptional()
+  institucion?: string;
+
+  @IsString()
+  @IsOptional()
   dateFrom?: string;
 
   @IsString()

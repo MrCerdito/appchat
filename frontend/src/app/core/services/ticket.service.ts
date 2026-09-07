@@ -41,6 +41,7 @@ export class TicketService {
       if (query.sourceType) params = params.set('sourceType', query.sourceType);
       if (query.assignedTo) params = params.set('assignedTo', query.assignedTo);
       if (query.createdById) params = params.set('createdById', query.createdById);
+      if (query.institucion) params = params.set('institucion', query.institucion);
       if (query.dateFrom) params = params.set('dateFrom', query.dateFrom);
       if (query.dateTo) params = params.set('dateTo', query.dateTo);
       if (query.sortBy) params = params.set('sortBy', query.sortBy);
