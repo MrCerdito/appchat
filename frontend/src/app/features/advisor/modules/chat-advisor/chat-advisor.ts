@@ -418,8 +418,8 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
       }
     });
 
-    const savedStatus = localStorage.getItem('advisor_status') ?? 'online';
-    this.socket.emit('set_advisor_status', savedStatus);
+    // No se reenvía un estado guardado (localStorage): el login fresco lo fuerza
+    // a 'online' desde el dashboard, y un F5 restaura el estado real vía advisor_ready.
     this.socket.emit('advisor_ready');
 
     this.registerSocketEvents();

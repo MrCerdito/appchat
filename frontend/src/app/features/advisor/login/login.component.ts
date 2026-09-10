@@ -56,6 +56,9 @@ export class LoginComponent {
       next: () => {
         this.loading = false;
         const user = this.auth.getUser();
+        if (user?.role === 'advisor') {
+          sessionStorage.setItem('advisor_fresh_login', '1');
+        }
         const target = user?.role === 'admin' ? '/admin' : user?.role === 'desarrollador' ? '/developer' : user?.role === 'interno' ? '/interno' : '/dashboard';
         this.router.navigate([target]);
       },

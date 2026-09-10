@@ -225,18 +225,25 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
     this.internalChat.connect();
 
-    // No se fuerza 'online' al cargar/refrescar: el servidor restaura el último
-    // estado elegido por el asesor (advisor_ready / get_lunch_state) para que un
-    // F5 no lo devuelva a Disponible. El localStorage solo siembra el UI de forma
-    // optimista para evitar parpadeos; el evento del servidor es la fuente real.
-    const savedStatus = localStorage.getItem(this.STATUS_KEY) as
-      | 'online'
-      | 'busy'
-      | 'offline'
-      | null;
-    if (savedStatus === 'online' || savedStatus === 'busy' || savedStatus === 'offline') {
-      this.advisorStatus = savedStatus;
-      this.cdr.detectChanges();
+    // Un login fresco debe dejar al asesor "Disponible" de inmediato: se fuerza
+    // 'online' al servidor y la píldora arranca verde. En un F5/refresh el
+    // localStorage solo siembra el UI de forma optimista y advisor_ready restaura
+    // el último estado elegido (no salta a Disponible).
+    const freshLogin = sessionStorage.getItem('advisor_fresh_login') === '1';
+    if (freshLogin) {
+      sessionStorage.removeItem('advisor_fresh_login');
+      this.advisorStatus = 'online';
+      this.socket.emit('set_advisor_status', 'online');
+    } else {
+      const savedStatus = localStorage.getItem(this.STATUS_KEY) as
+        | 'online'
+        | 'busy'
+        | 'offline'
+        | null;
+      if (savedStatus === 'online' || savedStatus === 'busy' || savedStatus === 'offline') {
+        this.advisorStatus = savedStatus;
+        this.cdr.detectChanges();
+      }
     }
     this.socket.emit('advisor_ready');
     this.loadActiveCount();
@@ -270,7 +277,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.socket.on<ConnectedAdvisor>('advisor_status_changed')
       .pipe(takeUntil(this.destroy$))
       .subscribe(data => {
-        if (data.advisorId === this.currentAdvisor?.id) {
+        if (data.advisorId === (this.currentAdvisor?.id ?? this.auth.getUser()?.id)) {
           this.advisorStatus = data.status as 'online' | 'busy' | 'offline';
           localStorage.setItem(this.STATUS_KEY, data.status);
           this.cdr.detectChanges();
