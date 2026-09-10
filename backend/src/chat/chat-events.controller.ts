@@ -1,4 +1,10 @@
-import { BadRequestException, Controller, Post, Body, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Controller,
+  Post,
+  Body,
+  Logger,
+} from '@nestjs/common';
 import { Throttle, SkipThrottle } from '@nestjs/throttler';
 import { ChatService } from './chat.service';
 import { ChatGateway } from './chat.gateway';
@@ -28,14 +34,24 @@ export class ChatEventsController {
   @Post('eventos-faq')
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   async registrarFaqClic(
-    @Body() body: { sessionId?: string; faqId?: number; fecha?: string; soloEvento?: boolean },
+    @Body()
+    body: {
+      sessionId?: string;
+      faqId?: number;
+      fecha?: string;
+      soloEvento?: boolean;
+    },
   ) {
-    const sessionId = typeof body?.sessionId === 'string' ? body.sessionId.trim() : '';
+    const sessionId =
+      typeof body?.sessionId === 'string' ? body.sessionId.trim() : '';
     const faqId = Number(body?.faqId);
     if (!sessionId || !Number.isInteger(faqId)) {
       throw new BadRequestException('sessionId y faqId son obligatorios');
     }
-    const fecha = typeof body?.fecha === 'string' && body.fecha.trim() ? body.fecha.trim() : null;
+    const fecha =
+      typeof body?.fecha === 'string' && body.fecha.trim()
+        ? body.fecha.trim()
+        : null;
     const soloEvento = body?.soloEvento === true;
     try {
       const faq = await this.faqService.findOne(faqId);

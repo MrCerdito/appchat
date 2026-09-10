@@ -29,7 +29,12 @@ export class ChatService implements OnModuleInit {
 
   // ── Schema (prod has synchronize off) ─────────────────────────────────────
   async onModuleInit(): Promise<void> {
-    const cols = ['delivered_at timestamptz', 'edited_at timestamptz'];
+    const cols = [
+      'delivered_at timestamptz',
+      'edited_at timestamptz',
+      'deleted_at timestamptz',
+      'deleted_by varchar(36)',
+    ];
     for (const col of cols) {
       try {
         await this.messageRepo.query(
@@ -58,6 +63,19 @@ export class ChatService implements OnModuleInit {
         )`);
       await this.sessionEventoRepo.query(
         `CREATE INDEX IF NOT EXISTS idx_session_events_session ON session_events(session_id, created_at)`,
+      );
+      await this.sessionEventoRepo.query(`
+        CREATE TABLE IF NOT EXISTS session_assignment_events (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          session_id uuid NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+          tipo varchar(50) NOT NULL,
+          advisor_id varchar(36),
+          advisor_name varchar(120),
+          detalle jsonb,
+          created_at timestamptz NOT NULL DEFAULT now()
+        )`);
+      await this.sessionEventoRepo.query(
+        `CREATE INDEX IF NOT EXISTS idx_session_assignment_events_session ON session_assignment_events(session_id, created_at)`,
       );
     } catch (error) {
       this.logger.warn(
@@ -162,7 +180,10 @@ export class ChatService implements OnModuleInit {
     if (msg.senderType !== senderType) {
       throw new ForbiddenException('Solo el autor puede editar');
     }
-    if (msg.senderName === 'Sistema' || msg.senderName === 'Asistente Virtual') {
+    if (
+      msg.senderName === 'Sistema' ||
+      msg.senderName === 'Asistente Virtual'
+    ) {
       throw new ForbiddenException('No se pueden editar mensajes del sistema');
     }
     const elapsed = Date.now() - new Date(msg.createdAt).getTime();
@@ -173,6 +194,49 @@ export class ChatService implements OnModuleInit {
     if (!safeContent) throw new BadRequestException('Mensaje vacio');
     msg.content = safeContent;
     msg.editedAt = new Date();
+    return this.messageRepo.save(msg);
+  }
+
+  /** Soft-delete: oculta el mensaje pero conserva content/adjuntos para el
+   *  deshacer (restoreMessage). Solo el autor (asesor) puede borrar sus
+   *  propios mensajes; el sistema y la IA no se borran. */
+  async softDeleteMessage(
+    messageId: string,
+    sessionId: string,
+    deleter: string,
+  ): Promise<Message> {
+    const msg = await this.messageRepo.findOne({
+      where: { id: messageId, session: { id: sessionId } as any },
+    });
+    if (!msg) throw new BadRequestException('Mensaje no encontrado');
+    if (msg.deletedAt) throw new BadRequestException('Mensaje ya eliminado');
+    if (msg.senderType !== 'advisor' || msg.senderName !== deleter) {
+      throw new ForbiddenException('Solo el autor puede borrar');
+    }
+    if (
+      msg.senderName === 'Sistema' ||
+      msg.senderName === 'Asistente Virtual'
+    ) {
+      throw new ForbiddenException('No se pueden borrar mensajes del sistema');
+    }
+    msg.deletedAt = new Date();
+    msg.deletedBy = deleter;
+    return this.messageRepo.save(msg);
+  }
+
+  /** Deshace un soft-delete reciente (ventana de 5 s controlada por el
+   *  cliente); el contenido nunca se pierde hasta entonces. */
+  async restoreMessage(
+    messageId: string,
+    sessionId: string,
+  ): Promise<Message> {
+    const msg = await this.messageRepo.findOne({
+      where: { id: messageId, session: { id: sessionId } as any },
+    });
+    if (!msg) throw new BadRequestException('Mensaje no encontrado');
+    if (!msg.deletedAt) throw new BadRequestException('Mensaje no eliminado');
+    msg.deletedAt = null;
+    msg.deletedBy = null;
     return this.messageRepo.save(msg);
   }
 }

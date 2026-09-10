@@ -52,6 +52,13 @@ export class Message {
   @Column({ name: 'edited_at', nullable: true, type: 'timestamptz' })
   editedAt: Date | null;
 
+  /** Soft-delete: el contenido se conserva para permitir deshacer. */
+  @Column({ name: 'deleted_at', nullable: true, type: 'timestamptz' })
+  deletedAt: Date | null;
+
+  @Column({ name: 'deleted_by', nullable: true, type: 'varchar', length: 36 })
+  deletedBy: string | null;
+
   @Column({ name: 'reply_to_message_id', nullable: true, type: 'uuid' })
   replyToMessageId: string | null;
 

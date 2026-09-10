@@ -73,7 +73,10 @@ export class RedisStateService implements OnModuleDestroy {
   // CONNECTED ADVISORS (SET)
   // ═══════════════════════════════════════════════════════════════════════════
 
-  async addConnectedAdvisor(advisorId: string, socketId: string): Promise<void> {
+  async addConnectedAdvisor(
+    advisorId: string,
+    socketId: string,
+  ): Promise<void> {
     // Registro por socket id (idempotente): el asesor permanece "conectado"
     // mientras tenga AL MENOS un socket activo. Evita el race de reconexión
     // rápida (desconexión del socket viejo procesada tras la conexión del
@@ -82,7 +85,10 @@ export class RedisStateService implements OnModuleDestroy {
     await this.redis.sadd(K.CONNECTED_ADVISORS, advisorId);
   }
 
-  async removeAdvisorSocket(advisorId: string, socketId: string): Promise<boolean> {
+  async removeAdvisorSocket(
+    advisorId: string,
+    socketId: string,
+  ): Promise<boolean> {
     await this.redis.srem(K.ADVISOR_SOCKETS, `${advisorId}:${socketId}`);
     // ¿Quedan más sockets de este asesor?
     const restantes = await this.redis.smembers(K.ADVISOR_SOCKETS);
@@ -131,13 +137,17 @@ export class RedisStateService implements OnModuleDestroy {
 
   // Elimina de CONNECTED_ADVISORS/ADVISOR_SOCKETS/ADVISOR_STATUSES a todo
   // asesor que NO tenga un heartbeat fresco (es decir, sin ningún socket vivo
-  // en ninguna instancia). Devuelve cuántos fantasmas se limpiaron.
-  async sweepStaleAdvisorPresence(): Promise<number> {
+  // en ninguna instancia). Devuelve los asesores fantasma que quedaron limpios.
+  async sweepStaleAdvisorPresence(): Promise<{
+    count: number;
+    advisorIds: string[];
+  }> {
     const connected = await this.getConnectedAdvisorIds();
-    if (!connected.length) return 0;
+    if (!connected.length) return { count: 0, advisorIds: [] };
 
     const socketEntries = await this.redis.smembers(K.ADVISOR_SOCKETS);
     let removed = 0;
+    const removedIds: string[] = [];
     const pipeline = this.redis.pipeline();
     for (const id of connected) {
       const alive = await this.redis.exists(
@@ -149,9 +159,10 @@ export class RedisStateService implements OnModuleDestroy {
       if (stale.length) pipeline.srem(K.ADVISOR_SOCKETS, ...stale);
       pipeline.hdel(K.ADVISOR_STATUSES, id);
       removed += 1;
+      removedIds.push(id);
     }
     if (removed) await pipeline.exec();
-    return removed;
+    return { count: removed, advisorIds: removedIds };
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -241,10 +252,7 @@ export class RedisStateService implements OnModuleDestroy {
   // MESSAGE RATE LIMIT (HASH — JSON serialized)
   // ═══════════════════════════════════════════════════════════════════════════
 
-  async setRateLimit(
-    sessionId: string,
-    data: RateLimitData,
-  ): Promise<void> {
+  async setRateLimit(sessionId: string, data: RateLimitData): Promise<void> {
     await this.redis.hset(K.RATE_LIMIT, sessionId, JSON.stringify(data));
   }
 
@@ -356,9 +364,7 @@ export class RedisStateService implements OnModuleDestroy {
     await this.redis.hset(K.PENDING_LUNCH, advisorId, JSON.stringify(data));
   }
 
-  async getPendingLunch(
-    advisorId: string,
-  ): Promise<PendingLunchData | null> {
+  async getPendingLunch(advisorId: string): Promise<PendingLunchData | null> {
     const raw = await this.redis.hget(K.PENDING_LUNCH, advisorId);
     return raw ? JSON.parse(raw) : null;
   }
@@ -411,13 +417,7 @@ export class RedisStateService implements OnModuleDestroy {
   // ═══════════════════════════════════════════════════════════════════════════
 
   async acquireAssignLock(ttlMs = 5000): Promise<boolean> {
-    const result = await this.redis.set(
-      K.ASSIGN_LOCK,
-      '1',
-      'PX',
-      ttlMs,
-      'NX',
-    );
+    const result = await this.redis.set(K.ASSIGN_LOCK, '1', 'PX', ttlMs, 'NX');
     return result === 'OK';
   }
 
@@ -429,10 +429,7 @@ export class RedisStateService implements OnModuleDestroy {
   // CLEANUP — remove stale advisor data on disconnect
   // ═══════════════════════════════════════════════════════════════════════════
 
-  async cleanupAdvisor(
-    advisorId: string,
-    socketId: string,
-  ): Promise<boolean> {
+  async cleanupAdvisor(advisorId: string, socketId: string): Promise<boolean> {
     // Registro por socket id: solo cuando YA no queda ningún socket del asesor
     // se elimina del SET de conectados y se limpia su estado.
     const quedanSockets = await this.removeAdvisorSocket(advisorId, socketId);
@@ -440,7 +437,11 @@ export class RedisStateService implements OnModuleDestroy {
       return true;
     }
     const pipeline = this.redis.pipeline();
-    pipeline.hdel(K.ADVISOR_STATUSES, advisorId);
+    // NOTA: NO se borra chat:advisor-statuses a propósito. La preferencia de
+    // estado elegida por el asesor (online/busy/offline) se conserva aunque se
+    // desconecte el último socket, para que un refresh/reconexión rápida la
+    // restaure y no vuelva a 'online' por defecto. Solo se limpia en logout
+    // explícito (advisor_logout) o en el barrido de fantasmas.
     // NOTA: NO se borra chat:on-lunch ni chat:pending-lunch a propósito. Si el
     // asesor se desconecta durante el almuerzo (activo o pendiente), al
     // reconectar reanuda el tiempo restante en vez de reiniciar la duración

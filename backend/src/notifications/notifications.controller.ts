@@ -12,7 +12,10 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { NotificationsService, CreateNotificationDto } from './notifications.service';
+import {
+  NotificationsService,
+  CreateNotificationDto,
+} from './notifications.service';
 import { NotificationPreferences } from './user-notification-preference.entity';
 
 @Controller('notifications')

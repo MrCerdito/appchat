@@ -17,11 +17,36 @@ export class FaqCategoryService implements OnModuleInit {
 
   // Categorías por defecto (se siembran solo si la tabla está vacía).
   private readonly defaultCategories: Partial<FaqCategory>[] = [
-    { name: 'General', icon: 'HelpCircle', description: 'Preguntas generales sobre la plataforma e institución', orden: 0 },
-    { name: 'Académico', icon: 'BookOpen', description: 'Notas, boletines, certificados y documentos académicos', orden: 1 },
-    { name: 'Soporte', icon: 'Headphones', description: 'Tickets de soporte y ayuda técnica', orden: 2 },
-    { name: 'APP', icon: 'Smartphone', description: 'Aplicación móvil de la plataforma', orden: 3 },
-    { name: 'Authenticator', icon: 'ShieldCheck', description: 'Autenticación, código QR y accesos', orden: 4 },
+    {
+      name: 'General',
+      icon: 'HelpCircle',
+      description: 'Preguntas generales sobre la plataforma e institución',
+      orden: 0,
+    },
+    {
+      name: 'Académico',
+      icon: 'BookOpen',
+      description: 'Notas, boletines, certificados y documentos académicos',
+      orden: 1,
+    },
+    {
+      name: 'Soporte',
+      icon: 'Headphones',
+      description: 'Tickets de soporte y ayuda técnica',
+      orden: 2,
+    },
+    {
+      name: 'APP',
+      icon: 'Smartphone',
+      description: 'Aplicación móvil de la plataforma',
+      orden: 3,
+    },
+    {
+      name: 'Authenticator',
+      icon: 'ShieldCheck',
+      description: 'Autenticación, código QR y accesos',
+      orden: 4,
+    },
   ];
 
   constructor(
@@ -34,13 +59,18 @@ export class FaqCategoryService implements OnModuleInit {
       const count = await this.repo.count();
       if (count > 0) return;
       for (const cat of this.defaultCategories) {
-        await this.repo.save(this.repo.create({ ...cat, roles: null, activo: true }));
+        await this.repo.save(
+          this.repo.create({ ...cat, roles: null, activo: true }),
+        );
       }
       this.logger.log(
         `Se sembraron ${this.defaultCategories.length} categorías de FAQ por defecto`,
       );
     } catch (err) {
-      this.logger.error('No se pudieron sembrar las categorías de FAQ por defecto', (err as Error)?.stack);
+      this.logger.error(
+        'No se pudieron sembrar las categorías de FAQ por defecto',
+        (err as Error)?.stack,
+      );
     }
   }
 
@@ -90,7 +120,10 @@ export class FaqCategoryService implements OnModuleInit {
     await this.repo.remove(cat);
   }
 
-  private async assertUniqueName(name: string, exceptId?: number): Promise<void> {
+  private async assertUniqueName(
+    name: string,
+    exceptId?: number,
+  ): Promise<void> {
     const qb = this.repo
       .createQueryBuilder('c')
       .where('LOWER(c.name) = LOWER(:name)', { name: name.trim() });

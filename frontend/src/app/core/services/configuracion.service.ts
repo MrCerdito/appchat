@@ -35,6 +35,10 @@ export interface ConfiguracionData {
   whatsappCallUnavailableMsg: string;
   whatsappQuickReplies: any[];
   whatsappMaxActiveChatsPerAdvisor: number;
+  asignacionBalanceTipo: 'carga' | 'hoy';
+  maxActiveChatsWeb: number;
+  asignacionContarCerradasHoy: boolean;
+  asignacionPriorizarColegio: boolean;
   sonidoActivado: boolean;
   sonidoWhatsapp: string;
   sonidoAsesor: string;

@@ -41,15 +41,49 @@ export function normalizarRolesCsv(csv?: string | null): string {
 // ─────────────────────────────────────────────────────────────────────────────
 export function normalizarCategoria(cat?: string | null): string {
   if (!cat) return 'general';
-  const c = cat.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  if (c.includes('matricul') || c.includes('inscr') || c.includes('admis')) return 'matricula';
-  if (c.includes('pago') || c.includes('factur') || c.includes('pension') || c.includes('costo') || c.includes('deuda')) return 'pagos';
-  if (c.includes('soport') || c.includes('contras') || c.includes('clave') || c.includes('tecnic') || c.includes('plataform')) return 'soporte';
-  if (c.includes('reglam') || c.includes('manual') || c.includes('norma') || c.includes('conviven')) return 'reglamento';
-  if (c.includes('academic') || c.includes('nota') || c.includes('boletin') || c.includes('materia') || c.includes('clase')) return 'academico';
+  const c = cat
+    .toLowerCase()
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+  if (c.includes('matricul') || c.includes('inscr') || c.includes('admis'))
+    return 'matricula';
+  if (
+    c.includes('pago') ||
+    c.includes('factur') ||
+    c.includes('pension') ||
+    c.includes('costo') ||
+    c.includes('deuda')
+  )
+    return 'pagos';
+  if (
+    c.includes('soport') ||
+    c.includes('contras') ||
+    c.includes('clave') ||
+    c.includes('tecnic') ||
+    c.includes('plataform')
+  )
+    return 'soporte';
+  if (
+    c.includes('reglam') ||
+    c.includes('manual') ||
+    c.includes('norma') ||
+    c.includes('conviven')
+  )
+    return 'reglamento';
+  if (
+    c.includes('academic') ||
+    c.includes('nota') ||
+    c.includes('boletin') ||
+    c.includes('materia') ||
+    c.includes('clase')
+  )
+    return 'academico';
   return 'general';
 }
 
-export function mapearTipoSolicitudACategoria(tipoSolicitud?: string | null): string {
+export function mapearTipoSolicitudACategoria(
+  tipoSolicitud?: string | null,
+): string {
   return normalizarCategoria(tipoSolicitud);
 }

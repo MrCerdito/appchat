@@ -46,7 +46,7 @@ class AddDesarrolladorDto {
 
 @Controller('modulos')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('admin', 'advisor', 'desarrollador')
+@Roles('admin', 'advisor', 'desarrollador', 'interno')
 export class ModulosController {
   constructor(private readonly svc: ModulosService) {}
 

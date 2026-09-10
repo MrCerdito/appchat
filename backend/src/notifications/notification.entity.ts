@@ -26,13 +26,23 @@ export class Notification {
   @Column({ type: 'text' })
   message: string;
 
-  @Column({ name: 'entity_type', type: 'varchar', length: 50, default: 'ticket' })
+  @Column({
+    name: 'entity_type',
+    type: 'varchar',
+    length: 50,
+    default: 'ticket',
+  })
   entityType: string;
 
   @Column({ name: 'entity_id', type: 'varchar', length: 36 })
   entityId: string;
 
-  @Column({ name: 'entity_codigo', type: 'varchar', length: 20, nullable: true })
+  @Column({
+    name: 'entity_codigo',
+    type: 'varchar',
+    length: 20,
+    nullable: true,
+  })
   entityCodigo: string | null;
 
   @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })

@@ -10,6 +10,7 @@ import {
   MaxLength,
   ValidateNested,
   IsInt,
+  IsIn,
   Validate,
 } from 'class-validator';
 import { HorarioSlot, HorarioAlmuerzo } from '../entities/configuracion.entity';
@@ -122,6 +123,28 @@ export class GuardarConfigGlobalDto {
   @IsString({ each: true })
   @MaxLength(100, { each: true })
   ticketCategories?: string[];
+
+  // ── Asignación de chats web ───────────────────────────────────────────────
+  @IsOptional()
+  @IsString()
+  @IsIn(['carga', 'hoy'])
+  asignacionBalanceTipo?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  maxActiveChatsWeb?: number;
+
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  asignacionContarCerradasHoy?: boolean;
+
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  asignacionPriorizarColegio?: boolean;
 
   // ── SLA de tickets ────────────────────────────────────────────────────────
   @IsOptional()

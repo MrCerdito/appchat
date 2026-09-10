@@ -1,0 +1,440 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:host { display: block; height: 100vh; overflow: hidden; }
+
+.dev-shell {
+  display: flex;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  font-family: var(--font);
+}
+
+// ── Overlay ────────────────────────────────────────────────
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 200;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s;
+
+  &.visible {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  @media (max-width: 1268px) {
+    display: block;
+  }
+}
+
+// ── Sidebar ────────────────────────────────────────────────
+.shell-sidebar {
+  width: 240px;
+  min-width: 240px;
+  height: 100%;
+  background: var(--sidebar-bg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+  flex-shrink: 0;
+  transition: width 0.25s ease, transform 0.25s ease, min-width 0.25s ease;
+
+  &::-webkit-scrollbar { display: none; }
+
+  @media (max-width: 1268px) {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    z-index: 300;
+    transform: translateX(-100%);
+
+    &.open {
+      transform: translateX(0);
+    }
+  }
+}
+
+// Sidebar oculto (forzado, p.ej. dentro del modulo de tickets)
+.dev-shell.sidebar-forced-collapsed {
+  .shell-sidebar {
+    width: 0;
+    min-width: 0;
+    transform: translateX(-100%);
+    border-right: 0;
+    overflow: hidden;
+
+    // Reabrir como overlay desde la hamburguesa de la topbar
+    &.open {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 300;
+      width: 240px;
+      min-width: 240px;
+      height: 100%;
+      transform: translateX(0);
+      overflow-y: auto;
+      border-right: 1px solid var(--sidebar-border);
+      box-shadow: 18px 0 42px rgba(0, 0, 0, 0.24);
+    }
+  }
+
+  .sidebar-overlay {
+    display: block;
+  }
+}
+
+// ── Logo ───────────────────────────────────────────────────
+.shell-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 1.3rem 1.2rem 1rem;
+  border-bottom: 1px solid var(--sidebar-border);
+
+  .logo-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: var(--sidebar-accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    svg { width: 17px; height: 17px; color: var(--sidebar-text); }
+  }
+
+  .logo-text {
+    flex: 1;
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--sidebar-text);
+  }
+
+  .logo-notif {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+
+    ::ng-deep .notif-bell {
+      width: 30px;
+      height: 30px;
+      border-radius: 7px;
+      color: var(--sidebar-text-muted);
+      background: var(--sidebar-hover);
+
+      &:hover {
+        background: var(--sidebar-accent);
+        color: var(--sidebar-text);
+      }
+    }
+
+    ::ng-deep .notif-panel-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+    }
+
+    ::ng-deep .notif-panel {
+      position: fixed;
+      top: 70px;
+      left: 8px;
+      right: auto;
+      width: 340px;
+      max-width: calc(100vw - 16px);
+    }
+  }
+
+  .sidebar-close {
+    margin-left: 0.25rem;
+  }
+}
+
+// ── Botón cerrar (solo móvil) ──────────────────────────────
+.sidebar-close {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 7px;
+  background: var(--sidebar-hover);
+  color: var(--sidebar-text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s;
+
+  svg { width: 16px; height: 16px; }
+
+  &:hover { background: var(--sidebar-hover); color: var(--sidebar-text); }
+
+  @media (max-width: 1268px) {
+    display: flex;
+  }
+}
+
+// ── Nav ────────────────────────────────────────────────────
+.shell-nav {
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 0.7rem 0.5rem;
+  gap: 2px;
+
+  .nav-label {
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: var(--sidebar-text-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 0 0.5rem;
+    margin-bottom: 4px;
+
+    &.section-spacer {
+      margin-top: 0.6rem;
+    }
+  }
+}
+
+// ── Nav item ───────────────────────────────────────────────
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.75rem;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--sidebar-text-muted);
+  font-family: var(--font);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-decoration: none;
+  position: relative;
+
+  svg { width: 17px; height: 17px; flex-shrink: 0; }
+  img { width: 17px; height: 17px; flex-shrink: 0; object-fit: contain; }
+
+  &:hover  { background: var(--sidebar-hover); color: var(--sidebar-text); }
+  &.active { background: var(--sidebar-accent);   color: var(--sidebar-text); font-weight: 600; }
+}
+
+// ── Spacer ─────────────────────────────────────────────────
+.shell-spacer { flex: 1; }
+
+// ── Profile ────────────────────────────────────────────────
+.shell-profile {
+  border-top: 1px solid var(--sidebar-border);
+  position: relative;
+}
+
+.profile-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.9rem 1rem;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover,
+  &.open { background: var(--sidebar-active); }
+}
+
+.profile-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--sidebar-accent);
+  color: var(--sidebar-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.profile-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.profile-info {
+  flex: 1;
+  min-width: 0;
+
+  .profile-name {
+    display: block;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--sidebar-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .profile-role {
+    font-size: 0.72rem;
+    color: var(--sidebar-text-muted);
+  }
+}
+
+.chevron {
+  width: 14px;
+  height: 14px;
+  color: var(--sidebar-text-faint);
+  transition: transform 0.2s;
+
+  &.rotated { transform: rotate(180deg); }
+}
+
+// ── Dropdown ───────────────────────────────────────────────
+.status-dropdown {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0.7rem;
+  right: 0.7rem;
+  background: var(--sidebar-surface);
+  border: 1px solid var(--sidebar-border);
+  border-radius: 12px;
+  padding: 0.4rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  z-index: 100;
+}
+
+.dropdown-label {
+  display: block;
+  padding: 0.3rem 0.7rem 0.2rem;
+  color: var(--sidebar-text-faint);
+  font-family: var(--font);
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.dropdown-divider {
+  height: 1px;
+  margin: 0.3rem 0.4rem;
+  background: var(--sidebar-border);
+}
+
+.status-option {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--sidebar-text-muted);
+  font-family: var(--font);
+  font-size: 0.83rem;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  svg { width: 14px; height: 14px; }
+
+  &:hover { background: var(--sidebar-hover); color: var(--sidebar-text); }
+  &.active { background: var(--sidebar-accent-soft); color: var(--sidebar-text); }
+
+  &.logout {
+    color: var(--danger);
+    &:hover { background: var(--danger-soft); color: var(--danger); }
+  }
+}
+
+// ── Content area ───────────────────────────────────────────
+.shell-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+// ── Topbar ─────────────────────────────────────────────────
+.mobile-topbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0 1rem;
+  height: 58px;
+  background: var(--sidebar-bg);
+  border-bottom: 1px solid var(--sidebar-border);
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.05);
+  flex-shrink: 0;
+
+  .topbar-logo {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--sidebar-text);
+
+    .logo-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 7px;
+      background: var(--sidebar-accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      svg { width: 15px; height: 15px; color: var(--sidebar-text); }
+    }
+  }
+
+  .topbar-avatar {
+    width: 30px;
+    height: 30px;
+    font-size: 0.8rem;
+  }
+}
+
+.hamburger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 8px;
+  background: var(--sidebar-hover);
+  color: var(--sidebar-text);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s;
+
+  svg { width: 18px; height: 18px; }
+
+  &:hover { background: var(--sidebar-hover); }
+}
+
+// ── Outlet ─────────────────────────────────────────────────
+.shell-outlet {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}

@@ -1,4 +1,10 @@
-import { Inject, Injectable, Logger, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like, Not } from 'typeorm';
@@ -88,7 +94,9 @@ export class FaqService {
       }
     }
 
-    const result = Array.from(categoriasUnicas).sort((a, b) => a.localeCompare(b));
+    const result = Array.from(categoriasUnicas).sort((a, b) =>
+      a.localeCompare(b),
+    );
     await this.cache.set(cacheKey, result, this.CACHE_TTL);
     return result;
   }
@@ -99,7 +107,10 @@ export class FaqService {
     return faq;
   }
 
-  private async existsByPregunta(pregunta: string, excludeId?: number): Promise<boolean> {
+  private async existsByPregunta(
+    pregunta: string,
+    excludeId?: number,
+  ): Promise<boolean> {
     const where: any = { pregunta: pregunta.trim() };
     if (excludeId) where.id = Not(excludeId);
     const count = await this.faqRepo.count({ where });
@@ -108,7 +119,9 @@ export class FaqService {
 
   async create(dto: CreateFaqDto): Promise<Faq> {
     if (await this.existsByPregunta(dto.pregunta)) {
-      throw new ConflictException('Ya existe una pregunta frecuente con ese texto');
+      throw new ConflictException(
+        'Ya existe una pregunta frecuente con ese texto',
+      );
     }
     const faq = this.faqRepo.create(dto as Faq);
     await this.faqRepo.save(faq);
@@ -126,7 +139,8 @@ export class FaqService {
 
   async remove(id: number): Promise<void> {
     const result = await this.faqRepo.delete(id);
-    if (result.affected === 0) throw new NotFoundException(`FAQ con id ${id} no encontrada`);
+    if (result.affected === 0)
+      throw new NotFoundException(`FAQ con id ${id} no encontrada`);
     await this.invalidateCache();
   }
 
@@ -137,21 +151,47 @@ export class FaqService {
     return { deleted: result.affected ?? 0 };
   }
 
-  async importXlsx(buffer: Buffer): Promise<{ imported: number; skipped: number; errors: string[]; total: number }> {
+  async importXlsx(buffer: Buffer): Promise<{
+    imported: number;
+    skipped: number;
+    errors: string[];
+    total: number;
+  }> {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(buffer as any);
     const worksheet = workbook.getWorksheet(1);
-    if (!worksheet) return { imported: 0, skipped: 0, errors: ['El archivo Excel no tiene hojas de trabajo'], total: 0 };
+    if (!worksheet)
+      return {
+        imported: 0,
+        skipped: 0,
+        errors: ['El archivo Excel no tiene hojas de trabajo'],
+        total: 0,
+      };
 
     const headerRow = worksheet.getRow(1).values as any[];
-    const pIdx = headerRow.findIndex((h: any) => parseCell(h).toLowerCase() === 'pregunta');
-    const rIdx = headerRow.findIndex((h: any) => parseCell(h).toLowerCase() === 'respuesta');
-    const cIdx = headerRow.findIndex((h: any) => parseCell(h).toLowerCase() === 'categoria');
-    const oIdx = headerRow.findIndex((h: any) => parseCell(h).toLowerCase() === 'orden');
-    const aIdx = headerRow.findIndex((h: any) => parseCell(h).toLowerCase() === 'activo');
+    const pIdx = headerRow.findIndex(
+      (h: any) => parseCell(h).toLowerCase() === 'pregunta',
+    );
+    const rIdx = headerRow.findIndex(
+      (h: any) => parseCell(h).toLowerCase() === 'respuesta',
+    );
+    const cIdx = headerRow.findIndex(
+      (h: any) => parseCell(h).toLowerCase() === 'categoria',
+    );
+    const oIdx = headerRow.findIndex(
+      (h: any) => parseCell(h).toLowerCase() === 'orden',
+    );
+    const aIdx = headerRow.findIndex(
+      (h: any) => parseCell(h).toLowerCase() === 'activo',
+    );
 
     if (pIdx === -1 || rIdx === -1) {
-      return { imported: 0, skipped: 0, errors: ['El Excel debe tener columnas "Pregunta" y "Respuesta"'], total: 0 };
+      return {
+        imported: 0,
+        skipped: 0,
+        errors: ['El Excel debe tener columnas "Pregunta" y "Respuesta"'],
+        total: 0,
+      };
     }
 
     const errors: string[] = [];
@@ -161,7 +201,8 @@ export class FaqService {
 
     const existingPreguntas = new Set<string>();
     const allFaqs = await this.faqRepo.find({ select: ['pregunta'] });
-    for (const f of allFaqs) existingPreguntas.add(f.pregunta.trim().toLowerCase());
+    for (const f of allFaqs)
+      existingPreguntas.add(f.pregunta.trim().toLowerCase());
 
     for (let i = 2; i <= worksheet.actualRowCount; i++) {
       const row = worksheet.getRow(i);
@@ -187,7 +228,8 @@ export class FaqService {
         respuesta,
         categoria: cIdx !== -1 ? parseCell(vals[cIdx]).trim() || null : null,
         orden: oIdx !== -1 ? Number(parseCell(vals[oIdx])) || 0 : 0,
-        activo: aIdx !== -1 ? parseCell(vals[aIdx]).toLowerCase() !== 'false' : true,
+        activo:
+          aIdx !== -1 ? parseCell(vals[aIdx]).toLowerCase() !== 'false' : true,
       };
 
       try {
@@ -205,7 +247,9 @@ export class FaqService {
   }
 
   async exportXlsx(): Promise<Buffer> {
-    const faqs = await this.faqRepo.find({ order: { orden: 'ASC', id: 'DESC' } });
+    const faqs = await this.faqRepo.find({
+      order: { orden: 'ASC', id: 'DESC' },
+    });
     const workbook = new ExcelJS.Workbook();
     const ws = workbook.addWorksheet('FAQs');
 
@@ -239,14 +283,20 @@ export class FaqService {
   private readonly DOC_FILENAME = 'faq-document.docx';
   private originalFilename = '';
 
-  private suggestionsCache: { suggestions: string[]; updatedAt: number } | null = null;
+  private suggestionsCache: {
+    suggestions: string[];
+    updatedAt: number;
+  } | null = null;
   private readonly SUGGESTIONS_CACHE_TTL = 30 * 60 * 1000; // 30 min
 
   private getDocPath(): string {
     return path.join(this.UPLOAD_DIR, this.DOC_FILENAME);
   }
 
-  async uploadDocument(buffer: Buffer, originalName: string): Promise<{ name: string; charCount: number }> {
+  async uploadDocument(
+    buffer: Buffer,
+    originalName: string,
+  ): Promise<{ name: string; charCount: number }> {
     if (!fs.existsSync(this.UPLOAD_DIR)) {
       fs.mkdirSync(this.UPLOAD_DIR, { recursive: true });
     }
@@ -263,19 +313,26 @@ export class FaqService {
     // Invalidate suggestions so they're regenerated from new document
     this.suggestionsCache = null;
 
-    this.logger.log(`[FAQ-CHAT] Document uploaded & cached (${text.length} chars): ${originalName}`);
+    this.logger.log(
+      `[FAQ-CHAT] Document uploaded & cached (${text.length} chars): ${originalName}`,
+    );
 
     return { name: originalName, charCount: text.length };
   }
 
   private async fetchLocalDocument(): Promise<string> {
-    if (this.docCache && Date.now() - this.docCache.updatedAt < this.DOC_CACHE_TTL) {
+    if (
+      this.docCache &&
+      Date.now() - this.docCache.updatedAt < this.DOC_CACHE_TTL
+    ) {
       return this.docCache.text;
     }
 
     const docPath = this.getDocPath();
     if (!fs.existsSync(docPath)) {
-      throw new Error('No hay documento de FAQ cargado. Sube un archivo .docx desde el panel.');
+      throw new Error(
+        'No hay documento de FAQ cargado. Sube un archivo .docx desde el panel.',
+      );
     }
 
     this.logger.log('[FAQ-CHAT] Reading local document...');
@@ -288,7 +345,11 @@ export class FaqService {
     return text;
   }
 
-  private splitIntoChunks(text: string, chunkSize = 1200, overlap = 200): string[] {
+  private splitIntoChunks(
+    text: string,
+    chunkSize = 1200,
+    overlap = 200,
+  ): string[] {
     const chunks: string[] = [];
     const paragraphs = text.split(/\n\s*\n/).filter((p) => p.trim());
     let current = '';
@@ -360,7 +421,14 @@ export class FaqService {
 
     const contents = [
       { role: 'user', parts: [{ text: systemPrompt }] },
-      { role: 'model', parts: [{ text: 'Entendido. Estoy listo para responder preguntas sobre el documento.' }] },
+      {
+        role: 'model',
+        parts: [
+          {
+            text: 'Entendido. Estoy listo para responder preguntas sobre el documento.',
+          },
+        ],
+      },
       { role: 'user', parts: [{ text: userMessage.trim() }] },
     ];
 
@@ -392,14 +460,17 @@ export class FaqService {
     } catch (err: any) {
       clearTimeout(timeout);
       if (signal) signal.removeEventListener('abort', onExternalAbort);
-      if (err?.name === 'AbortError') throw new Error('Tiempo de espera agotado');
+      if (err?.name === 'AbortError')
+        throw new Error('Tiempo de espera agotado');
       throw err;
     }
 
     if (!response.ok) {
       const errText = await response.text();
       clearTimeout(timeout);
-      this.logger.error(`Gemini FAQ stream error: ${response.status} - ${errText}`);
+      this.logger.error(
+        `Gemini FAQ stream error: ${response.status} - ${errText}`,
+      );
       throw new Error('Error al conectar con la IA');
     }
 
@@ -414,7 +485,8 @@ export class FaqService {
         try {
           chunk = await reader.read();
         } catch (err: any) {
-          if (err?.name === 'AbortError') throw new Error('Tiempo de espera agotado');
+          if (err?.name === 'AbortError')
+            throw new Error('Tiempo de espera agotado');
           throw err;
         }
         if (chunk.done) break;
@@ -457,7 +529,9 @@ export class FaqService {
     const documentText = await this.fetchLocalDocument();
 
     if (!query.trim()) {
-      emit('chunk', { text: 'Por favor escribe una pregunta sobre el documento.' });
+      emit('chunk', {
+        text: 'Por favor escribe una pregunta sobre el documento.',
+      });
       return '';
     }
 
@@ -486,7 +560,12 @@ ${context}`;
     return this.callGeminiStream(systemPrompt, query, emit, signal);
   }
 
-  async getDocumentInfo(): Promise<{ name: string; charCount: number; updatedAt: number; hasDocument: boolean }> {
+  async getDocumentInfo(): Promise<{
+    name: string;
+    charCount: number;
+    updatedAt: number;
+    hasDocument: boolean;
+  }> {
     const docPath = this.getDocPath();
     const exists = fs.existsSync(docPath);
     if (!exists) {
@@ -502,7 +581,10 @@ ${context}`;
   }
 
   async getSuggestions(): Promise<string[]> {
-    if (this.suggestionsCache && Date.now() - this.suggestionsCache.updatedAt < this.SUGGESTIONS_CACHE_TTL) {
+    if (
+      this.suggestionsCache &&
+      Date.now() - this.suggestionsCache.updatedAt < this.SUGGESTIONS_CACHE_TTL
+    ) {
       return this.suggestionsCache.suggestions;
     }
 
@@ -532,7 +614,10 @@ Ejemplo: ["Pregunta 1?", "Pregunta 2?", "Pregunta 3?", "Pregunta 4?", "Pregunta 
           },
           body: JSON.stringify({
             contents: [
-              { role: 'user', parts: [{ text: `${systemPrompt}\n\nDOCUMENTO:\n${preview}` }] },
+              {
+                role: 'user',
+                parts: [{ text: `${systemPrompt}\n\nDOCUMENTO:\n${preview}` }],
+              },
             ],
             generationConfig: { temperature: 0.4, maxOutputTokens: 1024 },
           }),
@@ -549,7 +634,10 @@ Ejemplo: ["Pregunta 1?", "Pregunta 2?", "Pregunta 3?", "Pregunta 4?", "Pregunta 
       const raw = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
 
       // Parse the JSON array from Gemini response
-      const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      const cleaned = raw
+        .replace(/```json\n?/g, '')
+        .replace(/```\n?/g, '')
+        .trim();
       let parsed: any;
       try {
         parsed = JSON.parse(cleaned);
@@ -559,7 +647,9 @@ Ejemplo: ["Pregunta 1?", "Pregunta 2?", "Pregunta 3?", "Pregunta 4?", "Pregunta 
         if (arrMatch) {
           parsed = JSON.parse(arrMatch[0]);
         } else {
-          this.logger.warn(`[FAQ-SUGG] Cannot parse: ${cleaned.substring(0, 100)}`);
+          this.logger.warn(
+            `[FAQ-SUGG] Cannot parse: ${cleaned.substring(0, 100)}`,
+          );
           return [];
         }
       }
@@ -567,7 +657,9 @@ Ejemplo: ["Pregunta 1?", "Pregunta 2?", "Pregunta 3?", "Pregunta 4?", "Pregunta 
       if (Array.isArray(parsed) && parsed.length > 0) {
         const suggestions = parsed.slice(0, 6).map(String);
         this.suggestionsCache = { suggestions, updatedAt: Date.now() };
-        this.logger.log(`[FAQ-CHAT] Generated ${suggestions.length} suggestions from document`);
+        this.logger.log(
+          `[FAQ-CHAT] Generated ${suggestions.length} suggestions from document`,
+        );
         return suggestions;
       }
 

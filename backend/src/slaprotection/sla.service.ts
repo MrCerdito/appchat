@@ -50,7 +50,9 @@ export class SlaService implements OnModuleInit {
     if (deadline) {
       const effectiveElapsed =
         Date.now() - ticket.createdAt.getTime() - (ticket.totalPausedMs ?? 0);
-      ticket.slaDeadline = new Date(Date.now() + (deadline.getTime() - Date.now()));
+      ticket.slaDeadline = new Date(
+        Date.now() + (deadline.getTime() - Date.now()),
+      );
     } else {
       ticket.slaDeadline = null;
     }
@@ -65,7 +67,8 @@ export class SlaService implements OnModuleInit {
   getTimeRemainingMs(ticket: Ticket): number | null {
     if (!ticket.slaDeadline) return null;
     const elapsed = this.getEffectiveElapsedMs(ticket);
-    const deadlineMs = ticket.slaDeadline.getTime() - ticket.createdAt.getTime();
+    const deadlineMs =
+      ticket.slaDeadline.getTime() - ticket.createdAt.getTime();
     return deadlineMs - elapsed;
   }
 
@@ -90,19 +93,13 @@ export class SlaService implements OnModuleInit {
         const oneHourAgo = new Date(now - 3600000);
 
         if (remainingMs <= 0) {
-          if (
-            !ticket.slaAlertedAt ||
-            ticket.slaAlertedAt < oneHourAgo
-          ) {
+          if (!ticket.slaAlertedAt || ticket.slaAlertedAt < oneHourAgo) {
             await this.sendSlaNotification(ticket, 'expired');
             ticket.slaAlertedAt = new Date();
             await this.ticketRepo.save(ticket);
           }
         } else if (remainingMs <= SLA_WARNING_BUFFER_MS) {
-          if (
-            !ticket.slaAlertedAt ||
-            ticket.slaAlertedAt < oneHourAgo
-          ) {
+          if (!ticket.slaAlertedAt || ticket.slaAlertedAt < oneHourAgo) {
             await this.sendSlaNotification(ticket, 'warning');
             ticket.slaAlertedAt = new Date();
             await this.ticketRepo.save(ticket);

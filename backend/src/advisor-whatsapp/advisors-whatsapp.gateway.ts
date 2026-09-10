@@ -91,14 +91,11 @@ export class AdvisorsWhatsappGateway
     if (!connected.length) return;
     this.queueDraining = true;
     try {
-      const assignments = await this.whatsappService.assignWaitingChats(
-        connected,
-      );
+      const assignments =
+        await this.whatsappService.assignWaitingChats(connected);
       this.emitAssignments(assignments);
     } catch (err) {
-      this.logger.warn(
-        `Error drenando cola: ${err?.message ?? err}`,
-      );
+      this.logger.warn(`Error drenando cola: ${err?.message ?? err}`);
     } finally {
       this.queueDraining = false;
     }

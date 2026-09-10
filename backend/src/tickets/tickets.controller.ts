@@ -24,6 +24,7 @@ import { randomUUID } from 'crypto';
 import { existsSync, mkdirSync } from 'fs';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard, Roles } from '../auth/roles.guard';
+import { Permiso } from '../accesos/permiso-modulo.guard';
 import { TicketsService } from './tickets.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { UpdateTicketDto } from './dto/update-ticket.dto';
@@ -34,11 +35,12 @@ const TICKET_UPLOADS_DIR = join(process.cwd(), 'uploads', 'tickets');
 
 @Controller('tickets')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('admin', 'desarrollador', 'advisor')
+@Permiso('tickets')
+@Roles('admin', 'desarrollador', 'advisor', 'interno')
 export class TicketsController {
   constructor(private readonly ticketsService: TicketsService) {}
 
-  @Roles('admin', 'advisor', 'desarrollador')
+  @Roles('admin', 'advisor', 'desarrollador', 'interno')
   @Post()
   @HttpCode(HttpStatus.CREATED)
   create(
@@ -93,7 +95,7 @@ export class TicketsController {
     return this.ticketsService.delete(id);
   }
 
-  @Roles('admin', 'advisor', 'desarrollador')
+  @Roles('admin', 'advisor', 'desarrollador', 'interno')
   @Post(':id/send-close-confirmation')
   sendCloseConfirmation(
     @Param('id') id: string,
@@ -102,7 +104,7 @@ export class TicketsController {
     return this.ticketsService.enviarConfirmacionCierre(id, body?.to);
   }
 
-  @Roles('admin', 'advisor', 'desarrollador')
+  @Roles('admin', 'advisor', 'desarrollador', 'interno')
   @Post(':id/notes')
   addNote(
     @Param('id') id: string,
@@ -112,7 +114,7 @@ export class TicketsController {
     return this.ticketsService.addNote(id, dto, req.user);
   }
 
-  @Roles('admin', 'advisor', 'desarrollador')
+  @Roles('admin', 'advisor', 'desarrollador', 'interno')
   @Delete(':id/notes/:noteId')
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteNote(
@@ -123,7 +125,7 @@ export class TicketsController {
     return this.ticketsService.deleteNote(id, noteId, req.user);
   }
 
-  @Roles('admin', 'advisor', 'desarrollador')
+  @Roles('admin', 'advisor', 'desarrollador', 'interno')
   @Post(':id/upload-image')
   @UseInterceptors(
     FileInterceptor('file', {

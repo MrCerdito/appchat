@@ -92,7 +92,7 @@ export class TicketMailService {
       } = await embedInlineImages(html);
 
       let extraSmtp: AdjuntoEmail[] = [];
-      let extraResend: AdjuntoResend[] = [];
+      const extraResend: AdjuntoResend[] = [];
       if (cfg.ticketEmailAttachments === true) {
         const adjuntos = await this.colectarAdjuntos(ticket);
         extraSmtp = adjuntos.map((a) => ({
@@ -230,7 +230,9 @@ export class TicketMailService {
     try {
       const email = String(to ?? '').trim();
       if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        this.logger.warn(`Sin email valido para ${ticket.codigo}; no se envio confirmacion de cierre.`);
+        this.logger.warn(
+          `Sin email valido para ${ticket.codigo}; no se envio confirmacion de cierre.`,
+        );
         return false;
       }
 
@@ -241,23 +243,48 @@ export class TicketMailService {
 
       const subject = `Tu solicitud ${ticket.codigo} ha sido resuelta`;
       const html = this.buildCloseHtml(ticket);
-      const { html: htmlFinal, smtpAttachments, resendAttachments } = await embedInlineImages(html);
-      const smtpFinal: Array<{ filename: string; path: string; cid?: string; contentType?: string }> = [...smtpAttachments];
+      const {
+        html: htmlFinal,
+        smtpAttachments,
+        resendAttachments,
+      } = await embedInlineImages(html);
+      const smtpFinal: Array<{
+        filename: string;
+        path: string;
+        cid?: string;
+        contentType?: string;
+      }> = [...smtpAttachments];
       const resendFinal = resendAttachments;
 
       const smtpUser = cfg.smtpUser?.trim() || '';
       const smtpHost = cfg.smtpHost?.trim() || '';
       const smtpPass = cfg.smtpPass?.trim() || '';
-      const rawFrom = cfg.mailFrom?.trim() || smtpUser || String(this.config.get('MAIL_FROM') ?? '');
+      const rawFrom =
+        cfg.mailFrom?.trim() ||
+        smtpUser ||
+        String(this.config.get('MAIL_FROM') ?? '');
       const from = this.resolveFrom(rawFrom, cfg.ticketEmailSenderName);
 
       if (smtpHost && smtpUser && smtpPass) {
-        await this.sendSmtp(cfg, smtpHost, smtpUser, smtpPass, from, ticket, email, subject, htmlFinal, smtpFinal);
+        await this.sendSmtp(
+          cfg,
+          smtpHost,
+          smtpUser,
+          smtpPass,
+          from,
+          ticket,
+          email,
+          subject,
+          htmlFinal,
+          smtpFinal,
+        );
         return true;
       }
 
       if (!from) {
-        this.logger.warn(`Sin remitente configurado; no se envio confirmacion de cierre de ${ticket.codigo}.`);
+        this.logger.warn(
+          `Sin remitente configurado; no se envio confirmacion de cierre de ${ticket.codigo}.`,
+        );
         return false;
       }
 
@@ -269,13 +296,19 @@ export class TicketMailService {
         attachments: resendFinal.length ? resendFinal : undefined,
       });
       if (error) {
-        this.logger.error(`Error enviando confirmacion de cierre ${ticket.codigo}: ${error.message}`);
+        this.logger.error(
+          `Error enviando confirmacion de cierre ${ticket.codigo}: ${error.message}`,
+        );
         return false;
       }
-      this.logger.log(`Confirmacion de cierre enviada a ${email} para ${ticket.codigo}${data?.id ? ` (${data.id})` : ''}`);
+      this.logger.log(
+        `Confirmacion de cierre enviada a ${email} para ${ticket.codigo}${data?.id ? ` (${data.id})` : ''}`,
+      );
       return true;
     } catch (err: any) {
-      this.logger.error(`Error enviando confirmacion de cierre ${ticket.codigo}: ${err?.message ?? err}`);
+      this.logger.error(
+        `Error enviando confirmacion de cierre ${ticket.codigo}: ${err?.message ?? err}`,
+      );
       return false;
     }
   }
@@ -284,7 +317,9 @@ export class TicketMailService {
     const nombre = this.escapeHtml(ticket.clientName || 'Cliente');
     const codigo = this.escapeHtml(ticket.codigo);
     const info = ticket.clientInfo ?? {};
-    const sesion = String(info['sesion'] ?? info['session'] ?? info['codigo_sesion'] ?? '').trim();
+    const sesion = String(
+      info['sesion'] ?? info['session'] ?? info['codigo_sesion'] ?? '',
+    ).trim();
     const sesionHtml = sesion
       ? `<tr>
                 <td style="padding:8px 14px;border-top:1px solid #eef2f7;color:#64748b;font-size:12px;width:35%;">Sesion</td>
@@ -353,7 +388,10 @@ export class TicketMailService {
     const includeInfo = cfg.ticketEmailIncludeInfo !== false;
     const infoHtml = includeInfo ? this.buildInfoSection(ticket) : '';
     const convHtml = includeInfo
-      ? this.buildConversationSection(ticket, cfg.ticketEmailAttachments === true)
+      ? this.buildConversationSection(
+          ticket,
+          cfg.ticketEmailAttachments === true,
+        )
       : '';
 
     const raw = cfg.ticketEmailCuerpo ?? '';
@@ -540,7 +578,9 @@ export class TicketMailService {
   <a href="${url}" style="font-size:12px;color:#2563eb;text-decoration:underline;">${name}${size ? ` (${size})` : ''}</a>
 </div>`;
           }
-          const ext = this.extensionDe(normalize(a.fileName || a.originalName || ''));
+          const ext = this.extensionDe(
+            normalize(a.fileName || a.originalName || ''),
+          );
           return `<div style="margin:0 0 6px;display:inline-flex;align-items:center;gap:8px;background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;max-width:100%;">
   <span style="font-size:11px;font-weight:bold;color:#2563eb;">${this.escapeHtml(ext)}</span>
   <div>

@@ -26,17 +26,95 @@ export function normalizarColegio(value?: string | null): string {
 // Palabras genéricas sin carga informativa (saludos, muletillas, verbos vacíos).
 // Si una consulta solo contiene estas, no hay tema que buscar en la base.
 const STOPWORDS = new Set([
-  'hola', 'buenas', 'buenos', 'buen', 'dias', 'tardes', 'noches', 'saludos',
-  'hello', 'hey', 'hi', 'oye', 'mira', 'que', 'como', 'para', 'por', 'con',
-  'los', 'las', 'un', 'una', 'unos', 'unas', 'el', 'la', 'lo', 'del', 'al',
-  'quiero', 'quieres', 'necesito', 'necesita', 'puedes', 'puedo', 'puede',
-  'podrias', 'podria', 'ayudar', 'ayudame', 'ayuda', 'preguntar', 'pregunta',
-  'saber', 'sabe', 'sabes', 'decir', 'dime', 'dame', 'cuentame', 'cuenta',
-  'tengo', 'tienes', 'tiene', 'hacer', 'haces', 'hago', 'estoy', 'estas',
-  'esta', 'estas', 'mucho', 'mucha', 'muchas', 'muchos', 'gracias', 'favor',
-  'porfavor', 'pues', 'entonces', 'asi', 'tambien', 'también', 'pero', 'ser',
-  'sea', 'sido', 'podria', 'pueden', 'pasame', 'envia', 'enviar', 'mandar',
-  'manda', 'revisa', 'revisar', 'buscar', 'busca', 'informacion',
+  'hola',
+  'buenas',
+  'buenos',
+  'buen',
+  'dias',
+  'tardes',
+  'noches',
+  'saludos',
+  'hello',
+  'hey',
+  'hi',
+  'oye',
+  'mira',
+  'que',
+  'como',
+  'para',
+  'por',
+  'con',
+  'los',
+  'las',
+  'un',
+  'una',
+  'unos',
+  'unas',
+  'el',
+  'la',
+  'lo',
+  'del',
+  'al',
+  'quiero',
+  'quieres',
+  'necesito',
+  'necesita',
+  'puedes',
+  'puedo',
+  'puede',
+  'podrias',
+  'podria',
+  'ayudar',
+  'ayudame',
+  'ayuda',
+  'preguntar',
+  'pregunta',
+  'saber',
+  'sabe',
+  'sabes',
+  'decir',
+  'dime',
+  'dame',
+  'cuentame',
+  'cuenta',
+  'tengo',
+  'tienes',
+  'tiene',
+  'hacer',
+  'haces',
+  'hago',
+  'estoy',
+  'estas',
+  'esta',
+  'estas',
+  'mucho',
+  'mucha',
+  'muchas',
+  'muchos',
+  'gracias',
+  'favor',
+  'porfavor',
+  'pues',
+  'entonces',
+  'asi',
+  'tambien',
+  'también',
+  'pero',
+  'ser',
+  'sea',
+  'sido',
+  'podria',
+  'pueden',
+  'pasame',
+  'envia',
+  'enviar',
+  'mandar',
+  'manda',
+  'revisa',
+  'revisar',
+  'buscar',
+  'busca',
+  'informacion',
 ]);
 
 // Extrae los tokens con carga informativa de una consulta: normaliza
@@ -115,7 +193,9 @@ export class DocumentosService implements OnApplicationBootstrap {
       await this.dataSource.query(
         `ALTER TABLE documentos ADD COLUMN IF NOT EXISTS instructivo boolean NOT NULL DEFAULT false`,
       );
-      this.logger.log('[RAG] pgvector inicializado (extensión + columnas embedding_vec/colegio_norm)');
+      this.logger.log(
+        '[RAG] pgvector inicializado (extensión + columnas embedding_vec/colegio_norm)',
+      );
       await this.repararEmbeddingVec();
     } catch (error) {
       this.logger.error(
@@ -149,7 +229,9 @@ export class DocumentosService implements OnApplicationBootstrap {
 
     await this.dataSource.transaction(async (transactionalEntityManager) => {
       // Eliminar documentos existentes con el mismo nombre (parte de la transacción)
-      await transactionalEntityManager.delete(Documento, { nombre: data.nombre });
+      await transactionalEntityManager.delete(Documento, {
+        nombre: data.nombre,
+      });
 
       for (let i = 0; i < chunks.length; i++) {
         const embedding = await this.generarEmbedding(chunks[i]);
@@ -329,7 +411,9 @@ export class DocumentosService implements OnApplicationBootstrap {
     // keyword matches por título/descripción con distancia sintética).
     // Si no hay matches fuertes, NO devolver documentos débiles para evitar
     // entregar documentos irrelevantes al usuario.
-    const strong = rows.filter((r) => distanciaDe(r) < this.DOC_MATCH_THRESHOLD);
+    const strong = rows.filter(
+      (r) => distanciaDe(r) < this.DOC_MATCH_THRESHOLD,
+    );
     const usarStrong = strong.length > 0;
     const rowsFiltrados: any[] = strong;
 
@@ -367,9 +451,7 @@ export class DocumentosService implements OnApplicationBootstrap {
       pdfUrl: r.pdf_url,
       categoria: r.categoria,
       chunkIndex: r.chunk_index,
-      distancia: distanciaDe(r)
-        ? parseFloat(distanciaDe(r).toFixed(4))
-        : null,
+      distancia: distanciaDe(r) ? parseFloat(distanciaDe(r).toFixed(4)) : null,
       contenido: r.contenido,
     }));
 
@@ -429,8 +511,7 @@ export class DocumentosService implements OnApplicationBootstrap {
     for (const r of semanticos) poner(r);
     for (const r of porTexto) poner(r);
     return [...porId.values()].sort(
-      (a, b) =>
-        parseFloat(a.distancia ?? 1) - parseFloat(b.distancia ?? 1),
+      (a, b) => parseFloat(a.distancia ?? 1) - parseFloat(b.distancia ?? 1),
     );
   }
 

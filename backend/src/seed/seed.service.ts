@@ -75,14 +75,18 @@ export class SeedService implements OnApplicationBootstrap {
     const adminPassword = process.env.SEED_ADMIN_PASSWORD;
     if (!adminPassword) {
       throw new Error(
-        'SEED_ADMIN_PASSWORD es requerido. Genera uno con: node -e "console.log(require(\'crypto\').randomBytes(16).toString(\'hex\'))"',
+        "SEED_ADMIN_PASSWORD es requerido. Genera uno con: node -e \"console.log(require('crypto').randomBytes(16).toString('hex'))\"",
       );
     }
     const advisorPassword =
       process.env.SEED_ADVISOR_PASSWORD || this.generateStrongPassword();
 
-    this.logger.warn(`Seed credentials — admin: admin@innovacloud.co, advisor: asesor1..6@innovacloud.co`);
-    this.logger.warn(`Advisor password (use for all advisors): ${advisorPassword}`);
+    this.logger.warn(
+      `Seed credentials — admin: admin@innovacloud.co, advisor: asesor1..6@innovacloud.co`,
+    );
+    this.logger.warn(
+      `Advisor password (use for all advisors): ${advisorPassword}`,
+    );
 
     const admin = this.userRepo.create({
       name: 'Administrador',
@@ -104,15 +108,17 @@ export class SeedService implements OnApplicationBootstrap {
       { name: 'Asesor 6', email: 'asesor6@innovacloud.co' },
     ];
     for (const a of advisors) {
-      await this.userRepo.save(this.userRepo.create({
-        name: a.name,
-        email: a.email,
-        password: await hash(advisorPassword),
-        role: 'advisor',
-        active: true,
-        status: 'offline',
-        activeChats: 0,
-      }));
+      await this.userRepo.save(
+        this.userRepo.create({
+          name: a.name,
+          email: a.email,
+          password: await hash(advisorPassword),
+          role: 'advisor',
+          active: true,
+          status: 'offline',
+          activeChats: 0,
+        }),
+      );
     }
 
     this.logger.log('Usuarios creados exitosamente');
@@ -127,8 +133,7 @@ export class SeedService implements OnApplicationBootstrap {
       asesorInactividadMsg:
         'Estamos trabajando en tu solicitud, en breve te atendemos.',
       asesorReconexionSeg: 120,
-      asesorReconexionMsg:
-        'Reconectando... Un agente estará contigo en breve.',
+      asesorReconexionMsg: 'Reconectando... Un agente estará contigo en breve.',
       clienteInactividadSeg: 180,
       clienteInactividadMsg:
         '¿Sigues en línea? Tu sesión se cerrará pronto si no hay respuesta.',
@@ -155,7 +160,10 @@ export class SeedService implements OnApplicationBootstrap {
         'Actualmente no estamos disponibles para llamadas. Por favor escribenos por este chat y un agente te atendera.',
       whatsappQuickReplies: [
         { name: 'Saludo', content: 'Hola, con gusto reviso tu caso.' },
-        { name: 'Espera', content: 'Dame un momento mientras valido la informacion.' },
+        {
+          name: 'Espera',
+          content: 'Dame un momento mientras valido la informacion.',
+        },
         { name: 'Despedida', content: 'Quedo atento si necesitas algo mas.' },
       ],
       almuerzos: [],

@@ -1127,12 +1127,17 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
         const chat = await repo
           .createQueryBuilder('chat')
           .where('chat.id = :chatId', { chatId })
-          .andWhere('chat.status IN (:...statuses)', { statuses: ['waiting', 'active'] })
+          .andWhere('chat.status IN (:...statuses)', {
+            statuses: ['waiting', 'active'],
+          })
           .andWhere('chat.is_group = false')
           .setLock('pessimistic_write')
           .getOne();
 
-        if (!chat) throw new ConflictException('Este chat no esta disponible para tomar');
+        if (!chat)
+          throw new ConflictException(
+            'Este chat no esta disponible para tomar',
+          );
 
         chat.status = 'active';
         chat.operationalStatus = 'in_progress';
@@ -1365,8 +1370,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     ).length;
     const frozenChats = chats.filter(
       (chat) =>
-        chat.status === 'active' &&
-        this.computeChatSla(chat, messages).frozen,
+        chat.status === 'active' && this.computeChatSla(chat, messages).frozen,
     ).length;
     const slaComplianceDenominator = slaScopeChats.length;
     const slaCompliancePercent = slaComplianceDenominator
@@ -1436,8 +1440,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
         (chat) =>
           chat.status === 'active' &&
           !chat.isGroup &&
-          this.computeChatSla(chat, messages).categoria ===
-            'espera_respuesta',
+          this.computeChatSla(chat, messages).categoria === 'espera_respuesta',
       ).length,
       soporteChats: chats.filter(
         (chat) => chat.operationalStatus === 'waiting_technical',
@@ -1454,13 +1457,20 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  async generateReport(role: string, from?: string, to?: string): Promise<Buffer> {
+  async generateReport(
+    role: string,
+    from?: string,
+    to?: string,
+  ): Promise<Buffer> {
     this.assertAdminRole(role);
     await this.releaseExpiredActiveChats();
 
-    const fromDate = from && !isNaN(new Date(from).getTime()) ? new Date(from) : null;
+    const fromDate =
+      from && !isNaN(new Date(from).getTime()) ? new Date(from) : null;
     const toDate = to && !isNaN(new Date(to).getTime()) ? new Date(to) : null;
-    const toEnd = toDate ? new Date(toDate.getTime() + 24 * 60 * 60 * 1000) : null;
+    const toEnd = toDate
+      ? new Date(toDate.getTime() + 24 * 60 * 60 * 1000)
+      : null;
 
     const chats = await this.chatRepo.find({
       relations: ['assignedAdvisor', 'fixedAdvisor'],
@@ -1532,12 +1542,25 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
         : []),
       { metrica: 'Clientes unicos hoy', valor: uniqueClientsToday },
       { metrica: 'Chats cerrados hoy', valor: closedToday },
-      { metrica: 'Chats activos', valor: chats.filter((c) => c.status === 'active' && !c.isGroup).length },
-      { metrica: 'Chats en cola', valor: chats.filter((c) => c.status === 'waiting' && c.operationalStatus !== 'waiting_customer').length },
+      {
+        metrica: 'Chats activos',
+        valor: chats.filter((c) => c.status === 'active' && !c.isGroup).length,
+      },
+      {
+        metrica: 'Chats en cola',
+        valor: chats.filter(
+          (c) =>
+            c.status === 'waiting' &&
+            c.operationalStatus !== 'waiting_customer',
+        ).length,
+      },
       { metrica: 'SLA vencidos', valor: slaBreached.length },
       { metrica: 'Por vencer (80% del plazo)', valor: porVencer.length },
       { metrica: 'Chats congelados', valor: frozen.length },
-      { metrica: 'Cumplimiento SLA (%)', valor: this.computeSlaCompliance(chats, slaBreached) },
+      {
+        metrica: 'Cumplimiento SLA (%)',
+        valor: this.computeSlaCompliance(chats, slaBreached),
+      },
     ]);
     resumen.getColumn('metrica').font = { bold: true };
 
@@ -1643,11 +1666,15 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     });
 
     const uniqueClients = new Set(
-      rangeMessages.filter((m) => !m.fromMe).map((m) => m.chat?.id).filter(Boolean),
+      rangeMessages
+        .filter((m) => !m.fromMe)
+        .map((m) => m.chat?.id)
+        .filter(Boolean),
     ).size;
     const cerrados = chats.filter((chat) => {
       if (chat.isGroup) return false;
-      const closedAt = chat.closedAt ?? (chat.status === 'closed' ? chat.updatedAt : null);
+      const closedAt =
+        chat.closedAt ?? (chat.status === 'closed' ? chat.updatedAt : null);
       if (!closedAt) return false;
       const t = new Date(closedAt).getTime();
       return t >= fromDate.getTime() && t < toEnd.getTime();
@@ -1656,7 +1683,8 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     const mensajesTotales = rangeMessages.length;
     const mensajesAsesor = rangeMessages.filter((m) => m.fromMe).length;
 
-    const avgResponseMinutes = this.averageResponseMinutesInRange(rangeMessages);
+    const avgResponseMinutes =
+      this.averageResponseMinutesInRange(rangeMessages);
 
     const slaScope = rangeChats.filter(
       (chat) =>
@@ -1664,15 +1692,25 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
         chat.operationalStatus !== 'waiting_technical' &&
         chat.operationalStatus !== 'resolved',
     );
-    const breachedInRange = slaScope.filter(
-      (chat) => this.isSlaBreached(chat, messages),
+    const breachedInRange = slaScope.filter((chat) =>
+      this.isSlaBreached(chat, messages),
     ).length;
     const slaDenominador = slaScope.length;
     const slaCumplimiento = slaDenominador
-      ? Math.max(0, Math.round(((slaDenominador - breachedInRange) / slaDenominador) * 100))
+      ? Math.max(
+          0,
+          Math.round(
+            ((slaDenominador - breachedInRange) / slaDenominador) * 100,
+          ),
+        )
       : 100;
 
-    const serie = this.buildReportSeries(rangeChats, fromDate, toDate, granularity);
+    const serie = this.buildReportSeries(
+      rangeChats,
+      fromDate,
+      toDate,
+      granularity,
+    );
     const perAdvisor = this.buildReportAdvisors(rangeChats, advisors, messages);
 
     const categoriaCounts = new Map<string, number>();
@@ -1686,7 +1724,9 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     const porCategoria = [...categoriaCounts.entries()].map(
       ([categoria, total]) => ({
         categoria,
-        label: this.categoriaLabel(categoria as Parameters<typeof this.categoriaLabel>[0]),
+        label: this.categoriaLabel(
+          categoria as Parameters<typeof this.categoriaLabel>[0],
+        ),
         total,
       }),
     );
@@ -1734,7 +1774,12 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     fromDate: Date | null,
     toDate: Date | null,
     granularity: 'day' | 'month' | 'year' = 'day',
-  ): Array<{ periodo: string; recibidos: number; asignados: number; cerrados: number }> {
+  ): Array<{
+    periodo: string;
+    recibidos: number;
+    asignados: number;
+    cerrados: number;
+  }> {
     const keyFn = (date: Date): string => {
       if (granularity === 'year') {
         return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -1748,15 +1793,26 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     const assigned = new Map<string, number>();
     const closed = new Map<string, number>();
     for (const chat of chats) {
-      received.set(keyFn(chat.createdAt), (received.get(keyFn(chat.createdAt)) ?? 0) + 1);
+      received.set(
+        keyFn(chat.createdAt),
+        (received.get(keyFn(chat.createdAt)) ?? 0) + 1,
+      );
       if (chat.assignedAt)
-        assigned.set(keyFn(chat.assignedAt), (assigned.get(keyFn(chat.assignedAt)) ?? 0) + 1);
-      const closedAt = chat.closedAt ?? (chat.status === 'closed' ? chat.updatedAt : null);
+        assigned.set(
+          keyFn(chat.assignedAt),
+          (assigned.get(keyFn(chat.assignedAt)) ?? 0) + 1,
+        );
+      const closedAt =
+        chat.closedAt ?? (chat.status === 'closed' ? chat.updatedAt : null);
       if (closedAt)
         closed.set(keyFn(closedAt), (closed.get(keyFn(closedAt)) ?? 0) + 1);
     }
 
-    const keys = new Set([...received.keys(), ...assigned.keys(), ...closed.keys()]);
+    const keys = new Set([
+      ...received.keys(),
+      ...assigned.keys(),
+      ...closed.keys(),
+    ]);
     const sortedKeys = [...keys].sort();
     return sortedKeys.map((periodo) => ({
       periodo,
@@ -1789,9 +1845,8 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
         id: advisor.id,
         name: advisor.name,
         chatsAsignados: advisorChats.length,
-        cerrados: advisorChats.filter(
-          (chat) => chat.status === 'closed',
-        ).length,
+        cerrados: advisorChats.filter((chat) => chat.status === 'closed')
+          .length,
         mensajesEnviados: advisorMessages.length,
         promRespuestaMin: this.averageAdvisorResponseMinutes(
           advisor.id,
@@ -1801,9 +1856,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  private averageResponseMinutesInRange(
-    messages: WhatsappMessage[],
-  ): number {
+  private averageResponseMinutesInRange(messages: WhatsappMessage[]): number {
     const ordered = [...messages]
       .filter((message) => message.chat?.id)
       .sort(
@@ -1854,10 +1907,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
         chat.operationalStatus !== 'resolved',
     ).length;
     return scope
-      ? Math.max(
-          0,
-          Math.round(((scope - slaBreached.length) / scope) * 100),
-        )
+      ? Math.max(0, Math.round(((scope - slaBreached.length) / scope) * 100))
       : 100;
   }
 
@@ -1879,7 +1929,9 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     if (mode !== 'fixed') {
       const [enAlmuerzo, enAlmuerzoRedis, activeCount, maxChats] =
         await Promise.all([
-          this.configuracionService.estaEnAlmuerzo(advisor.id).catch(() => false),
+          this.configuracionService
+            .estaEnAlmuerzo(advisor.id)
+            .catch(() => false),
           this.redisState.isOnLunch(advisor.id).catch(() => false),
           this.countActiveChatsByAdvisorExcludingFixed(advisor.id),
           this.getMaxActiveChatsPerAdvisor(),
@@ -1898,16 +1950,17 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
 
     const claimed = await this.claimChatForAdvisor(chatId, advisor, {
       mode,
-      operationalStatus:
-        chat.isGroup
-          ? 'in_progress'
-          : mode === 'temporary'
-            ? 'assigned'
-            : 'in_progress',
+      operationalStatus: chat.isGroup
+        ? 'in_progress'
+        : mode === 'temporary'
+          ? 'assigned'
+          : 'in_progress',
       admin: true,
     });
     if (!claimed) {
-      throw new ConflictException('Este chat no se puede asignar en este momento');
+      throw new ConflictException(
+        'Este chat no se puede asignar en este momento',
+      );
     }
 
     const skipAutoMessage = claimed.isGroup && !customMessage?.trim();
@@ -1919,10 +1972,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     );
   }
 
-  async adminUnassignChat(
-    chatId: string,
-    role: string,
-  ): Promise<WaChatDto> {
+  async adminUnassignChat(chatId: string, role: string): Promise<WaChatDto> {
     this.assertAdminRole(role);
     const chat = await this.findChatOrFail(chatId);
     if (chat.status === 'closed') {
@@ -1953,7 +2003,9 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     role: string,
   ): Promise<AssignmentResult> {
     if (sourceAdvisorId === targetAdvisorId) {
-      throw new BadRequestException('No puedes transferirte un chat a ti mismo');
+      throw new BadRequestException(
+        'No puedes transferirte un chat a ti mismo',
+      );
     }
 
     const chat = await this.findChatOrFail(chatId);
@@ -1964,11 +2016,12 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       throw new ConflictException('Los grupos no se pueden transferir');
     }
 
-    const isSourceAssigned =
-      chat.assignedAdvisor?.id === sourceAdvisorId;
+    const isSourceAssigned = chat.assignedAdvisor?.id === sourceAdvisorId;
     const isAdmin = role === 'admin';
     if (!isSourceAssigned && !isAdmin) {
-      throw new ForbiddenException('No tienes permiso para transferir este chat');
+      throw new ForbiddenException(
+        'No tienes permiso para transferir este chat',
+      );
     }
 
     if (chat.fixedAdvisor && !isAdmin) {
@@ -1986,7 +2039,9 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
 
     const [enAlmuerzo, enAlmuerzoRedis, activeCount, maxChats] =
       await Promise.all([
-        this.configuracionService.estaEnAlmuerzo(targetAdvisor.id).catch(() => false),
+        this.configuracionService
+          .estaEnAlmuerzo(targetAdvisor.id)
+          .catch(() => false),
         this.redisState.isOnLunch(targetAdvisor.id).catch(() => false),
         this.countActiveChatsByAdvisorExcludingFixed(targetAdvisor.id),
         this.getMaxActiveChatsPerAdvisor(),
@@ -2008,7 +2063,9 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       admin: true,
     });
     if (!claimed) {
-      throw new ConflictException('Este chat no se puede transferir en este momento');
+      throw new ConflictException(
+        'Este chat no se puede transferir en este momento',
+      );
     }
 
     const transferText = `Tu conversación fue transferida a ${targetAdvisor.name}. En un momento te atenderá.`;
@@ -2176,10 +2233,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     return this.toChatDto(await this.findChatOrFail(chatId), false);
   }
 
-  async pinChatMessage(
-    chatId: string,
-    messageId: string,
-  ): Promise<WaChatDto> {
+  async pinChatMessage(chatId: string, messageId: string): Promise<WaChatDto> {
     const chat = await this.findChatOrFail(chatId);
     const message = await this.messageRepo.findOne({
       where: { id: messageId, chat: { id: chatId } },
@@ -2257,7 +2311,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     if (before) {
       const beforeDate = new Date(before);
       const rawMessages = await this.messageRepo.find({
-        where: { chat: { id: chatId }, createdAt: LessThan(beforeDate) as any },
+        where: { chat: { id: chatId }, createdAt: LessThan(beforeDate) },
         relations: ['chat', 'advisor'],
         order: { createdAt: 'DESC' },
         take: limit,
@@ -2278,15 +2332,25 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
         });
         for (const q of quotedMsgs) {
           if (q.metaMessageId)
-            quotedMap.set(q.metaMessageId, { body: q.body, senderName: q.senderName });
+            quotedMap.set(q.metaMessageId, {
+              body: q.body,
+              senderName: q.senderName,
+            });
         }
       }
-      const dtos = messages.map((message) => this.toMessageDto(message, quotedMap));
-      const total = await this.messageRepo.count({ where: { chat: { id: chatId } } });
+      const dtos = messages.map((message) =>
+        this.toMessageDto(message, quotedMap),
+      );
+      const total = await this.messageRepo.count({
+        where: { chat: { id: chatId } },
+      });
       const oldestLoaded = messages.length ? messages[0] : null;
       const hasMore = oldestLoaded
         ? (await this.messageRepo.count({
-            where: { chat: { id: chatId }, createdAt: LessThan(oldestLoaded.createdAt) },
+            where: {
+              chat: { id: chatId },
+              createdAt: LessThan(oldestLoaded.createdAt),
+            },
           })) > 0
         : false;
       return { messages: dtos, total, hasMore };
@@ -2348,7 +2412,9 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       }
     }
 
-    const dtos = messages.map((message) => this.toMessageDto(message, quotedMap));
+    const dtos = messages.map((message) =>
+      this.toMessageDto(message, quotedMap),
+    );
     const hasMore = targetPage < totalPages;
     return { messages: dtos, total, hasMore };
   }
@@ -2425,7 +2491,10 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
 
     const typeForEveryone = type === 'for_everyone';
     if (typeForEveryone) {
-      if (Date.now() - new Date(message.createdAt).getTime() > 60 * 60 * 60_000) {
+      if (
+        Date.now() - new Date(message.createdAt).getTime() >
+        60 * 60 * 60_000
+      ) {
         throw new BadRequestException(
           'WhatsApp solo permite eliminar para todos durante 2 dias y 12 horas',
         );
@@ -3317,8 +3386,9 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       try {
         const isEdited = !!(message.message as any)?.editedMessage;
         const topMsg = message.message as any;
-        const pinData = topMsg?.pinInChatMessage
-          ?? topMsg?.editedMessage?.message?.pinInChatMessage;
+        const pinData =
+          topMsg?.pinInChatMessage ??
+          topMsg?.editedMessage?.message?.pinInChatMessage;
 
         if (pinData) {
           await this.handlePinMessage(message, pinData);
@@ -3326,8 +3396,8 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
         }
 
         const protocolMessage =
-          (message.message as any)?.protocolMessage
-          ?? (message.message as any)?.editedMessage?.message?.protocolMessage;
+          (message.message as any)?.protocolMessage ??
+          (message.message as any)?.editedMessage?.message?.protocolMessage;
         if (
           protocolMessage?.type === proto.Message.ProtocolMessage.Type.REVOKE
         ) {
@@ -3338,7 +3408,11 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
         const raw = await this.baileysMessageToIncoming(message);
         if (!raw) continue;
 
-        if (raw.type === 'text' && raw.text && /^\[Mensaje [^\]]+\]$/.test(raw.text)) {
+        if (
+          raw.type === 'text' &&
+          raw.text &&
+          /^\[Mensaje [^\]]+\]$/.test(raw.text)
+        ) {
           continue;
         }
 
@@ -3477,9 +3551,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
 
   private isUniqueViolation(err: unknown): boolean {
     return (
-      typeof err === 'object' &&
-      err !== null &&
-      (err as any)?.code === '23505'
+      typeof err === 'object' && err !== null && (err as any)?.code === '23505'
     );
   }
 
@@ -4563,7 +4635,9 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async getMaxActiveChatsPerAdvisor(): Promise<number> {
-    const config = await this.configuracionService.getGlobal().catch(() => null);
+    const config = await this.configuracionService
+      .getGlobal()
+      .catch(() => null);
     const raw = Number(config?.whatsappMaxActiveChatsPerAdvisor);
     if (!Number.isFinite(raw) || raw < 1) return this.maxActiveChatsPerAdvisor;
     return Math.max(1, Math.min(50, Math.floor(raw)));
@@ -4663,7 +4737,8 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       (chat) => !chat.isGroup && this.isSlaBreached(chat, messages),
     ).length;
     const frozenChats = advisorChats.filter(
-      (chat) => chat.status === 'active' && this.computeChatSla(chat, messages).frozen,
+      (chat) =>
+        chat.status === 'active' && this.computeChatSla(chat, messages).frozen,
     ).length;
 
     return {
@@ -4761,7 +4836,9 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
           detail: `${chat.name} espera respuesta hace ${this.formatDuration(sla.slaMinutesWaiting)} (plazo ${this.formatDuration(sla.slaDeadlineMinutes)}).`,
           chatId: chat.id,
           advisorId: chat.assignedAdvisor?.id,
-          timestamp: (chat.lastClientMessageAt ?? chat.lastMessageAt)?.toISOString(),
+          timestamp: (
+            chat.lastClientMessageAt ?? chat.lastMessageAt
+          )?.toISOString(),
         });
       } else if (sla.categoria === 'espera_respuesta') {
         alerts.push({
@@ -4865,13 +4942,27 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     chat: WhatsappChat,
     lastClientAt: number,
     clientIsLast: boolean,
-  ): 'cola' | 'gestion' | 'espera_respuesta' | 'sla_vencido' | 'esperando_cliente' | 'soporte' | 'resuelto' | 'cerrado' | 'grupo' {
+  ):
+    | 'cola'
+    | 'gestion'
+    | 'espera_respuesta'
+    | 'sla_vencido'
+    | 'esperando_cliente'
+    | 'soporte'
+    | 'resuelto'
+    | 'cerrado'
+    | 'grupo' {
     if (chat.status === 'closed') return 'cerrado';
     if (chat.isGroup) return 'grupo';
     if (chat.operationalStatus === 'resolved') return 'resuelto';
-    if (chat.operationalStatus === 'waiting_customer') return 'esperando_cliente';
+    if (chat.operationalStatus === 'waiting_customer')
+      return 'esperando_cliente';
     if (chat.operationalStatus === 'waiting_technical') return 'soporte';
-    if (chat.status === 'waiting' && !chat.fixedAdvisor && !!chat.lastClientMessageAt)
+    if (
+      chat.status === 'waiting' &&
+      !chat.fixedAdvisor &&
+      !!chat.lastClientMessageAt
+    )
       return 'cola';
     if (clientIsLast) {
       const waitingMs = Date.now() - lastClientAt;
@@ -4910,7 +5001,12 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
 
   private computeChatSla(
     chat: WhatsappChat,
-    _messages: Array<{ fromMe: boolean; createdAt?: Date; timestamp?: Date; chat?: { id?: string } }>,
+    _messages: Array<{
+      fromMe: boolean;
+      createdAt?: Date;
+      timestamp?: Date;
+      chat?: { id?: string };
+    }>,
   ): {
     slaState: 'in_time' | 'por_vencer' | 'vencido';
     slaBreached: boolean;
@@ -5022,8 +5118,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
 
     if (chat.status === 'active') {
       base.frozenMinutes = this.minutesSince(chat.lastMessageAt);
-      base.frozen =
-        base.frozenMinutes >= this.frozenChatWarningMs / 60000;
+      base.frozen = base.frozenMinutes >= this.frozenChatWarningMs / 60000;
     }
 
     return base;
@@ -5517,7 +5612,10 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     horarioEstado?: HorarioEstado,
   ): string {
     return template
-      .replace(/\{\{\s*(advisor|asesor|agente)\s*\}\}/gi, advisorName ?? 'Agente')
+      .replace(
+        /\{\{\s*(advisor|asesor|agente)\s*\}\}/gi,
+        advisorName ?? 'Agente',
+      )
       .replace(
         /\{\{\s*proximaApertura\s*\}\}/gi,
         horarioEstado?.proximaApertura ?? '',

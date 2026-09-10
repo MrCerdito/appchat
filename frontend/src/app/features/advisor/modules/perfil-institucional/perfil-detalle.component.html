@@ -566,7 +566,7 @@
           <div class="pd-emails-icon"><lucide-icon [img]="icons.Pencil" [size]="18" /></div>
           <div>
             <h3>{{ baseCampoTitulo }}</h3>
-            <p class="pd-emails-subtitle">{{ baseCampoEsAsesor ? 'Selecciona el asesor principal' : 'Escribe el nuevo valor' }}</p>
+            <p class="pd-emails-subtitle">{{ baseCampoEsAsesor ? 'Selecciona el asesor principal' : baseEsCalendarioProyecto ? 'Selecciona una opción' : 'Escribe el nuevo valor' }}</p>
           </div>
         </div>
 
@@ -620,9 +620,17 @@
                 <div class="pd-dropdown-backdrop" (click)="dropdownAsesorAbierto = false"></div>
               }
             </div>
+          } @else if (baseEsCalendarioProyecto) {
+            <div class="pd-email-row">
+              <select [(ngModel)]="baseValor">
+                @for (opt of baseSelectOptions; track opt.value) {
+                  <option [value]="opt.value">{{ opt.label }}</option>
+                }
+              </select>
+            </div>
           } @else {
             <div class="pd-email-row">
-              <input type="text" [(ngModel)]="baseValor" [maxlength]="modalBaseCampo === 'link' ? 500 : modalBaseCampo === 'calendario' ? 50 : modalBaseCampo === 'proyecto' ? 100 : 200"
+              <input type="text" [(ngModel)]="baseValor" [maxlength]="modalBaseCampo === 'link' ? 500 : 200"
                 placeholder="Nuevo valor" (keydown.enter)="guardarBase()" />
             </div>
           }
@@ -630,7 +638,7 @@
 
         <div class="pi-modal-actions">
           <button type="button" class="pi-btn pi-btn-ghost" (click)="cerrarModalBase()">Cancelar</button>
-          <button type="button" class="pi-btn pi-btn-primary" [disabled]="baseGuardando || (baseCampoEsAsesor ? false : !baseValor.trim())" (click)="guardarBase()">
+          <button type="button" class="pi-btn pi-btn-primary" [disabled]="baseGuardando || (baseCampoEsAsesor || baseEsCalendarioProyecto ? false : !baseValor.trim())" (click)="guardarBase()">
             {{ baseGuardando ? 'Guardando…' : 'Guardar' }}
           </button>
         </div>

@@ -6,6 +6,8 @@ import { Comunicado } from './entities/comunicado.entity';
 import { ComunicadoEvento } from './entities/comunicado-evento.entity';
 import { ComunicadoTemplate } from './entities/comunicado-template.entity';
 import { Colegio } from '../sessions/entities/colegio.entity';
+import { PiCampo } from '../perfil-institucional/entities/pi-campo.entity';
+import { PiValor } from '../perfil-institucional/entities/pi-valor.entity';
 import { AuthModule } from '../auth/auth.module';
 import { ConfiguracionModule } from '../configuracion/configuracion.module';
 
@@ -16,6 +18,8 @@ import { ConfiguracionModule } from '../configuracion/configuracion.module';
       ComunicadoEvento,
       ComunicadoTemplate,
       Colegio,
+      PiCampo,
+      PiValor,
     ]),
     AuthModule,
     ConfiguracionModule,

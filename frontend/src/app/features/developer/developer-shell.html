@@ -28,8 +28,11 @@
     </div>
 
     <nav class="shell-nav">
+      @if (permisos.tieneAcceso('tickets')) {
       <span class="nav-label">Módulos</span>
+      }
 
+      @if (permisos.tieneAcceso('tickets')) {
       <a class="nav-item" data-label="Tickets" routerLink="tickets" routerLinkActive="active" (click)="closeSidebarOnMobile()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
@@ -40,6 +43,7 @@
         </svg>
         <span>Tickets</span>
       </a>
+      }
     </nav>
 
     <div class="shell-spacer"></div>

@@ -7,6 +7,7 @@ import { filter, Subject, Subscription, takeUntil } from 'rxjs';
 import { AuthService } from '../../../core/services/auth.service';
 import { SocketService } from '../../../core/services/socket.service';
 import { InternalChatService } from '../../../core/services/internal-chat.service';
+import { PermisosService } from '../../../core/services/permisos.service';
 import { WhatsappChatService } from '../../../core/services/whatsapp-chat.service';
 import { SoundService } from '../../../core/services/sound.service';
 import { AdvisorNotificationService } from '../../../core/services/advisor-notification.service';
@@ -53,6 +54,7 @@ export class AdminShellComponent implements OnInit, OnDestroy {
     private router: Router,
     private layoutService: LayoutService,
     private cdr: ChangeDetectorRef,
+    protected permisos: PermisosService,
   ) {}
 
   ngOnInit(): void {
@@ -68,6 +70,9 @@ export class AdminShellComponent implements OnInit, OnDestroy {
     });
     this.socket.connect(this.auth.getToken() ?? undefined);
     this.internalChat.connect();
+    this.permisos.permisosChanged$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => this.cdr.markForCheck());
     this.sound.init();
     this.internalUnreadSub = this.internalChat.getUnreadTotalStream().subscribe({
       next: total => {

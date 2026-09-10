@@ -11,6 +11,20 @@ export interface Colegio {
   link: string;
   calendario?: string | null;
   tipoColegio?: string | null;
+  ciudad?: string | null;
+  perfilFiltros?: Record<string, string | null>;
+}
+
+export interface FiltroPerfilComunicado {
+  id: string;
+  nombre: string;
+  categoriaId?: string | null;
+  categoriaNombre?: string | null;
+}
+
+export interface ColegiosResp {
+  colegios: Colegio[];
+  filtrosPerfil: FiltroPerfilComunicado[];
 }
 
 @Injectable({ providedIn: 'root' })
@@ -25,8 +39,8 @@ export class ComunicadosService {
     return this.http.get<Comunicado>(`${environment.apiUrl}/comunicados/${id}`);
   }
 
-  getColegios(): Observable<Colegio[]> {
-    return this.http.get<Colegio[]>(`${environment.apiUrl}/comunicados/colegios`);
+  getColegios(): Observable<ColegiosResp> {
+    return this.http.get<ColegiosResp>(`${environment.apiUrl}/comunicados/colegios`);
   }
 
   saveDraft(

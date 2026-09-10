@@ -29,9 +29,8 @@ async function bootstrap() {
       `SELECT content FROM messages WHERE content LIKE 'enc:v2:%' LIMIT 1`,
     );
     if (rows.length > 0) {
-      const { encryptedTextTransformer } = await import(
-        './common/security/encrypted-text.transformer'
-      );
+      const { encryptedTextTransformer } =
+        await import('./common/security/encrypted-text.transformer');
       const result = encryptedTextTransformer.from(rows[0].content);
       if (result === '[Mensaje no disponible]') {
         logger.warn(
@@ -216,7 +215,9 @@ async function bootstrap() {
 
   // ── Graceful Shutdown (supports PM2 cluster) ──────────────────────
   const gracefulShutdown = async (signal: string) => {
-    logger.log(`Señal ${signal} recibida — cerrando servidor (PID: ${process.pid})...`);
+    logger.log(
+      `Señal ${signal} recibida — cerrando servidor (PID: ${process.pid})...`,
+    );
     try {
       await app.close();
       logger.log(`Servidor cerrado correctamente (PID: ${process.pid})`);

@@ -94,7 +94,8 @@ function normalizarRol(rol: string): string {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '');
   // Seguridad: el chat público es anónimo y el rol lo auto-reporta el cliente.
-  if (r.includes('admin') || r.includes('administrador')) return 'administrador';
+  if (r.includes('admin') || r.includes('administrador'))
+    return 'administrador';
   if (r.includes('docente') || r.includes('profesor')) return 'docente';
   if (r.includes('padre') || r.includes('madre') || r.includes('acudiente'))
     return 'padre';
@@ -338,7 +339,8 @@ interface ToneRule {
 
 const toneRulesImprove: Record<string, ToneRule> = {
   formal: {
-    regla: 'FORMAL: serio, institucional y profesional; usa vocabulario formal.',
+    regla:
+      'FORMAL: serio, institucional y profesional; usa vocabulario formal.',
     saludo:
       'saludo formal como "Estimado/a {cliente}:" o "Respetado/a {cliente}:"',
     despedida: 'despedida formal como "Atentamente," o "Cordialmente,"',
@@ -352,43 +354,129 @@ const toneRulesImprove: Record<string, ToneRule> = {
       'despedida amable como "Muchas gracias por tu paciencia," o "Con aprecio,"',
   },
   directo: {
-    regla: 'DIRECTO: claro, conciso y sin rodeos; va al punto sin perder la amabilidad.',
+    regla:
+      'DIRECTO: claro, conciso y sin rodeos; va al punto sin perder la amabilidad.',
     saludo: 'saludo breve como "Hola {cliente}:" o "Buen dia {cliente}:"',
-    despedida: 'despedida breve como "Quedo atento," o "Cualquier duda, me avisas."',
+    despedida:
+      'despedida breve como "Quedo atento," o "Cualquier duda, me avisas."',
   },
 };
 
 type CharlaTipo =
-  | 'saludo'
-  | 'como_estas'
-  | 'agradecimiento'
-  | 'despedida'
-  | 'confirmacion';
+  'saludo' | 'como_estas' | 'agradecimiento' | 'despedida' | 'confirmacion';
 
 // Vocabulario de charla/cortesía que NO debe tratarse como consulta real.
 const RELLENO_CHARLA = new Set([
   // saludos
-  'hola', 'holi', 'hello', 'hi', 'hey', 'ey', 'buen', 'buena', 'buenas',
-  'buenos', 'dia', 'dias', 'tardes', 'noches', 'saludos', 'saludo',
-  'bienvenido', 'bienvenida', 'bienvenidos',
+  'hola',
+  'holi',
+  'hello',
+  'hi',
+  'hey',
+  'ey',
+  'buen',
+  'buena',
+  'buenas',
+  'buenos',
+  'dia',
+  'dias',
+  'tardes',
+  'noches',
+  'saludos',
+  'saludo',
+  'bienvenido',
+  'bienvenida',
+  'bienvenidos',
   // "cómo estás" / pequeña charla
-  'como', 'estas', 'esta', 'andas', 'vas', 'va', 'encuentras', 'sigues',
-  'tal', 'mas', 'hubo', 'todo', 'genial', 'bien', 'cuentas',
+  'como',
+  'estas',
+  'esta',
+  'andas',
+  'vas',
+  'va',
+  'encuentras',
+  'sigues',
+  'tal',
+  'mas',
+  'hubo',
+  'todo',
+  'genial',
+  'bien',
+  'cuentas',
   // agradecimientos
-  'gracias', 'muchas', 'muchisimas', 'mil', 'agradezco', 'agradecido',
-  'agradecida', 'se', 'por', 'de', 'verdad', 'realmente', 'siempre',
-  'ayuda', 'apoyo', 'con', 'gusto', 'atencion',
+  'gracias',
+  'muchas',
+  'muchisimas',
+  'mil',
+  'agradezco',
+  'agradecido',
+  'agradecida',
+  'se',
+  'por',
+  'de',
+  'verdad',
+  'realmente',
+  'siempre',
+  'ayuda',
+  'apoyo',
+  'con',
+  'gusto',
+  'atencion',
   // despedidas
-  'adios', 'chao', 'chau', 'bye', 'hasta', 'luego', 'pronto', 'manana',
-  'despues', 'nos', 'vemos', 'cuidate', 'cuidese', 'hablamos', 'exito',
+  'adios',
+  'chao',
+  'chau',
+  'bye',
+  'hasta',
+  'luego',
+  'pronto',
+  'manana',
+  'despues',
+  'nos',
+  'vemos',
+  'cuidate',
+  'cuidese',
+  'hablamos',
+  'exito',
   'feliz',
   // confirmaciones
-  'ok', 'okey', 'oka', 'listo', 'listaa', 'entendido', 'perfecto',
-  'acuerdo', 'dale', 'muy', 'super', 'excelente', 'claro', 'bueno',
-  'si', 'estoy', 'asombroso', 'joya', 'bacan',
+  'ok',
+  'okey',
+  'oka',
+  'listo',
+  'listaa',
+  'entendido',
+  'perfecto',
+  'acuerdo',
+  'dale',
+  'muy',
+  'super',
+  'excelente',
+  'claro',
+  'bueno',
+  'si',
+  'estoy',
+  'asombroso',
+  'joya',
+  'bacan',
   // relleno sin significado
-  'la', 'el', 'en', 'y', 'o', 'a', 'un', 'una', 'mi', 'lo', 'que',
-  'me', 'no', 'pues', 'eh', 'ah', 'este',
+  'la',
+  'el',
+  'en',
+  'y',
+  'o',
+  'a',
+  'un',
+  'una',
+  'mi',
+  'lo',
+  'que',
+  'me',
+  'no',
+  'pues',
+  'eh',
+  'ah',
+  'este',
 ]);
 
 function esPalabraCharlaRelleno(w: string): boolean {
@@ -460,25 +548,33 @@ function clasificarCharla(mensaje: string): CharlaTipo | null {
   const esCharla = () => palabrasReales(m).length === 0;
 
   if (
-    /(^|\s)(adios|chao|chau|bye|nos vemos|hasta luego|hasta pronto|hasta manana|hasta despues|cuida(te|se)|nos hablamos)\b/.test(m) &&
+    /(^|\s)(adios|chao|chau|bye|nos vemos|hasta luego|hasta pronto|hasta manana|hasta despues|cuida(te|se)|nos hablamos)\b/.test(
+      m,
+    ) &&
     esCharla()
   )
     return 'despedida';
 
   if (
-    /(^|\s)(gracias|muchas gracias|muchisimas gracias|mil gracias|te agradezco|agradecido|agradecida|gracias por todo|gracias por la ayuda|se agradece)\b/.test(m) &&
+    /(^|\s)(gracias|muchas gracias|muchisimas gracias|mil gracias|te agradezco|agradecido|agradecida|gracias por todo|gracias por la ayuda|se agradece)\b/.test(
+      m,
+    ) &&
     esCharla()
   )
     return 'agradecimiento';
 
   if (
-    /(^|\s)(como estas|como esta|como andas|como vas|como va|como te va|como te encuentras|como sigues|como esta todo|como te ha ido|que tal|que mas|que hubo|que cuentas)\b/.test(m) &&
+    /(^|\s)(como estas|como esta|como andas|como vas|como va|como te va|como te encuentras|como sigues|como esta todo|como te ha ido|que tal|que mas|que hubo|que cuentas)\b/.test(
+      m,
+    ) &&
     esCharla()
   )
     return 'como_estas';
 
   if (
-    /(^|\s)(ok|okey|oka|listo|entendido|perfecto|de acuerdo|dale|muy bien|super bien|todo bien|estoy bien|excelente|genial|claro|bueno|bien|asombroso)\b/.test(m) &&
+    /(^|\s)(ok|okey|oka|listo|entendido|perfecto|de acuerdo|dale|muy bien|super bien|todo bien|estoy bien|excelente|genial|claro|bueno|bien|asombroso)\b/.test(
+      m,
+    ) &&
     esCharla()
   )
     return 'confirmacion';
@@ -533,7 +629,7 @@ export class AiService {
   private cargarConducta(aiCfg?: Record<string, any> | null) {
     return {
       palabrasProhibidas: Array.isArray(aiCfg?.palabrasProhibidas)
-        ? (aiCfg!.palabrasProhibidas as string[]).filter(Boolean)
+        ? (aiCfg.palabrasProhibidas as string[]).filter(Boolean)
         : DEFAULT_PALABRAS_PROHIBIDAS,
       mensajeGroseria:
         (aiCfg?.mensajeGroseria as string)?.trim() || DEFAULT_MENSAJE_GROSERIA,
@@ -543,11 +639,9 @@ export class AiService {
       mensajeSinInformacion:
         (aiCfg?.mensajeSinInformacion as string)?.trim() ||
         DEFAULT_MENSAJE_SIN_INFORMACION,
-      limiteGroserias: Math.max(
-        1,
-        Number(aiCfg?.limiteGroserias) || 3,
-      ),
-      sugerirAsesorAutomatico: (aiCfg?.sugerirAsesorAutomatico as boolean) !== false,
+      limiteGroserias: Math.max(1, Number(aiCfg?.limiteGroserias) || 3),
+      sugerirAsesorAutomatico:
+        (aiCfg?.sugerirAsesorAutomatico as boolean) !== false,
     };
   }
 
@@ -561,9 +655,7 @@ export class AiService {
   private esPrimeraInteraccion(history: AiMessage[]): boolean {
     return !(history ?? []).some(
       (h) =>
-        h.role === 'user' &&
-        h?.text &&
-        !h.text.trim().startsWith('[CONTEXTO]'),
+        h.role === 'user' && h?.text && !h.text.trim().startsWith('[CONTEXTO]'),
     );
   }
 
@@ -676,10 +768,7 @@ export class AiService {
   // de referencia (pronombres, "cuándo", "dónde", etc.) que necesitan contexto
   // del historial. Si el mensaje es una consulta standalone, no mezcla historial
   // para evitar contaminación de resultados RAG.
-  private construirConsultaRag(
-    message: string,
-    history: AiMessage[],
-  ): string {
+  private construirConsultaRag(message: string, history: AiMessage[]): string {
     const msgLower = message.toLowerCase();
     let expansion = '';
 
@@ -689,7 +778,8 @@ export class AiService {
       msgLower.includes('pass') ||
       msgLower.includes('olvid')
     ) {
-      expansion += ' restablecer recuperar cambiar contraseña clave password plataforma';
+      expansion +=
+        ' restablecer recuperar cambiar contraseña clave password plataforma';
     }
     if (
       msgLower.includes('entr') ||
@@ -698,19 +788,42 @@ export class AiService {
       msgLower.includes('login') ||
       msgLower.includes('plataform')
     ) {
-      expansion += ' plataforma ingresar acceder iniciar sesion usuario error acceso';
+      expansion +=
+        ' plataforma ingresar acceder iniciar sesion usuario error acceso';
     }
 
     // Solo incluir historial si el mensaje contiene palabras de referencia
     // que necesitan contexto previo para tener sentido
     const REFERENCE_WORDS = [
-      'eso', 'esto', 'eso', 'aquel', 'aquella',
-      'cuando', 'cuándo', 'donde', 'dónde',
-      'como', 'cómo', 'porque', 'por qué',
-      'cuál', 'cual', 'cuáles', 'cuales',
-      'este', 'esta', 'ese', 'esa',
-      'ahí', 'ahi', 'allí', 'alli',
-      'mencion', 'mencionaste', 'dijiste', 'hablaste',
+      'eso',
+      'esto',
+      'eso',
+      'aquel',
+      'aquella',
+      'cuando',
+      'cuándo',
+      'donde',
+      'dónde',
+      'como',
+      'cómo',
+      'porque',
+      'por qué',
+      'cuál',
+      'cual',
+      'cuáles',
+      'cuales',
+      'este',
+      'esta',
+      'ese',
+      'esa',
+      'ahí',
+      'ahi',
+      'allí',
+      'alli',
+      'mencion',
+      'mencionaste',
+      'dijiste',
+      'hablaste',
     ];
     const tieneRef = REFERENCE_WORDS.some((w) => msgLower.includes(w));
 
@@ -729,7 +842,7 @@ export class AiService {
       )
       .slice(-2)
       .map((h) => h.text.trim());
-    
+
     return [...previos, message.trim() + expansion].join(' ').trim();
   }
 
@@ -747,8 +860,9 @@ export class AiService {
 
     const nuevos = previo ? sobrantes.slice(previo.procesados) : sobrantes;
     const linea = nuevos
-      .map((h) =>
-        `${h.role === 'user' ? 'Cliente' : 'Asistente'}: ${this.compactText(h.text, 150)}`,
+      .map(
+        (h) =>
+          `${h.role === 'user' ? 'Cliente' : 'Asistente'}: ${this.compactText(h.text, 150)}`,
       )
       .join('\n');
 
@@ -795,7 +909,8 @@ export class AiService {
       };
 
     const rolNormalizado = normalizarRol(rol);
-    const configDefault = ROL_CONFIG[rolNormalizado] ?? ROL_CONFIG['estudiante'];
+    const configDefault =
+      ROL_CONFIG[rolNormalizado] ?? ROL_CONFIG['estudiante'];
     const msgLower = message.toLowerCase();
 
     // ── Cargar config IA de DB ───────────────────────────────────────────────
@@ -807,11 +922,13 @@ export class AiService {
     const config = {
       ...configDefault,
       ...(rolFromDb || {}),
-      temasRestringidos: (Array.isArray(rolFromDb?.temasRestringidos) &&
-        rolFromDb.temasRestringidos.length > 0)
-        ? rolFromDb.temasRestringidos
-        : configDefault.temasRestringidos,
-      mensajeRestringido: rolFromDb?.mensajeRestringido || configDefault.mensajeRestringido,
+      temasRestringidos:
+        Array.isArray(rolFromDb?.temasRestringidos) &&
+        rolFromDb.temasRestringidos.length > 0
+          ? rolFromDb.temasRestringidos
+          : configDefault.temasRestringidos,
+      mensajeRestringido:
+        rolFromDb?.mensajeRestringido || configDefault.mensajeRestringido,
     };
 
     const temasInstitucionales = Array.isArray(aiCfg?.temasInstitucionales)
@@ -837,7 +954,9 @@ export class AiService {
         esOfensivo: true,
         chunksUsados: [],
       });
-      this.logger.warn(`[IA] Ofensa detectada (legacy) | rol=${rolNormalizado}`);
+      this.logger.warn(
+        `[IA] Ofensa detectada (legacy) | rol=${rolNormalizado}`,
+      );
       return {
         reply: conducta.mensajeGroseria,
         transfer: false,
@@ -865,13 +984,19 @@ export class AiService {
         respuesta: saludo,
         chunksUsados: [],
       });
-      return { reply: saludo, transfer: false, showFeedback: false, documentos: [] };
+      return {
+        reply: saludo,
+        transfer: false,
+        showFeedback: false,
+        documentos: [],
+      };
     }
 
     // ── D2b: ayuda genérica ("necesito ayuda", "ayudame", "qué puedo hacer")
     //    → respuesta conversacional breve SIN activar RAG ni entregar documentos. ──
     if (esAyudaGenerica(message)) {
-      const respuesta = '¡Claro! Estoy aquí para ayudarte. Por favor, cuéntame con más detalle qué necesitas para poder asistirte mejor.';
+      const respuesta =
+        '¡Claro! Estoy aquí para ayudarte. Por favor, cuéntame con más detalle qué necesitas para poder asistirte mejor.';
       this.aiLogs.guardar({
         colegio,
         rol: rolNormalizado,
@@ -881,7 +1006,12 @@ export class AiService {
         respuesta,
         chunksUsados: [],
       });
-      return { reply: respuesta, transfer: false, showFeedback: false, documentos: [] };
+      return {
+        reply: respuesta,
+        transfer: false,
+        showFeedback: false,
+        documentos: [],
+      };
     }
 
     // ── Tema restringido ────────────────────────────────────────────────────
@@ -988,10 +1118,7 @@ export class AiService {
     );
     let systemPromptFinal = systemPrompt;
     if (sobrantes.length > 0) {
-      const resumen = await this.comprimirHistorial(
-        sessionId ?? '',
-        sobrantes,
-      );
+      const resumen = await this.comprimirHistorial(sessionId ?? '', sobrantes);
       if (resumen) {
         this.logger.debug(
           `[IA] Memoria de sesión aplicada (${sobrantes.length} turnos comprimidos)`,
@@ -1087,7 +1214,11 @@ export class AiService {
 
     // ── Defensa extra: respuesta hostil injustificada (reaseguro) ──────────
     if (
-      esRespuestaHostilInjustificada(reply, message, conducta.palabrasProhibidas)
+      esRespuestaHostilInjustificada(
+        reply,
+        message,
+        conducta.palabrasProhibidas,
+      )
     ) {
       this.logger.warn(
         '[IA] Respuesta hostil injustificada bloqueada (flujo legacy).',
@@ -1172,16 +1303,13 @@ export class AiService {
     const cleanDraft = this.compactText(draft, 900);
     if (!cleanDraft) return { replies: [] };
 
-    const tonoElegido =
-      toneRulesImprove[tone] ??
-      {
-        regla: `TONO PERSONALIZADO: "${tone}". Interpreta y aplica ese tono de forma consistente en las 3 variantes.`,
-        saludo: `saludo acorde al tono "${tone}"`,
-        despedida: `despedida acorde al tono "${tone}"`,
-      };
+    const tonoElegido = toneRulesImprove[tone] ?? {
+      regla: `TONO PERSONALIZADO: "${tone}". Interpreta y aplica ese tono de forma consistente en las 3 variantes.`,
+      saludo: `saludo acorde al tono "${tone}"`,
+      despedida: `despedida acorde al tono "${tone}"`,
+    };
     const usoUsted =
-      tone === 'formal' ||
-      /usted|formal|respet|institucional/i.test(tone);
+      tone === 'formal' || /usted|formal|respet|institucional/i.test(tone);
 
     const limitePalabras =
       length === 'short' ? 45 : length === 'long' ? 140 : 90;
@@ -1251,7 +1379,10 @@ ${cleanDraft}`;
     const raw1 = this.cleanAiPlainText(
       await this.generateCompactText(basePrompt(), maxOutput, 0.9),
     );
-    let replies = this.filtrarVariantes(this.parseImproveVariants(raw1), cleanDraft);
+    const replies = this.filtrarVariantes(
+      this.parseImproveVariants(raw1),
+      cleanDraft,
+    );
 
     // Reintento si quedaron menos de 3 variantes distintas (NO se rellena con
     // el borrador original: eso producia opciones identicas).
@@ -1270,11 +1401,7 @@ ${cleanDraft}`;
       // Fusionar sin duplicar
       for (const v of reintento) {
         if (replies.length >= 3) break;
-        if (
-          replies.some(
-            (u) => this.similitudTexto(u, v) >= 0.92,
-          )
-        ) {
+        if (replies.some((u) => this.similitudTexto(u, v) >= 0.92)) {
           continue;
         }
         replies.push(v);
@@ -1297,12 +1424,14 @@ ${cleanDraft}`;
       const obj = JSON.parse(json);
       const arr = Array.isArray(obj)
         ? obj
-        : obj && Array.isArray((obj as any).variantes)
-          ? (obj as any).variantes
+        : obj && Array.isArray(obj.variantes)
+          ? obj.variantes
           : null;
       if (Array.isArray(arr)) {
         const v = arr
-          .filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+          .filter(
+            (x): x is string => typeof x === 'string' && x.trim().length > 0,
+          )
           .map((x) => x.trim());
         if (v.length >= 3) return v.slice(0, 3);
       }
@@ -1390,9 +1519,12 @@ ${cleanDraft}`;
     return prev[b.length];
   }
 
-  async improveForClient(text: string, tone?: string): Promise<{ improved: string }> {
+  async improveForClient(
+    text: string,
+    tone?: string,
+  ): Promise<{ improved: string }> {
     const toneMap: Record<string, string> = {
-      formal:  'formal y profesional, institucional',
+      formal: 'formal y profesional, institucional',
       educado: 'amable, respetuoso y cortés',
       directo: 'claro, conciso y sin rodeos',
       corregir: 'corrigiendo ortografía, gramática y puntuación',
@@ -1504,9 +1636,7 @@ ${transcript}`;
     };
   }
 
-  private conversationMetrics(
-    messages: WhatsappSummaryMessage[],
-  ): string {
+  private conversationMetrics(messages: WhatsappSummaryMessage[]): string {
     const total = messages.length;
     const firstSender = messages[0]?.fromMe ? 'Asesor' : 'Cliente';
     const times = messages
@@ -1559,7 +1689,8 @@ ${transcript}`;
     onPartial?: (texto: string) => void,
   ): Promise<string> {
     const rolNormalizado = normalizarRol(rol);
-    const configDefault = ROL_CONFIG[rolNormalizado] ?? ROL_CONFIG['estudiante'];
+    const configDefault =
+      ROL_CONFIG[rolNormalizado] ?? ROL_CONFIG['estudiante'];
     const msgLower = message.toLowerCase();
 
     // ── Cargar config IA de DB ───────────────────────────────────────────────
@@ -1571,11 +1702,13 @@ ${transcript}`;
     const config = {
       ...configDefault,
       ...(rolFromDb || {}),
-      temasRestringidos: (Array.isArray(rolFromDb?.temasRestringidos) &&
-        rolFromDb.temasRestringidos.length > 0)
-        ? rolFromDb.temasRestringidos
-        : configDefault.temasRestringidos,
-      mensajeRestringido: rolFromDb?.mensajeRestringido || configDefault.mensajeRestringido,
+      temasRestringidos:
+        Array.isArray(rolFromDb?.temasRestringidos) &&
+        rolFromDb.temasRestringidos.length > 0
+          ? rolFromDb.temasRestringidos
+          : configDefault.temasRestringidos,
+      mensajeRestringido:
+        rolFromDb?.mensajeRestringido || configDefault.mensajeRestringido,
     };
 
     const temasInstitucionales = Array.isArray(aiCfg?.temasInstitucionales)
@@ -1649,7 +1782,8 @@ ${transcript}`;
     // ── D2b: ayuda genérica ("necesito ayuda", "ayudame", "qué puedo hacer")
     //    → respuesta conversacional breve SIN activar RAG ni entregar documentos. ──
     if (esAyudaGenerica(message)) {
-      const respuesta = '¡Claro! Estoy aquí para ayudarte. Por favor, cuéntame con más detalle qué necesitas para poder asistirte mejor.';
+      const respuesta =
+        '¡Claro! Estoy aquí para ayudarte. Por favor, cuéntame con más detalle qué necesitas para poder asistirte mejor.';
       this.aiLogs.guardar({
         sessionId,
         colegio,
@@ -1767,10 +1901,7 @@ ${transcript}`;
     );
     let systemPromptFinal = systemPrompt;
     if (sobrantes.length > 0) {
-      const resumen = await this.comprimirHistorial(
-        sessionId ?? '',
-        sobrantes,
-      );
+      const resumen = await this.comprimirHistorial(sessionId ?? '', sobrantes);
       if (resumen) {
         this.logger.debug(
           `[IA] Memoria de sesión aplicada (${sobrantes.length} turnos comprimidos)`,
@@ -1815,7 +1946,7 @@ ${transcript}`;
         },
         body: JSON.stringify({
           contents,
-        generationConfig: { temperature: 0.7, maxOutputTokens: 3072 },
+          generationConfig: { temperature: 0.7, maxOutputTokens: 3072 },
         }),
         signal: controller.signal,
       });
@@ -1878,7 +2009,8 @@ ${transcript}`;
 
           try {
             const parsed = JSON.parse(json);
-            const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+            const text =
+              parsed.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
             const fr: string | undefined = parsed.candidates?.[0]?.finishReason;
             if (fr) finishReason = fr;
             if (text) {
@@ -2142,7 +2274,10 @@ ${transcript}`;
         /\{\{TEMAS_RESTRINGIDOS\}\}/g,
         config.temasRestringidos.join(', '),
       );
-      prompt = prompt.replace(/\{\{MENSAJE_RESTRINGIDO\}\}/g, config.mensajeRestringido || '');
+      prompt = prompt.replace(
+        /\{\{MENSAJE_RESTRINGIDO\}\}/g,
+        config.mensajeRestringido || '',
+      );
       if (tieneContexto) {
         prompt = prompt.replace(
           /\{\{CONTEXTO_RAG\}\}/g,
@@ -2151,7 +2286,10 @@ ${transcript}`;
       } else {
         prompt = prompt.replace(/\{\{CONTEXTO_RAG\}\}/g, '');
       }
-      prompt = prompt.replace(/\{\{DOCUMENTOS_ENTREGABLES\}\}/g, documentosEntregables);
+      prompt = prompt.replace(
+        /\{\{DOCUMENTOS_ENTREGABLES\}\}/g,
+        documentosEntregables,
+      );
       prompt = prompt.replace(
         /\{\{TEMAS_INSTITUCIONALES\}\}/g,
         temasInstitucionales.map((t) => t.tema).join(', '),
@@ -2172,8 +2310,7 @@ ${transcript}`;
         prompt +=
           '\nCITAS Y ENTREGA DE DOCUMENTOS: Cuando uses información de un documento, cita su nombre exacto. Si el documento resuelve la consulta, responde en 1-3 frases y al final escribe SOLO el marcador [DOCUMENTO: <nombre exacto del documento>] (repite el marcador por cada documento que entregues). NUNCA incluyas URLs ni enlaces.';
       } else {
-        const aviso =
-          mensajeSinInformacion || DEFAULT_MENSAJE_SIN_INFORMACION;
+        const aviso = mensajeSinInformacion || DEFAULT_MENSAJE_SIN_INFORMACION;
         prompt +=
           '\n\nSIN DOCUMENTOS DISPONIBLES: Si la consulta es de un tema institucional (pagos, notas, calendario, trámites, admisiones, contraseñas, acceso, etc.) y no tienes información para responderla, responde textualmente: "' +
           aviso +
@@ -2187,8 +2324,10 @@ ${transcript}`;
     }
 
     // ── Identidad (Korvix universal) ─────────────────────────────────────────
-    const nombreAsistente = aiPromptConfig?.nombreAsistente || NOMBRE_ASISTENTE_DEFAULT;
-    const identidadPrincipal = aiPromptConfig?.identidadPrincipal || 'asistente virtual';
+    const nombreAsistente =
+      aiPromptConfig?.nombreAsistente || NOMBRE_ASISTENTE_DEFAULT;
+    const identidadPrincipal =
+      aiPromptConfig?.identidadPrincipal || 'asistente virtual';
     const especialidad = aiPromptConfig?.especialidad || ESPECIALIDAD_DEFAULT;
     const instruccionesGenerales =
       aiPromptConfig?.instruccionesGenerales ||
@@ -2212,7 +2351,8 @@ ${transcript}`;
       temasInstitucionales.length > 0
         ? temasInstitucionales.map((t) => t.tema).join(', ')
         : '(ninguno)';
-    const mensajeRedirInst = temaInstitucional?.mensaje || mensajeRedireccionGenerico;
+    const mensajeRedirInst =
+      temaInstitucional?.mensaje || mensajeRedireccionGenerico;
 
     const partes: string[] = [];
 
@@ -2224,7 +2364,8 @@ ${transcript}`;
       '',
       'Al saludar o cuando el usuario te pregunte quién eres o tu nombre, preséntate SIEMPRE así: "Mi nombre es ' +
         `${nombreAsistente}, ${identidadPrincipal}."` +
-        ' No digas que eres solo "un asistente virtual" sin mencionar tu nombre.',      '',
+        ' No digas que eres solo "un asistente virtual" sin mencionar tu nombre.',
+      '',
       instruccionesGenerales,
       '',
       'Responde solo temas permitidos para este rol. Sé claro, cálido y breve.',
@@ -2249,7 +2390,9 @@ ${transcript}`;
         );
       }
     } else {
-      partes.push('No hay documentos recuperados para esta consulta en este rol.');
+      partes.push(
+        'No hay documentos recuperados para esta consulta en este rol.',
+      );
     }
 
     // ── REGLAS DE CONVERSACIÓN ───────────────────────────────────────────────
@@ -2280,10 +2423,7 @@ ${transcript}`;
     );
 
     // ── TEMAS RESTRINGIDOS PARA ESTE ROL ─────────────────────────────────────
-    partes.push(
-      '',
-      '=== TEMAS RESTRINGIDOS PARA ESTE ROL ===',
-    );
+    partes.push('', '=== TEMAS RESTRINGIDOS PARA ESTE ROL ===');
     if (config.temasRestringidos.length > 0) {
       partes.push(
         config.temasRestringidos.join(', '),

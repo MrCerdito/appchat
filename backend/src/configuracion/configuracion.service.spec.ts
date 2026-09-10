@@ -6,11 +6,7 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { ConfiguracionService } from './configuracion.service';
 import { Configuracion, HorarioSlot } from './entities/configuracion.entity';
 
-function horario(
-  dia: number,
-  inicio: string,
-  fin: string,
-): HorarioSlot {
+function horario(dia: number, inicio: string, fin: string): HorarioSlot {
   return { dia, inicio, fin };
 }
 
@@ -146,13 +142,16 @@ describe('ConfiguracionService (horario)', () => {
     repoMock.findOne.mockResolvedValue(existing);
     repoMock.save.mockImplementation((e) => Promise.resolve(e));
 
-    await service.guardar({
-      almuerzos: [
-        { dia: 3, inicio: '12:00', fin: '13:00' },
-        { dia: 1, inicio: '13:00', fin: '14:00' },
-        { dia: 3, inicio: '15:00', fin: '16:00' },
-      ],
-    }, undefined);
+    await service.guardar(
+      {
+        almuerzos: [
+          { dia: 3, inicio: '12:00', fin: '13:00' },
+          { dia: 1, inicio: '13:00', fin: '14:00' },
+          { dia: 3, inicio: '15:00', fin: '16:00' },
+        ],
+      },
+      undefined,
+    );
 
     expect(repoMock.save).toHaveBeenCalled();
     const arg = repoMock.save.mock.calls[0][0];
@@ -167,13 +166,16 @@ describe('ConfiguracionService (horario)', () => {
     repoMock.findOne.mockResolvedValue(existing);
     repoMock.save.mockImplementation((e) => Promise.resolve(e));
 
-    await service.guardar({
-      almuerzos: [
-        { dia: 1, inicio: '13:00', fin: '12:00' } as any,
-        { dia: 2, inicio: '', fin: '14:00' } as any,
-        { dia: 3, inicio: '12:00', fin: '13:00' },
-      ],
-    }, undefined);
+    await service.guardar(
+      {
+        almuerzos: [
+          { dia: 1, inicio: '13:00', fin: '12:00' },
+          { dia: 2, inicio: '', fin: '14:00' },
+          { dia: 3, inicio: '12:00', fin: '13:00' },
+        ],
+      },
+      undefined,
+    );
 
     const arg = repoMock.save.mock.calls[0][0];
     expect(arg.almuerzos).toEqual([{ dia: 3, inicio: '12:00', fin: '13:00' }]);
@@ -221,10 +223,11 @@ describe('ConfiguracionService (horario)', () => {
       asesorInactividadSeg: 999,
       clienteInactividadSeg: 999,
       almuerzos: [{ dia: 3, inicio: '12:00', fin: '13:00' }],
-    } as any;
+    };
 
     repoMock.findOne.mockImplementation((opts: any) => {
-      if (opts?.where?.advisorId === 'advisor-1') return Promise.resolve(override);
+      if (opts?.where?.advisorId === 'advisor-1')
+        return Promise.resolve(override);
       return Promise.resolve(global);
     });
 
@@ -251,7 +254,8 @@ describe('ConfiguracionService (horario)', () => {
     } as any;
 
     repoMock.findOne.mockImplementation((opts: any) => {
-      if (typeof opts?.where?.advisorId === 'string') return Promise.resolve(null);
+      if (typeof opts?.where?.advisorId === 'string')
+        return Promise.resolve(null);
       return Promise.resolve(global);
     });
 

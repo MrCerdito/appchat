@@ -27,6 +27,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles, RolesGuard } from '../auth/roles.guard';
+import { Permiso } from '../accesos/permiso-modulo.guard';
 import { TicketsService } from '../tickets/tickets.service';
 import {
   AdvisorsWhatsappService,
@@ -37,6 +38,7 @@ import { TeamsMeetingsService } from './teams-meetings.service';
 import { WhatsappMessage } from './entities/whatsapp-message.entity';
 
 @Controller('advisors-whatsapp')
+@Permiso('whatsapp')
 export class AdvisorsWhatsappController {
   private readonly logger = new Logger(AdvisorsWhatsappController.name);
 
@@ -90,7 +92,9 @@ export class AdvisorsWhatsappController {
     @Query('limit') limit?: string,
   ) {
     const p = page ? Math.max(1, parseInt(page, 10) || 1) : undefined;
-    const l = limit ? Math.min(100, Math.max(1, parseInt(limit, 10) || 50)) : undefined;
+    const l = limit
+      ? Math.min(100, Math.max(1, parseInt(limit, 10) || 50))
+      : undefined;
     return this.whatsappService.listChats(req.user.id, req.user.role, p, l);
   }
 
@@ -113,7 +117,8 @@ export class AdvisorsWhatsappController {
 
   @Get('admin/report')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @Roles('admin', 'interno')
+  @Permiso('reportes')
   @HttpCode(HttpStatus.OK)
   async generateReport(
     @Req() req: Request & { user: any },
@@ -136,7 +141,8 @@ export class AdvisorsWhatsappController {
 
   @Get('admin/report/data')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin')
+  @Roles('admin', 'interno')
+  @Permiso('reportes')
   getReportData(
     @Req() req: Request & { user: any },
     @Query('from') from: string,
@@ -445,8 +451,15 @@ export class AdvisorsWhatsappController {
     @Body('status') status: string,
   ) {
     const VALID_OP_STATUSES = [
-      'new', 'queued', 'assigned', 'in_progress',
-      'waiting_customer', 'waiting_technical', 'resolved', 'released', 'closed',
+      'new',
+      'queued',
+      'assigned',
+      'in_progress',
+      'waiting_customer',
+      'waiting_technical',
+      'resolved',
+      'released',
+      'closed',
     ];
     if (!VALID_OP_STATUSES.includes(status)) {
       throw new BadRequestException(`Estado inválido: ${status}`);
@@ -493,9 +506,7 @@ export class AdvisorsWhatsappController {
   @Post('chats/:chatId/unpin')
   @UseGuards(JwtAuthGuard)
   @HttpCode(200)
-  async unpinMessage(
-    @Param('chatId') chatId: string,
-  ) {
+  async unpinMessage(@Param('chatId') chatId: string) {
     const chat = await this.whatsappService.unpinChatMessage(chatId);
     this.whatsappGateway.emitChatUpdated(chat);
     return chat;
@@ -760,7 +771,10 @@ export class AdvisorsWhatsappController {
       };
     } catch (err: any) {
       this.logger.error('Error enviando plantilla:', err?.message);
-      return { ok: false, error: 'Error al enviar plantilla. Intenta de nuevo.' };
+      return {
+        ok: false,
+        error: 'Error al enviar plantilla. Intenta de nuevo.',
+      };
     }
   }
 
@@ -872,7 +886,20 @@ export class AdvisorsWhatsappController {
   ): string {
     const d = new Date(startDateTime);
     const bogota = new Date(d.getTime() - 5 * 3600000);
-    const months = ['ene.', 'feb.', 'mar.', 'abr.', 'may.', 'jun.', 'jul.', 'ago.', 'sep.', 'oct.', 'nov.', 'dic.'];
+    const months = [
+      'ene.',
+      'feb.',
+      'mar.',
+      'abr.',
+      'may.',
+      'jun.',
+      'jul.',
+      'ago.',
+      'sep.',
+      'oct.',
+      'nov.',
+      'dic.',
+    ];
     const hh = String(bogota.getUTCHours()).padStart(2, '0');
     const mm = String(bogota.getUTCMinutes()).padStart(2, '0');
     const day = bogota.getUTCDate();

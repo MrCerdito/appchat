@@ -176,6 +176,12 @@
             </svg>
             Reconexión
           </button>
+          <button class="cfg-seg__btn" [class.active]="tab === 'asignacion'" (click)="tab = 'asignacion'">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+            </svg>
+            Asignación
+          </button>
           <button class="cfg-seg__btn" [class.active]="tab === 'correoTickets'" (click)="tab = 'correoTickets'">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <rect x="2" y="4" width="20" height="16" rx="2" ry="2"/>
@@ -1180,6 +1186,88 @@
                   </div>
                 </div>
               </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+      }
+
+      <!-- ══════════════════════════════════════════════════════════
+           TAB — ASIGNACIÓN DE CHATS
+      ══════════════════════════════════════════════════════════ -->
+      @if (tab === 'asignacion') {
+      <div class="cfg-panel">
+
+        <div class="cfg-card">
+          <div class="cfg-card__header">
+            <div class="cfg-card__icon cfg-card__icon--teal">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+              </svg>
+            </div>
+            <div class="cfg-card__titles">
+              <h3>Cómo se asignan los chats</h3>
+              <p>Elige el criterio con el que el sistema reparte los chats web entre los agentes conectados.</p>
+            </div>
+          </div>
+          <div class="cfg-card__body">
+
+            <div class="cfg-field">
+              <label class="cfg-field__label">Criterio de asignación</label>
+              <div class="cfg-seg">
+                <button class="cfg-seg__btn" [class.active]="config.asignacionBalanceTipo === 'carga'" (click)="config.asignacionBalanceTipo = 'carga'">
+                  Por carga actual
+                </button>
+                <button class="cfg-seg__btn" [class.active]="config.asignacionBalanceTipo === 'hoy'" (click)="config.asignacionBalanceTipo = 'hoy'">
+                  Equitativo por atendidos hoy
+                </button>
+              </div>
+              <span class="cfg-field__hint">
+                @if (config.asignacionBalanceTipo === 'hoy') {
+                Se asigna primero al agente que haya atendido <strong>menos sesiones hoy</strong> (creadas o cerradas hoy cuentan por igual).
+                Los empates se reparten por carga activa y luego al azar, para que nadie acapare el día.
+                } @else {
+                Comportamiento clásico: se asigna al agente con <strong>menos chats activos</strong> en este momento. Los empates se resuelven al azar.
+                }
+              </span>
+            </div>
+
+            <div class="cfg-grid cfg-grid--2">
+              <div class="cfg-field">
+                <label class="cfg-field__label">
+                  Máximo de chats activos por agente
+                  <span class="cfg-field__tip" title="Límite de chats simultáneos que atiende cada agente en el chat web">ⓘ</span>
+                </label>
+                <div class="cfg-time-input">
+                  <input class="cfg-input cfg-input--num" type="number" [(ngModel)]="config.maxActiveChatsWeb" min="1" max="20"/>
+                  <span class="cfg-time-unit">chats por agente</span>
+                </div>
+                <span class="cfg-field__hint">Recomendado: 3–6. Si el agente del colegio llega al límite, el chat se reparte a la cola general.</span>
+              </div>
+            </div>
+
+            <div class="cfg-toggle-row">
+              <div class="cfg-toggle-info">
+                <span class="cfg-toggle-label">Incluir sesiones cerradas hoy</span>
+                <span class="cfg-toggle-sub">Una sesión cerrada el día de hoy cuenta como atendida, igual que una abierta hoy</span>
+              </div>
+              <label class="cfg-toggle">
+                <input type="checkbox" [(ngModel)]="config.asignacionContarCerradasHoy"/>
+                <span class="cfg-toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="cfg-toggle-row">
+              <div class="cfg-toggle-info">
+                <span class="cfg-toggle-label">Priorizar al agente encargado del colegio</span>
+                <span class="cfg-toggle-sub">Si el chat viene de un colegio con agente asignado, se intenta primero con él antes de repartirlo a la cola</span>
+              </div>
+              <label class="cfg-toggle">
+                <input type="checkbox" [(ngModel)]="config.asignacionPriorizarColegio"/>
+                <span class="cfg-toggle-slider"></span>
+              </label>
             </div>
 
           </div>

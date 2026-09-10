@@ -123,7 +123,11 @@ export class WhatsappChat {
   @Column({ name: 'last_message_at', nullable: true, type: 'timestamptz' })
   lastMessageAt: Date | null;
 
-  @Column({ name: 'last_client_message_at', nullable: true, type: 'timestamptz' })
+  @Column({
+    name: 'last_client_message_at',
+    nullable: true,
+    type: 'timestamptz',
+  })
   lastClientMessageAt: Date | null;
 
   @Column({ name: 'assigned_at', nullable: true, type: 'timestamptz' })
@@ -153,13 +157,23 @@ export class WhatsappChat {
   @OneToMany(() => WhatsappMessage, (message) => message.chat)
   messages: WhatsappMessage[];
 
-  @Column({ name: 'pinned_message_id', type: 'varchar', length: 100, nullable: true })
+  @Column({
+    name: 'pinned_message_id',
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+  })
   pinnedMessageId: string | null;
 
   @Column({ name: 'pinned_message_body', type: 'text', nullable: true })
   pinnedMessageBody: string | null;
 
-  @Column({ name: 'pinned_message_from', type: 'varchar', length: 120, nullable: true })
+  @Column({
+    name: 'pinned_message_from',
+    type: 'varchar',
+    length: 120,
+    nullable: true,
+  })
   pinnedMessageFrom: string | null;
 
   @Column({ name: 'pinned_at', nullable: true, type: 'timestamptz' })

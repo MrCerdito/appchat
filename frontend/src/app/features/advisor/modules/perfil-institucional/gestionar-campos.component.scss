@@ -493,6 +493,18 @@
 
     input { accent-color: var(--primary, #2563eb); }
   }
+
+  .gc-check-comunicados {
+    align-items: flex-start;
+
+    small {
+      display: block;
+      color: var(--text-muted, #64748b);
+      font-size: 0.72rem;
+      line-height: 1.2;
+      margin-top: 2px;
+    }
+  }
 }
 
 .pi-modal-actions {

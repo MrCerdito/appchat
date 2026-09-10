@@ -768,6 +768,41 @@ export class PerfilDetalleComponent implements OnInit, OnDestroy {
     return this.modalBaseCampo === 'asesor';
   }
 
+  get baseEsCalendarioProyecto(): boolean {
+    return (
+      this.modalBaseCampo === 'calendario' ||
+      this.modalBaseCampo === 'proyecto'
+    );
+  }
+
+  get baseSelectOptions(): { value: string; label: string }[] {
+    if (this.modalBaseCampo === 'calendario') {
+      const fixed = [
+        { value: '', label: 'Sin definir' },
+        { value: 'A', label: 'Calendario A' },
+        { value: 'B', label: 'Calendario B' },
+      ];
+      if (this.baseValor && this.baseValor !== 'A' && this.baseValor !== 'B')
+        return [...fixed, { value: this.baseValor, label: this.baseValor }];
+      return fixed;
+    }
+    if (this.modalBaseCampo === 'proyecto') {
+      const fixed = [
+        { value: '', label: 'Sin definir' },
+        { value: 'ControlAcademic', label: 'Control Academic' },
+        { value: 'Sian365', label: 'Sian365' },
+      ];
+      if (
+        this.baseValor &&
+        this.baseValor !== 'ControlAcademic' &&
+        this.baseValor !== 'Sian365'
+      )
+        return [...fixed, { value: this.baseValor, label: this.baseValor }];
+      return fixed;
+    }
+    return [];
+  }
+
   guardarBase(): void {
     if (!this.institucionId || !this.modalBaseCampo) return;
     const dto: any = {};

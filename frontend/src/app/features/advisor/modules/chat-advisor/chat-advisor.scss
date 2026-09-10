@@ -3455,6 +3455,106 @@ a {
 
 .bubble-row:hover .bubble-float-reply { display: flex; }
 
+// ── Floating delete button ─────────────────────────────────────────────────
+.bubble-float-delete {
+  display: none;
+  flex-shrink: 0;
+  width: 26px;
+  min-height: 32px;
+  align-self: center;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: $text-faint;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: $radius-sm;
+  transition: background 0.18s, color 0.18s, transform 0.15s;
+
+  svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+  &:hover {
+    background: $danger-soft;
+    color: $danger;
+    transform: scale(1.1);
+  }
+}
+
+.bubble-row--own:hover .bubble-float-delete { display: flex; }
+
+// ── Deleted message bubble ─────────────────────────────────────────────────
+.bubble.bubble--deleted {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-style: italic;
+  color: $text-faint;
+  background: $surface-hover;
+  border: 1px dashed rgba($text-faint, 0.25);
+
+  .bubble-deleted-icon {
+    width: 13px;
+    height: 13px;
+    flex-shrink: 0;
+  }
+}
+
+.quoted-text--deleted { font-style: italic; }
+
+// ── Delete undo toast (5 s) ────────────────────────────────────────────────
+.delete-toast {
+  position: absolute;
+  bottom: 84px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: #1f2330;
+  color: #f4f6fb;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  animation: fadeUp 0.22s ease;
+
+  .delete-toast-icon {
+    display: flex;
+    color: rgba(244, 246, 251, 0.85);
+    svg { width: 15px; height: 15px; }
+  }
+
+  .delete-toast-text { font-size: 13px; }
+
+  .delete-toast-count {
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    color: rgba(244, 246, 251, 0.6);
+  }
+
+  .delete-toast-undo {
+    border: none;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: $primary;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.18s;
+
+    &:hover { background: $primary-hover; }
+  }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translate(-50%, 10px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
 // ── Quoted block inside bubble ─────────────────────────────────────────────
 .quoted-block {
   display: flex;

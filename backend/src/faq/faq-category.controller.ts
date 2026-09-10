@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles, RolesGuard } from '../auth/roles.guard';
+import { Permiso } from '../accesos/permiso-modulo.guard';
 import { FaqCategoryService } from './faq-category.service';
 import { CreateFaqCategoryDto } from './dto/create-faq-category.dto';
 import { UpdateFaqCategoryDto } from './dto/update-faq-category.dto';
@@ -38,6 +39,7 @@ export class FaqCategoryController {
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
+  @Permiso('faq')
   @HttpCode(HttpStatus.CREATED)
   create(@Body() dto: CreateFaqCategoryDto) {
     return this.categoryService.create(dto);
@@ -46,13 +48,18 @@ export class FaqCategoryController {
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateFaqCategoryDto) {
+  @Permiso('faq')
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateFaqCategoryDto,
+  ) {
     return this.categoryService.update(id, dto);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
+  @Permiso('faq')
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(@Param('id', ParseIntPipe) id: number) {
     await this.categoryService.remove(id);

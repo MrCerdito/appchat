@@ -1065,7 +1065,8 @@
   gap: 8px;
   align-items: center;
 
-  input {
+  input,
+  select {
     flex: 1;
     height: 40px;
     padding: 0 12px;
@@ -1073,6 +1074,7 @@
     border-radius: $pi-radius-sm;
     font-size: $pi-text-base;
     font-family: inherit;
+    background: $pi-surface;
     outline: none;
     transition: border-color 150ms ease;
 

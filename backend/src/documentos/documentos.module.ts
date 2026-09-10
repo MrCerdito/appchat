@@ -6,10 +6,7 @@ import { Documento } from './entities/documento.entity';
 import { ConfiguracionModule } from '../configuracion/configuracion.module';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Documento]),
-    ConfiguracionModule,
-  ],
+  imports: [TypeOrmModule.forFeature([Documento]), ConfiguracionModule],
   controllers: [DocumentosController],
   providers: [DocumentosService],
   exports: [DocumentosService],

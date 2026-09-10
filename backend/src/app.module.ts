@@ -15,6 +15,7 @@ import { User } from './auth/entities/user.entity';
 import { Session } from './sessions/entities/session.entity';
 import { Message } from './chat/entities/message.entity';
 import { SessionEvento } from './chat/entities/session-evento.entity';
+import { SessionAssignmentEvento } from './chat/entities/session-assignment-evento.entity';
 import { Colegio } from './sessions/entities/colegio.entity';
 import { ComunicadosModule } from './comunicados/comunicados.module';
 import { Comunicado } from './comunicados/entities/comunicado.entity';
@@ -42,6 +43,7 @@ import { TicketsModule } from './tickets/tickets.module';
 import { Ticket } from './tickets/ticket.entity';
 import { PqrsModule } from './pqrs/pqrs.module';
 import { Pqrs } from './pqrs/entities/pqrs.entity';
+import { AdvisorActivityLog } from './advisor-activity/entities/advisor-activity.entity';
 import { InternalChatModule } from './internal-chat/internal-chat.module';
 import { InternalConversation } from './internal-chat/entities/internal-conversation.entity';
 import { InternalConversationMember } from './internal-chat/entities/internal-conversation-member.entity';
@@ -58,6 +60,11 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { Notification } from './notifications/notification.entity';
 import { UserNotificationPreference } from './notifications/user-notification-preference.entity';
 import { SlaModule } from './slaprotection/sla.module';
+import { AccesosModule } from './accesos/accesos.module';
+import { PermisoModuloGuard } from './accesos/permiso-modulo.guard';
+import { ModuloAcceso } from './accesos/entities/modulo-acceso.entity';
+import { AccesoRol } from './accesos/entities/acceso-rol.entity';
+import { AccesoUsuario } from './accesos/entities/acceso-usuario.entity';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -174,9 +181,14 @@ import { AppService } from './app.service';
           PiValor,
           PiHistorial,
           SessionEvento,
+          SessionAssignmentEvento,
           Modulo,
           Notification,
           UserNotificationPreference,
+          AdvisorActivityLog,
+          ModuloAcceso,
+          AccesoRol,
+          AccesoUsuario,
         ],
         synchronize: config.get<string>('NODE_ENV') === 'development',
         logging: config.get<string>('NODE_ENV') !== 'production',
@@ -202,6 +214,7 @@ import { AppService } from './app.service';
     ModulosModule,
     NotificationsModule,
     SlaModule,
+    AccesosModule,
   ],
   controllers: [AppController],
   providers: [
@@ -213,6 +226,10 @@ import { AppService } from './app.service';
     {
       provide: APP_GUARD,
       useClass: HttpThrottlerGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: PermisoModuloGuard,
     },
   ],
 })

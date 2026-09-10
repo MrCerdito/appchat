@@ -129,6 +129,7 @@ export class GestionarCamposComponent implements OnInit, OnDestroy {
       tipo: 'texto',
       opciones: [] as string[],
       requerido: false,
+      filtroComunicados: false,
     };
   }
 
@@ -148,6 +149,7 @@ export class GestionarCamposComponent implements OnInit, OnDestroy {
       tipo: campo.tipo,
       opciones: (campo.opciones ?? []).slice().sort((a, b) => a.orden - b.orden).map((o) => o.valor),
       requerido: campo.requerido,
+      filtroComunicados: campo.filtroComunicados ?? false,
     };
     this.mostrarModalCampo = true;
     this.cdr.detectChanges();
@@ -189,6 +191,8 @@ export class GestionarCamposComponent implements OnInit, OnDestroy {
           ? this.form.opciones.map((v) => v.trim()).filter(Boolean).map((valor, orden) => ({ valor, orden }))
           : undefined,
       requerido: this.form.requerido,
+      filtroComunicados:
+        this.form.tipo === 'booleano' ? this.form.filtroComunicados : false,
       mostrarListado: false,
       mostrarPerfil: true,
       buscar: false,

@@ -28,8 +28,11 @@
     </div>
 
     <nav class="shell-nav">
+      @if (permisos.tieneAcceso('history')) {
       <span class="nav-label">Chat en línea</span>
+      }
 
+      @if (permisos.tieneAcceso('history')) {
       <a class="nav-item" routerLink="history" routerLinkActive="active" (click)="closeSidebarOnMobile()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
@@ -38,7 +41,9 @@
         </svg>
         <span>Historial</span>
       </a>
+      }
 
+      @if (permisos.tieneAcceso('advisors')) {
       <a class="nav-item" routerLink="advisors" routerLinkActive="active" (click)="closeSidebarOnMobile()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
@@ -49,7 +54,9 @@
         </svg>
         <span>Agentes</span>
       </a>
+      }
 
+      @if (permisos.tieneAcceso('metrics')) {
       <a class="nav-item" routerLink="metrics" routerLinkActive="active" (click)="closeSidebarOnMobile()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
@@ -59,14 +66,20 @@
         </svg>
         <span>Métricas</span>
       </a>
+      }
 
+      @if (permisos.tieneAcceso('whatsapp') || permisos.tieneAcceso('chat_interno') || permisos.tieneAcceso('reportes')) {
       <span class="nav-label section-spacer">WhatsApp</span>
+      }
 
+      @if (permisos.tieneAcceso('whatsapp')) {
       <a class="nav-item" routerLink="operaciones" [routerLinkActiveOptions]="{ exact: true }" routerLinkActive="active" (click)="closeSidebarOnMobile()">
         <img src="whatsapp.png" alt="">
         <span>WhatsApp</span>
       </a>
+      }
 
+      @if (permisos.tieneAcceso('chat_interno')) {
       <a class="nav-item" routerLink="operaciones/chats" [queryParams]="{ modo: 'asesores' }" (click)="closeSidebarOnMobile()">
         <img src="chat_interno.png" alt="">
         <span>Chat interno</span>
@@ -74,7 +87,9 @@
         <b class="nav-item-badge">{{ internalUnread > 99 ? '99+' : internalUnread }}</b>
         }
       </a>
+      }
 
+      @if (permisos.tieneAcceso('reportes')) {
       <a class="nav-item" routerLink="operaciones/reportes" routerLinkActive="active" (click)="closeSidebarOnMobile()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
@@ -82,9 +97,13 @@
         </svg>
         <span>Reporte</span>
       </a>
+      }
 
+      @if (permisos.tieneAcceso('tickets') || permisos.tieneAcceso('perfil_institucional') || permisos.tieneAcceso('faq') || permisos.tieneAcceso('widget')) {
       <span class="nav-label section-spacer">Gestión</span>
+      }
 
+      @if (permisos.tieneAcceso('tickets')) {
       <a class="nav-item" routerLink="tickets" routerLinkActive="active" (click)="closeSidebarOnMobile()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
@@ -95,7 +114,9 @@
         </svg>
         <span>Tickets</span>
       </a>
+      }
 
+      @if (permisos.tieneAcceso('perfil_institucional')) {
       <a class="nav-item" routerLink="perfil-institucional" routerLinkActive="active" (click)="closeSidebarOnMobile()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
@@ -106,7 +127,9 @@
         </svg>
         <span>Perfil Institucional</span>
       </a>
+      }
 
+      @if (permisos.tieneAcceso('faq')) {
       <a class="nav-item" routerLink="faq" routerLinkActive="active" (click)="closeSidebarOnMobile()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
@@ -116,7 +139,9 @@
         </svg>
         <span>FAQ</span>
       </a>
+      }
 
+      @if (permisos.tieneAcceso('widget')) {
       <a class="nav-item" routerLink="widget" routerLinkActive="active" (click)="closeSidebarOnMobile()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
@@ -126,9 +151,13 @@
         </svg>
         <span>Widget</span>
       </a>
+      }
 
+      @if (permisos.tieneAcceso('configuracion')) {
       <span class="nav-label section-spacer">Configuración</span>
+      }
 
+      @if (permisos.tieneAcceso('configuracion')) {
       <a class="nav-item" routerLink="configuracion" routerLinkActive="active" (click)="closeSidebarOnMobile()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
@@ -145,6 +174,7 @@
         </svg>
         <span>Configuración</span>
       </a>
+      }
     </nav>
 
     <div class="shell-spacer"></div>

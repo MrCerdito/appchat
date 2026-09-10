@@ -13,6 +13,7 @@ import { SoundService } from '../../../core/services/sound.service';
 import { AdvisorNotificationService } from '../../../core/services/advisor-notification.service';
 import { TicketService } from '../../../core/services/ticket.service';
 import { AdminService } from '../../../core/services/admin.service';
+import { PermisosService } from '../../../core/services/permisos.service';
 import { WhatsappChatService } from '../../../core/services/whatsapp-chat.service';
 import { ChatStateService } from '../../../core/services/chat-state.service';
 import { InternalChatService } from '../../../core/services/internal-chat.service';
@@ -98,6 +99,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     switch (this.currentAdvisor?.role) {
       case 'admin': return 'Administrador';
       case 'desarrollador': return 'Desarrollador';
+      case 'interno': return 'Interno';
       default: return 'Agente';
     }
   }
@@ -185,6 +187,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private notification: NotificationService,
     private layout: LayoutService,
     private faqService: FaqService,
+    protected permisos: PermisosService,
   ) {}
 
   whatsappMode: 'clients' | 'advisors' | null = null;
@@ -201,6 +204,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
         }
         this.cdr.detectChanges();
       });
+    this.permisos.permisosChanged$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => this.cdr.detectChanges());
     this.auth.user$.pipe(takeUntil(this.destroy$)).subscribe((user) => {
       this.currentAdvisor = user;
       if (user?.id) {
@@ -219,12 +225,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
     this.internalChat.connect();
 
-    // Al iniciar sesión el asesor entra automáticamente en estado Disponible
-    // (online), sin heredar un 'offline' de un logout/desconexión anterior,
-    // para que la asignación por colegio y la cola lo tomen en cuenta de inmediato.
-    this.advisorStatus = 'online';
-    localStorage.setItem(this.STATUS_KEY, 'online');
-    this.applyStatus('online');
+    // No se fuerza 'online' al cargar/refrescar: el servidor restaura el último
+    // estado elegido por el asesor (advisor_ready / get_lunch_state) para que un
+    // F5 no lo devuelva a Disponible. El localStorage solo siembra el UI de forma
+    // optimista para evitar parpadeos; el evento del servidor es la fuente real.
+    const savedStatus = localStorage.getItem(this.STATUS_KEY) as
+      | 'online'
+      | 'busy'
+      | 'offline'
+      | null;
+    if (savedStatus === 'online' || savedStatus === 'busy' || savedStatus === 'offline') {
+      this.advisorStatus = savedStatus;
+      this.cdr.detectChanges();
+    }
     this.socket.emit('advisor_ready');
     this.loadActiveCount();
     this.registerSocketListeners();
@@ -259,6 +272,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       .subscribe(data => {
         if (data.advisorId === this.currentAdvisor?.id) {
           this.advisorStatus = data.status as 'online' | 'busy' | 'offline';
+          localStorage.setItem(this.STATUS_KEY, data.status);
           this.cdr.detectChanges();
         }
         const idx = this.allAdvisors.findIndex(a => a.advisorId === data.advisorId);
@@ -974,6 +988,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   logout(): void {
     this.applyStatus('offline');
+    // Limpia la preferencia de estado en el servidor: un login futuro debe
+    // arrancar en Disponible, no heredar un estado manual guardado.
+    this.socket.emit('advisor_logout');
     localStorage.removeItem(this.STATUS_KEY);
     localStorage.removeItem(this.LUNCH_STATE_KEY);
     this.almuerzoMensaje = '';

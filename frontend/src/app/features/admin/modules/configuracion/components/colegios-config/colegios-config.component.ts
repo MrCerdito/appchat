@@ -34,8 +34,6 @@ export class ColegiosConfigComponent implements OnInit, OnDestroy {
   editingColegio: Colegio | null = null;
   form = { nombre: '', link: '', email: '', calendario: '', tipoColegio: '', ciudad: '', advisorId: '' };
   additionalLinks: string[] = [];
-  customCalendario = false;
-  customTipoColegio = false;
   selectedIds = new Set<string>();
   deletingId: string | null = null;
   deletingBulk = false;
@@ -60,34 +58,26 @@ export class ColegiosConfigComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  get calendarioOptions(): string[] {
-    const vals = new Set(this.colegios.map(c => c.calendario).filter((v): v is string => !!v));
-    return [...vals].sort();
+  get calendarioOptions(): { value: string; label: string }[] {
+    const fixed = [
+      { value: 'A', label: 'Calendario A' },
+      { value: 'B', label: 'Calendario B' },
+    ];
+    const current = this.form.calendario;
+    if (current && current !== 'A' && current !== 'B')
+      return [...fixed, { value: current, label: current }];
+    return fixed;
   }
 
-  get tipoColegioOptions(): string[] {
-    const vals = new Set(this.colegios.map(c => c.tipoColegio).filter((v): v is string => !!v));
-    return [...vals].sort();
-  }
-
-  onCalendarioSelect(value: string): void {
-    if (value === '__custom__') {
-      this.customCalendario = true;
-      this.form.calendario = '';
-    } else {
-      this.customCalendario = false;
-      this.form.calendario = value;
-    }
-  }
-
-  onTipoColegioSelect(value: string): void {
-    if (value === '__custom__') {
-      this.customTipoColegio = true;
-      this.form.tipoColegio = '';
-    } else {
-      this.customTipoColegio = false;
-      this.form.tipoColegio = value;
-    }
+  get tipoColegioOptions(): { value: string; label: string }[] {
+    const fixed = [
+      { value: 'ControlAcademic', label: 'Control Academic' },
+      { value: 'Sian365', label: 'Sian365' },
+    ];
+    const current = this.form.tipoColegio;
+    if (current && current !== 'ControlAcademic' && current !== 'Sian365')
+      return [...fixed, { value: current, label: current }];
+    return fixed;
   }
 
   loadColegios(): void {
@@ -199,14 +189,10 @@ export class ColegiosConfigComponent implements OnInit, OnDestroy {
         advisorId: colegio.advisorId || '',
       };
       this.additionalLinks = (colegio.links || []).filter(l => l !== colegio.link);
-      this.customCalendario = !!colegio.calendario && !this.calendarioOptions.includes(colegio.calendario);
-      this.customTipoColegio = !!colegio.tipoColegio && !this.tipoColegioOptions.includes(colegio.tipoColegio);
     } else {
       this.editingColegio = null;
       this.form = { nombre: '', link: '', email: '', calendario: '', tipoColegio: '', ciudad: '', advisorId: '' };
       this.additionalLinks = [];
-      this.customCalendario = false;
-      this.customTipoColegio = false;
     }
     this.showForm = true;
   }
@@ -216,8 +202,6 @@ export class ColegiosConfigComponent implements OnInit, OnDestroy {
     this.editingColegio = null;
     this.form = { nombre: '', link: '', email: '', calendario: '', tipoColegio: '', ciudad: '', advisorId: '' };
     this.additionalLinks = [];
-    this.customCalendario = false;
-    this.customTipoColegio = false;
   }
 
   addAdditionalLink(): void {

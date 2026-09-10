@@ -11,6 +11,8 @@ import { ConfigService } from '@nestjs/config';
 import { Comunicado, Destinatario } from './entities/comunicado.entity';
 import { ComunicadoTemplate } from './entities/comunicado-template.entity';
 import { Colegio } from '../sessions/entities/colegio.entity';
+import { PiCampo } from '../perfil-institucional/entities/pi-campo.entity';
+import { PiValor } from '../perfil-institucional/entities/pi-valor.entity';
 import { User } from '../auth/entities/user.entity';
 import { ComunicadoEvento } from './entities/comunicado-evento.entity';
 import { ConfiguracionService } from '../configuracion/configuracion.service';
@@ -30,13 +32,20 @@ export class ComunicadosService {
     private readonly templateRepo: Repository<ComunicadoTemplate>,
     @InjectRepository(Colegio)
     private readonly colegioRepo: Repository<Colegio>,
+    @InjectRepository(PiCampo)
+    private readonly piCampoRepo: Repository<PiCampo>,
+    @InjectRepository(PiValor)
+    private readonly piValorRepo: Repository<PiValor>,
     private readonly config: ConfigService,
     private readonly configuracion: ConfiguracionService,
   ) {}
 
   async findAll(userId: string, role: string): Promise<Comunicado[]> {
     if (role === 'admin') {
-      return this.comunicadoRepo.find({ relations: { sender: true }, order: { createdAt: 'DESC' } });
+      return this.comunicadoRepo.find({
+        relations: { sender: true },
+        order: { createdAt: 'DESC' },
+      });
     }
     return this.comunicadoRepo.find({
       where: { sender: { id: userId } },
@@ -107,7 +116,8 @@ export class ComunicadosService {
     const c = await this.findOne(id);
     this.assertCanManage(c, user);
     if (c.status === 'sent') throw new BadRequestException('Ya fue enviado');
-    if (!c.destinatarios.length) throw new BadRequestException('Sin destinatarios');
+    if (!c.destinatarios.length)
+      throw new BadRequestException('Sin destinatarios');
 
     const baseUrl = this.config.get('APP_URL') ?? 'http://localhost:3001';
     const cfg = await this.configuracion.getGlobal();
@@ -198,9 +208,7 @@ export class ComunicadosService {
               to: dest.emailFinal,
               subject: c.asunto,
               html: htmlFinal,
-              attachments: smtpAttachments.length
-                ? smtpAttachments
-                : undefined,
+              attachments: smtpAttachments.length ? smtpAttachments : undefined,
             });
 
             this.logger.log(
@@ -281,8 +289,48 @@ export class ComunicadosService {
     await this.comunicadoRepo.remove(c);
   }
 
-  async getColegios(): Promise<Colegio[]> {
-    return this.colegioRepo.find({ order: { nombre: 'ASC' } });
+  async getColegios(): Promise<{
+    colegios: (Colegio & {
+      perfilFiltros: Record<string, string | null>;
+    })[];
+    filtrosPerfil: {
+      id: string;
+      nombre: string;
+      categoriaId: string | null;
+      categoriaNombre: string | null;
+    }[];
+  }> {
+    const [colegios, campos, valores] = await Promise.all([
+      this.colegioRepo.find({ order: { nombre: 'ASC' } }),
+      this.piCampoRepo.find({
+        where: { tipo: 'booleano', filtroComunicados: true, activo: true },
+        relations: { categoria: true },
+        order: { orden: 'ASC', nombre: 'ASC' },
+      }),
+      this.piValorRepo.find(),
+    ]);
+
+    const campoIds = campos.map((c) => c.id);
+    const valoresPorColegio = new Map<string, Record<string, string | null>>();
+    for (const v of valores) {
+      if (!campoIds.includes(v.campoId)) continue;
+      if (!valoresPorColegio.has(v.colegioId))
+        valoresPorColegio.set(v.colegioId, {});
+      valoresPorColegio.get(v.colegioId)![v.campoId] = v.valor;
+    }
+
+    return {
+      colegios: colegios.map((c) => ({
+        ...c,
+        perfilFiltros: valoresPorColegio.get(c.id) ?? {},
+      })),
+      filtrosPerfil: campos.map((f) => ({
+        id: f.id,
+        nombre: f.nombre,
+        categoriaId: f.categoria?.id ?? null,
+        categoriaNombre: f.categoria?.nombre ?? null,
+      })),
+    };
   }
 
   async findTemplates(): Promise<ComunicadoTemplate[]> {
@@ -290,7 +338,12 @@ export class ComunicadosService {
   }
 
   async createTemplate(
-    data: { name: string; asunto: string; cuerpo: string; design: unknown[] | null },
+    data: {
+      name: string;
+      asunto: string;
+      cuerpo: string;
+      design: unknown[] | null;
+    },
     user: User,
   ): Promise<ComunicadoTemplate> {
     const t = this.templateRepo.create({
@@ -305,7 +358,12 @@ export class ComunicadosService {
 
   async updateTemplate(
     id: string,
-    data: { name: string; asunto: string; cuerpo: string; design: unknown[] | null },
+    data: {
+      name: string;
+      asunto: string;
+      cuerpo: string;
+      design: unknown[] | null;
+    },
   ): Promise<ComunicadoTemplate> {
     const t = await this.templateRepo.findOneBy({ id });
     if (!t) throw new NotFoundException('Plantilla no encontrada');

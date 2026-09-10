@@ -24,6 +24,7 @@ type ConfigTab =
   | 'inactividad'
   | 'reconexion'
   | 'correoTickets'
+  | 'asignacion'
   | 'whatsapp'
   | 'jornada'
   | 'sonidos'
@@ -490,6 +491,10 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
       asesorReconexionMsg: config.asesorReconexionMsg || 'El agente se desconectó. Esperando reconexión...',
       whatsappQuickReplies: Array.isArray(config.whatsappQuickReplies) ? config.whatsappQuickReplies : [],
       whatsappMaxActiveChatsPerAdvisor: config.whatsappMaxActiveChatsPerAdvisor ?? 3,
+      asignacionBalanceTipo: config.asignacionBalanceTipo ?? 'hoy',
+      maxActiveChatsWeb: config.maxActiveChatsWeb ?? 4,
+      asignacionContarCerradasHoy: config.asignacionContarCerradasHoy ?? true,
+      asignacionPriorizarColegio: config.asignacionPriorizarColegio ?? true,
       ticketEmailActivo: config.ticketEmailActivo ?? true,
       ticketEmailAsunto: config.ticketEmailAsunto || this.placeholderTicketEmailAsunto,
       ticketEmailCuerpo: config.ticketEmailCuerpo || this.placeholderTicketEmailCuerpo,

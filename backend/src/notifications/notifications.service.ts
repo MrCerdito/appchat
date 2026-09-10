@@ -92,7 +92,9 @@ export class NotificationsService {
   }
 
   async getUnreadCount(userId: string): Promise<number> {
-    return this.notifRepo.count({ where: { recipientId: userId, read: false } });
+    return this.notifRepo.count({
+      where: { recipientId: userId, read: false },
+    });
   }
 
   async markAsRead(id: string, userId: string): Promise<void> {
@@ -113,7 +115,10 @@ export class NotificationsService {
     await this.notifRepo.delete({ id, recipientId: userId });
   }
 
-  async removeMany(userId: string, ids?: string[]): Promise<{ removed: number }> {
+  async removeMany(
+    userId: string,
+    ids?: string[],
+  ): Promise<{ removed: number }> {
     const where: Record<string, unknown> = { recipientId: userId };
     if (ids && ids.length) where.id = In(ids);
     const result = await this.notifRepo.delete(where);

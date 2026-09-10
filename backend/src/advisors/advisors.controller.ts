@@ -32,13 +32,17 @@ import {
 } from 'fs';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdvisorsService } from './advisors.service';
+import { ConectividadResult } from './advisors.service';
 import { ChatGateway } from '../chat/chat.gateway';
+import { AdvisorActivityService } from '../advisor-activity/advisor-activity.service';
+import { HistorialDiaResult } from '../advisor-activity/advisor-activity.service';
 import { CreateAdvisorDto } from './dto/create-advisor.dto';
 import { UpdateAdvisorDto } from './dto/update-advisor.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import { QueryAdvisorDto } from './dto/query-advisor.dto';
 import { ImportUserDto } from './dto/import-user.dto'; // Nueva importación
 import { Roles, RolesGuard } from '../auth/roles.guard';
+import { Permiso } from '../accesos/permiso-modulo.guard';
 import { User } from '../auth/entities/user.entity';
 import { Response } from 'express'; // Nueva importación
 
@@ -57,10 +61,12 @@ export class AdvisorsController {
   constructor(
     private readonly advisorsService: AdvisorsService,
     private readonly chatGateway: ChatGateway,
+    private readonly advisorActivity: AdvisorActivityService,
   ) {}
 
   @Get()
   @Roles('admin')
+  @Permiso('advisors')
   findAll(@Query() query: QueryAdvisorDto): Promise<
     | {
         data: User[];
@@ -68,6 +74,13 @@ export class AdvisorsController {
         page: number;
         limit: number;
         pages: number;
+        counts?: {
+          todos: number;
+          advisor: number;
+          admin: number;
+          desarrollador: number;
+          interno: number;
+        };
       }
     | User[]
   > {
@@ -77,14 +90,37 @@ export class AdvisorsController {
         query.limit ?? 20,
         query.search,
         query.role,
+        query.activo,
+        query.conectado,
       );
     }
     return this.advisorsService.findAll();
   }
 
+  // ── Prueba real de conectividad de asesores ──────────────────────────
+  @Get('conectividad')
+  @Roles('admin')
+  @Permiso('advisors')
+  checkConectividad(): Promise<ConectividadResult> {
+    return this.advisorsService.checkConectividad();
+  }
+
+  // ── Historial del día de actividad de asesores ───────────────────────
+  // fecha → YYYY-MM-DD (hora Bogotá); asesor → id opcional para filtrar.
+  @Get('conectividad/historial')
+  @Roles('admin')
+  @Permiso('advisors')
+  historialDia(
+    @Query('fecha') fecha?: string,
+    @Query('asesor') asesor?: string,
+  ): Promise<HistorialDiaResult> {
+    return this.advisorActivity.historialDia(fecha, asesor);
+  }
+
   // ── Carga masiva de asesores desde Excel ─────────────────────────────
   @Post('import-excel')
   @Roles('admin')
+  @Permiso('advisors')
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({
@@ -93,7 +129,8 @@ export class AdvisorsController {
           cb(null, TEMP_DIR);
         },
         filename: (_req, file, cb) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+          const uniqueSuffix =
+            Date.now() + '-' + Math.round(Math.random() * 1e9);
           cb(null, `import-users-${uniqueSuffix}${extname(file.originalname)}`);
         },
       }),
@@ -103,7 +140,12 @@ export class AdvisorsController {
           'application/vnd.ms-excel',
         ];
         if (!allowedMimeTypes.includes(file.mimetype)) {
-          cb(new BadRequestException('Solo se aceptan archivos Excel (.xlsx o .xls)'), false);
+          cb(
+            new BadRequestException(
+              'Solo se aceptan archivos Excel (.xlsx o .xls)',
+            ),
+            false,
+          );
         } else {
           cb(null, true);
         }
@@ -111,9 +153,12 @@ export class AdvisorsController {
       limits: { fileSize: 5 * 1024 * 1024 }, // Límite de 5MB para el archivo Excel
     }),
   )
-  async importAdvisors(
-    @UploadedFile() file: Express.Multer.File,
-  ): Promise<{ message: string; created: number; updated: number; errors: any[] }> {
+  async importAdvisors(@UploadedFile() file: Express.Multer.File): Promise<{
+    message: string;
+    created: number;
+    updated: number;
+    errors: any[];
+  }> {
     if (!file) throw new BadRequestException('Archivo Excel requerido');
 
     const filePath = file.path;
@@ -130,11 +175,15 @@ export class AdvisorsController {
   // ── Exportar asesores a Excel ─────────────────────────────────────────
   @Get('export-excel')
   @Roles('admin')
+  @Permiso('advisors')
   @HttpCode(HttpStatus.OK)
-  async exportAdvisors(@Res({ passthrough: true }) res: Response): Promise<StreamableFile> {
+  async exportAdvisors(
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
     const file = await this.advisorsService.exportUsers();
     res.set({
-      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Type':
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'Content-Disposition': `attachment; filename="asesores-${Date.now()}.xlsx"`,
     });
     return new StreamableFile(file);
@@ -142,12 +191,14 @@ export class AdvisorsController {
 
   @Get(':id')
   @Roles('admin')
+  @Permiso('advisors')
   findOne(@Param('id') id: string): Promise<User> {
     return this.advisorsService.findById(id);
   }
 
   @Post()
   @Roles('admin')
+  @Permiso('advisors')
   create(
     @Body(new ValidationPipe({ whitelist: true })) body: CreateAdvisorDto,
   ): Promise<User> {
@@ -161,6 +212,7 @@ export class AdvisorsController {
 
   @Put(':id')
   @Roles('admin')
+  @Permiso('advisors')
   update(
     @Param('id') id: string,
     @Body(new ValidationPipe({ whitelist: true })) body: UpdateAdvisorDto,
@@ -171,6 +223,7 @@ export class AdvisorsController {
 
   @Patch(':id/password')
   @Roles('admin')
+  @Permiso('advisors')
   updatePassword(
     @Param('id') id: string,
     @Body(new ValidationPipe({ whitelist: true })) body: UpdatePasswordDto,
@@ -182,12 +235,14 @@ export class AdvisorsController {
 
   @Patch(':id/toggle')
   @Roles('admin')
+  @Permiso('advisors')
   toggle(@Param('id') id: string, @Request() req: any): Promise<User> {
     return this.advisorsService.toggle(id, req.user.id);
   }
 
   @Delete(':id')
   @Roles('admin')
+  @Permiso('advisors')
   remove(@Param('id') id: string, @Request() req: any): Promise<void> {
     return this.advisorsService.remove(id, req.user.id);
   }
@@ -203,7 +258,9 @@ export class AdvisorsController {
           cb(null, dir);
         },
         filename: (_req, file, cb) => {
-          const ext = file.originalname.substring(file.originalname.lastIndexOf('.')) || '.jpg';
+          const ext =
+            file.originalname.substring(file.originalname.lastIndexOf('.')) ||
+            '.jpg';
           cb(null, `temp-${Date.now()}${ext}`);
         },
       }),
@@ -212,7 +269,10 @@ export class AdvisorsController {
         const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
         if (!allowed.includes(file.mimetype)) {
           return cb(
-            new BadRequestException('Solo se permiten JPEG, PNG, WebP o GIF', ''),
+            new BadRequestException(
+              'Solo se permiten JPEG, PNG, WebP o GIF',
+              '',
+            ),
             false,
           );
         }
@@ -227,7 +287,9 @@ export class AdvisorsController {
   ): Promise<{ profilePhotoUrl: string }> {
     if (!file) throw new BadRequestException('Archivo no recibido');
     if (req.user.role === 'advisor' && req.user.id !== id) {
-      throw new ForbiddenException('No puedes modificar la foto de otro agente');
+      throw new ForbiddenException(
+        'No puedes modificar la foto de otro agente',
+      );
     }
 
     const ext =
@@ -235,10 +297,10 @@ export class AdvisorsController {
     const timestamp = Date.now();
     const filename = `profile-${id}-${timestamp}${ext}`;
     const dir = join(process.cwd(), 'uploads', 'profiles');
-    
+
     const tempPath = (file as any).path;
     const targetPath = join(dir, filename);
-    
+
     try {
       const oldFiles = readdirSync(dir).filter((f) =>
         f.startsWith(`profile-${id}-`),
@@ -247,7 +309,7 @@ export class AdvisorsController {
     } catch {
       /* ignore */
     }
-    
+
     try {
       const { renameSync } = await import('fs');
       renameSync(tempPath, targetPath);
@@ -255,7 +317,11 @@ export class AdvisorsController {
       const { readFileSync } = await import('fs');
       const data = readFileSync(tempPath);
       writeFileSync(targetPath, data);
-      try { unlinkSync(tempPath); } catch { /* ignore */ }
+      try {
+        unlinkSync(tempPath);
+      } catch {
+        /* ignore */
+      }
     }
 
     const backendUrl = process.env.APP_URL || 'http://localhost:3001';
@@ -267,7 +333,10 @@ export class AdvisorsController {
 
   @Delete(':id/photo')
   @Roles('admin', 'advisor')
-  async deletePhoto(@Param('id') id: string, @Request() req: any): Promise<{ ok: boolean }> {
+  async deletePhoto(
+    @Param('id') id: string,
+    @Request() req: any,
+  ): Promise<{ ok: boolean }> {
     if (req.user.role === 'advisor' && req.user.id !== id) {
       throw new ForbiddenException('No puedes eliminar la foto de otro agente');
     }

@@ -10,6 +10,28 @@ export interface PaginatedResponse<T> {
   page: number;
   limit: number;
   pages: number;
+  counts?: { todos: number; advisor: number; admin: number; desarrollador: number; interno: number };
+}
+
+export interface ConectividadAsesor {
+  id: string;
+  name: string;
+  email: string;
+  profilePhotoUrl: string | null;
+  estado: 'online' | 'busy' | 'offline';
+  conectado: boolean;
+  activeChats: number;
+  activo: boolean;
+}
+
+export interface ConectividadResult {
+  checkedAt: string;
+  total: number;
+  conectados: number;
+  inactivos: number;
+  conError: number;
+  porcentaje: number;
+  asesores: ConectividadAsesor[];
 }
 
 export interface Metrics {
@@ -23,6 +45,55 @@ export interface Metrics {
   advisors: User[];
 }
 
+export interface PeriodoActividad {
+  desde: string;
+  hasta: string | null;
+  duracionMs: number;
+  estado: 'online' | 'busy' | 'offline';
+  almuerzo: boolean;
+  tipo: 'conexion' | 'desconexion' | 'status' | 'almuerzo_inicio' | 'almuerzo_fin';
+  causa: string | null;
+}
+
+export interface ActividadAsesor {
+  asesorId: string;
+  nombre: string | null;
+  email: string | null;
+  profilePhotoUrl: string | null;
+  rol: string | null;
+  resumen: {
+    disponibleMin: number;
+    ocupadoMin: number;
+    almuerzoMin: number;
+    inactivoMin: number;
+    desconexiones: number;
+    primeraConexion: string | null;
+    ultimaAccion: {
+      tipo: string;
+      estado: string;
+      almuerzo: boolean;
+      desde: string;
+      mensaje: string;
+    } | null;
+    estadoFinal: 'online' | 'busy' | 'offline' | null;
+    segmentoAbierto: boolean;
+    sinActividadAntesDe: string | null;
+  };
+  periodos: PeriodoActividad[];
+}
+
+export interface JornadaDia {
+  activa: boolean;
+  slots: { inicio: string; fin: string }[];
+}
+
+export interface HistorialDia {
+  fecha: string;
+  esHoy: boolean;
+  jornada: JornadaDia;
+  asesores: ActividadAsesor[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class AdminService {
   constructor(private http: HttpClient) {}
@@ -31,12 +102,26 @@ export class AdminService {
     page = 1,
     limit = 20,
     search?: string,
-    role?: 'admin' | 'advisor' | 'desarrollador' | 'todos',
+    role?: 'admin' | 'advisor' | 'desarrollador' | 'interno' | 'todos',
+    opts?: { activo?: boolean; conectado?: boolean },
   ): Observable<PaginatedResponse<User>> {
     let params = new HttpParams().set('page', page).set('limit', limit);
     if (search) params = params.set('search', search);
     if (role) params = params.set('role', role);
+    if (opts?.activo !== undefined) params = params.set('activo', opts.activo);
+    if (opts?.conectado !== undefined) params = params.set('conectado', opts.conectado);
     return this.http.get<PaginatedResponse<User>>(`${environment.apiUrl}/advisors`, { params });
+  }
+
+  getConectividad(): Observable<ConectividadResult> {
+    return this.http.get<ConectividadResult>(`${environment.apiUrl}/advisors/conectividad`);
+  }
+
+  getHistorialDia(fecha?: string, asesorId?: string): Observable<HistorialDia> {
+    let params = new HttpParams();
+    if (fecha) params = params.set('fecha', fecha);
+    if (asesorId) params = params.set('asesor', asesorId);
+    return this.http.get<HistorialDia>(`${environment.apiUrl}/advisors/conectividad/historial`, { params });
   }
 
   getAdvisor(id: string): Observable<User> {
@@ -47,14 +132,14 @@ export class AdminService {
     name: string,
     email: string,
     password: string,
-    role: 'admin' | 'advisor' | 'desarrollador' = 'advisor',
+    role: 'admin' | 'advisor' | 'desarrollador' | 'interno' = 'advisor',
   ): Observable<User> {
     return this.http.post<User>(`${environment.apiUrl}/advisors`, { name, email, password, role });
   }
 
   updateAdvisor(
     id: string,
-    data: { name?: string; email?: string; role?: 'admin' | 'advisor' | 'desarrollador' },
+    data: { name?: string; email?: string; role?: 'admin' | 'advisor' | 'desarrollador' | 'interno' },
   ): Observable<User> {
     return this.http.put<User>(`${environment.apiUrl}/advisors/${id}`, data);
   }

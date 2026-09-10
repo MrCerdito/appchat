@@ -24,9 +24,7 @@ export class PqrsController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(
-    @Body(new ValidationPipe({ whitelist: true })) dto: CreatePqrsDto,
-  ) {
+  create(@Body(new ValidationPipe({ whitelist: true })) dto: CreatePqrsDto) {
     return this.pqrsService.create(dto);
   }
 

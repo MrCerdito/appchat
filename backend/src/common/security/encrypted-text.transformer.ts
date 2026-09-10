@@ -47,7 +47,13 @@ function deriveKeyV2Sync(raw: string, salt: Buffer): Buffer {
   const cacheKey = salt.toString('base64');
   let cached = pbkdf2Cache.get(cacheKey);
   if (cached) return cached;
-  cached = pbkdf2Sync(raw, salt, PBKDF2_ITERATIONS, PBKDF2_KEYLEN, PBKDF2_DIGEST);
+  cached = pbkdf2Sync(
+    raw,
+    salt,
+    PBKDF2_ITERATIONS,
+    PBKDF2_KEYLEN,
+    PBKDF2_DIGEST,
+  );
   pbkdf2Cache.set(cacheKey, cached);
   return cached;
 }
@@ -70,7 +76,9 @@ function getFallbackKey(): Buffer | null {
 }
 
 // ── Parse a v2 encrypted value into its parts ─────────────────────────────
-function parseV2(value: string): { salt: Buffer; iv: Buffer; tag: Buffer; encrypted: Buffer } | null {
+function parseV2(
+  value: string,
+): { salt: Buffer; iv: Buffer; tag: Buffer; encrypted: Buffer } | null {
   const payload = value.slice(PREFIX_V2.length);
   const [saltB64, ivB64, tagB64, encryptedB64] = payload.split(':');
   if (!saltB64 || !ivB64 || !tagB64) return null;
@@ -82,7 +90,10 @@ function parseV2(value: string): { salt: Buffer; iv: Buffer; tag: Buffer; encryp
   };
 }
 
-function decryptV2(raw: string, parsed: { salt: Buffer; iv: Buffer; tag: Buffer; encrypted: Buffer }): string {
+function decryptV2(
+  raw: string,
+  parsed: { salt: Buffer; iv: Buffer; tag: Buffer; encrypted: Buffer },
+): string {
   const key = deriveKeyV2Sync(raw, parsed.salt);
   const decipher = createDecipheriv('aes-256-gcm', key, parsed.iv);
   decipher.setAuthTag(parsed.tag);
@@ -189,7 +200,9 @@ export const encryptedTextTransformer: ValueTransformer = {
 // ── Async warmup: pre-compute all decrypted values at startup ─────────────
 const BATCH_SIZE = 10;
 
-export async function warmupEncryptedCache(dataSource: DataSource): Promise<void> {
+export async function warmupEncryptedCache(
+  dataSource: DataSource,
+): Promise<void> {
   const raw = process.env.CHAT_ENCRYPTION_KEY?.trim();
   if (!raw) return;
 
@@ -200,7 +213,10 @@ export async function warmupEncryptedCache(dataSource: DataSource): Promise<void
       await dataSource.query(`SELECT 1`).catch(() => {});
 
       const tables = [
-        { table: 'sessions', columns: ['client_name', 'identificacion', 'apellido'] },
+        {
+          table: 'sessions',
+          columns: ['client_name', 'identificacion', 'apellido'],
+        },
         { table: 'messages', columns: ['content', 'sender_name'] },
         { table: 'whatsapp_messages', columns: ['body'] },
         { table: 'teams_tokens', columns: ['access_token', 'refresh_token'] },
@@ -247,8 +263,13 @@ export async function warmupEncryptedCache(dataSource: DataSource): Promise<void
         await Promise.all(
           batch.map(async ([saltB64, salt]) => {
             const key = await new Promise<Buffer>((resolve, reject) =>
-              pbkdf2(raw, salt, PBKDF2_ITERATIONS, PBKDF2_KEYLEN, PBKDF2_DIGEST, (err, derivedKey) =>
-                err ? reject(err) : resolve(derivedKey),
+              pbkdf2(
+                raw,
+                salt,
+                PBKDF2_ITERATIONS,
+                PBKDF2_KEYLEN,
+                PBKDF2_DIGEST,
+                (err, derivedKey) => (err ? reject(err) : resolve(derivedKey)),
               ),
             );
             pbkdf2Cache.set(saltB64, key);

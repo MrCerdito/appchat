@@ -102,7 +102,8 @@ export class ChatMediaController {
         const mimeType = normalizeMimeType(file.mimetype);
         const allowed =
           ALLOWED_MIMES.has(mimeType) ||
-          (isGenericMime(file.mimetype) && isArchiveFileName(file.originalname));
+          (isGenericMime(file.mimetype) &&
+            isArchiveFileName(file.originalname));
         if (!allowed) {
           cb(
             new BadRequestException(
@@ -116,9 +117,7 @@ export class ChatMediaController {
       },
     }),
   )
-  async upload(
-    @UploadedFile() file: Express.Multer.File,
-  ): Promise<Attachment> {
+  async upload(@UploadedFile() file: Express.Multer.File): Promise<Attachment> {
     if (!file) {
       throw new BadRequestException('Archivo requerido');
     }

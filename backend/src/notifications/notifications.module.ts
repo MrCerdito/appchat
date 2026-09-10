@@ -16,7 +16,9 @@ import { NotificationsController } from './notifications.controller';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         secret: config.get<string>('JWT_SECRET'),
-        signOptions: { expiresIn: config.get<string>('JWT_EXPIRES') ?? '8h' } as any,
+        signOptions: {
+          expiresIn: config.get<string>('JWT_EXPIRES') ?? '8h',
+        } as any,
       }),
     }),
   ],

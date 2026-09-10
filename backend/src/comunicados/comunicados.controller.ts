@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles, RolesGuard } from '../auth/roles.guard';
+import { Permiso } from '../accesos/permiso-modulo.guard';
 import { ComunicadosService } from './comunicados.service';
 import { IsString, IsArray, IsOptional, MaxLength } from 'class-validator';
 
@@ -33,6 +34,7 @@ export class ComunicadoTemplateDto {
 
 @Controller('comunicados')
 @UseGuards(JwtAuthGuard, RolesGuard)
+@Permiso('comunicados')
 export class ComunicadosController {
   constructor(private readonly service: ComunicadosService) {}
 
@@ -66,10 +68,7 @@ export class ComunicadosController {
   }
 
   @Put('templates/:id')
-  updateTemplate(
-    @Param('id') id: string,
-    @Body() dto: ComunicadoTemplateDto,
-  ) {
+  updateTemplate(@Param('id') id: string, @Body() dto: ComunicadoTemplateDto) {
     return this.service.updateTemplate(id, {
       name: dto.name,
       asunto: dto.asunto,
@@ -89,7 +88,7 @@ export class ComunicadosController {
     return this.service.findOne(id);
   }
 
-  @Roles('admin', 'advisor')
+  @Roles('advisor', 'interno')
   @Post('draft')
   @HttpCode(HttpStatus.CREATED)
   saveDraft(@Body() dto: ComunicadoDto, @Request() req: any) {
@@ -102,9 +101,13 @@ export class ComunicadosController {
     );
   }
 
-  @Roles('admin', 'advisor')
+  @Roles('advisor', 'interno')
   @Put(':id')
-  update(@Param('id') id: string, @Body() dto: ComunicadoDto, @Request() req: any) {
+  update(
+    @Param('id') id: string,
+    @Body() dto: ComunicadoDto,
+    @Request() req: any,
+  ) {
     return this.service.updateDraft(
       id,
       dto.asunto,
@@ -115,7 +118,7 @@ export class ComunicadosController {
     );
   }
 
-  @Roles('admin', 'advisor')
+  @Roles('advisor', 'interno')
   @Post(':id/send')
   @HttpCode(HttpStatus.OK)
   async send(@Param('id') id: string, @Request() req: any) {
@@ -128,7 +131,7 @@ export class ComunicadosController {
     return result;
   }
 
-  @Roles('admin', 'advisor')
+  @Roles('advisor', 'interno')
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param('id') id: string, @Request() req: any) {

@@ -7,11 +7,13 @@ import { AuthModule } from '../auth/auth.module';
 import { User } from 'src/auth/entities/user.entity';
 import { Message } from '../chat/entities/message.entity';
 import { SessionEvento } from '../chat/entities/session-evento.entity';
+import { SessionAssignmentEvento } from '../chat/entities/session-assignment-evento.entity';
 import { Colegio } from './entities/colegio.entity';
 import { Rating } from './entities/rating.entity';
 import { TicketsModule } from '../tickets/tickets.module';
 import { ChatModule } from '../chat/chat.module';
 import { AiModule } from '../ai/ai.module';
+import { AdvisorActivityModule } from '../advisor-activity/advisor-activity.module';
 
 @Module({
   imports: [
@@ -20,6 +22,7 @@ import { AiModule } from '../ai/ai.module';
       User,
       Message,
       SessionEvento,
+      SessionAssignmentEvento,
       Colegio,
       Rating,
     ]),
@@ -27,6 +30,7 @@ import { AiModule } from '../ai/ai.module';
     TicketsModule,
     forwardRef(() => ChatModule),
     AiModule,
+    AdvisorActivityModule,
   ],
   controllers: [SessionsController],
   providers: [SessionsService],

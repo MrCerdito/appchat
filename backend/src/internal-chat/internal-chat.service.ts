@@ -16,7 +16,10 @@ import { User } from '../auth/entities/user.entity';
 import { InternalConversation } from './entities/internal-conversation.entity';
 import { InternalConversationMember } from './entities/internal-conversation-member.entity';
 import { InternalMessage } from './entities/internal-message.entity';
-import { cleanText, sanitizeFileName } from '../common/security/sanitize.helper';
+import {
+  cleanText,
+  sanitizeFileName,
+} from '../common/security/sanitize.helper';
 
 export interface InternalChatUserDto {
   id: string;
@@ -335,12 +338,14 @@ export class InternalChatService implements OnModuleInit {
   }
 
   // ── Conversations ──────────────────────────────────────────────────────────
-  async listConversations(
-    userId: string,
-  ): Promise<InternalConversationDto[]> {
+  async listConversations(userId: string): Promise<InternalConversationDto[]> {
     const members = await this.memberRepo.find({
       where: { userId },
-      relations: ['conversation', 'conversation.members', 'conversation.members.user'],
+      relations: [
+        'conversation',
+        'conversation.members',
+        'conversation.members.user',
+      ],
     });
     const result: InternalConversationDto[] = [];
     for (const member of members) {
@@ -349,8 +354,9 @@ export class InternalChatService implements OnModuleInit {
         await this.toConversationDto(conv, userId, member.unreadCount),
       );
     }
-    result.sort((a, b) =>
-      (b.lastMessageAt?.getTime() ?? 0) - (a.lastMessageAt?.getTime() ?? 0),
+    result.sort(
+      (a, b) =>
+        (b.lastMessageAt?.getTime() ?? 0) - (a.lastMessageAt?.getTime() ?? 0),
     );
     return result;
   }
@@ -423,7 +429,8 @@ export class InternalChatService implements OnModuleInit {
       /* ignore */
     }
 
-    const ext = this.extFromMime(mimeType) || extname(file.originalname).toLowerCase();
+    const ext =
+      this.extFromMime(mimeType) || extname(file.originalname).toLowerCase();
     const filename = `conv-${conversationId}-${Date.now()}${ext}`;
     await writeFile(join(uploadsDir, filename), file.buffer);
 
@@ -434,7 +441,10 @@ export class InternalChatService implements OnModuleInit {
 
     for (const member of members) {
       this.conversationUpdates$.next({
-        conversation: await this.getConversationForUser(member.userId, conversationId),
+        conversation: await this.getConversationForUser(
+          member.userId,
+          conversationId,
+        ),
         memberIds: [member.userId],
       });
     }
@@ -485,8 +495,18 @@ export class InternalChatService implements OnModuleInit {
 
     let conv = await this.conversationRepo
       .createQueryBuilder('c')
-      .innerJoin('internal_conversation_members', 'm1', 'm1.conversation_id = c.id AND m1.user_id = :u1', { u1: userId })
-      .innerJoin('internal_conversation_members', 'm2', 'm2.conversation_id = c.id AND m2.user_id = :u2', { u2: otherUserId })
+      .innerJoin(
+        'internal_conversation_members',
+        'm1',
+        'm1.conversation_id = c.id AND m1.user_id = :u1',
+        { u1: userId },
+      )
+      .innerJoin(
+        'internal_conversation_members',
+        'm2',
+        'm2.conversation_id = c.id AND m2.user_id = :u2',
+        { u2: otherUserId },
+      )
       .where("c.type = 'direct'")
       .getOne();
 
@@ -592,7 +612,11 @@ export class InternalChatService implements OnModuleInit {
 
     const caption = cleanText(input?.caption, this.maxCaptionLength);
     const mimeType = this.normalizeMimeType(file.mimetype);
-    const mediaUrl = await this.saveMediaBuffer(file.buffer, file.originalname, mimeType);
+    const mediaUrl = await this.saveMediaBuffer(
+      file.buffer,
+      file.originalname,
+      mimeType,
+    );
 
     const saved = await this.messageRepo.save(
       this.messageRepo.create({
@@ -748,7 +772,9 @@ export class InternalChatService implements OnModuleInit {
     if (!target || target.deletedAt) {
       throw new NotFoundException('Mensaje no encontrado');
     }
-    const emoji = String(input?.emoji ?? '').trim().slice(0, 8);
+    const emoji = String(input?.emoji ?? '')
+      .trim()
+      .slice(0, 8);
     if (!emoji) throw new BadRequestException('Emoji requerido');
 
     const existing = await this.messageRepo.findOne({
@@ -868,7 +894,10 @@ export class InternalChatService implements OnModuleInit {
     }
   }
 
-  private async getUnread(userId: string, conversationId: string): Promise<number> {
+  private async getUnread(
+    userId: string,
+    conversationId: string,
+  ): Promise<number> {
     const row = await this.memberRepo.findOne({
       where: { conversationId, userId },
     });
@@ -908,7 +937,10 @@ export class InternalChatService implements OnModuleInit {
       relations: ['sender'],
       order: { createdAt: 'ASC' },
     });
-    const map = new Map<string, { userId: string; name: string; emoji: string }[]>();
+    const map = new Map<
+      string,
+      { userId: string; name: string; emoji: string }[]
+    >();
     for (const row of rows) {
       const target = row.reactionToMessageId;
       if (!target) continue;

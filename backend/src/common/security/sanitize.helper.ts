@@ -38,7 +38,9 @@ export function sanitizeMessage(value: string, maxLength = 1000): string {
       i: 'em',
     },
     exclusiveFilter: (frame) =>
-      Object.keys(frame.attribs || {}).some((a) => a.toLowerCase().startsWith('on')),
+      Object.keys(frame.attribs || {}).some((a) =>
+        a.toLowerCase().startsWith('on'),
+      ),
     textFilter: (text) => text.replace(CONTROL_CHARS, ''),
     disallowedTagsMode: 'discard',
   })
@@ -99,8 +101,12 @@ const EMAIL_STYLE_RE = {
   padding: [/^[\d.]+(px|em|rem|%)?(\s+[\d.]+(px|em|rem|%)?)*$/],
   margin: [/^[\d.]+(px|em|rem|%)?(\s+[\d.]+(px|em|rem|%)?)*$/],
   'border-radius': [/^\d+(px|%)?(\s+\d+(px|%)?)*$/],
-  border: [/^[\d.\s]+(px|em|rem)?(\s+(solid|dashed|dotted|none))?(\s+#[0-9a-fA-F]{3,8})?$/],
-  'border-top': [/^[\d.\s]+(px|em|rem)?(\s+(solid|dashed|dotted|none))?(\s+#[0-9a-fA-F]{3,8})?$/],
+  border: [
+    /^[\d.\s]+(px|em|rem)?(\s+(solid|dashed|dotted|none))?(\s+#[0-9a-fA-F]{3,8})?$/,
+  ],
+  'border-top': [
+    /^[\d.\s]+(px|em|rem)?(\s+(solid|dashed|dotted|none))?(\s+#[0-9a-fA-F]{3,8})?$/,
+  ],
   'max-width': [/^\d+(px|%)?$/],
   width: [/^\d+(px|%)?$/],
   height: [/^\d+(px|%)?$/],
@@ -182,9 +188,33 @@ export function sanitizeEmailHtml(value: unknown, maxLength = 200000): string {
     allowedAttributes: {
       a: ['href', 'target', 'rel', 'title'],
       img: ['src', 'alt', 'width', 'height', 'align', 'title'],
-      table: ['width', 'cellpadding', 'cellspacing', 'border', 'align', 'bgcolor', 'style'],
-      td: ['width', 'colspan', 'rowspan', 'align', 'valign', 'bgcolor', 'style'],
-      th: ['width', 'colspan', 'rowspan', 'align', 'valign', 'bgcolor', 'style'],
+      table: [
+        'width',
+        'cellpadding',
+        'cellspacing',
+        'border',
+        'align',
+        'bgcolor',
+        'style',
+      ],
+      td: [
+        'width',
+        'colspan',
+        'rowspan',
+        'align',
+        'valign',
+        'bgcolor',
+        'style',
+      ],
+      th: [
+        'width',
+        'colspan',
+        'rowspan',
+        'align',
+        'valign',
+        'bgcolor',
+        'style',
+      ],
       tr: ['align', 'valign', 'bgcolor', 'style'],
       tbody: ['align', 'valign', 'style'],
       tfoot: ['align', 'valign', 'style'],

@@ -30,41 +30,71 @@ export class Configuracion {
   advisorId: string | null;
 
   // ── Bienvenida ────────────────────────────────────────────────────────────
-  @Column({ name: 'mensaje_bienvenida', type: 'text', nullable: true, default: '' })
+  @Column({
+    name: 'mensaje_bienvenida',
+    type: 'text',
+    nullable: true,
+    default: '',
+  })
   mensajeBienvenida: string;
 
   // ── Inactividad asesor ────────────────────────────────────────────────────
   @Column({ name: 'asesor_inactividad_seg', type: 'int', default: 120 })
   asesorInactividadSeg: number;
 
-  @Column({ name: 'asesor_inactividad_msg', type: 'text', nullable: true, default: '' })
+  @Column({
+    name: 'asesor_inactividad_msg',
+    type: 'text',
+    nullable: true,
+    default: '',
+  })
   asesorInactividadMsg: string;
 
   // ── Reconexion asesor ─────────────────────────────────────────────────────
   @Column({ name: 'asesor_reconexion_seg', type: 'int', default: 120 })
   asesorReconexionSeg: number;
 
-  @Column({ name: 'asesor_reconexion_msg', type: 'text', nullable: true, default: '' })
+  @Column({
+    name: 'asesor_reconexion_msg',
+    type: 'text',
+    nullable: true,
+    default: '',
+  })
   asesorReconexionMsg: string;
 
   // ── Inactividad cliente ───────────────────────────────────────────────────
   @Column({ name: 'cliente_inactividad_seg', type: 'int', default: 180 })
   clienteInactividadSeg: number;
 
-  @Column({ name: 'cliente_inactividad_msg', type: 'text', nullable: true, default: '' })
+  @Column({
+    name: 'cliente_inactividad_msg',
+    type: 'text',
+    nullable: true,
+    default: '',
+  })
   clienteInactividadMsg: string;
 
   @Column({ name: 'cliente_inactividad_iters', type: 'int', default: 2 })
   clienteInactividadIters: number;
 
-  @Column({ name: 'cliente_cierre_msg', type: 'text', nullable: true, default: '' })
+  @Column({
+    name: 'cliente_cierre_msg',
+    type: 'text',
+    nullable: true,
+    default: '',
+  })
   clienteCierreMsg: string;
 
   // ── Horarios de jornada (configurados por el admin — no tocar) ────────────
   @Column({ type: 'jsonb', default: '[]' })
   horarios: HorarioSlot[];
 
-  @Column({ name: 'horario_fuera_msg', type: 'text', nullable: true, default: '' })
+  @Column({
+    name: 'horario_fuera_msg',
+    type: 'text',
+    nullable: true,
+    default: '',
+  })
   horarioFueraMsg: string;
 
   @Column({ name: 'horarios_activos', type: 'boolean', default: false })
@@ -138,16 +168,36 @@ export class Configuracion {
   @Column({ name: 'sonido_activado', type: 'boolean', default: true })
   sonidoActivado: boolean;
 
-  @Column({ name: 'sonido_whatsapp', length: 30, nullable: true, default: 'whatsapp1' })
+  @Column({
+    name: 'sonido_whatsapp',
+    length: 30,
+    nullable: true,
+    default: 'whatsapp1',
+  })
   sonidoWhatsapp: string;
 
-  @Column({ name: 'sonido_asesor', length: 30, nullable: true, default: 'asesor1' })
+  @Column({
+    name: 'sonido_asesor',
+    length: 30,
+    nullable: true,
+    default: 'asesor1',
+  })
   sonidoAsesor: string;
 
-  @Column({ name: 'sonido_cliente', length: 30, nullable: true, default: 'cliente1' })
+  @Column({
+    name: 'sonido_cliente',
+    length: 30,
+    nullable: true,
+    default: 'cliente1',
+  })
   sonidoCliente: string;
 
-  @Column({ name: 'sonido_asignacion', length: 30, nullable: true, default: 'asignacion1' })
+  @Column({
+    name: 'sonido_asignacion',
+    length: 30,
+    nullable: true,
+    default: 'asignacion1',
+  })
   sonidoAsignacion: string;
 
   // ── Correo de tickets (chat en linea) ───────────────────────────────────────
@@ -197,6 +247,34 @@ export class Configuracion {
   // Adjuntar archivos al correo del ticket (preferencia; sin envio real aun).
   @Column({ name: 'ticket_email_attachments', type: 'boolean', default: false })
   ticketEmailAttachments: boolean;
+
+  // ── Asignación de chats web ───────────────────────────────────────────────
+  // 'carga' = menos chats activos (comportamiento clásico).
+  // 'hoy'   = equitativo por "atendidos hoy" (creados o cerrados hoy).
+  @Column({
+    name: 'asignacion_balance_tipo',
+    type: 'varchar',
+    length: 20,
+    default: 'hoy',
+  })
+  asignacionBalanceTipo: string;
+
+  @Column({ name: 'max_active_chats_web', type: 'int', default: 4 })
+  maxActiveChatsWeb: number;
+
+  @Column({
+    name: 'asignacion_contar_cerradas_hoy',
+    type: 'boolean',
+    default: true,
+  })
+  asignacionContarCerradasHoy: boolean;
+
+  @Column({
+    name: 'asignacion_priorizar_colegio',
+    type: 'boolean',
+    default: true,
+  })
+  asignacionPriorizarColegio: boolean;
 
   // ── SLA de tickets ────────────────────────────────────────────────────────
   @Column({ name: 'ticket_sla_enabled', type: 'boolean', default: true })

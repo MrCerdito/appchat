@@ -56,7 +56,7 @@ export class LoginComponent {
       next: () => {
         this.loading = false;
         const user = this.auth.getUser();
-        const target = user?.role === 'admin' ? '/admin' : user?.role === 'desarrollador' ? '/developer' : '/dashboard';
+        const target = user?.role === 'admin' ? '/admin' : user?.role === 'desarrollador' ? '/developer' : user?.role === 'interno' ? '/interno' : '/dashboard';
         this.router.navigate([target]);
       },
       error: (err) => {

@@ -1019,7 +1019,7 @@ En el siguiente menú encontrarás varias opciones en las que te puedes apoyar, 
       .subscribe((msgs) => {
         // Evita el doble render por join repetido (reconexión + online):
         // si el historial ya está pintado y es idéntico, no se reemplaza.
-        const historial = msgs ?? [];
+        const historial = (msgs ?? []).filter(m => !m?.deletedAt);
         const igual =
           historial.length > 0 &&
           historial.length === this.messages.length &&
@@ -1035,6 +1035,7 @@ En el siguiente menú encontrarás varias opciones en las que te puedes apoyar, 
     this.socket.on<Message & { showFeedback?: boolean }>('new_message')
       .pipe(takeUntil(this.socketDestroy$))
       .subscribe((msg) => {
+        if (msg?.deletedAt) return;
         if (msg?.id && this.messages.some(m => m.id === msg.id)) return;
         const msgIndex = this.messages.length;
         this.messages.push(msg);
@@ -1061,6 +1062,33 @@ En el siguiente menú encontrarás varias opciones en las que te puedes apoyar, 
           this.messages[idx] = { ...this.messages[idx], ...msg };
           this.cdr.detectChanges();
         }
+      });
+
+    this.socket.on<Message>('message_deleted')
+      .pipe(takeUntil(this.socketDestroy$))
+      .subscribe((msg) => {
+        const restantes = this.messages.filter(m => m.id !== msg?.id);
+        if (restantes.length !== this.messages.length) {
+          this.messages = restantes;
+          localStorage.setItem(AI_MESSAGES_KEY, JSON.stringify(this.messages));
+          this.cdr.detectChanges();
+          this.scrollToBottom();
+        }
+      });
+
+    this.socket.on<Message>('message_restored')
+      .pipe(takeUntil(this.socketDestroy$))
+      .subscribe((msg) => {
+        if (!msg?.id || msg.deletedAt) return;
+        if (this.messages.some(m => m.id === msg.id)) return;
+        this.messages.push(msg);
+        this.messages.sort(
+          (a, b) =>
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+        );
+        localStorage.setItem(AI_MESSAGES_KEY, JSON.stringify(this.messages));
+        this.cdr.detectChanges();
+        this.scrollToBottom();
       });
 
     this.socket.on<{ position: number; total: number }>('queue_position')

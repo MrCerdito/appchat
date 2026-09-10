@@ -1,11 +1,4 @@
-import {
-  IsOptional,
-  IsString,
-  IsInt,
-  Min,
-  Max,
-  IsIn,
-} from 'class-validator';
+import { IsOptional, IsString, IsInt, Min, Max, IsIn } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class QueryAdvisorDto {
@@ -14,8 +7,10 @@ export class QueryAdvisorDto {
   search?: string;
 
   @IsOptional()
-  @IsIn(['admin', 'advisor', 'desarrollador', 'todos'], { message: 'Rol inválido' })
-  role?: 'admin' | 'advisor' | 'desarrollador' | 'todos';
+  @IsIn(['admin', 'advisor', 'desarrollador', 'interno', 'todos'], {
+    message: 'Rol inválido',
+  })
+  role?: 'admin' | 'advisor' | 'desarrollador' | 'interno' | 'todos';
 
   @IsOptional()
   @Type(() => Number)
@@ -23,10 +18,18 @@ export class QueryAdvisorDto {
   @Min(1)
   page?: number = 1;
 
-  @IsOptional()
+@IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(100)
   limit?: number = 20;
+
+  @IsOptional()
+  @Type(() => Boolean)
+  activo?: boolean;
+
+  @IsOptional()
+  @Type(() => Boolean)
+  conectado?: boolean;
 }

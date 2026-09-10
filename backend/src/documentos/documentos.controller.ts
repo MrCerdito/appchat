@@ -23,6 +23,7 @@ import { MAPA_ROLES, ROLES_DEFAULT } from './roles.util';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Public } from '../auth/public.decorator';
 import { Roles, RolesGuard } from '../auth/roles.guard';
+import { Permiso } from '../accesos/permiso-modulo.guard';
 import { Throttle } from '@nestjs/throttler';
 
 // Directorio donde se guardan los PDFs subidos
@@ -55,15 +56,18 @@ export class DocumentosController {
 
   private normalizarRol(rol: string): string {
     const r = this.normalizarTexto(rol ?? '');
-    if (r.includes('admin') || r.includes('administrador')) return 'administrador';
+    if (r.includes('admin') || r.includes('administrador'))
+      return 'administrador';
     if (r.includes('docente') || r.includes('profesor')) return 'docente';
-    if (r.includes('padre') || r.includes('madre') || r.includes('acudiente')) return 'padre';
+    if (r.includes('padre') || r.includes('madre') || r.includes('acudiente'))
+      return 'padre';
     return 'estudiante';
   }
 
   // ── Listar todos los documentos (admin) ───────────────────────────────────
   @Get()
   @UseGuards(JwtAuthGuard)
+  @Permiso('documentos')
   listar() {
     return this.docService.listar();
   }
@@ -73,7 +77,8 @@ export class DocumentosController {
   // Form-data: file (PDF), nombre, descripcion, categoria, colegio (opcional)
   @Post('upload')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin', 'advisor')
+  @Permiso('documentos')
+  @Roles('advisor', 'interno')
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({
@@ -142,7 +147,9 @@ export class DocumentosController {
         colegio: body.colegio?.trim() || undefined,
         rolesPermitidos,
         instructivo:
-          body.instructivo === 'true' || body.instructivo === '1' || body.instructivo === 'on',
+          body.instructivo === 'true' ||
+          body.instructivo === '1' ||
+          body.instructivo === 'on',
         pdfBuffer,
         pdfPath: file.path,
         pdfUrl,
@@ -157,7 +164,8 @@ export class DocumentosController {
   // ── Actualizar roles y metadatos de un documento ─────────────────────────
   @Patch(':nombre/roles')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin', 'advisor')
+  @Permiso('documentos')
+  @Roles('advisor', 'interno')
   @HttpCode(HttpStatus.OK)
   actualizarRoles(
     @Param('nombre') nombre: string,
@@ -177,7 +185,8 @@ export class DocumentosController {
   // ── Eliminar documento ────────────────────────────────────────────────────
   @Delete(':nombre')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin', 'advisor')
+  @Permiso('documentos')
+  @Roles('advisor', 'interno')
   @HttpCode(HttpStatus.OK)
   eliminar(@Param('nombre') nombre: string) {
     return this.docService.eliminar(decodeURIComponent(nombre));
@@ -204,9 +213,14 @@ export class DocumentosController {
   // ── Buscar documentos relevantes (para testing) ───────────────────────────
   @Post('search')
   @UseGuards(JwtAuthGuard)
+  @Permiso('documentos')
   buscar(
     @Body()
-    body: { query: string; rol?: string; topK?: number },
+    body: {
+      query: string;
+      rol?: string;
+      topK?: number;
+    },
   ) {
     return this.docService.buscarRelevantes(
       body.query,
@@ -221,7 +235,11 @@ export class DocumentosController {
   @Post('public-search')
   async buscarPublico(
     @Body()
-    body: { query: string; rol?: string; topK?: number },
+    body: {
+      query: string;
+      rol?: string;
+      topK?: number;
+    },
   ) {
     // Los temas restringidos del rol también aplican a la búsqueda pública (FAQ):
     // si la consulta coincide con un tema restringido, NO se entrega documento alguno
@@ -230,12 +248,16 @@ export class DocumentosController {
       const rolNorm = this.normalizarRol(body.rol || 'estudiante');
       const global = (await this.configuracionService.getGlobal()) as any;
       const rolCfg = global?.aiPromptConfig?.roles?.[rolNorm];
-      const temasRestringidos: string[] = Array.isArray(rolCfg?.temasRestringidos)
+      const temasRestringidos: string[] = Array.isArray(
+        rolCfg?.temasRestringidos,
+      )
         ? rolCfg.temasRestringidos
         : [];
       if (temasRestringidos.length > 0) {
         const q = body.query || '';
-        const esRestringido = temasRestringidos.some((t) => this.coincideTema(q, t));
+        const esRestringido = temasRestringidos.some((t) =>
+          this.coincideTema(q, t),
+        );
         if (esRestringido) return { documentos: [] };
       }
     } catch {

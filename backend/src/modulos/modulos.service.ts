@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Modulo } from './modulo.entity';
@@ -29,17 +33,27 @@ export class ModulosService {
     return modulo;
   }
 
-  async create(data: { nombre: string; descripcion?: string }): Promise<Modulo> {
-    const existing = await this.moduloRepo.findOne({ where: { nombre: data.nombre } });
-    if (existing) throw new ConflictException('Ya existe un modulo con ese nombre');
+  async create(data: {
+    nombre: string;
+    descripcion?: string;
+  }): Promise<Modulo> {
+    const existing = await this.moduloRepo.findOne({
+      where: { nombre: data.nombre },
+    });
+    if (existing)
+      throw new ConflictException('Ya existe un modulo con ese nombre');
     const modulo = this.moduloRepo.create(data);
     return this.moduloRepo.save(modulo);
   }
 
-  async update(id: string, data: { nombre?: string; descripcion?: string }): Promise<Modulo> {
+  async update(
+    id: string,
+    data: { nombre?: string; descripcion?: string },
+  ): Promise<Modulo> {
     const modulo = await this.findOne(id);
     if (data.nombre !== undefined) modulo.nombre = data.nombre;
-    if (data.descripcion !== undefined) modulo.descripcion = data.descripcion ?? null;
+    if (data.descripcion !== undefined)
+      modulo.descripcion = data.descripcion ?? null;
     return this.moduloRepo.save(modulo);
   }
 
@@ -62,7 +76,9 @@ export class ModulosService {
 
   async removeDesarrollador(moduloId: string, userId: string): Promise<void> {
     const modulo = await this.findOne(moduloId);
-    modulo.desarrolladores = modulo.desarrolladores.filter((d) => d.id !== userId);
+    modulo.desarrolladores = modulo.desarrolladores.filter(
+      (d) => d.id !== userId,
+    );
     await this.moduloRepo.save(modulo);
   }
 

@@ -24,6 +24,7 @@ import { existsSync, mkdirSync } from 'fs';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles, RolesGuard } from '../auth/roles.guard';
 import { Public } from '../auth/public.decorator';
+import { Permiso } from '../accesos/permiso-modulo.guard';
 import { SkipThrottle } from '@nestjs/throttler';
 import { ConfiguracionService } from './configuracion.service';
 import { GuardarConfigGlobalDto } from './dto/guardar-config-global.dto';
@@ -35,6 +36,7 @@ const MAIL_UPLOADS_DIR = join(process.cwd(), 'uploads', 'email');
 
 @Controller('configuracion')
 @UseGuards(JwtAuthGuard)
+@Permiso('configuracion')
 export class ConfiguracionController {
   constructor(private readonly svc: ConfiguracionService) {}
 
@@ -60,7 +62,7 @@ export class ConfiguracionController {
 
   @Get('global/ticket-mail')
   @UseGuards(RolesGuard)
-  @Roles('admin', 'advisor')
+  @Roles('admin', 'advisor', 'interno')
   async getTicketMail() {
     const config = await this.svc.getGlobal();
     return {
@@ -84,7 +86,7 @@ export class ConfiguracionController {
   @Post('global')
   @HttpCode(HttpStatus.OK)
   @UseGuards(RolesGuard)
-  @Roles('admin', 'advisor')
+  @Roles('admin', 'advisor', 'interno')
   guardarGlobal(@Body() body: GuardarConfigGlobalDto) {
     return this.svc.guardar(body, undefined);
   }
@@ -92,7 +94,7 @@ export class ConfiguracionController {
   @Post('global/ticket-mail')
   @HttpCode(HttpStatus.OK)
   @UseGuards(RolesGuard)
-  @Roles('admin', 'advisor')
+  @Roles('admin', 'advisor', 'interno')
   guardarTicketMail(@Body() body: GuardarConfigTicketMailDto) {
     return this.svc.guardar(body, undefined);
   }
@@ -107,7 +109,7 @@ export class ConfiguracionController {
 
   @Post('global/mail-image')
   @UseGuards(RolesGuard)
-  @Roles('admin', 'advisor')
+  @Roles('admin', 'advisor', 'interno')
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({
@@ -157,12 +159,15 @@ export class ConfiguracionController {
   @Post('quick-replies')
   @HttpCode(HttpStatus.OK)
   @UseGuards(RolesGuard)
-  @Roles('admin', 'advisor')
+  @Roles('admin', 'advisor', 'interno')
   guardarQuickReplies(@Body() body: { whatsappQuickReplies: unknown[] }) {
     if (!Array.isArray(body.whatsappQuickReplies)) {
       throw new BadRequestException('whatsappQuickReplies debe ser un arreglo');
     }
-    return this.svc.guardar({ whatsappQuickReplies: body.whatsappQuickReplies }, undefined);
+    return this.svc.guardar(
+      { whatsappQuickReplies: body.whatsappQuickReplies },
+      undefined,
+    );
   }
 
   @Delete()
@@ -173,18 +178,21 @@ export class ConfiguracionController {
 
   @Get('quick-replies/export')
   @UseGuards(RolesGuard)
-  @Roles('admin', 'advisor')
+  @Roles('admin', 'advisor', 'interno')
   async exportQuickRepliesCsv(@Res() res: Response) {
     const csv = await this.svc.exportQuickRepliesCsv();
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', 'attachment; filename="respuestas-rapidas.csv"');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="respuestas-rapidas.csv"',
+    );
     res.send(csv);
   }
 
   @Post('quick-replies/import')
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(RolesGuard)
-  @Roles('admin', 'advisor')
+  @Roles('admin', 'advisor', 'interno')
   @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
   async importQuickRepliesCsv(@UploadedFile() file: Express.Multer.File) {
     if (!file) throw new Error('Archivo no proporcionado');
@@ -201,15 +209,17 @@ export class ConfiguracionController {
   @Post('quick-replies/import-bulk')
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(RolesGuard)
-  @Roles('admin', 'advisor')
-  async importBulkQuickReplies(@Body() items: { name: string; content: string }[]) {
+  @Roles('admin', 'advisor', 'interno')
+  async importBulkQuickReplies(
+    @Body() items: { name: string; content: string }[],
+  ) {
     return this.svc.importBulkQuickReplies(items);
   }
 
   @Post('quick-replies/delete-bulk')
   @HttpCode(HttpStatus.OK)
   @UseGuards(RolesGuard)
-  @Roles('admin', 'advisor')
+  @Roles('admin', 'advisor', 'interno')
   async deleteBulkQuickReplies(@Body() ids: string[]) {
     return this.svc.deleteBulkQuickReplies(ids);
   }

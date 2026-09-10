@@ -38,10 +38,7 @@ export class InternalConversation {
   @Column({ name: 'last_message_at', type: 'timestamptz', nullable: true })
   lastMessageAt: Date | null;
 
-  @OneToMany(
-    () => InternalConversationMember,
-    (member) => member.conversation,
-  )
+  @OneToMany(() => InternalConversationMember, (member) => member.conversation)
   members: InternalConversationMember[];
 
   @OneToMany(() => InternalMessage, (message) => message.conversation)

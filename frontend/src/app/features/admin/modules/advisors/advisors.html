@@ -1,54 +1,31 @@
 <div class="advisors-page">
   <!-- ═══════════ HEADER ═══════════ -->
   <div class="page-header">
-    <div>
-      <h1>Agentes</h1>
-      <p>Gestiona el equipo de soporte y administradores</p>
+    <div class="page-title">
+      <span class="title-icon"><lucide-icon [img]="icons.UsersRound" [size]="22" /></span>
+      <div>
+        <h1>Agentes</h1>
+        <p>Gestiona el equipo de soporte y administradores</p>
+      </div>
     </div>
     <div class="header-actions">
       <button class="btn-secondary" (click)="onExportExcel()" [disabled]="exporting" title="Descargar lista en Excel">
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-        </svg>
+        <lucide-icon [img]="icons.Download" [size]="16" />
         {{ exporting ? 'Exportando...' : 'Exportar Excel' }}
       </button>
       <button class="btn-secondary" (click)="onImportClick()" [disabled]="importing" title="Cargar agentes desde Excel">
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-        </svg>
+        <lucide-icon [img]="icons.Upload" [size]="16" />
         {{ importing ? 'Importando...' : 'Importar Excel' }}
       </button>
-      <button class="btn-primary" (click)="openCreate()">
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-        </svg>
-        Nuevo agente
+      <button class="btn-secondary" (click)="abrirAccesosModal()" title="Controlar qué módulos ve cada perfil o usuario">
+        <lucide-icon [img]="icons.ShieldCheck" [size]="16" />
+        Accesos
+      </button>
+      <button class="btn-primary" (click)="openCreate()" title="Crear nuevo usuario">
+        <lucide-icon [img]="icons.Plus" [size]="16" />
+        Nuevo usuario
       </button>
       <input #fileInput type="file" accept=".xlsx,.xls" hidden (change)="onFileSelected($event)" />
-    </div>
-  </div>
-
-  <!-- ═══════════ RESUMEN DE ESTADO ═══════════ -->
-  <div class="status-summary">
-    <div class="stat" [class.online]="statusCounts.online > 0">
-      <span class="stat-dot"></span>
-      <strong>{{ statusCounts.online }}</strong>
-      <span>Disponibles</span>
-    </div>
-    <div class="stat" [class.busy]="statusCounts.busy > 0">
-      <span class="stat-dot"></span>
-      <strong>{{ statusCounts.busy }}</strong>
-      <span>Ocupados</span>
-    </div>
-    <div class="stat offline">
-      <span class="stat-dot"></span>
-      <strong>{{ statusCounts.offline }}</strong>
-      <span>Inactivos</span>
-    </div>
-    <div class="stat total">
-      <span class="stat-dot"></span>
-      <strong>{{ total }}</strong>
-      <span>Total{{ filtroRol === 'admin' ? ' administradores' : filtroRol === 'advisor' ? ' agentes' : filtroRol === 'desarrollador' ? ' desarrolladores' : ' registros' }}</span>
     </div>
   </div>
 
@@ -58,6 +35,49 @@
   @if (error && !formModal && !passwordModal) {
   <div class="alert error">{{ error }}</div>
   }
+
+  <!-- ═══════════ ESTADO DE CONECTIVIDAD ═══════════ -->
+  <button class="connectivity-card" type="button" (click)="abrirModalConectividad()" [attr.aria-label]="'Estado de conectividad — ver detalle'">
+    <span class="conn-icon"><lucide-icon [img]="icons.Wifi" [size]="22" /></span>
+    @if (conexionState === 'checking') {
+    <span class="conn-body">
+      <span class="conn-label">Comprobando conectividad…</span>
+      <span class="conn-progress"><span class="conn-progress-fill" [style.width.%]="checkProgress"></span></span>
+      <span class="conn-step">{{ checkStepText }}</span>
+    </span>
+    <span class="conn-right">
+      <lucide-icon [img]="icons.Loader2" [size]="20" class="spin conn-spin" />
+    </span>
+    } @else if (conexionState === 'error' && !conexionResultado) {
+    <span class="conn-body">
+      <span class="conn-label">Error de prueba</span>
+      <span class="conn-sub">{{ conexionError || 'Sin conexión con el servidor.' }}</span>
+      <span class="conn-retry"><lucide-icon [img]="icons.RefreshCw" [size]="13" /> Reintentar</span>
+    </span>
+    } @else {
+    <span class="conn-body">
+      <span class="conn-label">Estado de conectividad</span>
+      <span class="conn-main">
+        <strong>{{ conectadosLabel }} / {{ conectadosTotal }}</strong>
+        agentes conectados
+      </span>
+      <span class="conn-sub" [class.warn]="!conexionOptima">
+        @if (conexionOptima) {
+        <lucide-icon [img]="icons.CircleCheck" [size]="14" /> Conectividad óptima
+        } @else {
+        <lucide-icon [img]="icons.AlertCircle" [size]="14" /> {{ conexionSinConexion }} {{ conexionSinConexion === 1 ? 'agente' : 'agentes' }} sin conexión
+        }
+      </span>
+    </span>
+    <span class="conn-right">
+      <span class="conn-pct" [class.ok]="conexionOptima">{{ conectadosPorcentaje }}%</span>
+      <span class="conn-dot-row">
+        <span class="conn-dot" [class.ok]="conexionOptima" [class.warn]="!conexionOptima"></span>
+        <span class="conn-updated">Última actualización: {{ formatFechaHora(lastUpdated) }}</span>
+      </span>
+    </span>
+    }
+  </button>
 
   <!-- ═══════════ RESULTADO DE IMPORTACIÓN ═══════════ -->
   @if (importResult) {
@@ -82,31 +102,64 @@
   <!-- ═══════════ TOOLBAR: FILTROS + BÚSQUEDA ═══════════ -->
   <div class="toolbar">
     <div class="role-filter" role="group" aria-label="Filtrar por rol">
-      <button class="filter-chip" [class.active]="filtroRol === 'todos'" (click)="setFiltroRol('todos')">Todos</button>
-      <button class="filter-chip" [class.active]="filtroRol === 'advisor'" (click)="setFiltroRol('advisor')">Agentes</button>
-      <button class="filter-chip" [class.active]="filtroRol === 'admin'" (click)="setFiltroRol('admin')">Administradores</button>
-      <button class="filter-chip" [class.active]="filtroRol === 'desarrollador'" (click)="setFiltroRol('desarrollador')">Desarrolladores</button>
-    </div>
-    <div class="search-box">
-      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="11" cy="11" r="8"/>
-        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-      </svg>
-      <input
-        type="text"
-        [ngModel]="search"
-        (ngModelChange)="onSearch($event)"
-        placeholder="Buscar por nombre o email..."
-        class="search-input"
-        aria-label="Buscar agentes"
-      />
-      @if (search) {
-      <button class="search-clear" (click)="onSearch('')" title="Limpiar búsqueda" aria-label="Limpiar búsqueda">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-        </svg>
+      <button class="filter-chip" [class.active]="filtroRol === 'todos'" (click)="setFiltroRol('todos')">
+        Todos <span class="chip-count">{{ roleCounts.todos }}</span>
       </button>
-      }
+      <button class="filter-chip" [class.active]="filtroRol === 'advisor'" (click)="setFiltroRol('advisor')">
+        Agentes <span class="chip-count">{{ roleCounts.advisor }}</span>
+      </button>
+      <button class="filter-chip" [class.active]="filtroRol === 'admin'" (click)="setFiltroRol('admin')">
+        Administradores <span class="chip-count">{{ roleCounts.admin }}</span>
+      </button>
+      <button class="filter-chip" [class.active]="filtroRol === 'desarrollador'" (click)="setFiltroRol('desarrollador')">
+        Desarrolladores <span class="chip-count">{{ roleCounts.desarrollador }}</span>
+      </button>
+      <button class="filter-chip" [class.active]="filtroRol === 'interno'" (click)="setFiltroRol('interno')">
+        Internos <span class="chip-count">{{ roleCounts.interno }}</span>
+      </button>
+    </div>
+    <div class="toolbar-actions">
+      <div class="search-box">
+        <lucide-icon [img]="icons.Search" [size]="16" class="search-icon" />
+        <input
+          type="text"
+          [ngModel]="search"
+          (ngModelChange)="onSearch($event)"
+          placeholder="Buscar por nombre o email..."
+          class="search-input"
+          aria-label="Buscar agentes"
+        />
+        @if (search) {
+        <button class="search-clear" (click)="onSearch('')" title="Limpiar búsqueda" aria-label="Limpiar búsqueda">
+          <lucide-icon [img]="icons.X" [size]="14" />
+        </button>
+        }
+      </div>
+      <div class="filter-menu-wrap" (click)="$event.stopPropagation()">
+        <button class="btn-icon-filter" [class.active]="menuFiltrosAbierto || filterOptions.activo || filterOptions.conectado" (click)="menuFiltrosAbierto = !menuFiltrosAbierto" title="Más filtros" aria-label="Más filtros">
+          <lucide-icon [img]="icons.Filter" [size]="17" />
+          @if (filterOptions.activo || filterOptions.conectado) {
+          <span class="filter-badge"></span>
+          }
+        </button>
+        @if (menuFiltrosAbierto) {
+        <div class="filter-dropdown">
+          <button class="filter-option" [class.on]="filterOptions.activo" (click)="toggleFiltroExtra('activo')">
+            <span class="filter-check">{{ filterOptions.activo ? '✓' : '' }}</span>
+            Solo cuentas activas
+          </button>
+          <button class="filter-option" [class.on]="filterOptions.conectado" (click)="toggleFiltroExtra('conectado')">
+            <span class="filter-check">{{ filterOptions.conectado ? '✓' : '' }}</span>
+            Solo conectados
+          </button>
+          @if (filtrosActivos) {
+          <button class="filter-reset" (click)="restablecerFiltros()">
+            <lucide-icon [img]="icons.RefreshCw" [size]="14" /> Restablecer filtros
+          </button>
+          }
+        </div>
+        }
+      </div>
     </div>
     @if (!loading) {
     <span class="result-count">{{ total }} {{ total === 1 ? 'registro' : 'registros' }}</span>
@@ -125,6 +178,7 @@
           <th>Chats</th>
           <th>Rol</th>
           <th>Cuenta</th>
+          <th>Creado</th>
           <th>Acciones</th>
         </tr>
       </thead>
@@ -137,6 +191,7 @@
           <td><div class="skeleton skeleton-number"></div></td>
           <td><div class="skeleton skeleton-badge"></div></td>
           <td><div class="skeleton skeleton-badge"></div></td>
+          <td><div class="skeleton skeleton-date"></div></td>
           <td><div class="skeleton skeleton-actions"></div></td>
         </tr>
         }
@@ -159,7 +214,7 @@
             <th (click)="setSort('role')" class="sortable">Rol {{ sortIcon('role') }}</th>
             <th (click)="setSort('active')" class="sortable">Cuenta {{ sortIcon('active') }}</th>
             <th>Creado</th>
-            <th>Acciones</th>
+            <th class="center">Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -193,7 +248,7 @@
             </td>
             <td class="center" data-label="Chats">{{ a.activeChats ?? 0 }}</td>
             <td data-label="Rol">
-              <span class="badge" [class]="a.role === 'admin' ? 'badge-admin' : a.role === 'desarrollador' ? 'badge-developer' : 'badge-advisor'">
+              <span class="badge" [class]="a.role === 'admin' ? 'badge-admin' : a.role === 'desarrollador' ? 'badge-developer' : a.role === 'interno' ? 'badge-interno' : 'badge-advisor'">
                 {{ getRoleLabel(a.role) }}
               </span>
             </td>
@@ -203,29 +258,35 @@
               </span>
             </td>
             <td class="muted date-cell" data-label="Creado">{{ formatDate(a.createdAt) }}</td>
-            <td data-label="Acciones">
+            <td data-label="Acciones" (click)="$event.stopPropagation()">
               <div class="actions">
                 <button class="btn-icon edit" [disabled]="!!busyId" (click)="openEdit(a)" title="Editar" aria-label="Editar {{ a.name }}">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
-                  </svg>
+                  <lucide-icon [img]="icons.Pencil" [size]="16" />
                 </button>
-                <button class="btn-icon key" [disabled]="!!busyId" (click)="openPasswordModal(a)" title="Cambiar contraseña" aria-label="Cambiar contraseña de {{ a.name }}">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
-                  </svg>
+                <button class="btn-icon key" [disabled]="!!busyId" (click)="openPasswordModal(a)" title="Gestionar acceso y credenciales" aria-label="Gestionar acceso de {{ a.name }}">
+                  <lucide-icon [img]="icons.KeyRound" [size]="16" />
+                </button>
+                <button class="btn-icon history" [disabled]="!!busyId" (click)="abrirHistorial(a)" title="Ver historial del día" aria-label="Ver historial de {{ a.name }}">
+                  <lucide-icon [img]="icons.History" [size]="16" />
                 </button>
                 @if (!isCurrentUser(a.id)) {
-                <button class="btn-icon toggle" [disabled]="!!busyId" (click)="toggle(a)" title="{{ a.active ? 'Desactivar' : 'Activar' }}" aria-label="{{ a.active ? 'Desactivar' : 'Activar' }} {{ a.name }}">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/>
-                  </svg>
-                </button>
-                <button class="btn-icon delete" [disabled]="!!busyId" (click)="confirmRemove(a)" title="Eliminar" aria-label="Eliminar {{ a.name }}">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                  </svg>
-                </button>
+                <div class="actions-menu">
+                  <button class="btn-icon more" [disabled]="!!busyId" (click)="toggleMenu(a.id)" title="Más opciones" aria-label="Más opciones de {{ a.name }}">
+                    <lucide-icon [img]="icons.MoreVertical" [size]="16" />
+                  </button>
+                  @if (isMenuOpen(a.id)) {
+                  <div class="actions-dropdown">
+                    <button (click)="toggle(a)">
+                      <lucide-icon [img]="a.active ? icons.Power : icons.CircleCheck" [size]="15" />
+                      {{ a.active ? 'Desactivar cuenta' : 'Activar cuenta' }}
+                    </button>
+                    <button class="danger" (click)="confirmRemove(a)">
+                      <lucide-icon [img]="icons.Trash2" [size]="15" />
+                      Eliminar cuenta
+                    </button>
+                  </div>
+                  }
+                </div>
                 }
                 @if (busyId === a.id) {
                 <span class="row-spinner" aria-hidden="true"></span>
@@ -240,18 +301,15 @@
       <!-- ═══════════ EMPTY STATE ═══════════ -->
       @if (advisors.length === 0 && !loading) {
       <div class="empty-state">
-        <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-        </svg>
+        <lucide-icon [img]="icons.UsersRound" [size]="44" class="empty-icon" />
         <h3>No se encontraron agentes</h3>
         <p>
-          {{ (search || filtroRol !== 'todos') ? 'Prueba ajustando la búsqueda o los filtros.' : 'Empieza agregando tu primer agente al equipo.' }}
+          {{ filtrosActivos ? 'Prueba ajustando la búsqueda o los filtros.' : 'Empieza agregando tu primer agente al equipo.' }}
         </p>
-        @if (search || filtroRol !== 'todos') {
+        @if (filtrosActivos) {
         <button class="btn-secondary" (click)="limpiarFiltros()">Limpiar filtros</button>
         } @else {
-        <button class="btn-primary" (click)="openCreate()">+ Nuevo agente</button>
+        <button class="btn-primary" (click)="openCreate()">+ Nuevo usuario</button>
         }
       </div>
       }
@@ -265,6 +323,7 @@
       </div>
       <div class="pagination-controls">
         <select [ngModel]="limit" (ngModelChange)="limit = $event; page = 1; loadAdvisors()">
+          <option [value]="5">5 por página</option>
           <option [value]="10">10 por página</option>
           <option [value]="20">20 por página</option>
           <option [value]="50">50 por página</option>
@@ -280,19 +339,238 @@
   </div>
   }
 
+  <!-- ═══════════ MODAL CONECTIVIDAD ═══════════ -->
+  @if (muestraModalConectividad) {
+  <div class="modal-overlay conn-overlay" (keydown.escape)="cerrarModalConectividad()">
+    <div class="conn-shell" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+      <div class="conn-chrome">
+        <div class="conn-chrome-title">
+          <lucide-icon [img]="icons.Wifi" [size]="17" />
+          ESTADO DE CONECTIVIDAD
+        </div>
+        <button class="modal-close" (click)="cerrarModalConectividad()" title="Cerrar" aria-label="Cerrar">
+          <lucide-icon [img]="icons.X" [size]="18" />
+        </button>
+      </div>
+
+      @if (conexionState === 'error' && !conexionResultado) {
+      <div class="conn-error">
+        <lucide-icon [img]="icons.AlertCircle" [size]="34" class="conn-error-icon" />
+        <h3>No se pudo ejecutar la prueba</h3>
+        <p>{{ conexionError || 'El servidor no respondió. Inténtalo de nuevo.' }}</p>
+        <button class="btn-primary" (click)="enviarConectividad()">
+          <lucide-icon [img]="icons.RefreshCw" [size]="16" /> Reintentar
+        </button>
+      </div>
+      } @else {
+      <!-- Snapshot: la imagen que se copia / descarga -->
+      <div #snapshotRef class="conn-snapshot">
+        <div class="snap-header">
+          <div class="snap-brand">
+            <span class="snap-logo"><lucide-icon [img]="icons.Wifi" [size]="18" /></span>
+            <span class="snap-brand-txt">
+              <strong>InnovaCloud</strong>
+              <em>Estado de conectividad</em>
+            </span>
+          </div>
+          <span class="snap-pct" [class.ok]="conexionOptima">{{ conectadosPorcentaje }}%</span>
+        </div>
+        <div class="snap-summary">
+          <strong>{{ conectadosLabel }} de {{ conectadosTotal }} agentes respondieron</strong>
+          <span class="snap-state-line" [class.ok]="conexionOptima">
+            @if (conexionOptima) {
+            Conectividad óptima · todos disponibles
+            } @else {
+            {{ conexionSinConexion }} {{ conexionSinConexion === 1 ? 'agente' : 'agentes' }} sin conexión
+            }
+          </span>
+        </div>
+        <div class="snap-list">
+          @for (a of conexionResultado?.asesores ?? []; track a.id) {
+          <div class="snap-row">
+            <span class="snap-avatar" [class.inactivo]="getEstadoConAsesor(a) === 'inactivo'">
+              {{ a.name.charAt(0) }}
+            </span>
+            <span class="snap-id">
+              <span class="snap-name">{{ a.name }}</span>
+              <span class="snap-mail">{{ a.email }}</span>
+            </span>
+            <span class="snap-state" [class]="'st-' + getEstadoConAsesor(a)">
+              {{ getEstadoConLabel(getEstadoConAsesor(a)) }}
+            </span>
+          </div>
+          }
+        </div>
+        <div class="snap-footer">
+          <span>{{ formatHoraSegundos(lastTestAt) }} · Bogotá (UTC-5) · {{ formatDate(lastTestAt) }}</span>
+        </div>
+      </div>
+
+      <div class="conn-actions">
+        @if (conexionResultado) {
+        <button class="btn-primary" (click)="copiarImagen()" [disabled]="copiandoImagen">
+          @if (imgCopiada) {
+          <lucide-icon [img]="icons.Check" [size]="16" /> ¡Imagen copiada!
+          } @else {
+          <lucide-icon [img]="icons.Copy" [size]="16" /> {{ copiandoImagen ? 'Generando...' : 'Copiar imagen' }}
+          }
+        </button>
+        <button class="btn-secondary" (click)="descargarImagen()">
+          <lucide-icon [img]="icons.ImageDown" [size]="16" /> Descargar imagen
+        </button>
+        }
+        <button class="btn-secondary btn-ghost" (click)="cerrarModalConectividad()">Cerrar</button>
+      </div>
+      }
+    </div>
+  </div>
+  }
+
+  <!-- ═══════════ MODAL HISTORIAL INDIVIDUAL ═══════════ -->
+  @if (muestraHistorialAdvisor && historialAdvisor) {
+  <div class="modal-overlay conn-overlay" (keydown.escape)="cerrarHistorial()">
+    <div class="conn-shell" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+      <div class="conn-chrome">
+        <div class="conn-chrome-title">
+          <lucide-icon [img]="icons.History" [size]="17" />
+          HISTORIAL DE ACTIVIDAD
+        </div>
+        <button class="modal-close" (click)="cerrarHistorial()" title="Cerrar" aria-label="Cerrar">
+          <lucide-icon [img]="icons.X" [size]="18" />
+        </button>
+      </div>
+
+      <div class="hist-toolbar">
+        <div class="hist-agent">
+          <span class="snap-avatar" [class.inactivo]="historialAvatarInactivo">{{ historialAdvisor.name.charAt(0) }}</span>
+          <span class="hist-id">
+            <span class="hist-name">{{ historialAdvisor.name }}</span>
+            <span class="hist-mail">{{ historialAdvisor.email }}</span>
+          </span>
+        </div>
+        <div class="hist-date-wrap">
+          <lucide-icon [img]="icons.CalendarDays" [size]="15" />
+          <input type="date" class="hist-date" [ngModel]="fechaHistorial" (ngModelChange)="onFechaHistorial($event)" aria-label="Fecha del historial" />
+        </div>
+      </div>
+
+      @if (historialCargando && !historialDia) {
+      <div class="hist-state">
+        <lucide-icon [img]="icons.Loader2" [size]="26" class="spin" />
+        <span>Cargando historial…</span>
+      </div>
+      } @else if (historialError) {
+      <div class="conn-error">
+        <lucide-icon [img]="icons.AlertCircle" [size]="30" class="conn-error-icon" />
+        <h3>{{ historialError }}</h3>
+        <button class="btn-primary" (click)="cargarHistorial()">
+          <lucide-icon [img]="icons.RefreshCw" [size]="16" /> Reintentar
+        </button>
+      </div>
+      } @else {
+      <!-- Snapshot del historial: la imagen que se copia / descarga -->
+      <div #historialSnapshotRef class="conn-snapshot hist-snapshot">
+        @if (!actividadActual) {
+        <div class="hist-empty">
+          <lucide-icon [img]="icons.WifiOff" [size]="26" />
+          <span>Sin actividad registrada para este día.</span>
+        </div>
+        } @else {
+        @if (actividadActual.resumen.estadoFinal) {
+        <div class="hist-resumen-finale">
+          <span class="snap-state" [class]="'st-' + (actividadActual.resumen.estadoFinal === 'busy' ? 'ocupado' : actividadActual.resumen.estadoFinal === 'online' ? 'activo' : 'inactivo')">
+            {{ estadoActualLabel(actividadActual) }}
+          </span>
+          <span class="hist-finale-tail">{{ actividadActual.resumen.primeraConexion ? 'Primera conexión ' + formatHoraMin(actividadActual.resumen.primeraConexion) : 'Sin conexión registrada' }}</span>
+        </div>
+        }
+
+        <div class="hist-bar" [title]="jornadaActiva ? 'Jornada laboral ' + jornadaRangoTexto : 'Distribución del día (00:00 → 24:00)'">
+          @for (b of barrasActividad(actividadActual); track $index) {
+          <span class="hist-bar-seg {{ b.clase }}" [style.width.%]="b.pct" [title]="formatoDuracionMin(b.minutos)"></span>
+          }
+        </div>
+        <div class="hist-axis">
+          <span>{{ jornadaIniLabel }}</span>
+          <span class="hist-axis-mid">{{ jornadaActiva ? 'Jornada laboral: ' + jornadaRangoTexto : 'Jornada no configurada para este día' }}</span>
+          <span>{{ jornadaFinLabel }}</span>
+        </div>
+
+        <div class="hist-chips">
+          @let r = resumenPorPeriodos(actividadActual);
+          <span class="chip chip-disponible"><i></i> Disponible {{ r.disponibleMs ? formatoDuracionPrecisa(r.disponibleMs) : '—' }}</span>
+          <span class="chip chip-ocupado"><i></i> Ocupado {{ r.ocupadoMs ? formatoDuracionPrecisa(r.ocupadoMs) : '—' }}</span>
+          <span class="chip chip-almuerzo"><i></i> Almuerzo {{ r.almuerzoMs ? formatoDuracionPrecisa(r.almuerzoMs) : '—' }}</span>
+          <span class="chip chip-inactivo"><i></i> Inactivo {{ r.inactivoMs ? formatoDuracionPrecisa(r.inactivoMs) : '—' }}</span>
+        </div>
+
+        @if (mostrarSinActividadAntes(actividadActual)) {
+        <p class="hist-note">
+          <lucide-icon [img]="icons.Clock" [size]="12" />
+          Sin actividad registrada antes de las {{ formatHoraMin(actividadActual.resumen.sinActividadAntesDe) }}
+        </p>
+        }
+
+        @if (actividadActual.periodos.length > 0) {
+        <ul class="hist-timeline">
+          @for (p of actividadActual.periodos; track $index) {
+          <li>
+            <span class="tl-dot {{ claseColorPeriodo(p) }}"></span>
+            <span class="tl-time">{{ formatHoraMin(p.desde) }}</span>
+            <span class="tl-label">{{ etiquetaPeriodo(p) }}</span>
+            <span class="tl-dur">
+              @if (p.hasta) {
+              hasta {{ formatHoraMin(p.hasta) }} · {{ formatoDuracionPrecisa(p.duracionMs) }}
+              } @else {
+              <em>hasta ahora</em> · {{ formatoDuracionPrecisa(p.duracionMs) }}
+              }
+            </span>
+          </li>
+          }
+        </ul>
+        } @else {
+        <ul class="hist-timeline">
+          <li class="tl-empty"><span>Sin actividad registrada este día</span></li>
+        </ul>
+        }
+        }
+
+        <div class="snap-footer">
+          <span>{{ fechaHistorial }} · Bogotá (UTC-5)</span>
+        </div>
+      </div>
+
+      <div class="conn-actions">
+        @if (historialDia) {
+        <button class="btn-primary" (click)="copiarImagenHistorial()" [disabled]="histCopiandoImagen">
+          @if (histImgCopiada) {
+          <lucide-icon [img]="icons.Check" [size]="16" /> ¡Imagen copiada!
+          } @else {
+          <lucide-icon [img]="icons.Copy" [size]="16" /> {{ histCopiandoImagen ? 'Generando...' : 'Copiar imagen' }}
+          }
+        </button>
+        <button class="btn-secondary" (click)="descargarImagenHistorial()">
+          <lucide-icon [img]="icons.ImageDown" [size]="16" /> Descargar imagen
+        </button>
+        }
+        <button class="btn-secondary btn-ghost" (click)="cerrarHistorial()">Cerrar</button>
+      </div>
+      }
+    </div>
+  </div>
+  }
+
   <!-- ═══════════ MODAL CREAR / EDITAR ═══════════ -->
   @if (formModal) {
   <div class="modal-overlay" (keydown.escape)="closeForm()">
     <div class="modal-card form-modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
       <div class="modal-header">
         <div>
-          <h3>{{ formModal.mode === 'create' ? 'Nuevo agente' : 'Editar agente' }}</h3>
+          <h3>{{ formModal.mode === 'create' ? 'Nuevo usuario' : 'Editar agente' }}</h3>
           <p>{{ formModal.mode === 'create' ? 'Crea la cuenta de un nuevo miembro' : 'Actualiza la información de ' + formModal.advisor!.name }}</p>
         </div>
         <button class="modal-close" (click)="closeForm()" title="Cerrar" aria-label="Cerrar">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
+          <lucide-icon [img]="icons.X" [size]="18" />
         </button>
       </div>
 
@@ -356,6 +634,13 @@
                 <small>Gestiona tickets asignados</small>
               </div>
             </label>
+            <label class="role-option" [class.active]="form.role === 'interno'">
+              <input type="radio" name="formRole" [value]="'interno'" [(ngModel)]="form.role" />
+              <div>
+                <strong>Interno</strong>
+                <small>Operación interna sin chats</small>
+              </div>
+            </label>
           </div>
         </div>
 
@@ -403,7 +688,7 @@
       <div class="modal-actions">
         <button class="btn-secondary" (click)="closeForm()">Cancelar</button>
         <button class="btn-primary" (click)="save()" [disabled]="formBusy">
-          {{ formBusy ? 'Guardando...' : (formModal.mode === 'create' ? 'Crear agente' : 'Guardar cambios') }}
+          {{ formBusy ? 'Guardando...' : (formModal.mode === 'create' ? 'Crear usuario' : 'Guardar cambios') }}
         </button>
       </div>
     </div>
@@ -420,9 +705,7 @@
           <p>{{ passwordModal.advisor.name }}</p>
         </div>
         <button class="modal-close" (click)="closePasswordModal()" title="Cerrar" aria-label="Cerrar">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
+          <lucide-icon [img]="icons.X" [size]="18" />
         </button>
       </div>
 
@@ -467,7 +750,7 @@
     <div class="modal-card delete-modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
       <div class="modal-header danger">
         <div>
-          <h3>¿Eliminar {{ confirmAction.advisor.role === 'admin' ? 'administrador' : confirmAction.advisor.role === 'desarrollador' ? 'desarrollador' : 'agente' }}?</h3>
+          <h3>¿Eliminar {{ confirmAction.advisor.role === 'admin' ? 'administrador' : confirmAction.advisor.role === 'desarrollador' ? 'desarrollador' : confirmAction.advisor.role === 'interno' ? 'usuario interno' : 'usuario' }}?</h3>
           <p>{{ confirmAction.advisor.name }} · {{ confirmAction.advisor.email }}</p>
         </div>
       </div>
@@ -492,5 +775,10 @@
       </div>
     </div>
   </div>
+  }
+
+  <!-- ═══════════ MODAL ACCESOS (módulos por perfil/usuario) ═══════════ -->
+  @if (muestraAccesosModal) {
+  <app-accesos-modal (cerrar)="cerrarAccesosModal()"></app-accesos-modal>
   }
 </div>

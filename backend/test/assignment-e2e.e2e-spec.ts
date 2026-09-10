@@ -22,13 +22,13 @@
 
 jest.setTimeout(90_000);
 
-const { io } = require('socket.io-client') as any;
-const Redis = require('ioredis') as any;
-const jwt = require('jsonwebtoken') as any;
-const { Client: PgClient } = require('pg') as any;
-const { randomUUID } = require('crypto') as any;
-const path = require('path') as any;
-const fs = require('fs') as any;
+const { io } = require('socket.io-client');
+const Redis = require('ioredis');
+const jwt = require('jsonwebtoken');
+const { Client: PgClient } = require('pg');
+const { randomUUID } = require('crypto');
+const path = require('path');
+const fs = require('fs');
 
 const WS = 'http://localhost:3001';
 const BASE = 'http://localhost:3001';
@@ -87,7 +87,9 @@ function openSocket(auth?: any): Promise<any> {
       ...(auth ? { auth } : {}),
     });
     const t = setTimeout(() => {
-      try { sock.close(); } catch {}
+      try {
+        sock.close();
+      } catch {}
       reject(new Error('socket connect timeout'));
     }, 10_000);
     sock.once('connect', () => {
@@ -96,7 +98,9 @@ function openSocket(auth?: any): Promise<any> {
     });
     sock.once('connect_error', (e: any) => {
       clearTimeout(t);
-      try { sock.close(); } catch {}
+      try {
+        sock.close();
+      } catch {}
       reject(e);
     });
   });
@@ -104,11 +108,17 @@ function openSocket(auth?: any): Promise<any> {
 
 function destroySocket(sock: any): void {
   if (sock) {
-    try { sock.disconnect(); sock.close(); } catch {}
+    try {
+      sock.disconnect();
+      sock.close();
+    } catch {}
   }
 }
 
-async function insertColegio(nombre: string, advisorId: string | null): Promise<string> {
+async function insertColegio(
+  nombre: string,
+  advisorId: string | null,
+): Promise<string> {
   const id = randomUUID();
   await pg.query(
     `INSERT INTO colegios (id, nombre, link, email, advisor_id, activo)
@@ -118,7 +128,9 @@ async function insertColegio(nombre: string, advisorId: string | null): Promise<
   return id;
 }
 
-async function createClientSession(colegio: string): Promise<{ id: string; codigo: string }> {
+async function createClientSession(
+  colegio: string,
+): Promise<{ id: string; codigo: string }> {
   const res = await fetch(`${BASE}/sessions`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -139,7 +151,9 @@ async function createClientSession(colegio: string): Promise<{ id: string; codig
 }
 
 /** Flujo real del widget: socket cliente → join_session → request_advisor */
-async function clientePideAsesor(colegio: string): Promise<{ sid: string; sock: any }> {
+async function clientePideAsesor(
+  colegio: string,
+): Promise<{ sid: string; sock: any }> {
   const { id: sid } = await createClientSession(colegio);
   const sock = await openSocket();
   sock.emit('join_session', { sessionId: sid, clientName: 'Test Asignacion' });
@@ -191,9 +205,16 @@ async function eventoRegistrado(sid: string, tipo: string): Promise<boolean> {
   return r.rows[0].n > 0;
 }
 
-function waitEvent(sock: any, eventName: string, timeout = 8_000): Promise<any> {
+function waitEvent(
+  sock: any,
+  eventName: string,
+  timeout = 8_000,
+): Promise<any> {
   return new Promise((resolve, reject) => {
-    const t = setTimeout(() => reject(new Error(`evento "${eventName}" no llegó`)), timeout);
+    const t = setTimeout(
+      () => reject(new Error(`evento "${eventName}" no llegó`)),
+      timeout,
+    );
     sock.once(eventName, (data: any) => {
       clearTimeout(t);
       resolve(data);
@@ -202,13 +223,26 @@ function waitEvent(sock: any, eventName: string, timeout = 8_000): Promise<any> 
 }
 
 const limpia = async (): Promise<void> => {
-  destroySocket(sockB); sockB = null;
-  destroySocket(sockA); sockA = null;
+  destroySocket(sockB);
+  sockB = null;
+  destroySocket(sockA);
+  sockA = null;
   // restaura: A queda online de nuevo
-  try { sockA = await openSocket({ token: mintToken(ADVISOR_A) }); await sleep(500); } catch {}
-  try { await redis.hdel('chat:on-lunch', ADVISOR_A.id); } catch {}
-  try { await redis.sadd('chat:connected-advisors', ADVISOR_A.id); } catch {}
-  try { await pg.query('UPDATE users SET status = \'online\' WHERE id = $1', [ADVISOR_A.id]); } catch {}
+  try {
+    sockA = await openSocket({ token: mintToken(ADVISOR_A) });
+    await sleep(500);
+  } catch {}
+  try {
+    await redis.hdel('chat:on-lunch', ADVISOR_A.id);
+  } catch {}
+  try {
+    await redis.sadd('chat:connected-advisors', ADVISOR_A.id);
+  } catch {}
+  try {
+    await pg.query("UPDATE users SET status = 'online' WHERE id = $1", [
+      ADVISOR_A.id,
+    ]);
+  } catch {}
 };
 
 describe('Asignación automática de asesores (e2e)', () => {
@@ -227,10 +261,22 @@ describe('Asignación automática de asesores (e2e)', () => {
       maxRetriesPerRequest: 3,
     });
 
-    coleA = await insertColegio(`ZZZ Asignacion Con Asesor A ${randomUUID().slice(0, 6)}`, ADVISOR_A.id);
-    coleB = await insertColegio(`ZZZ Asignacion Con Asesor B ${randomUUID().slice(0, 6)}`, ADVISOR_B.id);
-    coleSin = await insertColegio(`ZZZ Asignacion Sin Asesor ${randomUUID().slice(0, 6)}`, null);
-    coleDev = await insertColegio(`ZZZ Asignacion Desarrollador ${randomUUID().slice(0, 6)}`, DEVELOPER.id);
+    coleA = await insertColegio(
+      `ZZZ Asignacion Con Asesor A ${randomUUID().slice(0, 6)}`,
+      ADVISOR_A.id,
+    );
+    coleB = await insertColegio(
+      `ZZZ Asignacion Con Asesor B ${randomUUID().slice(0, 6)}`,
+      ADVISOR_B.id,
+    );
+    coleSin = await insertColegio(
+      `ZZZ Asignacion Sin Asesor ${randomUUID().slice(0, 6)}`,
+      null,
+    );
+    coleDev = await insertColegio(
+      `ZZZ Asignacion Desarrollador ${randomUUID().slice(0, 6)}`,
+      DEVELOPER.id,
+    );
 
     // Conectar A (asesor del colegio + disponible) y esperar a que quede online
     // y registrado en Redis. B se DEJA desconectado.
@@ -239,7 +285,8 @@ describe('Asignación automática de asesores (e2e)', () => {
     for (;;) {
       const online = await advisorConectadoRedis(ADVISOR_A.id);
       if (online) break;
-      if (Date.now() >= deadline) throw new Error('Asesor A no quedó conectado en Redis');
+      if (Date.now() >= deadline)
+        throw new Error('Asesor A no quedó conectado en Redis');
       await sleep(250);
     }
     expect(await advisorConectadoRedis(ADVISOR_B.id)).toBe(false);
@@ -267,8 +314,12 @@ describe('Asignación automática de asesores (e2e)', () => {
     } catch (e) {
       console.error('[cleanup] ', e);
     }
-    try { await redis.quit(); } catch {}
-    try { await pg.end(); } catch {}
+    try {
+      await redis.quit();
+    } catch {}
+    try {
+      await pg.end();
+    } catch {}
   });
 
   test('1) Colegio con asesor asignado y ONLINE → se asigna al asesor del colegio (A)', async () => {
@@ -334,9 +385,13 @@ describe('Asignación automática de asesores (e2e)', () => {
     } finally {
       destroySocket(sock);
       if (estabaA) await redis.sadd('chat:connected-advisors', ADVISOR_A.id);
-      const r = await pg.query('SELECT status FROM sessions WHERE id=$1', [sid]);
+      const r = await pg.query('SELECT status FROM sessions WHERE id=$1', [
+        sid,
+      ]);
       if (r.rows[0]?.status === 'waiting') {
-        await pg.query('UPDATE sessions SET status = \'closed\' WHERE id = $1', [sid]);
+        await pg.query("UPDATE sessions SET status = 'closed' WHERE id = $1", [
+          sid,
+        ]);
         await redis.lrem('chat:waiting-queue', 0, sid);
       }
     }
@@ -348,7 +403,8 @@ describe('Asignación automática de asesores (e2e)', () => {
     const deadline = Date.now() + 10_000;
     for (;;) {
       if (await advisorConectadoRedis(ADVISOR_B.id)) break;
-      if (Date.now() >= deadline) throw new Error('Asesor B no quedó conectado');
+      if (Date.now() >= deadline)
+        throw new Error('Asesor B no quedó conectado');
       await sleep(250);
     }
     await redis.hset('chat:on-lunch', ADVISOR_A.id, JSON.stringify({}));
@@ -360,7 +416,9 @@ describe('Asignación automática de asesores (e2e)', () => {
       expect(res.advisor).toBe(ADVISOR_B.id);
     } finally {
       destroySocket(sock);
-      try { await redis.hdel('chat:on-lunch', ADVISOR_A.id); } catch {}
+      try {
+        await redis.hdel('chat:on-lunch', ADVISOR_A.id);
+      } catch {}
     }
   });
 });

@@ -7,6 +7,7 @@ import { AuthModule } from '../auth/auth.module';
 import { RolesGuard } from '../auth/roles.guard';
 import { InternalChatModule } from '../internal-chat/internal-chat.module';
 import { ChatModule } from '../chat/chat.module';
+import { AdvisorActivityModule } from '../advisor-activity/advisor-activity.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { ChatModule } from '../chat/chat.module';
     AuthModule,
     forwardRef(() => InternalChatModule),
     ChatModule,
+    AdvisorActivityModule,
   ],
   controllers: [AdvisorsController],
   providers: [AdvisorsService, RolesGuard],

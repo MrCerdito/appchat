@@ -84,7 +84,12 @@ export class WhatsappMessage {
   @Column({ name: 'edited_at', type: 'timestamptz', nullable: true })
   editedAt: Date | null;
 
-  @Column({ name: 'reply_to_message_id', type: 'varchar', length: 255, nullable: true })
+  @Column({
+    name: 'reply_to_message_id',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
   replyToMessageId: string | null;
 
   @Column({ name: 'deleted_at', type: 'timestamptz', nullable: true })
@@ -93,7 +98,12 @@ export class WhatsappMessage {
   @Column({ name: 'deleted_by', type: 'uuid', nullable: true })
   deletedBy: string | null;
 
-  @Column({ name: 'deletion_type', type: 'varchar', length: 20, nullable: true })
+  @Column({
+    name: 'deletion_type',
+    type: 'varchar',
+    length: 20,
+    nullable: true,
+  })
   deletionType: 'for_me' | 'for_everyone' | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })

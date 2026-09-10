@@ -82,6 +82,10 @@ export class CreatePiCampoDto {
 
   @IsOptional()
   @IsBoolean()
+  filtroComunicados?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
   activo?: boolean;
 
   @IsOptional()
@@ -128,6 +132,10 @@ export class UpdatePiCampoDto {
   @IsOptional()
   @IsBoolean()
   filtrable?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  filtroComunicados?: boolean;
 
   @IsOptional()
   @IsBoolean()

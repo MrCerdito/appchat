@@ -28,6 +28,7 @@ export interface PiCampo {
   mostrarPerfil: boolean;
   buscar: boolean;
   filtrable: boolean;
+  filtroComunicados?: boolean;
   activo: boolean;
   esSistema: boolean;
   orden: number;

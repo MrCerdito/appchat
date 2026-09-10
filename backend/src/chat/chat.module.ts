@@ -7,6 +7,7 @@ import { ChatMediaController } from './chat-media.controller';
 import { ChatEventsController } from './chat-events.controller';
 import { Message } from './entities/message.entity';
 import { SessionEvento } from './entities/session-evento.entity';
+import { SessionAssignmentEvento } from './entities/session-assignment-evento.entity';
 import { AiModule } from '../ai/ai.module'; // ← línea nueva
 import { SessionsModule } from '../sessions/sessions.module'; // ← línea nueva
 import { ConfiguracionModule } from 'src/configuracion/configuracion.module';
@@ -16,7 +17,7 @@ import { FaqModule } from '../faq/faq.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Message, SessionEvento]),
+    TypeOrmModule.forFeature([Message, SessionEvento, SessionAssignmentEvento]),
     JwtModule,
     forwardRef(() => AiModule), // ← línea nueva
     forwardRef(() => SessionsModule), // ← línea nueva

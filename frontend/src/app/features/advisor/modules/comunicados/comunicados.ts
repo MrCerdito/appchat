@@ -13,7 +13,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
-import { ComunicadosService, Colegio } from '../../../../core/services/comunicados.service';
+import { ComunicadosService, Colegio, FiltroPerfilComunicado } from '../../../../core/services/comunicados.service';
 import { Comunicado, ComunicadoTemplate, Destinatario } from '../../../../core/models/comunicado.model';
 import { NotificationService } from '../../../../core/services/notification.service';
 import { LayoutService } from '../../../../core/services/layout.service';
@@ -26,7 +26,7 @@ import { environment } from '../../../../../environments/environment';
 type View = 'sent' | 'drafts' | 'templates' | 'compose';
 
 const CUERPO_FALLBACK =
-  'Hola {{nombre}},\n\nQueremos informarte sobre la siguiente comunicacion oficial.\n\nSaludos cordiales,\n{{firma}}';
+  'Tu caso fue registrado\n\nHola Laura Gomez,\n\nRecibimos tu solicitud y quedo registrada. Este numero te servira para consultar el estado de tu caso cuando quieras.\n\nSi necesitas agregar algo o tienes alguna duda, puedes responder este correo o volver a escribirnos por el chat.\n\nQuedamos atentos,\nEquipo de Soporte';
 
 @Component({
   selector: 'app-comunicados',
@@ -58,13 +58,21 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
   error = '';
 
   // Modals
-  showSaveTemplateModal = false;
   showSendConfirm = false;
   showRecipientsModal = false;
-  templateNameDraft = '';
+
+  // Configurador de plantillas
+  tplActive = false;
+  tplSaving = false;
+  tplEditingId: string | null = null;
+  tplName = '';
+  tplAsunto = '';
+  tplCuerpo = '';
+  tplDesign: unknown[] | null = null;
 
   // Compose
   editingId: string | null = null;
+  selectedTemplateId: string | null = null;
   asunto = '';
   cuerpo = '';
   design: unknown[] | null = null;
@@ -72,18 +80,22 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
   showColegiosPicker = false;
   colegioSearch = '';
 
+  // Correo manual (independiente de la planilla)
+  manualEmail = '';
+  manualEmailError = '';
+
   // Filtros avanzados
   showFiltersPanel = false;
   filterTipoColegio: '' | 'Sian365' | 'ControlAcademic' = '';
   filterCalendario: '' | 'A' | 'B' = '';
   filterCiudad = '';
-  openFilter: 'proyecto' | 'calendario' | 'ciudad' | null = null;
+  filtrosPerfil: FiltroPerfilComunicado[] = [];
+  filterPerfil: Set<string> = new Set();
 
   // Seleccion masiva
   selectedColegioIds: Set<string> = new Set();
   selectAllMode = false;
   menuColegioId: string | null = null;
-  recipientTab: 'colegios' | 'todos' = 'colegios';
 
   // Paginacion colegios
   colegioPage = 1;
@@ -92,8 +104,12 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
 
   @ViewChild('composeFrame') private readonly composeFrame?: ElementRef<HTMLIFrameElement>;
   @ViewChild('detailFrame') private readonly detailFrame?: ElementRef<HTMLIFrameElement>;
+  @ViewChild('templateFrame') private readonly templateFrame?: ElementRef<HTMLIFrameElement>;
   private lastPreviewDoc = '';
   private lastDetailDoc = '';
+  private lastTplDoc = '';
+  private lastTplRawCuerpo = '';
+  private lastTplCleanCuerpo = '';
   private lastRawCuerpo = '';
   private lastCleanCuerpo = '';
   private readonly apiBase: string;
@@ -119,8 +135,9 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
     this.loadAll();
     this.loadTemplates();
     this.service.getColegios().pipe(takeUntil(this.destroy$)).subscribe({
-      next: (c) => {
-        this.colegios = c;
+      next: (res) => {
+        this.colegios = res.colegios;
+        this.filtrosPerfil = res.filtrosPerfil;
         this.cdr.detectChanges();
       },
       error: (err) => console.error('HTTP Error:', err),
@@ -160,61 +177,88 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
     });
   }
 
-  saveAsTemplate(): void {
-    if (!this.asunto.trim()) {
-      this.error = 'El asunto es obligatorio para guardar la plantilla';
-      this.cdr.detectChanges();
-      return;
-    }
-    this.templateNameDraft = this.asunto.trim().slice(0, 80);
-    this.showSaveTemplateModal = true;
-    this.cdr.detectChanges();
-  }
-
-  cancelSaveTemplate(): void {
-    this.showSaveTemplateModal = false;
-    this.templateNameDraft = '';
-    this.cdr.detectChanges();
-  }
-
-  confirmSaveTemplate(): void {
-    const trimmed = this.templateNameDraft.trim();
-    if (!trimmed) {
-      this.notification.warning('Nombre requerido', 'El nombre de la plantilla es obligatorio');
-      return;
-    }
-
-    this.showSaveTemplateModal = false;
-    this.cdr.detectChanges();
-
-    this.service.saveTemplate(trimmed, this.asunto, this.cuerpo, this.design)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: () => {
-          this.loadTemplates();
-          this.showSuccessMsg('Plantilla guardada');
-        },
-        error: (err) => {
-          this.error = err.error?.message || 'Error al guardar la plantilla';
-          this.notification.error('Error al guardar la plantilla', this.error);
-          this.cdr.detectChanges();
-        },
-      });
-  }
-
-  applyTemplate(t: ComunicadoTemplate): void {
-    this.view = 'compose';
+  enterTemplates(): void {
+    this.view = 'templates';
     this.selected = null;
     this.showStats = false;
     this.stats = null;
     this.error = '';
     this.success = '';
-    this.lastPreviewDoc = '';
-    this.editingId = null;
-    this.asunto = t.asunto;
-    this.cuerpo = t.cuerpo;
-    this.design = Array.isArray(t.design) ? t.design : null;
+    if (!this.tplActive) {
+      if (this.templates.length > 0) {
+        this.editTemplate(this.templates[0]);
+      } else {
+        this.openNewTemplate();
+      }
+    }
     this.cdr.detectChanges();
+  }
+
+  openNewTemplate(): void {
+    this.tplActive = true;
+    this.tplEditingId = null;
+    this.tplName = '';
+    this.tplAsunto = '';
+    this.tplCuerpo = CUERPO_FALLBACK;
+    this.tplDesign = null;
+    this.lastTplDoc = '';
+    this.lastTplRawCuerpo = '';
+    this.error = '';
+    this.cdr.detectChanges();
+  }
+
+  editTemplate(t: ComunicadoTemplate): void {
+    this.tplActive = true;
+    this.tplEditingId = t.id;
+    this.tplName = t.name;
+    this.tplAsunto = t.asunto;
+    this.tplCuerpo = t.cuerpo;
+    this.tplDesign = Array.isArray(t.design) ? t.design : null;
+    this.lastTplDoc = '';
+    this.lastTplRawCuerpo = '';
+    this.error = '';
+    this.cdr.detectChanges();
+  }
+
+  saveTemplateConfig(): void {
+    const name = this.tplName.trim();
+    if (!name) {
+      this.error = 'El nombre de la plantilla es obligatorio';
+      this.cdr.detectChanges();
+      return;
+    }
+    if (!this.tplAsunto.trim()) {
+      this.error = 'El asunto es obligatorio';
+      this.cdr.detectChanges();
+      return;
+    }
+    this.tplSaving = true;
+    this.error = '';
+    const isNew = !this.tplEditingId;
+    const id = this.tplEditingId;
+    const obs = id
+      ? this.service.updateTemplate(id, name, this.tplAsunto, this.tplCuerpo, this.tplDesign)
+      : this.service.saveTemplate(name, this.tplAsunto, this.tplCuerpo, this.tplDesign);
+    obs.pipe(takeUntil(this.destroy$)).subscribe({
+      next: (t) => {
+        this.tplSaving = false;
+        this.tplEditingId = t.id;
+        this.tplName = t.name;
+        this.loadTemplates();
+        this.showSuccessMsg(isNew ? 'Plantilla creada' : 'Plantilla actualizada');
+      },
+      error: (err) => {
+        this.tplSaving = false;
+        this.error = err.error?.message || 'Error al guardar la plantilla';
+        this.notification.error('Error al guardar la plantilla', this.error);
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  deleteCurrentTemplate(): void {
+    const t = this.templates.find((x) => x.id === this.tplEditingId);
+    if (t) this.deleteTemplate(t);
   }
 
   deleteTemplate(t: ComunicadoTemplate): void {
@@ -222,6 +266,21 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
     this.service.deleteTemplate(t.id).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
         this.templates = this.templates.filter((x) => x.id !== t.id);
+        if (this.tplEditingId === t.id) {
+          this.tplActive = false;
+          this.tplEditingId = null;
+          this.tplName = '';
+          this.tplAsunto = '';
+          this.tplCuerpo = '';
+          this.tplDesign = null;
+          this.lastTplDoc = '';
+          this.lastTplRawCuerpo = '';
+          if (this.templates.length > 0) {
+            this.editTemplate(this.templates[0]);
+          } else {
+            this.openNewTemplate();
+          }
+        }
         this.cdr.detectChanges();
         this.showSuccessMsg('Plantilla eliminada');
       },
@@ -266,6 +325,15 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
     if (this.filterCiudad) {
       result = result.filter(c => (c as any).ciudad === this.filterCiudad);
     }
+    if (this.filterPerfil.size > 0) {
+      result = result.filter(c => {
+        const pf = c.perfilFiltros ?? {};
+        for (const campoId of this.filterPerfil) {
+          if (pf[campoId] !== 'true') return false;
+        }
+        return true;
+      });
+    }
     if (this.colegioSearch) {
       const q = this.colegioSearch.toLowerCase();
       result = result.filter(c =>
@@ -308,11 +376,14 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
     if (this.filterCalendario) chips.push({ label: `Cal. ${this.filterCalendario}`, key: 'calendario' });
     if (this.filterTipoColegio) chips.push({ label: this.filterTipoColegio === 'Sian365' ? 'Sian365' : 'Control Academic', key: 'tipo' });
     if (this.filterCiudad) chips.push({ label: this.filterCiudad, key: 'ciudad' });
+    this.filtrosPerfil.forEach(f => {
+      if (this.filterPerfil.has(f.id)) chips.push({ label: f.nombre, key: `perfil:${f.id}` });
+    });
     return chips;
   }
 
   get activeFilterCount(): number {
-    return (this.filterCalendario ? 1 : 0) + (this.filterTipoColegio ? 1 : 0) + (this.filterCiudad ? 1 : 0);
+    return (this.filterCalendario ? 1 : 0) + (this.filterTipoColegio ? 1 : 0) + (this.filterCiudad ? 1 : 0) + this.filterPerfil.size;
   }
 
   get allFilteredSelected(): boolean {
@@ -339,11 +410,29 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
   }
 
   addSelectedColegios(): void {
-    this.colegios
-      .filter(c => this.selectedColegioIds.has(c.id) && c.email)
-      .forEach(c => this.addColegio(c));
+    const seleccionados = this.colegios.filter(c =>
+      this.selectedColegioIds.has(c.id),
+    );
+    const sinCorreo = seleccionados.filter(c => !c.email);
+    seleccionados.filter(c => c.email).forEach(c => this.addColegio(c));
     this.selectedColegioIds.clear();
     this.selectAllMode = false;
+    this.notificarColegiosSinCorreo(sinCorreo);
+  }
+
+  private notificarColegiosSinCorreo(sinCorreo: Colegio[]): void {
+    if (sinCorreo.length === 0) return;
+    const max = 5;
+    const lista = sinCorreo
+      .slice(0, max)
+      .map(c => c.nombre)
+      .join('; ');
+    const restantes = sinCorreo.length - Math.min(sinCorreo.length, max);
+    const extra = restantes > 0 ? ` y ${restantes} más` : '';
+    const msg =
+      `Los siguientes colegios no cuentan con un correo, por lo tanto no se ` +
+      `agregaron a los destinatarios: ${lista}${extra}.`;
+    this.notification.warning('Colegios sin correo', msg);
   }
 
   clearColegioSelection(): void {
@@ -363,6 +452,7 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
     if (key === 'calendario') this.filterCalendario = '';
     if (key === 'tipo') this.filterTipoColegio = '';
     if (key === 'ciudad') this.filterCiudad = '';
+    if (key.startsWith('perfil:')) this.filterPerfil.delete(key.slice(7));
     this.colegioPage = 1;
   }
 
@@ -371,11 +461,55 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
     this.filterTipoColegio = '';
     this.filterCiudad = '';
     this.colegioSearch = '';
+    this.filterPerfil.clear();
     this.colegioPage = 1;
   }
 
-  toggleFilter(name: 'proyecto' | 'calendario' | 'ciudad'): void {
-    this.openFilter = this.openFilter === name ? null : name;
+  togglePerfilFilter(campoId: string): void {
+    if (this.filterPerfil.has(campoId)) {
+      this.filterPerfil.delete(campoId);
+    } else {
+      this.filterPerfil.add(campoId);
+    }
+    this.colegioPage = 1;
+  }
+
+  isPerfilFilterActive(campoId: string): boolean {
+    return this.filterPerfil.has(campoId);
+  }
+
+  perfilFiltrosPorCategoria(): {
+    categoriaId: string;
+    categoriaNombre: string;
+    filtros: FiltroPerfilComunicado[];
+  }[] {
+    const grupos: {
+      categoriaId: string;
+      categoriaNombre: string;
+      filtros: FiltroPerfilComunicado[];
+    }[] = [];
+    const index = new Map<string, number>();
+    for (const f of this.filtrosPerfil) {
+      const catId = f.categoriaId?.trim() ? f.categoriaId : 'sin-categoria';
+      const catNombre = f.categoriaNombre?.trim()
+        ? f.categoriaNombre
+        : 'Sin categoría';
+      let i = index.get(catId);
+      if (i === undefined) {
+        i = grupos.length;
+        index.set(catId, i);
+        grupos.push({ categoriaId: catId, categoriaNombre: catNombre, filtros: [] });
+      }
+      grupos[i].filtros.push(f);
+    }
+    return grupos.sort((a, b) =>
+      a.categoriaNombre.localeCompare(b.categoriaNombre, 'es'),
+    );
+  }
+
+  onCiudadChange(value: string): void {
+    this.filterCiudad = value;
+    this.colegioPage = 1;
   }
 
   setFilter(name: 'proyecto' | 'calendario' | 'ciudad', value: string): void {
@@ -386,12 +520,7 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
     } else {
       this.filterCiudad = value;
     }
-    this.openFilter = null;
     this.colegioPage = 1;
-  }
-
-  isFilterOpen(name: 'proyecto' | 'calendario' | 'ciudad'): boolean {
-    return this.openFilter === name;
   }
 
   onColegioPageChange(page: number): void {
@@ -404,7 +533,9 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
   }
 
   addAllFilteredColegios(): void {
+    const sinCorreo = this.filteredColegios.filter(c => !c.email);
     this.filteredColegios.filter(c => c.email).forEach(c => this.addColegio(c));
+    this.notificarColegiosSinCorreo(sinCorreo);
   }
 
   exportColegios(): void {
@@ -417,7 +548,7 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
     const rows = list.map((c) => [
       enc(c.nombre),
       enc(c.email),
-      enc(c.tipoColegio === 'Sian365' ? 'Sian365' : c.tipoColegio === 'ControlAcademic' ? 'Control Académico' : ''),
+      enc(c.tipoColegio === 'Sian365' ? 'Sian365' : c.tipoColegio === 'ControlAcademic' ? 'Control Academic' : ''),
       enc(c.calendario ? `Cal. ${c.calendario}` : ''),
       enc((c as any).ciudad ?? ''),
     ].join(','));
@@ -462,8 +593,11 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
     this.error = '';
     this.success = '';
     this.lastPreviewDoc = '';
+    this.selectedTemplateId = null;
     this.filterCalendario = '';
     this.filterTipoColegio = '';
+    this.filterCiudad = '';
+    this.filterPerfil.clear();
     this.colegioSearch = '';
     this.selectedColegioIds.clear();
     this.colegioPage = 1;
@@ -489,6 +623,27 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
     }
   }
 
+  addManualEmail(): void {
+    const email = this.manualEmail.trim().toLowerCase();
+    if (!email) {
+      this.manualEmailError = 'Escribe un correo para agregarlo.';
+      return;
+    }
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRe.test(email)) {
+      this.manualEmailError = `"${this.manualEmail.trim()}" no parece un correo válido.`;
+      return;
+    }
+    if (this.destinatarios.some(d => d.email.toLowerCase() === email)) {
+      this.manualEmailError = `El correo ${email} ya está en los destinatarios.`;
+      return;
+    }
+    this.destinatarios.push({ email, nombre: email, colegio: '', tipo: '' });
+    this.manualEmail = '';
+    this.manualEmailError = '';
+    this.notification.success('Correo agregado', `${email} se agregó a los destinatarios.`);
+  }
+
   addColegio(colegio: Colegio): void {
     if (!colegio.email) return;
     if (this.destinatarios.some(d => d.email === colegio.email)) return;
@@ -500,19 +655,25 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
     });
   }
 
+  onTemplateSelect(id: string | null): void {
+    if (!id) return;
+    const t = this.templates.find(x => x.id === id);
+    if (!t) return;
+    this.asunto = t.asunto;
+    this.cuerpo = t.cuerpo;
+    this.design = Array.isArray(t.design) ? t.design : null;
+    this.editingId = null;
+    this.lastPreviewDoc = '';
+    this.error = '';
+    this.cdr.detectChanges();
+  }
+
   removeDestinatario(email: string): void {
     this.destinatarios = this.destinatarios.filter(d => d.email !== email);
   }
 
   toggleColegioMenu(id: string): void {
     this.menuColegioId = this.menuColegioId === id ? null : id;
-  }
-
-  selectRecipientTab(tab: 'colegios' | 'todos'): void {
-    this.recipientTab = tab;
-    if (tab === 'todos') {
-      this.clearAllFilters();
-    }
   }
 
   buscarColegio(link?: string): void {
@@ -540,6 +701,16 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
     this.cdr.detectChanges();
   }
 
+  onTplCuerpoChange(v: string): void {
+    this.tplCuerpo = v;
+    this.cdr.detectChanges();
+  }
+
+  onTplDesignChange(v: unknown[] | null): void {
+    this.tplDesign = v;
+    this.cdr.detectChanges();
+  }
+
   ngDoCheck(): void {
     if (this.view === 'compose') {
       const frame = this.composeFrame?.nativeElement;
@@ -547,6 +718,16 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
         const doc = this.previewDoc();
         if (doc !== this.lastPreviewDoc) {
           this.lastPreviewDoc = doc;
+          this.renderPreview(frame, doc);
+        }
+      }
+    }
+    if (this.view === 'templates' && this.tplActive) {
+      const frame = this.templateFrame?.nativeElement;
+      if (frame) {
+        const doc = this.templatePreviewDoc();
+        if (doc !== this.lastTplDoc) {
+          this.lastTplDoc = doc;
           this.renderPreview(frame, doc);
         }
       }
@@ -566,6 +747,12 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
       const doc = this.previewDoc();
       this.lastPreviewDoc = doc;
       this.renderPreview(frame, doc);
+    }
+    const tFrame = this.templateFrame?.nativeElement;
+    if (tFrame && this.view === 'templates' && this.tplActive) {
+      const doc = this.templatePreviewDoc();
+      this.lastTplDoc = doc;
+      this.renderPreview(tFrame, doc);
     }
     const dFrame = this.detailFrame?.nativeElement;
     if (dFrame && this.selected) {
@@ -601,6 +788,35 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
   private absolutizarUploads(html: string): string {
     if (!this.apiBase) return html;
     return html.replace(/("|\()\/(uploads\/[^")]+)/g, `$1${this.apiBase}/$2`);
+  }
+
+  templatePreviewAsunto(): string {
+    return (this.tplAsunto || '')
+      .replace(/\{\{\s*nombre\s*\}\}/g, 'Laura Gomez')
+      .replace(/\{\{\s*colegio\s*\}\}/g, 'Colegio San Jose')
+      .replace(/\{\{\s*email\s*\}\}/g, 'rectoria@colegio.edu.co')
+      .replace(/\{\{\s*fecha\s*\}\}/g, '14/08/2026')
+      .replace(/\{\{\s*firma\s*\}\}/g, 'Equipo de Soporte');
+  }
+
+  templatePreviewCuerpo(): string {
+    const raw = this.absolutizarUploads(this.tplCuerpo);
+    if (raw !== this.lastTplRawCuerpo) {
+      this.lastTplRawCuerpo = raw;
+      this.lastTplCleanCuerpo = limpiarHTML(raw);
+    }
+    return this.lastTplCleanCuerpo
+      .replace(/\{\{\s*nombre\s*\}\}/g, 'Laura Gomez')
+      .replace(/\{\{\s*colegio\s*\}\}/g, 'Colegio San Jose')
+      .replace(/\{\{\s*email\s*\}\}/g, 'rectoria@colegio.edu.co')
+      .replace(/\{\{\s*fecha\s*\}\}/g, '14/08/2026')
+      .replace(/\{\{\s*firma\s*\}\}/g, 'Equipo de Soporte');
+  }
+
+  templatePreviewDoc(): string {
+    const body = this.templatePreviewCuerpo();
+    if (/<html[\s>]/i.test(body)) return body;
+    return this.wrapEmail(body);
   }
 
   previewDoc(): string {

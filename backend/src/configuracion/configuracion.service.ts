@@ -1,4 +1,9 @@
-import { BadRequestException, Inject, Injectable, OnModuleInit } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  OnModuleInit,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
@@ -109,6 +114,22 @@ export class ConfiguracionService implements OnModuleInit {
     `);
     await this.repo.query(`
       ALTER TABLE IF EXISTS public.configuracion
+      ADD COLUMN IF NOT EXISTS asignacion_balance_tipo varchar(20) NOT NULL DEFAULT 'hoy'
+    `);
+    await this.repo.query(`
+      ALTER TABLE IF EXISTS public.configuracion
+      ADD COLUMN IF NOT EXISTS max_active_chats_web int NOT NULL DEFAULT 4
+    `);
+    await this.repo.query(`
+      ALTER TABLE IF EXISTS public.configuracion
+      ADD COLUMN IF NOT EXISTS asignacion_contar_cerradas_hoy boolean NOT NULL DEFAULT true
+    `);
+    await this.repo.query(`
+      ALTER TABLE IF EXISTS public.configuracion
+      ADD COLUMN IF NOT EXISTS asignacion_priorizar_colegio boolean NOT NULL DEFAULT true
+    `);
+    await this.repo.query(`
+      ALTER TABLE IF EXISTS public.configuracion
       ADD COLUMN IF NOT EXISTS asesor_reconexion_seg int NOT NULL DEFAULT 120
     `);
     await this.repo.query(`
@@ -196,7 +217,9 @@ export class ConfiguracionService implements OnModuleInit {
   }
 
   private cacheKey(advisorId?: string): string {
-    return advisorId ? `${this.CACHE_PREFIX}advisor:${advisorId}` : `${this.CACHE_PREFIX}global`;
+    return advisorId
+      ? `${this.CACHE_PREFIX}advisor:${advisorId}`
+      : `${this.CACHE_PREFIX}global`;
   }
 
   private async getFromCache(key: string): Promise<Configuracion | null> {
@@ -218,21 +241,29 @@ export class ConfiguracionService implements OnModuleInit {
     const replies = config.whatsappQuickReplies ?? [];
     const header = '"name";"content"';
     const esc = (s: string) => `"${(s ?? '').replace(/"/g, '""')}"`;
-    const rows = replies.map((r: any) => [esc(r.name), esc(r.content)].join(';'));
+    const rows = replies.map((r: any) =>
+      [esc(r.name), esc(r.content)].join(';'),
+    );
     return [header, ...rows].join('\n');
   }
 
-  async importQuickRepliesCsv(csv: string): Promise<{ imported: number; skipped: number }> {
+  async importQuickRepliesCsv(
+    csv: string,
+  ): Promise<{ imported: number; skipped: number }> {
     const lines = csv.split('\n').filter((l) => l.trim());
     if (lines.length < 2) return { imported: 0, skipped: 0 };
 
     const header = lines[0].toLowerCase();
-    const cols = header.split(';').map((c: string) => c.trim().replace(/"/g, ''));
+    const cols = header
+      .split(';')
+      .map((c: string) => c.trim().replace(/"/g, ''));
     const nIdx = cols.indexOf('name');
     const cIdx = cols.indexOf('content');
 
     if (nIdx === -1 || cIdx === -1)
-      throw new BadRequestException('CSV debe tener columnas "name" y "content"');
+      throw new BadRequestException(
+        'CSV debe tener columnas "name" y "content"',
+      );
 
     const parsed: any[] = [];
     for (let i = 1; i < lines.length; i++) {
@@ -240,7 +271,10 @@ export class ConfiguracionService implements OnModuleInit {
       const name = vals[nIdx]?.trim();
       const content = vals[cIdx]?.trim();
       if (name && content) {
-        parsed.push({ name: name.slice(0, 60), content: content.slice(0, 500) });
+        parsed.push({
+          name: name.slice(0, 60),
+          content: content.slice(0, 500),
+        });
       }
     }
 
@@ -249,9 +283,13 @@ export class ConfiguracionService implements OnModuleInit {
     return this.importBulkQuickReplies(parsed);
   }
 
-  async importBulkQuickReplies(items: { name: string; content: string }[]): Promise<{ imported: number; skipped: number }> {
+  async importBulkQuickReplies(
+    items: { name: string; content: string }[],
+  ): Promise<{ imported: number; skipped: number }> {
     const config = await this.getGlobal();
-    const existing = Array.isArray(config.whatsappQuickReplies) ? config.whatsappQuickReplies : [];
+    const existing = Array.isArray(config.whatsappQuickReplies)
+      ? config.whatsappQuickReplies
+      : [];
 
     let nextId = 1;
     for (const r of existing) {
@@ -263,7 +301,8 @@ export class ConfiguracionService implements OnModuleInit {
 
     const existingNames = new Set<string>();
     for (const r of existing) {
-      if (r.name) existingNames.add(normalizeText(String(r.name)).toLowerCase().trim());
+      if (r.name)
+        existingNames.add(normalizeText(String(r.name)).toLowerCase().trim());
     }
 
     const imported: any[] = [];
@@ -271,9 +310,15 @@ export class ConfiguracionService implements OnModuleInit {
 
     for (const item of items) {
       const name = String(item.name).trim().slice(0, 60);
-      if (!name) { skipped++; continue; }
+      if (!name) {
+        skipped++;
+        continue;
+      }
       const normalizedName = normalizeText(name).toLowerCase();
-      if (existingNames.has(normalizedName)) { skipped++; continue; }
+      if (existingNames.has(normalizedName)) {
+        skipped++;
+        continue;
+      }
       existingNames.add(normalizedName);
 
       imported.push({
@@ -292,7 +337,9 @@ export class ConfiguracionService implements OnModuleInit {
 
   async deleteBulkQuickReplies(ids: string[]): Promise<{ deleted: number }> {
     const config = await this.getGlobal();
-    const existing = Array.isArray(config.whatsappQuickReplies) ? config.whatsappQuickReplies : [];
+    const existing = Array.isArray(config.whatsappQuickReplies)
+      ? config.whatsappQuickReplies
+      : [];
     const idSet = new Set(ids);
     const before = existing.length;
     const remaining = existing.filter((r: any) => !idSet.has(String(r.id)));
@@ -308,8 +355,15 @@ export class ConfiguracionService implements OnModuleInit {
     let current = '';
     let inQuotes = false;
     for (const ch of line) {
-      if (ch === '"') { inQuotes = !inQuotes; continue; }
-      if (ch === ';' && !inQuotes) { result.push(current); current = ''; continue; }
+      if (ch === '"') {
+        inQuotes = !inQuotes;
+        continue;
+      }
+      if (ch === ';' && !inQuotes) {
+        result.push(current);
+        current = '';
+        continue;
+      }
       current += ch;
     }
     result.push(current);
@@ -372,7 +426,10 @@ export class ConfiguracionService implements OnModuleInit {
    * almuerzo. Por eso el override solo aporta `almuerzos`; el resto siempre
    * proviene de la configuracion global para que todos tengan la misma.
    */
-  private mergePersonal(global: Configuracion, override: Configuracion): Configuracion {
+  private mergePersonal(
+    global: Configuracion,
+    override: Configuracion,
+  ): Configuracion {
     return {
       ...global,
       id: override.id,
@@ -423,6 +480,10 @@ export class ConfiguracionService implements OnModuleInit {
       sonidoCliente: 'cliente1',
       sonidoAsignacion: 'asignacion1',
       whatsappMaxActiveChatsPerAdvisor: 3,
+      asignacionBalanceTipo: 'hoy',
+      maxActiveChatsWeb: 4,
+      asignacionContarCerradasHoy: true,
+      asignacionPriorizarColegio: true,
       ticketEmailActivo: true,
       ticketEmailAsunto: 'Tu caso {{codigo}} fue registrado',
       ticketEmailCuerpo:
@@ -441,17 +502,20 @@ export class ConfiguracionService implements OnModuleInit {
       aiPromptConfig: {
         roles: {
           administrador: {
-            descripcion: 'Tienes acceso completo a toda la información del sistema.',
+            descripcion:
+              'Tienes acceso completo a toda la información del sistema.',
             temasRestringidos: [],
             mensajeRestringido: '',
           },
           docente: {
-            descripcion: 'Tienes acceso a información académica y administrativa.',
+            descripcion:
+              'Tienes acceso a información académica y administrativa.',
             temasRestringidos: [],
             mensajeRestringido: '',
           },
           coordinador: {
-            descripcion: 'Tienes acceso a información académica y de gestión de la comunidad educativa.',
+            descripcion:
+              'Tienes acceso a información académica y de gestión de la comunidad educativa.',
             temasRestringidos: [],
             mensajeRestringido: '',
           },
@@ -476,7 +540,8 @@ export class ConfiguracionService implements OnModuleInit {
               'Para solicitar certificados, boletines u otros documentos académicos, debes comunicarte directamente con la institución, ya que esa documentación debe ser emitida de forma oficial y no la puedo adjuntar desde este canal.',
           },
           padre: {
-            descripcion: 'Tienes acceso a información académica y de pagos de tu hijo.',
+            descripcion:
+              'Tienes acceso a información académica y de pagos de tu hijo.',
             temasRestringidos: [],
             mensajeRestringido: '',
           },
@@ -493,7 +558,8 @@ export class ConfiguracionService implements OnModuleInit {
     const aiCfg = ((global as any).aiPromptConfig ?? {}) as Record<string, any>;
     const DEFAULT_ROLES = {
       administrador: {
-        descripcion: 'Tienes acceso completo a toda la información del sistema.',
+        descripcion:
+          'Tienes acceso completo a toda la información del sistema.',
         temasRestringidos: [],
         mensajeRestringido: '',
       },
@@ -503,7 +569,8 @@ export class ConfiguracionService implements OnModuleInit {
         mensajeRestringido: '',
       },
       coordinador: {
-        descripcion: 'Tienes acceso a información académica y de gestión de la comunidad educativa.',
+        descripcion:
+          'Tienes acceso a información académica y de gestión de la comunidad educativa.',
         temasRestringidos: [],
         mensajeRestringido: '',
       },
@@ -513,15 +580,17 @@ export class ConfiguracionService implements OnModuleInit {
         mensajeRestringido: this.DEFAULT_ROLE_MSG_ESTUDIANTE,
       },
       padre: {
-        descripcion: 'Tienes acceso a información académica y de pagos de tu hijo.',
+        descripcion:
+          'Tienes acceso a información académica y de pagos de tu hijo.',
         temasRestringidos: [],
         mensajeRestringido: '',
       },
     };
 
-    const roles = (aiCfg.roles && typeof aiCfg.roles === 'object')
-      ? (aiCfg.roles as Record<string, any>)
-      : {};
+    const roles =
+      aiCfg.roles && typeof aiCfg.roles === 'object'
+        ? (aiCfg.roles as Record<string, any>)
+        : {};
     const estudiante = roles['estudiante'];
     const needsBackfill =
       !estudiante ||
@@ -533,7 +602,8 @@ export class ConfiguracionService implements OnModuleInit {
     if (needsBackfill) {
       roles['estudiante'] = {
         descripcion:
-          estudiante?.descripcion || 'Tienes acceso a información académica y personal.',
+          estudiante?.descripcion ||
+          'Tienes acceso a información académica y personal.',
         temasRestringidos: [...this.DEFAULT_ROLE_RESTRICTED_ESTUDIANTE],
         mensajeRestringido:
           (typeof estudiante?.mensajeRestringido === 'string' &&
@@ -557,18 +627,21 @@ export class ConfiguracionService implements OnModuleInit {
       aiCfg.nombreAsistente = 'Korvix';
       changed = true;
     }
-    if (
-      typeof aiCfg.especialidad !== 'string' ||
-      !aiCfg.especialidad.trim()
-    ) {
+    if (typeof aiCfg.especialidad !== 'string' || !aiCfg.especialidad.trim()) {
       aiCfg.especialidad = 'Plataforma Educativa Institucional';
       changed = true;
     }
-    if (!Array.isArray(aiCfg.frasesTransferencia) || aiCfg.frasesTransferencia.length === 0) {
+    if (
+      !Array.isArray(aiCfg.frasesTransferencia) ||
+      aiCfg.frasesTransferencia.length === 0
+    ) {
       aiCfg.frasesTransferencia = ['asesor', 'humano', 'persona', 'agente'];
       changed = true;
     }
-    if (typeof aiCfg.mensajeSinInformacion !== 'string' || !aiCfg.mensajeSinInformacion.trim()) {
+    if (
+      typeof aiCfg.mensajeSinInformacion !== 'string' ||
+      !aiCfg.mensajeSinInformacion.trim()
+    ) {
       aiCfg.mensajeSinInformacion =
         'No tengo información registrada sobre eso por el momento. ¿Necesitas un agente para una mejor ayuda?';
       changed = true;
@@ -590,7 +663,9 @@ export class ConfiguracionService implements OnModuleInit {
     return global;
   }
 
-  async getEfectivaBatch(advisorIds: string[]): Promise<Map<string, Configuracion>> {
+  async getEfectivaBatch(
+    advisorIds: string[],
+  ): Promise<Map<string, Configuracion>> {
     const result = new Map<string, Configuracion>();
     const missingIds: string[] = [];
 
@@ -611,7 +686,7 @@ export class ConfiguracionService implements OnModuleInit {
         .where('c.advisor_id IN (:...ids)', { ids: missingIds })
         .getMany();
 
-      const overrideMap = new Map(overrides.map(o => [o.advisorId!, o]));
+      const overrideMap = new Map(overrides.map((o) => [o.advisorId!, o]));
       for (const id of missingIds) {
         const override = overrideMap.get(id);
         const efectiva = override
@@ -636,7 +711,10 @@ export class ConfiguracionService implements OnModuleInit {
     this.sanitizeConfigText(data);
 
     if (data.smtpPort !== undefined) {
-      data.smtpPort = Math.max(1, Math.min(65535, Number(data.smtpPort) || 465));
+      data.smtpPort = Math.max(
+        1,
+        Math.min(65535, Number(data.smtpPort) || 465),
+      );
     }
     if (typeof data.smtpSecure === 'string') {
       data.smtpSecure = data.smtpSecure !== 'false';
@@ -672,11 +750,15 @@ export class ConfiguracionService implements OnModuleInit {
           .map((text, i) => {
             const clean = cleanText(text, 500);
             if (!clean) return null;
-            return { id: `qr_${i + 1}`, name: clean.slice(0, 60), content: clean };
+            return {
+              id: `qr_${i + 1}`,
+              name: clean.slice(0, 60),
+              content: clean,
+            };
           })
           .filter(Boolean) as any;
       } else {
-        data.whatsappQuickReplies = (data.whatsappQuickReplies as any[])
+        data.whatsappQuickReplies = data.whatsappQuickReplies
           .filter((r) => r?.name && r?.content)
           .map((r) => ({
             id: r.id || `qr_${nextId++}`,
@@ -707,7 +789,11 @@ export class ConfiguracionService implements OnModuleInit {
       const defaults = global ? { ...global } : {};
       delete (defaults as any).id;
       delete (defaults as any).advisorId;
-      const nueva = this.repo.create({ ...defaults, ...data, advisorId: advisorId ?? null });
+      const nueva = this.repo.create({
+        ...defaults,
+        ...data,
+        advisorId: advisorId ?? null,
+      });
       saved = await this.repo.save(nueva);
     }
 
@@ -738,13 +824,17 @@ export class ConfiguracionService implements OnModuleInit {
   }): Promise<{ ok: boolean; message: string }> {
     const to = String(body.to ?? '').trim();
     if (!to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
-      throw new BadRequestException('Indica un correo valido para recibir la prueba.');
+      throw new BadRequestException(
+        'Indica un correo valido para recibir la prueba.',
+      );
     }
     const host = String(body.smtpHost ?? '').trim();
     const user = String(body.smtpUser ?? '').trim();
     const pass = String(body.smtpPass ?? '');
     if (!host || !user || !pass) {
-      throw new BadRequestException('Completa el servidor SMTP, el correo de la cuenta y su contrasena.');
+      throw new BadRequestException(
+        'Completa el servidor SMTP, el correo de la cuenta y su contrasena.',
+      );
     }
 
     const from = String(body.mailFrom ?? '').trim() || user;
@@ -755,9 +845,18 @@ export class ConfiguracionService implements OnModuleInit {
     // (con las imagenes incrustadas) para que el admin vea exactamente lo que
     // recibira el cliente. Si no, envia el mensaje simple de conexion.
     let html = '';
-    let attachments: Array<{ filename: string; path: string; cid: string; contentType?: string }> | undefined;
+    let attachments:
+      | Array<{
+          filename: string;
+          path: string;
+          cid: string;
+          contentType?: string;
+        }>
+      | undefined;
     if (typeof body.cuerpo === 'string' && body.cuerpo.trim()) {
-      const { html: htmlFinal, smtpAttachments } = await embedInlineImages(body.cuerpo);
+      const { html: htmlFinal, smtpAttachments } = await embedInlineImages(
+        body.cuerpo,
+      );
       html = htmlFinal;
       attachments = smtpAttachments.length ? smtpAttachments : undefined;
     }
@@ -836,7 +935,10 @@ export class ConfiguracionService implements OnModuleInit {
       );
     }
 
-    if (data.ticketEmailDesign !== undefined && !Array.isArray(data.ticketEmailDesign)) {
+    if (
+      data.ticketEmailDesign !== undefined &&
+      !Array.isArray(data.ticketEmailDesign)
+    ) {
       data.ticketEmailDesign = null;
     }
 
@@ -848,7 +950,7 @@ export class ConfiguracionService implements OnModuleInit {
     }
 
     if (data.aiPromptConfig && typeof data.aiPromptConfig === 'object') {
-      const aiCfg = data.aiPromptConfig as Record<string, any>;
+      const aiCfg = data.aiPromptConfig;
       if (typeof aiCfg.nombreAsistente === 'string') {
         aiCfg.nombreAsistente = cleanText(aiCfg.nombreAsistente, 200);
       }
@@ -856,7 +958,10 @@ export class ConfiguracionService implements OnModuleInit {
         aiCfg.especialidad = cleanText(aiCfg.especialidad, 200);
       }
       if (typeof aiCfg.instruccionesGenerales === 'string') {
-        aiCfg.instruccionesGenerales = cleanText(aiCfg.instruccionesGenerales, 2000);
+        aiCfg.instruccionesGenerales = cleanText(
+          aiCfg.instruccionesGenerales,
+          2000,
+        );
       }
       if (typeof aiCfg.feedbackPositivo === 'string') {
         aiCfg.feedbackPositivo = cleanText(aiCfg.feedbackPositivo, 500);
@@ -880,19 +985,34 @@ export class ConfiguracionService implements OnModuleInit {
         aiCfg.mensajeGroseria = cleanText(aiCfg.mensajeGroseria, 500);
       }
       if (typeof aiCfg.limiteGroserias !== 'undefined') {
-        aiCfg.limiteGroserias = Math.max(1, Math.min(10, Number(aiCfg.limiteGroserias) || 3));
+        aiCfg.limiteGroserias = Math.max(
+          1,
+          Math.min(10, Number(aiCfg.limiteGroserias) || 3),
+        );
       }
       if (typeof aiCfg.mensajeSesionTerminada === 'string') {
-        aiCfg.mensajeSesionTerminada = cleanText(aiCfg.mensajeSesionTerminada, 500);
+        aiCfg.mensajeSesionTerminada = cleanText(
+          aiCfg.mensajeSesionTerminada,
+          500,
+        );
       }
       if (typeof aiCfg.mensajeSinInformacion === 'string') {
-        aiCfg.mensajeSinInformacion = cleanText(aiCfg.mensajeSinInformacion, 500);
+        aiCfg.mensajeSinInformacion = cleanText(
+          aiCfg.mensajeSinInformacion,
+          500,
+        );
       }
       if (typeof aiCfg.sugerirAsesorAutomatico !== 'undefined') {
         aiCfg.sugerirAsesorAutomatico = Boolean(aiCfg.sugerirAsesorAutomatico);
       }
       if (aiCfg.roles && typeof aiCfg.roles === 'object') {
-        const validKeys = ['administrador', 'docente', 'coordinador', 'estudiante', 'padre'];
+        const validKeys = [
+          'administrador',
+          'docente',
+          'coordinador',
+          'estudiante',
+          'padre',
+        ];
         for (const key of Object.keys(aiCfg.roles)) {
           if (!validKeys.includes(key)) {
             delete aiCfg.roles[key];
@@ -975,9 +1095,7 @@ export class ConfiguracionService implements OnModuleInit {
 
   async getHorarioEstado(): Promise<HorarioEstado> {
     const config = await this.getGlobal();
-    const horarios = [...(config.horarios ?? [])].sort(
-      (a, b) => a.dia - b.dia,
-    );
+    const horarios = [...(config.horarios ?? [])].sort((a, b) => a.dia - b.dia);
     const ahora = new Date();
     const diaHoy = ahora.getDay();
     const hhmm = this.hhmm(ahora);
@@ -1031,9 +1149,19 @@ export class ConfiguracionService implements OnModuleInit {
   private getProximaApertura(
     horarios: HorarioSlot[],
     ahora: Date,
-  ): { label: string; hora: string; tipo: HorarioEstado['proximaTipo']; dia: number } {
+  ): {
+    label: string;
+    hora: string;
+    tipo: HorarioEstado['proximaTipo'];
+    dia: number;
+  } {
     if (!horarios.length)
-      return { label: 'en nuestro proximo horario', hora: '', tipo: '', dia: -1 };
+      return {
+        label: 'en nuestro proximo horario',
+        hora: '',
+        tipo: '',
+        dia: -1,
+      };
 
     const minutosAhora = ahora.getHours() * 60 + ahora.getMinutes();
     const diaHoy = ahora.getDay();
@@ -1048,9 +1176,19 @@ export class ConfiguracionService implements OnModuleInit {
         if (offset === 0 && this.toMinutes(slot.inicio) <= minutosAhora)
           continue;
         if (offset === 0)
-          return { label: `hoy a las ${slot.inicio}`, hora: slot.inicio, tipo: 'hoy', dia };
+          return {
+            label: `hoy a las ${slot.inicio}`,
+            hora: slot.inicio,
+            tipo: 'hoy',
+            dia,
+          };
         if (offset === 1)
-          return { label: `manana a las ${slot.inicio}`, hora: slot.inicio, tipo: 'manana', dia };
+          return {
+            label: `manana a las ${slot.inicio}`,
+            hora: slot.inicio,
+            tipo: 'manana',
+            dia,
+          };
         return {
           label: `el ${this.dias[dia]} a las ${slot.inicio}`,
           hora: slot.inicio,

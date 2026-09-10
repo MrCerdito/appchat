@@ -34,7 +34,8 @@ export class TicketsGateway
     try {
       const token =
         (client.handshake.auth?.token as string) ??
-        (client.handshake.headers?.authorization?.replace('Bearer ', '') ?? '');
+        client.handshake.headers?.authorization?.replace('Bearer ', '') ??
+        '';
 
       // Sin token el socket puede ser legítimamente un cliente anónimo del
       // widget (chat). Este gateway comparte el namespace raíz con el chat:
@@ -46,7 +47,10 @@ export class TicketsGateway
       });
 
       const userId = payload.sub ?? payload.id;
-      if (!userId) { client.disconnect(); return; }
+      if (!userId) {
+        client.disconnect();
+        return;
+      }
 
       (client as any).userId = userId;
       client.join('tickets-room');

@@ -9,10 +9,24 @@ import { Session } from './entities/session.entity';
 import { User } from 'src/auth/entities/user.entity';
 import { Message } from '../chat/entities/message.entity';
 import { SessionEvento } from '../chat/entities/session-evento.entity';
+import { SessionAssignmentEvento } from '../chat/entities/session-assignment-evento.entity';
 import { Colegio } from './entities/colegio.entity';
 import { Rating } from './entities/rating.entity';
 import { matchColegio } from '../common/url/url-match.util';
 import { AiLogsService } from 'src/ai/ai-logs.service';
+import { AdvisorActivityService } from '../advisor-activity/advisor-activity.service';
+
+/** Opciones de balance de asignación (parametrizadas desde la config global). */
+export interface AssignmentOpts {
+  /** 'carga' = menos chats activos; 'hoy' = equitativo por "atendidos hoy". */
+  balanceTipo?: 'carga' | 'hoy';
+  /** Límite de chats activos por asesor (web). */
+  maxChats?: number;
+  /** Incluir sesiones cerradas hoy dentro de "atendidos hoy". */
+  contarCerradasHoy?: boolean;
+  /** Priorizar al asesor encargado del colegio antes de la cola. */
+  priorizarColegio?: boolean;
+}
 
 @Injectable()
 export class SessionsService {
@@ -30,10 +44,13 @@ export class SessionsService {
     @InjectRepository(Rating) private readonly ratingRepo: Repository<Rating>,
     @InjectRepository(SessionEvento)
     private readonly sessionEventoRepo: Repository<SessionEvento>,
+    @InjectRepository(SessionAssignmentEvento)
+    private readonly sessionAssignmentRepo: Repository<SessionAssignmentEvento>,
     @Inject(CACHE_MANAGER)
     private readonly cache: Cache,
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly aiLogs: AiLogsService,
+    private readonly activity: AdvisorActivityService,
   ) {}
 
   async invalidateCache(pattern?: string): Promise<void> {
@@ -46,6 +63,42 @@ export class SessionsService {
         await this.cache.del(`${this.CACHE_PREFIX}ranking`);
       }
     } catch {}
+  }
+
+  /** Registra un evento de asignación/re-asignación/desconexión/IA para el
+   *  historial de la sesión (agrupa ambigüedades en un try/catch silencioso). */
+  async registrarAsignacion(
+    sessionId: string,
+    tipo: 'asignado' | 'reasignado' | 'desconectado' | 'ia' | 'solicitud_asesor',
+    opts: {
+      advisorId?: string | null;
+      advisorName?: string | null;
+      detalle?: Record<string, any> | null;
+    } = {},
+  ): Promise<void> {
+    try {
+      await this.sessionAssignmentRepo.save(
+        this.sessionAssignmentRepo.create({
+          sessionId,
+          tipo,
+          advisorId: opts.advisorId ?? null,
+          advisorName: opts.advisorName ?? null,
+          detalle: opts.detalle ?? null,
+        }),
+      );
+    } catch (error) {
+      this.logger.warn(
+        `No se pudo registrar asignacion (${tipo}) en ${sessionId}: ${error?.message ?? error}`,
+      );
+    }
+  }
+
+  /** Historial de asignaciones de una sesión, cronológico (más antiguo primero). */
+  async historialAsignaciones(sessionId: string): Promise<SessionAssignmentEvento[]> {
+    return this.sessionAssignmentRepo.find({
+      where: { sessionId },
+      order: { createdAt: 'ASC' },
+    });
   }
 
   private generarCodigo(): string {
@@ -211,15 +264,19 @@ export class SessionsService {
     return this.attachUnreadCounts(await this.attachLastMessages(enriched));
   }
 
-  private async enrichSessionsWithColegioAdvisor(sessions: Session[]): Promise<Session[]> {
-    const colegioNames = [...new Set(sessions.map(s => s.colegio).filter(Boolean))];
+  private async enrichSessionsWithColegioAdvisor(
+    sessions: Session[],
+  ): Promise<Session[]> {
+    const colegioNames = [
+      ...new Set(sessions.map((s) => s.colegio).filter(Boolean)),
+    ];
     if (!colegioNames.length) return sessions;
 
     const colegios = await this.colegioRepo.find({
       where: { nombre: In(colegioNames) },
       relations: ['advisor'],
     });
-    const byNombre = new Map(colegios.map(c => [c.nombre, c]));
+    const byNombre = new Map(colegios.map((c) => [c.nombre, c]));
 
     for (const session of sessions) {
       if (!session.colegio) continue;
@@ -287,7 +344,10 @@ export class SessionsService {
       id: session.id,
       status: session.status,
       advisor: session.advisor
-        ? { name: session.advisor.name, profilePhotoUrl: session.advisor.profilePhotoUrl ?? undefined }
+        ? {
+            name: session.advisor.name,
+            profilePhotoUrl: session.advisor.profilePhotoUrl ?? undefined,
+          }
         : null,
       colegio: session.colegio ?? '',
       tipoSolicitud: session.tipoSolicitud ?? '',
@@ -351,7 +411,7 @@ export class SessionsService {
     const result = await this.sessionRepo
       .createQueryBuilder()
       .update(Session)
-      .set({ status: 'active', advisor: { id: advisorId } as any })
+      .set({ status: 'active', advisor: { id: advisorId } })
       .where('id = :id', { id: sessionId })
       .andWhere("status = 'waiting'")
       .execute();
@@ -362,16 +422,17 @@ export class SessionsService {
 
     return { session: await this.findOne(sessionId), won };
   }
-  async findAvailableAdvisor(): Promise<User | null> {
+  async findAvailableAdvisor(opts: AssignmentOpts = {}): Promise<User | null> {
     const advisors = await this.userRepo.find({
       where: { role: 'advisor', status: 'online', active: true },
       order: { createdAt: 'ASC' },
     });
-    return this.pickLeastLoadedAdvisor(advisors);
+    return this.pickLeastLoadedAdvisor(advisors, opts);
   }
 
   async findAvailableAdvisorFromList(
     connectedIds: string[],
+    opts: AssignmentOpts = {},
   ): Promise<User | null> {
     if (!connectedIds.length) return null;
 
@@ -384,7 +445,7 @@ export class SessionsService {
       .orderBy('user.createdAt', 'ASC')
       .getMany();
 
-    return this.pickLeastLoadedAdvisor(candidates);
+    return this.pickLeastLoadedAdvisor(candidates, opts);
   }
 
   async incrementAdvisorChats(advisorId: string): Promise<void> {
@@ -408,30 +469,58 @@ export class SessionsService {
     return activeChats;
   }
 
-  private async pickLeastLoadedAdvisor(advisors: User[]): Promise<User | null> {
+  private async pickLeastLoadedAdvisor(
+    advisors: User[],
+    opts: AssignmentOpts = {},
+  ): Promise<User | null> {
     if (!advisors.length) return null;
 
-    const maxChats = Number(process.env.MAX_ACTIVE_CHATS_PER_ADVISOR ?? 4);
-    const counts = await this.getActiveCountsByAdvisor(
-      advisors.map((advisor) => advisor.id),
-    );
-    const available = advisors
+    const maxChats =
+      opts.maxChats ?? Number(process.env.MAX_ACTIVE_CHATS_PER_ADVISOR ?? 4);
+    const balanceTipo = opts.balanceTipo ?? 'hoy';
+    const ids = advisors.map((advisor) => advisor.id);
+
+    const [activeCounts, todayCounts] = await Promise.all([
+      this.getActiveCountsByAdvisor(ids),
+      balanceTipo === 'hoy'
+        ? this.getTodayAttendedCountsByAdvisor(ids, opts.contarCerradasHoy)
+        : Promise.resolve(new Map<string, number>()),
+    ]);
+
+    const scored = advisors
       .map((advisor) => ({
         advisor,
-        activeCount: counts.get(advisor.id) ?? 0,
+        activeCount: activeCounts.get(advisor.id) ?? 0,
+        todayCount: todayCounts.get(advisor.id) ?? 0,
       }))
-      .filter((item) => item.activeCount < maxChats)
-      .sort(
-        (a, b) =>
-          a.activeCount - b.activeCount ||
-          new Date(a.advisor.createdAt).getTime() -
-            new Date(b.advisor.createdAt).getTime(),
-      );
+      .filter((item) => item.activeCount < maxChats);
 
-    if (!available.length) return null;
+    if (!scored.length) return null;
 
-    const lowest = available[0].activeCount;
-    const tied = available.filter((item) => item.activeCount === lowest);
+    // 'hoy': criterio principal = menos atendidos hoy; desempate por carga
+    // activa y luego antigüedad del asesor.
+    scored.sort(
+      balanceTipo === 'hoy'
+        ? (a, b) =>
+            a.todayCount - b.todayCount ||
+            a.activeCount - b.activeCount ||
+            new Date(a.advisor.createdAt).getTime() -
+              new Date(b.advisor.createdAt).getTime()
+        : (a, b) =>
+            a.activeCount - b.activeCount ||
+            new Date(a.advisor.createdAt).getTime() -
+              new Date(b.advisor.createdAt).getTime(),
+    );
+
+    // Empate en el criterio principal → selección aleatoria entre los
+    // empatados (así el orden de createdAt NO decide quién recibe el chat).
+    const lowest =
+      balanceTipo === 'hoy' ? scored[0].todayCount : scored[0].activeCount;
+    const tied = scored.filter((item) =>
+      balanceTipo === 'hoy'
+        ? item.todayCount === lowest
+        : item.activeCount === lowest,
+    );
     const picked = tied[Math.floor(Math.random() * tied.length)].advisor;
     await this.syncAdvisorActiveChats(picked.id);
     return picked;
@@ -454,11 +543,66 @@ export class SessionsService {
     return new Map(rows.map((row) => [row.advisorId, Number(row.count)]));
   }
 
+  /**
+   * Conteo de sesiones "atendidas hoy" por asesor: las creadas hoy siempre
+   * cuentan; las cerradas hoy cuentan solo si `contarCerradasHoy` no es false.
+   * Usa la frontera del día en zona Bogotá (UTC-5), como getMetricsByAdvisor.
+   */
+  private async getTodayAttendedCountsByAdvisor(
+    advisorIds: string[],
+    contarCerradasHoy?: boolean,
+  ): Promise<Map<string, number>> {
+    if (!advisorIds.length) return new Map();
+
+    const bogotaNow = new Date(Date.now() - 5 * 3600000);
+    const hoy = new Date(
+      Date.UTC(
+        bogotaNow.getUTCFullYear(),
+        bogotaNow.getUTCMonth(),
+        bogotaNow.getUTCDate(),
+      ),
+    );
+
+    const qb = this.sessionRepo
+      .createQueryBuilder('session')
+      .select('session.advisor_id', 'advisorId')
+      .addSelect('COUNT(session.id)', 'count')
+      .where('session.advisor_id IN (:...advisorIds)', { advisorIds });
+
+    if (contarCerradasHoy === false) {
+      qb.andWhere('session.created_at >= :hoy', { hoy });
+    } else {
+      qb.andWhere('(session.created_at >= :hoy OR session.closed_at >= :hoy)', {
+        hoy,
+      });
+    }
+
+    const rows = await qb
+      .groupBy('session.advisor_id')
+      .getRawMany<{ advisorId: string; count: string }>();
+
+    return new Map(rows.map((row) => [row.advisorId, Number(row.count)]));
+  }
+
   async setAdvisorStatus(
     advisorId: string,
     status: string,
+    opts?: { causa?: string },
   ): Promise<User | null> {
     if (!advisorId) return null;
+
+    // Historial: solo se registra el evento si el estado realmente cambió.
+    try {
+      const prev = await this.userRepo
+        .findOne({ where: { id: advisorId }, select: ['id', 'status'] })
+        .catch(() => null);
+      if (prev && prev.status !== status) {
+        await this.activity.registrar(advisorId, status as any, {
+          causa: opts?.causa,
+        });
+      }
+    } catch {}
+
     await this.syncAdvisorActiveChats(advisorId);
     await this.userRepo.update({ id: advisorId }, { status });
     return this.userRepo.findOne({ where: { id: advisorId } });
@@ -595,7 +739,13 @@ export class SessionsService {
     const now = new Date();
     const offset = tz === 'America/Bogota' ? -5 : 0;
     const bogotaNow = new Date(now.getTime() + offset * 3600000);
-    const hoy = new Date(Date.UTC(bogotaNow.getUTCFullYear(), bogotaNow.getUTCMonth(), bogotaNow.getUTCDate()));
+    const hoy = new Date(
+      Date.UTC(
+        bogotaNow.getUTCFullYear(),
+        bogotaNow.getUTCMonth(),
+        bogotaNow.getUTCDate(),
+      ),
+    );
 
     const inicioSemana = new Date(hoy);
     inicioSemana.setUTCDate(inicioSemana.getUTCDate() - 7);
@@ -605,11 +755,17 @@ export class SessionsService {
       .select('COUNT(*)', 'total')
       .addSelect("COUNT(*) FILTER (WHERE s.status = 'closed')", 'closed')
       .addSelect("COUNT(*) FILTER (WHERE s.status = 'active')", 'active')
-      .addSelect("COUNT(*) FILTER (WHERE s.created_at >= :hoy)", 'today')
-      .addSelect("COUNT(*) FILTER (WHERE s.created_at >= :week)", 'week')
+      .addSelect('COUNT(*) FILTER (WHERE s.created_at >= :hoy)', 'today')
+      .addSelect('COUNT(*) FILTER (WHERE s.created_at >= :week)', 'week')
       .where('s.advisor_id = :id', { id: advisorId })
       .setParameters({ hoy, week: inicioSemana })
-      .getRawOne<{ total: string; closed: string; active: string; today: string; week: string }>();
+      .getRawOne<{
+        total: string;
+        closed: string;
+        active: string;
+        today: string;
+        week: string;
+      }>();
 
     const total = Number(countsRow?.total ?? 0);
     const totalCerradas = Number(countsRow?.closed ?? 0);
@@ -621,13 +777,26 @@ export class SessionsService {
       await Promise.all([
         this.sessionRepo
           .createQueryBuilder('s')
-          .select('AVG(EXTRACT(EPOCH FROM (s.closed_at - s.created_at)) / 60)', 'avgResolution')
-          .addSelect('PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (s.closed_at - s.created_at)) / 60)', 'medianResolution')
-          .addSelect('PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (s.closed_at - s.created_at)) / 60)', 'p95Resolution')
+          .select(
+            'AVG(EXTRACT(EPOCH FROM (s.closed_at - s.created_at)) / 60)',
+            'avgResolution',
+          )
+          .addSelect(
+            'PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (s.closed_at - s.created_at)) / 60)',
+            'medianResolution',
+          )
+          .addSelect(
+            'PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (s.closed_at - s.created_at)) / 60)',
+            'p95Resolution',
+          )
           .where('s.advisor_id = :id', { id: advisorId })
           .andWhere("s.status = 'closed'")
           .andWhere('s.closed_at IS NOT NULL')
-          .getRawOne<{ avgResolution: string | null; medianResolution: string | null; p95Resolution: string | null }>(),
+          .getRawOne<{
+            avgResolution: string | null;
+            medianResolution: string | null;
+            p95Resolution: string | null;
+          }>(),
         this.userRepo.findOne({
           where: { id: advisorId },
           select: ['id', 'name', 'email', 'status', 'activeChats', 'createdAt'],
@@ -642,23 +811,28 @@ export class SessionsService {
           .catch(() => null),
         this.messageRepo
           .createQueryBuilder('m')
-          .select('AVG(EXTRACT(EPOCH FROM (m.created_at - s.created_at)) / 60)', 'avgFirstResponse')
+          .select(
+            'AVG(EXTRACT(EPOCH FROM (m.created_at - s.created_at)) / 60)',
+            'avgFirstResponse',
+          )
           .innerJoin('m.session', 's')
           .where('s.advisor_id = :id', { id: advisorId })
           .andWhere("s.status = 'closed'")
           .andWhere("m.sender_type = 'advisor'")
           .getRawOne<{ avgFirstResponse: string | null }>()
           .catch(() => null),
-        this.dataSource.query(
-          `SELECT etiqueta.e AS "etiqueta", COUNT(*)::int AS "cnt"
+        this.dataSource
+          .query(
+            `SELECT etiqueta.e AS "etiqueta", COUNT(*)::int AS "cnt"
              FROM ratings r
              INNER JOIN sessions s ON s.id = r.session_id
              CROSS JOIN LATERAL jsonb_array_elements_text(r.etiquetas) AS etiqueta(e)
             WHERE s.advisor_id = $1
             GROUP BY etiqueta.e
             ORDER BY COUNT(*) DESC`,
-          [advisorId],
-        ).catch(() => [] as { etiqueta: string; cnt: number }[]),
+            [advisorId],
+          )
+          .catch(() => [] as { etiqueta: string; cnt: number }[]),
       ]);
 
     const sesionesAtendidas = totalCerradas + totalActivas;
@@ -695,9 +869,13 @@ export class SessionsService {
       totalActivas,
       tasaResolucion,
       avgResolucionMin: Math.round(Number(timingRow?.avgResolution) || 0),
-      medianaResolucionMin: Math.round(Number(timingRow?.medianResolution) || 0),
+      medianaResolucionMin: Math.round(
+        Number(timingRow?.medianResolution) || 0,
+      ),
       p95ResolucionMin: Math.round(Number(timingRow?.p95Resolution) || 0),
-      avgPrimeraRespuestaMin: Math.round(Number(firstResponseRow?.avgFirstResponse) || 0),
+      avgPrimeraRespuestaMin: Math.round(
+        Number(firstResponseRow?.avgFirstResponse) || 0,
+      ),
       medianaPrimeraRespuestaMin: 0,
       p95PrimeraRespuestaMin: 0,
       totalRatings,
@@ -745,11 +923,13 @@ export class SessionsService {
   }
 
   async getMessages(sessionId: string, limit = 100): Promise<Message[]> {
-    return this.messageRepo.find({
-      where: { session: { id: sessionId } },
-      order: { createdAt: 'DESC' },
-      take: limit,
-    }).then(msgs => msgs.reverse());
+    return this.messageRepo
+      .find({
+        where: { session: { id: sessionId } },
+        order: { createdAt: 'DESC' },
+        take: limit,
+      })
+      .then((msgs) => msgs.reverse());
   }
 
   /** Timeline unificada (mensajes + eventos) con paginación por cursor hacia
@@ -829,17 +1009,32 @@ export class SessionsService {
       .groupBy('s.status')
       .getRawMany<{ status: string; count: string }>();
 
-    const statusMap = new Map(statusRows.map((r) => [r.status, Number(r.count)]));
+    const statusMap = new Map(
+      statusRows.map((r) => [r.status, Number(r.count)]),
+    );
     const total = statusRows.reduce((sum, r) => sum + Number(r.count), 0);
 
     const timingRow = await this.sessionRepo
       .createQueryBuilder('s')
-      .select('AVG(EXTRACT(EPOCH FROM (s.closed_at - s.created_at)) / 60)', 'avgMinutes')
-      .addSelect('PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (s.closed_at - s.created_at)) / 60)', 'medianMinutes')
-      .addSelect('PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (s.closed_at - s.created_at)) / 60)', 'p95Minutes')
+      .select(
+        'AVG(EXTRACT(EPOCH FROM (s.closed_at - s.created_at)) / 60)',
+        'avgMinutes',
+      )
+      .addSelect(
+        'PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (s.closed_at - s.created_at)) / 60)',
+        'medianMinutes',
+      )
+      .addSelect(
+        'PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (s.closed_at - s.created_at)) / 60)',
+        'p95Minutes',
+      )
       .where('s.status = :status', { status: 'closed' })
       .andWhere('s.closed_at IS NOT NULL')
-      .getRawOne<{ avgMinutes: string | null; medianMinutes: string | null; p95Minutes: string | null }>();
+      .getRawOne<{
+        avgMinutes: string | null;
+        medianMinutes: string | null;
+        p95Minutes: string | null;
+      }>();
 
     const advisors = await this.userRepo.find({
       where: { role: 'advisor' },
@@ -916,13 +1111,25 @@ export class SessionsService {
     ];
     const now = new Date();
     const resumenRows: Array<{ metrica: string; valor: string | number }> = [
-      { metrica: 'Fecha de generación', valor: now.toLocaleString('es-CO', { timeZone: 'America/Bogota' }) },
+      {
+        metrica: 'Fecha de generación',
+        valor: now.toLocaleString('es-CO', { timeZone: 'America/Bogota' }),
+      },
       ...(desde ? [{ metrica: 'Desde', valor: desde }] : []),
       ...(hasta ? [{ metrica: 'Hasta', valor: hasta }] : []),
       { metrica: 'Total sesiones', valor: (base as any).total ?? 0 },
-      { metrica: 'Sesiones activas', valor: (base as any).active ?? (base as any).totalActivas ?? 0 },
-      { metrica: 'Sesiones cerradas', valor: (base as any).closed ?? (base as any).totalCerradas ?? 0 },
-      { metrica: 'Tiempo promedio resolución (min)', valor: (base as any).avgMinutes ?? (base as any).avgResolucionMin ?? 0 },
+      {
+        metrica: 'Sesiones activas',
+        valor: (base as any).active ?? (base as any).totalActivas ?? 0,
+      },
+      {
+        metrica: 'Sesiones cerradas',
+        valor: (base as any).closed ?? (base as any).totalCerradas ?? 0,
+      },
+      {
+        metrica: 'Tiempo promedio resolución (min)',
+        valor: (base as any).avgMinutes ?? (base as any).avgResolucionMin ?? 0,
+      },
     ];
     resumen.addRows(resumenRows);
     resumen.getColumn('metrica').font = { bold: true };
@@ -939,19 +1146,52 @@ export class SessionsService {
     ];
     ia.addRows([
       { metrica: 'Interacciones totales', valor: aiStats.total ?? 0 },
-      { metrica: 'Con contexto RAG', valor: aiStats.conContexto ?? 0, tasa: `${aiStats.tasas?.contexto ?? 0}%` },
-      { metrica: 'Transferencias a asesor', valor: aiStats.transfers ?? 0, tasa: `${aiStats.tasas?.transfer ?? 0}%` },
-      { metrica: 'Errores', valor: aiStats.errores ?? 0, tasa: `${aiStats.tasas?.error ?? 0}%` },
-      { metrica: 'Temas restringidos', valor: aiStats.esRestringido ?? 0, tasa: `${aiStats.tasas?.restringido ?? 0}%` },
-      { metrica: 'Ofensas detectadas', valor: aiStats.esOfensivo ?? 0, tasa: `${aiStats.tasas?.ofensas ?? 0}%` },
-      { metrica: 'Feedback útil', valor: aiStats.feedbackPositivo ?? 0, tasa: `${aiStats.tasas?.feedbackUtil ?? 0}%` },
+      {
+        metrica: 'Con contexto RAG',
+        valor: aiStats.conContexto ?? 0,
+        tasa: `${aiStats.tasas?.contexto ?? 0}%`,
+      },
+      {
+        metrica: 'Transferencias a asesor',
+        valor: aiStats.transfers ?? 0,
+        tasa: `${aiStats.tasas?.transfer ?? 0}%`,
+      },
+      {
+        metrica: 'Errores',
+        valor: aiStats.errores ?? 0,
+        tasa: `${aiStats.tasas?.error ?? 0}%`,
+      },
+      {
+        metrica: 'Temas restringidos',
+        valor: aiStats.esRestringido ?? 0,
+        tasa: `${aiStats.tasas?.restringido ?? 0}%`,
+      },
+      {
+        metrica: 'Ofensas detectadas',
+        valor: aiStats.esOfensivo ?? 0,
+        tasa: `${aiStats.tasas?.ofensas ?? 0}%`,
+      },
+      {
+        metrica: 'Feedback útil',
+        valor: aiStats.feedbackPositivo ?? 0,
+        tasa: `${aiStats.tasas?.feedbackUtil ?? 0}%`,
+      },
       { metrica: 'Feedback no útil', valor: aiStats.feedbackNegativo ?? 0 },
-      { metrica: 'Feedback sin responder', valor: aiStats.feedbackSinResponder ?? 0 },
-      { metrica: 'Tiempo promedio respuesta (ms)', valor: aiStats.tiempoPromedioMs ?? 0 },
+      {
+        metrica: 'Feedback sin responder',
+        valor: aiStats.feedbackSinResponder ?? 0,
+      },
+      {
+        metrica: 'Tiempo promedio respuesta (ms)',
+        valor: aiStats.tiempoPromedioMs ?? 0,
+      },
       { metrica: 'Mediana respuesta (ms)', valor: aiStats.medianaMs ?? 0 },
       { metrica: 'P95 respuesta (ms)', valor: aiStats.p95Ms ?? 0 },
       { metrica: 'Tokens promedio', valor: aiStats.tokensPromedio ?? 0 },
-      { metrica: 'Tokens totales estimados', valor: aiStats.tokensTotales ?? 0 },
+      {
+        metrica: 'Tokens totales estimados',
+        valor: aiStats.tokensTotales ?? 0,
+      },
     ]);
     ia.getColumn('metrica').font = { bold: true };
 
@@ -961,7 +1201,10 @@ export class SessionsService {
       { header: 'Valor', key: 'valor', width: 30 },
       { header: 'Cantidad', key: 'cantidad', width: 12 },
     ];
-    const push = (categoria: string, arr: Array<{ valor: string; count: string | number }>) => {
+    const push = (
+      categoria: string,
+      arr: Array<{ valor: string; count: string | number }>,
+    ) => {
       for (const item of arr ?? []) {
         iaDetalle.addRow({
           categoria,
@@ -1132,7 +1375,7 @@ export class SessionsService {
     return sessions.map((s) => ({
       ...s,
       unreadCount: bySession.get(s.id) ?? 0,
-    })) as Session[];
+    }));
   }
 
   /** Añade `lastMessage` (último mensaje de la sesión, sea del cliente, la IA
@@ -1184,7 +1427,7 @@ export class SessionsService {
             }
           : null,
       };
-    }) as Session[];
+    });
   }
 
   async findAllAdminPaginated(
@@ -1227,12 +1470,13 @@ export class SessionsService {
       .getOne();
   }
 
-  private sanitizeLinks(raw: string[] | undefined, linkPrincipal: string): string[] {
-    const truncate = (s: string, max: number) => s.length > max ? s.slice(0, max) : s;
-    const all = [
-      linkPrincipal,
-      ...(raw || []),
-    ];
+  private sanitizeLinks(
+    raw: string[] | undefined,
+    linkPrincipal: string,
+  ): string[] {
+    const truncate = (s: string, max: number) =>
+      s.length > max ? s.slice(0, max) : s;
+    const all = [linkPrincipal, ...(raw || [])];
     const seen = new Set<string>();
     const result: string[] = [];
     for (const raw of all) {
@@ -1247,18 +1491,33 @@ export class SessionsService {
     return result;
   }
 
-  async detectarColegio(url: string): Promise<{ id: string; nombre: string } | null> {
+  async detectarColegio(
+    url: string,
+  ): Promise<{ id: string; nombre: string } | null> {
     const colegios = await this.findAllColegios();
     const match = matchColegio(colegios, url);
     return match ? { id: match.id, nombre: match.nombre } : null;
   }
 
-  async createColegio(data: { nombre: string; link: string; email?: string; calendario?: string; tipoColegio?: string; ciudad?: string; advisorId?: string; links?: string[] }): Promise<Colegio> {
-    const truncate = (s: string, max: number) => s.length > max ? s.slice(0, max) : s;
+  async createColegio(data: {
+    nombre: string;
+    link: string;
+    email?: string;
+    calendario?: string;
+    tipoColegio?: string;
+    ciudad?: string;
+    advisorId?: string;
+    links?: string[];
+  }): Promise<Colegio> {
+    const truncate = (s: string, max: number) =>
+      s.length > max ? s.slice(0, max) : s;
     const nombre = truncate(data.nombre, 200);
     const link = truncate(data.link, 500);
     const existing = await this.colegioRepo.findOne({ where: { nombre } });
-    if (existing) throw new NotFoundException(`Ya existe un colegio con el nombre "${nombre}"`);
+    if (existing)
+      throw new NotFoundException(
+        `Ya existe un colegio con el nombre "${nombre}"`,
+      );
 
     const links = this.sanitizeLinks(data.links, link);
 
@@ -1277,16 +1536,33 @@ export class SessionsService {
       saved = await this.colegioRepo.save(colegio);
     } catch (err: any) {
       if (err?.code === '23505') {
-        throw new NotFoundException(`Ya existe un colegio con el nombre "${nombre}"`);
+        throw new NotFoundException(
+          `Ya existe un colegio con el nombre "${nombre}"`,
+        );
       }
       throw err;
     }
-    try { await this.cache.del(`${this.CACHE_PREFIX}colegios`); } catch {}
+    try {
+      await this.cache.del(`${this.CACHE_PREFIX}colegios`);
+    } catch {}
     return saved;
   }
 
-  async updateColegio(id: string, data: { nombre?: string; link?: string; email?: string; calendario?: string; tipoColegio?: string; ciudad?: string; advisorId?: string | null; links?: string[] }): Promise<Colegio> {
-    const truncate = (s: string, max: number) => s.length > max ? s.slice(0, max) : s;
+  async updateColegio(
+    id: string,
+    data: {
+      nombre?: string;
+      link?: string;
+      email?: string;
+      calendario?: string;
+      tipoColegio?: string;
+      ciudad?: string;
+      advisorId?: string | null;
+      links?: string[];
+    },
+  ): Promise<Colegio> {
+    const truncate = (s: string, max: number) =>
+      s.length > max ? s.slice(0, max) : s;
     const colegio = await this.colegioRepo.findOne({ where: { id } });
     if (!colegio) throw new NotFoundException('Colegio no encontrado');
 
@@ -1294,29 +1570,46 @@ export class SessionsService {
       const nombre = truncate(data.nombre, 200);
       if (nombre !== colegio.nombre) {
         const dup = await this.colegioRepo.findOne({ where: { nombre } });
-        if (dup) throw new NotFoundException(`Ya existe un colegio con el nombre "${nombre}"`);
+        if (dup)
+          throw new NotFoundException(
+            `Ya existe un colegio con el nombre "${nombre}"`,
+          );
         colegio.nombre = nombre;
       }
     }
     if (data.link !== undefined) colegio.link = truncate(data.link, 500);
-    if (data.email !== undefined) colegio.email = data.email ? truncate(data.email, 200) : '';
-    if (data.calendario !== undefined) colegio.calendario = data.calendario || null;
-    if (data.tipoColegio !== undefined) colegio.tipoColegio = data.tipoColegio || null;
-    if (data.ciudad !== undefined) colegio.ciudad = data.ciudad ? truncate(data.ciudad, 100) : null;
-    if (data.advisorId !== undefined) colegio.advisorId = data.advisorId || null;
-    if (data.links !== undefined) colegio.links = this.sanitizeLinks(data.links, colegio.link);
+    if (data.email !== undefined)
+      colegio.email = data.email ? truncate(data.email, 200) : '';
+    if (data.calendario !== undefined)
+      colegio.calendario = data.calendario || null;
+    if (data.tipoColegio !== undefined)
+      colegio.tipoColegio = data.tipoColegio || null;
+    if (data.ciudad !== undefined)
+      colegio.ciudad = data.ciudad ? truncate(data.ciudad, 100) : null;
+    if (data.advisorId !== undefined)
+      colegio.advisorId = data.advisorId || null;
+    if (data.links !== undefined)
+      colegio.links = this.sanitizeLinks(data.links, colegio.link);
 
     let saved: Colegio;
     try {
       saved = await this.colegioRepo.save(colegio);
     } catch (err: any) {
       if (err?.code === '23505') {
-        throw new NotFoundException(`Ya existe un colegio con el nombre "${colegio.nombre}"`);
+        throw new NotFoundException(
+          `Ya existe un colegio con el nombre "${colegio.nombre}"`,
+        );
       }
       throw err;
     }
-    try { await this.cache.del(`${this.CACHE_PREFIX}colegios`); } catch {}
-    saved = await this.colegioRepo.findOne({ where: { id: saved.id }, relations: ['advisor'] }) || saved;
+    try {
+      await this.cache.del(`${this.CACHE_PREFIX}colegios`);
+    } catch {}
+    saved =
+      (await this.colegioRepo.findOne({
+        where: { id: saved.id },
+        relations: ['advisor'],
+      })) || saved;
     return saved;
   }
 
@@ -1324,18 +1617,35 @@ export class SessionsService {
     const colegio = await this.colegioRepo.findOne({ where: { id } });
     if (!colegio) throw new NotFoundException('Colegio no encontrado');
     await this.colegioRepo.remove(colegio);
-    try { await this.cache.del(`${this.CACHE_PREFIX}colegios`); } catch {}
+    try {
+      await this.cache.del(`${this.CACHE_PREFIX}colegios`);
+    } catch {}
     return { ok: true };
   }
 
-  async importColegios(data: { nombre: string; link: string; email?: string; calendario?: string; tipoColegio?: string; ciudad?: string; asesor?: string; links?: string[] }[]): Promise<{ created: Colegio[]; skipped: number; warnings: string[] }> {
-    const truncate = (s: string, max: number) => s.length > max ? s.slice(0, max) : s;
+  async importColegios(
+    data: {
+      nombre: string;
+      link: string;
+      email?: string;
+      calendario?: string;
+      tipoColegio?: string;
+      ciudad?: string;
+      asesor?: string;
+      links?: string[];
+    }[],
+  ): Promise<{ created: Colegio[]; skipped: number; warnings: string[] }> {
+    const truncate = (s: string, max: number) =>
+      s.length > max ? s.slice(0, max) : s;
     const warnings: string[] = [];
 
     // Build advisor lookup by name (case-insensitive)
-    let advisorMap = new Map<string, string>();
+    const advisorMap = new Map<string, string>();
     try {
-      const allUsers = await this.userRepo.find({ where: { role: In(['advisor', 'admin']), active: true }, select: ['id', 'name'] });
+      const allUsers = await this.userRepo.find({
+        where: { role: In(['advisor', 'admin']), active: true },
+        select: ['id', 'name'],
+      });
       for (const u of allUsers) {
         if (u.name) advisorMap.set(u.name.toLowerCase().trim(), u.id);
       }
@@ -1354,10 +1664,21 @@ export class SessionsService {
         if (found) {
           advisorId = found;
         } else {
-          warnings.push(`Asesor "${d.asesor}" no encontrado para colegio "${nombre}"`);
+          warnings.push(
+            `Asesor "${d.asesor}" no encontrado para colegio "${nombre}"`,
+          );
         }
       }
-      return { nombre, link, email, calendario, tipoColegio, ciudad, advisorId, links: this.sanitizeLinks(d.links, link) };
+      return {
+        nombre,
+        link,
+        email,
+        calendario,
+        tipoColegio,
+        ciudad,
+        advisorId,
+        links: this.sanitizeLinks(d.links, link),
+      };
     });
     const seen = new Set<string>();
     const unique = truncated.filter((d) => {
@@ -1383,23 +1704,32 @@ export class SessionsService {
         created = await this.colegioRepo.save(toCreate);
       } catch (err: any) {
         if (err?.code === '23505') {
-          throw new NotFoundException('Uno o más colegios ya existen (nombre duplicado)');
+          throw new NotFoundException(
+            'Uno o más colegios ya existen (nombre duplicado)',
+          );
         }
         throw err;
       }
     }
-    try { await this.cache.del(`${this.CACHE_PREFIX}colegios`); } catch {}
+    try {
+      await this.cache.del(`${this.CACHE_PREFIX}colegios`);
+    } catch {}
     return { created, skipped: data.length - created.length, warnings };
   }
 
   async deleteColegiosBulk(ids: string[]): Promise<{ deleted: number }> {
     const result = await this.colegioRepo.delete({ id: In(ids) });
-    try { await this.cache.del(`${this.CACHE_PREFIX}colegios`); } catch {}
+    try {
+      await this.cache.del(`${this.CACHE_PREFIX}colegios`);
+    } catch {}
     return { deleted: result.affected ?? 0 };
   }
 
   async exportColegios(): Promise<Colegio[]> {
-    return this.colegioRepo.find({ relations: ['advisor'], order: { nombre: 'ASC' } });
+    return this.colegioRepo.find({
+      relations: ['advisor'],
+      order: { nombre: 'ASC' },
+    });
   }
 
   async getRankingAsesores() {
@@ -1568,7 +1898,8 @@ export class SessionsService {
     const SALT_LENGTH = 32;
 
     const currentKey = process.env.CHAT_ENCRYPTION_KEY?.trim();
-    if (!currentKey) throw new NotFoundException('CHAT_ENCRYPTION_KEY no configurada');
+    if (!currentKey)
+      throw new NotFoundException('CHAT_ENCRYPTION_KEY no configurada');
 
     const entries: { table: string; column: string }[] = [
       { table: 'messages', column: 'content' },
@@ -1603,15 +1934,28 @@ export class SessionsService {
               const iv = Buffer.from(ivB64, 'base64');
               const tag = Buffer.from(tagB64, 'base64');
               const encData = Buffer.from(encryptedB64, 'base64');
-              const oldDerived = pbkdf2Sync(oldKey, salt, PBKDF2_ITERATIONS, PBKDF2_KEYLEN, PBKDF2_DIGEST);
+              const oldDerived = pbkdf2Sync(
+                oldKey,
+                salt,
+                PBKDF2_ITERATIONS,
+                PBKDF2_KEYLEN,
+                PBKDF2_DIGEST,
+              );
               const decipher = createDecipheriv('aes-256-gcm', oldDerived, iv);
               decipher.setAuthTag(tag);
-              decrypted = Buffer.concat([decipher.update(encData), decipher.final()]).toString('utf8');
+              decrypted = Buffer.concat([
+                decipher.update(encData),
+                decipher.final(),
+              ]).toString('utf8');
             } else if (encrypted.startsWith(PREFIX_V1)) {
               const payload = encrypted.slice(PREFIX_V1.length);
               const [ivB64, tagB64, encryptedB64] = payload.split(':');
               const oldDerived = createHash('sha256').update(oldKey).digest();
-              const decipher = createDecipheriv('aes-256-gcm', oldDerived, Buffer.from(ivB64, 'base64'));
+              const decipher = createDecipheriv(
+                'aes-256-gcm',
+                oldDerived,
+                Buffer.from(ivB64, 'base64'),
+              );
               decipher.setAuthTag(Buffer.from(tagB64, 'base64'));
               decrypted = Buffer.concat([
                 decipher.update(Buffer.from(encryptedB64, 'base64')),
@@ -1625,10 +1969,19 @@ export class SessionsService {
           }
 
           const newSalt = randomBytes(SALT_LENGTH);
-          const newDerived = pbkdf2Sync(currentKey, newSalt, PBKDF2_ITERATIONS, PBKDF2_KEYLEN, PBKDF2_DIGEST);
+          const newDerived = pbkdf2Sync(
+            currentKey,
+            newSalt,
+            PBKDF2_ITERATIONS,
+            PBKDF2_KEYLEN,
+            PBKDF2_DIGEST,
+          );
           const newIv = randomBytes(IV_LENGTH);
           const cipher = createCipheriv('aes-256-gcm', newDerived, newIv);
-          const newEncrypted = Buffer.concat([cipher.update(decrypted, 'utf8'), cipher.final()]);
+          const newEncrypted = Buffer.concat([
+            cipher.update(decrypted, 'utf8'),
+            cipher.final(),
+          ]);
           const newTag = cipher.getAuthTag();
 
           const newValue = `${PREFIX_V2}${newSalt.toString('base64')}:${newIv.toString('base64')}:${newTag.toString('base64')}:${newEncrypted.toString('base64')}`;

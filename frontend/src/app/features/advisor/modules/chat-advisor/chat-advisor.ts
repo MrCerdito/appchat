@@ -145,6 +145,11 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   editingText = '';
   readonly EDIT_WINDOW_MS = 15 * 60 * 1000;
 
+  // ── Delete + undo (5 s) ────────────────────────────────────────────────────
+  readonly DELETE_UNDO_MS = 5000;
+  deletedToast: { messageId: string; sessionId: string; remaining: number } | null = null;
+  private deleteTimer: ReturnType<typeof setInterval> | null = null;
+
   replyingTo: Message | null = null;
 
   // ── File attachments ───────────────────────────────────────────────────────
@@ -651,6 +656,35 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
       });
 
     this.socket.on<any>('message_edited')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((msg) => {
+        const sessionId = msg.session?.id ?? msg.sessionId;
+        if (!sessionId) return;
+        this.state.updateMessage(sessionId, msg);
+        this.patchTimeline(
+          sessionId,
+          (t) => t.kind === 'message' && t.id === msg.id,
+          msg,
+        );
+        this.cdr.detectChanges();
+      });
+
+    this.socket.on<any>('message_deleted')
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((msg) => {
+        const sessionId = msg.session?.id ?? msg.sessionId;
+        if (!sessionId) return;
+        this.state.updateMessage(sessionId, msg);
+        this.patchTimeline(
+          sessionId,
+          (t) => t.kind === 'message' && t.id === msg.id,
+          msg,
+        );
+        if (this.editingMessageId === msg.id) this.cancelEdit();
+        this.cdr.detectChanges();
+      });
+
+    this.socket.on<any>('message_restored')
       .pipe(takeUntil(this.destroy$))
       .subscribe((msg) => {
         const sessionId = msg.session?.id ?? msg.sessionId;
@@ -1475,6 +1509,52 @@ leaveCollabChat(): void {
     this.editingText = '';
   }
 
+  canDeleteMessage(msg: any): boolean {
+    if (!this.isOwnMessage(msg)) return false;
+    if (msg.senderName === 'Sistema' || msg.senderName === 'Asistente Virtual') return false;
+    return !msg.deletedAt;
+  }
+
+  deleteMessage(msg: any): void {
+    if (!this.canDeleteMessage(msg) || !this.activeSession) return;
+    if (this.deletedToast) this.clearDeleteToast();
+    this.socket.emit('delete_message', {
+      messageId: msg.id,
+      sessionId: this.activeSession.id,
+    });
+    this.deletedToast = {
+      messageId: msg.id,
+      sessionId: this.activeSession.id,
+      remaining: Math.ceil(this.DELETE_UNDO_MS / 1000),
+    };
+    this.deleteTimer = setInterval(() => {
+      if (this.deletedToast) {
+        this.deletedToast.remaining -= 1;
+        if (this.deletedToast.remaining <= 0) this.clearDeleteToast();
+      }
+      this.cdr.detectChanges();
+    }, 1000);
+  }
+
+  undoDelete(): void {
+    const toast = this.deletedToast;
+    if (!toast || !this.activeSession) return;
+    this.socket.emit('restore_message', {
+      messageId: toast.messageId,
+      sessionId: toast.sessionId,
+    });
+    this.clearDeleteToast();
+  }
+
+  private clearDeleteToast(): void {
+    if (this.deleteTimer) {
+      clearInterval(this.deleteTimer);
+      this.deleteTimer = null;
+    }
+    this.deletedToast = null;
+    this.cdr.detectChanges();
+  }
+
   isOwnMessage(msg: any): boolean {
     return msg.senderType === 'advisor' && msg.senderName === this.currentAdvisor?.name;
   }
@@ -2245,6 +2325,10 @@ leaveCollabChat(): void {
     this.destroy$.next();
     this.destroy$.complete();
     this.resizeObserver?.disconnect();
+    if (this.deleteTimer) {
+      clearInterval(this.deleteTimer);
+      this.deleteTimer = null;
+    }
     if (this.activeSession) {
       this.socket.emit('set_active', { sessionId: this.activeSession.id, active: false });
     }

@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { Subscription, interval } from 'rxjs';
 import { WhatsappChatService } from '../../../../../../core/services/whatsapp-chat.service';
+import { AuthService } from '../../../../../../core/services/auth.service';
 import { WaReportData, WaReportSeries } from '../../../../../../core/models/whatsapp.models';
 import { formatDuration } from '../../../../../../shared/utils/duration';
 
@@ -32,6 +33,7 @@ export class OperacionesReportesComponent implements OnInit, OnDestroy {
   constructor(
     private router: Router,
     private whatsappChat: WhatsappChatService,
+    private auth: AuthService,
     private cdr: ChangeDetectorRef,
   ) {}
 
@@ -141,7 +143,8 @@ export class OperacionesReportesComponent implements OnInit, OnDestroy {
   }
 
   volverAlPanel(): void {
-    this.router.navigate(['/admin/operaciones']);
+    const role = this.auth.getUser()?.role;
+    this.router.navigate(role === 'interno' ? ['/interno'] : ['/admin/operaciones']);
   }
 
   serieMax(series: WaReportSeries[] | undefined): number {

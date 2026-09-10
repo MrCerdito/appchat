@@ -16,6 +16,8 @@ export interface Message {
   readAt    : string | null;
   deliveredAt?: string | null;
   editedAt  : string | null;
+  deletedAt?: string | null;
+  deletedBy?: string | null;
   replyToMessageId?: string | null;
   attachments?: Attachment[];
   documentos?: {

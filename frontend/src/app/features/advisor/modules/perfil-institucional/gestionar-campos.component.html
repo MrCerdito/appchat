@@ -153,6 +153,15 @@
 
         <div class="gc-checks">
           <label><input type="checkbox" [(ngModel)]="form.requerido" /> Obligatorio</label>
+          @if (form.tipo === 'booleano') {
+            <label class="gc-check-comunicados">
+              <input type="checkbox" [(ngModel)]="form.filtroComunicados" />
+              <span>
+                Filtrar en comunicados
+                <small>Aparecerá como filtro en Comunicados</small>
+              </span>
+            </label>
+          }
         </div>
 
         <div class="pi-modal-actions">

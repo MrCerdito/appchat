@@ -1,10 +1,4 @@
-import {
-  IsString,
-  IsOptional,
-  IsIn,
-  Length,
-  MaxLength,
-} from 'class-validator';
+import { IsString, IsOptional, IsIn, Length, MaxLength } from 'class-validator';
 
 export class UpdatePqrsDto {
   @IsString()

@@ -19,9 +19,13 @@ export class InternalConversationMember {
   @PrimaryColumn({ name: 'user_id', type: 'uuid' })
   userId: string;
 
-  @ManyToOne(() => InternalConversation, (conversation) => conversation.members, {
-    onDelete: 'CASCADE',
-  })
+  @ManyToOne(
+    () => InternalConversation,
+    (conversation) => conversation.members,
+    {
+      onDelete: 'CASCADE',
+    },
+  )
   @JoinColumn({ name: 'conversation_id' })
   conversation: InternalConversation;
 

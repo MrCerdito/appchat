@@ -24,6 +24,7 @@ import { join } from 'path';
 import { ValidationPipe } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles, RolesGuard } from '../auth/roles.guard';
+import { Permiso } from '../accesos/permiso-modulo.guard';
 import { PerfilInstitucionalService } from './perfil-institucional.service';
 import {
   ActualizarBaseInstitucionDto,
@@ -37,6 +38,7 @@ import {
 
 @Controller('perfil-institucional')
 @UseGuards(JwtAuthGuard, RolesGuard)
+@Permiso('perfil_institucional')
 export class PerfilInstitucionalController {
   constructor(private readonly svc: PerfilInstitucionalService) {}
 
@@ -102,7 +104,11 @@ export class PerfilInstitucionalController {
     @Body('email') email: string | null,
     @Request() req: { user: { id: string } },
   ) {
-    return this.svc.actualizarEmailInstitucion(id, email?.trim() || null, req.user.id);
+    return this.svc.actualizarEmailInstitucion(
+      id,
+      email?.trim() || null,
+      req.user.id,
+    );
   }
 
   @Patch('instituciones/:id/ciudad')
@@ -117,10 +123,11 @@ export class PerfilInstitucionalController {
   @Patch('instituciones/:id/base')
   actualizarBase(
     @Param('id') id: string,
-    @Body(new ValidationPipe({ whitelist: true })) dto: ActualizarBaseInstitucionDto,
+    @Body(new ValidationPipe({ whitelist: true }))
+    dto: ActualizarBaseInstitucionDto,
     @Request() req: { user: { id: string } },
   ) {
-    return this.svc.actualizarCamposBase(id, dto as any, req.user.id);
+    return this.svc.actualizarCamposBase(id, dto, req.user.id);
   }
 
   @Patch('instituciones/:id/estado')
@@ -203,16 +210,28 @@ export class PerfilInstitucionalController {
   @Get('exportar')
   async exportar(@Res() res: Response) {
     const buffer = await this.svc.exportarExcel();
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', 'attachment; filename=instituciones.xlsx');
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename=instituciones.xlsx',
+    );
     res.send(buffer);
   }
 
   @Get('exportar/:id')
   async exportarFicha(@Param('id') id: string, @Res() res: Response) {
     const buffer = await this.svc.exportarFichaExcel(id);
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename=ficha-${id.substring(0, 8)}.xlsx`);
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename=ficha-${id.substring(0, 8)}.xlsx`,
+    );
     res.send(buffer);
   }
 
@@ -235,8 +254,14 @@ export class PerfilInstitucionalController {
           'application/vnd.ms-excel',
           'text/csv',
         ];
-        if (!allowed.includes(file.mimetype) && !file.originalname.match(/\.(xlsx|xls|csv)$/i)) {
-          return cb(new BadRequestException('Solo se permiten archivos Excel o CSV'), false);
+        if (
+          !allowed.includes(file.mimetype) &&
+          !file.originalname.match(/\.(xlsx|xls|csv)$/i)
+        ) {
+          return cb(
+            new BadRequestException('Solo se permiten archivos Excel o CSV'),
+            false,
+          );
         }
         cb(null, true);
       },
@@ -260,6 +285,12 @@ export class PerfilInstitucionalController {
     @Query('desde') desde?: string,
     @Query('hasta') hasta?: string,
   ) {
-    return this.svc.listarHistorial(colegioId || undefined, page, limit, desde, hasta);
+    return this.svc.listarHistorial(
+      colegioId || undefined,
+      page,
+      limit,
+      desde,
+      hasta,
+    );
   }
 }

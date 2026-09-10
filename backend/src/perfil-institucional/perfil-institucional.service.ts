@@ -73,15 +73,17 @@ export class PerfilInstitucionalService {
 
     const resultado = colegios.filter((c) => {
       if (query.calendario) {
-        const allowed = query.calendario.split(',').map(s => s.trim());
+        const allowed = query.calendario.split(',').map((s) => s.trim());
         if (!allowed.includes(c.calendario ?? '')) return false;
       }
       if (query.tipo) {
-        const allowed = query.tipo.split(',').map(s => s.trim());
+        const allowed = query.tipo.split(',').map((s) => s.trim());
         if (!allowed.includes(c.tipoColegio ?? '')) return false;
       }
       if (query.asesor) {
-        const allowed = query.asesor.split(',').map(s => s.trim().toLowerCase());
+        const allowed = query.asesor
+          .split(',')
+          .map((s) => s.trim().toLowerCase());
         const nombre = (c.advisor?.name ?? '').toLowerCase();
         if (!allowed.includes(nombre)) return false;
       }
@@ -125,7 +127,10 @@ export class PerfilInstitucionalService {
       if (sort === 'id') return a.id < b.id ? -1 : 1;
       if (sort === 'nombre-desc') return b.nombre.localeCompare(a.nombre, 'es');
       if (sort === 'asesor') {
-        const na = (a.advisor?.name ?? '').localeCompare(b.advisor?.name ?? '', 'es');
+        const na = (a.advisor?.name ?? '').localeCompare(
+          b.advisor?.name ?? '',
+          'es',
+        );
         if (na !== 0) return na;
         return a.nombre.localeCompare(b.nombre, 'es');
       }
@@ -146,12 +151,14 @@ export class PerfilInstitucionalService {
       page,
       limit,
       pages,
-      asesoresDisponibles: [...new Set(
-        colegios
-          .map(c => c.advisor?.name)
-          .filter((n): n is string => !!n && n.trim() !== '')
-          .sort((a, b) => a.localeCompare(b, 'es'))
-      )],
+      asesoresDisponibles: [
+        ...new Set(
+          colegios
+            .map((c) => c.advisor?.name)
+            .filter((n): n is string => !!n && n.trim() !== '')
+            .sort((a, b) => a.localeCompare(b, 'es')),
+        ),
+      ],
       instituciones: resultado.slice(inicio, inicio + limit).map((c) => ({
         id: c.id,
         nombre: c.nombre,
@@ -165,13 +172,12 @@ export class PerfilInstitucionalService {
         advisorNombre: c.advisor?.name ?? null,
         valores: Object.fromEntries(valoresPorColegio.get(c.id) ?? []),
       })),
-      camposFiltrables: campos
-        .map((f) => ({
-          id: f.id,
-          nombre: f.nombre,
-          tipo: f.tipo,
-          opciones: f.opciones,
-        })),
+      camposFiltrables: campos.map((f) => ({
+        id: f.id,
+        nombre: f.nombre,
+        tipo: f.tipo,
+        opciones: f.opciones,
+      })),
     };
   }
 
@@ -405,13 +411,20 @@ export class PerfilInstitucionalService {
     });
     if (!colegio) throw new NotFoundException('Institución no encontrada');
 
-    const logs: { campo: string; anterior: string | null; nuevo: string | null }[] = [];
+    const logs: {
+      campo: string;
+      anterior: string | null;
+      nuevo: string | null;
+    }[] = [];
 
     if (dto.nombre !== undefined) {
       const nombre = dto.nombre.trim().slice(0, 200);
       if (nombre && nombre !== colegio.nombre) {
         const dup = await this.colegioRepo.findOne({ where: { nombre } });
-        if (dup) throw new NotFoundException(`Ya existe un colegio con el nombre "${nombre}"`);
+        if (dup)
+          throw new NotFoundException(
+            `Ya existe un colegio con el nombre "${nombre}"`,
+          );
         logs.push({ campo: 'Nombre', anterior: colegio.nombre, nuevo: nombre });
         colegio.nombre = nombre;
       }
@@ -424,16 +437,30 @@ export class PerfilInstitucionalService {
       }
     }
     if (dto.calendario !== undefined) {
-      const val = dto.calendario && dto.calendario.trim() ? dto.calendario.trim().slice(0, 5) : null;
+      const val =
+        dto.calendario && dto.calendario.trim()
+          ? dto.calendario.trim().slice(0, 5)
+          : null;
       if (val !== colegio.calendario) {
-        logs.push({ campo: 'Calendario', anterior: colegio.calendario, nuevo: val });
+        logs.push({
+          campo: 'Calendario',
+          anterior: colegio.calendario,
+          nuevo: val,
+        });
         colegio.calendario = val;
       }
     }
     if (dto.tipoColegio !== undefined) {
-      const val = dto.tipoColegio && dto.tipoColegio.trim() ? dto.tipoColegio.trim().slice(0, 100) : null;
+      const val =
+        dto.tipoColegio && dto.tipoColegio.trim()
+          ? dto.tipoColegio.trim().slice(0, 100)
+          : null;
       if (val !== colegio.tipoColegio) {
-        logs.push({ campo: 'Proyecto', anterior: colegio.tipoColegio, nuevo: val });
+        logs.push({
+          campo: 'Proyecto',
+          anterior: colegio.tipoColegio,
+          nuevo: val,
+        });
         colegio.tipoColegio = val;
       }
     }
@@ -441,15 +468,25 @@ export class PerfilInstitucionalService {
       const advisorId = dto.advisorId || null;
       let advisorNombre: string | null = null;
       if (advisorId) {
-        const user = await this.userRepo.findOne({
-          where: { id: advisorId, role: In(['advisor', 'admin']), active: true },
-          select: ['id', 'name'],
-        }).catch(() => null);
+        const user = await this.userRepo
+          .findOne({
+            where: {
+              id: advisorId,
+              role: In(['advisor', 'admin']),
+              active: true,
+            },
+            select: ['id', 'name'],
+          })
+          .catch(() => null);
         if (!user) throw new NotFoundException('Asesor no encontrado');
         advisorNombre = user.name ?? null;
       }
       if (advisorId !== colegio.advisorId) {
-        logs.push({ campo: 'Asesor', anterior: colegio.advisor?.name ?? null, nuevo: advisorNombre });
+        logs.push({
+          campo: 'Asesor',
+          anterior: colegio.advisor?.name ?? null,
+          nuevo: advisorNombre,
+        });
         colegio.advisorId = advisorId;
         colegio.advisor = advisorId ? ({ id: advisorId } as User) : null;
       }
@@ -477,10 +514,11 @@ export class PerfilInstitucionalService {
       await this.colegioRepo.save(colegio);
     }
 
-    const updated = await this.colegioRepo.findOne({
-      where: { id: colegioId },
-      relations: { advisor: true },
-    }) || colegio;
+    const updated =
+      (await this.colegioRepo.findOne({
+        where: { id: colegioId },
+        relations: { advisor: true },
+      })) || colegio;
 
     return {
       ok: true,
@@ -677,31 +715,58 @@ export class PerfilInstitucionalService {
 
   async exportarExcel(): Promise<Buffer> {
     const [colegios, campos, valores] = await Promise.all([
-      this.colegioRepo.find({ relations: { advisor: true }, order: { nombre: 'ASC' } }),
-      this.campoRepo.find({ where: { activo: true }, relations: { categoria: true }, order: { orden: 'ASC', nombre: 'ASC' } }),
+      this.colegioRepo.find({
+        relations: { advisor: true },
+        order: { nombre: 'ASC' },
+      }),
+      this.campoRepo.find({
+        where: { activo: true },
+        relations: { categoria: true },
+        order: { orden: 'ASC', nombre: 'ASC' },
+      }),
       this.valorRepo.find(),
     ]);
 
     const valoresPorColegio = new Map<string, Map<string, string | null>>();
     for (const v of valores) {
-      if (!valoresPorColegio.has(v.colegioId)) valoresPorColegio.set(v.colegioId, new Map());
+      if (!valoresPorColegio.has(v.colegioId))
+        valoresPorColegio.set(v.colegioId, new Map());
       valoresPorColegio.get(v.colegioId)!.set(v.campoId, v.valor);
     }
 
     const categoriasMap = new Map<string, { nombre: string; orden: number }>();
     for (const c of campos) {
       if (c.categoria && !categoriasMap.has(c.categoria.id)) {
-        categoriasMap.set(c.categoria.id, { nombre: c.categoria.nombre, orden: c.categoria.orden });
+        categoriasMap.set(c.categoria.id, {
+          nombre: c.categoria.nombre,
+          orden: c.categoria.orden,
+        });
       }
     }
-    const categorias = [...categoriasMap.entries()].sort((a, b) => a[1].orden - b[1].orden);
+    const categorias = [...categoriasMap.entries()].sort(
+      (a, b) => a[1].orden - b[1].orden,
+    );
 
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet('Instituciones');
 
-    const headers = ['Nombre', 'Email', 'Link', 'Calendario', 'Ciudad', 'Tipo', 'Asesor', 'Activo'];
+    const headers = [
+      'Nombre',
+      'Email',
+      'Link',
+      'Calendario',
+      'Ciudad',
+      'Tipo',
+      'Asesor',
+      'Activo',
+    ];
     for (const [, cat] of categorias) {
-      for (const c of campos.filter(f => f.categoriaId && categoriasMap.has(f.categoriaId) && categoriasMap.get(f.categoriaId)!.nombre === cat.nombre)) {
+      for (const c of campos.filter(
+        (f) =>
+          f.categoriaId &&
+          categoriasMap.has(f.categoriaId) &&
+          categoriasMap.get(f.categoriaId)!.nombre === cat.nombre,
+      )) {
         headers.push(`${cat.nombre} > ${c.nombre}`);
       }
     }
@@ -710,26 +775,53 @@ export class PerfilInstitucionalService {
     const headerRow = ws.getRow(1);
     headerRow.eachCell((cell) => {
       cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2563EB' } };
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF2563EB' },
+      };
       cell.alignment = { vertical: 'middle', horizontal: 'center' };
       cell.border = { bottom: { style: 'thin', color: { argb: 'FF1D4ED8' } } };
     });
-    ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: headers.length } };
+    ws.autoFilter = {
+      from: { row: 1, column: 1 },
+      to: { row: 1, column: headers.length },
+    };
 
     for (const c of colegios) {
       const vals = valoresPorColegio.get(c.id) ?? new Map();
       const row: (string | null)[] = [
-        c.nombre, c.email ?? '', c.link, c.calendario ?? '', c.ciudad ?? '', c.tipoColegio ?? '',
-        c.advisor?.name ?? '', c.activo ? 'Sí' : 'No',
+        c.nombre,
+        c.email ?? '',
+        c.link,
+        c.calendario ?? '',
+        c.ciudad ?? '',
+        c.tipoColegio ?? '',
+        c.advisor?.name ?? '',
+        c.activo ? 'Sí' : 'No',
       ];
       for (const [, cat] of categorias) {
-        for (const campo of campos.filter(f => f.categoriaId && categoriasMap.has(f.categoriaId) && categoriasMap.get(f.categoriaId)!.nombre === cat.nombre)) {
+        for (const campo of campos.filter(
+          (f) =>
+            f.categoriaId &&
+            categoriasMap.has(f.categoriaId) &&
+            categoriasMap.get(f.categoriaId)!.nombre === cat.nombre,
+        )) {
           let val = vals.get(campo.id) ?? '';
           if (campo.tipo === 'booleano' && val) {
             const lower = val.toLowerCase().trim();
-            if (lower === 'true' || lower === 'sí' || lower === 'si' || lower === 'activo') {
+            if (
+              lower === 'true' ||
+              lower === 'sí' ||
+              lower === 'si' ||
+              lower === 'activo'
+            ) {
               val = 'Sí';
-            } else if (lower === 'false' || lower === 'no' || lower === 'inactivo') {
+            } else if (
+              lower === 'false' ||
+              lower === 'no' ||
+              lower === 'inactivo'
+            ) {
               val = 'No';
             }
           }
@@ -772,15 +864,30 @@ export class PerfilInstitucionalService {
 
     for (const grupo of ficha.grupos) {
       ws.addRow([]);
-      ws.addRow([grupo.categoriaNombre]).font = { bold: true, size: 12, color: { argb: 'FF2563EB' } };
-      ws.addRow([grupo.categoriaNombre]).border = { bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } } };
+      ws.addRow([grupo.categoriaNombre]).font = {
+        bold: true,
+        size: 12,
+        color: { argb: 'FF2563EB' },
+      };
+      ws.addRow([grupo.categoriaNombre]).border = {
+        bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+      };
       for (const item of grupo.campos) {
         let val = item.valor ?? '—';
         if (item.campo.tipo === 'booleano' && item.valor) {
           const lower = item.valor.toLowerCase().trim();
-          if (lower === 'true' || lower === 'sí' || lower === 'si' || lower === 'activo') {
+          if (
+            lower === 'true' ||
+            lower === 'sí' ||
+            lower === 'si' ||
+            lower === 'activo'
+          ) {
             val = 'Sí';
-          } else if (lower === 'false' || lower === 'no' || lower === 'inactivo') {
+          } else if (
+            lower === 'false' ||
+            lower === 'no' ||
+            lower === 'inactivo'
+          ) {
             val = 'No';
           }
         }
@@ -808,7 +915,8 @@ export class PerfilInstitucionalService {
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.readFile(filePath);
     const ws = wb.getWorksheet('Instituciones') ?? wb.worksheets[0];
-    if (!ws || ws.rowCount < 2) throw new BadRequestException('El archivo no contiene datos válidos');
+    if (!ws || ws.rowCount < 2)
+      throw new BadRequestException('El archivo no contiene datos válidos');
 
     const headerRow = ws.getRow(1);
     const headers: string[] = [];
@@ -821,7 +929,9 @@ export class PerfilInstitucionalService {
       this.categoriaRepo.find(),
     ]);
 
-    const catByName = new Map(allCategorias.map(c => [c.nombre.toLowerCase(), c]));
+    const catByName = new Map(
+      allCategorias.map((c) => [c.nombre.toLowerCase(), c]),
+    );
     const campoLookup = new Map<string, PiCampo>();
     for (const c of allCampos) {
       const catName = c.categoria?.nombre ?? '';
@@ -829,11 +939,27 @@ export class PerfilInstitucionalService {
       campoLookup.set(headerName.toLowerCase(), c);
     }
 
-    const baseHeaders = ['nombre', 'email', 'link', 'calendario', 'ciudad', 'tipo', 'asesor', 'activo'];
+    const baseHeaders = [
+      'nombre',
+      'email',
+      'link',
+      'calendario',
+      'ciudad',
+      'tipo',
+      'asesor',
+      'activo',
+    ];
     let created = 0;
     let updated = 0;
     const errores: string[] = [];
-    const logs: { colegio: string; campo: string; anterior: string | null; nuevo: string | null; estado: 'exito' | 'error'; detalle: string }[] = [];
+    const logs: {
+      colegio: string;
+      campo: string;
+      anterior: string | null;
+      nuevo: string | null;
+      estado: 'exito' | 'error';
+      detalle: string;
+    }[] = [];
 
     for (let r = 2; r <= ws.rowCount; r++) {
       const row = ws.getRow(r);
@@ -848,17 +974,35 @@ export class PerfilInstitucionalService {
       const ciudadVal = this.getCellValue(row.getCell(5)) || null;
       const tipoVal = this.getCellValue(row.getCell(6)) || null;
       const activoVal = this.getCellValue(row.getCell(8)).toLowerCase().trim();
-      const activoBool = activoVal === 'sí' || activoVal === 'si' || activoVal === 'true' || activoVal === 'activo' || activoVal === 'yes' || activoVal === 's' || activoVal === '';
+      const activoBool =
+        activoVal === 'sí' ||
+        activoVal === 'si' ||
+        activoVal === 'true' ||
+        activoVal === 'activo' ||
+        activoVal === 'yes' ||
+        activoVal === 's' ||
+        activoVal === '';
 
       if (!colegio) {
         const nuevo = this.colegioRepo.create({
-          nombre, link: linkVal, email: emailVal,
-          calendario: calendarioVal as any, ciudad: ciudadVal as any, tipoColegio: tipoVal as any,
+          nombre,
+          link: linkVal,
+          email: emailVal,
+          calendario: calendarioVal,
+          ciudad: ciudadVal,
+          tipoColegio: tipoVal,
           activo: activoBool,
         });
         colegio = await this.colegioRepo.save(nuevo);
         created++;
-        logs.push({ colegio: nombre, campo: 'Institución', anterior: null, nuevo: 'Creada', estado: 'exito', detalle: 'Institución creada' });
+        logs.push({
+          colegio: nombre,
+          campo: 'Institución',
+          anterior: null,
+          nuevo: 'Creada',
+          estado: 'exito',
+          detalle: 'Institución creada',
+        });
       } else {
         const anteriorLink = colegio.link;
         const anteriorEmail = colegio.email;
@@ -870,32 +1014,74 @@ export class PerfilInstitucionalService {
         let modificado = false;
         if (linkVal && linkVal !== anteriorLink) {
           colegio.link = linkVal;
-          logs.push({ colegio: nombre, campo: 'Link', anterior: anteriorLink, nuevo: linkVal, estado: 'exito', detalle: 'Link actualizado' });
+          logs.push({
+            colegio: nombre,
+            campo: 'Link',
+            anterior: anteriorLink,
+            nuevo: linkVal,
+            estado: 'exito',
+            detalle: 'Link actualizado',
+          });
           modificado = true;
         }
         if (emailVal !== undefined && emailVal !== anteriorEmail) {
           colegio.email = emailVal;
-          logs.push({ colegio: nombre, campo: 'Email', anterior: anteriorEmail, nuevo: emailVal, estado: 'exito', detalle: 'Email actualizado' });
+          logs.push({
+            colegio: nombre,
+            campo: 'Email',
+            anterior: anteriorEmail,
+            nuevo: emailVal,
+            estado: 'exito',
+            detalle: 'Email actualizado',
+          });
           modificado = true;
         }
         if (calendarioVal !== anteriorCalendario) {
           colegio.calendario = calendarioVal;
-          logs.push({ colegio: nombre, campo: 'Calendario', anterior: anteriorCalendario, nuevo: calendarioVal, estado: 'exito', detalle: 'Calendario actualizado' });
+          logs.push({
+            colegio: nombre,
+            campo: 'Calendario',
+            anterior: anteriorCalendario,
+            nuevo: calendarioVal,
+            estado: 'exito',
+            detalle: 'Calendario actualizado',
+          });
           modificado = true;
         }
         if (ciudadVal !== anteriorCiudad) {
           colegio.ciudad = ciudadVal;
-          logs.push({ colegio: nombre, campo: 'Ciudad', anterior: anteriorCiudad, nuevo: ciudadVal, estado: 'exito', detalle: 'Ciudad actualizada' });
+          logs.push({
+            colegio: nombre,
+            campo: 'Ciudad',
+            anterior: anteriorCiudad,
+            nuevo: ciudadVal,
+            estado: 'exito',
+            detalle: 'Ciudad actualizada',
+          });
           modificado = true;
         }
         if (tipoVal !== anteriorTipo) {
           colegio.tipoColegio = tipoVal;
-          logs.push({ colegio: nombre, campo: 'Tipo sistema', anterior: anteriorTipo, nuevo: tipoVal, estado: 'exito', detalle: 'Tipo sistema actualizado' });
+          logs.push({
+            colegio: nombre,
+            campo: 'Tipo sistema',
+            anterior: anteriorTipo,
+            nuevo: tipoVal,
+            estado: 'exito',
+            detalle: 'Tipo sistema actualizado',
+          });
           modificado = true;
         }
         if (activoBool !== anteriorActivo) {
           colegio.activo = activoBool;
-          logs.push({ colegio: nombre, campo: 'Activo', anterior: anteriorActivo ? 'Sí' : 'No', nuevo: activoBool ? 'Sí' : 'No', estado: 'exito', detalle: 'Estado actualizado' });
+          logs.push({
+            colegio: nombre,
+            campo: 'Activo',
+            anterior: anteriorActivo ? 'Sí' : 'No',
+            nuevo: activoBool ? 'Sí' : 'No',
+            estado: 'exito',
+            detalle: 'Estado actualizado',
+          });
           modificado = true;
         }
 
@@ -914,49 +1100,79 @@ export class PerfilInstitucionalService {
         if (baseHeaders.includes(h)) continue;
         const campo = campoLookup.get(h);
         if (!campo) continue;
-        
+
         const cellVal = this.getCellValue(row.getCell(c + 1));
         let nuevoVal = cellVal === '' ? null : cellVal;
-        
+
         if (campo.tipo === 'booleano' && nuevoVal) {
           const lower = nuevoVal.toLowerCase().trim();
-          if (lower === 'sí' || lower === 'si' || lower === 'true' || lower === 'activo' || lower === 'yes' || lower === 's') {
+          if (
+            lower === 'sí' ||
+            lower === 'si' ||
+            lower === 'true' ||
+            lower === 'activo' ||
+            lower === 'yes' ||
+            lower === 's'
+          ) {
             nuevoVal = 'true';
-          } else if (lower === 'no' || lower === 'false' || lower === 'inactivo' || lower === 'n') {
+          } else if (
+            lower === 'no' ||
+            lower === 'false' ||
+            lower === 'inactivo' ||
+            lower === 'n'
+          ) {
             nuevoVal = 'false';
           }
         }
-        
-        const currentVal = currentValores.find(v => v.campoId === campo.id);
+
+        const currentVal = currentValores.find((v) => v.campoId === campo.id);
         const anteriorVal = currentVal?.valor ?? null;
 
         if (anteriorVal !== nuevoVal) {
           valoresToSave.push({ campoId: campo.id, valor: nuevoVal });
-          
+
           let showAnterior = anteriorVal;
           let showNuevo = nuevoVal;
           if (campo.tipo === 'booleano') {
-            showAnterior = (anteriorVal === 'true') ? 'Sí' : (anteriorVal === 'false' ? 'No' : anteriorVal);
-            showNuevo = (nuevoVal === 'true') ? 'Sí' : (nuevoVal === 'false' ? 'No' : nuevoVal);
+            showAnterior =
+              anteriorVal === 'true'
+                ? 'Sí'
+                : anteriorVal === 'false'
+                  ? 'No'
+                  : anteriorVal;
+            showNuevo =
+              nuevoVal === 'true'
+                ? 'Sí'
+                : nuevoVal === 'false'
+                  ? 'No'
+                  : nuevoVal;
           }
 
-          logs.push({ 
-            colegio: nombre, 
-            campo: campo.nombre, 
-            anterior: showAnterior, 
-            nuevo: showNuevo, 
-            estado: 'exito', 
-            detalle: 'Valor actualizado' 
+          logs.push({
+            colegio: nombre,
+            campo: campo.nombre,
+            anterior: showAnterior,
+            nuevo: showNuevo,
+            estado: 'exito',
+            detalle: 'Valor actualizado',
           });
         }
       }
 
       if (valoresToSave.length > 0) {
         try {
-          await this.guardarValores(colegioId, { valores: valoresToSave }, userId);
+          await this.guardarValores(
+            colegioId,
+            { valores: valoresToSave },
+            userId,
+          );
         } catch (err: any) {
           for (const l of logs) {
-            if (l.colegio === nombre && l.estado === 'exito' && l.detalle === 'Valor actualizado') {
+            if (
+              l.colegio === nombre &&
+              l.estado === 'exito' &&
+              l.detalle === 'Valor actualizado'
+            ) {
               l.estado = 'error';
               l.detalle = err.message || 'Error al guardar';
             }
@@ -966,7 +1182,11 @@ export class PerfilInstitucionalService {
       }
     }
 
-    try { unlinkSync(filePath); } catch { /* noop */ }
+    try {
+      unlinkSync(filePath);
+    } catch {
+      /* noop */
+    }
 
     // Generate beautiful change log Excel workbook
     const logWb = new ExcelJS.Workbook();
@@ -979,7 +1199,7 @@ export class PerfilInstitucionalService {
       { header: 'Estado', key: 'estado', width: 14 },
       { header: 'Detalle', key: 'detalle', width: 32 },
     ];
-    
+
     // Style the header row
     const headerRowLog = logWs.getRow(1);
     headerRowLog.font = { bold: true, color: { argb: 'FFFFFFFF' } };
@@ -1026,14 +1246,14 @@ export class PerfilInstitucionalService {
     const logBuffer = await logWb.xlsx.writeBuffer();
     const logExcelBase64 = Buffer.from(logBuffer as any).toString('base64');
 
-    return { 
-      ok: true, 
-      created, 
-      updated, 
-      total: created + updated, 
+    return {
+      ok: true,
+      created,
+      updated,
+      total: created + updated,
       errores,
       logs,
-      logExcelBase64
+      logExcelBase64,
     };
   }
 

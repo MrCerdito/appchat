@@ -23,6 +23,7 @@ import { memoryStorage } from 'multer';
 import { Request, Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles, RolesGuard } from '../auth/roles.guard';
+import { Permiso } from '../accesos/permiso-modulo.guard';
 import { FaqService } from './faq.service';
 import { CreateFaqDto } from './dto/create-faq.dto';
 import { UpdateFaqDto } from './dto/update-faq.dto';
@@ -37,7 +38,11 @@ export class FaqController {
 
   @SkipThrottle()
   @Get()
-  findAll(@Query('colegioId') colegioId?: string, @Query('q') q?: string, @Query('rol') rol?: string) {
+  findAll(
+    @Query('colegioId') colegioId?: string,
+    @Query('q') q?: string,
+    @Query('rol') rol?: string,
+  ) {
     return this.faqService.findAll(
       colegioId ? Number(colegioId) : undefined,
       q,
@@ -47,7 +52,10 @@ export class FaqController {
 
   @SkipThrottle()
   @Get('categorias')
-  findCategorias(@Query('colegioId') colegioId?: string, @Query('rol') rol?: string) {
+  findCategorias(
+    @Query('colegioId') colegioId?: string,
+    @Query('rol') rol?: string,
+  ) {
     return this.faqService.findCategorias(
       colegioId ? Number(colegioId) : undefined,
       rol,
@@ -57,9 +65,13 @@ export class FaqController {
   @Get('export')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
+  @Permiso('faq')
   async exportXlsx(@Res() res: Response) {
     const buffer = await this.faqService.exportXlsx();
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
     res.setHeader('Content-Disposition', 'attachment; filename="faqs.xlsx"');
     res.send(buffer);
   }
@@ -67,6 +79,7 @@ export class FaqController {
   @Post('import')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
+  @Permiso('faq')
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),
@@ -75,9 +88,18 @@ export class FaqController {
           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
           'application/vnd.ms-excel',
         ];
-        if (allowed.includes(file.mimetype) || file.originalname.endsWith('.xlsx') || file.originalname.endsWith('.xls'))
+        if (
+          allowed.includes(file.mimetype) ||
+          file.originalname.endsWith('.xlsx') ||
+          file.originalname.endsWith('.xls')
+        )
           return cb(null, true);
-        cb(new BadRequestException('Solo se permiten archivos Excel (.xlsx o .xls)'), false);
+        cb(
+          new BadRequestException(
+            'Solo se permiten archivos Excel (.xlsx o .xls)',
+          ),
+          false,
+        );
       },
       limits: { fileSize: 5 * 1024 * 1024 },
     }),
@@ -86,7 +108,12 @@ export class FaqController {
   async importXlsx(@UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException('Archivo no proporcionado');
     const result = await this.faqService.importXlsx(file.buffer);
-    return { imported: result.imported, skipped: result.skipped, errors: result.errors, total: result.total };
+    return {
+      imported: result.imported,
+      skipped: result.skipped,
+      errors: result.errors,
+      total: result.total,
+    };
   }
 
   @SkipThrottle()
@@ -95,10 +122,16 @@ export class FaqController {
     FileInterceptor('file', {
       storage: memoryStorage(),
       fileFilter: (_req, file, cb) => {
-        if (file.originalname.endsWith('.docx') || file.originalname.endsWith('.doc')) {
+        if (
+          file.originalname.endsWith('.docx') ||
+          file.originalname.endsWith('.doc')
+        ) {
           return cb(null, true);
         }
-        cb(new BadRequestException('Solo se permiten archivos Word (.docx)'), false);
+        cb(
+          new BadRequestException('Solo se permiten archivos Word (.docx)'),
+          false,
+        );
       },
       limits: { fileSize: 50 * 1024 * 1024 },
     }),
@@ -122,7 +155,11 @@ export class FaqController {
 
   @SkipThrottle()
   @Post('chat')
-  async chat(@Req() req: Request, @Body() body: FaqChatDto, @Res() res: Response) {
+  async chat(
+    @Req() req: Request,
+    @Body() body: FaqChatDto,
+    @Res() res: Response,
+  ) {
     if (!body.query?.trim()) {
       res.status(400).json({ error: 'Query vacía' });
       return;
@@ -157,7 +194,9 @@ export class FaqController {
       emit('done', { ok: true });
     } catch (err: any) {
       this.logger.error(`[FAQ-CHAT] ${err?.message}`);
-      emit('error', { message: err?.message || 'Error al procesar la consulta' });
+      emit('error', {
+        message: err?.message || 'Error al procesar la consulta',
+      });
     } finally {
       if (!res.writableEnded) res.end();
     }
@@ -172,6 +211,7 @@ export class FaqController {
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
+  @Permiso('faq')
   @HttpCode(HttpStatus.CREATED)
   create(@Body() dto: CreateFaqDto) {
     return this.faqService.create(dto);
@@ -180,6 +220,7 @@ export class FaqController {
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
+  @Permiso('faq')
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateFaqDto) {
     return this.faqService.update(id, dto);
   }
@@ -187,6 +228,7 @@ export class FaqController {
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
+  @Permiso('faq')
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(@Param('id', ParseIntPipe) id: number) {
     await this.faqService.remove(id);
@@ -195,6 +237,7 @@ export class FaqController {
   @Post('delete-bulk')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
+  @Permiso('faq')
   @HttpCode(HttpStatus.OK)
   async removeBulk(@Body() body: { ids: number[] }) {
     return this.faqService.removeBulk(body.ids);

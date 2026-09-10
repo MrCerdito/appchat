@@ -107,7 +107,9 @@ export class TicketsService {
       assignedTo = await this.userRepo.findOneBy({ id: userId });
     }
 
-    const createdBy = userId ? await this.userRepo.findOneBy({ id: userId }) : null;
+    const createdBy = userId
+      ? await this.userRepo.findOneBy({ id: userId })
+      : null;
 
     const ticket = new Ticket();
     ticket.codigo = codigo;
@@ -168,7 +170,10 @@ export class TicketsService {
     }
 
     const result = Object.assign(saved, { emailEnviado });
-    this.gateway.broadcastTicketEvent('ticket:created', { id: result.id, codigo: result.codigo });
+    this.gateway.broadcastTicketEvent('ticket:created', {
+      id: result.id,
+      codigo: result.codigo,
+    });
     return result;
   }
 
@@ -249,10 +254,7 @@ export class TicketsService {
     }
 
     const page = Math.max(1, parseInt(query.page ?? '1', 10));
-    const limit = Math.min(
-      100,
-      Math.max(1, parseInt(query.limit ?? '20', 10)),
-    );
+    const limit = Math.min(100, Math.max(1, parseInt(query.limit ?? '20', 10)));
 
     const direction = query.sortDirection === 'asc' ? 'ASC' : 'DESC';
     if (query.sortBy === 'priority') {
@@ -317,7 +319,9 @@ export class TicketsService {
     }
 
     if (query.assignedTo) {
-      qb.andWhere('t.assignedTo = :assignedTo', { assignedTo: query.assignedTo });
+      qb.andWhere('t.assignedTo = :assignedTo', {
+        assignedTo: query.assignedTo,
+      });
     }
     if (query.createdById) {
       qb.andWhere('t.createdBy = :createdBy', { createdBy: query.createdById });
@@ -389,7 +393,10 @@ export class TicketsService {
       ticket.titulo = dto.titulo;
       baseChanges.push('el titulo');
     }
-    if (dto.descripcion !== undefined && dto.descripcion !== ticket.descripcion) {
+    if (
+      dto.descripcion !== undefined &&
+      dto.descripcion !== ticket.descripcion
+    ) {
       ticket.descripcion = dto.descripcion;
       baseChanges.push('la descripcion');
     }
@@ -434,7 +441,9 @@ export class TicketsService {
 
     if (dto.status !== undefined && dto.status !== oldStatus) {
       if (role === 'desarrollador' && dto.status === 'closed') {
-        throw new ForbiddenException('Solo el asesor o administrador puede cerrar tickets');
+        throw new ForbiddenException(
+          'Solo el asesor o administrador puede cerrar tickets',
+        );
       }
       const prevStatus = ticket.status;
       ticket.status = dto.status;
@@ -468,11 +477,7 @@ export class TicketsService {
         : denied
           ? 'ticket_denied'
           : 'ticket_status_changed';
-      const action = closed
-        ? 'cerro'
-        : denied
-          ? 'nego'
-          : 'cambio el estado de';
+      const action = closed ? 'cerro' : denied ? 'nego' : 'cambio el estado de';
       const toLabel = STATUS_LABELS[dto.status] ?? dto.status;
       const fromLabel = STATUS_LABELS[prevStatus] ?? prevStatus;
 
@@ -510,7 +515,10 @@ export class TicketsService {
             entityCodigo: ticket.codigo,
             recipientIds: [prevAssignedId],
             senderId: userId,
-            meta: { reassignedTo: newAssigned.name, reassignedToId: newAssigned.id },
+            meta: {
+              reassignedTo: newAssigned.name,
+              reassignedToId: newAssigned.id,
+            },
           });
         }
 
@@ -530,7 +538,10 @@ export class TicketsService {
     }
 
     const updated = await this.repo.save(ticket);
-    this.gateway.broadcastTicketEvent('ticket:updated', { id: updated.id, codigo: updated.codigo });
+    this.gateway.broadcastTicketEvent('ticket:updated', {
+      id: updated.id,
+      codigo: updated.codigo,
+    });
     return updated;
   }
 
@@ -541,13 +552,18 @@ export class TicketsService {
     if (result.affected === 0)
       throw new NotFoundException('Ticket no encontrado');
 
-    this.gateway.broadcastTicketEvent('ticket:deleted', { id, codigo: ticket.codigo });
+    this.gateway.broadcastTicketEvent('ticket:deleted', {
+      id,
+      codigo: ticket.codigo,
+    });
   }
 
   async addNote(id: string, dto: AddNoteDto, user?: any): Promise<Ticket> {
     const ticket = await this.findById(id);
 
-    const images = (dto.images ?? []).filter((u: string) => /^\/uploads\//.test(u));
+    const images = (dto.images ?? []).filter((u: string) =>
+      /^\/uploads\//.test(u),
+    );
 
     const note = {
       id:
@@ -580,25 +596,43 @@ export class TicketsService {
       meta: { priority: ticket.priority },
     });
 
-    this.gateway.broadcastTicketEvent('ticket:updated', { id: updated.id, codigo: updated.codigo });
+    this.gateway.broadcastTicketEvent('ticket:updated', {
+      id: updated.id,
+      codigo: updated.codigo,
+    });
     return updated;
   }
 
-  async deleteNote(id: string, noteId: string, user?: any): Promise<{ ok: boolean }> {
+  async deleteNote(
+    id: string,
+    noteId: string,
+    user?: any,
+  ): Promise<{ ok: boolean }> {
     const ticket = await this.findById(id);
-    if (!Array.isArray(ticket.notes)) throw new NotFoundException('Nota no encontrada');
+    if (!Array.isArray(ticket.notes))
+      throw new NotFoundException('Nota no encontrada');
 
     const noteIndex = ticket.notes.findIndex((n) => n.id === noteId);
     if (noteIndex === -1) throw new NotFoundException('Nota no encontrada');
 
     const note = ticket.notes[noteIndex];
-    if (note?.authorId && user?.id && note.authorId !== user?.id && user.role !== 'admin') {
-      throw new ForbiddenException('Solo el autor o un admin puede eliminar esta nota');
+    if (
+      note?.authorId &&
+      user?.id &&
+      note.authorId !== user?.id &&
+      user.role !== 'admin'
+    ) {
+      throw new ForbiddenException(
+        'Solo el autor o un admin puede eliminar esta nota',
+      );
     }
 
     ticket.notes.splice(noteIndex, 1);
     await this.repo.save(ticket);
-    this.gateway.broadcastTicketEvent('ticket:updated', { id: ticket.id, codigo: ticket.codigo });
+    this.gateway.broadcastTicketEvent('ticket:updated', {
+      id: ticket.id,
+      codigo: ticket.codigo,
+    });
     return { ok: true };
   }
 
@@ -613,19 +647,37 @@ export class TicketsService {
   ): Promise<{ enviado: boolean; mensaje: string }> {
     const ticket = await this.findById(id);
     if (ticket.sourceType !== 'web' && ticket.sourceType !== 'whatsapp') {
-      return { enviado: false, mensaje: 'El correo de confirmacion solo aplica a tickets de la web o WhatsApp.' };
+      return {
+        enviado: false,
+        mensaje:
+          'El correo de confirmacion solo aplica a tickets de la web o WhatsApp.',
+      };
     }
     if (ticket.status !== 'resolved' && ticket.status !== 'closed') {
-      return { enviado: false, mensaje: 'El ticket debe estar resuelto o cerrado.' };
+      return {
+        enviado: false,
+        mensaje: 'El ticket debe estar resuelto o cerrado.',
+      };
     }
 
     const email = (to ?? '').trim() || this.getClientEmail(ticket);
     if (!email) {
-      return { enviado: false, mensaje: 'El cliente no tiene un correo registrado.' };
+      return {
+        enviado: false,
+        mensaje: 'El cliente no tiene un correo registrado.',
+      };
     }
 
-    const enviado = await this.ticketMail.enviarConfirmacionCierre(ticket, email);
-    return { enviado, mensaje: enviado ? 'Correo enviado correctamente.' : 'No se pudo enviar el correo.' };
+    const enviado = await this.ticketMail.enviarConfirmacionCierre(
+      ticket,
+      email,
+    );
+    return {
+      enviado,
+      mensaje: enviado
+        ? 'Correo enviado correctamente.'
+        : 'No se pudo enviar el correo.',
+    };
   }
 
   private getClientEmail(ticket: Ticket): string {
@@ -634,7 +686,10 @@ export class TicketsService {
     return String(info['email'] ?? info['correo'] ?? '').trim();
   }
 
-  private collectTicketRecipients(ticket: Ticket, actorId?: string): Set<string> {
+  private collectTicketRecipients(
+    ticket: Ticket,
+    actorId?: string,
+  ): Set<string> {
     const ids = new Set<string>();
     if (ticket.createdBy?.id) ids.add(ticket.createdBy.id);
     if (ticket.assignedTo?.id) ids.add(ticket.assignedTo.id);
@@ -661,7 +716,7 @@ export class TicketsService {
     }
 
     const admins = await this.userRepo.find({
-      where: { role: 'admin' as any },
+      where: { role: 'admin' },
       select: ['id'],
     });
     for (const admin of admins) recipients.add(admin.id);

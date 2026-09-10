@@ -45,6 +45,9 @@ export class PiCampo {
   @Column({ type: 'boolean', default: false })
   filtrable: boolean;
 
+  @Column({ name: 'filtro_comunicados', type: 'boolean', default: false })
+  filtroComunicados: boolean;
+
   @Column({ type: 'boolean', default: true })
   activo: boolean;
 

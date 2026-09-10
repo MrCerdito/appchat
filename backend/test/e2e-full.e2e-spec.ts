@@ -21,10 +21,7 @@ describe('Health', () => {
 // ── Auth ───────────────────────────────────────────────────────────────
 describe('Auth', () => {
   it('POST /auth/login → 200 with tokens (admin)', async () => {
-    const res = await request(BASE)
-      .post('/auth/login')
-      .send(ADMIN)
-      .expect(200);
+    const res = await request(BASE).post('/auth/login').send(ADMIN).expect(200);
     expect(res.body.access_token).toBeDefined();
     expect(res.body.user.email).toBe(ADMIN.email);
     expect(res.body.user.role).toBe('admin');
@@ -138,7 +135,11 @@ describe('Throttler', () => {
   });
 
   it('Flushes Redis throttle keys after test', async () => {
-    const redis = new Redis({ host: '127.0.0.1', port: 6379, maxRetriesPerRequest: 3 });
+    const redis = new Redis({
+      host: '127.0.0.1',
+      port: 6379,
+      maxRetriesPerRequest: 3,
+    });
     await redis.flushdb();
     await redis.quit();
   });

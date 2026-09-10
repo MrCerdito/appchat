@@ -176,7 +176,10 @@ export class AiLogsService {
   }
 
   async getStatsDetallado(filtros: AiStatsFiltros = {}) {
-    const contar = async (pred: string, params: Record<string, unknown> = {}) => {
+    const contar = async (
+      pred: string,
+      params: Record<string, unknown> = {},
+    ) => {
       const qb = this.aplicarFiltros(
         this.repo.createQueryBuilder('l'),
         filtros,
@@ -290,9 +293,7 @@ export class AiLogsService {
         restringido: total ? Math.round((esRestringido / total) * 100) : 0,
         ofensas: total ? Math.round((esOfensivo / total) * 100) : 0,
         redireccion: total ? Math.round((redireccion / total) * 100) : 0,
-        feedbackUtil: total
-          ? Math.round((feedbackPositivo / total) * 100)
-          : 0,
+        feedbackUtil: total ? Math.round((feedbackPositivo / total) * 100) : 0,
       },
       porRol,
       porSolicitud,
@@ -315,9 +316,7 @@ export class AiLogsService {
       condiciones.push(`l."creadoEn" < $${params.length + 1}`);
       params.push(hasta);
     }
-    const where = condiciones.length
-      ? ` AND ${condiciones.join(' AND ')}`
-      : '';
+    const where = condiciones.length ? ` AND ${condiciones.join(' AND ')}` : '';
 
     const rows = await this.repo.manager.query(
       `SELECT
@@ -337,17 +336,7 @@ export class AiLogsService {
        GROUP BY s."advisor_id", u.name
        ORDER BY COUNT(l.id) DESC`,
       params,
-    ) as Array<{
-      asesorId: string;
-      nombre: string;
-      total: number;
-      conContexto: number;
-      transfers: number;
-      errores: number;
-      ofensas: number;
-      feedbackUtil: number;
-      tiempoPromedio: string | null;
-    }>;
+    );
 
     return rows.map((r) => ({
       asesorId: r.asesorId,

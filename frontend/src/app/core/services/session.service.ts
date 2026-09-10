@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { Session } from '../models/session.model';
+import { Session, SessionAssignmentEvent } from '../models/session.model';
 import { User } from '../models/user.model';
 import { Message, TimelineResp } from '../models/message.model';
 
@@ -160,6 +160,13 @@ export class SessionService {
     if (before) qp.set('before', before);
     return this.http.get<TimelineResp>(
       `${environment.apiUrl}/sessions/${sessionId}/timeline?${qp.toString()}`,
+    );
+  }
+
+  /** Historial de asignaciones de asesores en el chat. */
+  getAssignmentHistory(sessionId: string): Observable<SessionAssignmentEvent[]> {
+    return this.http.get<SessionAssignmentEvent[]>(
+      `${environment.apiUrl}/sessions/${sessionId}/assignment-history`,
     );
   }
 

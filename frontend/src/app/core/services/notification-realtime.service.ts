@@ -127,6 +127,7 @@ export class NotificationRealtimeService {
     let route = '/admin/tickets';
     if (user?.role === 'advisor') route = '/dashboard/tickets';
     else if (user?.role === 'desarrollador') route = '/developer/tickets';
+    else if (user?.role === 'interno') route = '/interno/tickets';
     if (codigo) {
       this.router.navigate([route], { queryParams: { highlight: codigo } });
     } else {

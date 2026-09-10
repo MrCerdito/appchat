@@ -1,4 +1,13 @@
-import { IsEmail, IsNotEmpty, IsString, IsBoolean, IsOptional, Matches, MinLength, MaxLength } from 'class-validator';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsString,
+  IsBoolean,
+  IsOptional,
+  Matches,
+  MinLength,
+  MaxLength,
+} from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class ImportUserDto {
@@ -14,9 +23,11 @@ export class ImportUserDto {
 
   @IsString({ message: 'Rol debe ser un texto' })
   @IsNotEmpty({ message: 'Rol es requerido' })
-  @Matches(/^(admin|advisor|desarrollador)$/, { message: 'Rol inválido' })
+  @Matches(/^(admin|advisor|desarrollador|interno)$/, {
+    message: 'Rol inválido',
+  })
   @Transform(({ value }) => value.toLowerCase())
-  role: 'admin' | 'advisor' | 'desarrollador';
+  role: 'admin' | 'advisor' | 'desarrollador' | 'interno';
 
   @IsBoolean({ message: 'Activo debe ser un valor booleano' })
   @IsOptional()

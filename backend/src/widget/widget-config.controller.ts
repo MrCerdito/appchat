@@ -13,6 +13,7 @@ import { WidgetConfigService } from './widget-config.service';
 import { WidgetConfig } from './entities/widget-config.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles, RolesGuard } from '../auth/roles.guard';
+import { Permiso } from '../accesos/permiso-modulo.guard';
 import { SaveWidgetConfigDto } from './dto/save-widget-config.dto';
 import { SkipThrottle } from '@nestjs/throttler';
 
@@ -39,6 +40,7 @@ export class WidgetConfigController {
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
+  @Permiso('widget')
   @HttpCode(HttpStatus.OK)
   save(@Body() body: SaveWidgetConfigDto): Promise<WidgetConfig> {
     return this.svc.save(body);
@@ -48,6 +50,7 @@ export class WidgetConfigController {
   @Delete()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
+  @Permiso('widget')
   @HttpCode(HttpStatus.OK)
   reset(): Promise<WidgetConfig> {
     return this.svc.reset();

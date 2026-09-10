@@ -953,6 +953,7 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
       case 'admin': return '/admin/tickets';
       case 'advisor': return '/dashboard/tickets';
       case 'desarrollador': return '/developer/tickets';
+      case 'interno': return '/interno/tickets';
       default: return '/admin/tickets';
     }
   }

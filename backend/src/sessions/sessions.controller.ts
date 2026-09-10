@@ -29,7 +29,21 @@ import { Message } from '../chat/entities/message.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { RolesGuard, Roles } from '../auth/roles.guard';
-import { IsString, IsNotEmpty, Length, IsOptional, IsEmail, MaxLength, Matches, IsUUID, IsIn, IsDateString, IsArray, ArrayMaxSize } from 'class-validator';
+import { Permiso } from '../accesos/permiso-modulo.guard';
+import {
+  IsString,
+  IsNotEmpty,
+  Length,
+  IsOptional,
+  IsEmail,
+  MaxLength,
+  Matches,
+  IsUUID,
+  IsIn,
+  IsDateString,
+  IsArray,
+  ArrayMaxSize,
+} from 'class-validator';
 import { SkipThrottle } from '@nestjs/throttler';
 import { ChatGateway } from '../chat/chat.gateway';
 
@@ -234,18 +248,21 @@ export class SessionsController {
 
   @Get()
   @UseGuards(JwtAuthGuard)
+  @Permiso('chats')
   findAll(@Request() req: any) {
     return this.sessionsService.findAll(req.user.id);
   }
 
   @Get('mine')
   @UseGuards(JwtAuthGuard)
+  @Permiso('chats')
   findAllMine(@Request() req: any) {
     return this.sessionsService.findAllMine(req.user.id);
   }
 
   @Get('paginated')
   @UseGuards(JwtAuthGuard)
+  @Permiso('history')
   findAllPaginated(
     @Request() req: any,
     @Query('page') page = '1',
@@ -256,6 +273,7 @@ export class SessionsController {
 
   @Get('advisors')
   @UseGuards(JwtAuthGuard)
+  @Permiso('chats')
   async findAdvisors() {
     const advisors = await this.sessionsService.findAllAdvisors();
     const statuses = await this.chatGateway.getAdvisorStatuses();
@@ -267,18 +285,21 @@ export class SessionsController {
 
   @Get('waiting')
   @UseGuards(JwtAuthGuard)
+  @Permiso('chats')
   findWaiting() {
     return this.sessionsService.findWaitingSessions();
   }
 
   @Get('metrics')
   @UseGuards(JwtAuthGuard)
+  @Permiso('metrics')
   getMetrics() {
     return this.sessionsService.getMetrics();
   }
 
   @Get('metrics/asesor/:id')
   @UseGuards(JwtAuthGuard)
+  @Permiso('metrics')
   getMetricsByAdvisor(@Param('id') id: string, @Query('tz') tz?: string) {
     return this.sessionsService.getMetricsByAdvisor(id, tz);
   }
@@ -286,16 +307,15 @@ export class SessionsController {
   @Get('metrics/ai')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
-  getAiStats(
-    @Query('desde') desde?: string,
-    @Query('hasta') hasta?: string,
-  ) {
+  @Permiso('metrics')
+  getAiStats(@Query('desde') desde?: string, @Query('hasta') hasta?: string) {
     return this.sessionsService.getAiStats({ desde, hasta });
   }
 
   @Get('metrics/ai/asesor/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin', 'advisor')
+  @Roles('admin', 'advisor', 'interno')
+  @Permiso('metrics')
   getAiStatsByAdvisor(
     @Request() req: any,
     @Param('id') id: string,
@@ -314,6 +334,7 @@ export class SessionsController {
   @Get('metrics/export')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
+  @Permiso('metrics')
   @HttpCode(HttpStatus.OK)
   async exportReport(
     @Request() req: any,
@@ -337,7 +358,8 @@ export class SessionsController {
 
   @Get('metrics/export/asesor/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin', 'advisor')
+  @Roles('admin', 'advisor', 'interno')
+  @Permiso('metrics')
   @HttpCode(HttpStatus.OK)
   async exportReportAsesor(
     @Request() req: any,
@@ -368,7 +390,8 @@ export class SessionsController {
   // Exporta el listado visible del módulo Historial a Excel (.xlsx).
   @Post('historial/export')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin', 'advisor')
+  @Roles('admin', 'advisor', 'interno')
+  @Permiso('history')
   @HttpCode(HttpStatus.OK)
   async exportHistorial(
     @Body('rows', new ValidationPipe({ transform: true }))
@@ -386,14 +409,16 @@ export class SessionsController {
 
   @Get('admin/all')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin', 'advisor')
+  @Roles('admin', 'advisor', 'interno')
+  @Permiso('history')
   findAllAdmin() {
     return this.sessionsService.findAllAdmin();
   }
 
   @Get('admin/all/paginated')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin', 'advisor')
+  @Roles('admin', 'advisor', 'interno')
+  @Permiso('history')
   findAllAdminPaginated(
     @Query('page') page = '1',
     @Query('limit') limit = '50',
@@ -418,12 +443,14 @@ export class SessionsController {
 
   @Get('metrics/ranking')
   @UseGuards(JwtAuthGuard)
+  @Permiso('metrics')
   getRankingAsesores() {
     return this.sessionsService.getRankingAsesores();
   }
 
   @Get('metrics/asesor/:id/comentarios')
   @UseGuards(JwtAuthGuard)
+  @Permiso('metrics')
   getComentariosByAdvisor(
     @Param('id') id: string,
     @Query('page') page = '1',
@@ -435,6 +462,7 @@ export class SessionsController {
   @Get('admin/comentarios')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
+  @Permiso('metrics')
   getAllComentarios(
     @Query('page') page = '1',
     @Query('limit') limit = '10',
@@ -448,6 +476,7 @@ export class SessionsController {
   // PATCH /sessions/advisor/status  { "status": "online" | "busy" | "offline" }
   @Patch('advisor/status')
   @UseGuards(JwtAuthGuard)
+  @Permiso('chats')
   @HttpCode(HttpStatus.OK)
   setMyStatus(
     @Body('status') status: string,
@@ -462,6 +491,7 @@ export class SessionsController {
   // Agregar este endpoint ANTES de las rutas dinámicas (:id)
   @Patch(':id/takeover')
   @UseGuards(JwtAuthGuard)
+  @Permiso('chats')
   @HttpCode(HttpStatus.OK)
   takeOver(@Param('id') id: string, @Request() req: any) {
     return this.sessionsService.takeOver(id, req.user.id);
@@ -477,6 +507,7 @@ export class SessionsController {
 
   @Get(':id')
   @UseGuards(JwtAuthGuard)
+  @Permiso('history')
   async findOne(@Param('id') id: string, @Request() req: any) {
     const session = await this.sessionsService.findOne(id);
     const userRole = req.user.role;
@@ -497,6 +528,7 @@ export class SessionsController {
 
   @Get(':id/messages')
   @UseGuards(JwtAuthGuard)
+  @Permiso('history')
   getMessages(@Param('id') id: string, @Query('limit') limit?: string) {
     return this.sessionsService.getMessages(id, limit ? +limit : undefined);
   }
@@ -504,16 +536,32 @@ export class SessionsController {
   /** Timeline unificada (mensajes + eventos) paginada por cursor. */
   @Get(':id/timeline')
   @UseGuards(JwtAuthGuard)
+  @Permiso('history')
   getTimeline(
     @Param('id') id: string,
     @Query('before') before?: string,
     @Query('limit') limit?: string,
   ) {
-    return this.sessionsService.getTimeline(id, before, limit ? +limit : undefined);
+    return this.sessionsService.getTimeline(
+      id,
+      before,
+      limit ? +limit : undefined,
+    );
+  }
+
+  /** Historial de asignaciones de asesores en el chat (asignado, reasignado,
+   *  desconectado, IA, solicitud de asesor). */
+  @Get(':id/assignment-history')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin', 'advisor', 'interno')
+  @Permiso('history')
+  getAssignmentHistory(@Param('id') id: string) {
+    return this.sessionsService.historialAsignaciones(id);
   }
 
   @Post(':id/close')
   @UseGuards(JwtAuthGuard)
+  @Permiso('history')
   @HttpCode(HttpStatus.OK)
   async close(@Param('id') id: string, @Request() req: any) {
     const session = await this.sessionsService.findOne(id);
@@ -528,7 +576,8 @@ export class SessionsController {
 
   @Post(':id/close-anonymous')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin', 'advisor')
+  @Roles('admin', 'advisor', 'interno')
+  @Permiso('history')
   @HttpCode(HttpStatus.OK)
   async closeAnonymous(@Param('id') id: string) {
     return this.sessionsService.close(id);
@@ -567,6 +616,7 @@ export class SessionsController {
 
   @Post(':id/ticket')
   @UseGuards(JwtAuthGuard)
+  @Permiso('tickets')
   @HttpCode(HttpStatus.CREATED)
   async createTicketFromSession(
     @Param('id') id: string,
@@ -665,7 +715,10 @@ export class SessionsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
   @HttpCode(HttpStatus.CREATED)
-  async importColegios(@Body(new ValidationPipe({ whitelist: true, transform: false })) data: CreateColegioDto[]) {
+  async importColegios(
+    @Body(new ValidationPipe({ whitelist: true, transform: false }))
+    data: CreateColegioDto[],
+  ) {
     const results = await this.sessionsService.importColegios(data);
     return { imported: results.created.length, skipped: results.skipped };
   }
@@ -684,9 +737,13 @@ export class SessionsController {
   async exportColegios(@Query('format') format: string) {
     const colegios = await this.sessionsService.exportColegios();
     if (format === 'csv') {
-      const header = 'nombre;link;links;email;calendario;tipo_colegio;ciudad;asesor\n';
+      const header =
+        'nombre;link;links;email;calendario;tipo_colegio;ciudad;asesor\n';
       const rows = colegios
-        .map((c) => `"${c.nombre}";"${c.link}";"${(c.links || []).join('|')}";"${c.email ?? ''}";"${c.calendario ?? ''}";"${c.tipoColegio ?? ''}";"${c.ciudad ?? ''}";"${c.advisor?.name ?? ''}"`)
+        .map(
+          (c) =>
+            `"${c.nombre}";"${c.link}";"${(c.links || []).join('|')}";"${c.email ?? ''}";"${c.calendario ?? ''}";"${c.tipoColegio ?? ''}";"${c.ciudad ?? ''}";"${c.advisor?.name ?? ''}"`,
+        )
         .join('\n');
       return { csv: header + rows, data: colegios };
     }
@@ -699,7 +756,9 @@ export class SessionsController {
   @HttpCode(HttpStatus.OK)
   async reencryptAll(@Body('oldKey') oldKey: string) {
     if (!oldKey || oldKey.length !== 64) {
-      throw new BadRequestException('oldKey debe ser un hex string de 64 caracteres');
+      throw new BadRequestException(
+        'oldKey debe ser un hex string de 64 caracteres',
+      );
     }
     return this.sessionsService.reencryptAll(oldKey);
   }

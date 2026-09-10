@@ -10,7 +10,7 @@ import { SessionService } from '../../../../core/services/session.service';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { Message, TimelineItem, TimelineEvento } from '../../../../core/models/message.model';
-import { Session } from '../../../../core/models/session.model';
+import { Session, SessionAssignmentEvent } from '../../../../core/models/session.model';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
 import { scrollToBottom } from '../../../../shared/utils/scroll';
 import { fmtDateTimeShort, fmtDateTimeFull, fmtTime } from '../../../../shared/utils/date';
@@ -139,6 +139,11 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
       this.colegioMenuOpen = false;
       this.cdr.detectChanges();
     }
+  }
+
+  @HostListener('document:keydown.escape')
+  onDocumentEscape(): void {
+    if (this.showAssignmentModal) this.closeAssignmentModal();
   }
 
   get filteredSessions(): Session[] {
@@ -879,6 +884,96 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
     sessionStorage.removeItem(this.STORAGE_KEY);
     this.mobileView = 'list';
     this.cdr.detectChanges();
+  }
+
+  // ── Historial de asignación (modal timeline) ─────────────────────────────
+  showAssignmentModal  = false;
+  assignmentLoading    = false;
+  assignmentSession    : Session | null = null;
+  assignmentEvents     : SessionAssignmentEvent[] = [];
+
+  openAssignmentModal(session: Session): void {
+    this.assignmentSession  = session;
+    this.showAssignmentModal = true;
+    this.assignmentLoading   = true;
+    this.assignmentEvents    = [];
+    this.cdr.detectChanges();
+    this.sessionService.getAssignmentHistory(session.id).subscribe({
+      next: (events) => {
+        this.assignmentEvents   = events ?? [];
+        this.assignmentLoading  = false;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.assignmentLoading = false;
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  closeAssignmentModal(): void {
+    this.showAssignmentModal = false;
+    this.assignmentSession   = null;
+    this.assignmentEvents    = [];
+  }
+
+  /** Eventos para la timeline; si el sistema aún no registró nada (solo se
+   *  guarda a partir del deploy), se muestra una entrada derivada de la
+   *  sesión actual para que nunca quede vacía. */
+  get assignmentDisplayEvents(): SessionAssignmentEvent[] {
+    if (this.assignmentEvents.length > 0) return this.assignmentEvents;
+    if (!this.assignmentSession) return [];
+    const s = this.assignmentSession;
+    if (s.advisor?.name) {
+      return [{
+        id: `fb-${s.id}`,
+        sessionId: s.id,
+        tipo: 'asignado',
+        advisorId: s.advisor.id ?? null,
+        advisorName: s.advisor.name,
+        createdAt: s.createdAt ?? new Date().toISOString(),
+      } as SessionAssignmentEvent];
+    }
+    return [{
+      id: `fb-ia-${s.id}`,
+      sessionId: s.id,
+      tipo: 'ia',
+      createdAt: s.createdAt ?? new Date().toISOString(),
+    } as SessionAssignmentEvent];
+  }
+
+  assignmentTitle(ev: SessionAssignmentEvent): string {
+    switch (ev.tipo) {
+      case 'asignado':
+        return `Asignado a ${ev.advisorName ?? 'un asesor'}`;
+      case 'reasignado':
+        if (ev.detalle?.desde && ev.detalle?.hasta) {
+          return `Reasignado de ${ev.detalle.desde} a ${ev.detalle.hasta}`;
+        }
+        return `Reasignado a ${ev.advisorName ?? 'otro asesor'}`;
+      case 'desconectado':
+        return `Asesor${ev.advisorName ? ' ' + ev.advisorName : ''} desconectado`;
+      case 'ia':
+        return `Chat transferido al Asistente Virtual (IA)`;
+      case 'solicitud_asesor':
+        return `El cliente solicitó un asesor humano`;
+      default:
+        return 'Evento de asignación';
+    }
+  }
+
+  assignmentSub(ev: SessionAssignmentEvent): string | null {
+    switch (ev.tipo) {
+      case 'asignado':
+        if (ev.detalle?.desdeIA) return 'Salió del modo IA para atención humana';
+        return null;
+      case 'desconectado':
+        return 'Chat vuelto a la cola de espera de asesores';
+      case 'ia':
+        return ev.advisorName ? `Activado por ${ev.advisorName}` : null;
+      default:
+        return null;
+    }
   }
 
   /** Carga el bloque anterior del historial conservando la posición de scroll. */

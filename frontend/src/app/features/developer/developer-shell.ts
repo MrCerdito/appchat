@@ -4,6 +4,7 @@ import { Router, RouterModule } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
 
 import { AuthService } from '../../core/services/auth.service';
+import { PermisosService } from '../../core/services/permisos.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { LayoutService } from '../../core/services/layout.service';
 import { SocketService } from '../../core/services/socket.service';
@@ -44,6 +45,7 @@ export class DeveloperShellComponent implements OnInit, OnDestroy {
     private sound: SoundService,
     private notifications: NotificationService,
     private cdr: ChangeDetectorRef,
+    protected permisos: PermisosService,
   ) {}
 
   ngOnInit(): void {
@@ -55,6 +57,9 @@ export class DeveloperShellComponent implements OnInit, OnDestroy {
     });
     this.socket.connect(this.auth.getToken() ?? undefined);
     this.sound.init();
+    this.permisos.permisosChanged$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => this.cdr.markForCheck());
     this.registerTicketListeners();
     this.layoutService.sidebarForcedCollapsed$
       .pipe(takeUntil(this.destroy$))

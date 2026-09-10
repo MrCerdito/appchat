@@ -34,3 +34,13 @@ export interface Session {
   closedAt?:     string | null;
   lastMessage?:  LastMessagePreview | null;
 }
+
+export interface SessionAssignmentEvent {
+  id: string;
+  sessionId: string;
+  tipo: 'asignado' | 'reasignado' | 'desconectado' | 'ia' | 'solicitud_asesor';
+  advisorId?: string | null;
+  advisorName?: string | null;
+  detalle?: { desde?: string | null; hasta?: string | null; activaIA?: boolean; desdeIA?: boolean; causa?: string | null; cliente?: string | null } | null;
+  createdAt: string;
+}

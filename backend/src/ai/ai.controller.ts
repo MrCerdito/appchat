@@ -1,4 +1,13 @@
-import { Controller, Post, Body, Get, Res, Req, UseGuards, Logger } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  Res,
+  Req,
+  UseGuards,
+  Logger,
+} from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { AiService } from './ai.service';
@@ -64,12 +73,17 @@ export class AiController {
     },
   ) {
     if (!body.draft?.trim()) return { replies: [] };
-    return this.aiService.improveWhatsappDraft(body.draft, {
-      clientName: body.clientName ?? '',
-      institution: body.institution ?? '',
-      role: body.role ?? '',
-      context: body.context ?? '',
-    }, body.tone ?? 'formal', body.length ?? 'medium');
+    return this.aiService.improveWhatsappDraft(
+      body.draft,
+      {
+        clientName: body.clientName ?? '',
+        institution: body.institution ?? '',
+        role: body.role ?? '',
+        context: body.context ?? '',
+      },
+      body.tone ?? 'formal',
+      body.length ?? 'medium',
+    );
   }
 
   @Post('whatsapp/summary')
@@ -91,7 +105,11 @@ export class AiController {
   @Public()
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('stream')
-  async stream(@Req() req: Request, @Body() dto: AiChatDto, @Res() res: Response) {
+  async stream(
+    @Req() req: Request,
+    @Body() dto: AiChatDto,
+    @Res() res: Response,
+  ) {
     if (!dto.message?.trim()) {
       res.status(400).json({ error: 'Mensaje vacío' });
       return;
@@ -125,13 +143,15 @@ export class AiController {
 
     // Captura los documentos que la IA entrega (evento metadata) para
     // persistirlos junto a la respuesta en el historial.
-    let documentosEntregados: {
-      nombre: string;
-      pdfUrl: string | null;
-      categoria: string | null;
-      descripcion?: string | null;
-      instructivo?: boolean | null;
-    }[] | null = null;
+    let documentosEntregados:
+      | {
+          nombre: string;
+          pdfUrl: string | null;
+          categoria: string | null;
+          descripcion?: string | null;
+          instructivo?: boolean | null;
+        }[]
+      | null = null;
     let sugerirAsesor = false;
     const emitConCaptura = (event: string, data: object) => {
       if (event === 'metadata') {
@@ -207,15 +227,15 @@ export class AiController {
 
         // Marcadores de UI presentes en la respuesta bruta.
         const opciones: string[] = [];
-        if (/TRANSFER_TO_ADVISOR/.test(reply)) opciones.push('transferencia_asesor');
+        if (/TRANSFER_TO_ADVISOR/.test(reply))
+          opciones.push('transferencia_asesor');
         if (sugerirAsesor) opciones.push('agente');
         // Si fue una oferta de asesor humano, NO la etiquetamos como encuesta
         // de satisfacción aunque la IA haya usado [FEEDBACK:YES].
-        if (!sugerirAsesor && /\[FEEDBACK:/i.test(reply)) opciones.push('encuesta');
+        if (!sugerirAsesor && /\[FEEDBACK:/i.test(reply))
+          opciones.push('encuesta');
         if (/\[DOCUMENTO:/i.test(reply)) opciones.push('documento');
-        const aiMarkers = reply.trim()
-          ? { raw: reply.trim(), opciones }
-          : null;
+        const aiMarkers = reply.trim() ? { raw: reply.trim(), opciones } : null;
 
         // Cuando hay TRANSFER_TO_ADVISOR el texto anterior al marcador es la
         // respuesta real; lo guardamos igual (limpio) para no cortar el
@@ -259,9 +279,11 @@ export class AiController {
           .replace(/\[FEEDBACK:(YES|NO)\]\s*$/, '')
           .trim();
         const opciones: string[] = [];
-        if (/TRANSFER_TO_ADVISOR/.test(respuestaParcial)) opciones.push('transferencia_asesor');
+        if (/TRANSFER_TO_ADVISOR/.test(respuestaParcial))
+          opciones.push('transferencia_asesor');
         if (sugerirAsesor) opciones.push('agente');
-        if (!sugerirAsesor && /\[FEEDBACK:/i.test(respuestaParcial)) opciones.push('encuesta');
+        if (!sugerirAsesor && /\[FEEDBACK:/i.test(respuestaParcial))
+          opciones.push('encuesta');
         if (/\[DOCUMENTO:/i.test(respuestaParcial)) opciones.push('documento');
         const aiMarkers = respuestaParcial.trim()
           ? { raw: respuestaParcial.trim(), opciones }
@@ -290,7 +312,10 @@ export class AiController {
     }
   }
 
-  private async persist<T>(sessionId: string, fn: () => Promise<T>): Promise<T | null> {
+  private async persist<T>(
+    sessionId: string,
+    fn: () => Promise<T>,
+  ): Promise<T | null> {
     try {
       const saved = await fn();
       if (saved) {

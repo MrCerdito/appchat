@@ -43,57 +43,77 @@ export class InternalChatGateway
 
   onModuleInit() {
     this.subscriptions.add(
-      this.internalChatService.newMessages$.subscribe(({ conversationId, message, memberIds }) => {
-        for (const memberId of memberIds) {
-          this.server?.to(this.advisorRoom(memberId)).emit('ic_new_message', {
+      this.internalChatService.newMessages$.subscribe(
+        ({ conversationId, message, memberIds }) => {
+          for (const memberId of memberIds) {
+            this.server?.to(this.advisorRoom(memberId)).emit('ic_new_message', {
+              conversationId,
+              message,
+            });
+          }
+        },
+      ),
+    );
+    this.subscriptions.add(
+      this.internalChatService.messageEdited$.subscribe(
+        ({ conversationId, message, memberIds }) => {
+          for (const memberId of memberIds) {
+            this.server
+              ?.to(this.advisorRoom(memberId))
+              .emit('ic_message_edited', {
+                conversationId,
+                message,
+              });
+          }
+        },
+      ),
+    );
+    this.subscriptions.add(
+      this.internalChatService.messageDeleted$.subscribe(
+        ({ conversationId, messageId, deletedAt, memberIds }) => {
+          for (const memberId of memberIds) {
+            this.server
+              ?.to(this.advisorRoom(memberId))
+              .emit('ic_message_deleted', {
+                conversationId,
+                messageId,
+                deletedAt,
+              });
+          }
+        },
+      ),
+    );
+    this.subscriptions.add(
+      this.internalChatService.reactionUpdated$.subscribe(
+        ({ reaction, memberIds }) => {
+          for (const memberId of memberIds) {
+            this.server
+              ?.to(this.advisorRoom(memberId))
+              .emit('ic_reaction', reaction);
+          }
+        },
+      ),
+    );
+    this.subscriptions.add(
+      this.internalChatService.conversationUpdates$.subscribe(
+        ({ conversation, memberIds }) => {
+          for (const memberId of memberIds) {
+            this.server
+              ?.to(this.advisorRoom(memberId))
+              .emit('ic_conversation_updated', conversation);
+          }
+        },
+      ),
+    );
+    this.subscriptions.add(
+      this.internalChatService.unreadUpdates$.subscribe(
+        ({ conversationId, userId, unreadCount }) => {
+          this.server?.to(this.advisorRoom(userId)).emit('ic_unread', {
             conversationId,
-            message,
+            unreadCount,
           });
-        }
-      }),
-    );
-    this.subscriptions.add(
-      this.internalChatService.messageEdited$.subscribe(({ conversationId, message, memberIds }) => {
-        for (const memberId of memberIds) {
-          this.server?.to(this.advisorRoom(memberId)).emit('ic_message_edited', {
-            conversationId,
-            message,
-          });
-        }
-      }),
-    );
-    this.subscriptions.add(
-      this.internalChatService.messageDeleted$.subscribe(({ conversationId, messageId, deletedAt, memberIds }) => {
-        for (const memberId of memberIds) {
-          this.server?.to(this.advisorRoom(memberId)).emit('ic_message_deleted', {
-            conversationId,
-            messageId,
-            deletedAt,
-          });
-        }
-      }),
-    );
-    this.subscriptions.add(
-      this.internalChatService.reactionUpdated$.subscribe(({ reaction, memberIds }) => {
-        for (const memberId of memberIds) {
-          this.server?.to(this.advisorRoom(memberId)).emit('ic_reaction', reaction);
-        }
-      }),
-    );
-    this.subscriptions.add(
-      this.internalChatService.conversationUpdates$.subscribe(({ conversation, memberIds }) => {
-        for (const memberId of memberIds) {
-          this.server?.to(this.advisorRoom(memberId)).emit('ic_conversation_updated', conversation);
-        }
-      }),
-    );
-    this.subscriptions.add(
-      this.internalChatService.unreadUpdates$.subscribe(({ conversationId, userId, unreadCount }) => {
-        this.server?.to(this.advisorRoom(userId)).emit('ic_unread', {
-          conversationId,
-          unreadCount,
-        });
-      }),
+        },
+      ),
     );
   }
 

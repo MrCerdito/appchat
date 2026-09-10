@@ -16,6 +16,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles, RolesGuard } from '../auth/roles.guard';
+import { Permiso } from '../accesos/permiso-modulo.guard';
 import {
   InternalChatService,
   InternalChatUserDto,
@@ -26,6 +27,7 @@ import {
 
 @Controller('internal-chat')
 @UseGuards(JwtAuthGuard, RolesGuard)
+@Permiso('chat_interno')
 @Roles('advisor', 'admin')
 export class InternalChatController {
   constructor(private readonly internalChatService: InternalChatService) {}
@@ -88,9 +90,16 @@ export class InternalChatController {
       limits: { fileSize: 5 * 1024 * 1024 },
       fileFilter: (_req, file, cb) => {
         const allowed = [
-          'image/jpeg', 'image/png', 'image/webp', 'image/gif',
-          'video/mp4', 'video/webm', 'video/quicktime',
-          'audio/mpeg', 'audio/ogg', 'audio/wav',
+          'image/jpeg',
+          'image/png',
+          'image/webp',
+          'image/gif',
+          'video/mp4',
+          'video/webm',
+          'video/quicktime',
+          'audio/mpeg',
+          'audio/ogg',
+          'audio/wav',
           'application/pdf',
         ];
         if (allowed.includes(file.mimetype)) return cb(null, true);
@@ -107,10 +116,15 @@ export class InternalChatController {
     if (!file) {
       throw new BadRequestException('Archivo requerido');
     }
-    return this.internalChatService.sendMedia(req.user.id, conversationId, file, {
-      caption: body?.caption,
-      replyToMessageId: body?.replyToMessageId,
-    });
+    return this.internalChatService.sendMedia(
+      req.user.id,
+      conversationId,
+      file,
+      {
+        caption: body?.caption,
+        replyToMessageId: body?.replyToMessageId,
+      },
+    );
   }
 
   @Patch('conversations/:id/messages/:mid')

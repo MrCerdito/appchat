@@ -293,6 +293,16 @@
           } @else if (msg.senderType === 'advisor' && msg.senderName !== currentAdvisor?.name) {
           <span class="msg-sender">{{ msg.senderName }}</span>
           }
+          @if (msg.deletedAt) {
+          <div class="bubble-row" [class.bubble-row--own]="isOwnMessage(msg)">
+            <div class="bubble bubble--deleted">
+              <svg class="bubble-deleted-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+              </svg>
+              Mensaje eliminado
+            </div>
+          </div>
+          } @else {
           @if (msg.content) {
           @if (editingMessageId === msg.id) {
           <div class="bubble-row bubble-row--editing">
@@ -320,7 +330,11 @@
               @if (getQuotedMessage(msg); as quoted) {
               <div class="quoted-block">
                 <span class="quoted-sender">{{ quoted.senderName }}</span>
+                @if (quoted.deletedAt) {
+                <span class="quoted-text quoted-text--deleted">Mensaje eliminado</span>
+                } @else {
                 <span class="quoted-text">{{ quoted.content | slice:0:80 }}{{ quoted.content.length > 80 ? '...' : '' }}</span>
+                }
               </div>
               }
               <div class="bubble-content" [innerHTML]="formatMessage(msg.content)"></div>
@@ -331,6 +345,9 @@
             @if (isOwnMessage(msg)) {
             <button type="button" class="bubble-float-edit" (click)="startEdit(msg)" title="Editar mensaje">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10.5-10.5a2.828 2.828 0 1 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>
+            </button>
+            <button type="button" class="bubble-float-delete" (click)="deleteMessage(msg)" title="Eliminar mensaje">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
             </button>
             }
           </div>
@@ -389,6 +406,7 @@
             }
           </div>
           }
+          }
           <div class="msg-meta">
             <span class="msg-time">
               {{ fmtTime(msg.createdAt) }}
@@ -407,7 +425,7 @@
               </span>
               }
             </span>
-            @if (msg.editedAt) {
+            @if (msg.editedAt && !msg.deletedAt) {
             <span class="edited-tag">editado</span>
             }
           </div>
@@ -419,6 +437,18 @@
       <div class="no-messages">Sin mensajes aun</div>
       }
     </div>
+
+    <!-- Delete undo toast (5 s) -->
+    @if (deletedToast) {
+    <div class="delete-toast">
+      <span class="delete-toast-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      </span>
+      <span class="delete-toast-text">Mensaje eliminado</span>
+      <button type="button" class="delete-toast-undo" (click)="undoDelete()">Deshacer</button>
+      <span class="delete-toast-count">{{ deletedToast.remaining }}s</span>
+    </div>
+    }
 
     <!-- Typing indicator -->
     @if (isTypingActive) {
@@ -760,6 +790,29 @@
         </div>
         <span class="sinfo-val">{{ activeSession.identificacion || '—' }}</span>
       </div>
+      <div class="sinfo-row">
+        <div class="sinfo-lhs">
+          <span class="sinfo-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+              <polyline points="22,6 12,13 2,6"/>
+            </svg>
+          </span>
+          <span class="sinfo-lbl">Correo</span>
+        </div>
+        <span class="sinfo-val">{{ activeSession.email || '—' }}</span>
+      </div>
+      <div class="sinfo-row">
+        <div class="sinfo-lhs">
+          <span class="sinfo-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/>
+            </svg>
+          </span>
+          <span class="sinfo-lbl">Teléfono</span>
+        </div>
+        <span class="sinfo-val">{{ activeSession.celular || '—' }}</span>
+      </div>
       <button type="button" class="sinfo-row sinfo-row--link" (click)="abrirInfoColegio(activeSession)"
               title="Abrir ficha del colegio">
         <div class="sinfo-lhs">
@@ -788,7 +841,7 @@
         }
       </div>
       <div class="advisor-body">
-        <span class="advisor-title">Asesor asignado</span>
+        <span class="advisor-title">Asesor encargado</span>
         <span class="advisor-name">{{ panelAdvisorName }}</span>
         <span class="advisor-status"
               [class.advisor-status--busy]="panelAdvisorStatus.key === 'busy'"

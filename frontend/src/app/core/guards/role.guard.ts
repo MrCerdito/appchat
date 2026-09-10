@@ -11,6 +11,7 @@ export const roleGuard = (...requiredRoles: string[]): CanActivateFn => () => {
 
   if (user?.role === 'admin') { router.navigate(['/admin']); return false; }
   if (user?.role === 'desarrollador') { router.navigate(['/developer']); return false; }
+  if (user?.role === 'interno') { router.navigate(['/interno']); return false; }
   router.navigate(['/dashboard']);
   return false;
 };

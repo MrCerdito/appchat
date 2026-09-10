@@ -1,0 +1,437 @@
+<div class="am-overlay" (click)="cerrar.emit()">
+  <div class="am-modal" (click)="$event.stopPropagation()" role="dialog"
+    aria-modal="true" aria-label="Control de accesos">
+
+    <!-- ══════════════ ENCABEZADO ══════════════ -->
+    <div class="am-header">
+      <div class="am-title">
+        <div class="am-title-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="10" rx="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            <circle cx="12" cy="16" r="1" fill="currentColor"/>
+          </svg>
+        </div>
+        <div>
+          <h3>Control de accesos</h3>
+          <p>Elige qué módulos ve cada perfil y cada usuario de la plataforma.</p>
+        </div>
+      </div>
+      <button class="am-close" (click)="cerrar.emit()" aria-label="Cerrar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- ══════════════ PESTAÑAS ══════════════ -->
+    <div class="am-tabs">
+      <button class="am-tab" [class.active]="tab === 'perfiles'" (click)="cambiarTab('perfiles')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+        Por perfil
+      </button>
+      <button class="am-tab" [class.active]="tab === 'usuarios'" (click)="cambiarTab('usuarios')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+        Por usuario
+      </button>
+    </div>
+
+    <!-- ══════════════ AVISOS ══════════════ -->
+    @if (error) {
+    <div class="am-alert am-alert--error">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      {{ error }}
+    </div>
+    }
+    @if (success) {
+    <div class="am-alert am-alert--success">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+        <polyline points="22 4 12 14.01 9 11.01"/>
+      </svg>
+      {{ success }}
+    </div>
+    }
+
+    <!-- ══════════════ TAB: POR PERFIL ══════════════ -->
+    @if (tab === 'perfiles') {
+    <div class="am-content">
+      <div class="am-section-label">1 · Elige el perfil</div>
+
+      <div class="am-rol-cards">
+        @for (rol of roles; track rol.role) {
+        <button class="am-rol-card"
+                [class.active]="rolSeleccionado === rol.role"
+                (click)="cambiarRol(rol.role)">
+          <span class="am-rol-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path [attr.d]="rol.icon"/>
+            </svg>
+          </span>
+          <span class="am-rol-text">
+            <span class="am-rol-name">
+              {{ rol.label }}
+            </span>
+            <span class="am-rol-sub">{{ rol.sub }}</span>
+            <span class="am-rol-count">
+              {{ rolActivos(rol.role) }} de {{ rolTotal(rol.role) }} módulos activos
+            </span>
+          </span>
+          @if (rolSeleccionado === rol.role) {
+          <span class="am-rol-check">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+              stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          </span>
+          }
+        </button>
+        }
+      </div>
+
+      @if (rolSeleccionado === 'admin') {
+      <div class="am-note am-note--lock">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="18" height="10" rx="2"/>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+        <div>
+          <strong>Módulo de Accesos siempre activo.</strong>
+          <span>El resto de módulos del perfil Administrador sí se pueden activar o desactivar.</span>
+        </div>
+      </div>
+      }
+
+      <div class="am-actions">
+        <div class="am-actions-count">
+          <span class="am-dot" [class.dot--off]="activosCuenta() === 0"></span>
+          <strong>{{ activosCuenta() }}</strong> de {{ totalCuenta() }} módulos activos
+          en "{{ rolLabel(rolSeleccionado) }}"
+        </div>
+        <div class="am-actions-btns">
+          <button class="am-btn am-btn--soft"
+                  (click)="verTodos(false)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            Activar todos
+          </button>
+          <button class="am-btn am-btn--soft am-btn--danger"
+                  (click)="verTodos(true)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+            Quitar todos
+          </button>
+        </div>
+      </div>
+
+      <div class="am-body">
+        @if (cargando || rolCargando) {
+        <div class="am-skeletons">
+          <span class="am-skeleton-title"></span>
+          <span class="am-skeleton-row"></span>
+          <span class="am-skeleton-row"></span>
+          <span class="am-skeleton-row"></span>
+        </div>
+        } @else if (filasActuales().length === 0) {
+        <div class="am-empty">
+          No hay módulos disponibles para este perfil.
+        </div>
+        } @else {
+        @for (grupo of grupos(); track grupo) {
+        <div class="am-grupo">
+          <div class="am-grupo-head">
+            <span class="am-grupo-icon"></span>
+            <span class="am-grupo-title">{{ grupo }}</span>
+            <span class="am-grupo-count" [class.count--none]="activosDeGrupo(grupo) === 0">
+              {{ activosDeGrupo(grupo) }}/{{ filasDeGrupo(grupo).length }}
+            </span>
+          </div>
+          <div class="am-filas">
+            @for (fila of filasDeGrupo(grupo); track fila.codigo) {
+            <div class="am-fila" [class.am-fila--off]="!fila.activo"
+                 [class.am-fila--disabled]="fila.esAdmin">
+              <div class="am-fila-info">
+                <span class="am-fila-nombre">{{ fila.nombre }}</span>
+                @if (fila.descripcion) {
+                <span class="am-fila-desc">{{ fila.descripcion }}</span>
+                }
+              </div>
+              <label class="am-switch" [title]="fila.activo ? 'Activado' : 'Desactivado'">
+                <input type="checkbox"
+                       [(ngModel)]="fila.activo"
+                       [disabled]="fila.esAdmin" />
+                <span class="am-switch-track"></span>
+              </label>
+            </div>
+            }
+          </div>
+        </div>
+        }
+        }
+      </div>
+
+      <div class="am-footer">
+        <span class="am-footer-hint">
+          Los cambios aplican a todos los usuarios con ese perfil. En el perfil
+          Administrador el módulo Accesos no se puede desactivar.
+        </span>
+        <div class="am-footer-btns">
+          <button class="am-btn am-btn--ghost" (click)="cerrar.emit()">Cancelar</button>
+          <button class="am-btn am-btn--primary" (click)="guardarRol()" [disabled]="rolGuardando">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/>
+              <polyline points="17 21 17 13 7 13 7 21"/>
+              <polyline points="7 3 7 8 15 8"/>
+            </svg>
+            {{ rolGuardando ? 'Guardando…' : 'Guardar accesos' }}
+          </button>
+        </div>
+      </div>
+    </div>
+    }
+
+    <!-- ══════════════ TAB: POR USUARIO ══════════════ -->
+    @if (tab === 'usuarios') {
+    <div class="am-content">
+      <div class="am-section-label">1 · Busca y selecciona al usuario</div>
+
+      <div class="am-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input type="text" placeholder="Buscar por nombre o correo…"
+               [(ngModel)]="busqueda" (ngModelChange)="onBusquedaChange($event)" />
+        @if (busqueda) {
+        <button class="am-search-clear" (click)="onBusquedaChange('')" aria-label="Limpiar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+        }
+      </div>
+
+      @if (!usuarioSeleccionado) {
+      <div class="am-results">
+        @if (buscando) {
+        <div class="am-results-loading">
+          <span class="am-spinner"></span>
+          {{ busqueda ? 'Buscando…' : 'Cargando usuarios…' }}
+        </div>
+        } @else if (resultados.length > 0) {
+        @for (u of resultados; track u.id) {
+        <button class="am-result-row" (click)="seleccionarUsuario(u)">
+          <span class="am-result-avatar am-role--{{ u.role }}">
+            @if (u.profilePhotoUrl) {
+            <img [src]="u.profilePhotoUrl" [alt]="u.name" />
+            } @else {
+            {{ (u.name || '?').charAt(0).toUpperCase() }}
+            }
+          </span>
+          <span class="am-result-info">
+            <span class="am-result-name">
+              {{ u.name }}
+            </span>
+            <span class="am-result-email">{{ u.email }}</span>
+          </span>
+          <span class="am-role-pill am-role--{{ u.role }}">{{ rolLabel(u.role) }}</span>
+        </button>
+        }
+        } @else {
+        <div class="am-empty am-empty--pad">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+          </svg>
+          @if (busqueda) {
+          No encontramos usuarios con "{{ busqueda }}".
+          } @else {
+          No hay usuarios que mostrar.
+          }
+        </div>
+        }
+      </div>
+      }
+
+      @if (usuarioSeleccionado) {
+      <div class="am-picked-user">
+        <span class="am-result-avatar am-role--{{ usuarioSeleccionado.role }}">
+          @if (usuarioSeleccionado.profilePhotoUrl) {
+          <img [src]="usuarioSeleccionado.profilePhotoUrl" [alt]="usuarioSeleccionado.name" />
+          } @else {
+          {{ (usuarioSeleccionado.name || '?').charAt(0).toUpperCase() }}
+          }
+        </span>
+        <span class="am-picked-info">
+          <strong>{{ usuarioSeleccionado.name }}</strong>
+          <span>{{ usuarioSeleccionado.email }}</span>
+        </span>
+        <span class="am-role-pill am-role--{{ usuarioSeleccionado.role }}">
+          {{ rolLabel(usuarioSeleccionado.role) }}
+        </span>
+        <button class="am-btn am-btn--soft" (click)="deseleccionarUsuario()">
+          Cambiar usuario
+        </button>
+      </div>
+      }
+
+      @if (usuarioSeleccionado) {
+      <div class="am-actions">
+        <div class="am-actions-count">
+          <span class="am-dot" [class.dot--off]="activosCuenta() === 0"></span>
+          <strong>{{ activosCuenta() }}</strong> de {{ totalCuenta() }} módulos activos
+          para este usuario
+        </div>
+        <div class="am-actions-btns">
+          <button class="am-btn am-btn--soft" (click)="verTodos(false)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            Activar todos
+          </button>
+          <button class="am-btn am-btn--soft am-btn--danger" (click)="verTodos(true)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+            Quitar todos
+          </button>
+        </div>
+      </div>
+      }
+
+      <div class="am-body">
+        @if (!usuarioSeleccionado) {
+        <div class="am-empty am-empty--pad am-empty--hint">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"/>
+          </svg>
+          Selecciona un usuario arriba para configurar sus accesos.
+        </div>
+        } @else if (usuarioCargando) {
+        <div class="am-skeletons">
+          <span class="am-skeleton-title"></span>
+          <span class="am-skeleton-row"></span>
+          <span class="am-skeleton-row"></span>
+          <span class="am-skeleton-row"></span>
+        </div>
+        } @else {
+        <div class="am-seccion-hint">
+          2 · Define qué módulos verá {{ usuarioSeleccionado.name }}
+        </div>
+        @for (grupo of grupos(); track grupo) {
+        <div class="am-grupo">
+          <div class="am-grupo-head">
+            <span class="am-grupo-icon"></span>
+            <span class="am-grupo-title">{{ grupo }}</span>
+            <span class="am-grupo-count" [class.count--none]="activosDeGrupo(grupo) === 0">
+              {{ activosDeGrupo(grupo) }}/{{ filasDeGrupo(grupo).length }}
+            </span>
+          </div>
+          <div class="am-filas">
+            @for (fila of filasDeGrupo(grupo); track fila.codigo) {
+            <div class="am-fila" [class.am-fila--off]="!fila.activo"
+                 [class.am-fila--disabled]="fila.esAdmin">
+              <div class="am-fila-info">
+                <span class="am-fila-nombre">{{ fila.nombre }}</span>
+                @if (fila.descripcion) {
+                <span class="am-fila-desc">{{ fila.descripcion }}</span>
+                }
+              </div>
+              <label class="am-switch" [title]="fila.activo ? 'Activado' : 'Desactivado'">
+                <input type="checkbox" [(ngModel)]="fila.activo"
+                       [disabled]="fila.esAdmin" />
+                <span class="am-switch-track"></span>
+              </label>
+            </div>
+            }
+          </div>
+        </div>
+        }
+
+        @if (usuarioEsAdmin) {
+        <div class="am-note am-note--lock">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="10" rx="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+          <div>
+            <strong>Módulo de Accesos protegido.</strong>
+            <span>Solo puede desactivarse si otro Administrador conserva el acceso a este control.</span>
+          </div>
+        </div>
+        }
+
+        <div class="am-note am-note--info">
+          <div>
+            Estos accesos están <strong>solo para {{ usuarioSeleccionado.name }}</strong> y
+            tienen prioridad sobre los de su perfil ({{ rolLabel(usuarioSeleccionado.role) }}).
+          </div>
+        </div>
+        }
+      </div>
+
+      <div class="am-footer">
+        <span class="am-footer-hint">
+          {{ usuarioSeleccionado ? 'Los cambios afectan solo a este usuario.' : '' }}
+        </span>
+        <div class="am-footer-btns">
+          <button class="am-btn am-btn--ghost" (click)="cerrar.emit()">Cancelar</button>
+          @if (usuarioSeleccionado) {
+          <button class="am-btn am-btn--ghost" (click)="restablecerUsuario()"
+                  [disabled]="usuarioGuardando"
+                  title="Deja que el usuario herede los accesos de su perfil">
+            Heredar del perfil
+          </button>
+          <button class="am-btn am-btn--primary" (click)="guardarUsuario()"
+                  [disabled]="usuarioGuardando">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/>
+              <polyline points="17 21 17 13 7 13 7 21"/>
+              <polyline points="7 3 7 8 15 8"/>
+            </svg>
+            {{ usuarioGuardando ? 'Guardando…' : 'Guardar accesos' }}
+          </button>
+          }
+        </div>
+      </div>
+    </div>
+    }
+
+  </div>
+</div>

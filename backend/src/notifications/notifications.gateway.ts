@@ -35,7 +35,8 @@ export class NotificationsGateway
     try {
       const token =
         (client.handshake.auth?.token as string) ??
-        (client.handshake.headers?.authorization?.replace('Bearer ', '') ?? '');
+        client.handshake.headers?.authorization?.replace('Bearer ', '') ??
+        '';
 
       // Sin token puede ser un cliente anónimo del widget (chat) en el mismo
       // namespace raíz: no se desconecta, solo no entra a 'user:{id}'.
