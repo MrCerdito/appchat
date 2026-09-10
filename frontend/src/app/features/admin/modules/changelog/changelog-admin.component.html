@@ -1,0 +1,126 @@
+<div class="clg">
+  <header class="clg-header">
+    <div class="clg-header__text">
+      <h1>Cambios y novedades</h1>
+      <p>Publica las actualizaciones del sistema. Todos los usuarios las verán una vez.</p>
+    </div>
+    <button class="clg-btn-new" (click)="nueva()">
+      <lucide-angular [img]="icons.Plus" [size]="18" />
+      Nueva novedad
+    </button>
+  </header>
+
+  @if (showForm) {
+  <section class="clg-editor">
+    <div class="clg-editor__grid">
+      <label class="clg-field clg-field--title">
+        <span>Título</span>
+        <input type="text" [(ngModel)]="form.titulo" placeholder="Ej: Nueva vista de reportes por asesor" />
+      </label>
+      <label class="clg-field">
+        <span>Categoría</span>
+        <select [(ngModel)]="form.categoria">
+          <option value="nuevo">Novedad</option>
+          <option value="mejora">Mejora</option>
+          <option value="correccion">Corrección</option>
+        </select>
+      </label>
+      <label class="clg-field clg-field--version">
+        <span>Versión <em>opcional</em></span>
+        <input type="text" [(ngModel)]="form.version" placeholder="Ej: 2.4.0" />
+      </label>
+    </div>
+
+    <div class="clg-editor__datetime">
+      <label class="clg-field clg-field--date">
+        <span>Fecha y hora de publicación</span>
+        <input type="datetime-local" [(ngModel)]="form.fechaPublicacion" [min]="nowDatetimeLocal" />
+      </label>
+    </div>
+
+    <app-mail-editor
+      [cuerpo]="form.cuerpo"
+      [design]="form.design"
+      [variables]="[]"
+      [allowButton]="true"
+      [allowVariables]="false"
+      (cuerpoChange)="onCuerpo($event)"
+      (designChange)="onDesign($event)"
+    ></app-mail-editor>
+
+    <div class="clg-editor__actions">
+      <button class="clg-btn ghost" (click)="cancelar()">Cancelar</button>
+      <button class="clg-btn draft" [disabled]="saving" (click)="guardar(false)">
+        {{ saving && !form.version ? 'Guardando...' : (editingId ? 'Actualizar borrador' : 'Guardar borrador') }}
+      </button>
+      <button class="clg-btn publish" [disabled]="saving" (click)="guardar(true)">
+        <lucide-angular [img]="icons.Send" [size]="16" />
+        {{ saving ? 'Publicando...' : (editingId ? 'Actualizar publicación' : publishBtnLabel) }}
+      </button>
+    </div>
+  </section>
+  }
+
+  <section class="clg-list">
+    <div class="clg-filters">
+      <button class="clg-chip" [class.active]="filter === 'todos'" (click)="filter = 'todos'">
+        Todos <span>{{ list.length }}</span>
+      </button>
+      <button class="clg-chip" [class.active]="filter === 'publicados'" (click)="filter = 'publicados'">
+        Publicados <span>{{ publicadosCount }}</span>
+      </button>
+      <button class="clg-chip" [class.active]="filter === 'borradores'" (click)="filter = 'borradores'">
+        Borradores <span>{{ borradoresCount }}</span>
+      </button>
+    </div>
+
+    @if (loading) {
+    <p class="clg-empty">Cargando historial…</p>
+    } @else if (!filtered.length) {
+    <p class="clg-empty">No hay {{ filter === 'publicados' ? 'novedades publicadas' : filter === 'borradores' ? 'borradores' : 'novedades' }} todavía.</p>
+    } @else {
+    <div class="clg-table">
+      @for (item of filtered; track item.id) {
+      <div class="clg-row">
+        <div class="clg-row__main">
+          <span class="clg-row__cat" [style.background]="categoriaMeta(item.categoria).color">
+            <lucide-angular [img]="icons.Megaphone" [size]="15" />
+          </span>
+          <div class="clg-row__text">
+            <div class="clg-row__title-line">
+              <strong>{{ item.titulo }}</strong>
+              <span class="clg-row__chip" [style.color]="categoriaMeta(item.categoria).color">
+                {{ categoriaMeta(item.categoria).label }}
+              </span>
+              @if (item.version) {
+              <span class="clg-row__version">v{{ item.version }}</span>
+              }
+<span class="clg-row__state" [class.published]="estado(item).cls === 'published'" [class.scheduled]="estado(item).cls === 'scheduled'">
+                {{ estado(item).label }}
+              </span>
+            </div>
+            <div class="clg-row__meta">
+              {{ metaFecha(item) }}
+              @if (item.publicado && estado(item).cls !== 'scheduled') {
+              <span class="clg-row__visto">
+                <lucide-angular [img]="icons.Eye" [size]="13" />
+                {{ item.visto ?? 0 }} vistos
+              </span>
+              }
+            </div>
+          </div>
+        </div>
+        <div class="clg-row__actions">
+          <button class="clg-icon-btn" title="Editar" (click)="editar(item)">
+            <lucide-angular [img]="icons.Pencil" [size]="17" />
+          </button>
+          <button class="clg-icon-btn danger" title="Eliminar" [disabled]="deleting" (click)="eliminar(item)">
+            <lucide-angular [img]="icons.Trash2" [size]="17" />
+          </button>
+        </div>
+      </div>
+      }
+    </div>
+    }
+  </section>
+</div>

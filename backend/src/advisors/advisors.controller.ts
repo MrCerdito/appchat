@@ -80,6 +80,7 @@ export class AdvisorsController {
           admin: number;
           desarrollador: number;
           interno: number;
+          superadmin: number;
         };
       }
     | User[]

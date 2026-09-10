@@ -44,7 +44,7 @@ export interface PaginatedResult<T> {
   page: number;
   limit: number;
   pages: number;
-  counts?: { todos: number; advisor: number; admin: number; desarrollador: number; interno: number };
+  counts?: { todos: number; advisor: number; admin: number; desarrollador: number; interno: number; superadmin: number };
 }
 
 export interface ConectividadAsesor {
@@ -105,7 +105,7 @@ export class AdvisorsService {
     page: number,
     limit: number,
     search?: string,
-    role?: 'admin' | 'advisor' | 'desarrollador' | 'interno' | 'todos',
+    role?: 'admin' | 'advisor' | 'desarrollador' | 'interno' | 'superadmin' | 'todos',
     activo?: boolean,
     conectado?: boolean,
   ): Promise<PaginatedResult<User>> {
@@ -175,6 +175,7 @@ export class AdvisorsService {
     admin: number;
     desarrollador: number;
     interno: number;
+    superadmin: number;
   }> {
     const rows = await this.userRepo
       .createQueryBuilder('user')
@@ -189,6 +190,7 @@ export class AdvisorsService {
       admin: 0,
       desarrollador: 0,
       interno: 0,
+      superadmin: 0,
     };
     for (const row of rows) {
       const n = Number(row.cnt) || 0;
@@ -197,6 +199,7 @@ export class AdvisorsService {
       else if (row.role === 'admin') counts.admin += n;
       else if (row.role === 'desarrollador') counts.desarrollador += n;
       else if (row.role === 'interno') counts.interno += n;
+      else if (row.role === 'superadmin') counts.superadmin += n;
       else counts.todos += 0; // roles desconocidos ya sumados arriba
     }
     return counts;
@@ -286,7 +289,7 @@ export class AdvisorsService {
     name: string,
     email: string,
     password: string,
-    role: 'admin' | 'advisor' | 'desarrollador' | 'interno' = 'advisor',
+    role: 'admin' | 'advisor' | 'desarrollador' | 'interno' | 'superadmin' = 'advisor',
   ): Promise<User> {
     const exists = await this.userRepo.findOne({ where: { email } });
     if (exists) throw new ConflictException('El email ya está registrado');
@@ -308,7 +311,7 @@ export class AdvisorsService {
     dto: {
       name?: string;
       email?: string;
-      role?: 'admin' | 'advisor' | 'desarrollador' | 'interno';
+      role?: 'admin' | 'advisor' | 'desarrollador' | 'interno' | 'superadmin';
     },
     actorId?: string,
   ): Promise<User> {
@@ -385,7 +388,7 @@ export class AdvisorsService {
 
   private async assertCanChangeRole(
     target: User,
-    newRole: 'admin' | 'advisor' | 'desarrollador' | 'interno',
+    newRole: 'admin' | 'advisor' | 'desarrollador' | 'interno' | 'superadmin',
     actorId?: string,
   ): Promise<void> {
     if (actorId && target.id === actorId) {
@@ -493,7 +496,9 @@ export class AdvisorsService {
                   ? 'desarrollador'
                   : rawRoleStr === 'interno'
                     ? 'interno'
-                    : 'advisor',
+                    : rawRoleStr === 'superadmin'
+                      ? 'superadmin'
+                      : 'advisor',
             active: rawActive
               ? rawActive.toLowerCase() === 'true' || rawActive === '1'
               : undefined,

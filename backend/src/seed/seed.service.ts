@@ -36,6 +36,8 @@ export class SeedService implements OnApplicationBootstrap {
       return;
     }
 
+    await this.ensureSuperadmin();
+
     const adminExists = await this.userRepo.findOne({
       where: { role: 'admin' },
     });
@@ -56,6 +58,35 @@ export class SeedService implements OnApplicationBootstrap {
     } catch (error) {
       this.logger.error('Error durante el seed:', error);
     }
+  }
+
+  private async ensureSuperadmin(): Promise<void> {
+    const email = process.env.SEED_SUPERADMIN_EMAIL;
+    const password = process.env.SEED_SUPERADMIN_PASSWORD;
+    if (!email || !password) return;
+
+    const existing = await this.userRepo.findOne({ where: { email } });
+    if (existing) {
+      if (existing.role !== 'superadmin') {
+        existing.role = 'superadmin';
+        await this.userRepo.save(existing);
+        this.logger.warn(`Usuario promovido a superadmin: ${email}`);
+      }
+      return;
+    }
+
+    await this.userRepo.save(
+      this.userRepo.create({
+        name: process.env.SEED_SUPERADMIN_NOMBRE || 'Superadmin',
+        email,
+        password: await bcrypt.hash(password, 10),
+        role: 'superadmin',
+        active: true,
+        status: 'offline',
+        activeChats: 0,
+      }),
+    );
+    this.logger.log(`Superadmin creado: ${email}`);
   }
 
   private generateStrongPassword(): string {

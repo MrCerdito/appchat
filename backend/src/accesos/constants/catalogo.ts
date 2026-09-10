@@ -126,4 +126,11 @@ export const CATALOGO_MODULOS: ModuloDef[] = [
     descripcion: 'Control de módulos por perfil y por usuario',
     aplicaA: ['admin'],
   },
+  {
+    codigo: 'changelog',
+    nombre: 'Cambios y actualizaciones',
+    grupo: 'Administración',
+    descripcion: 'Notas de actualización publicadas por el superadmin',
+    aplicaA: ['admin'],
+  },
 ];

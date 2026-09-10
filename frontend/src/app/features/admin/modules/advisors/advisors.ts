@@ -28,7 +28,7 @@ interface SortState {
   direction: 'asc' | 'desc';
 }
 
-type RoleFilter = 'todos' | 'advisor' | 'admin' | 'desarrollador' | 'interno';
+type RoleFilter = 'todos' | 'advisor' | 'admin' | 'desarrollador' | 'interno' | 'superadmin';
 
 type ConexionState = 'idle' | 'checking' | 'ok' | 'error';
 
@@ -91,7 +91,7 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
   filtroRol: RoleFilter = 'todos';
   currentUserId: string | null = null;
 
-  roleCounts = { todos: 0, advisor: 0, admin: 0, desarrollador: 0, interno: 0 };
+  roleCounts = { todos: 0, advisor: 0, admin: 0, desarrollador: 0, interno: 0, superadmin: 0 };
   filterOptions = { activo: false, conectado: false };
   menuFiltrosAbierto = false;
 
@@ -126,7 +126,7 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
 
   // ── Modal crear/editar ────────────────────────────────
   formModal: { mode: 'create' | 'edit'; advisor: User | null } | null = null;
-  form = { name: '', email: '', password: '', confirm: '', role: 'advisor' as 'admin' | 'advisor' | 'desarrollador' | 'interno' };
+  form = { name: '', email: '', password: '', confirm: '', role: 'advisor' as 'admin' | 'advisor' | 'desarrollador' | 'interno' | 'superadmin' };
   formErrors: Record<string, string> = {};
   formBusy = false;
   showPasswordField = false;
@@ -844,7 +844,7 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
       email: advisor.email,
       password: '',
       confirm: '',
-      role: advisor.role === 'admin' ? 'admin' : advisor.role === 'desarrollador' ? 'desarrollador' : advisor.role === 'interno' ? 'interno' : 'advisor',
+      role: advisor.role === 'admin' ? 'admin' : advisor.role === 'desarrollador' ? 'desarrollador' : advisor.role === 'interno' ? 'interno' : advisor.role === 'superadmin' ? 'superadmin' : 'advisor',
     };
     this.formErrors = {};
     this.formBusy = false;
@@ -1161,7 +1161,7 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
   }
 
   getRoleLabel(role?: string): string {
-    return role === 'admin' ? 'Administrador' : role === 'desarrollador' ? 'Desarrollador' : role === 'interno' ? 'Interno' : 'Agente';
+    return role === 'admin' ? 'Administrador' : role === 'desarrollador' ? 'Desarrollador' : role === 'interno' ? 'Interno' : role === 'superadmin' ? 'Superadmin' : 'Agente';
   }
 
   formatDate(date?: string | null): string {

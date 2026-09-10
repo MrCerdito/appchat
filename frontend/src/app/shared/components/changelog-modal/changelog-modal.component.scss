@@ -1,0 +1,136 @@
+.clm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9990;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+  animation: clm-fade 0.18s ease-out;
+}
+
+.clm-card {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 9991;
+  width: min(620px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.18);
+  overflow: hidden;
+  animation: clm-pop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.clm-head {
+  padding: 20px 24px 4px;
+}
+
+.clm-kicker {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+
+.clm-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.3;
+}
+
+.clm-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 24px 14px;
+}
+
+.clm-cat,
+.clm-version,
+.clm-date {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.clm-version {
+  font-weight: 600;
+}
+
+.clm-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 24px 8px;
+}
+
+.clm-frame {
+  width: 100%;
+  border: none;
+  background: transparent;
+  min-height: 120px;
+  display: block;
+}
+
+.clm-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  padding: 12px 24px 16px;
+}
+
+.clm-pager {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.clm-spacer {
+  flex: 1;
+}
+
+.clm-entendido {
+  padding: 9px 22px;
+  border: none;
+  border-radius: 8px;
+  background: #1e293b;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.12s ease;
+
+  &:hover {
+    background: #334155;
+    transform: translateY(-1px);
+  }
+}
+
+@keyframes clm-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes clm-pop {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -46%) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}

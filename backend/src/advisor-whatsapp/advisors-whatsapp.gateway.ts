@@ -112,7 +112,11 @@ export class AdvisorsWhatsappGateway
       const secret = this.config.get<string>('JWT_SECRET');
       const payload = this.jwtService.verify(token, { secret });
 
-      if (payload.role !== 'advisor' && payload.role !== 'admin') {
+      if (
+        payload.role !== 'advisor' &&
+        payload.role !== 'admin' &&
+        payload.role !== 'superadmin'
+      ) {
         client.disconnect(true);
         return;
       }
@@ -124,7 +128,7 @@ export class AdvisorsWhatsappGateway
         role: payload.role,
       };
       client.join(this.advisorRoom(payload.sub));
-      if (payload.role === 'admin') {
+      if (payload.role === 'admin' || payload.role === 'superadmin') {
         client.join('admins');
       }
       this.addAdvisorSocket(payload.sub, client.id);
@@ -220,7 +224,8 @@ export class AdvisorsWhatsappGateway
   ) {
     if (
       client.data.user?.id !== advisorId &&
-      client.data.user?.role !== 'admin'
+      client.data.user?.role !== 'admin' &&
+      client.data.user?.role !== 'superadmin'
     )
       return;
     client.join(this.advisorRoom(advisorId));

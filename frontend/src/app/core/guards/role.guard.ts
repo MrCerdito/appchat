@@ -7,6 +7,13 @@ export const roleGuard = (...requiredRoles: string[]): CanActivateFn => () => {
   const router = inject(Router);
   const user = auth.getUser();
 
+  if (user && user.role === 'superadmin') {
+    // El superadmin tiene acceso total; ocupa el shell de administrador.
+    if (requiredRoles.length === 0 || requiredRoles.includes('admin')) return true;
+    router.navigate(['/admin']);
+    return false;
+  }
+
   if (user && requiredRoles.includes(user.role)) return true;
 
   if (user?.role === 'admin') { router.navigate(['/admin']); return false; }

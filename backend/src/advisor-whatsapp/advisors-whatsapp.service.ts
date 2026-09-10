@@ -1091,13 +1091,13 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       throw new ForbiddenException('No puedes tomar chats con este usuario');
     }
 
-    if (advisor.role !== 'advisor' && advisor.role !== 'admin') {
+    if (advisor.role !== 'advisor' && !this.isAdminRole(advisor.role)) {
       throw new ForbiddenException(
         'Solo un agente o administrador puede tomar chats de la cola',
       );
     }
 
-    if (role !== 'admin') {
+    if (!this.isAdminRole(role)) {
       const [enAlmuerzo, enAlmuerzoRedis] = await Promise.all([
         this.configuracionService.estaEnAlmuerzo(advisor.id).catch(() => false),
         this.redisState.isOnLunch(advisor.id).catch(() => false),
@@ -1109,7 +1109,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       }
     }
 
-    if (role !== 'admin') {
+    if (!this.isAdminRole(role)) {
       const chatCheck = await this.chatRepo.findOne({
         where: { id: chatId },
         relations: ['fixedAdvisor'],
@@ -1143,7 +1143,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
         chat.operationalStatus = 'in_progress';
         chat.assignedAdvisor = advisor;
         chat.assignedAt = new Date();
-        chat.assignmentMode = role === 'admin' ? 'admin' : 'manual';
+        chat.assignmentMode = this.isAdminRole(role) ? 'admin' : 'manual';
         chat.queueNoticeSent = false;
         chat.outOfHoursNoticeSent = false;
         const saved = await repo.save(chat);
@@ -1210,7 +1210,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
 
     // Restricción por asesor: cada asesor ve sus chats asignados/fijos y la cola
     // (chats sin asesor). Los admins ven todos los chats.
-    if (role !== 'admin') {
+    if (!this.isAdminRole(role)) {
       qb.andWhere(
         '(advisor.id = :advisorId OR fixedAdvisor.id = :advisorId OR advisor.id IS NULL)',
         { advisorId },
@@ -1301,7 +1301,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       .leftJoin('chat.fixedAdvisor', 'fixedAdvisor');
 
     // Mismo scope que listChats: chats asignados/fijos y la cola sin asesor.
-    if (role !== 'admin') {
+    if (!this.isAdminRole(role)) {
       qb.andWhere(
         '(advisor.id = :advisorId OR fixedAdvisor.id = :advisorId OR advisor.id IS NULL)',
         { advisorId },
@@ -2017,7 +2017,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     }
 
     const isSourceAssigned = chat.assignedAdvisor?.id === sourceAdvisorId;
-    const isAdmin = role === 'admin';
+    const isAdmin = this.isAdminRole(role);
     if (!isSourceAssigned && !isAdmin) {
       throw new ForbiddenException(
         'No tienes permiso para transferir este chat',
@@ -2162,7 +2162,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       throw new BadRequestException('Estado de WhatsApp no valido');
     }
     const chat = await this.findChatOrFail(chatId);
-    if (role !== 'admin' && chat.assignedAdvisor?.id !== advisorId) {
+    if (!this.isAdminRole(role) && chat.assignedAdvisor?.id !== advisorId) {
       throw new ForbiddenException('Este chat esta asignado a otro agente');
     }
     chat.operationalStatus = operationalStatus;
@@ -2440,7 +2440,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
         'Solo se pueden editar mensajes de texto enviados por el agente',
       );
     }
-    if (role !== 'admin' && message.advisor?.id !== advisorId) {
+    if (!this.isAdminRole(role) && message.advisor?.id !== advisorId) {
       throw new ForbiddenException('No puedes editar mensajes de otro agente');
     }
     if (Date.now() - new Date(message.createdAt).getTime() > 15 * 60_000) {
@@ -2483,7 +2483,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
         'Solo se pueden eliminar mensajes enviados por el agente',
       );
     }
-    if (role !== 'admin' && message.advisor?.id !== advisorId) {
+    if (!this.isAdminRole(role) && message.advisor?.id !== advisorId) {
       throw new ForbiddenException(
         'No puedes eliminar mensajes de otro agente',
       );
@@ -2534,7 +2534,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     if (!chat) throw new NotFoundException('Chat de WhatsApp no encontrado');
 
     if (
-      role !== 'admin' &&
+      !this.isAdminRole(role) &&
       chat.assignedAdvisor &&
       chat.assignedAdvisor.id !== advisorId
     ) {
@@ -2591,7 +2591,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
 
     const chat = target.chat;
     if (
-      role !== 'admin' &&
+      !this.isAdminRole(role) &&
       chat.assignedAdvisor &&
       chat.assignedAdvisor.id !== advisorId
     ) {
@@ -2684,7 +2684,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
 
     const sourceChat = sourceMsg.chat;
     if (
-      role !== 'admin' &&
+      !this.isAdminRole(role) &&
       sourceChat.assignedAdvisor &&
       sourceChat.assignedAdvisor.id !== advisorId
     ) {
@@ -2693,7 +2693,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
 
     const targetChat = await this.findChatOrFail(targetChatId);
     if (
-      role !== 'admin' &&
+      !this.isAdminRole(role) &&
       targetChat.assignedAdvisor &&
       targetChat.assignedAdvisor.id !== advisorId
     ) {
@@ -2801,7 +2801,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     if (!chat) throw new NotFoundException('Chat de WhatsApp no encontrado');
 
     if (
-      role !== 'admin' &&
+      !this.isAdminRole(role) &&
       chat.assignedAdvisor &&
       chat.assignedAdvisor.id !== advisorId
     ) {
@@ -2870,7 +2870,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     if (!chat) throw new NotFoundException('Chat de WhatsApp no encontrado');
 
     if (
-      role !== 'admin' &&
+      !this.isAdminRole(role) &&
       chat.assignedAdvisor &&
       chat.assignedAdvisor.id !== advisorId
     ) {
@@ -3049,7 +3049,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
   ): Promise<WaChatDto> {
     const chat = await this.findChatOrFail(chatId);
     if (chat.isGroup) {
-      if (role !== 'admin') {
+      if (!this.isAdminRole(role)) {
         throw new ForbiddenException(
           'Solo un administrador puede liberar la asignacion de un grupo',
         );
@@ -3065,11 +3065,11 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       await this.chatRepo.save(chat);
       return this.toChatDto(await this.findChatOrFail(chatId), true);
     }
-    if (role !== 'admin' && chat.assignedAdvisor?.id !== advisorId) {
+    if (!this.isAdminRole(role) && chat.assignedAdvisor?.id !== advisorId) {
       throw new ForbiddenException('Este chat esta asignado a otro agente');
     }
 
-    if (role !== 'admin' && chat.fixedAdvisor) {
+    if (!this.isAdminRole(role) && chat.fixedAdvisor) {
       throw new ForbiddenException(
         'Este chat tiene un agente fijo. Solo un administrador puede cerrarlo.',
       );
@@ -3165,7 +3165,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       throw new BadRequestException('No se puede reaccionar a una reaccion');
     }
     if (
-      role !== 'admin' &&
+      !this.isAdminRole(role) &&
       target.chat.assignedAdvisor &&
       target.chat.assignedAdvisor.id !== advisorId
     ) {
@@ -5169,7 +5169,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       relations: ['assignedAdvisor', 'fixedAdvisor'],
     });
     if (!chat) throw new NotFoundException('Chat de WhatsApp no encontrado');
-    if (role === 'admin') return chat;
+    if (this.isAdminRole(role)) return chat;
     if (role !== 'advisor') {
       throw new ForbiddenException('No tienes permisos para ver este chat');
     }
@@ -5190,15 +5190,19 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
   }
 
   private assertWhatsappUserRole(role: string): void {
-    if (role !== 'advisor' && role !== 'admin') {
+    if (role !== 'advisor' && !this.isAdminRole(role)) {
       throw new ForbiddenException(
         'Solo asesores o administradores pueden enviar mensajes de WhatsApp',
       );
     }
   }
 
+  private isAdminRole(role: string): boolean {
+    return role === 'admin' || role === 'superadmin';
+  }
+
   private async assertNoLunch(advisorId: string, role: string): Promise<void> {
-    if (role === 'admin') return;
+    if (this.isAdminRole(role)) return;
     const [enAlmuerzo, enAlmuerzoRedis] = await Promise.all([
       this.configuracionService.estaEnAlmuerzo(advisorId).catch(() => false),
       this.redisState.isOnLunch(advisorId).catch(() => false),
@@ -5211,7 +5215,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
   }
 
   private assertAdminRole(role: string): void {
-    if (role !== 'admin') {
+    if (!this.isAdminRole(role)) {
       throw new ForbiddenException(
         'Solo administradores pueden ejecutar esta accion',
       );

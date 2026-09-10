@@ -30,7 +30,13 @@ export interface MisPermisosResult {
 }
 
 /** Roles existentes en la aplicación. */
-export const ROLES = ['admin', 'advisor', 'desarrollador', 'interno'] as const;
+export const ROLES = [
+  'admin',
+  'advisor',
+  'desarrollador',
+  'interno',
+  'superadmin',
+] as const;
 
 const ROL_ADMIN = 'admin';
 
@@ -251,6 +257,13 @@ export class AccesosService implements OnModuleInit {
     user: { id: string; role: string },
   ): Promise<MisPermisosResult> {
     const catalogoCompleto = await this.getModulos();
+    // El superadmin tiene acceso a todos los módulos.
+    if (user.role === 'superadmin') {
+      return {
+        user: { id: user.id, role: user.role },
+        modulos: catalogoCompleto.map((m) => ({ codigo: m.codigo, activo: true })),
+      };
+    }
     const defaultMap = await this.getRolDefaultMap(user.role);
     const overrides = await this.usuarioRepo.find({
       where: { userId: user.id },
@@ -277,6 +290,8 @@ export class AccesosService implements OnModuleInit {
     user: { id: string; role: string },
     codigo: string,
   ): Promise<boolean> {
+    // El superadmin tiene acceso a todos los módulos.
+    if (user.role === 'superadmin') return true;
     const aplicables = await this.getModulosDeRol(user.role);
     if (!aplicables.some((m) => m.codigo === codigo)) return false;
     const defaultMap = await this.getRolDefaultMap(user.role);

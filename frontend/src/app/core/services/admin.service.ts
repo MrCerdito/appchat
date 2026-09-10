@@ -10,7 +10,7 @@ export interface PaginatedResponse<T> {
   page: number;
   limit: number;
   pages: number;
-  counts?: { todos: number; advisor: number; admin: number; desarrollador: number; interno: number };
+  counts?: { todos: number; advisor: number; admin: number; desarrollador: number; interno: number; superadmin: number };
 }
 
 export interface ConectividadAsesor {
@@ -102,7 +102,7 @@ export class AdminService {
     page = 1,
     limit = 20,
     search?: string,
-    role?: 'admin' | 'advisor' | 'desarrollador' | 'interno' | 'todos',
+    role?: 'admin' | 'advisor' | 'desarrollador' | 'interno' | 'superadmin' | 'todos',
     opts?: { activo?: boolean; conectado?: boolean },
   ): Observable<PaginatedResponse<User>> {
     let params = new HttpParams().set('page', page).set('limit', limit);
@@ -132,14 +132,14 @@ export class AdminService {
     name: string,
     email: string,
     password: string,
-    role: 'admin' | 'advisor' | 'desarrollador' | 'interno' = 'advisor',
+    role: 'admin' | 'advisor' | 'desarrollador' | 'interno' | 'superadmin' = 'advisor',
   ): Observable<User> {
     return this.http.post<User>(`${environment.apiUrl}/advisors`, { name, email, password, role });
   }
 
   updateAdvisor(
     id: string,
-    data: { name?: string; email?: string; role?: 'admin' | 'advisor' | 'desarrollador' | 'interno' },
+    data: { name?: string; email?: string; role?: 'admin' | 'advisor' | 'desarrollador' | 'interno' | 'superadmin' },
   ): Observable<User> {
     return this.http.put<User>(`${environment.apiUrl}/advisors/${id}`, data);
   }

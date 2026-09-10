@@ -160,6 +160,13 @@ export const routes: Routes = [
             .then(m => m.AdminConfiguracionComponent),
       },
       {
+        path: 'cambios',
+        canActivate: [permisoGuard('changelog')],
+        loadComponent: () =>
+          import('./features/admin/modules/changelog/changelog-admin.component')
+            .then(m => m.ChangelogAdminComponent),
+      },
+      {
         path: 'widget',
         canActivate: [permisoGuard('widget')],
         loadComponent: () =>

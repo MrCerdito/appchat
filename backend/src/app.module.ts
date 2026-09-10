@@ -65,6 +65,9 @@ import { PermisoModuloGuard } from './accesos/permiso-modulo.guard';
 import { ModuloAcceso } from './accesos/entities/modulo-acceso.entity';
 import { AccesoRol } from './accesos/entities/acceso-rol.entity';
 import { AccesoUsuario } from './accesos/entities/acceso-usuario.entity';
+import { Changelog } from './changelogs/changelog.entity';
+import { ChangelogSeen } from './changelogs/changelog-seen.entity';
+import { ChangelogsModule } from './changelogs/changelogs.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -189,6 +192,8 @@ import { AppService } from './app.service';
           ModuloAcceso,
           AccesoRol,
           AccesoUsuario,
+          Changelog,
+          ChangelogSeen,
         ],
         synchronize: config.get<string>('NODE_ENV') === 'development',
         logging: config.get<string>('NODE_ENV') !== 'production',
@@ -215,6 +220,7 @@ import { AppService } from './app.service';
     NotificationsModule,
     SlaModule,
     AccesosModule,
+    ChangelogsModule,
   ],
   controllers: [AppController],
   providers: [

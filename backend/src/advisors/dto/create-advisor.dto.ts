@@ -16,10 +16,10 @@ export class CreateAdvisorDto {
   email!: string;
 
   @IsOptional()
-  @IsIn(['admin', 'advisor', 'desarrollador', 'interno'], {
+  @IsIn(['admin', 'advisor', 'desarrollador', 'interno', 'superadmin'], {
     message: 'Rol inválido',
   })
-  role?: 'admin' | 'advisor' | 'desarrollador' | 'interno';
+  role?: 'admin' | 'advisor' | 'desarrollador' | 'interno' | 'superadmin';
 
   @IsString()
   @MinLength(8, { message: 'La contraseña debe tener mínimo 8 caracteres' })

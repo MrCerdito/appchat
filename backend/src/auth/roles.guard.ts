@@ -26,6 +26,8 @@ export class RolesGuard implements CanActivate {
       return true;
     }
     const { user } = context.switchToHttp().getRequest();
+    // El superadmin tiene acceso total.
+    if (user?.role === 'superadmin') return true;
     if (!user || !roles.includes(user?.role)) {
       throw new ForbiddenException(
         'Acceso denegado: no tienes los permisos necesarios',

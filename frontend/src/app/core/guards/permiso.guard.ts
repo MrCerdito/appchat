@@ -13,6 +13,8 @@ export const permisoGuard = (codigo: string): CanActivateFn => async () => {
   const router = inject(Router);
   const auth = inject(AuthService);
 
+  if (auth.getUser()?.role === 'superadmin') return true;
+
   try {
     await permisos.asegurarCargados();
   } catch {

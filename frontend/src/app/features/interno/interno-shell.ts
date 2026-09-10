@@ -13,11 +13,12 @@ import { NotificationService } from '../../core/services/notification.service';
 import { User } from '../../core/models/user.model';
 import { ToastContainerComponent } from '../../shared/components/toast-container.component';
 import { NotificationBellComponent } from '../../shared/components/notification-bell.component';
+import { ChangelogModalComponent } from '../../shared/components/changelog-modal/changelog-modal.component';
 
 @Component({
   selector: 'app-interno-shell',
   standalone: true,
-  imports: [CommonModule, RouterModule, ToastContainerComponent, NotificationBellComponent],
+  imports: [CommonModule, RouterModule, ToastContainerComponent, NotificationBellComponent, ChangelogModalComponent],
   templateUrl: './interno-shell.html',
   styleUrl: './interno-shell.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

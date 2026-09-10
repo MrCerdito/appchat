@@ -59,7 +59,7 @@ export class LoginComponent {
         if (user?.role === 'advisor') {
           sessionStorage.setItem('advisor_fresh_login', '1');
         }
-        const target = user?.role === 'admin' ? '/admin' : user?.role === 'desarrollador' ? '/developer' : user?.role === 'interno' ? '/interno' : '/dashboard';
+        const target = user?.role === 'admin' || user?.role === 'superadmin' ? '/admin' : user?.role === 'desarrollador' ? '/developer' : user?.role === 'interno' ? '/interno' : '/dashboard';
         this.router.navigate([target]);
       },
       error: (err) => {

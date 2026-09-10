@@ -1,0 +1,35 @@
+<ng-container *ngIf="current as item">
+  <div class="clm-overlay"></div>
+  <div class="clm-card" role="dialog" aria-modal="true" [attr.aria-label]="item.titulo">
+    <div class="clm-head">
+      <div class="clm-title-wrap">
+        <span class="clm-kicker">Novedad del sistema</span>
+        <h2 class="clm-title">{{ item.titulo }}</h2>
+      </div>
+    </div>
+
+    <div class="clm-meta">
+      <span *ngIf="item.version" class="clm-version">v{{ item.version }}</span>
+      <span class="clm-date">{{ formatFecha(item.publicadoEl ?? item.createdAt) }}</span>
+    </div>
+
+    <div class="clm-body">
+      <iframe
+        #bodyFrame
+        class="clm-frame"
+        title="Contenido de la novedad"
+        (load)="frameLoad()"
+      ></iframe>
+    </div>
+
+    <div class="clm-foot">
+      <span *ngIf="pendientes.length > 1" class="clm-pager">
+        {{ pendientes.length }} pendiente{{ pendientes.length > 1 ? 's' : '' }}
+      </span>
+      <span class="clm-spacer"></span>
+      <button class="clm-entendido" (click)="marcarVistoActual()">
+        Entendido
+      </button>
+    </div>
+  </div>
+</ng-container>

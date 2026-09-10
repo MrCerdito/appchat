@@ -132,7 +132,11 @@ export class InternalChatGateway
       const secret = this.config.get<string>('JWT_SECRET');
       const payload = this.jwtService.verify(token, { secret });
 
-      if (payload.role !== 'advisor' && payload.role !== 'admin') {
+      if (
+        payload.role !== 'advisor' &&
+        payload.role !== 'admin' &&
+        payload.role !== 'superadmin'
+      ) {
         client.disconnect(true);
         return;
       }

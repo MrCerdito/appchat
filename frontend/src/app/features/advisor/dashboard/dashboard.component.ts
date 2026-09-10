@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrateg
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ToastContainerComponent } from '../../../shared/components/toast-container.component';
+import { ChangelogModalComponent } from '../../../shared/components/changelog-modal/changelog-modal.component';
 import { NavigationEnd, Router, RouterModule } from '@angular/router';
 import { interval, Subject } from 'rxjs';
 import { filter, takeUntil } from 'rxjs/operators';
@@ -42,7 +43,7 @@ interface ConnectedAdvisor {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, ToastContainerComponent, NotificationBellComponent],
+  imports: [CommonModule, RouterModule, FormsModule, ToastContainerComponent, NotificationBellComponent, ChangelogModalComponent],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

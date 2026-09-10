@@ -2,6 +2,7 @@ import { Component, OnDestroy, OnInit, ChangeDetectionStrategy, ChangeDetectorRe
 import { CommonModule } from '@angular/common';
 import { NavigationEnd, Router, RouterModule } from '@angular/router';
 import { ToastContainerComponent } from '../../../shared/components/toast-container.component';
+import { ChangelogModalComponent } from '../../../shared/components/changelog-modal/changelog-modal.component';
 import { filter, Subject, Subscription, takeUntil } from 'rxjs';
 
 import { AuthService } from '../../../core/services/auth.service';
@@ -21,7 +22,7 @@ import { trackByIndex, trackById } from '../../../shared/utils/track-by';
 @Component({
   selector: 'app-admin-shell',
   standalone: true,
-  imports: [CommonModule, RouterModule, ToastContainerComponent, NotificationBellComponent],
+  imports: [CommonModule, RouterModule, ToastContainerComponent, NotificationBellComponent, ChangelogModalComponent],
   templateUrl: './admin-shell.html',
   styleUrl: './admin-shell.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -221,7 +222,13 @@ export class AdminShellComponent implements OnInit, OnDestroy {
   }
 
   get roleLabel(): string {
-    return 'Administrador';
+    return this.currentAdmin?.role === 'superadmin'
+      ? 'Superadmin'
+      : 'Administrador';
+  }
+
+  get esSuperadmin(): boolean {
+    return this.currentAdmin?.role === 'superadmin';
   }
 
   openSidebar(): void {

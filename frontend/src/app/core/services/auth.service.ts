@@ -26,6 +26,10 @@ export class AuthService {
   private userSubject = new BehaviorSubject<User | null>(this.readStoredUser());
   readonly user$: Observable<User | null> = this.userSubject.asObservable();
 
+  /** Indica que la sesión ya fue validada (tryRefresh) y el usuario es fiable. */
+  private sessionReadySubject = new BehaviorSubject<boolean>(false);
+  readonly sessionReady$: Observable<boolean> = this.sessionReadySubject.asObservable();
+
   constructor(private http: HttpClient) {}
 
   login(email: string, password: string): Observable<LoginResponse> {
@@ -131,14 +135,16 @@ export class AuthService {
   }
 
   async tryRefresh(): Promise<boolean> {
-    if (!this.getRefreshToken()) return false;
-    if (this.getToken() && !this.isTokenExpired()) return true;
     try {
+      if (!this.getRefreshToken()) return false;
+      if (this.getToken() && !this.isTokenExpired()) return true;
       await firstValueFrom(this.refreshToken());
       return true;
     } catch {
       this.logout();
       return false;
+    } finally {
+      this.sessionReadySubject.next(true);
     }
   }
 

@@ -17,8 +17,8 @@ export class UpdateAdvisorDto {
   email?: string;
 
   @IsOptional()
-  @IsIn(['admin', 'advisor', 'desarrollador', 'interno'], {
+  @IsIn(['admin', 'advisor', 'desarrollador', 'interno', 'superadmin'], {
     message: 'Rol inválido',
   })
-  role?: 'admin' | 'advisor' | 'desarrollador' | 'interno';
+  role?: 'admin' | 'advisor' | 'desarrollador' | 'interno' | 'superadmin';
 }

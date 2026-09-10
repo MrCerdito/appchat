@@ -7,10 +7,10 @@ export class QueryAdvisorDto {
   search?: string;
 
   @IsOptional()
-  @IsIn(['admin', 'advisor', 'desarrollador', 'interno', 'todos'], {
+  @IsIn(['admin', 'advisor', 'desarrollador', 'interno', 'superadmin', 'todos'], {
     message: 'Rol inválido',
   })
-  role?: 'admin' | 'advisor' | 'desarrollador' | 'interno' | 'todos';
+  role?: 'admin' | 'advisor' | 'desarrollador' | 'interno' | 'superadmin' | 'todos';
 
   @IsOptional()
   @Type(() => Number)

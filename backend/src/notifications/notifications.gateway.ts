@@ -55,6 +55,10 @@ export class NotificationsGateway
       (client as any).userId = userId;
       client.join(`user:${userId}`);
 
+      const role = payload.role as string | undefined;
+      (client as any).role = role;
+      if (role) client.join(`role:${role}`);
+
       if (!this.userSockets.has(userId)) {
         this.userSockets.set(userId, new Set());
       }
@@ -86,4 +90,14 @@ export class NotificationsGateway
       this.sendToUser(userId, notification);
     }
   }
+
+  broadcastChangelog(changelog: any): void {
+    // Solo los roles internos (no clientes del widget ni superadmin) escuchan
+    // el evento 'changelog'. El modal consulta pendientes vía HTTP.
+    for (const role of CHANGELOG_ROLES) {
+      this.server?.to(`role:${role}`).emit('changelog', changelog);
+    }
+  }
 }
+
+export const CHANGELOG_ROLES = ['admin', 'advisor', 'desarrollador', 'interno'];
