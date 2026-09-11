@@ -55,7 +55,12 @@ export class ChangelogModalComponent implements OnInit, AfterViewInit, OnDestroy
     private readonly cdr: ChangeDetectorRef,
     private readonly notify: NotificationService,
   ) {
-    this.apiBase = new URL(environment.apiUrl).origin;
+    try {
+      this.apiBase = new URL(environment.apiUrl).origin;
+    } catch {
+      this.apiBase =
+        typeof window !== 'undefined' ? window.location.origin : '';
+    }
   }
 
   ngOnInit(): void {
