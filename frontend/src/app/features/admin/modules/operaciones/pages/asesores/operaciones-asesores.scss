@@ -151,6 +151,12 @@
   &.busy::before    { background: #3B82F6; }
   &.busy            { color: #2563EB; }
 
+  &.meeting::before { background: #8B5CF6; }
+  &.meeting         { color: #7C3AED; }
+
+  &.almuerzo::before { background: #FB923C; }
+  &.almuerzo         { color: #C2410C; }
+
   &.away::before    { background: #F59E0B; }
   &.away            { color: #D97706; }
 }

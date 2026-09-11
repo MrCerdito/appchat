@@ -35,6 +35,7 @@ export interface ActividadAsesorItem {
   resumen: {
     disponibleMin: number;
     ocupadoMin: number;
+    reunionMin: number;
     almuerzoMin: number;
     inactivoMin: number;
     desconexiones: number;
@@ -385,6 +386,7 @@ export class AdvisorActivityService {
       // Resumen (solo tiempo dentro de la jornada).
       let disponibleMin = 0;
       let ocupadoMin = 0;
+      let reunionMin = 0;
       let almuerzoMin = 0;
       let inactivoMin = 0;
       let desconexiones = 0;
@@ -394,6 +396,7 @@ export class AdvisorActivityService {
         if (p.almuerzo) almuerzoMin += min;
         else if (p.estado === 'online') disponibleMin += min;
         else if (p.estado === 'busy') ocupadoMin += min;
+        else if (p.estado === 'meeting') reunionMin += min;
         else inactivoMin += min;
         if (p.tipo === 'desconexion') desconexiones++;
       }
@@ -420,6 +423,7 @@ export class AdvisorActivityService {
         resumen: {
           disponibleMin,
           ocupadoMin,
+          reunionMin,
           almuerzoMin,
           inactivoMin,
           desconexiones,
@@ -435,9 +439,13 @@ export class AdvisorActivityService {
                     ? ult.almuerzo
                       ? 'Almuerzo'
                       : 'Ocupado'
-                    : ult.estado === 'online'
-                      ? 'Disponible'
-                      : 'Inactivo'
+                    : ult.estado === 'meeting'
+                      ? 'En reunión'
+                      : ult.estado === 'almuerzo'
+                        ? 'En almuerzo'
+                        : ult.estado === 'online'
+                          ? 'Disponible'
+                          : 'Inactivo'
                 }`,
               }
             : null,
@@ -485,6 +493,7 @@ export class AdvisorActivityService {
       resumen: {
         disponibleMin: 0,
         ocupadoMin: 0,
+        reunionMin: 0,
         almuerzoMin: 0,
         inactivoMin,
         desconexiones: 0,

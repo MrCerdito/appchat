@@ -867,6 +867,8 @@
 
   &.online { color: #15803D; &::before { background: #22C55E; } }
   &.busy { color: #B45309; &::before { background: #F59E0B; } }
+  &.meeting { color: #7C3AED; &::before { background: #8B5CF6; } }
+  &.almuerzo { color: #C2410C; &::before { background: #FB923C; } }
   &.away { color: #64748B; &::before { background: #94A3B8; } }
 }
 

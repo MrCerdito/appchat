@@ -63,6 +63,49 @@ export class TicketsComponent implements OnInit, OnDestroy {
   }
   isAdvisor = false;
   currentUserId = '';
+  ticketScope: 'mine' | 'all' = 'mine';
+  scopeCounts = { mine: 0, all: 0 };
+  collapsed: Record<string, boolean> = { status: true, priority: true, source: true, category: true, admin: true };
+
+  // ── Zoom del módulo ──
+  zoom = 0.7;
+  private readonly ZOOM_MIN = 0.7;
+  private readonly ZOOM_MAX = 1.05;
+  private readonly ZOOM_STEP = 0.05;
+  private readonly ZOOM_PRESETS = [0.7, 0.9, 1.05];
+  private readonly ZOOM_STORAGE_KEY = 'tickets_zoom';
+
+  get zoomPct(): number {
+    return Math.round(this.zoom * 100);
+  }
+
+  zoomIn(): void { this.setZoom(this.clampZoom(this.zoom + this.ZOOM_STEP)); }
+  zoomOut(): void { this.setZoom(this.clampZoom(this.zoom - this.ZOOM_STEP)); }
+  resetZoom(): void { this.setZoom(0.7); }
+
+  cycleZoom(): void {
+    const presets = this.ZOOM_PRESETS;
+    let idx = presets.findIndex((p) => Math.round(p * 100) === Math.round(this.zoom * 100));
+    if (idx === -1) {
+      let best = 0;
+      let bestDist = Infinity;
+      presets.forEach((p, i) => {
+        const d = Math.abs(p - this.zoom);
+        if (d < bestDist) { bestDist = d; best = i; }
+      });
+      idx = best;
+    }
+    this.setZoom(presets[(idx + 1) % presets.length]);
+  }
+
+  private clampZoom(value: number): number {
+    return Math.min(this.ZOOM_MAX, Math.max(this.ZOOM_MIN, value));
+  }
+
+  private setZoom(value: number): void {
+    this.zoom = value;
+    try { localStorage.setItem(this.ZOOM_STORAGE_KEY, String(value)); } catch { /* sin almacenamiento */ }
+  }
 
   tickets: Ticket[] = [];
   total = 0;
@@ -374,6 +417,7 @@ export class TicketsComponent implements OnInit, OnDestroy {
     this.isAdvisor = user?.role === 'advisor';
     this.currentUserId = user?.id ?? '';
 
+    this.restoreZoom();
     this.load();
     this.loadCounts();
     this.loadCategories();
@@ -413,6 +457,13 @@ export class TicketsComponent implements OnInit, OnDestroy {
   }
 
   private pendingHighlight = '';
+
+  private restoreZoom(): void {
+    try {
+      const saved = Number.parseFloat(localStorage.getItem(this.ZOOM_STORAGE_KEY) ?? '');
+      if (!Number.isNaN(saved)) this.zoom = this.clampZoom(saved);
+    } catch { /* ignorar valores corruptos */ }
+  }
 
   private tryHighlightFromQuery(): void {
     if (!this.pendingHighlight) return;
@@ -529,6 +580,20 @@ export class TicketsComponent implements OnInit, OnDestroy {
     return (this.selectedFilters[type] || []).includes(id);
   }
 
+  setTicketScope(scope: 'mine' | 'all'): void {
+    if (this.ticketScope === scope) return;
+    this.ticketScope = scope;
+    this.page = 1;
+    this.selectedTicket = null;
+    this.actionMenuTicketId = null;
+    this.load();
+    this.loadCounts();
+  }
+
+  toggleGroup(key: string): void {
+    this.collapsed = { ...this.collapsed, [key]: !this.collapsed[key] };
+  }
+
   private buildQueryFilter(): Record<string, string> {
     const query: Record<string, string> = {};
     for (const [type, values] of Object.entries(this.selectedFilters)) {
@@ -548,11 +613,7 @@ export class TicketsComponent implements OnInit, OnDestroy {
     if (filterParams['priority']) query.priority = filterParams['priority'];
     if (filterParams['source']) query.sourceType = filterParams['source'];
     if (filterParams['category']) query.category = filterParams['category'];
-    if (this.isDesarrollador && this.currentUserId) {
-      query.assignedTo = this.currentUserId;
-    } else if (this.isAdvisor && this.currentUserId) {
-      query.createdById = this.currentUserId;
-    }
+    this.applyUserScope(query);
     this.applyActiveDateFilter(query);
     if (this.sortBy !== 'createdAt' || this.sortDirection !== 'desc') {
       query.sortBy = this.sortBy;
@@ -575,26 +636,59 @@ export class TicketsComponent implements OnInit, OnDestroy {
   }
 
   loadCounts(): void {
-    const query: TicketQuery = {};
-    if (this.search) query.search = this.search;
-    if (this.isDesarrollador && this.currentUserId) {
-      query.assignedTo = this.currentUserId;
-    } else if (this.isAdvisor && this.currentUserId) {
-      query.createdById = this.currentUserId;
-    }
-    this.applyActiveDateFilter(query);
+    const base: TicketQuery = {};
+    if (this.search) base.search = this.search;
+    this.applyActiveDateFilter(base);
 
+    if (this.isAdvisor && this.currentUserId) {
+      this.ticketService.findCounts({ ...base, createdById: this.currentUserId }).subscribe({
+        next: (res) => {
+          this.scopeCounts = { ...this.scopeCounts, mine: res.total };
+          if (this.ticketScope === 'mine') this.applyCounts(res);
+          this.cdr.detectChanges();
+        },
+        error: () => {},
+      });
+      this.ticketService.findCounts(base).subscribe({
+        next: (res) => {
+          this.scopeCounts = { ...this.scopeCounts, all: res.total };
+          if (this.ticketScope === 'all') this.applyCounts(res);
+          this.cdr.detectChanges();
+        },
+        error: () => {},
+      });
+      return;
+    }
+
+    const query = base;
+    if (this.isDesarrollador && this.currentUserId) query.assignedTo = this.currentUserId;
     this.ticketService.findCounts(query).subscribe({
-      next: (res) => {
-        this.fullTotal = res.total;
-        this.statusCounts = res.statusCounts;
-        this.priorityCounts = res.priorityCounts;
-        this.sourceCounts = res.sourceCounts;
-        this.categoryCounts = res.categoryCounts;
-        this.cdr.detectChanges();
-      },
+      next: (res) => this.applyCounts(res),
       error: () => {},
     });
+  }
+
+  private applyCounts(res: {
+    total: number;
+    statusCounts: Record<string, number>;
+    priorityCounts: Record<string, number>;
+    sourceCounts: Record<string, number>;
+    categoryCounts: Record<string, number>;
+  }): void {
+    this.fullTotal = res.total;
+    this.statusCounts = res.statusCounts;
+    this.priorityCounts = res.priorityCounts;
+    this.sourceCounts = res.sourceCounts;
+    this.categoryCounts = res.categoryCounts;
+    this.cdr.detectChanges();
+  }
+
+  private applyUserScope(query: TicketQuery): void {
+    if (this.isDesarrollador && this.currentUserId) {
+      query.assignedTo = this.currentUserId;
+    } else if (this.isAdvisor && this.currentUserId && this.ticketScope === 'mine') {
+      query.createdById = this.currentUserId;
+    }
   }
 
   loadCategories(): void {

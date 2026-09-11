@@ -101,7 +101,7 @@
               <span class="mc-item__subject">{{ c.asunto }}</span>
             </div>
             <span class="mc-status" [class]="'mc-status--' + c.status">
-              {{ c.status === 'sent' ? 'Enviado' : c.status === 'failed' ? 'No enviado' : 'Borrador' }}
+              {{ c.status === 'sent' ? 'Enviado' : c.status === 'failed' ? 'No enviado' : c.status === 'sending' ? 'Enviando...' : 'Borrador' }}
             </span>
           </div>
 
@@ -282,6 +282,10 @@
             </button>
             }
             @if (selected.status === 'sent') {
+            <button class="mc-btn mc-btn--subtle mc-btn--warning" (click)="revisarRebotes()" [disabled]="checkingBounces">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+              {{ checkingBounces ? 'Revisando...' : 'Revisar rebotes' }}
+            </button>
             <button class="mc-btn mc-btn--subtle mc-btn--success" (click)="loadStats(selected.id)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
               {{ statsLoading ? 'Cargando...' : 'Estadisticas' }}
@@ -298,11 +302,14 @@
           <span class="mc-recipients__label">Para:</span>
           <div class="mc-recipients__list">
             @for (d of selected.destinatarios.slice(0, 5); track trackByIndex($index)) {
-            <span class="mc-chip" [class.mc-chip--failed]="d.sendStatus === 'failed'" [class.mc-chip--ok]="d.sendStatus === 'ok'"
-              [title]="d.sendStatus === 'failed' ? (d.sendError || 'No entregado') : ''">
+            <span class="mc-chip" [class.mc-chip--failed]="d.sendStatus === 'failed'" [class.mc-chip--bounced]="d.sendStatus === 'bounced'" [class.mc-chip--ok]="d.sendStatus === 'ok'"
+              [title]="d.sendStatus === 'failed' || d.sendStatus === 'bounced' ? (d.sendError || 'No entregado') : ''">
               {{ d.nombre }}
               @if (d.sendStatus === 'failed') {
               <svg class="mc-chip__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              }
+              @if (d.sendStatus === 'bounced') {
+              <svg class="mc-chip__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-6 9 6-9 6-9-6z"/><path d="M21 10v6M3 10v6M12 16v6"/></svg>
               }
               @if (d.sendStatus === 'ok') {
               <svg class="mc-chip__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -353,24 +360,33 @@
             <span class="mc-stat-card__lbl">No entregados</span>
           </div>
           }
+          @if (statsBouncedCount > 0) {
+          <div class="mc-stat-card mc-stat-card--amber">
+            <span class="mc-stat-card__num">{{ statsBouncedCount }}</span>
+            <span class="mc-stat-card__lbl">Rebotados</span>
+          </div>
+          }
         </div>
         <div class="mc-stats__table">
           <div class="mc-stats__row mc-stats__row--header">
             <span>Destinatario</span><span>Entrega</span><span>Aperturas</span><span>Clics</span>
           </div>
           @for (d of stats.detalle; track trackByIndex($index)) {
-          <div class="mc-stats__row" [class.mc-stats__row--failed]="d.sendStatus === 'failed'">
+          <div class="mc-stats__row" [class.mc-stats__row--failed]="d.sendStatus === 'failed'" [class.mc-stats__row--bounced]="d.sendStatus === 'bounced'">
             <span class="mc-dest">
               <span class="mc-dest__name">{{ d.nombre }}</span>
               <span class="mc-dest__email">{{ d.email }}</span>
-              @if (d.sendStatus === 'failed' && d.sendError) { <span class="mc-dest__error">{{ d.sendError }}</span> }
+              @if ((d.sendStatus === 'failed' || d.sendStatus === 'bounced') && d.sendError) { <span class="mc-dest__error">{{ d.sendError }}</span> }
             </span>
             <span class="mc-pill-cell">
-              @if (d.sendStatus !== 'failed') {
+              @if (d.sendStatus !== 'failed' && d.sendStatus !== 'bounced') {
               <span class="mc-pill mc-pill--green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Entregado</span>
               }
               @if (d.sendStatus === 'failed') {
               <span class="mc-pill mc-pill--red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>No entregado</span>
+              }
+              @if (d.sendStatus === 'bounced') {
+              <span class="mc-pill mc-pill--amber" [title]="d.sendError || ''"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-6 9 6-9 6-9-6z"/><path d="M21 10v6M3 10v6M12 16v6"/></svg>Rebotado</span>
               }
             </span>
             <span class="mc-pill-cell">@if (d.aperturas > 0) { <span class="mc-pill mc-pill--blue">{{ d.aperturas }}</span> } @else { <span class="mc-pill-cell__zero">-</span> }</span>
@@ -756,7 +772,7 @@
                 {{ saving ? 'Guardando...' : 'Borrador' }}
               </button>
             </div>
-            <button class="mc-btn mc-btn--send" (click)="showSendConfirm = true" [disabled]="sending || destinatarios.length === 0 || !asunto.trim()">
+            <button class="mc-btn mc-btn--send" (click)="openSendConfirmModal()" [disabled]="sending || quotaLoading || destinatarios.length === 0 || !asunto.trim()">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
               </svg>
@@ -868,6 +884,9 @@
               @if (d.sendStatus === 'failed') {
               <span class="mc-pill mc-pill--red" [title]="d.sendError || ''"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>No entregado</span>
               }
+              @if (d.sendStatus === 'bounced') {
+              <span class="mc-pill mc-pill--amber" [title]="d.sendError || ''"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-6 9 6-9 6-9-6z"/><path d="M21 10v6M3 10v6M12 16v6"/></svg>Rebotado</span>
+              }
               @if (!d.sendStatus) { <span class="mc-pill-cell__zero">Pendiente</span> }
             </span>
           </div>
@@ -898,9 +917,50 @@
     [asunto]="asunto"
     [destinatarios]="destinatarios"
     [saving]="sending"
+    [smtpCuota]="smtpCuota"
+    [superaLote]="superaLote"
+    [sendProgreso]="sendProgreso"
     (confirm)="sendNow()"
-    (cancel)="showSendConfirm = false"
+    (cancel)="closeSendConfirm()"
   ></app-send-confirm-modal>
+  }
+
+  @if (showSendErrors) {
+  <div class="mc-overlay" (click)="showSendErrors = false">
+    <div class="mc-dialog mc-dialog--wide" (click)="$event.stopPropagation()">
+      <div class="mc-dialog__header">
+        <div class="mc-dialog__header-group">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <h3>Errores de envío ({{ sendErrores.length }})</h3>
+        </div>
+        <button type="button" class="mc-dialog__close" (click)="showSendErrors = false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="mc-dialog__body mc-dialog__body--scroll">
+        <div class="mc-dest-table">
+          <div class="mc-dest-table__row mc-dest-table__row--header">
+            <span class="mc-dest-table__cell mc-dest-table__cell--name">Nombre</span>
+            <span class="mc-dest-table__cell mc-dest-table__cell--email">Correo</span>
+            <span class="mc-dest-table__cell mc-dest-table__cell--email mc-dest-table__cell--reason">Razón</span>
+          </div>
+          @for (e of sendErrores; track trackByIndex($index)) {
+          <div class="mc-dest-table__row">
+            <span class="mc-dest-table__cell mc-dest-table__cell--name">{{ e.nombre }}</span>
+            <span class="mc-dest-table__cell mc-dest-table__cell--email">{{ e.email }}</span>
+            <span class="mc-dest-table__cell mc-dest-table__cell--reason mc-send-error">{{ e.error }}</span>
+          </div>
+          }
+          @if (sendErrores.length === 0) {
+          <div class="mc-dest-table__empty">Sin errores</div>
+          }
+        </div>
+      </div>
+      <div class="mc-dialog__footer">
+        <button class="mc-btn mc-btn--outline" (click)="showSendErrors = false">Cerrar</button>
+      </div>
+    </div>
+  </div>
   }
 
 </div>

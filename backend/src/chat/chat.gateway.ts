@@ -475,23 +475,23 @@ export class ChatGateway
   private async resolveAdvisorStatus(
     advisorId: string,
     persistedStatus?: string | null,
-  ): Promise<'online' | 'busy' | 'offline'> {
+  ): Promise<'online' | 'busy' | 'meeting' | 'almuerzo' | 'offline'> {
     if (await this.estaEnAlmuerzo(advisorId).catch(() => false)) {
-      return 'busy';
+      return 'almuerzo';
     }
-    const VALIDOS = ['online', 'busy', 'offline'];
+    const VALIDOS = ['online', 'busy', 'meeting', 'almuerzo', 'offline'];
     const preferencia = await this.redisState
       .getAdvisorStatus(advisorId)
       .catch(() => null);
     if (preferencia && VALIDOS.includes(preferencia)) {
-      return preferencia as 'online' | 'busy' | 'offline';
+      return preferencia as 'online' | 'busy' | 'meeting' | 'almuerzo' | 'offline';
     }
     if (
       persistedStatus &&
       persistedStatus !== 'offline' &&
       VALIDOS.includes(persistedStatus)
     ) {
-      return persistedStatus as 'online' | 'busy' | 'offline';
+      return persistedStatus as 'online' | 'busy' | 'meeting' | 'almuerzo' | 'offline';
     }
     return 'online';
   }
@@ -527,13 +527,13 @@ export class ChatGateway
     @ConnectedSocket() client: Socket,
   ) {
     if (client.data.role !== 'advisor') return;
-    const VALID_STATUSES = ['online', 'busy', 'offline'];
+    const VALID_STATUSES = ['online', 'busy', 'meeting', 'almuerzo', 'offline'];
     if (!VALID_STATUSES.includes(status)) return;
 
-    if (status === 'online') {
+    if (status === 'online' || status === 'meeting') {
       if (await this.estaEnAlmuerzo(client.data.user.id)) {
         await this.sessionsService
-          .setAdvisorStatus(client.data.user.id, 'busy', {
+          .setAdvisorStatus(client.data.user.id, 'almuerzo', {
             causa: 'manual',
           })
           .catch(() => null);
@@ -688,7 +688,8 @@ export class ChatGateway
     const list = advisors.map((a) => ({
       advisorId: a.id,
       name: a.name,
-      status: (a.status ?? statuses[a.id]) as 'online' | 'busy' | 'offline',
+      status: (a.status ?? statuses[a.id]) as
+        'online' | 'busy' | 'meeting' | 'almuerzo' | 'offline',
       profilePhotoUrl: a.profilePhotoUrl ?? null,
       enAlmuerzo: !!onLunch[a.id],
       lunchFin: onLunch[a.id]?.fin ?? null,
@@ -3017,15 +3018,15 @@ export class ChatGateway
           ) {
             await this.redisState.removeLunchNotified(advisorId);
             const advisorRecord = await this.sessionsService
-              .setAdvisorStatus(advisorId, 'busy', {
+              .setAdvisorStatus(advisorId, 'almuerzo', {
                 causa: 'almuerzo_inicio',
               })
               .catch(() => null);
-            await this.redisState.setAdvisorStatus(advisorId, 'busy');
+            await this.redisState.setAdvisorStatus(advisorId, 'almuerzo');
             this.server.emit('advisor_status_changed', {
               advisorId,
               name: advisorRecord?.name ?? config.mensajeBienvenida,
-              status: 'busy',
+              status: 'almuerzo',
             });
 
             const [ih, im] = almuerzoHoy!.inicio.split(':').map(Number);
@@ -3139,15 +3140,15 @@ export class ChatGateway
     // Un inicio (manual o automático) invalida una supresión anterior.
     await this.redisState.removeLunchSkipped(advisorId);
 
-    // Marcar el asesor como ocupado mientras dure el almuerzo para que ningún
+    // Marcar el asesor como en almuerzo mientras dure la pausa para que ningún
     // motor de asignación (chat en línea o WhatsApp) le asigne chats.
     await this.sessionsService
-      .setAdvisorStatus(advisorId, 'busy', { causa: 'almuerzo_inicio' })
+      .setAdvisorStatus(advisorId, 'almuerzo', { causa: 'almuerzo_inicio' })
       .catch(() => null);
-    await this.redisState.setAdvisorStatus(advisorId, 'busy');
+    await this.redisState.setAdvisorStatus(advisorId, 'almuerzo');
     this.server.emit('advisor_status_changed', {
       advisorId,
-      status: 'busy',
+      status: 'almuerzo',
     });
 
     await this.emitLunchStarted(advisorId);
@@ -3308,13 +3309,13 @@ export class ChatGateway
 
     await this.redisState.removeLunchNotified(advisorId);
     const advisorRecord = await this.sessionsService
-      .setAdvisorStatus(advisorId, 'busy', { causa: 'almuerzo_inicio' })
+      .setAdvisorStatus(advisorId, 'almuerzo', { causa: 'almuerzo_inicio' })
       .catch(() => null);
-    await this.redisState.setAdvisorStatus(advisorId, 'busy');
+    await this.redisState.setAdvisorStatus(advisorId, 'almuerzo');
     this.server.emit('advisor_status_changed', {
       advisorId,
       name: advisorRecord?.name ?? '',
-      status: 'busy',
+      status: 'almuerzo',
     });
 
     const [ih, im] = almuerzoHoy.inicio.split(':').map(Number);

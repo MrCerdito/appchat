@@ -27,6 +27,32 @@ export interface ColegiosResp {
   filtrosPerfil: FiltroPerfilComunicado[];
 }
 
+export interface SmtpCuota {
+  configurado: boolean;
+  proveedor: string;
+  limiteDia: number;
+  enviadosHoy: number;
+  restante: number;
+}
+
+export interface SendLanzamiento {
+  id: string;
+  status: 'sending';
+  total: number;
+  proveedor: string;
+  limiteDia: number;
+  enviadosHoy: number;
+  restanteDisponible: number;
+}
+
+export interface BounceResult {
+  ok: boolean;
+  procesados: number;
+  rebotados: number;
+  actualizados: number;
+  error?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ComunicadosService {
   constructor(private http: HttpClient) {}
@@ -72,8 +98,16 @@ export class ComunicadosService {
     });
   }
 
-  send(id: string): Observable<Comunicado> {
-    return this.http.post<Comunicado>(`${environment.apiUrl}/comunicados/${id}/send`, {});
+  send(id: string): Observable<SendLanzamiento> {
+    return this.http.post<SendLanzamiento>(`${environment.apiUrl}/comunicados/${id}/send`, {});
+  }
+
+  getSmtpCuota(): Observable<SmtpCuota> {
+    return this.http.get<SmtpCuota>(`${environment.apiUrl}/comunicados/smtp-cuota`);
+  }
+
+  checkBounces(): Observable<BounceResult> {
+    return this.http.post<BounceResult>(`${environment.apiUrl}/comunicados/check-bounces`, {});
   }
 
   remove(id: string): Observable<void> {

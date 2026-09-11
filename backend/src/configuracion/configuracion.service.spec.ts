@@ -3,6 +3,7 @@ jest.mock('sanitize-html', () => (value: string) => value);
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { ConfigService } from '@nestjs/config';
 import { ConfiguracionService } from './configuracion.service';
 import { Configuracion, HorarioSlot } from './entities/configuracion.entity';
 
@@ -44,6 +45,10 @@ describe('ConfiguracionService (horario)', () => {
             set: jest.fn(),
             del: jest.fn(),
           },
+        },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn().mockImplementation(() => '') },
         },
       ],
     }).compile();

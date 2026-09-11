@@ -1,8 +1,11 @@
 <section class="tmc">
   <header class="tmc-topbar">
     <div class="tmc-topbar-info">
-      <h2>Correo SMTP</h2>
-      <p>Servidor de correo compartido por los tickets y los comunicados masivos. Esta configuracion se usa para todo el envio de correo de la plataforma.</p>
+      <h2>Correo / Mailsender API</h2>
+      <p>
+        Metodo activo de envio de tickets y comunicados masivos. Solo se usa el seleccionado; el
+        otro queda guardado pero sin enviar.
+      </p>
     </div>
     <div class="tmc-topbar-actions">
       <span
@@ -16,26 +19,295 @@
         {{ statusLabel }}
       </span>
       <button class="tmc-save" [disabled]="!dirty || status === 'saving'" (click)="guardar()">
-        <svg *ngIf="status !== 'saving'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        <svg
+          *ngIf="status !== 'saving'"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+          <polyline points="17 21 17 13 7 13 7 21" />
+          <polyline points="7 3 7 8 15 8" />
+        </svg>
         {{ status === 'saving' ? 'Guardando...' : 'Guardar cambios' }}
       </button>
     </div>
   </header>
 
   <div class="tmc-body">
+    <div class="tmc-metodo">
+      <div class="tmc-metodo-text">
+        <strong>Metodo de envio de correo</strong>
+        <p>Los tickets, los comunicados y la deteccion de rebotes usan el metodo activo.</p>
+      </div>
+      <div class="tmc-metodo-opciones">
+        <button
+          type="button"
+          class="tmc-metodo-opt"
+          [class.tmc-metodo-opt--active]="smtp.metodoEnvioCorreo === 'mailsender'"
+          (click)="cambiarMetodo('mailsender')"
+        >
+          Mailsender API
+        </button>
+        <button
+          type="button"
+          class="tmc-metodo-opt"
+          [class.tmc-metodo-opt--active]="smtp.metodoEnvioCorreo === 'smtp'"
+          (click)="cambiarMetodo('smtp')"
+        >
+          SMTP / Resend (respaldo)
+        </button>
+      </div>
+    </div>
+
     <div class="tmc-left">
-      <!-- ── Servidor SMTP ─────────────────────────────────── -->
-      <section class="tmc-card">
+      <!-- ── Mailsender API ────────────────────────────────── -->
+      <section
+        class="tmc-card"
+        [class.tmc-card--inactive]="smtp.metodoEnvioCorreo !== 'mailsender'"
+      >
         <div class="tmc-card-head">
           <div>
-            <h3>Servidor SMTP</h3>
-            <p>Servidor de correo usado para enviar los tickets y los comunicados</p>
+            <h3>Mailsender API</h3>
+            <p>Gateway externo que envia todo el correo de la plataforma (tickets y comunicados)</p>
+          </div>
+        </div>
+        <div class="tmc-card-body">
+          <div class="tmc-field">
+            <label for="mailsender-url">URL del gateway</label>
+            <input
+              id="mailsender-url"
+              type="text"
+              [(ngModel)]="smtp.mailsenderUrl"
+              (ngModelChange)="markDirty()"
+              placeholder="https://mailsender.innovacloud.co"
+            />
+          </div>
+
+          <div class="tmc-toggle-row">
+            <div class="tmc-toggle-text">
+              <strong>Enviar cada correo por separado</strong>
+              <p>
+                Activado: una llamada por destinatario con seguimiento individual. Desactivado:
+                envio en lote (todos por copia oculta en una sola llamada).
+              </p>
+            </div>
+            <label class="tmc-switch">
+              <input
+                type="checkbox"
+                [checked]="smtp.mailsenderModo === 'individual'"
+                (change)="
+                  smtp.mailsenderModo =
+                    smtp.mailsenderModo === 'individual' ? 'lote' : 'individual';
+                  markDirty()
+                "
+              />
+              <span class="tmc-switch-slider"></span>
+            </label>
+          </div>
+
+          <div class="tmc-field">
+            <label for="mc-email">Correo (Email)</label>
+            <input
+              id="mc-email"
+              type="text"
+              [(ngModel)]="smtp.credencialEmail"
+              (ngModelChange)="markDirty()"
+              placeholder="info&#64;tu-dominio.com"
+            />
+          </div>
+
+          <div class="tmc-grid2">
+            <div class="tmc-field">
+              <label for="mc-usuario">Usuario</label>
+              <input
+                id="mc-usuario"
+                type="text"
+                [(ngModel)]="smtp.credencialUsuario"
+                (ngModelChange)="markDirty()"
+                placeholder="usuario del correo"
+              />
+            </div>
+            <div class="tmc-field">
+              <label for="mc-password">Password</label>
+              <input
+                id="mc-password"
+                type="password"
+                [(ngModel)]="smtp.credencialPassword"
+                (ngModelChange)="markDirty()"
+                placeholder="••••••••"
+                autocomplete="new-password"
+              />
+            </div>
+          </div>
+
+          <div class="tmc-field">
+            <label for="mc-nombre">Nombre del remitente</label>
+            <input
+              id="mc-nombre"
+              type="text"
+              [(ngModel)]="smtp.credencialNombre"
+              (ngModelChange)="markDirty()"
+              placeholder="Soporte"
+            />
+          </div>
+
+          <div class="tmc-grid2">
+            <div class="tmc-field">
+              <label for="mc-servidor">Servidor SMTP destino</label>
+              <input
+                id="mc-servidor"
+                type="text"
+                [(ngModel)]="smtp.credencialServidor"
+                (ngModelChange)="markDirty()"
+                placeholder="vacio"
+              />
+            </div>
+            <div class="tmc-field">
+              <label for="mc-port">Puerto</label>
+              <input
+                id="mc-port"
+                type="number"
+                [(ngModel)]="smtp.credencialPort"
+                (ngModelChange)="markDirty()"
+              />
+            </div>
+          </div>
+
+          <div class="tmc-toggle-row">
+            <div class="tmc-toggle-text">
+              <strong>Seguridad SSL</strong>
+              <p>Conexion segura con el servidor SMTP destino</p>
+            </div>
+            <label class="tmc-switch">
+              <input
+                type="checkbox"
+                [(ngModel)]="smtp.credencialSeguridadSsl"
+                (ngModelChange)="markDirty()"
+              />
+              <span class="tmc-switch-slider"></span>
+            </label>
+          </div>
+
+          <div class="tmc-toggle-row">
+            <div class="tmc-toggle-text">
+              <strong>Protocolo TLS 1.2</strong>
+              <p>Fuerza el cifrado TLS 1.2 en la conexion</p>
+            </div>
+            <label class="tmc-switch">
+              <input
+                type="checkbox"
+                [(ngModel)]="smtp.credencialTls12"
+                (ngModelChange)="markDirty()"
+              />
+              <span class="tmc-switch-slider"></span>
+            </label>
+          </div>
+
+          <p class="tmc-hint">
+            Azure (Microsoft 365, opcional): rellena tenant, client id y client secret si el correo
+            usa autenticacion de Azure/Graph. Deja el servidor en "vacio" para que la API use el
+            valor interno.
+          </p>
+          <div class="tmc-grid2">
+            <div class="tmc-field">
+              <label for="mc-tls12">Protocolo TLS 1.2</label>
+              <input
+                id="mc-tls12"
+                type="checkbox"
+                [(ngModel)]="smtp.credencialTls12"
+                (ngModelChange)="markDirty()"
+                style="width: auto"
+              />
+            </div>
+          </div>
+
+          <div class="tmc-grid3">
+            <div class="tmc-field">
+              <label for="mc-az-tenant">Azure Tenant ID</label>
+              <input
+                id="mc-az-tenant"
+                type="text"
+                [(ngModel)]="smtp.azureTenantId"
+                (ngModelChange)="markDirty()"
+                placeholder="tenant-id"
+              />
+            </div>
+            <div class="tmc-field">
+              <label for="mc-az-client">Azure Client ID</label>
+              <input
+                id="mc-az-client"
+                type="text"
+                [(ngModel)]="smtp.azureClientId"
+                (ngModelChange)="markDirty()"
+                placeholder="client-id"
+              />
+            </div>
+            <div class="tmc-field">
+              <label for="mc-az-secret">Azure Client Secret</label>
+              <input
+                id="mc-az-secret"
+                type="password"
+                [(ngModel)]="smtp.azureClientSecret"
+                (ngModelChange)="markDirty()"
+                placeholder="••••••••"
+                autocomplete="new-password"
+              />
+            </div>
+          </div>
+
+          <div class="tmc-test">
+            <div class="tmc-test-head">
+              <strong>Probar conexion</strong>
+              <span
+                class="tmc-test-result"
+                *ngIf="mailTestResult"
+                [class.tmc-test-result--ok]="mailTestResult.ok"
+                [class.tmc-test-result--err]="!mailTestResult.ok"
+              >
+                <span class="tmc-status-dot"></span>
+                {{ mailTestResult.ok ? 'Enviado correctamente' : 'Fallo la conexion' }}
+              </span>
+            </div>
+            <div class="tmc-test-row">
+              <input
+                type="email"
+                [(ngModel)]="mailTestEmail"
+                placeholder="correo que recibira la prueba"
+              />
+              <button class="tmc-test-btn" (click)="probarCorreo('mailsender')" [disabled]="mailTesting">
+                {{ mailTesting ? 'Enviando...' : 'Enviar prueba' }}
+              </button>
+            </div>
+            <p class="tmc-hint" *ngIf="mailTestResult && !mailTestResult.ok">
+              {{ mailTestResult.message }}
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Servidor SMTP (respaldo) ──────────────────────── -->
+      <section
+        class="tmc-card"
+        [class.tmc-card--inactive]="smtp.metodoEnvioCorreo !== 'smtp'"
+      >
+        <div class="tmc-card-head">
+          <div>
+            <h3>SMTP / Resend (respaldo)</h3>
+            <p>Se usa cuando el metodo activo es SMTP</p>
           </div>
         </div>
         <div class="tmc-card-body">
           <div class="tmc-field">
             <label for="smtp-preset">Preset</label>
-            <select id="smtp-preset" [(ngModel)]="smtpPreset" (ngModelChange)="aplicarPresetSmtp($event)">
+            <select
+              id="smtp-preset"
+              [(ngModel)]="smtpPreset"
+              (ngModelChange)="aplicarPresetSmtp($event)"
+            >
               <option *ngFor="let p of presets" [ngValue]="p.value">{{ p.label }}</option>
             </select>
           </div>
@@ -43,11 +315,22 @@
           <div class="tmc-grid2">
             <div class="tmc-field">
               <label for="smtp-host">Host</label>
-              <input id="smtp-host" type="text" [(ngModel)]="smtp.smtpHost" (ngModelChange)="markDirty()" placeholder="smtp.tu-dominio.com" />
+              <input
+                id="smtp-host"
+                type="text"
+                [(ngModel)]="smtp.smtpHost"
+                (ngModelChange)="markDirty()"
+                placeholder="smtp.tu-dominio.com"
+              />
             </div>
             <div class="tmc-field">
               <label for="smtp-port">Puerto</label>
-              <input id="smtp-port" type="number" [(ngModel)]="smtp.smtpPort" (ngModelChange)="markDirty()" />
+              <input
+                id="smtp-port"
+                type="number"
+                [(ngModel)]="smtp.smtpPort"
+                (ngModelChange)="markDirty()"
+              />
             </div>
           </div>
 
@@ -65,35 +348,123 @@
           <div class="tmc-grid2">
             <div class="tmc-field">
               <label for="smtp-user">Usuario</label>
-              <input id="smtp-user" type="text" [(ngModel)]="smtp.smtpUser" (ngModelChange)="markDirty()" placeholder="no-reply&#64;tu-dominio.com" />
+              <input
+                id="smtp-user"
+                type="text"
+                [(ngModel)]="smtp.smtpUser"
+                (ngModelChange)="markDirty()"
+                placeholder="no-reply&#64;tu-dominio.com"
+              />
             </div>
             <div class="tmc-field">
               <label for="smtp-pass">Clave / App password</label>
-              <input id="smtp-pass" type="password" [(ngModel)]="smtp.smtpPass" (ngModelChange)="markDirty()" placeholder="••••••••" autocomplete="new-password" />
+              <input
+                id="smtp-pass"
+                type="password"
+                [(ngModel)]="smtp.smtpPass"
+                (ngModelChange)="markDirty()"
+                placeholder="••••••••"
+                autocomplete="new-password"
+              />
             </div>
           </div>
 
           <div class="tmc-field">
             <label for="smtp-from">Correo remitente (De)</label>
-            <input id="smtp-from" type="text" [(ngModel)]="smtp.mailFrom" (ngModelChange)="markDirty()" placeholder="no-reply&#64;tu-dominio.com" />
+            <input
+              id="smtp-from"
+              type="text"
+              [(ngModel)]="smtp.mailFrom"
+              (ngModelChange)="markDirty()"
+              placeholder="no-reply&#64;tu-dominio.com"
+            />
           </div>
 
           <div class="tmc-test">
             <div class="tmc-test-head">
               <strong>Probar conexion</strong>
-              <span class="tmc-test-result" *ngIf="mailTestResult" [class.tmc-test-result--ok]="mailTestResult.ok" [class.tmc-test-result--err]="!mailTestResult.ok">
+              <span
+                class="tmc-test-result"
+                *ngIf="mailTestResult"
+                [class.tmc-test-result--ok]="mailTestResult.ok"
+                [class.tmc-test-result--err]="!mailTestResult.ok"
+              >
                 <span class="tmc-status-dot"></span>
                 {{ mailTestResult.ok ? 'Enviado correctamente' : 'Fallo la conexion' }}
               </span>
             </div>
             <div class="tmc-test-row">
-              <input type="email" [(ngModel)]="mailTestEmail" placeholder="correo que recibira la prueba" />
-              <button class="tmc-test-btn" (click)="probarCorreo()" [disabled]="mailTesting">
+              <input
+                type="email"
+                [(ngModel)]="mailTestEmail"
+                placeholder="correo que recibira la prueba"
+              />
+              <button class="tmc-test-btn" (click)="probarCorreo('smtp')" [disabled]="mailTesting">
                 {{ mailTesting ? 'Enviando...' : 'Enviar prueba' }}
               </button>
             </div>
-            <p class="tmc-hint" *ngIf="mailTestResult && !mailTestResult.ok">{{ mailTestResult.message }}</p>
+            <p class="tmc-hint" *ngIf="mailTestResult && !mailTestResult.ok">
+              {{ mailTestResult.message }}
+            </p>
           </div>
+        </div>
+      </section>
+
+      <!-- ── Deteccion de rebotes (IMAP) ───────────────────── -->
+      <section class="tmc-card">
+        <div class="tmc-card-head">
+          <div>
+            <h3>Deteccion de rebotes</h3>
+            <p>
+              Revisa la bandeja de entrada del correo para detectar envios que fueron devueltos y
+              muestra el motivo en los comunicados
+            </p>
+          </div>
+        </div>
+        <div class="tmc-card-body">
+          <div class="tmc-toggle-row">
+            <div class="tmc-toggle-text">
+              <strong>Revisar rebotes automaticamente</strong>
+              <p>
+                Cada 10 minutos se revisa la bandeja aplicando el estado "Rebotado" a los
+                destinatarios correspondientes
+              </p>
+            </div>
+            <label class="tmc-switch">
+              <input
+                type="checkbox"
+                [(ngModel)]="smtp.revisarRebotes"
+                (ngModelChange)="markDirty()"
+              />
+              <span class="tmc-switch-slider"></span>
+            </label>
+          </div>
+
+          <div class="tmc-grid2">
+            <div class="tmc-field">
+              <label for="smtp-imap-host">Host IMAP</label>
+              <input
+                id="smtp-imap-host"
+                type="text"
+                [(ngModel)]="smtp.smtpImapHost"
+                (ngModelChange)="markDirty()"
+                placeholder="auto (imap.{host})"
+              />
+            </div>
+            <div class="tmc-field">
+              <label for="smtp-imap-port">Puerto IMAP</label>
+              <input
+                id="smtp-imap-port"
+                type="number"
+                [(ngModel)]="smtp.smtpImapPort"
+                (ngModelChange)="markDirty()"
+              />
+            </div>
+          </div>
+          <p class="tmc-hint">
+            Gmail usa imap.gmail.com:993 y Outlook/Microsoft 365 usa outlook.office365.com:993.
+            Dejar el host vacio para que se deduzca desde el SMTP.
+          </p>
         </div>
       </section>
     </div>

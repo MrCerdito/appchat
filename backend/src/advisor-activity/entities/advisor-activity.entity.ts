@@ -6,7 +6,12 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 
-export type EstadoActividad = 'online' | 'busy' | 'offline';
+export type EstadoActividad =
+  | 'online'
+  | 'busy'
+  | 'meeting'
+  | 'almuerzo'
+  | 'offline';
 export type TipoActividad =
   | 'conexion'
   | 'desconexion'
@@ -30,7 +35,7 @@ export class AdvisorActivityLog {
   @Column({ type: 'varchar', length: 20 })
   tipo: TipoActividad;
 
-  /** Estado efectivo tras el evento: online (Disponible) | busy (Ocupado) | offline (Inactivo). */
+  /** Estado efectivo tras el evento: online (Disponible) | busy (Ocupado) | meeting (En reunión) | almuerzo (En almuerzo) | offline (Inactivo). */
   @Column({ type: 'varchar', length: 10 })
   estado: EstadoActividad;
 

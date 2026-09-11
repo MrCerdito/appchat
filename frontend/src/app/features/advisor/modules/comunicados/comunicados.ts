@@ -13,7 +13,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
-import { ComunicadosService, Colegio, FiltroPerfilComunicado } from '../../../../core/services/comunicados.service';
+import { ComunicadosService, Colegio, FiltroPerfilComunicado, SmtpCuota, SendLanzamiento, BounceResult } from '../../../../core/services/comunicados.service';
 import { Comunicado, ComunicadoTemplate, Destinatario } from '../../../../core/models/comunicado.model';
 import { NotificationService } from '../../../../core/services/notification.service';
 import { LayoutService } from '../../../../core/services/layout.service';
@@ -55,7 +55,19 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
   stats: any = null;
   showStats = false;
   statsLoading = false;
-  error = '';
+error = '';
+
+  // Lote SMTP del día y progreso del envío en vivo
+  smtpCuota: SmtpCuota | null = null;
+  quotaLoading = false;
+  sendLanzamiento: SendLanzamiento | null = null;
+  sendTotal = 0;
+  sendProcesados = 0;
+  sendRestantes = 0;
+  sendPct = 0;
+  sendErrores: { email: string; nombre: string; error: string }[] = [];
+  showSendErrors = false;
+  private sendPollTimer: any = null;
 
   // Modals
   showSendConfirm = false;
@@ -145,6 +157,7 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
   }
 
   ngOnDestroy(): void {
+    this.stopSendPolling();
     this.layout.setSidebarForcedCollapsed(false);
     this.destroy$.next();
     this.destroy$.complete();
@@ -311,7 +324,22 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
 
   get filtered(): Comunicado[] {
     if (this.view === 'drafts') return this.comunicados.filter(c => c.status === 'draft');
-    return this.comunicados.filter(c => c.status === 'sent' || c.status === 'failed');
+    return this.comunicados.filter(c => c.status === 'sent' || c.status === 'failed' || c.status === 'sending');
+  }
+
+  get superaLote(): boolean {
+    const q = this.smtpCuota;
+    if (!q?.configurado) return false;
+    return this.destinatarios.length > 0 && this.destinatarios.length > q.restante;
+  }
+
+  get sendProgreso(): { total: number; procesados: number; restantes: number; pct: number } {
+    return {
+      total: this.sendTotal,
+      procesados: this.sendProcesados,
+      restantes: this.sendRestantes,
+      pct: this.sendPct,
+    };
   }
 
   get filteredColegios(): Colegio[] {
@@ -445,7 +473,11 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
   }
 
   isColegioAdded(colegio: Colegio): boolean {
-    return !!colegio.email && this.destinatarios.some(d => d.email === colegio.email);
+    return this.correosDeColegio(colegio).some((email) =>
+      this.destinatarios.some(
+        (d) => d.email.toLowerCase() === email.toLowerCase(),
+      ),
+    );
   }
 
   removeFilterChip(key: string): void {
@@ -645,14 +677,36 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
   }
 
   addColegio(colegio: Colegio): void {
-    if (!colegio.email) return;
-    if (this.destinatarios.some(d => d.email === colegio.email)) return;
-    this.destinatarios.push({
-      email: colegio.email,
-      nombre: colegio.nombre,
-      colegio: colegio.nombre,
-      tipo: this.colegioTipoLabel(colegio),
-    });
+    for (const email of this.correosDeColegio(colegio)) {
+      if (
+        this.destinatarios.some(
+          (d) => d.email.toLowerCase() === email.toLowerCase(),
+        )
+      ) {
+        continue;
+      }
+      this.destinatarios.push({
+        email,
+        nombre: colegio.nombre,
+        colegio: colegio.nombre,
+        tipo: this.colegioTipoLabel(colegio),
+      });
+    }
+  }
+
+  private correosDeColegio(colegio: Colegio): string[] {
+    if (!colegio.email) return [];
+    const vistos = new Set<string>();
+    const correos: string[] = [];
+    for (const raw of String(colegio.email).split(/[|,;]+/)) {
+      const email = raw.trim();
+      if (!email) continue;
+      const clave = email.toLowerCase();
+      if (vistos.has(clave)) continue;
+      vistos.add(clave);
+      correos.push(email);
+    }
+    return correos;
   }
 
   onTemplateSelect(id: string | null): void {
@@ -894,13 +948,54 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
     });
   }
 
+  openSendConfirmModal(): void {
+    if (this.sending) return;
+    if (!this.asunto.trim()) { this.error = 'El asunto es obligatorio'; return; }
+    if (!this.destinatarios.length) { this.error = 'Agrega al menos un destinatario'; return; }
+    this.error = '';
+    this.quotaLoading = true;
+    this.cdr.detectChanges();
+
+    this.service.getSmtpCuota().pipe(takeUntil(this.destroy$)).subscribe({
+      next: (q) => {
+        this.smtpCuota = q;
+        this.quotaLoading = false;
+        this.cdr.detectChanges();
+        if (!q.configurado) {
+          this.error = 'Configura el correo SMTP (servidor, usuario, contraseña de aplicación y remitente) en Configuración antes de enviar.';
+          this.notification.error('SMTP no configurado', 'Configura el correo SMTP antes de enviar.');
+          this.cdr.detectChanges();
+          return;
+        }
+        this.showSendConfirm = true;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.quotaLoading = false;
+        this.notification.error('Error', 'No se pudo consultar el lote SMTP.');
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  closeSendConfirm(): void {
+    if (this.sending) return;
+    this.showSendConfirm = false;
+    this.smtpCuota = null;
+  }
+
   sendNow(): void {
     if (!this.asunto.trim()) { this.error = 'El asunto es obligatorio'; return; }
     if (!this.destinatarios.length) { this.error = 'Agrega al menos un destinatario'; return; }
     this.sending = true;
     this.error = '';
-    this.showSendConfirm = false;
-    const totalDest = this.destinatarios.length;
+    this.sendErrores = [];
+    this.sendLanzamiento = null;
+    this.sendTotal = this.destinatarios.length;
+    this.sendProcesados = 0;
+    this.sendRestantes = this.destinatarios.length;
+    this.sendPct = 0;
+    this.cdr.detectChanges();
 
     const save$ = this.editingId
       ? this.service.update(this.editingId, this.asunto, this.cuerpo, this.destinatarios, this.design)
@@ -909,31 +1004,94 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
     save$.pipe(takeUntil(this.destroy$)).subscribe({
       next: (c) => {
         this.service.send(c.id).pipe(takeUntil(this.destroy$)).subscribe({
-          next: () => {
-            this.sending = false;
-            this.view = 'sent';
-            this.editingId = null;
-            this.loadAll();
-            this.showSuccessMsg(`Comunicado enviado a ${totalDest} destinatario(s)`);
+          next: (la) => {
+            this.sendLanzamiento = la;
+            this.sendTotal = la.total;
+            this.sendRestantes = la.total;
+            this.startSendPolling(la.id);
+            this.cdr.detectChanges();
           },
-          error: () => {
+          error: (err) => {
             this.sending = false;
-            this.view = 'sent';
-            this.editingId = null;
-            this.loadAll();
-            this.error = 'Ningún correo pudo ser entregado';
-            this.notification.error('Error al enviar', 'Ningún correo pudo ser entregado.');
+            this.showSendConfirm = false;
+            this.error = err.error?.message || 'No se pudo iniciar el envío';
+            this.notification.error('No se pudo enviar', this.error);
             this.cdr.detectChanges();
           },
         });
       },
       error: (err) => {
         this.sending = false;
+        this.showSendConfirm = false;
         this.error = err.error?.message || 'Error al guardar el comunicado';
         this.notification.error('Error al guardar', this.error);
         this.cdr.detectChanges();
       },
     });
+  }
+
+  private startSendPolling(id: string): void {
+    this.stopSendPolling();
+    this.sendPollTimer = setInterval(() => {
+      this.service.getOne(id).pipe(takeUntil(this.destroy$)).subscribe({
+        next: (c) => {
+          if (this.sendPollTimer === null) return;
+          const procesados = c.destinatarios.filter(
+            (d) => d.sendStatus === 'ok' || d.sendStatus === 'failed',
+          ).length;
+          this.sendProcesados = procesados;
+          this.sendRestantes = Math.max(0, c.destinatarios.length - procesados);
+          this.sendPct = c.destinatarios.length
+            ? Math.round((procesados / c.destinatarios.length) * 100)
+            : 0;
+          this.cdr.detectChanges();
+
+          if (c.status !== 'sending') {
+            this.stopSendPolling();
+            this.finalizeSend(c);
+          }
+        },
+        error: () => { /* transitorio: seguir intentando */ },
+      });
+    }, 700);
+  }
+
+  private stopSendPolling(): void {
+    if (this.sendPollTimer != null) {
+      clearInterval(this.sendPollTimer);
+      this.sendPollTimer = null;
+    }
+  }
+
+  private finalizeSend(c: Comunicado): void {
+    if (!this.sending) return;
+    this.sending = false;
+    this.showSendConfirm = false;
+    this.showSendErrors = false;
+
+    const fallidos = c.destinatarios.filter((d) => d.sendStatus === 'failed');
+    this.sendErrores = fallidos.map((d) => ({
+      email: d.email,
+      nombre: d.nombre,
+      error: d.sendError || 'No entregado (sin detalle del servidor).',
+    }));
+    const ok = c.destinatarios.length - fallidos.length;
+
+    this.view = 'sent';
+    this.editingId = null;
+    this.smtpCuota = null;
+    this.loadAll();
+
+    if (fallidos.length === 0) {
+      this.showSuccessMsg(`Comunicado enviado a ${c.destinatarios.length} destinatario(s)`);
+    } else {
+      this.showSendErrors = true;
+      this.notification.warning(
+        'Envío con errores',
+        `Entregado a ${ok} de ${c.destinatarios.length} · ${fallidos.length} rechazado(s).`,
+      );
+    }
+    this.cdr.detectChanges();
   }
 
   deleteComunicado(id: string): void {
@@ -1038,5 +1196,72 @@ export class ComunicadosComponent implements OnInit, AfterViewInit, DoCheck, OnD
   get statsFailedCount(): number {
     if (!this.stats?.detalle) return 0;
     return this.stats.detalle.filter((d: any) => d.sendStatus === 'failed').length;
+  }
+
+  get statsBouncedCount(): number {
+    if (!this.stats?.detalle) return 0;
+    return this.stats.detalle.filter((d: any) => d.sendStatus === 'bounced').length;
+  }
+
+  // ─── Revisión de rebotes (NDR) ───
+  checkingBounces = false;
+
+  revisarRebotes(): void {
+    if (!this.selected || this.checkingBounces) return;
+    this.checkingBounces = true;
+    this.cdr.detectChanges();
+    this.service.checkBounces().pipe(takeUntil(this.destroy$)).subscribe({
+      next: (res: BounceResult) => {
+        this.checkingBounces = false;
+        if (!res.ok) {
+          this.notification.warning('Revisión de rebotes', res.error || 'No se pudo completar.');
+          this.cdr.detectChanges();
+          return;
+        }
+        if (res.actualizados > 0) {
+          this.notification.success(
+            'Rebotes detectados',
+            `${res.actualizados} destinatario(s) marcado(s) como rebotado.`,
+          );
+        } else if (res.rebotados > 0) {
+          this.notification.warning(
+            'Revisión de rebotes',
+            `Se hallaron ${res.rebotados} aviso(s), pero ninguno coincidía con envíos pendientes.`,
+          );
+        } else {
+          this.notification.success('Revisión de rebotes', 'No se encontraron rebotes nuevos.');
+        }
+        void Promise.all([
+          this.loadStatsSafe(this.selected?.id),
+          this.loadOneSafe(this.selected?.id),
+        ]);
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.checkingBounces = false;
+        this.notification.error('Revisión de rebotes', 'No se pudo consultar la bandeja de correo.');
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  private loadStatsSafe(id: string | undefined | null): Promise<void> {
+    if (!id) return Promise.resolve();
+    return new Promise((resolve) => {
+      this.service.getStats(id).pipe(takeUntil(this.destroy$)).subscribe({
+        next: (s) => { this.stats = s; resolve(); },
+        error: () => resolve(),
+      });
+    });
+  }
+
+  private loadOneSafe(id: string | undefined | null): Promise<void> {
+    if (!id) return Promise.resolve();
+    return new Promise((resolve) => {
+      this.service.getOne(id).pipe(takeUntil(this.destroy$)).subscribe({
+        next: (c) => { this.selected = c; resolve(); },
+        error: () => resolve(),
+      });
+    });
   }
 }

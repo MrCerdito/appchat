@@ -72,11 +72,50 @@
         </div>
         }
       </div>
+
+      <!-- Lote SMTP de hoy -->
+      <div class="scm-section scm-section--quota">
+        <div class="scm-section__header">
+          <span class="scm-section__label">Lote SMTP de hoy</span>
+          @if (smtpCuota?.configurado) {
+          <span class="scm-section__count">{{ smtpCuota?.proveedor }} · {{ smtpCuota?.limiteDia }}/día</span>
+          }
+        </div>
+        @if (smtpCuota?.configurado) {
+        <div class="scm-quota__bar">
+          <div class="scm-quota__bar-fill" [style.width.%]="quotaPct"></div>
+        </div>
+        <div class="scm-quota__meta">
+          <span>Enviados hoy: {{ smtpCuota?.enviadosHoy }}</span>
+          <span>Disponibles: {{ smtpCuota?.restante }}</span>
+        </div>
+        @if (superaLote) {
+        <p class="scm-quota__warn">Este lote ({{ destinatarios.length }}) supera lo disponible hoy ({{ smtpCuota?.restante }}). Reducí la lista o probá mañana.</p>
+        }
+        } @else {
+        <p class="scm-quota__warn scm-quota__warn--block">Sin SMTP configurado. Antes de enviar, configura servidor, usuario, contraseña de aplicación y remitente.</p>
+        }
+      </div>
+
+      <!-- Progreso en vivo durante el envío -->
+      @if (saving && sendProgreso) {
+      <div class="scm-progress">
+        <div class="scm-progress__header">
+          <span>Enviando correos...</span>
+          <span>{{ sendProgreso.procesados }} / {{ sendProgreso.total }}</span>
+        </div>
+        <div class="scm-progress__bar">
+          <div class="scm-progress__fill" [style.width.%]="sendProgreso.pct"></div>
+        </div>
+        <span class="scm-progress__rest">Restantes: {{ sendProgreso.restantes }}</span>
+      </div>
+      }
     </div>
 
     <div class="scm-footer">
       <button class="scm-btn scm-btn--ghost" (click)="cancel.emit()" [disabled]="saving">Cancelar</button>
-      <button class="scm-btn scm-btn--primary" (click)="confirm.emit()" [disabled]="saving">
+      <button class="scm-btn scm-btn--primary" (click)="confirm.emit()"
+        [disabled]="saving || superaLote || !smtpCuota?.configurado">
         @if (saving) {
         <span class="scm-spinner"></span>
         Enviando...

@@ -312,6 +312,33 @@ export class Configuracion {
   @Column({ name: 'mail_from', type: 'text', nullable: true, default: '' })
   mailFrom: string;
 
+  @Column({ name: 'smtp_imap_host', type: 'text', nullable: true, default: '' })
+  smtpImapHost: string;
+
+  @Column({ name: 'smtp_imap_port', type: 'int', default: 993 })
+  smtpImapPort: number;
+
+  @Column({ name: 'revisar_rebotes', type: 'boolean', default: true })
+  revisarRebotes: boolean;
+
+  // ── Gateway Mailsender (API externa que envia el correo) ───────────────────
+  @Column({ name: 'mailsender_url', type: 'text', nullable: true, default: '' })
+  mailsenderUrl: string;
+
+  @Column({ name: 'mailsender_modo', type: 'text', default: 'individual' })
+  mailsenderModo: 'individual' | 'lote';
+
+  @Column({ name: 'mailsender_credencial', type: 'jsonb', nullable: true })
+  mailsenderCredencial: Record<string, unknown> | null;
+
+  @Column({
+    name: 'metodo_envio_correo',
+    type: 'varchar',
+    length: 20,
+    default: 'mailsender',
+  })
+  metodoEnvioCorreo: 'mailsender' | 'smtp';
+
   // ── IA Prompt ──────────────────────────────────────────────────────────────
   @Column({ name: 'ai_prompt_config', type: 'jsonb', nullable: true })
   aiPromptConfig: Record<string, any> | null;

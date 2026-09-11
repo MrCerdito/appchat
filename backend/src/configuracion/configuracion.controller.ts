@@ -104,7 +104,7 @@ export class ConfiguracionController {
   @UseGuards(RolesGuard)
   @Roles('admin')
   mailTest(@Body() body: MailTestDto) {
-    return this.svc.probarConexionSmtp(body);
+    return this.svc.probarMailsender(body);
   }
 
   @Post('global/mail-image')

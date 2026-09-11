@@ -2068,6 +2068,12 @@ a {
   &.advisor-status--busy {
     color: $warning;
   }
+  &.advisor-status--meeting {
+    color: #8b5cf6;
+  }
+  &.advisor-status--almuerzo {
+    color: #fb923c;
+  }
   &.advisor-status--offline {
     color: $text-faint;
   }
@@ -2083,6 +2089,14 @@ a {
   .advisor-status--busy & {
     background: $warning;
     box-shadow: 0 0 0 2px rgba($warning, 0.18);
+  }
+  .advisor-status--meeting & {
+    background: #8b5cf6;
+    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.18);
+  }
+  .advisor-status--almuerzo & {
+    background: #fb923c;
+    box-shadow: 0 0 0 2px rgba(251, 146, 60, 0.18);
   }
   .advisor-status--offline & {
     background: $text-faint;
@@ -2658,6 +2672,8 @@ a {
   border: 2px solid $surface; background: $text-faint;
   &.online { background: $success; }
   &.busy { background: $warning; }
+  &.meeting { background: #8b5cf6; }
+  &.almuerzo { background: #fb923c; }
   &.offline { background: $text-faint; }
 }
 .tadv-info { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
@@ -2667,6 +2683,8 @@ a {
 .tadv-status-label { font-size: 10px; font-weight: 600; text-transform: capitalize; white-space: nowrap;
   &.online { color: $success; }
   &.busy { color: $warning; }
+  &.meeting { color: #8b5cf6; }
+  &.almuerzo { color: #fb923c; }
   &.offline { color: $text-faint; }
 }
 .tadv-check {
@@ -3175,6 +3193,7 @@ a {
 
 .floating-modal-inner {
   pointer-events: all;
+  box-sizing: border-box;
   background: $surface;
   border: 1px solid $border;
   border-radius: $radius-xl;
@@ -3183,6 +3202,37 @@ a {
   max-width: 90vw;
   box-shadow: $shadow-xl;
   animation: floatIn 0.18s ease;
+
+  &.ticket-modal {
+    display: flex;
+    flex-direction: column;
+    max-height: min(88vh, 640px);
+    overflow: hidden;
+
+    h3 { flex-shrink: 0; margin: 0 0 16px; }
+
+    .ticket-modal-body {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      width: 100%;
+      padding: 2px;
+      margin: -2px;
+
+      input, textarea, select,
+      .ticket-assign,
+      .ticket-assign-btn {
+        box-sizing: border-box;
+        width: 100%;
+      }
+    }
+
+    .modal-actions {
+      flex-shrink: 0;
+      margin-top: 16px;
+    }
+  }
 
   h3 {
     margin: 0 0 8px;

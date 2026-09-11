@@ -3,12 +3,22 @@ import { ConfigService } from '@nestjs/config';
 import { access, readFile } from 'fs/promises';
 import { resolve, normalize, sep } from 'path';
 import { Resend } from 'resend';
-import { createSmtpTransport } from '../common/mail/smtp.helper';
+import {
+  archivoAUri,
+  credencialMailsenderValida,
+  enviarCorreoMailsender,
+  MailsenderArchivo,
+  normalizarCredencialMailsender,
+} from '../common/mail/mailsender.helper';
 import {
   emailificarHtml,
   embedInlineImages,
 } from '../common/mail/email-assets.helper';
-import { ConfiguracionService } from '../configuracion/configuracion.service';
+import { createSmtpTransport } from '../common/mail/smtp.helper';
+import {
+  ConfiguracionService,
+  metodoCorreoActivo,
+} from '../configuracion/configuracion.service';
 import { Configuracion } from '../configuracion/entities/configuracion.entity';
 import { Ticket } from './ticket.entity';
 
@@ -130,27 +140,52 @@ export class TicketMailService {
         cfg.mailFrom?.trim() ||
         smtpUser ||
         String(this.config.get('MAIL_FROM') ?? '');
-      const from = this.resolveFrom(rawFrom, cfg.ticketEmailSenderName);
 
-      if (smtpHost && smtpUser && smtpPass) {
-        await this.sendSmtp(
+      const credencial = normalizarCredencialMailsender(
+        cfg.mailsenderCredencial as Record<string, unknown> | null | undefined,
+      );
+
+      if (metodoCorreoActivo(cfg) === 'mailsender') {
+        if (!credencial || !credencialMailsenderValida(credencial)) {
+          this.logger.warn(
+            `Sin credencial Mailsender valida; no se envio el correo del ticket ${ticket.codigo}.`,
+          );
+          return { enviado: false, requerido: true };
+        }
+        const enviado = await this.enviarViaMailsender(
           cfg,
-          smtpHost,
-          smtpUser,
-          smtpPass,
-          from,
           ticket,
           email,
           subject,
           htmlFinal,
           smtpFinal,
         );
-        return { enviado: true, requerido: true };
+        if (enviado) return { enviado: true, requerido: true };
+        this.logger.error(
+          `Fallo el envio por Mailsender del ticket ${ticket.codigo}; no se genero el ticket.`,
+        );
+        return { enviado: false, requerido: true };
       }
 
+      if (smtpHost && smtpUser && smtpPass) {
+        const enviado = await this.enviarViaSmtp(
+          cfg,
+          email,
+          subject,
+          htmlFinal,
+          smtpFinal,
+        );
+        if (enviado) return { enviado: true, requerido: true };
+        this.logger.error(
+          `Fallo el envio por SMTP del ticket ${ticket.codigo}; no se genero el ticket.`,
+        );
+        return { enviado: false, requerido: true };
+      }
+
+      const from = this.resolveFrom(rawFrom, cfg.ticketEmailSenderName);
       if (!from) {
         this.logger.warn(
-          `Sin remitente configurado (SMTP vacio y MAIL_FROM no configurado). No se envio el correo del ticket ${ticket.codigo}.`,
+          `Sin remitente configurado (modo SMTP sin credencial SMTP ni MAIL_FROM). No se envio el correo del ticket ${ticket.codigo}.`,
         );
         return { enviado: false, requerido: true };
       }
@@ -182,43 +217,105 @@ export class TicketMailService {
     }
   }
 
-  private async sendSmtp(
+  /**
+   * Envia un correo de ticket a traves del gateway Mailsender. Devuelve false
+   * si no hay credencial configurada o si el envio falla.
+   */
+  private async enviarViaMailsender(
     cfg: Configuracion,
-    host: string,
-    user: string,
-    pass: string,
-    from: string,
     ticket: Ticket,
     to: string,
     subject: string,
     html: string,
-    attachments?: Array<{
+    archivosRuta: Array<{
       filename: string;
       path: string;
       cid?: string;
       contentType?: string;
     }>,
-  ): Promise<void> {
-    const { transporter } = await createSmtpTransport({
-      host,
-      port: Number(cfg.smtpPort) || 465,
-      secure: cfg.smtpSecure !== false,
-      user,
-      pass,
+  ): Promise<boolean> {
+    const credencial = normalizarCredencialMailsender(
+      cfg.mailsenderCredencial as Record<string, unknown> | null | undefined,
+    );
+    if (!credencial || !credencialMailsenderValida(credencial)) return false;
+
+    const archivos: MailsenderArchivo[] = [];
+    for (const a of archivosRuta) {
+      try {
+        archivos.push(await archivoAUri(a.path));
+      } catch {
+        this.logger.warn(
+          `Adjunto ausente se omite (${a.filename}) para el ticket ${ticket.codigo}.`,
+        );
+      }
+    }
+
+    const res = await enviarCorreoMailsender({
+      baseUrl: cfg.mailsenderUrl || '',
+      credencial,
+      asunto: subject,
+      correosNormales: to,
+      html,
+      archivos: archivos.length ? archivos : undefined,
     });
+    if (!res.ok) {
+      this.logger.error(
+        `Mailsender fallo para el ticket ${ticket.codigo}: ${res.message}`,
+      );
+      return false;
+    }
+    this.logger.log(
+      `Correo del ticket ${ticket.codigo} enviado a ${to} via Mailsender (${credencial.email})`,
+    );
+    return true;
+  }
+
+  /**
+   * Envia un correo de ticket a traves de SMTP directo (nodemailer) usando la
+   * configuracion "SMTP / Resend (respaldo)". Devuelve false si no hay SMTP
+   * configurado o si el envio falla.
+   */
+  private async enviarViaSmtp(
+    cfg: Configuracion,
+    to: string,
+    subject: string,
+    html: string,
+    archivos: Array<{
+      filename: string;
+      path: string;
+      cid?: string;
+      contentType?: string;
+    }>,
+  ): Promise<boolean> {
+    const host = cfg.smtpHost?.trim() || '';
+    const user = cfg.smtpUser?.trim() || '';
+    const pass = cfg.smtpPass?.trim() || '';
+    if (!host || !user || !pass) return false;
+
     try {
-      const info = await transporter.sendMail({
-        from: from || user,
+      const transport = await createSmtpTransport({
+        host,
+        port: Number(cfg.smtpPort) || 587,
+        secure: cfg.smtpSecure !== false,
+        user,
+        pass,
+      });
+      await transport.transporter.sendMail({
+        from: this.resolveFrom(
+          cfg.mailFrom?.trim() || user,
+          cfg.ticketEmailSenderName,
+        ),
         to,
         subject,
         html,
-        attachments,
+        attachments: archivos.length ? archivos : undefined,
       });
-      this.logger.log(
-        `Correo del ticket ${ticket.codigo} enviado a ${to} via SMTP (${host})${info.messageId ? ` (${info.messageId})` : ''}`,
-      );
-    } finally {
-      transporter.close();
+      transport.transporter.close();
+      this.logger.log(`Correo enviado a ${to} via SMTP (${user})`);
+      return true;
+    } catch (err: any) {
+      this.logger.error(`SMTP fallo para ${to}: ${err?.message ?? err}`);
+      return false;
     }
   }
 
@@ -263,24 +360,33 @@ export class TicketMailService {
         cfg.mailFrom?.trim() ||
         smtpUser ||
         String(this.config.get('MAIL_FROM') ?? '');
-      const from = this.resolveFrom(rawFrom, cfg.ticketEmailSenderName);
 
-      if (smtpHost && smtpUser && smtpPass) {
-        await this.sendSmtp(
+      const credencial = normalizarCredencialMailsender(
+        cfg.mailsenderCredencial as Record<string, unknown> | null | undefined,
+      );
+
+      if (metodoCorreoActivo(cfg) === 'mailsender') {
+        if (!credencial || !credencialMailsenderValida(credencial)) {
+          this.logger.warn(
+            `Sin credencial Mailsender valida; no se envio confirmacion de cierre de ${ticket.codigo}.`,
+          );
+          return false;
+        }
+        return this.enviarViaMailsender(
           cfg,
-          smtpHost,
-          smtpUser,
-          smtpPass,
-          from,
           ticket,
           email,
           subject,
           htmlFinal,
           smtpFinal,
         );
-        return true;
       }
 
+      if (smtpHost && smtpUser && smtpPass) {
+        return this.enviarViaSmtp(cfg, email, subject, htmlFinal, smtpFinal);
+      }
+
+      const from = this.resolveFrom(rawFrom, cfg.ticketEmailSenderName);
       if (!from) {
         this.logger.warn(
           `Sin remitente configurado; no se envio confirmacion de cierre de ${ticket.codigo}.`,

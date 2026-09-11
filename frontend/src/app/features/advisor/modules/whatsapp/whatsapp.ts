@@ -133,6 +133,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
 
   @ViewChild('messagesContainer') messagesContainer!: ElementRef;
   @ViewChild('messageInput') messageInput!: ElementRef<HTMLTextAreaElement>;
+  @ViewChild('slashMenu') slashMenu?: ElementRef<HTMLElement>;
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
   @ViewChild('imageInput') imageInput!: ElementRef<HTMLInputElement>;
   @ViewChild('videoInput') videoInput!: ElementRef<HTMLInputElement>;
@@ -224,6 +225,8 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
   showSlashMenu = false;
   slashQuery = '';
   slashHighlight = 0;
+  slashPrefix = '';
+  slashTypedText = '';
 
   isTyping = false;
   isSending = false;
@@ -2704,18 +2707,17 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
       if (event.key === 'ArrowDown') {
         event.preventDefault();
         if (!this.slashFiltered.length) return;
-        this.slashHighlight = (this.slashHighlight + 1) % this.slashFiltered.length;
-        const item = this.slashFiltered[this.slashHighlight];
-        this.ghostSuggestion = item ? item.content.slice(this.slashQuery.length) : '';
+        this.slashHighlight = Math.min(this.slashHighlight + 1, this.slashFiltered.length - 1);
+        this.previewSlashReply(this.slashFiltered[this.slashHighlight]);
+        this.scrollSlashIntoView();
         return;
       }
       if (event.key === 'ArrowUp') {
         event.preventDefault();
         if (!this.slashFiltered.length) return;
-        this.slashHighlight =
-          (this.slashHighlight - 1 + this.slashFiltered.length) % this.slashFiltered.length;
-        const item = this.slashFiltered[this.slashHighlight];
-        this.ghostSuggestion = item ? item.content.slice(this.slashQuery.length) : '';
+        this.slashHighlight = Math.max(this.slashHighlight - 1, 0);
+        this.previewSlashReply(this.slashFiltered[this.slashHighlight]);
+        this.scrollSlashIntoView();
         return;
       }
       if (event.key === 'Enter') {
@@ -2726,7 +2728,17 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
       }
       if (event.key === 'Escape') {
         this.showSlashMenu = false;
+        this.slashQuery = '';
         this.ghostSuggestion = '';
+        this.messageText = this.slashTypedText;
+        this.resizeMessageInput();
+        setTimeout(() => {
+          const ta = this.messageInput?.nativeElement;
+          if (ta) {
+            ta.focus();
+            ta.setSelectionRange(this.messageText.length, this.messageText.length);
+          }
+        });
         return;
       }
     }
@@ -2751,32 +2763,52 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
       return;
     }
 
-    this.slashQuery = this.messageText.slice(slashIdx + 1).toLowerCase();
-    this.showSlashMenu = true;
-    this.slashHighlight = 0;
-    const match = (this.activeContact?.quickReplies ?? []).find((reply: any) => {
-      const text = typeof reply === 'string' ? reply : (reply.name + ' ' + reply.content);
-      return text.toLowerCase().startsWith(this.slashQuery) && this.slashQuery.length > 0;
-    });
-    if (match) {
-      const content = typeof match === 'string' ? match : match.content;
-      this.ghostSuggestion = content.slice(this.slashQuery.length);
-    } else {
-      this.ghostSuggestion = '';
+    const query = this.messageText.slice(slashIdx + 1).toLowerCase();
+    if (query !== this.slashQuery) {
+      this.slashQuery = query;
+      this.slashHighlight = 0;
+      this.slashPrefix = this.messageText.slice(0, slashIdx);
+      this.slashTypedText = this.messageText;
     }
+    this.showSlashMenu = true;
+    const match = this.slashFiltered[0];
+    this.ghostSuggestion =
+      match && this.slashQuery.length > 0
+        ? match.content.slice(this.slashQuery.length)
+        : '';
   }
 
   selectSlashReply(reply: any): void {
     const content = typeof reply === 'string' ? reply : reply.content;
-    const slashIdx = this.messageText.lastIndexOf('/');
-    this.messageText = slashIdx >= 0
-      ? this.messageText.slice(0, slashIdx) + content
-      : content;
+    this.messageText = this.slashPrefix + content;
     this.showSlashMenu = false;
     this.slashQuery = '';
     this.ghostSuggestion = '';
     this.resizeMessageInput();
     this.messageInput?.nativeElement?.focus();
+  }
+
+  previewSlashReply(reply: any): void {
+    const content = typeof reply === 'string' ? reply : reply.content;
+    this.messageText = this.slashPrefix + content;
+    this.ghostSuggestion = '';
+    this.resizeMessageInput();
+    setTimeout(() => {
+      const ta = this.messageInput?.nativeElement;
+      if (ta) {
+        ta.focus();
+        ta.setSelectionRange(this.messageText.length, this.messageText.length);
+      }
+    });
+  }
+
+  private scrollSlashIntoView(): void {
+    setTimeout(() => {
+      const el = this.slashMenu?.nativeElement;
+      if (!el) return;
+      const item = el.querySelector<HTMLElement>('.slash-item.highlighted');
+      if (item) item.scrollIntoView({ block: 'nearest' });
+    });
   }
 
   useQuickReply(reply: any): void {
@@ -3596,7 +3628,7 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
 
     return value
       .filter((r: any) => r?.name && r?.content)
-      .map((r: any) => ({ name: String(r.name).slice(0, 60), content: String(r.content).slice(0, 500) }));
+      .map((r: any) => ({ name: String(r.name).slice(0, 60), content: String(r.content) }));
   }
 
   private quickRepliesFromSettingsText(value: string): Array<{ name: string; content: string }> {

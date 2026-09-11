@@ -33,3 +33,14 @@
     </div>
   </div>
 </ng-container>
+
+@if (notificacion) {
+<div class="clm-toast" role="status" (click)="cerrarNotificacion()">
+  <span class="clm-toast__bar" [style.background]="categoriaColor(notificacion.categoria)"></span>
+  <div class="clm-toast__content">
+    <span class="clm-toast__cat">{{ categoriaLabel(notificacion.categoria) }}</span>
+    <strong class="clm-toast__titulo">{{ notificacion.titulo }}</strong>
+  </div>
+  <button type="button" class="clm-toast__close" (click)="cerrarNotificacion(); $event.stopPropagation()" aria-label="Cerrar notificacion">&times;</button>
+</div>
+}

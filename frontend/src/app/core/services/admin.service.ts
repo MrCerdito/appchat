@@ -18,7 +18,7 @@ export interface ConectividadAsesor {
   name: string;
   email: string;
   profilePhotoUrl: string | null;
-  estado: 'online' | 'busy' | 'offline';
+  estado: 'online' | 'busy' | 'meeting' | 'almuerzo' | 'offline';
   conectado: boolean;
   activeChats: number;
   activo: boolean;
@@ -49,7 +49,7 @@ export interface PeriodoActividad {
   desde: string;
   hasta: string | null;
   duracionMs: number;
-  estado: 'online' | 'busy' | 'offline';
+  estado: 'online' | 'busy' | 'meeting' | 'almuerzo' | 'offline';
   almuerzo: boolean;
   tipo: 'conexion' | 'desconexion' | 'status' | 'almuerzo_inicio' | 'almuerzo_fin';
   causa: string | null;
@@ -64,6 +64,7 @@ export interface ActividadAsesor {
   resumen: {
     disponibleMin: number;
     ocupadoMin: number;
+    reunionMin: number;
     almuerzoMin: number;
     inactivoMin: number;
     desconexiones: number;
@@ -75,7 +76,7 @@ export interface ActividadAsesor {
       desde: string;
       mensaje: string;
     } | null;
-    estadoFinal: 'online' | 'busy' | 'offline' | null;
+    estadoFinal: 'online' | 'busy' | 'meeting' | 'almuerzo' | 'offline' | null;
     segmentoAbierto: boolean;
     sinActividadAntesDe: string | null;
   };

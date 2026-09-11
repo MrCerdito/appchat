@@ -10,12 +10,12 @@ import {
   Request,
   HttpCode,
   HttpStatus,
-  InternalServerErrorException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles, RolesGuard } from '../auth/roles.guard';
 import { Permiso } from '../accesos/permiso-modulo.guard';
 import { ComunicadosService } from './comunicados.service';
+import { BounceService } from './bounce.service';
 import { IsString, IsArray, IsOptional, MaxLength } from 'class-validator';
 
 export class ComunicadoDto {
@@ -36,7 +36,10 @@ export class ComunicadoTemplateDto {
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Permiso('comunicados')
 export class ComunicadosController {
-  constructor(private readonly service: ComunicadosService) {}
+  constructor(
+    private readonly service: ComunicadosService,
+    private readonly bounce: BounceService,
+  ) {}
 
   @Get()
   findAll(@Request() req: any) {
@@ -83,6 +86,16 @@ export class ComunicadosController {
     return this.service.deleteTemplate(id);
   }
 
+  @Get('smtp-cuota')
+  getSmtpCuota() {
+    return this.service.obtenerCuota();
+  }
+
+  @Post('check-bounces')
+  checkBounces() {
+    return this.bounce.revisarRebotesAhora();
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.service.findOne(id);
@@ -120,15 +133,9 @@ export class ComunicadosController {
 
   @Roles('advisor', 'interno')
   @Post(':id/send')
-  @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.ACCEPTED)
   async send(@Param('id') id: string, @Request() req: any) {
-    const result = await this.service.send(id, req.user);
-    if (result.status === 'failed') {
-      throw new InternalServerErrorException(
-        'Ningún correo pudo ser entregado',
-      );
-    }
-    return result;
+    return this.service.send(id, req.user);
   }
 
   @Roles('advisor', 'interno')

@@ -4,14 +4,16 @@ import {
   Injectable,
   OnModuleInit,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import {
-  createSmtpTransport,
-  friendlySmtpError,
-} from '../common/mail/smtp.helper';
+  enviarCorreoMailsender,
+  normalizarCredencialMailsender,
+} from '../common/mail/mailsender.helper';
+import { createSmtpTransport } from '../common/mail/smtp.helper';
 import { embedInlineImages } from '../common/mail/email-assets.helper';
 import {
   Configuracion,
@@ -35,6 +37,14 @@ export interface HorarioEstado {
   proximaTipo: 'hoy' | 'manana' | 'fecha' | '';
   proximaDia: number;
   proximaInicio: string;
+}
+
+export type MetodoEnvioCorreo = 'mailsender' | 'smtp';
+
+export function metodoCorreoActivo(
+  cfg: { metodoEnvioCorreo?: string } | null | undefined,
+): MetodoEnvioCorreo {
+  return cfg?.metodoEnvioCorreo === 'smtp' ? 'smtp' : 'mailsender';
 }
 
 @Injectable()
@@ -75,6 +85,7 @@ export class ConfiguracionService implements OnModuleInit {
     private readonly repo: Repository<Configuracion>,
     @Inject(CACHE_MANAGER)
     private readonly cache: Cache,
+    private readonly configSvc: ConfigService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -205,10 +216,57 @@ export class ConfiguracionService implements OnModuleInit {
     `);
 
     await this.repo.query(`
+      ALTER TABLE IF EXISTS public.configuracion
+      ADD COLUMN IF NOT EXISTS mailsender_url text DEFAULT ''
+    `);
+    await this.repo.query(`
+      ALTER TABLE IF EXISTS public.configuracion
+      ADD COLUMN IF NOT EXISTS mailsender_modo text NOT NULL DEFAULT 'individual'
+    `);
+    await this.repo.query(`
+      ALTER TABLE IF EXISTS public.configuracion
+      ADD COLUMN IF NOT EXISTS mailsender_credencial jsonb
+    `);
+    await this.repo.query(`
+      ALTER TABLE IF EXISTS public.configuracion
+      ADD COLUMN IF NOT EXISTS metodo_envio_correo varchar(20) NOT NULL DEFAULT 'mailsender'
+    `);
+
+    await this.repo.query(`
       UPDATE public.configuracion
       SET ticket_email_cuerpo = REPLACE(ticket_email_cuerpo, 'ReportaCasos', 'Soporte')
       WHERE ticket_email_cuerpo LIKE '%ReportaCasos%'
     `);
+
+    // Persiste los valores Mailsender del .env en la fila global si estan
+    // vacios (fila creada antes de existir este apartado). Asi el envio queda
+    // configurado y visible automaticamente, sin depender del proceso.
+    try {
+      const global = await this.repo.findOne({
+        where: { advisorId: IsNull() },
+      });
+      if (global) {
+        const env = this.mailsenderEnv();
+        const tieneUrl = Boolean(String(global.mailsenderUrl ?? '').trim());
+        const credencial = global.mailsenderCredencial as
+          Record<string, unknown> | null | undefined;
+        const tieneCredencial = Boolean(
+          credencial && String(credencial['email'] ?? '').trim(),
+        );
+        if (!tieneUrl || !tieneCredencial) {
+          await this.repo.update({ advisorId: IsNull() }, {
+            mailsenderUrl: tieneUrl
+              ? (global.mailsenderUrl as string)
+              : env.url,
+            mailsenderCredencial: tieneCredencial
+              ? (global.mailsenderCredencial as Record<string, unknown>)
+              : env.credencial,
+          } as any);
+        }
+      }
+    } catch {
+      // No bloquear el arranque si la fila no existe o falla la escritura.
+    }
 
     const count = await this.repo.count({ where: { advisorId: IsNull() } });
     if (count === 0) {
@@ -273,7 +331,7 @@ export class ConfiguracionService implements OnModuleInit {
       if (name && content) {
         parsed.push({
           name: name.slice(0, 60),
-          content: content.slice(0, 500),
+          content,
         });
       }
     }
@@ -324,7 +382,7 @@ export class ConfiguracionService implements OnModuleInit {
       imported.push({
         id: `qr_${nextId++}`,
         name,
-        content: String(item.content).trim().slice(0, 500),
+        content: String(item.content).trim(),
       });
     }
 
@@ -440,12 +498,69 @@ export class ConfiguracionService implements OnModuleInit {
     };
   }
 
+  /**
+   * Datos de Mailsender API leidos del .env (MAILSENDER_*). Evita quemar la
+   * credencial en el codigo fuente y permite prellenar la configuracion
+   * automaticamente sin tocar la base de datos.
+   */
+  private mailsenderEnv(): {
+    url: string;
+    credencial: Record<string, unknown>;
+  } {
+    const get = (k: string): string =>
+      String(this.configSvc.get<string>(k) ?? '').trim();
+    const email = get('MAILSENDER_EMAIL');
+    return {
+      url: get('MAILSENDER_URL'),
+      credencial: {
+        email,
+        usuario: get('MAILSENDER_USUARIO') || email,
+        password: String(
+          this.configSvc.get<string>('MAILSENDER_PASSWORD') ?? '',
+        ),
+        nombre: get('MAILSENDER_NOMBRE') || 'vacio',
+        port: Number(get('MAILSENDER_PORT')) || 587,
+        servidorsmtp: get('MAILSENDER_SERVER') || 'vacio',
+        seguridadssl: get('MAILSENDER_SSL') !== 'false',
+        protocolo_Tls12: get('MAILSENDER_TLS12') !== 'false',
+        azure_TenantId: get('MAILSENDER_AZURE_TENANT_ID'),
+        azure_ClientId: get('MAILSENDER_AZURE_CLIENT_ID'),
+        azure_ClientSecret: String(
+          this.configSvc.get<string>('MAILSENDER_AZURE_CLIENT_SECRET') ?? '',
+        ),
+      },
+    };
+  }
+
+  /**
+   * Si la fila guardada no tiene URL ni credencial Mailsender (fila creada
+   * antes de este apartado), los rellena con los valores del .env para que el
+   * admin los vea y pueda guardar/editar sin escribir nada a mano.
+   */
+  private applyMailsenderDefaults(config: Configuracion): Configuracion {
+    const env = this.mailsenderEnv();
+    const guardada = config.mailsenderCredencial as
+      Record<string, unknown> | null | undefined;
+    const emailGuardado = guardada
+      ? String(guardada['email'] ?? '').trim()
+      : '';
+    return {
+      ...config,
+      mailsenderUrl: config.mailsenderUrl || env.url,
+      mailsenderModo: config.mailsenderModo === 'lote' ? 'lote' : 'individual',
+      metodoEnvioCorreo:
+        config.metodoEnvioCorreo === 'smtp' ? 'smtp' : 'mailsender',
+      mailsenderCredencial:
+        emailGuardado && guardada ? guardada : env.credencial,
+    };
+  }
+
   private async getGlobalRow(): Promise<Configuracion> {
     const global = await this.repo.findOne({
       where: { advisorId: IsNull() },
     });
     if (global) {
-      return this.backfillAiRoleDefaults(global);
+      return this.backfillAiRoleDefaults(this.applyMailsenderDefaults(global));
     }
 
     const defaults: Partial<Configuracion> = {
@@ -499,6 +614,13 @@ export class ConfiguracionService implements OnModuleInit {
       smtpUser: '',
       smtpPass: '',
       mailFrom: '',
+      smtpImapHost: '',
+      smtpImapPort: 993,
+      revisarRebotes: true,
+      mailsenderUrl: this.mailsenderEnv().url,
+      mailsenderModo: 'individual',
+      metodoEnvioCorreo: 'mailsender',
+      mailsenderCredencial: this.mailsenderEnv().credencial,
       aiPromptConfig: {
         roles: {
           administrador: {
@@ -716,8 +838,36 @@ export class ConfiguracionService implements OnModuleInit {
         Math.min(65535, Number(data.smtpPort) || 465),
       );
     }
+    if (data.smtpImapPort !== undefined) {
+      data.smtpImapPort = Math.max(
+        1,
+        Math.min(65535, Number(data.smtpImapPort) || 993),
+      );
+    }
     if (typeof data.smtpSecure === 'string') {
       data.smtpSecure = data.smtpSecure !== 'false';
+    }
+    if (typeof data.revisarRebotes === 'string') {
+      data.revisarRebotes = data.revisarRebotes !== 'false';
+    }
+    if (data.mailsenderUrl !== undefined) {
+      data.mailsenderUrl = String(data.mailsenderUrl ?? '').trim();
+    }
+    if (typeof data.mailsenderModo === 'string') {
+      data.mailsenderModo =
+        data.mailsenderModo === 'lote' ? 'lote' : 'individual';
+    }
+    if (data.metodoEnvioCorreo !== undefined) {
+      data.metodoEnvioCorreo =
+        data.metodoEnvioCorreo === 'smtp' ? 'smtp' : 'mailsender';
+    }
+    if (data.mailsenderCredencial !== undefined) {
+      const credencial = normalizarCredencialMailsender(
+        data.mailsenderCredencial,
+      );
+      data.mailsenderCredencial = credencial
+        ? (credencial as unknown as Record<string, unknown>)
+        : null;
     }
 
     for (const key of [
@@ -807,10 +957,15 @@ export class ConfiguracionService implements OnModuleInit {
   }
 
   /**
-   * Prueba la conexion SMTP con las credenciales recibidas (todavia no se
-   * guardan) enviando un correo de prueba. Devuelve { ok, message }.
+   * Prueba la conexion del gateway Mailsender con la credencial recibida
+   * (todavia no se guarda) enviando un correo de prueba. Devuelve { ok, message }.
    */
-  async probarConexionSmtp(body: {
+  async probarMailsender(body: {
+    baseUrl?: string;
+    credencial?: unknown;
+    to?: string;
+    cuerpo?: string;
+    asunto?: string;
     smtpHost?: string;
     smtpPort?: number;
     smtpSecure?: boolean;
@@ -818,9 +973,6 @@ export class ConfiguracionService implements OnModuleInit {
     smtpPass?: string;
     mailFrom?: string;
     senderName?: string;
-    to?: string;
-    cuerpo?: string;
-    asunto?: string;
   }): Promise<{ ok: boolean; message: string }> {
     const to = String(body.to ?? '').trim();
     if (!to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
@@ -828,74 +980,98 @@ export class ConfiguracionService implements OnModuleInit {
         'Indica un correo valido para recibir la prueba.',
       );
     }
-    const host = String(body.smtpHost ?? '').trim();
-    const user = String(body.smtpUser ?? '').trim();
-    const pass = String(body.smtpPass ?? '');
-    if (!host || !user || !pass) {
-      throw new BadRequestException(
-        'Completa el servidor SMTP, el correo de la cuenta y su contrasena.',
-      );
+
+    const smtpHost = String(body.smtpHost ?? '').trim();
+    const smtpUser = String(body.smtpUser ?? '').trim();
+    const smtpPass = String(body.smtpPass ?? '').trim();
+    const usarSmtp = Boolean(smtpHost && smtpUser && smtpPass);
+
+    if (usarSmtp) {
+      const htmlSmtp =
+        typeof body.cuerpo === 'string' && body.cuerpo.trim()
+          ? body.cuerpo
+          : '<p>Si recibes este correo, la conexion SMTP esta funcionando correctamente.</p>';
+      try {
+        const transport = await createSmtpTransport({
+          host: smtpHost,
+          port: Number(body.smtpPort) || 587,
+          secure: body.smtpSecure !== false,
+          user: smtpUser,
+          pass: smtpPass,
+        });
+        const remitente =
+          String(body.senderName ?? '')
+            .trim()
+            .slice(0, 80) || 'Soporte';
+        const desde = String(body.mailFrom ?? '').trim() || smtpUser;
+        await transport.transporter.sendMail({
+          from: `"${remitente}" <${desde}>`,
+          to,
+          subject:
+            String(body.asunto ?? '').trim() || 'Prueba de conexion SMTP',
+          html: htmlSmtp,
+        });
+        transport.transporter.close();
+        return {
+          ok: true,
+          message: `Conexion SMTP exitosa. Prueba enviada a ${to}.`,
+        };
+      } catch (err) {
+        const code = (err as any)?.code ?? '';
+        const msg: Record<string, string> = {
+          EAUTH:
+            'Credenciales SMTP invalidas: revisa usuario y clave del servidor.',
+          ESOCKET:
+            'No se pudo conectar al servidor SMTP. Revisa host, puerto y SSL.',
+          ETIMEDOUT:
+            'El servidor SMTP no respondio a tiempo. Revisa host y puerto.',
+          ECONNECTION: 'No se pudo establecer conexion con el servidor SMTP.',
+        };
+        return {
+          ok: false,
+          message:
+            msg[code] ||
+            (err as Error)?.message ||
+            'Error al conectarse al SMTP.',
+        };
+      }
     }
 
-    const from = String(body.mailFrom ?? '').trim() || user;
-    const port = Math.max(1, Math.min(65535, Number(body.smtpPort) || 465));
-    const secure = body.smtpSecure !== false;
+    const credencial = normalizarCredencialMailsender(
+      body.credencial as object | null | undefined,
+    );
+    if (!credencial) {
+      throw new BadRequestException(
+        'Completa la credencial del correo (email, usuario y password).',
+      );
+    }
 
     // Si llega el cuerpo del editor visual, la prueba envia el diseno real
     // (con las imagenes incrustadas) para que el admin vea exactamente lo que
     // recibira el cliente. Si no, envia el mensaje simple de conexion.
-    let html = '';
-    let attachments:
-      | Array<{
-          filename: string;
-          path: string;
-          cid: string;
-          contentType?: string;
-        }>
-      | undefined;
+    let html =
+      typeof body.cuerpo === 'string' && body.cuerpo.trim()
+        ? body.cuerpo
+        : '<p>Si recibes este correo, la conexion de correo del servicio esta funcionando correctamente.</p>';
     if (typeof body.cuerpo === 'string' && body.cuerpo.trim()) {
-      const { html: htmlFinal, smtpAttachments } = await embedInlineImages(
-        body.cuerpo,
-      );
+      const { html: htmlFinal } = await embedInlineImages(body.cuerpo);
       html = htmlFinal;
-      attachments = smtpAttachments.length ? smtpAttachments : undefined;
     }
 
-    const { transporter, connectHost, resolved } = await createSmtpTransport({
-      host,
-      port,
-      secure,
-      user,
-      pass,
+    const res = await enviarCorreoMailsender({
+      baseUrl: String(body.baseUrl ?? '').trim(),
+      credencial,
+      asunto:
+        String(body.asunto ?? '').trim() || 'Prueba de conexion de correo',
+      correosNormales: to,
+      html,
     });
 
-    try {
-      await transporter.verify();
-      const senderName = body.senderName
-        ? sanitizeSenderName(body.senderName, 80)
-        : 'Soporte';
-      const info = await transporter.sendMail({
-        from: `"${senderName}" <${from}>`,
-        to,
-        subject:
-          String(body.asunto ?? '').trim() || 'Prueba de conexion de correo',
-        text: html
-          ? 'Si recibes este correo, la conexion de correo para los tickets esta funcionando correctamente.'
-          : undefined,
-        html: html
-          ? html
-          : '<p>Si recibes este correo, la conexion de correo para los tickets esta funcionando correctamente.</p>',
-        attachments,
-      });
-      transporter.close();
-      return {
-        ok: true,
-        message: `Conexion exitosa con ${host}${resolved ? ` (IPv4 ${connectHost})` : ''}. Correo de prueba enviado a ${to}${info.messageId ? ` (${info.messageId})` : ''}.`,
-      };
-    } catch (err: any) {
-      transporter.close();
-      return { ok: false, message: friendlySmtpError(err, host, port) };
-    }
+    if (!res.ok) return { ok: false, message: res.message };
+    return {
+      ok: true,
+      message: `Conexion exitosa con el servicio de correo. Prueba enviada a ${to}.`,
+    };
   }
 
   private sanitizeConfigText(data: Partial<Configuracion>): void {
@@ -915,6 +1091,7 @@ export class ConfiguracionService implements OnModuleInit {
       'smtpHost',
       'smtpUser',
       'mailFrom',
+      'mailsenderUrl',
     ];
 
     for (const key of textKeys) {

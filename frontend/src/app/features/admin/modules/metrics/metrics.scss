@@ -31,6 +31,8 @@
   border-radius: 50%; margin-right: 4px; vertical-align: middle;
   &.online  { background: #22c55e; }
   &.busy    { background: #f59e0b; }
+  &.meeting { background: #8b5cf6; }
+  &.almuerzo { background: #fb923c; }
   &.offline { background: var(--text-muted); }
 }
 .status-text { font-size: 0.73rem; color: var(--text-muted); }
@@ -326,6 +328,8 @@
   padding: 2px 8px; border-radius: 20px;
   &.online  { background: #dcfce7; color: #16a34a; }
   &.busy    { background: #fef9c3; color: #b45309; }
+  &.meeting { background: #f5f3ff; color: #7c3aed; }
+  &.almuerzo { background: #fff7ed; color: #c2410c; }
   &.offline { background: #f3f4f6; color: var(--text-muted); }
 }
 

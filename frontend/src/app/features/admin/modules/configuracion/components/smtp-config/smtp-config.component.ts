@@ -16,6 +16,7 @@ import { takeUntil } from 'rxjs/operators';
 import {
   ConfiguracionData,
   ConfiguracionFrontendService,
+  MailsenderCredencial,
 } from '../../../../../../core/services/configuracion.service';
 import { NotificationService } from '../../../../../../core/services/notification.service';
 
@@ -28,6 +29,23 @@ export interface SmtpState {
   smtpUser: string;
   smtpPass: string;
   mailFrom: string;
+  smtpImapHost: string;
+  smtpImapPort: number;
+  revisarRebotes: boolean;
+  mailsenderUrl: string;
+  mailsenderModo: 'individual' | 'lote';
+  metodoEnvioCorreo: 'mailsender' | 'smtp';
+  credencialEmail: string;
+  credencialUsuario: string;
+  credencialPassword: string;
+  credencialNombre: string;
+  credencialPort: number;
+  credencialServidor: string;
+  credencialSeguridadSsl: boolean;
+  credencialTls12: boolean;
+  azureTenantId: string;
+  azureClientId: string;
+  azureClientSecret: string;
 }
 
 @Component({
@@ -49,6 +67,23 @@ export class SmtpConfigComponent implements OnChanges, OnDestroy {
     smtpUser: '',
     smtpPass: '',
     mailFrom: '',
+    smtpImapHost: '',
+    smtpImapPort: 993,
+    revisarRebotes: true,
+    mailsenderUrl: '',
+    mailsenderModo: 'individual',
+    metodoEnvioCorreo: 'mailsender',
+    credencialEmail: '',
+    credencialUsuario: '',
+    credencialPassword: '',
+    credencialNombre: '',
+    credencialPort: 587,
+    credencialServidor: 'vacio',
+    credencialSeguridadSsl: true,
+    credencialTls12: true,
+    azureTenantId: '',
+    azureClientId: '',
+    azureClientSecret: '',
   };
 
   dirty = false;
@@ -95,11 +130,44 @@ export class SmtpConfigComponent implements OnChanges, OnDestroy {
       smtpUser: this.config.smtpUser || '',
       smtpPass: this.config.smtpPass || '',
       mailFrom: this.config.mailFrom || '',
+      smtpImapHost: this.config.smtpImapHost || '',
+      smtpImapPort: this.config.smtpImapPort || 993,
+      revisarRebotes: this.config.revisarRebotes ?? true,
+      mailsenderUrl: this.config.mailsenderUrl || '',
+      mailsenderModo: this.config.mailsenderModo || 'individual',
+      metodoEnvioCorreo: this.config.metodoEnvioCorreo || 'mailsender',
+      credencialEmail: this.config.mailsenderCredencial?.email || '',
+      credencialUsuario: this.config.mailsenderCredencial?.usuario || '',
+      credencialPassword: this.config.mailsenderCredencial?.password || '',
+      credencialNombre: this.config.mailsenderCredencial?.nombre || '',
+      credencialPort: this.config.mailsenderCredencial?.port || 587,
+      credencialServidor: this.config.mailsenderCredencial?.servidorsmtp || 'vacio',
+      credencialSeguridadSsl: this.config.mailsenderCredencial?.seguridadssl ?? true,
+      credencialTls12: this.config.mailsenderCredencial?.protocolo_Tls12 ?? true,
+      azureTenantId: this.config.mailsenderCredencial?.azure_TenantId || '',
+      azureClientId: this.config.mailsenderCredencial?.azure_ClientId || '',
+      azureClientSecret: this.config.mailsenderCredencial?.azure_ClientSecret || '',
     };
     this.detectPreset();
     this.dirty = false;
     this.saveError = '';
     this.cdr.detectChanges();
+  }
+
+  private buildMailsenderCredencial(): MailsenderCredencial {
+    return {
+      email: this.smtp.credencialEmail.trim(),
+      usuario: this.smtp.credencialUsuario.trim(),
+      password: this.smtp.credencialPassword,
+      nombre: this.smtp.credencialNombre.trim(),
+      port: this.smtp.credencialPort,
+      servidorsmtp: this.smtp.credencialServidor.trim() || 'vacio',
+      seguridadssl: this.smtp.credencialSeguridadSsl,
+      protocolo_Tls12: this.smtp.credencialTls12,
+      azure_TenantId: this.smtp.azureTenantId.trim(),
+      azure_ClientId: this.smtp.azureClientId.trim(),
+      azure_ClientSecret: this.smtp.azureClientSecret,
+    };
   }
 
   markDirty(): void {
@@ -120,6 +188,13 @@ export class SmtpConfigComponent implements OnChanges, OnDestroy {
       smtpUser: this.smtp.smtpUser,
       smtpPass: this.smtp.smtpPass,
       mailFrom: this.smtp.mailFrom,
+      smtpImapHost: this.smtp.smtpImapHost,
+      smtpImapPort: this.smtp.smtpImapPort,
+      revisarRebotes: this.smtp.revisarRebotes,
+      mailsenderUrl: this.smtp.mailsenderUrl,
+      mailsenderModo: this.smtp.mailsenderModo,
+      metodoEnvioCorreo: this.smtp.metodoEnvioCorreo,
+      mailsenderCredencial: this.buildMailsenderCredencial(),
     });
   }
 
@@ -150,31 +225,41 @@ export class SmtpConfigComponent implements OnChanges, OnDestroy {
       smtpUser: this.smtp.smtpUser,
       smtpPass: this.smtp.smtpPass,
       mailFrom: this.smtp.mailFrom,
+      smtpImapHost: this.smtp.smtpImapHost,
+      smtpImapPort: this.smtp.smtpImapPort,
+      revisarRebotes: this.smtp.revisarRebotes,
+      mailsenderUrl: this.smtp.mailsenderUrl,
+      mailsenderModo: this.smtp.mailsenderModo,
+      metodoEnvioCorreo: this.smtp.metodoEnvioCorreo,
+      mailsenderCredencial: this.buildMailsenderCredencial(),
     };
 
-    this.svc.guardarGlobal(payload).pipe(takeUntil(this.destroy$)).subscribe({
-      next: (res) => {
-        this.status = 'saved';
-        this.dirty = false;
-        this.saveError = '';
-        this.configChange.emit(res);
-        this.notification.success(
-          'Configuración de correo guardada',
-          'El servidor SMTP se actualizó correctamente.',
-        );
-        setTimeout(() => {
-          if (this.status === 'saved') this.status = 'idle';
+    this.svc
+      .guardarGlobal(payload)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (res) => {
+          this.status = 'saved';
+          this.dirty = false;
+          this.saveError = '';
+          this.configChange.emit(res);
+          this.notification.success(
+            'Configuración de correo guardada',
+            'Los datos de envio se actualizaron correctamente.',
+          );
+          setTimeout(() => {
+            if (this.status === 'saved') this.status = 'idle';
+            this.cdr.detectChanges();
+          }, 3000);
           this.cdr.detectChanges();
-        }, 3000);
-        this.cdr.detectChanges();
-      },
-      error: (err) => {
-        this.status = 'error';
-        this.saveError = this.extractError(err);
-        this.notification.error('Error al guardar', this.saveError);
-        this.cdr.detectChanges();
-      },
-    });
+        },
+        error: (err) => {
+          this.status = 'error';
+          this.saveError = this.extractError(err);
+          this.notification.error('Error al guardar', this.saveError);
+          this.cdr.detectChanges();
+        },
+      });
   }
 
   aplicarPresetSmtp(preset: string): void {
@@ -206,11 +291,14 @@ export class SmtpConfigComponent implements OnChanges, OnDestroy {
     }
   }
 
-  probarCorreo(): void {
-    if (
-      !this.mailTestEmail.trim() ||
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.mailTestEmail)
-    ) {
+  cambiarMetodo(metodo: 'mailsender' | 'smtp'): void {
+    if (this.smtp.metodoEnvioCorreo === metodo) return;
+    this.smtp.metodoEnvioCorreo = metodo;
+    this.markDirty();
+  }
+
+  probarCorreo(canal: 'mailsender' | 'smtp'): void {
+    if (!this.mailTestEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.mailTestEmail)) {
       this.notification.warning(
         'Correo de prueba',
         'Escribe un correo valido que recibira la prueba.',
@@ -219,19 +307,31 @@ export class SmtpConfigComponent implements OnChanges, OnDestroy {
     }
     this.mailTesting = true;
     this.mailTestResult = null;
+    const credencial = this.buildMailsenderCredencial();
+    const usaMailsender = canal === 'mailsender';
     this.svc
-      .probarMail({
-        smtpHost: this.smtp.smtpHost,
-        smtpPort: this.smtp.smtpPort,
-        smtpSecure: this.smtp.smtpSecure,
-        smtpUser: this.smtp.smtpUser,
-        smtpPass: this.smtp.smtpPass,
-        mailFrom: this.smtp.mailFrom,
-        senderName: 'Correo SMTP',
-        to: this.mailTestEmail.trim(),
-        asunto: 'Prueba de conexion SMTP',
-        cuerpo: '<p>Este es un correo de prueba de la conexion SMTP.</p>',
-      })
+      .probarMail(
+        usaMailsender
+          ? {
+              baseUrl: this.smtp.mailsenderUrl,
+              credencial,
+              to: this.mailTestEmail.trim(),
+              asunto: 'Prueba de conexion Mailsender',
+              cuerpo: '<p>Este es un correo de prueba de la conexion Mailsender.</p>',
+            }
+          : {
+              smtpHost: this.smtp.smtpHost,
+              smtpPort: this.smtp.smtpPort,
+              smtpSecure: this.smtp.smtpSecure,
+              smtpUser: this.smtp.smtpUser,
+              smtpPass: this.smtp.smtpPass,
+              mailFrom: this.smtp.mailFrom,
+              senderName: 'Correo SMTP',
+              to: this.mailTestEmail.trim(),
+              asunto: 'Prueba de conexion SMTP',
+              cuerpo: '<p>Este es un correo de prueba de la conexion SMTP.</p>',
+            },
+      )
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (res) => {
@@ -239,11 +339,14 @@ export class SmtpConfigComponent implements OnChanges, OnDestroy {
           this.mailTestResult = res;
           if (res.ok) {
             this.notification.success(
-              'Conexion SMTP OK',
+              usaMailsender ? 'Conexion Mailsender OK' : 'Conexion SMTP OK',
               'Correo de prueba enviado correctamente.',
             );
           } else {
-            this.notification.error('Fallo la conexion SMTP', res.message);
+            this.notification.error(
+              usaMailsender ? 'Fallo la conexion Mailsender' : 'Fallo la conexion SMTP',
+              res.message,
+            );
           }
           this.cdr.detectChanges();
         },

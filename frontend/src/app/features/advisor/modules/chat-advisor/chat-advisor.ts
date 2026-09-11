@@ -90,6 +90,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
 
   @ViewChild('messagesContainer') messagesContainer!: ElementRef;
   @ViewChild('msgInput') msgInput!: ElementRef<HTMLTextAreaElement>;
+  @ViewChild('slashMenu') slashMenu?: ElementRef<HTMLElement>;
   @ViewChild('improveInputField') improveInputField!: ElementRef<HTMLTextAreaElement>;
 
   // ── Estado UI ─────────────────────────────────────────────────────────────
@@ -140,6 +141,8 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   slashQuery = '';
   slashHighlight = 0;
   ghostSuggestion = '';
+  slashPrefix = '';
+  slashTypedText = '';
 
   editingMessageId: string | null = null;
   editingText = '';
@@ -1105,18 +1108,17 @@ leaveCollabChat(): void {
       if (event.key === 'ArrowDown') {
         event.preventDefault();
         if (!this.slashFiltered.length) return;
-        this.slashHighlight = (this.slashHighlight + 1) % this.slashFiltered.length;
-        const item = this.slashFiltered[this.slashHighlight];
-        this.ghostSuggestion = item ? item.content.slice(this.slashQuery.length) : '';
+        this.slashHighlight = Math.min(this.slashHighlight + 1, this.slashFiltered.length - 1);
+        this.previewSlashReply(this.slashFiltered[this.slashHighlight]);
+        this.scrollSlashIntoView();
         return;
       }
       if (event.key === 'ArrowUp') {
         event.preventDefault();
         if (!this.slashFiltered.length) return;
-        this.slashHighlight =
-          (this.slashHighlight - 1 + this.slashFiltered.length) % this.slashFiltered.length;
-        const item = this.slashFiltered[this.slashHighlight];
-        this.ghostSuggestion = item ? item.content.slice(this.slashQuery.length) : '';
+        this.slashHighlight = Math.max(this.slashHighlight - 1, 0);
+        this.previewSlashReply(this.slashFiltered[this.slashHighlight]);
+        this.scrollSlashIntoView();
         return;
       }
       if (event.key === 'Enter' && !event.shiftKey) {
@@ -1126,8 +1128,18 @@ leaveCollabChat(): void {
         return;
       }
       if (event.key === 'Escape') {
+        event.preventDefault();
         this.showSlashMenu = false;
+        this.slashQuery = '';
         this.ghostSuggestion = '';
+        const el = this.msgInput?.nativeElement;
+        if (el) {
+          el.innerText = this.slashTypedText;
+          this.newMessage = this.slashTypedText;
+          this.resizeInput();
+          el.focus();
+          this.placeCaretAtEnd();
+        }
         return;
       }
     }
@@ -1211,9 +1223,14 @@ leaveCollabChat(): void {
       this.ghostSuggestion = '';
       return;
     }
-    this.slashQuery = text.slice(slashIdx + 1).toLowerCase();
+    const query = text.slice(slashIdx + 1).toLowerCase();
+    if (query !== this.slashQuery) {
+      this.slashQuery = query;
+      this.slashHighlight = 0;
+      this.slashPrefix = text.slice(0, slashIdx);
+      this.slashTypedText = text;
+    }
     this.showSlashMenu = true;
-    this.slashHighlight = 0;
     this.ghostSuggestion = '';
   }
 
@@ -1273,14 +1290,42 @@ leaveCollabChat(): void {
   }
 
   selectSlashReply(reply: { name: string; content: string }): void {
-    const slashIdx = this.newMessage.lastIndexOf('/');
-    const text = slashIdx >= 0
-      ? this.newMessage.slice(0, slashIdx) + reply.content
-      : reply.content;
-    this.setEditorText(text);
+    this.setEditorText(this.slashPrefix + reply.content);
     this.showSlashMenu = false;
     this.slashQuery = '';
     this.ghostSuggestion = '';
+  }
+
+  previewSlashReply(reply: { name: string; content: string }): void {
+    const el = this.msgInput?.nativeElement;
+    if (!el) return;
+    const text = this.slashPrefix + reply.content;
+    el.innerText = text;
+    this.newMessage = text;
+    this.resizeInput();
+    this.ghostSuggestion = '';
+    el.focus();
+    this.placeCaretAtEnd();
+  }
+
+  private placeCaretAtEnd(): void {
+    const el = this.msgInput?.nativeElement;
+    if (!el) return;
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    range.collapse(false);
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+  }
+
+  private scrollSlashIntoView(): void {
+    setTimeout(() => {
+      const el = this.slashMenu?.nativeElement;
+      if (!el) return;
+      const item = el.querySelector<HTMLElement>('.slash-item.highlighted');
+      if (item) item.scrollIntoView({ block: 'nearest' });
+    });
   }
 
   useQuickReply(reply: { name: string; content: string }): void {
@@ -1312,7 +1357,7 @@ leaveCollabChat(): void {
 
     return value
       .filter((r: any) => r?.name && r?.content)
-      .map((r: any) => ({ name: String(r.name).slice(0, 60), content: String(r.content).slice(0, 500) }));
+      .map((r: any) => ({ name: String(r.name).slice(0, 60), content: String(r.content) }));
   }
 
   // ── File handling ──────────────────────────────────────────────────────────
@@ -2133,18 +2178,23 @@ leaveCollabChat(): void {
     return this.safeInitial(this.panelAdvisorName);
   }
 
-  get panelAdvisorStatus(): { key: 'online' | 'busy' | 'offline'; label: string } {
+  get panelAdvisorStatus(): {
+    key: 'online' | 'busy' | 'meeting' | 'almuerzo' | 'offline';
+    label: string;
+  } {
     const id = this.panelAdvisorId;
     const live = id ? this.advisorLiveStatus.get(id) : undefined;
     const status = (live?.status
       ?? this.activeSession?.colegioAdvisorStatus
       ?? this.currentAdvisor?.status
-      ?? 'offline') as 'online' | 'busy' | 'offline';
+      ?? 'offline') as 'online' | 'busy' | 'meeting' | 'almuerzo' | 'offline';
     const activeChats = live?.activeChats
       ?? this.activeSession?.colegioAdvisorActiveChats
       ?? this.currentAdvisor?.activeChats
       ?? 0;
     if (status === 'offline') return { key: 'offline', label: 'Inactivo' };
+    if (status === 'meeting') return { key: 'meeting', label: 'En reunión' };
+    if (status === 'almuerzo') return { key: 'almuerzo', label: 'En almuerzo' };
     if (status === 'busy' || activeChats >= MAX_CHATS_OCUPADO) return { key: 'busy', label: 'Ocupado' };
     return { key: 'online', label: 'En línea' };
   }

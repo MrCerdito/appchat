@@ -610,9 +610,10 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
   }
 
   claseColorPeriodo(p: PeriodoActividad): string {
-    if (p.almuerzo) return 'bar-almuerzo';
+    if (p.almuerzo || p.estado === 'almuerzo') return 'bar-almuerzo';
     if (p.estado === 'online') return 'bar-disponible';
     if (p.estado === 'busy') return 'bar-ocupado';
+    if (p.estado === 'meeting') return 'bar-reunion';
     return 'bar-inactivo';
   }
 
@@ -620,20 +621,23 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
   resumenPorPeriodos(a: ActividadAsesor): {
     disponibleMs: number;
     ocupadoMs: number;
+    reunionMs: number;
     almuerzoMs: number;
     inactivoMs: number;
   } {
     let disponibleMs = 0;
     let ocupadoMs = 0;
+    let reunionMs = 0;
     let almuerzoMs = 0;
     let inactivoMs = 0;
     for (const p of a.periodos) {
-      if (p.almuerzo) almuerzoMs += p.duracionMs;
+      if (p.almuerzo || p.estado === 'almuerzo') almuerzoMs += p.duracionMs;
       else if (p.estado === 'online') disponibleMs += p.duracionMs;
       else if (p.estado === 'busy') ocupadoMs += p.duracionMs;
+      else if (p.estado === 'meeting') reunionMs += p.duracionMs;
       else inactivoMs += p.duracionMs;
     }
-    return { disponibleMs, ocupadoMs, almuerzoMs, inactivoMs };
+    return { disponibleMs, ocupadoMs, reunionMs, almuerzoMs, inactivoMs };
   }
 
   /** Solo avisa "sin actividad antes..." si realmente hay un hueco al inicio
@@ -658,8 +662,9 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
     if (p.tipo === 'desconexion') return 'Desconectado';
     if (p.tipo === 'almuerzo_inicio') return 'Inicio de almuerzo';
     if (p.tipo === 'almuerzo_fin') return 'Fin de almuerzo';
-    if (p.almuerzo) return 'Almuerzo';
+    if (p.almuerzo || p.estado === 'almuerzo') return 'Almuerzo';
     if (p.estado === 'busy') return 'Ocupado';
+    if (p.estado === 'meeting') return 'En reunión';
     if (p.estado === 'online') return 'Disponible';
     return 'Inactivo';
   }
@@ -668,7 +673,10 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
     const r = a.resumen;
     if (!r.estadoFinal) return 'Sin actividad';
     if (r.estadoFinal === 'offline') return 'INACTIVO';
-    return r.estadoFinal === 'busy' ? 'OCUPADO' : 'ACTIVO';
+    if (r.estadoFinal === 'busy') return 'OCUPADO';
+    if (r.estadoFinal === 'meeting') return 'REUNIÓN';
+    if (r.estadoFinal === 'almuerzo') return 'ALMUERZO';
+    return 'ACTIVO';
   }
 
   async copiarImagenHistorial(): Promise<void> {
@@ -743,13 +751,16 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
     return this.conexionResultado ? this.conexionResultado.total - this.conexionResultado.conectados : 0;
   }
 
-  getEstadoConAsesor(a: ConectividadAsesor): 'activo' | 'ocupado' | 'inactivo' {
+  getEstadoConAsesor(a: ConectividadAsesor): 'activo' | 'ocupado' | 'reunion' | 'almuerzo' | 'inactivo' {
     if (!a.conectado) return 'inactivo';
-    return a.estado === 'busy' ? 'ocupado' : 'activo';
+    if (a.estado === 'busy') return 'ocupado';
+    if (a.estado === 'meeting') return 'reunion';
+    if (a.estado === 'almuerzo') return 'almuerzo';
+    return 'activo';
   }
 
-  getEstadoConLabel(e: 'activo' | 'ocupado' | 'inactivo'): string {
-    return { activo: 'ACTIVO', ocupado: 'OCUPADO', inactivo: 'INACTIVO' }[e];
+  getEstadoConLabel(e: 'activo' | 'ocupado' | 'reunion' | 'almuerzo' | 'inactivo'): string {
+    return { activo: 'ACTIVO', ocupado: 'OCUPADO', reunion: 'REUNIÓN', almuerzo: 'ALMUERZO', inactivo: 'INACTIVO' }[e];
   }
 
   async copiarImagen(): Promise<void> {
@@ -1156,7 +1167,13 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
   }
 
   getStatusLabel(status?: string): string {
-    const map: Record<string, string> = { online: 'Disponible', busy: 'Ocupado', offline: 'Inactivo' };
+    const map: Record<string, string> = {
+      online: 'Disponible',
+      busy: 'Ocupado',
+      meeting: 'En reunión',
+      almuerzo: 'En almuerzo',
+      offline: 'Inactivo',
+    };
     return map[status ?? 'offline'] ?? 'Inactivo';
   }
 

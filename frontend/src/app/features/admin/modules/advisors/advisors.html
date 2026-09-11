@@ -503,6 +503,7 @@
           @let r = resumenPorPeriodos(actividadActual);
           <span class="chip chip-disponible"><i></i> Disponible {{ r.disponibleMs ? formatoDuracionPrecisa(r.disponibleMs) : '—' }}</span>
           <span class="chip chip-ocupado"><i></i> Ocupado {{ r.ocupadoMs ? formatoDuracionPrecisa(r.ocupadoMs) : '—' }}</span>
+          <span class="chip chip-reunion"><i></i> Reunión {{ r.reunionMs ? formatoDuracionPrecisa(r.reunionMs) : '—' }}</span>
           <span class="chip chip-almuerzo"><i></i> Almuerzo {{ r.almuerzoMs ? formatoDuracionPrecisa(r.almuerzoMs) : '—' }}</span>
           <span class="chip chip-inactivo"><i></i> Inactivo {{ r.inactivoMs ? formatoDuracionPrecisa(r.inactivoMs) : '—' }}</span>
         </div>

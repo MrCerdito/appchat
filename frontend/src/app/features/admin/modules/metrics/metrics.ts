@@ -173,6 +173,8 @@ export class MetricsComponent implements OnInit, OnDestroy {
     const map: Record<string, string> = {
       online : 'Disponible',
       busy   : 'Ocupado',
+      meeting: 'En reunión',
+      almuerzo: 'En almuerzo',
       offline: 'Inactivo',
     };
     return map[status ?? 'offline'] ?? 'Inactivo';

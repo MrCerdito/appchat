@@ -8,8 +8,10 @@ jest.mock('resend', () => ({
   },
 }));
 
-jest.mock('../common/mail/smtp.helper', () => ({
-  createSmtpTransport: jest.fn(),
+jest.mock('../common/mail/mailsender.helper', () => ({
+  ...jest.requireActual('../common/mail/mailsender.helper'),
+  enviarCorreoMailsender: jest.fn(),
+  archivoAUri: jest.fn(),
 }));
 
 jest.mock('fs/promises', () => ({
@@ -21,22 +23,28 @@ import { Test } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { TicketMailService } from './ticket-mail.service';
 import { ConfiguracionService } from '../configuracion/configuracion.service';
-import { createSmtpTransport } from '../common/mail/smtp.helper';
-import type {
-  SmtpConnectionOptions,
-  SmtpTransportResult,
-} from '../common/mail/smtp.helper';
+import {
+  enviarCorreoMailsender,
+  archivoAUri,
+} from '../common/mail/mailsender.helper';
 import { Configuracion } from '../configuracion/entities/configuracion.entity';
 import { Ticket } from './ticket.entity';
 
-const mockedCreateSmtpTransport = createSmtpTransport as jest.Mock<
-  Promise<SmtpTransportResult>,
-  [SmtpConnectionOptions]
->;
+const mockedEnviarCorreoMailsender = enviarCorreoMailsender as jest.Mock;
+const mockedArchivoAUri = archivoAUri as jest.Mock;
 
-const transporterMock = {
-  sendMail: jest.fn(),
-  close: jest.fn(),
+const credencialBasica = {
+  email: 'info1@innovacloud.co',
+  usuario: 'info1@innovacloud.co',
+  password: '1',
+  nombre: 'Soporte',
+  port: 587,
+  servidorsmtp: 'vacio',
+  seguridadssl: true,
+  protocolo_Tls12: true,
+  azure_TenantId: '',
+  azure_ClientId: '',
+  azure_ClientSecret: '',
 };
 
 function baseCfg(overrides: Record<string, unknown> = {}): Configuracion {
@@ -45,10 +53,10 @@ function baseCfg(overrides: Record<string, unknown> = {}): Configuracion {
     ticketEmailSendCopy: false,
     ticketEmailIncludeInfo: true,
     ticketEmailSenderName: 'Soporte',
-    smtpHost: '',
-    smtpUser: '',
-    smtpPass: '',
     mailFrom: '',
+    metodoEnvioCorreo: 'mailsender',
+    mailsenderCredencial: null,
+    mailsenderUrl: '',
     ...overrides,
   } as unknown as Configuracion;
 }
@@ -108,14 +116,16 @@ function makeTicketConAdjuntos(sourceType = 'web'): Ticket {
 describe('TicketMailService.enviarTicket', () => {
   let service: TicketMailService;
   let getGlobal: jest.Mock;
-  let configGet: jest.Mock;
 
   beforeEach(async () => {
     jest.clearAllMocks();
     getGlobal = jest.fn();
-    configGet = jest.fn().mockReturnValue(undefined);
     mockResendSend.mockResolvedValue({ data: { id: 'resend-1' }, error: null });
-    transporterMock.sendMail.mockResolvedValue({ messageId: 'smtp-1' });
+    mockedEnviarCorreoMailsender.mockResolvedValue({ ok: true, message: 'ok' });
+    mockedArchivoAUri.mockResolvedValue({
+      FileName: 'archivo',
+      ContentBase64: 'data:application/octet-stream;base64,Y29udGVuaWRv',
+    });
 
     const module = await Test.createTestingModule({
       providers: [
@@ -126,19 +136,12 @@ describe('TicketMailService.enviarTicket', () => {
         },
         {
           provide: ConfigService,
-          useValue: { get: configGet },
+          useValue: { get: jest.fn().mockReturnValue(undefined) },
         },
       ],
     }).compile();
 
     service = module.get(TicketMailService);
-
-    mockedCreateSmtpTransport.mockResolvedValue({
-      transporter: transporterMock as never,
-      host: 'smtp.gmail.com',
-      connectHost: 'smtp.gmail.com',
-      resolved: false,
-    });
   });
 
   it('email invalido => omite el envio sin bloquear (requerido false)', async () => {
@@ -146,6 +149,7 @@ describe('TicketMailService.enviarTicket', () => {
     const res = await service.enviarTicket(makeTicket(), '  no-valido  ');
     expect(res).toEqual({ enviado: false, requerido: false });
     expect(mockResendSend).not.toHaveBeenCalled();
+    expect(mockedEnviarCorreoMailsender).not.toHaveBeenCalled();
   });
 
   it('correo de tickets desactivado => omite sin bloquear', async () => {
@@ -165,38 +169,46 @@ describe('TicketMailService.enviarTicket', () => {
     expect(mockResendSend).not.toHaveBeenCalled();
   });
 
-  it('sin SMTP ni remitente => falla de forma requerida', async () => {
+  it('sin credencial ni remitente => falla de forma requerida', async () => {
     getGlobal.mockResolvedValue(baseCfg());
     const res = await service.enviarTicket(makeTicket(), 'cliente@correo.com');
     expect(res).toEqual({ enviado: false, requerido: true });
     expect(mockResendSend).not.toHaveBeenCalled();
+    expect(mockedEnviarCorreoMailsender).not.toHaveBeenCalled();
   });
 
-  it('con SMTP configurado => envia por SMTP y reporta enviado', async () => {
+  it('con credencial Mailsender => envia por Mailsender y reporta enviado', async () => {
     getGlobal.mockResolvedValue(
       baseCfg({
-        smtpHost: 'smtp.gmail.com',
-        smtpUser: 'cuenta@gmail.com',
-        smtpPass: 'app-password',
-        mailFrom: 'cuenta@gmail.com',
+        mailsenderCredencial: credencialBasica,
+        mailsenderUrl: 'https://mailsender.innovacloud.co',
       }),
     );
     const res = await service.enviarTicket(makeTicket(), 'cliente@correo.com');
     expect(res).toEqual({ enviado: true, requerido: true });
-    expect(mockedCreateSmtpTransport).toHaveBeenCalled();
-    expect(transporterMock.sendMail).toHaveBeenCalled();
+    expect(mockedEnviarCorreoMailsender).toHaveBeenCalledWith(
+      expect.objectContaining({
+        correosNormales: 'cliente@correo.com',
+        asunto: expect.any(String),
+      }),
+    );
     expect(mockResendSend).not.toHaveBeenCalled();
   });
 
-  it('sin SMTP pero con MAIL_FROM => envia por Resend y reporta enviado', async () => {
-    getGlobal.mockResolvedValue(baseCfg({ mailFrom: 'no-reply@dominio.com' }));
+  it('sin credencial pero con MAIL_FROM (modo smtp) => envia por Resend y reporta enviado', async () => {
+    getGlobal.mockResolvedValue(
+      baseCfg({ metodoEnvioCorreo: 'smtp', mailFrom: 'no-reply@dominio.com' }),
+    );
     const res = await service.enviarTicket(makeTicket(), 'cliente@correo.com');
     expect(res).toEqual({ enviado: true, requerido: true });
     expect(mockResendSend).toHaveBeenCalledTimes(1);
+    expect(mockedEnviarCorreoMailsender).not.toHaveBeenCalled();
   });
 
   it('error del proveedor (Resend) => falla de forma requerida', async () => {
-    getGlobal.mockResolvedValue(baseCfg({ mailFrom: 'no-reply@dominio.com' }));
+    getGlobal.mockResolvedValue(
+      baseCfg({ metodoEnvioCorreo: 'smtp', mailFrom: 'no-reply@dominio.com' }),
+    );
     mockResendSend.mockResolvedValue({
       data: null,
       error: { message: 'invalid api key' },
@@ -205,28 +217,38 @@ describe('TicketMailService.enviarTicket', () => {
     expect(res).toEqual({ enviado: false, requerido: true });
   });
 
-  it('excepcion durante el envio SMTP => falla de forma requerida', async () => {
+  it('error del gateway Mailsender => falla de forma requerida', async () => {
     getGlobal.mockResolvedValue(
       baseCfg({
-        smtpHost: 'smtp.gmail.com',
-        smtpUser: 'cuenta@gmail.com',
-        smtpPass: 'app-password',
+        mailsenderCredencial: credencialBasica,
+        mailsenderUrl: 'https://mailsender.innovacloud.co',
       }),
     );
-    transporterMock.sendMail.mockRejectedValue(new Error('connection refused'));
+    mockedEnviarCorreoMailsender.mockResolvedValue({
+      ok: false,
+      message: 'El servicio de correo rechazo el envio.',
+    });
     const res = await service.enviarTicket(makeTicket(), 'cliente@correo.com');
     expect(res).toEqual({ enviado: false, requerido: true });
+    expect(mockResendSend).not.toHaveBeenCalled();
   });
 
-  it('adjuntos activos por SMTP => adjunta los archivos del ticket', async () => {
+  it('adjuntos activos por Mailsender => adjunta los archivos del ticket', async () => {
+    mockedArchivoAUri
+      .mockResolvedValueOnce({
+        FileName: 'documento.pdf',
+        ContentBase64: 'data:application/octet-stream;base64,ZG9j',
+      })
+      .mockResolvedValueOnce({
+        FileName: 'captura.png',
+        ContentBase64: 'data:image/png;base64,Wkg=',
+      });
     getGlobal.mockResolvedValue(
       baseCfg({
         ticketEmailAttachments: true,
         ticketEmailCuerpo: '{{conversacion}}',
-        smtpHost: 'smtp.gmail.com',
-        smtpUser: 'cuenta@gmail.com',
-        smtpPass: 'app-password',
-        mailFrom: 'cuenta@gmail.com',
+        mailsenderCredencial: credencialBasica,
+        mailsenderUrl: 'https://mailsender.innovacloud.co',
       }),
     );
     const res = await service.enviarTicket(
@@ -234,18 +256,11 @@ describe('TicketMailService.enviarTicket', () => {
       'cliente@correo.com',
     );
     expect(res).toEqual({ enviado: true, requerido: true });
-    expect(transporterMock.sendMail).toHaveBeenCalled();
-    const args = transporterMock.sendMail.mock.calls[0][0];
-    expect(args.attachments).toEqual(
+    const args = mockedEnviarCorreoMailsender.mock.calls[0][0];
+    expect(args.archivos).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({
-          filename: 'documento.pdf',
-          contentType: 'application/pdf',
-        }),
-        expect.objectContaining({
-          filename: 'captura.png',
-          contentType: 'image/png',
-        }),
+        expect.objectContaining({ FileName: 'documento.pdf' }),
+        expect.objectContaining({ FileName: 'captura.png' }),
       ]),
     );
     const html: string = args.html;
@@ -256,6 +271,7 @@ describe('TicketMailService.enviarTicket', () => {
   it('adjuntos activos por Resend => adjunta archivos en base64', async () => {
     getGlobal.mockResolvedValue(
       baseCfg({
+        metodoEnvioCorreo: 'smtp',
         ticketEmailAttachments: true,
         ticketEmailCuerpo: '{{conversacion}}',
         mailFrom: 'no-reply@dominio.com',
@@ -281,10 +297,8 @@ describe('TicketMailService.enviarTicket', () => {
     getGlobal.mockResolvedValue(
       baseCfg({
         ticketEmailCuerpo: '{{conversacion}}',
-        smtpHost: 'smtp.gmail.com',
-        smtpUser: 'cuenta@gmail.com',
-        smtpPass: 'app-password',
-        mailFrom: 'cuenta@gmail.com',
+        mailsenderCredencial: credencialBasica,
+        mailsenderUrl: 'https://mailsender.innovacloud.co',
       }),
     );
     const res = await service.enviarTicket(
@@ -292,8 +306,8 @@ describe('TicketMailService.enviarTicket', () => {
       'cliente@correo.com',
     );
     expect(res).toEqual({ enviado: true, requerido: true });
-    const args = transporterMock.sendMail.mock.calls[0][0];
-    expect(args.attachments).toEqual([]);
+    const args = mockedEnviarCorreoMailsender.mock.calls[0][0];
+    expect(args.archivos).toBeUndefined();
     expect(args.html).not.toContain('documento.pdf');
     expect(args.html).not.toContain('captura.png');
   });
@@ -301,8 +315,10 @@ describe('TicketMailService.enviarTicket', () => {
   it('adjuntos sin archivo en disco => se omiten sin fallar', async () => {
     const { access } = jest.requireMock('fs/promises');
     access.mockRejectedValueOnce(new Error('ENOENT'));
+    mockedArchivoAUri.mockRejectedValue(new Error('ENOENT'));
     getGlobal.mockResolvedValue(
       baseCfg({
+        metodoEnvioCorreo: 'smtp',
         ticketEmailAttachments: true,
         mailFrom: 'no-reply@dominio.com',
       }),

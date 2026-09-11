@@ -190,7 +190,7 @@
           </svg>
         </button>
         }
-        @if (!isCollaborator && !isReadOnlyView) {
+        @if (!isCollaborator && !isReadOnlyView && !showInfoPanel) {
         <button class="icon-btn icon-danger" type="button" title="Cerrar chat" (click)="showCloseConfirm = true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -694,12 +694,11 @@
           [class.rich-active]="aiModeActive"
           (input)="onRichInput()"
           (keydown)="handleKey($event)"
-          (keyup)="onRichInput()"
           [attr.data-placeholder]="aiModeActive ? 'Escribe para retomar el control...  (Shift+Enter nueva linea)' : 'Escribe un mensaje o / para respuestas rapidas  (Shift+Enter nueva linea)'"
         ></div>
 
         @if (showSlashMenu && slashFiltered.length > 0) {
-        <div class="slash-menu">
+        <div #slashMenu class="slash-menu">
           <div class="slash-header">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="slash-icon">
               <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
@@ -742,12 +741,6 @@
   <aside class="side-panel" [class.open]="showInfoPanel">
     <header class="panel-header">
       <h3 class="panel-title">Información del chat</h3>
-      <button class="panel-close" type="button" (click)="showInfoPanel = false" title="Cerrar panel">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
-        </svg>
-      </button>
     </header>
 
     <div class="pp2">
@@ -845,6 +838,8 @@
         <span class="advisor-name">{{ panelAdvisorName }}</span>
         <span class="advisor-status"
               [class.advisor-status--busy]="panelAdvisorStatus.key === 'busy'"
+              [class.advisor-status--meeting]="panelAdvisorStatus.key === 'meeting'"
+              [class.advisor-status--almuerzo]="panelAdvisorStatus.key === 'almuerzo'"
               [class.advisor-status--offline]="panelAdvisorStatus.key === 'offline'">
           <span class="advisor-dot"></span>
           {{ panelAdvisorStatus.label }}
@@ -1042,7 +1037,7 @@
   <!-- Ticket modal -->
   @if (showTicketModal) {
   <div class="floating-modal" (click)="closeTicketModal()">
-    <div class="floating-modal-inner" (click)="$event.stopPropagation()">
+    <div class="floating-modal-inner ticket-modal" (click)="$event.stopPropagation()">
       <h3>Generar ticket</h3>
       <div class="ticket-modal-body">
         <div class="ticket-modal-locked-row">

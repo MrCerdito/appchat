@@ -8,7 +8,6 @@
 .tickets-layout {
   display: flex;
   flex: 1;
-  zoom: 0.7;
   background: var(--bg);
   color: var(--text);
   font-family: var(--font);
@@ -87,6 +86,47 @@
   &::-webkit-scrollbar-track { background: transparent; }
   &::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 2px; }
   &::-webkit-scrollbar-thumb:hover { background: var(--text-faint); }
+}
+
+.ts-nav-group {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-faint);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: var(--surface-hover);
+    color: var(--text);
+  }
+}
+
+.ts-nav-chevron {
+  display: flex;
+  align-items: center;
+  opacity: 0.7;
+
+  svg {
+    width: 12px;
+    height: 12px;
+    transition: transform 0.2s ease;
+  }
+
+  &.open svg { transform: rotate(180deg); }
 }
 
 .ts-nav-label {
@@ -306,6 +346,46 @@
   margin-left: auto;
   flex-shrink: 0;
 }
+
+// ── Control de zoom ───────────────────────────────────────────────────
+.ts-zoom-control {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 2px;
+  gap: 2px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+
+.ts-zoom-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 26px; height: 24px; padding: 0;
+  border: 0; border-radius: 6px;
+  background: transparent; color: var(--text-faint);
+  cursor: pointer; transition: background .12s, color .12s;
+
+  svg { width: 12px !important; height: 12px !important; }
+
+  &:hover:not(:disabled) { background: var(--primary-soft, #eef2ff); color: #2563eb; }
+  &:disabled { opacity: 0.4; cursor: default; }
+}
+
+.ts-zoom-label {
+  min-width: 38px; height: 24px; padding: 0 6px;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface-hover, #f8faff);
+  font-family: var(--font); font-size: 10.5px; font-weight: 700; color: var(--text-secondary);
+  cursor: pointer; transition: all .12s;
+  white-space: nowrap;
+
+  &:hover { color: #2563eb; border-color: #94a3b8; }
+}
+
+.ts-zoom-reset { color: var(--text-faint); }
 
 // ── Search ───────────────────────────────────────────────────────────
 .ts-search {
@@ -2115,6 +2195,7 @@
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-lg);
+  width: 100%;
   width: 100%;
   max-width: 90vw;
   max-height: 90vh;

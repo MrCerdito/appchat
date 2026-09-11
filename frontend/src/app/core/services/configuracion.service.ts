@@ -61,8 +61,29 @@ export interface ConfiguracionData {
   smtpUser: string;
   smtpPass: string;
   mailFrom: string;
+  smtpImapHost: string;
+  smtpImapPort: number;
+  revisarRebotes: boolean;
+  mailsenderUrl: string;
+  mailsenderModo: 'individual' | 'lote';
+  mailsenderCredencial: MailsenderCredencial | null;
+  metodoEnvioCorreo: 'mailsender' | 'smtp';
   ticketSlaEnabled: boolean;
   ticketSlaHours: Record<string, number>;
+}
+
+export interface MailsenderCredencial {
+  email: string;
+  usuario: string;
+  password: string;
+  nombre?: string;
+  port?: number;
+  servidorsmtp?: string;
+  seguridadssl?: boolean;
+  protocolo_Tls12?: boolean;
+  azure_TenantId?: string;
+  azure_ClientId?: string;
+  azure_ClientSecret?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -96,7 +117,14 @@ export class ConfiguracionFrontendService {
   }
 
   probarMail(
-    data: Partial<ConfiguracionData> & { to: string; asunto?: string; cuerpo?: string; senderName?: string },
+    data: Partial<ConfiguracionData> & {
+      to: string;
+      asunto?: string;
+      cuerpo?: string;
+      senderName?: string;
+      baseUrl?: string;
+      credencial?: MailsenderCredencial;
+    },
   ): Observable<{ ok: boolean; message: string }> {
     return this.http.post<{ ok: boolean; message: string }>(`${this.url}/global/mail-test`, data);
   }
@@ -122,11 +150,19 @@ export class ConfiguracionFrontendService {
   importQuickRepliesCsv(file: File): Observable<{ imported: number; skipped: number }> {
     const formData = new FormData();
     formData.append('file', file);
-    return this.http.post<{ imported: number; skipped: number }>(`${this.url}/quick-replies/import`, formData);
+    return this.http.post<{ imported: number; skipped: number }>(
+      `${this.url}/quick-replies/import`,
+      formData,
+    );
   }
 
-  importBulkQuickReplies(data: { name: string; content: string }[]): Observable<{ imported: number; skipped: number }> {
-    return this.http.post<{ imported: number; skipped: number }>(`${this.url}/quick-replies/import-bulk`, data);
+  importBulkQuickReplies(
+    data: { name: string; content: string }[],
+  ): Observable<{ imported: number; skipped: number }> {
+    return this.http.post<{ imported: number; skipped: number }>(
+      `${this.url}/quick-replies/import-bulk`,
+      data,
+    );
   }
 
   deleteBulkQuickReplies(ids: string[]): Observable<{ deleted: number }> {

@@ -1,4 +1,4 @@
-<div class="tickets-layout">
+<div class="tickets-layout" [ngStyle]="{ zoom: zoom }">
   <aside class="ts-sidebar" [class.ts-sidebar--hidden]="activeView === 'mail'">
     <div class="ts-sidebar-header">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
@@ -21,9 +21,55 @@
         <input type="text" placeholder="Buscar por codigo, titulo o cliente..." [ngModel]="search" (ngModelChange)="onSearchChange($event)">
       </div>
 
-      <span class="ts-nav-label">Estado</span>
+      @if (isAdvisor) {
+      <button type="button" class="ts-nav-group" (click)="toggleGroup('scope')">
+        <span>Tickets</span>
+        <span class="ts-nav-chevron" [class.open]="!collapsed['scope']">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </span>
+      </button>
+      @if (!collapsed['scope']) {
+      <button
+        type="button"
+        class="ts-nav-btn"
+        [class.active]="ticketScope === 'mine'"
+        (click)="setTicketScope('mine')"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+        </svg>
+        <span>Mis tickets</span>
+        @if (scopeCounts.mine) {
+        <span class="ts-count">{{ scopeCounts.mine }}</span>
+        }
+      </button>
+      <button
+        type="button"
+        class="ts-nav-btn"
+        [class.active]="ticketScope === 'all'"
+        (click)="setTicketScope('all')"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+        <span>Todos</span>
+        @if (scopeCounts.all) {
+        <span class="ts-count">{{ scopeCounts.all }}</span>
+        }
+      </button>
+      }
+      }
+
+      <button type="button" class="ts-nav-group" (click)="toggleGroup('status')">
+        <span>Estado</span>
+        <span class="ts-nav-chevron" [class.open]="!collapsed['status']">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </span>
+      </button>
+      @if (!collapsed['status']) {
       @for (s of statuses; track $index) {
       <button
+        type="button"
         class="ts-nav-btn"
         [class.active]="activeView === 'list' && isFilterActive(s.value, 'status')"
         [style.--ts-color]="statusColor(s.value)"
@@ -36,10 +82,18 @@
         }
       </button>
       }
+      }
 
-      <span class="ts-nav-label ts-nav-label-spacer">Prioridad</span>
+      <button type="button" class="ts-nav-group" (click)="toggleGroup('priority')">
+        <span>Prioridad</span>
+        <span class="ts-nav-chevron" [class.open]="!collapsed['priority']">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </span>
+      </button>
+      @if (!collapsed['priority']) {
       @for (p of priorities; track $index) {
       <button
+        type="button"
         class="ts-nav-btn"
         [class.active]="activeView === 'list' && isFilterActive(p.value, 'priority')"
         [style.--ts-color]="priorityColor(p.value)"
@@ -52,10 +106,18 @@
         }
       </button>
       }
+      }
 
-      <span class="ts-nav-label ts-nav-label-spacer">Canal</span>
+      <button type="button" class="ts-nav-group" (click)="toggleGroup('source')">
+        <span>Canal</span>
+        <span class="ts-nav-chevron" [class.open]="!collapsed['source']">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </span>
+      </button>
+      @if (!collapsed['source']) {
       @for (c of canalOptions; track c.value) {
       <button
+        type="button"
         class="ts-nav-btn"
         [class.active]="activeView === 'list' && isFilterActive(c.value, 'source')"
         (click)="selectFilter(c.value, 'source')"
@@ -69,10 +131,18 @@
         }
       </button>
       }
+      }
 
-      <span class="ts-nav-label ts-nav-label-spacer">Categorias</span>
+      <button type="button" class="ts-nav-group" (click)="toggleGroup('category')">
+        <span>Categorias</span>
+        <span class="ts-nav-chevron" [class.open]="!collapsed['category']">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </span>
+      </button>
+      @if (!collapsed['category']) {
       @for (cat of categories; track $index) {
       <button
+        type="button"
         class="ts-nav-btn"
         [class.active]="activeView === 'list' && isFilterActive(cat, 'category')"
         (click)="filterByCategory(cat)"
@@ -86,10 +156,18 @@
         }
       </button>
       }
+      }
 
       @if (isAdmin || isAdvisor) {
-      <span class="ts-nav-label ts-nav-label-spacer">Administracion</span>
+      <button type="button" class="ts-nav-group" (click)="toggleGroup('admin')">
+        <span>Administracion</span>
+        <span class="ts-nav-chevron" [class.open]="!collapsed['admin']">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </span>
+      </button>
+      @if (!collapsed['admin']) {
       <button
+        type="button"
         class="ts-nav-btn"
         [class.active]="activeView === 'categories'"
         (click)="selectFilter('categories', 'action')"
@@ -100,6 +178,7 @@
         <span>Editar categorias</span>
       </button>
       <button
+        type="button"
         class="ts-nav-btn"
         [class.active]="activeView === 'modules'"
         (click)="selectFilter('modules', 'action')"
@@ -110,6 +189,7 @@
         <span>Modulos y desarrolladores</span>
       </button>
       <button
+        type="button"
         class="ts-nav-btn"
         [class.active]="activeView === 'mail'"
         (click)="openMailConfig()"
@@ -119,6 +199,7 @@
         </svg>
         <span>Correo de tickets</span>
       </button>
+      }
       }
     </nav>
   </aside>
@@ -370,6 +451,20 @@
           }
         </div>
         <div class="ts-header-tools">
+          <div class="ts-zoom-control" title="Tamaño del módulo">
+            <button type="button" class="ts-zoom-btn" (click)="zoomOut()" [disabled]="zoom <= 0.7" aria-label="Reducir zoom">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+            <button type="button" class="ts-zoom-label" (click)="cycleZoom()" title="Cambiar tamaño 70/90/105">
+              {{ zoomPct }}%
+            </button>
+            <button type="button" class="ts-zoom-btn" (click)="zoomIn()" [disabled]="zoom >= 1.05" aria-label="Aumentar zoom">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+            <button type="button" class="ts-zoom-btn ts-zoom-reset" (click)="resetZoom()" title="Restablecer zoom" aria-label="Restablecer zoom">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+            </button>
+          </div>
           <div class="ts-view-toggle">
             <button class="ts-toggle-btn" [class.active]="viewMode === 'table'" (click)="switchView('table')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">

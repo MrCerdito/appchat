@@ -52,7 +52,7 @@ export interface ConectividadAsesor {
   name: string;
   email: string;
   profilePhotoUrl: string | null;
-  estado: string; // 'online' | 'busy' | 'offline'
+  estado: string; // 'online' | 'busy' | 'meeting' | 'almuerzo' | 'offline'
   conectado: boolean;
   activeChats: number;
   activo: boolean;
@@ -144,7 +144,7 @@ export class AdvisorsService {
     }
 
     if (conectado !== undefined) {
-      const estados = ['online', 'busy'];
+      const estados = ['online', 'busy', 'meeting', 'almuerzo'];
       if (conectado) {
         qb.andWhere('user.status IN (:...estados)', { estados });
       } else {
@@ -256,7 +256,12 @@ export class AdvisorsService {
     for (const u of asesores) {
       const presente = connectedSet.has(u.id);
       const estado = statuses[u.id] ?? u.status ?? 'offline';
-      const conectado = presente && (estado === 'online' || estado === 'busy');
+      const conectado =
+        presente &&
+        (estado === 'online' ||
+          estado === 'busy' ||
+          estado === 'meeting' ||
+          estado === 'almuerzo');
       if (conectado) conectados++;
       lista.push({
         id: u.id,

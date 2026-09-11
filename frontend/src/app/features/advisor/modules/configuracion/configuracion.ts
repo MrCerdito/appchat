@@ -310,7 +310,7 @@ export class ConfiguracionComponent implements OnInit, OnDestroy {
       for (let i = 1; i < lines.length; i++) {
         const vals = this.parseCsvLine(lines[i]);
         const name = vals[nIdx]?.trim().slice(0, 60);
-        const content = vals[cIdx]?.trim().slice(0, 500);
+        const content = vals[cIdx]?.trim();
         if (name && content) {
           items.push({ name, content });
         }
@@ -469,7 +469,7 @@ export class ConfiguracionComponent implements OnInit, OnDestroy {
       .map((r: any) => ({
         id: r.id || `qr_${nextId++}`,
         name: String(r.name).slice(0, 60),
-        content: String(r.content).slice(0, 500),
+        content: String(r.content),
       }));
   }
 

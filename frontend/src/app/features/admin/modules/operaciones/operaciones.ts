@@ -719,6 +719,8 @@ export class OperacionesComponent implements OnInit, OnDestroy {
     const map: Record<string, { label: string; color: string; key: string }> = {
       online: { label: 'Disponible', color: '#10B981', key: 'online' },
       busy: { label: 'En chat', color: '#3B82F6', key: 'busy' },
+      meeting: { label: 'En reunión', color: '#8B5CF6', key: 'meeting' },
+      almuerzo: { label: 'En almuerzo', color: '#FB923C', key: 'almuerzo' },
       away: { label: 'Ausente', color: '#F59E0B', key: 'away' },
     };
     return map[a.status] ?? { label: 'Ausente', color: '#F59E0B', key: 'away' };

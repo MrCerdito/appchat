@@ -445,7 +445,8 @@
                 @if (i < maxVisibleCapsules) {
                 <div class="capsule" [class.capsule-self]="adv.advisorId === currentAdvisor?.id"
                      [style.z-index]="maxVisibleCapsules - i"
-                     [title]="adv.name + ' — ' + advisorStatusText(adv)">
+                     [title]="adv.name + ' — ' + advisorStatusText(adv)"
+                     (click)="onCapsuleClick(adv)">
                   <div class="capsule-ring"
                        [ngClass]="'ring-' + advisorRingClass(adv)">
                     <div class="capsule-avatar">
@@ -456,6 +457,7 @@
                       }
                     </div>
                   </div>
+                  <span class="capsule-dot" [ngClass]="'st-' + advisorDotClass(adv)"></span>
                 </div>
                 }
               }
@@ -493,6 +495,8 @@
                 </div>
                 <span class="team-dot" [class.online]="advisorStatusValue(adv) === 'online'"
                       [class.busy]="advisorStatusValue(adv) === 'busy'"
+                      [class.meeting]="advisorStatusValue(adv) === 'meeting'"
+                      [class.almuerzo]="advisorStatusValue(adv) === 'almuerzo'"
                       [class.offline]="advisorStatusValue(adv) === 'offline'"></span>
                 @if (adv.advisorId === currentAdvisor?.id) {
                 <span class="team-badge">Tú</span>
@@ -807,8 +811,15 @@
             <div class="pd-current-status">
               <span class="dot-inline" [class.online]="advisorStatus === 'online'"
                     [class.busy]="advisorStatus === 'busy'"
+                    [class.meeting]="advisorStatus === 'meeting'"
+                    [class.almuerzo]="advisorStatus === 'almuerzo'"
                     [class.offline]="advisorStatus === 'offline'"></span>
-              <span>{{ advisorStatus === 'online' ? 'Disponible' : advisorStatus === 'busy' ? 'Ocupado' : 'Inactivo' }}</span>
+              <span>{{
+                advisorStatus === 'online' ? 'Disponible' :
+                advisorStatus === 'busy' ? 'Ocupado' :
+                advisorStatus === 'meeting' ? 'En reunión' :
+                advisorStatus === 'almuerzo' ? 'En almuerzo' : 'Inactivo'
+              }}</span>
             </div>
           </div>
 
@@ -829,6 +840,13 @@
                 (click)="setStatus('busy')">
                 <span class="chip-dot busy"></span>
                 <span>Ocupado</span>
+              </button>
+              <button class="pd-status-chip"
+                [class.active]="advisorStatus === 'meeting'"
+                [disabled]="enAlmuerzo"
+                (click)="setStatus('meeting')">
+                <span class="chip-dot meeting"></span>
+                <span>En reunión</span>
               </button>
               <button class="pd-status-chip"
                 [class.active]="advisorStatus === 'offline'"

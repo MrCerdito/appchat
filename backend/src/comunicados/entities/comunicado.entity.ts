@@ -12,8 +12,9 @@ import { User } from '../../auth/entities/user.entity';
 export interface Destinatario {
   email: string;
   nombre: string;
-  sendStatus?: 'ok' | 'failed';
+  sendStatus?: 'ok' | 'failed' | 'bounced';
   sendError?: string;
+  bouncedAt?: string;
 }
 
 @Entity('comunicados')
@@ -42,7 +43,7 @@ export class Comunicado {
   senderName: string;
 
   @Column({ length: 20, default: 'draft' })
-  status: 'draft' | 'sent' | 'failed';
+  status: 'draft' | 'sent' | 'failed' | 'sending';
 
   @Column({ type: 'jsonb', default: [] })
   destinatarios: Destinatario[];

@@ -279,7 +279,8 @@ export class SessionsController {
     const statuses = await this.chatGateway.getAdvisorStatuses();
     return advisors.map((a) => ({
       ...a,
-      status: (a.status ?? statuses[a.id]) as 'online' | 'busy' | 'offline',
+      status: (a.status ?? statuses[a.id]) as
+        'online' | 'busy' | 'meeting' | 'almuerzo' | 'offline',
     }));
   }
 
@@ -473,7 +474,7 @@ export class SessionsController {
 
   // ★ NUEVO — actualiza el estado del asesor directamente en BD por HTTP
   // Garantiza que la BD se actualice aunque el socket falle o no tenga el rol correcto.
-  // PATCH /sessions/advisor/status  { "status": "online" | "busy" | "offline" }
+  // PATCH /sessions/advisor/status  { "status": "online" | "busy" | "meeting" | "almuerzo" | "offline" }
   @Patch('advisor/status')
   @UseGuards(JwtAuthGuard)
   @Permiso('chats')
@@ -482,6 +483,12 @@ export class SessionsController {
     @Body('status') status: string,
     @Request() req: any,
   ): Promise<{ ok: boolean }> {
+    const VALID_STATUSES = ['online', 'busy', 'meeting', 'almuerzo', 'offline'];
+    if (!VALID_STATUSES.includes(status)) {
+      throw new BadRequestException(
+        'Estado inválido. Valores permitidos: online | busy | meeting | almuerzo | offline',
+      );
+    }
     const advisorId = req.user.id;
     return this.sessionsService
       .setAdvisorStatus(advisorId, status)

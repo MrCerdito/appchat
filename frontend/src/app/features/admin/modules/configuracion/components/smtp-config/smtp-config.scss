@@ -110,8 +110,13 @@
 }
 
 @keyframes tmc-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
 }
 
 .tmc-save {
@@ -150,6 +155,71 @@
   align-items: start;
   width: 100%;
   min-width: 0;
+}
+
+/* ─── Selector de metodo ─────────────────────────────────── */
+.tmc-metodo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 14px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.tmc-metodo-text strong {
+  font-size: 14px;
+  color: var(--text);
+}
+
+.tmc-metodo-text p {
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.tmc-metodo-opciones {
+  display: flex;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.tmc-metodo-opt {
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background var(--transition),
+    color var(--transition),
+    border-color var(--transition);
+}
+
+.tmc-metodo-opt--active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #ffffff;
+}
+
+/* Tarjeta inactiva (metodo no seleccionado) */
+.tmc-card--inactive {
+  opacity: 0.55;
+  filter: saturate(0.45);
+}
+
+.tmc-card--inactive .tmc-test-btn,
+.tmc-card--inactive .tmc-switch,
+.tmc-card--inactive input,
+.tmc-card--inactive select {
+  pointer-events: none;
 }
 
 .tmc-left {
@@ -295,7 +365,9 @@
   color: var(--text);
   font-size: 13px;
   font-family: inherit;
-  transition: border-color var(--transition), box-shadow var(--transition);
+  transition:
+    border-color var(--transition),
+    box-shadow var(--transition);
 }
 
 .tmc-field input::placeholder {
@@ -318,6 +390,12 @@
 .tmc-grid2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.tmc-grid3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 12px;
 }
 
@@ -425,7 +503,8 @@
 
 /* ─── Responsive ─────────────────────────────────────────── */
 @media (max-width: 640px) {
-  .tmc-grid2 {
+  .tmc-grid2,
+  .tmc-grid3 {
     grid-template-columns: 1fr;
   }
 }

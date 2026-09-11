@@ -1,4 +1,10 @@
-import { ChangeDetectorRef, Component, OnDestroy, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import {
+  ChangeDetectorRef,
+  Component,
+  OnDestroy,
+  OnInit,
+  ChangeDetectionStrategy,
+} from '@angular/core';
 import { DecimalPipe, SlicePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
@@ -80,18 +86,42 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
   selectedRole: string = 'estudiante';
   newRestrictedTopic = '';
   temasInstitucionales: { tema: string; mensaje?: string }[] = [];
-  mensajeRedireccionGenerico = 'Este tema lo maneja directamente la institución. Te recomendamos dirigirte a la institución para más información.';
+  mensajeRedireccionGenerico =
+    'Este tema lo maneja directamente la institución. Te recomendamos dirigirte a la institución para más información.';
   newInstitucionalTopic = '';
   newInstitucionalMensaje = '';
   editInstitucionalIndex: number | null = null;
-  aiPalabrasProhibidas: string[] = ['hijueputa', 'gonorrea', 'malparido', 'marica', 'pendejo', 'idiota', 'estupido', 'imbecil', 'puta', 'mierda'];
-  aiMensajeGroseria = 'Por favor, mantengamos un trato respetuoso. No puedo ayudarte si usas lenguaje ofensivo. ¿En qué más puedo ayudarte?';
+  aiPalabrasProhibidas: string[] = [
+    'hijueputa',
+    'gonorrea',
+    'malparido',
+    'marica',
+    'pendejo',
+    'idiota',
+    'estupido',
+    'imbecil',
+    'puta',
+    'mierda',
+  ];
+  aiMensajeGroseria =
+    'Por favor, mantengamos un trato respetuoso. No puedo ayudarte si usas lenguaje ofensivo. ¿En qué más puedo ayudarte?';
   aiLimiteGroserias = 3;
-  aiMensajeSesionTerminada = 'Esta conversación ha sido finalizada por el uso continuado de lenguaje ofensivo. Si necesitas ayuda, inicia una nueva conversación manteniendo un trato respetuoso.';
-  aiMensajeSinInformacion = 'No tengo información registrada sobre eso por el momento. ¿Necesitas un agente para una mejor ayuda?';
+  aiMensajeSesionTerminada =
+    'Esta conversación ha sido finalizada por el uso continuado de lenguaje ofensivo. Si necesitas ayuda, inicia una nueva conversación manteniendo un trato respetuoso.';
+  aiMensajeSinInformacion =
+    'No tengo información registrada sobre eso por el momento. ¿Necesitas un agente para una mejor ayuda?';
   aiSugerirAsesorAutomatico = true;
   newForbiddenWord = '';
-  iaSectionOpen = { identidad: true, instrucciones: true, roles: true, institucionales: false, transferencia: false, conducta: false, feedback: false, avanzado: false };
+  iaSectionOpen = {
+    identidad: true,
+    instrucciones: true,
+    roles: true,
+    institucionales: false,
+    transferencia: false,
+    conducta: false,
+    feedback: false,
+    avanzado: false,
+  };
 
   // ── Colegios ─────────────────────────────────────────────────────────────
   colegios: Colegio[] = [];
@@ -110,11 +140,31 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
   advisorsList: { id: string; name: string }[] = [];
 
   readonly aiRoles = [
-    { key: 'administrador', label: 'Administrador', icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' },
-    { key: 'docente', label: 'Docente', icon: 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z' },
-    { key: 'coordinador', label: 'Coordinador', icon: 'M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2 M12 11l1.5 1.5L16 10 M9 2h6v6H9z' },
-    { key: 'estudiante', label: 'Estudiante', icon: 'M22 10v6M2 10l10-5 10 5-10 5z M6 12v5c3 3 6 3 12 0v-5' },
-    { key: 'padre', label: 'Padre/Madre', icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M23 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75' },
+    {
+      key: 'administrador',
+      label: 'Administrador',
+      icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
+    },
+    {
+      key: 'docente',
+      label: 'Docente',
+      icon: 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z',
+    },
+    {
+      key: 'coordinador',
+      label: 'Coordinador',
+      icon: 'M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2 M12 11l1.5 1.5L16 10 M9 2h6v6H9z',
+    },
+    {
+      key: 'estudiante',
+      label: 'Estudiante',
+      icon: 'M22 10v6M2 10l10-5 10 5-10 5z M6 12v5c3 3 6 3 12 0v-5',
+    },
+    {
+      key: 'padre',
+      label: 'Padre/Madre',
+      icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M23 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75',
+    },
   ];
 
   private readonly DEFAULT_ROLE_RESTRICTED_ESTUDIANTE: string[] = [
@@ -135,16 +185,38 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
   private readonly DEFAULT_ROLE_MSG_ESTUDIANTE: string =
     'Para solicitar certificados, boletines u otros documentos académicos, debes comunicarte directamente con la institución, ya que esa documentación debe ser emitida de forma oficial y no la puedo adjuntar desde este canal.';
 
-  aiRolesConfig: Record<string, { descripcion: string; temasRestringidos: string[]; mensajeRestringido: string }> = {
-    administrador: { descripcion: 'Tienes acceso completo a toda la información del sistema.', temasRestringidos: [], mensajeRestringido: '' },
-    docente: { descripcion: 'Tienes acceso a información académica y administrativa.', temasRestringidos: [], mensajeRestringido: '' },
-    coordinador: { descripcion: 'Tienes acceso a información académica y de gestión de la comunidad educativa.', temasRestringidos: [], mensajeRestringido: '' },
-    estudiante: { descripcion: 'Tienes acceso a información académica y personal.', temasRestringidos: [...this.DEFAULT_ROLE_RESTRICTED_ESTUDIANTE], mensajeRestringido: this.DEFAULT_ROLE_MSG_ESTUDIANTE },
-    padre: { descripcion: 'Tienes acceso a información académica y de pagos de tu hijo.', temasRestringidos: [], mensajeRestringido: '' },
+  aiRolesConfig: Record<
+    string,
+    { descripcion: string; temasRestringidos: string[]; mensajeRestringido: string }
+  > = {
+    administrador: {
+      descripcion: 'Tienes acceso completo a toda la información del sistema.',
+      temasRestringidos: [],
+      mensajeRestringido: '',
+    },
+    docente: {
+      descripcion: 'Tienes acceso a información académica y administrativa.',
+      temasRestringidos: [],
+      mensajeRestringido: '',
+    },
+    coordinador: {
+      descripcion: 'Tienes acceso a información académica y de gestión de la comunidad educativa.',
+      temasRestringidos: [],
+      mensajeRestringido: '',
+    },
+    estudiante: {
+      descripcion: 'Tienes acceso a información académica y personal.',
+      temasRestringidos: [...this.DEFAULT_ROLE_RESTRICTED_ESTUDIANTE],
+      mensajeRestringido: this.DEFAULT_ROLE_MSG_ESTUDIANTE,
+    },
+    padre: {
+      descripcion: 'Tienes acceso a información académica y de pagos de tu hijo.',
+      temasRestringidos: [],
+      mensajeRestringido: '',
+    },
   };
 
-  readonly placeholderBienvenida =
-    'Hola, soy {{agente}}, en que puedo ayudarte?';
+  readonly placeholderBienvenida = 'Hola, soy {{agente}}, en que puedo ayudarte?';
   readonly placeholderWhatsappAsignacion =
     'Hola, soy {{agente}}. Ya fui asignado a tu conversacion y revisare tu caso.';
   readonly placeholderWhatsappCola =
@@ -229,35 +301,42 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.sound.loadSoundConfig();
-    this.svc.getGlobal().pipe(takeUntil(this.destroy$)).subscribe({
-      next: (config) => {
-        this.config = this.normalize(config);
-        this.loading = false;
-        this.applySoundConfig();
-        if (this.config.horarios.length) {
-          this.diaSeleccionado = this.config.horarios[0].dia;
-        }
-        this.cdr.detectChanges();
-      },
-      error: () => {
-        this.loading = false;
-        this.error = 'No se pudo cargar la configuracion.';
-        this.cdr.detectChanges();
-      },
-    });
-    this.sessionService.findAdvisors().pipe(takeUntil(this.destroy$)).subscribe({
-      next: (advisors) => {
-        this.advisorsList = advisors.map(a => ({ id: a.id, name: a.name }));
-        this.cdr.detectChanges();
-      },
-    });
+    this.svc
+      .getGlobal()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (config) => {
+          this.config = this.normalize(config);
+          this.loading = false;
+          this.applySoundConfig();
+          if (this.config.horarios.length) {
+            this.diaSeleccionado = this.config.horarios[0].dia;
+          }
+          this.cdr.detectChanges();
+        },
+        error: () => {
+          this.loading = false;
+          this.error = 'No se pudo cargar la configuracion.';
+          this.cdr.detectChanges();
+        },
+      });
+    this.sessionService
+      .findAdvisors()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (advisors) => {
+          this.advisorsList = advisors.map((a) => ({ id: a.id, name: a.name }));
+          this.cdr.detectChanges();
+        },
+      });
   }
 
   guardar(): void {
     if (!this.config || this.saving) return;
 
     if (this.errorHorarioVisible) {
-      this.error = 'Corrige los horarios donde el cierre no es mayor que la apertura antes de guardar.';
+      this.error =
+        'Corrige los horarios donde el cierre no es mayor que la apertura antes de guardar.';
       this.notification.error('Horarios inválidos', 'El cierre debe ser posterior a la apertura.');
       this.cdr.detectChanges();
       return;
@@ -268,31 +347,37 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
 
     this.saveAiPromptConfig();
     this.applySoundConfig();
-    this.svc.guardarGlobal(this.config).pipe(takeUntil(this.destroy$)).subscribe({
-      next: (config) => {
-        this.config = this.normalize(config);
-        this.saving = false;
-        this.saved = true;
-        this.applySoundConfig();
-        this.notification.success('Configuración guardada', 'Los cambios se aplicaron correctamente.');
-        setTimeout(() => {
-          this.saved = false;
+    this.svc
+      .guardarGlobal(this.config)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (config) => {
+          this.config = this.normalize(config);
+          this.saving = false;
+          this.saved = true;
+          this.applySoundConfig();
+          this.notification.success(
+            'Configuración guardada',
+            'Los cambios se aplicaron correctamente.',
+          );
+          setTimeout(() => {
+            this.saved = false;
+            this.cdr.detectChanges();
+          }, 3000);
           this.cdr.detectChanges();
-        }, 3000);
-        this.cdr.detectChanges();
-      },
-      error: (err) => {
-        this.saving = false;
-        this.error = this.extractError(err);
-        this.notification.error('Error al guardar', this.error);
-        this.cdr.detectChanges();
-      },
-    });
+        },
+        error: (err) => {
+          this.saving = false;
+          this.error = this.extractError(err);
+          this.notification.error('Error al guardar', this.error);
+          this.cdr.detectChanges();
+        },
+      });
   }
 
   setGrupo(g: ConfigGrupo): void {
     this.grupo = g;
-    this.tab = this.grupos.find(x => x.key === g)?.tabInicial ?? 'bienvenida';
+    this.tab = this.grupos.find((x) => x.key === g)?.tabInicial ?? 'bienvenida';
     if (g === 'general' && this.tab === 'colegios') {
       this.loadColegios();
     }
@@ -307,16 +392,17 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
   }
 
   getDiaNombre(dia: number): string {
-    return this.dias.find(d => d.value === dia)?.label ?? '';
+    return this.dias.find((d) => d.value === dia)?.label ?? '';
   }
 
   tieneHorario(dia: number): boolean {
-    return !!this.config?.horarios?.find(h => h.dia === dia);
+    return !!this.config?.horarios?.find((h) => h.dia === dia);
   }
 
   getHorario(dia: number): HorarioSlot {
-    return this.config?.horarios?.find(h => h.dia === dia)
-      ?? { dia, inicio: '08:00', fin: '17:00' };
+    return (
+      this.config?.horarios?.find((h) => h.dia === dia) ?? { dia, inicio: '08:00', fin: '17:00' }
+    );
   }
 
   seleccionarDia(dia: number): void {
@@ -337,17 +423,17 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
 
   quitarDia(dia: number): void {
     if (!this.config) return;
-    this.config.horarios = this.config.horarios.filter(h => h.dia !== dia);
+    this.config.horarios = this.config.horarios.filter((h) => h.dia !== dia);
     this.diaSeleccionado = null;
   }
 
   setInicio(dia: number, valor: string): void {
-    const slot = this.config?.horarios?.find(h => h.dia === dia);
+    const slot = this.config?.horarios?.find((h) => h.dia === dia);
     if (slot) slot.inicio = valor;
   }
 
   setFin(dia: number, valor: string): void {
-    const slot = this.config?.horarios?.find(h => h.dia === dia);
+    const slot = this.config?.horarios?.find((h) => h.dia === dia);
     if (slot) slot.fin = valor;
   }
 
@@ -365,9 +451,7 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
   }
 
   get horariosInvalidos(): number[] {
-    return (this.config?.horarios ?? [])
-      .filter(h => !this.horarioValido(h))
-      .map(h => h.dia);
+    return (this.config?.horarios ?? []).filter((h) => !this.horarioValido(h)).map((h) => h.dia);
   }
 
   get errorHorarioVisible(): boolean {
@@ -385,12 +469,13 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
     for (let offset = 0; offset <= 7; offset++) {
       const dia = (diaHoy + offset) % 7;
       const slotsDia = horarios
-        .filter(s => s.dia === dia)
+        .filter((s) => s.dia === dia)
         .sort((a, b) => this.toMin(a.inicio) - this.toMin(b.inicio));
 
       for (const slot of slotsDia) {
         if (offset === 0 && this.toMin(slot.inicio) <= minutosAhora) continue;
-        const prefijo = offset === 0 ? 'hoy' : offset === 1 ? 'mañana' : `el ${this.getDiaNombre(dia)}`;
+        const prefijo =
+          offset === 0 ? 'hoy' : offset === 1 ? 'mañana' : `el ${this.getDiaNombre(dia)}`;
         return { texto: `${prefijo} a las ${slot.inicio}`, hora: slot.inicio };
       }
     }
@@ -419,15 +504,14 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
   }
 
   getIters(): number[] {
-    return Array.from(
-      { length: this.config?.clienteInactividadIters ?? 0 },
-      (_, i) => i,
-    );
+    return Array.from({ length: this.config?.clienteInactividadIters ?? 0 }, (_, i) => i);
   }
 
   previewWhatsappAssignment(): string {
-    return (this.config?.whatsappAssignmentMsg || this.placeholderWhatsappAsignacion)
-      .replace(/\{\{\s*(asesor|advisor|agente)\s*\}\}/gi, 'Laura');
+    return (this.config?.whatsappAssignmentMsg || this.placeholderWhatsappAsignacion).replace(
+      /\{\{\s*(asesor|advisor|agente)\s*\}\}/gi,
+      'Laura',
+    );
   }
 
   previewWhatsappOutOfHours(): string {
@@ -475,11 +559,9 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
       ...config,
       horarios: config.horarios ?? [],
       almuerzos: config.almuerzos ?? [],
-      whatsappAssignmentMsg:
-        config.whatsappAssignmentMsg || this.placeholderWhatsappAsignacion,
+      whatsappAssignmentMsg: config.whatsappAssignmentMsg || this.placeholderWhatsappAsignacion,
       whatsappQueueMsg: config.whatsappQueueMsg || this.placeholderWhatsappCola,
-      whatsappOutOfHoursMsg:
-        config.whatsappOutOfHoursMsg || this.placeholderWhatsappFuera,
+      whatsappOutOfHoursMsg: config.whatsappOutOfHoursMsg || this.placeholderWhatsappFuera,
       whatsappCallUnavailableMsg:
         config.whatsappCallUnavailableMsg || this.placeholderWhatsappLlamada,
       sonidoActivado: config.sonidoActivado ?? true,
@@ -488,8 +570,11 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
       sonidoCliente: config.sonidoCliente ?? 'cliente1',
       sonidoAsignacion: config.sonidoAsignacion ?? 'asignacion1',
       asesorReconexionSeg: config.asesorReconexionSeg ?? 120,
-      asesorReconexionMsg: config.asesorReconexionMsg || 'El agente se desconectó. Esperando reconexión...',
-      whatsappQuickReplies: Array.isArray(config.whatsappQuickReplies) ? config.whatsappQuickReplies : [],
+      asesorReconexionMsg:
+        config.asesorReconexionMsg || 'El agente se desconectó. Esperando reconexión...',
+      whatsappQuickReplies: Array.isArray(config.whatsappQuickReplies)
+        ? config.whatsappQuickReplies
+        : [],
       whatsappMaxActiveChatsPerAdvisor: config.whatsappMaxActiveChatsPerAdvisor ?? 3,
       asignacionBalanceTipo: config.asignacionBalanceTipo ?? 'hoy',
       maxActiveChatsWeb: config.maxActiveChatsWeb ?? 4,
@@ -509,6 +594,13 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
       smtpUser: config.smtpUser || '',
       smtpPass: config.smtpPass || '',
       mailFrom: config.mailFrom || '',
+      smtpImapHost: config.smtpImapHost || '',
+      smtpImapPort: config.smtpImapPort || 993,
+      revisarRebotes: config.revisarRebotes ?? true,
+      mailsenderUrl: config.mailsenderUrl || '',
+      mailsenderModo: config.mailsenderModo || 'individual',
+      metodoEnvioCorreo: config.metodoEnvioCorreo || 'mailsender',
+      mailsenderCredencial: config.mailsenderCredencial || null,
       ticketSlaEnabled: config.ticketSlaEnabled ?? true,
       ticketSlaHours: config.ticketSlaHours ?? { low: 168, medium: 72, high: 24, critical: 8 },
     };
@@ -520,30 +612,52 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
       this.aiPromptNombre = aiCfg['nombreAsistente'] || 'Korvix';
       this.aiPromptEspecialidad = aiCfg['especialidad'] || 'Plataforma Educativa Institucional';
       this.aiPromptInstrucciones = aiCfg['instruccionesGenerales'] || '';
-      this.aiPromptFrasesTransferencia = Array.isArray(aiCfg['frasesTransferencia']) && aiCfg['frasesTransferencia'].length
-        ? aiCfg['frasesTransferencia']
-        : ['asesor', 'humano', 'persona', 'agente'];
+      this.aiPromptFrasesTransferencia =
+        Array.isArray(aiCfg['frasesTransferencia']) && aiCfg['frasesTransferencia'].length
+          ? aiCfg['frasesTransferencia']
+          : ['asesor', 'humano', 'persona', 'agente'];
       this.aiPromptFeedback = aiCfg['feedbackPositivo'] || '';
       this.aiPromptPersonalizado = aiCfg['promptPersonalizado'] || '';
       this.aiPromptUseCustom = !!aiCfg['promptPersonalizado'];
 
       this.temasInstitucionales = Array.isArray(aiCfg['temasInstitucionales'])
-        ? aiCfg['temasInstitucionales'].filter((t: any) => t && t.tema).map((t: any) => ({
-            tema: String(t.tema),
-            mensaje: typeof t.mensaje === 'string' ? t.mensaje : '',
-          }))
+        ? aiCfg['temasInstitucionales']
+            .filter((t: any) => t && t.tema)
+            .map((t: any) => ({
+              tema: String(t.tema),
+              mensaje: typeof t.mensaje === 'string' ? t.mensaje : '',
+            }))
         : [];
-      this.mensajeRedireccionGenerico = typeof aiCfg['mensajeRedireccionGenerico'] === 'string'
-        ? aiCfg['mensajeRedireccionGenerico']
-        : 'Este tema lo maneja directamente la institución. Te recomendamos dirigirte a la institución para más información.';
+      this.mensajeRedireccionGenerico =
+        typeof aiCfg['mensajeRedireccionGenerico'] === 'string'
+          ? aiCfg['mensajeRedireccionGenerico']
+          : 'Este tema lo maneja directamente la institución. Te recomendamos dirigirte a la institución para más información.';
 
-      this.aiPalabrasProhibidas = Array.isArray(aiCfg['palabrasProhibidas']) && aiCfg['palabrasProhibidas'].length
-        ? aiCfg['palabrasProhibidas']
-        : ['hijueputa', 'gonorrea', 'malparido', 'marica', 'pendejo', 'idiota', 'estupido', 'imbecil', 'puta', 'mierda'];
-      this.aiMensajeGroseria = aiCfg['mensajeGroseria'] || 'Por favor, mantengamos un trato respetuoso. No puedo ayudarte si usas lenguaje ofensivo. ¿En qué más puedo ayudarte?';
+      this.aiPalabrasProhibidas =
+        Array.isArray(aiCfg['palabrasProhibidas']) && aiCfg['palabrasProhibidas'].length
+          ? aiCfg['palabrasProhibidas']
+          : [
+              'hijueputa',
+              'gonorrea',
+              'malparido',
+              'marica',
+              'pendejo',
+              'idiota',
+              'estupido',
+              'imbecil',
+              'puta',
+              'mierda',
+            ];
+      this.aiMensajeGroseria =
+        aiCfg['mensajeGroseria'] ||
+        'Por favor, mantengamos un trato respetuoso. No puedo ayudarte si usas lenguaje ofensivo. ¿En qué más puedo ayudarte?';
       this.aiLimiteGroserias = Number(aiCfg['limiteGroserias']) || 3;
-      this.aiMensajeSesionTerminada = aiCfg['mensajeSesionTerminada'] || 'Esta conversación ha sido finalizada por el uso continuado de lenguaje ofensivo. Si necesitas ayuda, inicia una nueva conversación manteniendo un trato respetuoso.';
-      this.aiMensajeSinInformacion = aiCfg['mensajeSinInformacion'] || 'No tengo información registrada sobre eso por el momento. ¿Necesitas un agente para una mejor ayuda?';
+      this.aiMensajeSesionTerminada =
+        aiCfg['mensajeSesionTerminada'] ||
+        'Esta conversación ha sido finalizada por el uso continuado de lenguaje ofensivo. Si necesitas ayuda, inicia una nueva conversación manteniendo un trato respetuoso.';
+      this.aiMensajeSinInformacion =
+        aiCfg['mensajeSinInformacion'] ||
+        'No tengo información registrada sobre eso por el momento. ¿Necesitas un agente para una mejor ayuda?';
       this.aiSugerirAsesorAutomatico = aiCfg['sugerirAsesorAutomatico'] !== false;
 
       if (aiCfg['roles'] && typeof aiCfg['roles'] === 'object') {
@@ -551,8 +665,11 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
           if (this.aiRolesConfig[key]) {
             this.aiRolesConfig[key] = {
               descripcion: val['descripcion'] || this.aiRolesConfig[key].descripcion,
-              temasRestringidos: Array.isArray(val['temasRestringidos']) ? val['temasRestringidos'] : this.aiRolesConfig[key].temasRestringidos,
-              mensajeRestringido: val['mensajeRestringido'] || this.aiRolesConfig[key].mensajeRestringido,
+              temasRestringidos: Array.isArray(val['temasRestringidos'])
+                ? val['temasRestringidos']
+                : this.aiRolesConfig[key].temasRestringidos,
+              mensajeRestringido:
+                val['mensajeRestringido'] || this.aiRolesConfig[key].mensajeRestringido,
             };
           }
         }
@@ -571,21 +688,52 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
     this.aiPromptPersonalizado = '';
     this.aiPromptUseCustom = false;
     this.temasInstitucionales = [];
-    this.mensajeRedireccionGenerico = 'Este tema lo maneja directamente la institución. Te recomendamos dirigirte a la institución para más información.';
+    this.mensajeRedireccionGenerico =
+      'Este tema lo maneja directamente la institución. Te recomendamos dirigirte a la institución para más información.';
     this.newInstitucionalTopic = '';
     this.newInstitucionalMensaje = '';
     this.editInstitucionalIndex = null;
-    this.aiPalabrasProhibidas = ['hijueputa', 'gonorrea', 'malparido', 'marica', 'pendejo', 'idiota', 'estupido', 'imbecil', 'puta', 'mierda'];
-    this.aiMensajeGroseria = 'Por favor, mantengamos un trato respetuoso. No puedo ayudarte si usas lenguaje ofensivo. ¿En qué más puedo ayudarte?';
+    this.aiPalabrasProhibidas = [
+      'hijueputa',
+      'gonorrea',
+      'malparido',
+      'marica',
+      'pendejo',
+      'idiota',
+      'estupido',
+      'imbecil',
+      'puta',
+      'mierda',
+    ];
+    this.aiMensajeGroseria =
+      'Por favor, mantengamos un trato respetuoso. No puedo ayudarte si usas lenguaje ofensivo. ¿En qué más puedo ayudarte?';
     this.aiLimiteGroserias = 3;
-    this.aiMensajeSesionTerminada = 'Esta conversación ha sido finalizada por el uso continuado de lenguaje ofensivo. Si necesitas ayuda, inicia una nueva conversación manteniendo un trato respetuoso.';
-    this.aiMensajeSinInformacion = 'No tengo información registrada sobre eso por el momento. ¿Necesitas un agente para una mejor ayuda?';
+    this.aiMensajeSesionTerminada =
+      'Esta conversación ha sido finalizada por el uso continuado de lenguaje ofensivo. Si necesitas ayuda, inicia una nueva conversación manteniendo un trato respetuoso.';
+    this.aiMensajeSinInformacion =
+      'No tengo información registrada sobre eso por el momento. ¿Necesitas un agente para una mejor ayuda?';
     this.aiSugerirAsesorAutomatico = true;
     this.aiRolesConfig = {
-      administrador: { descripcion: 'Tienes acceso completo a toda la información del sistema.', temasRestringidos: [], mensajeRestringido: '' },
-      docente: { descripcion: 'Tienes acceso a información académica y administrativa.', temasRestringidos: [], mensajeRestringido: '' },
-      estudiante: { descripcion: 'Tienes acceso a información académica y personal.', temasRestringidos: [...this.DEFAULT_ROLE_RESTRICTED_ESTUDIANTE], mensajeRestringido: this.DEFAULT_ROLE_MSG_ESTUDIANTE },
-      padre: { descripcion: 'Tienes acceso a información académica y de pagos de tu hijo.', temasRestringidos: [], mensajeRestringido: '' },
+      administrador: {
+        descripcion: 'Tienes acceso completo a toda la información del sistema.',
+        temasRestringidos: [],
+        mensajeRestringido: '',
+      },
+      docente: {
+        descripcion: 'Tienes acceso a información académica y administrativa.',
+        temasRestringidos: [],
+        mensajeRestringido: '',
+      },
+      estudiante: {
+        descripcion: 'Tienes acceso a información académica y personal.',
+        temasRestringidos: [...this.DEFAULT_ROLE_RESTRICTED_ESTUDIANTE],
+        mensajeRestringido: this.DEFAULT_ROLE_MSG_ESTUDIANTE,
+      },
+      padre: {
+        descripcion: 'Tienes acceso a información académica y de pagos de tu hijo.',
+        temasRestringidos: [],
+        mensajeRestringido: '',
+      },
     };
   }
 
@@ -625,7 +773,7 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
   }
 
   removeForbiddenWord(w: string): void {
-    this.aiPalabrasProhibidas = this.aiPalabrasProhibidas.filter(p => p !== w);
+    this.aiPalabrasProhibidas = this.aiPalabrasProhibidas.filter((p) => p !== w);
   }
 
   toggleIaSection(key: keyof typeof this.iaSectionOpen): void {
@@ -643,7 +791,12 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
   addRestrictedTopic(): void {
     const topic = this.newRestrictedTopic.trim().toLowerCase();
     const role = this.aiRolesConfig[this.selectedRole];
-    if (topic && role && !role.temasRestringidos.includes(topic) && role.temasRestringidos.length < 20) {
+    if (
+      topic &&
+      role &&
+      !role.temasRestringidos.includes(topic) &&
+      role.temasRestringidos.length < 20
+    ) {
       role.temasRestringidos.push(topic);
       this.newRestrictedTopic = '';
     }
@@ -652,20 +805,24 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
   removeRestrictedTopic(topic: string): void {
     const role = this.aiRolesConfig[this.selectedRole];
     if (role) {
-      role.temasRestringidos = role.temasRestringidos.filter(t => t !== topic);
+      role.temasRestringidos = role.temasRestringidos.filter((t) => t !== topic);
     }
   }
 
   addTransferPhrase(): void {
     const phrase = this.newTransferPhrase.trim().toLowerCase();
-    if (phrase && !this.aiPromptFrasesTransferencia.includes(phrase) && this.aiPromptFrasesTransferencia.length < 20) {
+    if (
+      phrase &&
+      !this.aiPromptFrasesTransferencia.includes(phrase) &&
+      this.aiPromptFrasesTransferencia.length < 20
+    ) {
       this.aiPromptFrasesTransferencia.push(phrase);
       this.newTransferPhrase = '';
     }
   }
 
   removeTransferPhrase(phrase: string): void {
-    this.aiPromptFrasesTransferencia = this.aiPromptFrasesTransferencia.filter(p => p !== phrase);
+    this.aiPromptFrasesTransferencia = this.aiPromptFrasesTransferencia.filter((p) => p !== phrase);
   }
 
   setSlaHours(priority: string, hours: number): void {
@@ -731,20 +888,26 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
     this.colegiosLoading = true;
     this.sessionService.getColegios().subscribe({
       next: (c) => {
-        this.colegios = c.map(co => ({ ...co, nombre: this.sanitizeText(co.nombre), link: this.sanitizeText(co.link) }));
+        this.colegios = c.map((co) => ({
+          ...co,
+          nombre: this.sanitizeText(co.nombre),
+          link: this.sanitizeText(co.link),
+        }));
         this.colegiosLoading = false;
         this.cdr.detectChanges();
       },
-      error: () => { this.colegiosLoading = false; this.cdr.detectChanges(); },
+      error: () => {
+        this.colegiosLoading = false;
+        this.cdr.detectChanges();
+      },
     });
   }
 
   get colegiosFiltrados(): Colegio[] {
     const q = this.colegioSearch.trim().toLowerCase();
     if (!q) return this.colegios;
-    return this.colegios.filter(c =>
-      c.nombre.toLowerCase().includes(q) ||
-      (c.email ?? '').toLowerCase().includes(q)
+    return this.colegios.filter(
+      (c) => c.nombre.toLowerCase().includes(q) || (c.email ?? '').toLowerCase().includes(q),
     );
   }
 
@@ -862,8 +1025,8 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
   }
 
   toggleAllColegios(): void {
-    const currentIds = this.paginatedColegios.map(c => c.id);
-    const allSelected = currentIds.every(id => this.colegioSelectedIds.has(id));
+    const currentIds = this.paginatedColegios.map((c) => c.id);
+    const allSelected = currentIds.every((id) => this.colegioSelectedIds.has(id));
     if (allSelected) {
       for (const id of currentIds) this.colegioSelectedIds.delete(id);
     } else {
@@ -881,7 +1044,10 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
         this.colegioDeletingBulk = false;
         this.colegioSelectedIds.clear();
         this.loadColegios();
-        this.notification.success('Eliminados', `${res.deleted} colegio${res.deleted === 1 ? '' : 's'} eliminado${res.deleted === 1 ? '' : 's'}.`);
+        this.notification.success(
+          'Eliminados',
+          `${res.deleted} colegio${res.deleted === 1 ? '' : 's'} eliminado${res.deleted === 1 ? '' : 's'}.`,
+        );
       },
       error: (err) => {
         this.colegioDeletingBulk = false;
@@ -938,7 +1104,7 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
         csv = new TextDecoder('windows-1252').decode(buf);
       }
       csv = csv.replace(/^\uFEFF/, '');
-      const lines = csv.split('\n').filter(l => l.trim());
+      const lines = csv.split('\n').filter((l) => l.trim());
       if (lines.length < 2) {
         this.notification.error('Error', 'El CSV está vacío');
         input.value = '';
@@ -957,7 +1123,7 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
         return;
       }
 
-      const trunc = (s: string, max: number) => s.length > max ? s.slice(0, max) : s;
+      const trunc = (s: string, max: number) => (s.length > max ? s.slice(0, max) : s);
       const colegios: any[] = [];
       for (let i = 1; i < lines.length; i++) {
         const vals = this.parseCsvLine(lines[i]);
@@ -1000,8 +1166,15 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
     let current = '';
     let inQuotes = false;
     for (const ch of line) {
-      if (ch === '"') { inQuotes = !inQuotes; continue; }
-      if (ch === ';' && !inQuotes) { result.push(current); current = ''; continue; }
+      if (ch === '"') {
+        inQuotes = !inQuotes;
+        continue;
+      }
+      if (ch === ';' && !inQuotes) {
+        result.push(current);
+        current = '';
+        continue;
+      }
       current += ch;
     }
     result.push(current);

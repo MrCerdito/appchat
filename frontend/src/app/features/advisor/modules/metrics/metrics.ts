@@ -158,7 +158,7 @@ export class AdvisorMetricsComponent implements OnInit, OnDestroy {
   }
 
   getStatusLabel(status?: string): string {
-    const map: Record<string, string> = { online: 'Disponible', busy: 'Ocupado', offline: 'Inactivo' };
+    const map: Record<string, string> = { online: 'Disponible', busy: 'Ocupado', meeting: 'En reunión', almuerzo: 'En almuerzo', offline: 'Inactivo' };
     return map[status ?? 'offline'] ?? 'Inactivo';
   }
 

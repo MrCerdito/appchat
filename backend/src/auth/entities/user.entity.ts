@@ -34,7 +34,7 @@ export class User {
   createdAt: Date;
 
   @Column({ length: 20, default: 'offline' })
-  status: string; // 'online' | 'busy' | 'offline'
+  status: string; // 'online' | 'busy' | 'meeting' | 'almuerzo' | 'offline'
 
   @Column({ name: 'active_chats', default: 0 })
   activeChats: number;

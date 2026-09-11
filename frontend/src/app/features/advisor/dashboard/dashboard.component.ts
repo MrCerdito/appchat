@@ -54,7 +54,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   @ViewChild('faqScroll') faqScrollRef!: ElementRef<HTMLElement>;
 
   currentAdvisor: User | null = null;
-  advisorStatus: 'online' | 'busy' | 'offline' = 'offline';
+  advisorStatus: 'online' | 'busy' | 'meeting' | 'almuerzo' | 'offline' = 'offline';
   profileOpen = false;
   sidebarOpen = false;
   forceSidebarHidden = false;
@@ -111,19 +111,46 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   advisorRingClass(adv: ConnectedAdvisor): string {
     if (this.isSelfAdvisor(adv)) return this.enAlmuerzo ? 'lunch' : this.advisorStatus;
-    return adv.enAlmuerzo ? 'lunch' : (adv.status as 'online' | 'busy' | 'offline');
+    return adv.enAlmuerzo ? 'lunch' : adv.status;
   }
 
-  advisorStatusValue(adv: ConnectedAdvisor): 'online' | 'busy' | 'offline' {
+  advisorStatusValue(adv: ConnectedAdvisor): string {
     if (this.isSelfAdvisor(adv)) return this.advisorStatus;
-    return (adv.status as 'online' | 'busy' | 'offline') ?? 'offline';
+    return adv.status ?? 'offline';
   }
 
   advisorStatusText(adv: ConnectedAdvisor): string {
     const onLunch = this.isSelfAdvisor(adv) ? this.enAlmuerzo : adv.enAlmuerzo;
     if (onLunch) return 'En almuerzo';
     const status = this.advisorStatusValue(adv);
+    if (status === 'meeting') return 'En reunión';
+    if (status === 'almuerzo') return 'En almuerzo';
     return status === 'online' ? 'Disponible' : status === 'busy' ? 'Ocupado' : 'Inactivo';
+  }
+
+  advisorDotClass(adv: ConnectedAdvisor): string {
+    const onLunch = this.isSelfAdvisor(adv) ? this.enAlmuerzo : adv.enAlmuerzo;
+    if (onLunch) return 'lunch';
+    return this.advisorStatusValue(adv);
+  }
+
+  onCapsuleClick(adv: ConnectedAdvisor): void {
+    if (adv.advisorId !== this.currentAdvisor?.id) {
+      this.toggleTeamPanel();
+      return;
+    }
+    if (this.enAlmuerzo) return;
+    const order: Array<'online' | 'busy' | 'meeting' | 'offline'> = [
+      'online',
+      'busy',
+      'meeting',
+      'offline',
+    ];
+    const idx = order.indexOf(
+      this.advisorStatus as 'online' | 'busy' | 'meeting' | 'offline',
+    );
+    const next = idx === -1 ? 'offline' : order[(idx + 1) % order.length];
+    this.setStatus(next);
   }
 
   enAlmuerzo = false;
@@ -239,9 +266,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
       const savedStatus = localStorage.getItem(this.STATUS_KEY) as
         | 'online'
         | 'busy'
+        | 'meeting'
         | 'offline'
         | null;
-      if (savedStatus === 'online' || savedStatus === 'busy' || savedStatus === 'offline') {
+      if (
+        savedStatus === 'online' ||
+        savedStatus === 'busy' ||
+        savedStatus === 'meeting' ||
+        savedStatus === 'offline'
+      ) {
         this.advisorStatus = savedStatus;
         this.cdr.detectChanges();
       }
@@ -260,7 +293,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.allAdvisors = users.map(u => ({
           advisorId: u.id,
           name: u.name,
-          status: (u.status || 'offline') as 'online' | 'busy' | 'offline',
+          status: (u.status || 'offline') as string,
           profilePhotoUrl: u.profilePhotoUrl ?? null,
         }));
         this.cdr.detectChanges();
@@ -279,7 +312,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe(data => {
         if (data.advisorId === (this.currentAdvisor?.id ?? this.auth.getUser()?.id)) {
-          this.advisorStatus = data.status as 'online' | 'busy' | 'offline';
+          this.advisorStatus = data.status as
+        'online' | 'busy' | 'meeting' | 'almuerzo' | 'offline';
           localStorage.setItem(this.STATUS_KEY, data.status);
           this.cdr.detectChanges();
         }
@@ -339,7 +373,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.almuerzoError = '';
         this.almuerzoProximoActivo = false;
         this.stopLunchApproachingCountdown();
-        this.advisorStatus = 'busy';
+        this.advisorStatus = 'almuerzo';
         this.persistLunchState();
         this.startLunchCountdown();
         this.cdr.detectChanges();
@@ -395,7 +429,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.almuerzoError = '';
         this.almuerzoProximoActivo = false;
         this.stopLunchApproachingCountdown();
-        this.advisorStatus = 'busy';
+        this.advisorStatus = 'almuerzo';
         this.cdr.detectChanges();
       });
 
@@ -839,7 +873,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.almuerzoMensaje = '';
     this.almuerzoProximoMensaje = '';
     this.almuerzoError = '';
-    this.advisorStatus = 'busy';
+    this.advisorStatus = 'almuerzo';
     this.startLunchCountdown();
   }
 
@@ -940,8 +974,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
       : null;
   }
 
-  setStatus(status: 'online' | 'busy' | 'offline'): void {
-    if (status === 'online' && this.enAlmuerzo) return;
+  setStatus(status: 'online' | 'busy' | 'meeting' | 'offline'): void {
+    if ((status === 'online' || status === 'meeting') && this.enAlmuerzo) return;
     this.advisorStatus = status;
     localStorage.setItem(this.STATUS_KEY, status);
     this.applyStatus(status);

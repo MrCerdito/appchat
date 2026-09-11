@@ -3,8 +3,9 @@ export interface Destinatario {
   nombre: string;
   colegio?: string;
   tipo?: string;
-  sendStatus?: 'ok' | 'failed';
+  sendStatus?: 'ok' | 'failed' | 'bounced';
   sendError?: string;
+  bouncedAt?: string;
 }
 
 export interface Comunicado {
@@ -14,7 +15,7 @@ export interface Comunicado {
   design: unknown[] | null;
   senderName: string;
   senderEmail?: string;
-  status: 'sent' | 'draft' | 'failed';
+  status: 'sent' | 'draft' | 'failed' | 'sending';
   destinatarios: Destinatario[];
   createdAt: string;
   sentAt: string | null;
@@ -34,7 +35,7 @@ export interface ComunicadoStats {
     nombre: string;
     aperturas: number;
     clics: number;
-    sendStatus?: 'ok' | 'failed';
+    sendStatus?: 'ok' | 'failed' | 'bounced';
     sendError?: string | null;
   }[];
 }

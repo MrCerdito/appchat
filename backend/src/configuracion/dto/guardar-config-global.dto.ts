@@ -16,6 +16,63 @@ import {
 import { HorarioSlot, HorarioAlmuerzo } from '../entities/configuracion.entity';
 import { ValidTimeRangeConstraint } from './validators';
 
+export class MailsenderCredencialDto {
+  [key: string]: unknown;
+
+  @IsString()
+  @MaxLength(255)
+  email: string;
+
+  @IsString()
+  @MaxLength(255)
+  usuario: string;
+
+  @IsString()
+  @MaxLength(500)
+  password: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  nombre?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(65535)
+  port?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  servidorsmtp?: string;
+
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  seguridadssl?: boolean;
+
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  protocolo_Tls12?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  azure_TenantId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  azure_ClientId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  azure_ClientSecret?: string;
+}
+
 export class GuardarConfigGlobalDto {
   @IsOptional()
   @IsString()
@@ -229,6 +286,40 @@ export class GuardarConfigGlobalDto {
   @IsString()
   @MaxLength(255)
   mailFrom?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  smtpImapHost?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(65535)
+  smtpImapPort?: number;
+
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  revisarRebotes?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  mailsenderUrl?: string;
+
+  @IsOptional()
+  @IsIn(['individual', 'lote'])
+  mailsenderModo?: 'individual' | 'lote';
+
+  @IsOptional()
+  @IsIn(['mailsender', 'smtp'])
+  metodoEnvioCorreo?: 'mailsender' | 'smtp';
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => MailsenderCredencialDto)
+  mailsenderCredencial?: MailsenderCredencialDto;
 
   @IsOptional()
   @IsString()

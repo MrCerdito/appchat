@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ComunicadosController } from './comunicados.controller';
 import { ComunicadosService } from './comunicados.service';
+import { BounceService } from './bounce.service';
 import { Comunicado } from './entities/comunicado.entity';
 import { ComunicadoEvento } from './entities/comunicado-evento.entity';
 import { ComunicadoTemplate } from './entities/comunicado-template.entity';
@@ -25,7 +26,7 @@ import { ConfiguracionModule } from '../configuracion/configuracion.module';
     ConfiguracionModule,
   ],
   controllers: [ComunicadosController],
-  providers: [ComunicadosService],
+  providers: [ComunicadosService, BounceService],
   exports: [ComunicadosService],
 })
 export class ComunicadosModule {}

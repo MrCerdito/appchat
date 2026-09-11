@@ -4763,7 +4763,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
         advisor.status === 'offline' || !advisor.active
           ? 0
           : Math.max(0, idleMinutes),
-      pauseMinutes: ['Pausa', 'Almuerzo', 'Capacitacion'].includes(
+      pauseMinutes: ['Pausa', 'Almuerzo', 'Capacitacion', 'meeting', 'almuerzo'].includes(
         advisor.status,
       )
         ? idleMinutes
@@ -5593,7 +5593,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
       .filter((r: any) => r?.name && r?.content)
       .map((r: any) => ({
         name: String(r.name).slice(0, 60),
-        content: String(r.content).slice(0, 500),
+        content: String(r.content),
       }));
 
     return replies.length ? replies : this.defaultQuickReplies;

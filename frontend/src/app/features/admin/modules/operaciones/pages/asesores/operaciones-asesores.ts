@@ -90,7 +90,13 @@ export class OperacionesAsesoresComponent implements OnInit, OnDestroy {
 
   statusLabel(advisor: WaAdvisorStats): string {
     if (!advisor.active) return 'Inactivo';
-    const map: Record<string, string> = { online: 'Disponible', busy: 'En chat', away: 'Ausente' };
+    const map: Record<string, string> = {
+      online: 'Disponible',
+      busy: 'En chat',
+      meeting: 'En reunión',
+      almuerzo: 'En almuerzo',
+      away: 'Ausente',
+    };
     return map[advisor.status] || advisor.status;
   }
 

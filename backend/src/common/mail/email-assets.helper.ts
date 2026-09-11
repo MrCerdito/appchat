@@ -52,6 +52,65 @@ export function emailificarHtml(html: string): string {
 }
 
 /**
+ * Convierte imagenes locales (/uploads/...) en data-URIs embebidas en el HTML,
+ * para que lleguen incrustadas en el correo sin depender del mapeo cid/archivos
+ * del gateway (que no garantiza mostrar imagenes inline). Las URLs que no
+ * apunten a archivos existentes se dejan tal cual.
+ */
+export async function inlineImagesDataUri(html: string): Promise<string> {
+  const matches = [
+    ...html.matchAll(
+      /(src|poster)="((?:https?:\/\/[^"]*\/uploads\/|\/uploads\/)([^"]+))"/g,
+    ),
+  ];
+  if (!matches.length) return html;
+
+  const replacements = new Map<string, string>();
+  for (const m of matches) {
+    const url = m[2];
+    if (replacements.has(url)) continue;
+    const rel = m[3];
+    const safe = normalize(rel)
+      .replace(/^(\.\.[/\\])+/, '')
+      .replace(/^[/\\]+/, '');
+    const filePath = resolve(UPLOADS_ROOT, safe);
+    const rootWithSep = UPLOADS_ROOT.endsWith(sep)
+      ? UPLOADS_ROOT
+      : UPLOADS_ROOT + sep;
+    if (!filePath.startsWith(rootWithSep)) continue;
+
+    try {
+      await access(filePath);
+    } catch {
+      continue;
+    }
+    let buffer: Buffer | null = null;
+    try {
+      buffer = await readFile(filePath);
+    } catch {
+      continue;
+    }
+
+    const filename = safe.split(/[\\/]/).pop() || 'imagen.png';
+    const ext = (filename.match(/\.([a-zA-Z0-9]+)$/) || [
+      '',
+      'png',
+    ])[1].toLowerCase();
+    const mime = ext === 'jpg' ? 'image/jpeg' : `image/${ext || 'png'}`;
+    replacements.set(
+      url,
+      `data:${mime};base64,${buffer.toString('base64')}`,
+    );
+  }
+
+  let out = html;
+  for (const [url, dataUri] of replacements) {
+    out = out.split(`"${url}"`).join(`"${dataUri}"`);
+  }
+  return out;
+}
+
+/**
  * Convierte imagenes locales (/uploads/...) en adjuntos inline (cid:) para
  * que lleguen incrustadas en el correo, sin depender de URL publicas ni del
  * boton "mostrar imagenes" del cliente de correo. Las URLs que no apunten a
