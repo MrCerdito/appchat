@@ -15,12 +15,19 @@ import { AdvisorsWhatsappService } from './advisors-whatsapp.service';
 import { AdvisorsWhatsappGateway } from './advisors-whatsapp.gateway';
 import { TeamsMeetingsService } from './teams-meetings.service';
 import { TeamsToken } from './entities/teams-token.entity';
+import { TeamsMeeting } from './entities/teams-meeting.entity';
 import { WhatsappChat } from './entities/whatsapp-chat.entity';
 import { WhatsappMessage } from './entities/whatsapp-message.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([WhatsappChat, WhatsappMessage, TeamsToken, User]),
+    TypeOrmModule.forFeature([
+      WhatsappChat,
+      WhatsappMessage,
+      TeamsToken,
+      TeamsMeeting,
+      User,
+    ]),
     AuthModule,
     ConfiguracionModule,
     TicketsModule,

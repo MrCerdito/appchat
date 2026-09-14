@@ -89,6 +89,12 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./shared/tickets/tickets.component').then(m => m.TicketsComponent),
       },
+      {
+        path: 'calendario',
+        canActivate: [permisoGuard('calendario')],
+        loadComponent: () =>
+          import('./features/advisor/modules/calendario/calendario.component').then(m => m.CalendarioComponent),
+      },
     ],
   },
   {
@@ -185,6 +191,12 @@ export const routes: Routes = [
           import('./shared/tickets/tickets.component').then(m => m.TicketsComponent),
       },
       {
+        path: 'calendario',
+        canActivate: [permisoGuard('calendario')],
+        loadComponent: () =>
+          import('./features/advisor/modules/calendario/calendario.component').then(m => m.CalendarioComponent),
+      },
+      {
         path: 'perfil-institucional',
         canActivate: [permisoGuard('perfil_institucional')],
         loadComponent: () =>
@@ -231,6 +243,12 @@ export const routes: Routes = [
         canActivate: [permisoGuard('tickets')],
         loadComponent: () =>
           import('./shared/tickets/tickets.component').then(m => m.TicketsComponent),
+      },
+      {
+        path: 'calendario',
+        canActivate: [permisoGuard('calendario')],
+        loadComponent: () =>
+          import('./features/advisor/modules/calendario/calendario.component').then(m => m.CalendarioComponent),
       },
       {
         path: 'history',

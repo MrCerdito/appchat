@@ -886,6 +886,15 @@
         {{ remitLoading ? 'Activando IA...' : 'Remitir a IA' }}
       </button>
       }
+      @if (!isCollaborator && !isReadOnlyView && activeSession.status !== 'closed') {
+      <button class="p-btn p-btn-meeting" type="button" (click)="openTeamsMeeting()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="4" width="16" height="12" rx="2"/>
+          <path d="M22 7l-6 3 6 3V7z"/>
+        </svg>
+        Crear reunion
+      </button>
+      }
       <div class="panel-divider"></div>
       @if (!isCollaborator && !isReadOnlyView) {
       <button class="p-btn p-btn-close" type="button" (click)="showCloseConfirm = true" [disabled]="activeSession.status === 'closed'">
@@ -1234,6 +1243,74 @@
           Transferir
         </button>
       </div>
+    </div>
+  </div>
+  }
+
+  <!-- Teams meeting modal -->
+  @if (showTeamsMeeting) {
+  <div class="floating-modal" (click)="closeTeamsMeeting()">
+    <div class="floating-modal-inner teams-mt-modal" (click)="$event.stopPropagation()">
+      <div class="tadv-header">
+        <div class="tadv-header-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><rect x="2" y="4" width="16" height="12" rx="2"/><path d="M22 7l-6 3 6 3V7z"/></svg>
+        </div>
+        <div>
+          <h3>Crear reunion de Teams</h3>
+          <p class="tadv-subtitle">Se agendara con la cuenta general de Teams</p>
+        </div>
+      </div>
+
+      @if (!teamsCreated) {
+      <div class="teams-mt-body">
+        <label class="teams-mt-field">
+          <span>Nombre de la reunion</span>
+          <input type="text" [(ngModel)]="teamsDraft.subject" placeholder="Reunion con el cliente" />
+        </label>
+        <label class="teams-mt-field">
+          <span>Hora</span>
+          <input type="datetime-local" [(ngModel)]="teamsDraft.startDateTime" />
+        </label>
+        <label class="teams-mt-field">
+          <span>Duracion</span>
+          <select [(ngModel)]="teamsDraft.durationMinutes">
+            <option [ngValue]="15">15 minutos</option>
+            <option [ngValue]="30">30 minutos</option>
+            <option [ngValue]="45">45 minutos</option>
+            <option [ngValue]="60">60 minutos</option>
+          </select>
+        </label>
+        <label class="teams-mt-check">
+          <input type="checkbox" [(ngModel)]="teamsDraft.agendarCalendario" />
+          <span>Agendar tambien en el calendario de Outlook</span>
+        </label>
+
+        @if (teamsMessage) {
+        <p class="teams-mt-msg" [class.err]="!teamsCreating">{{ teamsMessage }}</p>
+        }
+      </div>
+      <div class="tadv-actions">
+        <button class="modal-cancel" type="button" (click)="closeTeamsMeeting()" [disabled]="teamsCreating">Cancelar</button>
+        <button class="modal-confirm" type="button" (click)="createTeamsMeetingForChat()" [disabled]="teamsCreating">
+          {{ teamsCreating ? 'Creando reunion...' : 'Crear reunion' }}
+        </button>
+      </div>
+      } @else {
+      <div class="teams-mt-success">
+        <div class="teams-mt-success-ico">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" width="24" height="24"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <h3>Reunion creada</h3>
+        <p class="teams-mt-success-sub">{{ teamsCreated.subject }} · {{ fmtMedium(teamsCreated.startDateTime) }}</p>
+        <div class="teams-mt-link">
+          <span>{{ teamsCreated.joinUrl }}</span>
+          <button class="modal-confirm" type="button" (click)="copyTeamsMeetingLink()">{{ teamsCopied ? 'Copiado' : 'Copiar enlace' }}</button>
+        </div>
+        <div class="tadv-actions">
+          <button class="modal-confirm" type="button" (click)="closeTeamsMeeting()">Listo</button>
+        </div>
+      </div>
+      }
     </div>
   </div>
   }

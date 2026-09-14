@@ -34,6 +34,7 @@ import { WidgetConfig } from './widget/entities/widget-config.entity';
 import { AiLog } from './ai/entities/ai-log.entity';
 import { AdvisorsWhatsappModule } from './advisor-whatsapp/advisors-whatsapp.module';
 import { TeamsToken } from './advisor-whatsapp/entities/teams-token.entity';
+import { TeamsMeeting } from './advisor-whatsapp/entities/teams-meeting.entity';
 import { WhatsappChat } from './advisor-whatsapp/entities/whatsapp-chat.entity';
 import { WhatsappMessage } from './advisor-whatsapp/entities/whatsapp-message.entity';
 import { FaqModule } from './faq/faq.module';
@@ -169,6 +170,7 @@ import { AppService } from './app.service';
           WidgetConfig,
           AiLog,
           TeamsToken,
+          TeamsMeeting,
           WhatsappChat,
           WhatsappMessage,
           Faq,

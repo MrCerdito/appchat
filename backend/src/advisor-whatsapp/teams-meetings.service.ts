@@ -10,6 +10,7 @@ import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { createHash, randomBytes } from 'crypto';
 import { TeamsToken } from './entities/teams-token.entity';
+import { TeamsMeeting } from './entities/teams-meeting.entity';
 
 interface PendingAuth {
   advisorId: string;
@@ -38,6 +39,20 @@ export interface CalendarEventContact {
   email?: string;
 }
 
+export interface TeamsMeetingDto {
+  id: string;
+  subject: string;
+  startDateTime: string;
+  endDateTime: string;
+  durationMinutes: number;
+  joinUrl: string;
+  meetingId: string | null;
+  eventId: string | null;
+  calendarTarget: 'shared' | 'none';
+  createdByName: string | null;
+  createdAt: string;
+}
+
 @Injectable()
 export class TeamsMeetingsService {
   private readonly logger = new Logger(TeamsMeetingsService.name);
@@ -56,6 +71,8 @@ export class TeamsMeetingsService {
     private readonly config: ConfigService,
     @InjectRepository(TeamsToken)
     private readonly tokenRepo: Repository<TeamsToken>,
+    @InjectRepository(TeamsMeeting)
+    private readonly meetingRepo: Repository<TeamsMeeting>,
   ) {}
 
   async getStatus(advisorId: string) {
@@ -241,6 +258,159 @@ export class TeamsMeetingsService {
     }
   }
 
+  // ── Agenda (cuenta general) ────────────────────────────────────────────────
+
+  async listMeetings(from?: Date, to?: Date): Promise<TeamsMeetingDto[]> {
+    const where: any = {};
+    if (from || to) {
+      where.startDateTime = {};
+      if (from) where.startDateTime.moreThanOrEqual = from;
+      if (to) where.startDateTime.lessThanOrEqual = to;
+    }
+    const rows = await this.meetingRepo.find({
+      where,
+      order: { startDateTime: 'ASC' },
+    });
+    return rows.map((row) => this.toDto(row));
+  }
+
+  async createStandaloneMeeting(
+    user: { id: string; name?: string | null } | null,
+    input: TeamsMeetingInput & { calendarTarget?: 'shared' | 'none' },
+  ): Promise<TeamsMeetingDto> {
+    const subject = this.cleanSubject(input.subject);
+    const start = new Date(input.startDateTime);
+    if (Number.isNaN(start.getTime())) {
+      throw new BadRequestException('Hora de reunion invalida');
+    }
+
+    const duration = Math.min(Math.max(input.durationMinutes ?? 30, 15), 240);
+    const end = new Date(start.getTime() + duration * 60_000);
+    const email = this.generalAccountEmail();
+    const accessToken = await this.getAppAccessToken();
+
+    let data: any;
+    try {
+      const response = await axios.post(
+        `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(email)}/onlineMeetings`,
+        {
+          subject,
+          startDateTime: start.toISOString(),
+          endDateTime: end.toISOString(),
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+            'Accept-Language': 'es-CO',
+          },
+        },
+      );
+      data = response.data;
+    } catch (err: any) {
+      this.handleMicrosoftError(err, 'crear reunion');
+    }
+    const joinUrl = data?.joinWebUrl;
+    if (!joinUrl)
+      throw new BadRequestException('Teams no devolvio un enlace de reunion');
+
+    const meeting = {
+      subject,
+      startDateTime: data.startDateTime ?? start.toISOString(),
+      endDateTime: data.endDateTime ?? end.toISOString(),
+      joinUrl,
+    };
+
+    let eventId: string | null = null;
+    if (input.calendarTarget === 'shared') {
+      eventId = await this.createEventForAccount(email, meeting);
+    }
+
+    const row = this.meetingRepo.create({
+      createdBy: user?.id ?? null,
+      createdByName: user?.name ?? null,
+      subject,
+      startDateTime: new Date(meeting.startDateTime),
+      endDateTime: new Date(meeting.endDateTime),
+      durationMinutes: duration,
+      joinUrl,
+      meetingId: data?.id ?? null,
+      eventId,
+      calendarTarget: input.calendarTarget === 'shared' ? 'shared' : 'none',
+    });
+    const saved = await this.meetingRepo.save(row);
+    return this.toDto(saved);
+  }
+
+  private async createEventForAccount(
+    email: string,
+    meeting: TeamsMeetingResult,
+  ): Promise<string | null> {
+    const accessToken = await this.getAppAccessToken();
+    const description = [
+      `<p><b>Reunión Teams:</b> ${this.escHtml(meeting.subject)}</p>`,
+      `<p>Únase a la videollamada en este enlace: <a href="${this.escHtml(meeting.joinUrl)}">${this.escHtml(meeting.joinUrl)}</a></p>`,
+    ];
+    const eventBody = {
+      subject: meeting.subject,
+      start: {
+        dateTime: meeting.startDateTime,
+        timeZone: 'America/Bogota',
+      },
+      end: {
+        dateTime: meeting.endDateTime,
+        timeZone: 'America/Bogota',
+      },
+      isOnlineMeeting: true,
+      onlineMeetingProvider: 'teamsForBusiness',
+      body: {
+        contentType: 'html',
+        content: description.join('<br>'),
+      },
+      location: {
+        displayName: 'Microsoft Teams',
+      },
+    };
+
+    try {
+      const response = await axios.post(
+        `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(email)}/events`,
+        eventBody,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      return response?.data?.id ?? null;
+    } catch (err) {
+      this.handleMicrosoftError(err, `crear evento en calendario ${email}`);
+    }
+  }
+
+  private toDto(row: TeamsMeeting): TeamsMeetingDto {
+    return {
+      id: row.id,
+      subject: row.subject,
+      startDateTime: row.startDateTime.toISOString(),
+      endDateTime: row.endDateTime.toISOString(),
+      durationMinutes: row.durationMinutes,
+      joinUrl: row.joinUrl,
+      meetingId: row.meetingId,
+      eventId: row.eventId,
+      calendarTarget: row.calendarTarget,
+      createdByName: row.createdByName,
+      createdAt: row.createdAt.toISOString(),
+    };
+  }
+
+  private generalAccountEmail(): string {
+    return (
+      this.config.get<string>('TEAMS_MEETINGS_ACCOUNT') || 'soporte@innovacloud.co'
+    );
+  }
+
   private async getAccessToken(advisorId: string): Promise<string> {
     const token = await this.tokenRepo.findOne({ where: { advisorId } });
     if (!token)
@@ -289,16 +459,21 @@ export class TeamsMeetingsService {
 
     let data: any;
     try {
-      const response = await axios.post(this.tokenUrl(), body, {
+      const response = await axios.post(this.appTokenUrl(), body, {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       });
       data = response.data;
     } catch (err) {
+      const detail =
+        err?.response?.data?.error_description ||
+        err?.response?.data?.error_codes ||
+        err?.message ||
+        '';
       this.logger.warn(
-        `Fallo client_credentials: ${err?.response?.status} ${err?.response?.data?.error || err?.message}`,
+        `Fallo client_credentials: ${err?.response?.status} ${err?.response?.data?.error || err?.message} ${detail}`,
       );
       throw new BadRequestException(
-        'Error al autenticar aplicacion con Microsoft.',
+        `Error al autenticar aplicacion con Microsoft (client_credentials): ${detail} Verifica MICROSOFT_APP_TENANT_ID y que la app tenga credencial de tipo secret (client_credentials).`,
       );
     }
 
@@ -470,6 +645,25 @@ export class TeamsMeetingsService {
 
   private tokenUrl(): string {
     return `${this.authority()}/oauth2/v2.0/token`;
+  }
+
+  private appTokenUrl(): string {
+    const candidate = this.config.get<string>('MICROSOFT_APP_TENANT_ID');
+    if (this.isPlausibleTenant(candidate)) {
+      return `https://login.microsoftonline.com/${candidate}/oauth2/v2.0/token`;
+    }
+    const fallback = this.config.get<string>('MICROSOFT_TENANT_ID');
+    if (this.isPlausibleTenant(fallback)) {
+      return `https://login.microsoftonline.com/${fallback}/oauth2/v2.0/token`;
+    }
+    const accountDomain = this.generalAccountEmail().split('@')[1] || 'common';
+    return `https://login.microsoftonline.com/${accountDomain}/oauth2/v2.0/token`;
+  }
+
+  private isPlausibleTenant(value?: string): boolean {
+    const t = (value ?? '').trim();
+    if (!t || t === 'common' || t === 'consumers') return false;
+    return !/^(your-|change|cambio|tu-|su-|ingrese|reemplaza|placeholder|ejemplo)/i.test(t);
   }
 
   private redirectUri(): string {

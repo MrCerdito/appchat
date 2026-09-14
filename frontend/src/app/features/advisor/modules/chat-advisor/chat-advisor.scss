@@ -2277,6 +2277,13 @@ a {
     &:hover:not(:disabled) { background: darken($success, 6%); }
   }
 
+  &.p-btn-meeting {
+    background: #fff;
+    border-color: #c7d2fe;
+    color: #4f46e5;
+    &:hover:not(:disabled) { background: #eef2ff; border-color: #a5b4fc; }
+  }
+
   &.p-btn-close {
     background: #fff;
     border-color: #ffd3d3;
@@ -4665,5 +4672,126 @@ a {
   .ci-datos .ci-dato {
     grid-template-columns: 116px 1fr;
     gap: 10px;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// REUNION TEAMS (modal del panel de informacion)
+// ══════════════════════════════════════════════════════════════════════════════
+
+.teams-mt-modal {
+  width: min(420px, calc(100vw - 32px));
+
+  .teams-mt-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    max-height: calc(100vh - 240px);
+    overflow: auto;
+  }
+
+  .teams-mt-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+
+    > span {
+      font-size: 12px;
+      font-weight: 600;
+      color: $text-secondary;
+    }
+
+    input,
+    select {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 9px 11px;
+      border: 1px solid $border;
+      border-radius: $radius-md;
+      background: #fff;
+      color: $text;
+      font-size: 14px;
+      font-family: inherit;
+
+      &:focus {
+        outline: none;
+        border-color: $primary;
+        box-shadow: 0 0 0 3px rgba($primary, 0.14);
+      }
+    }
+  }
+
+  .teams-mt-check {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 9px 10px;
+    border: 1px solid $border;
+    border-radius: $radius-md;
+    background: #fafbff;
+
+    input { margin-top: 2px; accent-color: $primary; }
+
+    span { font-size: 12.5px; color: $text; }
+  }
+
+  .teams-mt-msg {
+    margin: 0;
+    font-size: 12.5px;
+    color: $text-secondary;
+
+    &.err { color: $danger; }
+  }
+
+  .teams-mt-success {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 24px 18px 20px;
+    text-align: center;
+
+    h3 { margin: 0; font-size: 16px; color: $text; }
+
+    &-ico {
+      display: grid;
+      place-items: center;
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      background: $success-soft;
+      color: $success;
+    }
+
+    &-sub {
+      margin: 0;
+      font-size: 13px;
+      color: $text-secondary;
+    }
+  }
+
+  .teams-mt-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    border: 1px solid $border;
+    border-radius: $radius-md;
+    background: #fafbff;
+
+    span {
+      flex: 1;
+      min-width: 0;
+      font-size: 12px;
+      color: $text;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .modal-confirm { flex-shrink: 0; }
   }
 }

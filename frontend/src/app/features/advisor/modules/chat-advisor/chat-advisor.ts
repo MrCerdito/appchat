@@ -14,6 +14,10 @@ import { ModuloService } from '../../../../core/services/modulo.service';
 import { SoundService } from '../../../../core/services/sound.service';
 import { AdvisorNotificationService } from '../../../../core/services/advisor-notification.service';
 import { NotificationService } from '../../../../core/services/notification.service';
+import {
+  WhatsappChatService,
+  TeamsMeetingDto,
+} from '../../../../core/services/whatsapp-chat.service';
 import { ChatMediaService } from '../../../../core/services/chat-media.service';
 import { Message, Attachment, TimelineItem, TimelineResp, TimelineEvento } from '../../../../core/models/message.model';
 import { Session } from '../../../../core/models/session.model';
@@ -112,6 +116,19 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   remitLoading  = false;
   remitFeedback : { type: 'ok' | 'error'; text: string } | null = null;
   aiModeActive  = false;
+
+  // ── Reunion Teams (panel de informacion del chat) ────────────────────────
+  showTeamsMeeting = false;
+  teamsDraft = {
+    subject       : '',
+    startDateTime : '',
+    durationMinutes: 30,
+    agendarCalendario: true,
+  };
+  teamsCreating   = false;
+  teamsMessage    = '';
+  teamsCreated    : TeamsMeetingDto | null = null;
+  teamsCopied     = false;
 
   // ── Mejorar mensaje con IA ────────────────────────────────────────────────
   showImprovePanel = false;
@@ -219,6 +236,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     private router      : Router,
     private cdr         : ChangeDetectorRef,
     private chatMedia   : ChatMediaService,
+    private waTeamService: WhatsappChatService,
   ) {}
 
   // ── Getters ───────────────────────────────────────────────────────────────
@@ -891,6 +909,80 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     this.remitFeedback = null;
     this.socket.emit('deactivate_ai_mode', this.activeSession.id);
     this.cdr.detectChanges();
+  }
+
+  // ── Reunion Teams desde el panel de informacion ─────────────────────────
+  openTeamsMeeting(): void {
+    if (!this.activeSession || this.teamsCreating) return;
+    const start = new Date();
+    start.setMinutes(0, 0, 0);
+    start.setHours(start.getHours() + 1);
+    const p = (n: number) => String(n).padStart(2, '0');
+    this.teamsDraft = {
+      subject       : `Reunion con ${this.sessionFullName(this.activeSession)}`,
+      startDateTime : `${start.getFullYear()}-${p(start.getMonth() + 1)}-${p(start.getDate())}T${p(start.getHours())}:${p(start.getMinutes())}`,
+      durationMinutes: 30,
+      agendarCalendario: true,
+    };
+    this.teamsMessage = '';
+    this.teamsCreated = null;
+    this.teamsCopied  = false;
+    this.showTeamsMeeting = true;
+    this.cdr.detectChanges();
+  }
+
+  closeTeamsMeeting(): void {
+    if (this.teamsCreating) return;
+    this.showTeamsMeeting = false;
+    this.teamsMessage = '';
+    this.teamsCreated = null;
+    this.teamsCopied  = false;
+    this.cdr.detectChanges();
+  }
+
+  async createTeamsMeetingForChat(): Promise<void> {
+    if (this.teamsCreating) return;
+    const subject = this.teamsDraft.subject.trim();
+    if (!subject || !this.teamsDraft.startDateTime) {
+      this.teamsMessage = 'Escribe un nombre y una fecha valida.';
+      return;
+    }
+    this.teamsCreating = true;
+    this.teamsMessage  = 'Creando reunion de Teams...';
+    this.cdr.detectChanges();
+    try {
+      this.teamsCreated = await firstValueFrom(
+        this.waTeamService.createStandaloneMeeting({
+          subject,
+          startDateTime: new Date(this.teamsDraft.startDateTime).toISOString(),
+          durationMinutes: this.teamsDraft.durationMinutes,
+          calendarTarget: this.teamsDraft.agendarCalendario ? 'shared' : 'none',
+        }),
+      );
+      this.teamsMessage = '';
+    } catch (err: any) {
+      const msg = err?.error?.message || err?.message || '';
+      this.teamsMessage = msg || 'No se pudo crear la reunion.';
+    } finally {
+      this.teamsCreating = false;
+      this.cdr.detectChanges();
+    }
+  }
+
+  async copyTeamsMeetingLink(): Promise<void> {
+    if (!this.teamsCreated) return;
+    try {
+      await navigator.clipboard.writeText(this.teamsCreated.joinUrl);
+      this.teamsCopied = true;
+      this.cdr.detectChanges();
+      setTimeout(() => {
+        this.teamsCopied = false;
+        this.cdr.detectChanges();
+      }, 2000);
+    } catch {
+      this.teamsMessage = 'No se pudo copiar el enlace.';
+      this.cdr.detectChanges();
+    }
   }
 
   // ── Colaborador ───────────────────────────────────────────────────────────

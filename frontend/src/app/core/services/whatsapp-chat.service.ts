@@ -44,6 +44,27 @@ export interface TeamsMeetingResponse {
   chat?: WaChat;
 }
 
+export interface TeamsMeetingDto {
+  id: string;
+  subject: string;
+  startDateTime: string;
+  endDateTime: string;
+  durationMinutes: number;
+  joinUrl: string;
+  meetingId?: string | null;
+  eventId?: string | null;
+  calendarTarget: 'shared' | 'none';
+  createdByName?: string | null;
+  createdAt: string;
+}
+
+export interface CreateStandaloneMeetingRequest {
+  subject: string;
+  startDateTime: string;
+  durationMinutes?: number;
+  calendarTarget?: 'shared' | 'none';
+}
+
 @Injectable({ providedIn: 'root' })
 export class WhatsappChatService implements OnDestroy {
   private readonly apiUrl = `${environment.apiUrl}/advisors-whatsapp`;
@@ -704,6 +725,26 @@ export class WhatsappChatService implements OnDestroy {
       tap(res => {
         if (res.chat) this.upsertChat(res.chat);
       }),
+    );
+  }
+
+  getMeetings(from?: string, to?: string): Observable<TeamsMeetingDto[]> {
+    let params = new HttpParams();
+    if (from) params = params.set('from', from);
+    if (to) params = params.set('to', to);
+    return this.http.get<TeamsMeetingDto[]>(
+      `${this.apiUrl}/teams/meetings`,
+      { headers: this.headers(), params },
+    );
+  }
+
+  createStandaloneMeeting(
+    payload: CreateStandaloneMeetingRequest,
+  ): Observable<TeamsMeetingDto> {
+    return this.http.post<TeamsMeetingDto>(
+      `${this.apiUrl}/teams/meetings`,
+      payload,
+      { headers: this.headers() },
     );
   }
 

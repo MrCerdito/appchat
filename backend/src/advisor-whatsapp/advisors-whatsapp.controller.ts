@@ -588,6 +588,37 @@ export class AdvisorsWhatsappController {
     }
   }
 
+  @Get('teams/meetings')
+  @UseGuards(JwtAuthGuard)
+  async listTeamsMeetings(
+    @Req() _req: Request & { user: any },
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    const fromDate = from && !Number.isNaN(new Date(from).getTime()) ? new Date(from) : undefined;
+    const toDate = to && !Number.isNaN(new Date(to).getTime()) ? new Date(to) : undefined;
+    return this.teamsService.listMeetings(fromDate, toDate);
+  }
+
+  @Post('teams/meetings')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(201)
+  async createStandaloneTeamsMeeting(
+    @Req() req: Request & { user: any },
+    @Body()
+    body: {
+      subject: string;
+      startDateTime: string;
+      durationMinutes?: number;
+      calendarTarget?: 'shared' | 'none';
+    },
+  ) {
+    return this.teamsService.createStandaloneMeeting(
+      { id: req.user.id, name: req.user.name || req.user.email || null },
+      body,
+    );
+  }
+
   @Post('chats/:chatId/teams-meeting')
   @UseGuards(JwtAuthGuard)
   @HttpCode(200)

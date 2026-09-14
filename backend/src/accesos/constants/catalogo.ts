@@ -71,6 +71,13 @@ export const CATALOGO_MODULOS: ModuloDef[] = [
     descripcion: 'Información institucional del colegio',
     aplicaA: ['advisor', 'admin', 'interno'],
   },
+  {
+    codigo: 'calendario',
+    nombre: 'Calendario',
+    grupo: 'Gestión',
+    descripcion: 'Agenda de reuniones de Teams de la cuenta general',
+    aplicaA: ['advisor', 'admin', 'interno'],
+  },
 
   // ── Análisis ────────────────────────────────────────────────
   {
