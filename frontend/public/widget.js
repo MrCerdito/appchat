@@ -46,6 +46,12 @@
     burbujaImagen      : '',
   };
 
+  // Marca por proyecto: color del botón/acentos + fondo claro del chat.
+  var PROYECTOS = {
+    Sian365:         { color: '#ce9b30', bg: '#fcf3d9' },
+    ControlAcademic: { color: '#1a3fa8', bg: '#d8e4f8' },
+  };
+
   /* ═══════════════════════════════════════════════════════════
      SECCIÓN 3 — LOGGER
   ═══════════════════════════════════════════════════════════ */
@@ -73,6 +79,8 @@
   ═══════════════════════════════════════════════════════════ */
   var unreadCount = 0;
   var badgeEl = null;
+  var brandColor = null; // color de marca del proyecto (Sian365 / ControlAcademic)
+  var brandBg    = null; // fondo claro del chat según la marca
 
   /* ═══════════════════════════════════════════════════════════
      SECCIÓN 5 — SVG PATHS
@@ -128,6 +136,55 @@
     var b = parseInt(hex.slice(5,7),16);
     var lum = (0.299*r + 0.587*g + 0.114*b) / 255;
     return lum > 0.5 ? '#111111' : '#ffffff';
+  }
+
+  /** Aclara (pct > 0) u oscurece (pct < 0) un color hex. */
+  function shade(hex, pct) {
+    hex = sanitizeHex(hex) || '#0b5ed7';
+    var r = parseInt(hex.slice(1,3),16);
+    var g = parseInt(hex.slice(3,5),16);
+    var b = parseInt(hex.slice(5,7),16);
+    var t = pct > 0 ? 255 : 0;
+    var a  = Math.abs(pct) / 100;
+    var mix = function (c) {
+      var v = Math.round(c + (t - c) * a);
+      v = Math.max(0, Math.min(255, v));
+      return v.toString(16).padStart(2, '0');
+    };
+    return '#' + mix(r) + mix(g) + mix(b);
+  }
+
+  // Helper para probar marcas en la página de preview sin una institución real:
+  // widget-preview.html?sian-proyecto=ControlAcademic  (o =Sian365)
+  function detectDebugBrand() {
+    try {
+      var q = (window.location.search + window.location.hash);
+      var m = q.match(/sian[_-]?proyecto[=:]([a-z0-9]+)/i);
+      if (!m) return null;
+      var p = m[1].toLowerCase();
+      var key = (p === 'sian365' || p === 'sian') ? 'Sian365'
+        : (p === 'controlacademic' || p === 'ctl' || p === 'ctrl' || p === 'control' ? 'ControlAcademic' : '');
+      return key ? PROYECTOS[key] : null;
+    } catch (_) { return null; }
+  }
+
+  /** Detecta el proyecto al instante llamando al backend con la URL actual,
+   *  para que el color y el fondo se fijen ANTES de que cargue el chat. */
+  function detectarProyecto() {
+    try {
+      fetch(API_BASE + '/sessions/colegios/detectar', {
+        method : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body   : JSON.stringify({ url: location.href }),
+      })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (res) {
+          if (!res || !res.tipoColegio || brandColor) return;
+          var p = PROYECTOS[res.tipoColegio];
+          if (p) applyBrand(p.color, p.bg);
+        })
+        .catch(function () {});
+    } catch (_) {}
   }
 
   /* ═══════════════════════════════════════════════════════════
@@ -200,6 +257,7 @@
   var API_BASE = BASES.apiBase;
   var SPA_BASE = BASES.spaBase;
   var API_URL  = API_BASE + API_PATH;
+  var LOGO_URL = (SPA_BASE ? SPA_BASE.replace(/\/+$/, '') : location.origin) + '/LOGO.png';
 
   // ── Data attributes sobreescritura ─────────────────────────────────────────
   var IS_PREVIEW    = getDataAttr('preview') === 'true';
@@ -327,11 +385,34 @@
 
     root.appendChild(panel);
 
-    // ── Botón flotante ──
+    // ── Botón flotante premium (círculo Korvix) ──
     var btn = document.createElement('button');
     btn.id  = 'sian-btn';
     btn.setAttribute('aria-label', 'Abrir chat');
     btn.addEventListener('click', togglePanel);
+
+    var logo = document.createElement('span');
+    logo.className = 'sian-kx-logo';
+    var logoImg = document.createElement('img');
+    logoImg.src = LOGO_URL;
+    logoImg.alt = 'Korvix';
+    logoImg.addEventListener('error', function () {
+      logoImg.style.display = 'none';
+      var letter = logo.querySelector('.sian-kx-letter');
+      if (letter) letter.style.display = 'block';
+    });
+    var letter = document.createElement('span');
+    letter.className = 'sian-kx-letter';
+    letter.textContent = 'K';
+    logo.appendChild(logoImg);
+    logo.appendChild(letter);
+
+    var xIc = document.createElement('span');
+    xIc.className = 'sian-kx-x';
+    xIc.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="var(--sian-brand, #0b5ed7)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+    logo.appendChild(xIc);
+
+    btn.appendChild(logo);
     root.appendChild(btn);
 
     // ── Badge de no-leídos ──
@@ -375,17 +456,20 @@
 
   function getPanelStyle(posicion, dims, size) {
     if (dims.mobile) {
-      var gap = 4;
+      // En móvil el botón flotante queda acoplado bajo/sobre el panel (mismo
+      // criterio que desktop) para que NUNCA se superponga con el contenido.
+      var gap = (size || 56) + 20;
+      var h   = Math.max(240, dims.h + 4 - gap) + 'px';
       var styles = {
-        'bottom-right': { bottom: gap + 'px', left: '4px', width: dims.w + 'px', height: dims.h + 'px', borderRadius: '20px', transformOrigin: 'bottom center' },
-        'bottom-left' : { bottom: gap + 'px', left: '4px', width: dims.w + 'px', height: dims.h + 'px', borderRadius: '20px', transformOrigin: 'bottom center' },
-        'top-right'   : { top:    gap + 'px', left: '4px', width: dims.w + 'px', height: dims.h + 'px', borderRadius: '20px', transformOrigin: 'top center'    },
-        'top-left'    : { top:    gap + 'px', left: '4px', width: dims.w + 'px', height: dims.h + 'px', borderRadius: '20px', transformOrigin: 'top center'    },
+        'bottom-right': { bottom: gap + 'px', left: '4px', width: dims.w + 'px', height: h, borderRadius: '20px', transformOrigin: 'bottom center' },
+        'bottom-left' : { bottom: gap + 'px', left: '4px', width: dims.w + 'px', height: h, borderRadius: '20px', transformOrigin: 'bottom center' },
+        'top-right'   : { top:    gap + 'px', left: '4px', width: dims.w + 'px', height: h, borderRadius: '20px', transformOrigin: 'top center'    },
+        'top-left'    : { top:    gap + 'px', left: '4px', width: dims.w + 'px', height: h, borderRadius: '20px', transformOrigin: 'top center'    },
       };
       return styles[posicion] || styles['bottom-right'];
     }
     // Desktop
-    var gap = size + 12;
+    var gap = size + 20;
     var br  = '20px';
     var w   = dims.w + 'px';
     var h   = dims.h + 'px';
@@ -456,30 +540,26 @@
     var iconKey = isOpen ? 'close' : (cfg.icono || 'chat');
     var iconSz  = Math.round(size * 0.44);
 
-    // ── Botón flotante ──
+    // ── Botón flotante (diseño premium Korvix, no depende de la config) ──
     var btn = document.getElementById('sian-btn');
     if (btn) {
-      var rgb = hexToRgb(cfg.color);
-      btn.style.background = cfg.color;
-      btn.style.boxShadow  = '0 4px 18px rgba('+rgb+',0.40), 0 1px 4px rgba('+rgb+',0.25)';
+      // Color de marca del proyecto, o azul Korvix por defecto.
+      var base = (brandColor && sanitizeHex(brandColor)) || '#0b5ed7';
 
-      if (hasText && !isOpen) {
-        btn.style.height       = size + 'px';
-        btn.style.width        = 'auto';
-        btn.style.borderRadius = size + 'px';
-        btn.style.padding      = '0 20px';
-        btn.innerHTML = makeSvg(iconKey, iconSz, 2.2)
-          + '<span style="color:white;font-weight:600">' + cfg.textoBoton + '</span>';
+      btn.style.width        = '64px';
+      btn.style.height       = '64px';
+      btn.style.borderRadius = '50%';
+      btn.style.padding      = '0';
+      btn.style.background   = 'linear-gradient(135deg, ' + shade(base, -14) + ' 0%, ' + base + ' 50%, ' + shade(base, 26) + ' 100%)';
+
+      btn.classList.toggle('sian-kx-open', isOpen);
+      if (isOpen) {
+        btn.setAttribute('aria-label', 'Cerrar chat');
       } else {
-        btn.style.width        = size + 'px';
-        btn.style.height       = size + 'px';
-        btn.style.borderRadius = btnRadius();
-        btn.style.padding      = '0';
-        btn.innerHTML = makeSvg(iconKey, iconSz, isOpen ? 2.5 : 2.2);
+        btn.setAttribute('aria-label', 'Abrir chat');
       }
 
       applyPos(btn, BTN_POS[cfg.posicion] || BTN_POS['bottom-right']);
-      btn.setAttribute('aria-label', isOpen ? 'Cerrar chat' : 'Abrir chat');
     }
 
     // ── Burbuja ──
@@ -521,7 +601,7 @@
         iframe.src = chatSrc;
       }
       // Fondo del iframe mientras carga
-      iframe.style.background = cfg.chatBgColor;
+      iframe.style.background = (brandColor && brandBg) ? brandBg : cfg.chatBgColor;
       iframe.style.width   = '100%';
       iframe.style.height  = '100%';
       iframe.style.border  = 'none';
@@ -550,12 +630,21 @@
   }
 
   function themePayload(c) {
+    var header = c.chatHeaderColor;
+    var userBubble = c.chatBubbleUserColor;
+    var bg = c.chatBgColor;
+    // La marca del proyecto (Sian365 / ControlAcademic) manda sobre la config.
+    if (brandColor) {
+      header    = brandColor;
+      userBubble = brandColor;
+      if (brandBg) bg = brandBg;
+    }
     return {
       type               : 'sian-theme',
-      chatHeaderColor    : c.chatHeaderColor,
-      chatBgColor        : c.chatBgColor,
+      chatHeaderColor    : header,
+      chatBgColor        : bg,
       chatBubbleColor    : c.chatBubbleColor,
-      chatBubbleUserColor: c.chatBubbleUserColor,
+      chatBubbleUserColor: userBubble,
       chatMarca          : c.chatMarca,
       chatAvatar         : c.chatAvatar,
       pageUrl            : location.href,
@@ -566,6 +655,25 @@
     try {
       iframe.contentWindow.postMessage(themePayload(c), chatTargetOrigin(c));
     } catch (_) {}
+  }
+
+  // ── Marca del proyecto ─────────────────────────────────────────────────────
+  // El widget detecta la institución (tipoColegio) o el chat la notifica con
+  // 'sian-brand'. Aplica el color al botón, el fondo claro del chat y lo
+  // reenvía en el tema para que se aplique antes/instantáneamente.
+  function applyBrand(color, bg) {
+    var hex = sanitizeHex(color);
+    if (!hex) return;
+    brandColor = hex;
+    brandBg = (bg && /^#[0-9a-fA-F]{6}$/.test(bg)) ? bg : null;
+    document.documentElement.style.setProperty('--sian-brand', hex);
+    if (brandBg) document.documentElement.style.setProperty('--sian-bg', brandBg);
+    var f = document.getElementById('sian-iframe');
+    if (f) {
+      if (brandBg) f.style.background = brandBg;
+      postTheme(f, cfg);
+    }
+    paint(cfg);
   }
 
   // ── Theme confirmation tracking ────────────────────────────────────────────
@@ -627,6 +735,9 @@
     if (event.data.type === 'sian-close-panel') {
       closePanel();
     }
+    if (event.data.type === 'sian-brand') {
+      applyBrand(event.data.color, event.data.bg);
+    }
     if (event.data.type === 'sian-ready') {
       // El chat (lazy) avisa que ya escucha 'sian-theme'. Como el iframe
       // pudo haberse cargado antes de que Angular registrara el listener,
@@ -642,6 +753,7 @@
   widgetStyle.textContent = `
 #sian-widget-root {
   display: block;
+  --sian-brand: #0b5ed7;
 }
 #sian-widget-root *,
 #sian-widget-root *::before,
@@ -652,7 +764,6 @@
   position: fixed;
   display: none;
   overflow: hidden;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
   z-index: 2147483647;
   background: #fff;
   flex-direction: column;
@@ -670,20 +781,77 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
   cursor: pointer;
-  border: none;
+  border: 1px solid rgba(255,255,255,0.35);
   outline: none;
   z-index: 2147483647;
-  transition: opacity 0.2s, transform 0.15s;
   font-family: inherit;
+  transition: transform 0.25s cubic-bezier(0.2,0.8,0.2,1), filter 0.25s ease;
 }
 #sian-btn:hover {
-  opacity: 0.9;
-  transform: scale(1.05);
+  transform: translateY(-3px);
+  filter: brightness(1.07);
 }
 #sian-btn:active {
-  transform: scale(0.95);
+  transform: translateY(-1px) scale(0.97);
+}
+#sian-btn .sian-kx-logo {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.98);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+#sian-btn.sian-kx-open { animation: sianKxPop 0.28s cubic-bezier(0.2,0.8,0.2,1); }
+@keyframes sianKxPop {
+  0%   { transform: scale(1); }
+  45%  { transform: scale(1.07); }
+  100% { transform: scale(1); }
+}
+#sian-btn .sian-kx-logo img {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+  display: block;
+}
+#sian-btn .sian-kx-logo .sian-kx-letter {
+  display: none;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--sian-brand, #0b5ed7);
+}
+#sian-btn .sian-kx-x {
+  display: none;
+  position: absolute;
+  inset: 0;
+  align-items: center;
+  justify-content: center;
+  color: var(--sian-brand, #0b5ed7);
+}
+#sian-btn .sian-kx-x svg {
+  width: 26px;
+  height: 26px;
+  stroke: var(--sian-brand, #0b5ed7);
+}
+#sian-btn.sian-kx-open .sian-kx-logo img,
+#sian-btn.sian-kx-open .sian-kx-letter { display: none !important; }
+#sian-btn.sian-kx-open .sian-kx-x {
+  display: flex;
+  animation: sianKxXIn 0.25s cubic-bezier(0.2,0.8,0.2,1);
+}
+@keyframes sianKxXIn {
+  from { opacity: 0; transform: scale(0.4) rotate(-60deg); }
+  to   { opacity: 1; transform: scale(1)    rotate(0deg); }
+}
+@media (max-width: 520px) {
+  #sian-btn { width: 56px; height: 56px; }
+  #sian-btn .sian-kx-logo { width: 49px; height: 49px; }
+  #sian-btn .sian-kx-logo img { width: 36px; height: 36px; }
+  #sian-btn .sian-kx-x svg { width: 24px; height: 24px; }
 }
 #sian-bubble {
   position: fixed;
@@ -693,7 +861,6 @@
   background: #fff;
   border-radius: 16px;
   padding: 8px 16px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
   font-size: 14px;
   line-height: 1.4;
   color: #333;
@@ -756,7 +923,7 @@
   border-radius: 10px; background: #ef4444;
   color: #fff; font-size: 10px; font-weight: 700;
   align-items: center; justify-content: center;
-  padding: 0 4px; box-shadow: 0 2px 6px rgba(239,68,68,0.4);
+  padding: 0 4px;
   z-index: 2147483647; pointer-events: none;
 }
 @keyframes sian-bounce {
@@ -851,6 +1018,14 @@
       fetchCfg();
       setInterval(fetchCfg, POLL_MS);
     }
+
+    // Marca por query (?sian-proyecto=...) para probar el preview sin institución.
+    if (!brandColor) {
+      var debugBrand = detectDebugBrand();
+      if (debugBrand) applyBrand(debugBrand.color, debugBrand.bg);
+    }
+    // Detección instantánea del proyecto real (color + fondo antes del chat).
+    detectarProyecto();
   }
 
   if (document.readyState === 'loading') {

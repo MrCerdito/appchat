@@ -1493,10 +1493,12 @@ export class SessionsService {
 
   async detectarColegio(
     url: string,
-  ): Promise<{ id: string; nombre: string } | null> {
+  ): Promise<{ id: string; nombre: string; tipoColegio: string | null } | null> {
     const colegios = await this.findAllColegios();
     const match = matchColegio(colegios, url);
-    return match ? { id: match.id, nombre: match.nombre } : null;
+    return match
+      ? { id: match.id, nombre: match.nombre, tipoColegio: match.tipoColegio ?? null }
+      : null;
   }
 
   async createColegio(data: {

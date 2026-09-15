@@ -132,7 +132,7 @@
     <div class="card form-card">
       <div class="card-header">
         <div class="brand-mark">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
           </svg>
         </div>
@@ -140,27 +140,59 @@
           <h2>Iniciar conversación</h2>
           <p>Completa tus datos para continuar</p>
         </div>
+        <div class="hd-art" aria-hidden="true">
+          <span class="art-bub art-bub--a"></span>
+          <span class="art-bub art-bub--b">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </span>
+        </div>
       </div>
 
       <div class="card-body">
         <div class="field" [class.error]="submitted && !identificacion.trim()">
-          <label>Identificación <span class="req">*</span></label>
-          <input type="tel" inputmode="numeric" pattern="[0-9]*"
-            [(ngModel)]="identificacion" placeholder="Ej: 1234567890"
-            (input)="onIdentificacionInput($event)"
-            maxlength="20"/>
+          <label for="f-identificacion">Identificación <span class="req">*</span></label>
+          <div class="input-wrap">
+            <span class="input-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="16" rx="2"/>
+                <circle cx="9" cy="10" r="2"/>
+                <path d="M15 8h4M15 12h4M7 16h10"/>
+              </svg>
+            </span>
+            <input id="f-identificacion" type="tel" inputmode="numeric" pattern="[0-9]*"
+              [(ngModel)]="identificacion" placeholder="Ej: 1234567890"
+              (input)="onIdentificacionInput($event)" maxlength="20"/>
+          </div>
           <span class="err-msg">Solo se permiten números</span>
         </div>
 
         <div class="field-row">
           <div class="field" [class.error]="submitted && !clientName.trim()">
-            <label>Nombre <span class="req">*</span></label>
-            <input type="text" [(ngModel)]="clientName" placeholder="Ej: Juan" maxlength="50"/>
+            <label for="f-nombre">Nombre <span class="req">*</span></label>
+            <div class="input-wrap">
+              <span class="input-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                  <circle cx="12" cy="7" r="4"/>
+                </svg>
+              </span>
+              <input id="f-nombre" type="text" [(ngModel)]="clientName" placeholder="Ej: Juan" maxlength="50"/>
+            </div>
             <span class="err-msg">Campo requerido</span>
           </div>
           <div class="field" [class.error]="submitted && !apellido.trim()">
-            <label>Apellido <span class="req">*</span></label>
-            <input type="text" [(ngModel)]="apellido" placeholder="Ej: Pérez" maxlength="50"/>
+            <label for="f-apellido">Apellido <span class="req">*</span></label>
+            <div class="input-wrap">
+              <span class="input-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                  <circle cx="12" cy="7" r="4"/>
+                </svg>
+              </span>
+              <input id="f-apellido" type="text" [(ngModel)]="apellido" placeholder="Ej: Pérez" maxlength="50"/>
+            </div>
             <span class="err-msg">Campo requerido</span>
           </div>
         </div>
@@ -168,7 +200,7 @@
         @if (colegioDetectado) {
         <div class="colegio-found">
           <span class="colegio-found__icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
               <path d="M20 6L9 17l-5-5"/>
             </svg>
           </span>
@@ -185,17 +217,23 @@
         }
 
         <div class="field" [class.error]="submitted && !rol">
-          <label>Rol <span class="req">*</span></label>
-          <div class="select-wrap">
-            <select [(ngModel)]="rol">
-              <option value="">Selecciona tu rol</option>
+          <label for="f-rol">Rol <span class="req">*</span></label>
+          <div class="input-wrap input-wrap--select">
+            <span class="input-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="7" width="20" height="14" rx="2"/>
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+              </svg>
+            </span>
+            <select id="f-rol" [(ngModel)]="rol">
+              <option value="" disabled>Selecciona tu rol</option>
               <option value="estudiante">Estudiante</option>
               <option value="docente">Docente</option>
               <option value="administrador">Administrador</option>
               <option value="coordinador">Coordinador</option>
               <option value="padre">Padre / Madre</option>
             </select>
-            <span class="arrow">
+            <span class="input-arrow">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="6 9 12 15 18 9"/>
               </svg>
@@ -205,31 +243,52 @@
         </div>
 
         <div class="field" [class.error]="submitted && !emailValido">
-          <label>Correo electrónico <span class="req">*</span></label>
-          <input type="email" inputmode="email" [(ngModel)]="email"
-            placeholder="Ej: juan.perez@correo.com" maxlength="100"/>
+          <label for="f-email">Correo electrónico <span class="req">*</span></label>
+          <div class="input-wrap">
+            <span class="input-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="4" width="20" height="16" rx="2"/>
+                <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+              </svg>
+            </span>
+            <input id="f-email" type="email" inputmode="email" [(ngModel)]="email"
+              placeholder="Ej: juan.perez@correo.com" maxlength="100"/>
+          </div>
           <span class="err-msg">Ingresa un correo válido</span>
         </div>
 
         <div class="field" [class.error]="submitted && !celularValido">
-          <label>Número celular <span class="req">*</span></label>
-          <input type="tel" inputmode="numeric" pattern="[0-9]*" [(ngModel)]="celular"
-            placeholder="Ej: 3001234567" (input)="onCelularInput($event)" maxlength="15"/>
+          <label for="f-celular">Número celular <span class="req">*</span></label>
+          <div class="input-wrap">
+            <span class="input-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+              </svg>
+            </span>
+            <input id="f-celular" type="tel" inputmode="numeric" pattern="[0-9]*" [(ngModel)]="celular"
+              placeholder="Ej: 3001234567" (input)="onCelularInput($event)" maxlength="15"/>
+          </div>
           <span class="err-msg">Ingresa un número válido (7 a 15 dígitos)</span>
         </div>
 
         <div class="field" [class.error]="submitted && !tipoSolicitud">
-          <label>Tipo de solicitud <span class="req">*</span></label>
-          <div class="select-wrap">
-            <select [(ngModel)]="tipoSolicitud">
-              <option value="">Selecciona el motivo</option>
+          <label for="f-tipo">Tipo de solicitud <span class="req">*</span></label>
+          <div class="input-wrap input-wrap--select">
+            <span class="input-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+              </svg>
+            </span>
+            <select id="f-tipo" [(ngModel)]="tipoSolicitud">
+              <option value="" disabled>Selecciona el motivo</option>
               <option value="info">Información general</option>
               <option value="soporte">Soporte técnico</option>
               <option value="matricula">Matrícula</option>
               <option value="pagos">Pagos</option>
               <option value="otro">Otro</option>
             </select>
-            <span class="arrow">
+            <span class="input-arrow">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="6 9 12 15 18 9"/>
               </svg>
@@ -242,14 +301,14 @@
           <label class="consent-check">
             <input type="checkbox" [(ngModel)]="aceptaTratamiento" (change)="onTratamientoChange($any($event.target).checked)"/>
             <span class="consent-box">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M20 6L9 17l-5-5"/>
               </svg>
             </span>
-            <span class="consent-text">
-              He leído y acepto el <a href="#" (click)="verTratamientoDatos($event)">tratamiento de datos personales</a>
-            </span>
           </label>
+          <span class="consent-text" (click)="onConsentTextClick($event)">
+            He leído y acepto el <a href="#" (click)="verTratamientoDatos($event)">tratamiento de datos personales</a>
+          </span>
           <span class="err-msg">Debes aceptar el tratamiento de datos para continuar</span>
         </div>
 
@@ -262,17 +321,20 @@
         </div>
         }
 
-        <button class="btn-submit" (click)="startChat()">
-          Iniciar chat
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
-          </svg>
-        </button>
-      </div>
-
-      <div class="card-footer">
-        <span class="footer-dot online"></span>
-        <span>Atención en línea · Respuesta en minutos</span>
+        <div class="submit-zone">
+          <div class="submit-deco" aria-hidden="true">
+            <svg class="sd sd--1" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2l1.9 5.1L19 9l-5.1 1.9L12 16l-1.9-5.1L5 9l5.1-1.9z"/>
+            </svg>
+            <svg class="sd sd--2" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 4l1.3 3.5L17 8.8l-3.7 1.3L12 13.6l-1.3-3.5L7 8.8l3.7-1.3z"/>
+            </svg>
+            <span class="sd-line"></span>
+          </div>
+          <button class="btn-submit" type="button" (click)="startChat()">
+            <span>Iniciar chat</span>
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -381,9 +443,15 @@
       <div class="header-left">
         <div class="header-avatar" [class.ai-avatar]="aiMode">
           @if (aiMode) {
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H1a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73A2 2 0 0 1 10 4a2 2 0 0 1 2-2z"/>
-          </svg>
+            @if (!avatarIaError && avatarIaUrl) {
+            <img [src]="avatarIaUrl" alt="Asistente Virtual"
+                 class="advisor-avatar-img ia-avatar-img"
+                 (error)="avatarIaError = true" />
+            } @else {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H1a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73A2 2 0 0 1 10 4a2 2 0 0 1 2-2z"/>
+            </svg>
+            }
           } @else {
             @if (advisorPhotoUrl) {
             <img [src]="advisorPhotoUrl" [alt]="advisorName" class="advisor-avatar-img" />

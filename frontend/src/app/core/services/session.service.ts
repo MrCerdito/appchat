@@ -212,8 +212,8 @@ export class SessionService {
     return this.http.get<Colegio[]>(`${environment.apiUrl}/sessions/colegios/list`);
   }
 
-  detectarColegio(url: string): Observable<{ id: string; nombre: string } | null> {
-    return this.http.post<{ id: string; nombre: string } | null>(
+  detectarColegio(url: string): Observable<{ id: string; nombre: string; tipoColegio: string | null } | null> {
+    return this.http.post<{ id: string; nombre: string; tipoColegio: string | null } | null>(
       `${environment.apiUrl}/sessions/colegios/detectar`,
       { url },
     );

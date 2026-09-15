@@ -48,6 +48,14 @@ const HUMAN_TIMER_KEY = 'chat_human_timer'; // { tipo, restante, total, ts }
 // Debe coincidir con SEGUNDOS_CIERRE_POR_OFENSAS de ai.controller.ts.
 const SEGUNDOS_CIERRE_POR_OFENSAS = 6;
 
+// Colores de marca por proyecto: las instituciones se agrupan en Sian365 o
+// ControlAcademic (campo tipoColegio). La marca seleccionada colorea TODO el
+// chat (variable --brand + temas) y se notifica al widget para el botón.
+const MARCAS_PROYECTO: Record<string, { color: string; hover: string; bg: string }> = {
+  Sian365:         { color: '#ce9b30', hover: '#b58518', bg: '#fcf3d9' },
+  ControlAcademic: { color: '#1a3fa8', hover: '#15308a', bg: '#d8e4f8' },
+};
+
 interface TimerUpdatePayload {
   sessionId : string;
   tipo      : 'advisor_waiting' | 'client_waiting' | 'closing';
@@ -203,6 +211,7 @@ get rolLabel(): string {
   // ══════════════════════════════════════════════════════════════════════════
 
   colegioDetectado    : Colegio | null = null;
+  private brandColor  : string | null = null;
   private pageUrl     = '';
   private detectarColegioSub: Subscription | null = null;
   private urlPollInterval: any = null;
@@ -261,12 +270,18 @@ get rolLabel(): string {
     this.detectarColegioSub = this.sessionService.detectarColegio(url).subscribe({
       next: (res) => {
         this.colegioDetectado = res
-          ? { id: res.id, nombre: res.nombre, link: this.obtenerOrigen(url) }
+          ? {
+              id: res.id,
+              nombre: res.nombre,
+              tipoColegio: res.tipoColegio ?? null,
+              link: this.obtenerOrigen(url),
+            }
           : null;
         localStorage.setItem(PAGE_URL_KEY, url);
         if (this.colegioDetectado) {
           localStorage.setItem(COLEGIO_KEY, JSON.stringify(this.colegioDetectado));
         }
+        this.aplicarMarca();
         // Success — stop polling and reset retry counter
         this.urlRetryCount = 0;
         this.detenerPollingUrl();
@@ -286,6 +301,38 @@ get rolLabel(): string {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
+  // MARCA DE PROYECTO (Sian365 / ControlAcademic)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /** Aplica la marca del proyecto (por tipoColegio) a TODO el chat y notifica
+   *  al widget para que el botón flotante tome el mismo color. */
+  private aplicarMarca(): void {
+    const tipo = this.colegioDetectado?.tipoColegio;
+    const marca = tipo ? MARCAS_PROYECTO[tipo] : undefined;
+    if (!tipo || !marca) return;
+
+    const root = document.documentElement;
+    root.style.setProperty('--brand', marca.color);
+    root.style.setProperty('--brand-hover', marca.hover);
+    root.style.setProperty('--brand-soft', hexWithAlpha(marca.color, 0.07));
+    root.style.setProperty('--brand-border', hexWithAlpha(marca.color, 0.20));
+    // Degradado del formulario derivado del color de marca (claro → marca → oscuro).
+    root.style.setProperty('--c1', shadeHex(marca.color, 0.22));
+    root.style.setProperty('--c2', marca.color);
+    root.style.setProperty('--c3', shadeHex(marca.color, -0.2));
+    root.style.setProperty('--chat-bubble-user', marca.color);
+    root.style.setProperty('--chat-bubble-user-text', '#ffffff');
+    root.style.setProperty('--chat-header', marca.color);
+    root.style.setProperty('--chat-header-text', getContrastColor(marca.color));
+    // Fondo claro del chat en el tono de la marca (amarillo/azul clarito).
+    root.style.setProperty('--chat-bg', marca.bg);
+    root.style.setProperty('--chat-bg-text', '#111827');
+    this.brandColor = marca.color;
+
+    try { window.parent.postMessage({ type: 'sian-brand', color: marca.color, bg: marca.bg }, '*'); } catch (_) {}
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
   // MENSAJES Y SESIÓN
   // ══════════════════════════════════════════════════════════════════════════
 
@@ -296,6 +343,8 @@ get rolLabel(): string {
   codigoCopiado = false;
   advisorName = '';
   advisorPhotoUrl = '';
+  avatarIaUrl = '';
+  avatarIaError = false;
   otherTyping = false;
   typingName  = '';
   replyingTo: Message | null = null;
@@ -427,6 +476,11 @@ get rolLabel(): string {
 
   ngOnInit(): void {
     this.maintenance.start();
+    // Imagen del avatar IA "icon_user_ia.jpg" ubicada en /public del SPA
+    // (junto a LOGO.png). Resuelve la base respetando un posible base-href
+    // (/korvix/chat → /korvix, /chat → '').
+    const baseHref = location.pathname.replace(/\/[^/]+$/, '');
+    this.avatarIaUrl = baseHref + '/icon_user_ia.jpg';
     this.aplicarTemaWidget();
     this.escucharPostMessage();
     this.enviarSianReady();
@@ -449,6 +503,7 @@ get rolLabel(): string {
     const cachedColegio = localStorage.getItem(COLEGIO_KEY);
     if (cachedColegio) {
       try { this.colegioDetectado = JSON.parse(cachedColegio); } catch {}
+      if (this.colegioDetectado) this.aplicarMarca();
     }
     const cachedPageUrl = localStorage.getItem(PAGE_URL_KEY);
     if (cachedPageUrl && !this.pageUrl) {
@@ -802,6 +857,14 @@ get rolLabel(): string {
     }
   }
 
+  /** Alterna el consentimiento al hacer click sobre el texto (el enlace del
+   *  tratamiento abre el modal sin tocar el checkbox). */
+  onConsentTextClick(event: MouseEvent): void {
+    if ((event.target as HTMLElement).closest('a')) return;
+    this.aceptaTratamiento = !this.aceptaTratamiento;
+    this.onTratamientoChange(this.aceptaTratamiento);
+  }
+
   // ══════════════════════════════════════════════════════════════════════════
   // INICIO DEL CHAT
   // ══════════════════════════════════════════════════════════════════════════
@@ -965,10 +1028,12 @@ En el siguiente menú encontrarás varias opciones en las que te puedes apoyar, 
       if (event.data?.type === 'sian-theme') {
         const root = document.documentElement;
         const d = event.data;
-        if (d.chatHeaderColor) { root.style.setProperty('--chat-header', d.chatHeaderColor); root.style.setProperty('--chat-header-text', getContrastColor(d.chatHeaderColor)); }
-        if (d.chatBgColor) { root.style.setProperty('--chat-bg', d.chatBgColor); root.style.setProperty('--chat-bg-text', getContrastColor(d.chatBgColor)); }
+        // La marca del proyecto (Sian365/ControlAcademic) tiene prioridad sobre
+        // la config: no la sobreescribimos con los colores del tema del widget.
+        if (d.chatHeaderColor && !this.brandColor) { root.style.setProperty('--chat-header', d.chatHeaderColor); root.style.setProperty('--chat-header-text', getContrastColor(d.chatHeaderColor)); }
+        if (d.chatBgColor && !this.brandColor) { root.style.setProperty('--chat-bg', d.chatBgColor); root.style.setProperty('--chat-bg-text', getContrastColor(d.chatBgColor)); }
         if (d.chatBubbleColor) { root.style.setProperty('--chat-bubble', d.chatBubbleColor); root.style.setProperty('--chat-bubble-text', getContrastColor(d.chatBubbleColor)); }
-        if (d.chatBubbleUserColor) { root.style.setProperty('--chat-bubble-user', d.chatBubbleUserColor); root.style.setProperty('--chat-bubble-user-text', getContrastColor(d.chatBubbleUserColor)); }
+        if (d.chatBubbleUserColor && !this.brandColor) { root.style.setProperty('--chat-bubble-user', d.chatBubbleUserColor); root.style.setProperty('--chat-bubble-user-text', getContrastColor(d.chatBubbleUserColor)); }
         if (d.chatMarca) this.marcaChat = d.chatMarca;
         if (d.pageUrl && typeof d.pageUrl === 'string' && d.pageUrl.length > 0 && d.pageUrl.length < 2000) {
           const changed = d.pageUrl !== this.pageUrl;
@@ -2560,11 +2625,11 @@ private normalizePhotoUrl(url: string): string {
     next: (cfg) => {
       const root = document.documentElement;
 
-      if (cfg['chatHeaderColor']) {
+      if (cfg['chatHeaderColor'] && !this.brandColor) {
         root.style.setProperty('--chat-header', cfg['chatHeaderColor']);
         root.style.setProperty('--chat-header-text', getContrastColor(cfg['chatHeaderColor']));
       }
-      if (cfg['chatBgColor']) {
+      if (cfg['chatBgColor'] && !this.brandColor) {
         root.style.setProperty('--chat-bg', cfg['chatBgColor']);
         root.style.setProperty('--chat-bg-text', getContrastColor(cfg['chatBgColor']));
       }
@@ -2572,7 +2637,7 @@ private normalizePhotoUrl(url: string): string {
         root.style.setProperty('--chat-bubble', cfg['chatBubbleColor']);
         root.style.setProperty('--chat-bubble-text', getContrastColor(cfg['chatBubbleColor']));
       }
-      if (cfg['chatBubbleUserColor']) {
+      if (cfg['chatBubbleUserColor'] && !this.brandColor) {
         root.style.setProperty('--chat-bubble-user', cfg['chatBubbleUserColor']);
         root.style.setProperty('--chat-bubble-user-text', getContrastColor(cfg['chatBubbleUserColor']));
       }
@@ -2619,6 +2684,33 @@ private normalizePhotoUrl(url: string): string {
   
 
 
+}
+
+function hexWithAlpha(hex: string, alpha: number): string {
+  const clean = hex.trim().replace(/^#/, '');
+  const full = clean.length === 3
+    ? clean.split('').map((c) => c + c).join('')
+    : clean;
+  const r = parseInt(full.slice(0, 2), 16);
+  const g = parseInt(full.slice(2, 4), 16);
+  const b = parseInt(full.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/** Aclara (amount > 0) u oscurece (amount < 0) un color hex. amount ∈ [-1, 1]. */
+function shadeHex(hex: string, amount: number): string {
+  const clean = hex.trim().replace(/^#/, '');
+  const full = clean.length === 3
+    ? clean.split('').map((c) => c + c).join('')
+    : clean;
+  const mixTo = amount >= 0
+    ? (c: number) => Math.round(c + (255 - c) * Math.min(1, amount))
+    : (c: number) => Math.round(c * (1 + amount));
+  const r = mixTo(parseInt(full.slice(0, 2), 16));
+  const g = mixTo(parseInt(full.slice(2, 4), 16));
+  const b = mixTo(parseInt(full.slice(4, 6), 16));
+  const toHex = (n: number) => n.toString(16).padStart(2, '0');
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
 
 function getContrastColor(hex: string): string {
