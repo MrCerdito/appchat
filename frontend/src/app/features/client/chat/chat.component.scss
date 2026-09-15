@@ -186,8 +186,8 @@ $radius-pill: 999px;
   z-index: 1;
   border-radius: 26px;
   box-shadow:
-    0 24px 70px color-mix(in srgb, var(--c2, #5B3FD6) 16%, transparent),
-    0 6px 20px rgba(23, 43, 77, 0.06);
+    0 24px 70px rgba(91, 63, 214, 0.16),
+    0 6px 20px rgba(23, 43, 77, 0.08);
   border: 1px solid rgba(201, 215, 238, 0.6);
   background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(18px);

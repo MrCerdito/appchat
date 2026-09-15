@@ -771,6 +771,9 @@
 #sian-panel.sian-open {
   display: flex;
   animation: sianFadeIn 0.25s ease forwards;
+  box-shadow:
+    0 24px 70px rgba(15, 23, 42, 0.28),
+    0 6px 20px rgba(15, 23, 42, 0.16);
 }
 @keyframes sianFadeIn {
   from { opacity: 0; transform: scale(0.92) translateY(8px); }
@@ -868,6 +871,9 @@
   z-index: 2147483646;
   max-width: 280px;
   font-family: inherit;
+  box-shadow:
+    0 8px 24px rgba(15, 23, 42, 0.16),
+    0 2px 6px rgba(15, 23, 42, 0.08);
 }
 #sian-bubble .sian-bubble-img {
   display: none;

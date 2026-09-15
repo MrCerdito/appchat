@@ -512,7 +512,7 @@ export class WidgetComponent implements OnInit, OnDestroy {
 
   // ── Computed ───────────────────────────────────────────────────────────────
   get scriptIntegracion(): string {
-    const url = `${this.config.chatUrl}/widget.js`;
+    const url = `${this.config.chatUrl}/widget.js?v=2.1.0`;
     return `<script src="${url}" defer></script>`;
   }
 

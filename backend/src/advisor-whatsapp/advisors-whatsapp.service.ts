@@ -418,6 +418,10 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
     this.logger.log('WhatsApp usara Baileys con sesion unica por QR.');
   }
 
+  private get whatsappEnabled(): boolean {
+    return this.config.get<string>('WHATSAPP_ENABLED', 'true') !== 'false';
+  }
+
   /** Máx. de ms que se espera a Baileys antes de liberar la asignación. */
   private readonly whatsappSendTimeoutMs = 8_000;
 
@@ -443,6 +447,14 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleInit(): Promise<void> {
     await this.ensureWhatsappSchema();
+    if (!this.whatsappEnabled) {
+      this.setConnectionState('disconnected');
+      this.connectionUpdatedAt = new Date();
+      this.logger.warn(
+        'WhatsApp Baileys DESHABILITADO via WHATSAPP_ENABLED=false. No se conectara.',
+      );
+      return;
+    }
     this.logger.log(
       'WhatsApp Baileys: iniciando conexion automatica al arranque del servidor.',
     );
@@ -474,6 +486,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
   }
 
   async getConnectionStatus(): Promise<WhatsappConnectionDto> {
+    if (!this.whatsappEnabled) return this.getConnectionDto();
     if (
       this.connectionStatus === 'disconnected' ||
       this.connectionStatus === 'error'
@@ -485,6 +498,7 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
   }
 
   async restartConnection(): Promise<WhatsappConnectionDto> {
+    if (!this.whatsappEnabled) return this.getConnectionDto();
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.reconnectTimer = null;
     this.clearQrExpiryTimer();
@@ -527,6 +541,11 @@ export class AdvisorsWhatsappService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async ensureBaileysConnection(): Promise<WhatsappConnectionDto> {
+    if (!this.whatsappEnabled) {
+      this.setConnectionState('disconnected');
+      return this.getConnectionDto();
+    }
+
     if (
       this.sock &&
       this.connectionStatus !== 'disconnected' &&
