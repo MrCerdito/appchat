@@ -1699,45 +1699,122 @@ textarea {
 // ══════════════════════════════════════════════════════════════════════════════
 // FUERA DE JORNADA
 // ══════════════════════════════════════════════════════════════════════════════
-.fuera-horario-screen { background: var(--bg); height: 100%; }
+.fuera-horario-screen {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  // Degradado sutil según el fondo de la marca (mismo lenguaje que el form).
+  background: linear-gradient(150deg,
+    var(--chat-bg, #F5F7FF) 0%,
+    color-mix(in srgb, var(--chat-bg, #F5F7FF) 52%, #FFFFFF) 45%,
+    #FFFFFF 100%);
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    pointer-events: none;
+    border-radius: 50%;
+    filter: blur(70px);
+    opacity: 0.55;
+  }
+  &::before {
+    width: 46%; height: 40%;
+    top: -12%; right: -12%;
+    background: color-mix(in srgb, var(--c2, #5B3FD6) 30%, transparent);
+  }
+  &::after {
+    width: 44%; height: 36%;
+    bottom: -14%; left: -14%;
+    background: color-mix(in srgb, var(--c3, #4F7DF3) 28%, transparent);
+  }
+}
 
 .fuera-horario-card {
-  max-width: 380px; padding: 2.5rem 2rem;
-  display: flex; flex-direction: column; align-items: center; gap: 1rem; text-align: center;
-  h2 { font-size: 1.1rem; font-weight: 600; color: var(--text); margin: 0; }
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  margin: auto;
+  padding: 2.5rem 2.2rem;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; text-align: center;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(18px);
+  border: 1px solid rgba(201, 215, 238, 0.6);
+  border-radius: 26px;
+  box-shadow: none;
+  overflow-y: auto;
+
+  h2 { font-size: 1.15rem; font-weight: 700; color: var(--brand-hover, #172B4D); margin: 0; }
 }
 
-.fh-icon-wrap { width: 60px; height: 60px; border-radius: 50%; background: #fef3c7; display: flex; align-items: center; justify-content: center; svg { width: 28px; height: 28px; stroke: #d97706; } }
-.fh-sub { font-size: 0.82rem; color: var(--text-muted); margin: 0; }
+.fh-icon-wrap {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--c1, #4F7DF3) 0%, var(--c2, #5B3FD6) 58%, var(--c3, #8B5CF6) 100%);
+  display: flex; align-items: center; justify-content: center;
+  svg { width: 28px; height: 28px; stroke: #fff; }
+}
+.fh-sub { font-size: 0.85rem; color: #64748B; margin: 0; }
 
 .fh-proxima {
-  width: 100%; display: flex; align-items: center; gap: 0.75rem;
-  padding: 0.85rem 1rem; background: linear-gradient(135deg, #fef3c7, #fffbeb);
-  border: 1px solid #fde68a; border-radius: 14px; text-align: left;
+  width: 100%; max-width: 520px;
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.9rem 1.1rem;
+  background: color-mix(in srgb, var(--c2, #5B3FD6) 6%, #FFFFFF);
+  border: 1px solid color-mix(in srgb, var(--c2, #5B3FD6) 22%, transparent);
+  border-radius: 16px; text-align: left;
 }
 .fh-proxima-icon {
-  flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%;
-  background: #f59e0b; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; width: 42px; height: 42px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--c1, #4F7DF3), var(--c2, #5B3FD6));
+  display: flex; align-items: center; justify-content: center;
   svg { width: 20px; height: 20px; stroke: #fff; }
 }
 .fh-proxima-texto { display: flex; flex-direction: column; gap: 0.05rem; min-width: 0; }
-.fh-proxima-label { font-size: 0.68rem; font-weight: 700; color: #b45309; text-transform: uppercase; letter-spacing: 0.06em; }
-.fh-proxima-valor { font-size: 1rem; font-weight: 700; color: #92400e; line-height: 1.25; text-transform: capitalize; }
+.fh-proxima-label { font-size: 0.68rem; font-weight: 700; color: var(--c2, #5B3FD6); text-transform: uppercase; letter-spacing: 0.06em; }
+.fh-proxima-valor { font-size: 1rem; font-weight: 700; color: var(--brand-hover, #4338CA); line-height: 1.25; text-transform: capitalize; }
 
-.fh-horarios { width: 100%; display: flex; flex-direction: column; gap: 0.4rem; }
-.fh-horarios-lbl { font-size: 0.7rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.2rem; }
+.fh-horarios { width: 100%; max-width: 520px; display: flex; flex-direction: column; gap: 0.4rem; }
+.fh-horarios-lbl { font-size: 0.7rem; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.2rem; }
 
 .fh-row {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 0.55rem 0.9rem; background: #f8f7f5;
-  border: 1px solid var(--border); border-radius: 10px; font-size: 0.84rem;
-  &--hoy { background: #fef9ee; border-color: #fde68a; .fh-dia { color: #92400e; font-weight: 700; } .fh-hora { color: #b45309; font-weight: 600; } }
+  padding: 0.55rem 0.9rem;
+  background: color-mix(in srgb, var(--brand, #4F46E5) 4%, #FFFFFF);
+  border: 1px solid color-mix(in srgb, var(--brand, #4F46E5) 14%, transparent);
+  border-radius: 12px; font-size: 0.84rem;
+
+  &--hoy {
+    background: color-mix(in srgb, var(--brand, #4F46E5) 8%, #FFFFFF);
+    border-color: color-mix(in srgb, var(--brand, #4F46E5) 28%, transparent);
+    .fh-dia { color: var(--brand, #4F46E5); font-weight: 700; }
+    .fh-hora { color: var(--brand-hover, #4338CA); font-weight: 600; }
+  }
 }
 
-.fh-dia { color: var(--text); font-weight: 500; display: flex; align-items: center; gap: 0.4rem; }
-.fh-badge-hoy { font-size: 0.65rem; font-weight: 700; background: #fde68a; color: #92400e; padding: 1px 6px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.04em; }
-.fh-hora { color: var(--text-muted); font-size: 0.84rem; }
-.fh-msg-extra { font-size: 0.78rem; color: var(--text-muted); line-height: 1.55; margin: 0; padding-top: 0.25rem; border-top: 1px solid var(--border); width: 100%; text-align: center; }
+.fh-dia { color: #172B4D; font-weight: 500; display: flex; align-items: center; gap: 0.4rem; }
+.fh-badge-hoy { font-size: 0.65rem; font-weight: 700; background: color-mix(in srgb, var(--brand, #4F46E5) 14%, transparent); color: var(--brand, #4F46E5); padding: 1px 6px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.04em; }
+.fh-hora { color: #64748B; font-size: 0.84rem; }
+.fh-msg-extra { font-size: 0.78rem; color: #64748B; line-height: 1.55; margin: 0; padding-top: 0.25rem; border-top: 1px solid color-mix(in srgb, var(--brand, #4F46E5) 14%, transparent); width: 100%; max-width: 520px; text-align: center; }
+
+// Responsive de la pantalla fuera de horario
+@media (max-width: 600px) {
+  .fuera-horario-card {
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    border-top: none;
+    padding: 1.75rem 1.25rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .fuera-horario-card { padding: 1.25rem 0.9rem; gap: 0.8rem; }
+  .fh-proxima { padding: 0.75rem 0.9rem; }
+  .fh-row { font-size: 0.78rem; }
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // FORMATO MARKDOWN EN BURBUJAS
