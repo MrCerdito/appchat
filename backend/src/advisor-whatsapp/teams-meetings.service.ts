@@ -193,11 +193,6 @@ export class TeamsMeetingsService {
     meeting: TeamsMeetingResult,
     contact: CalendarEventContact,
   ): Promise<void> {
-    const accessToken =
-      target === 'shared'
-        ? await this.getAppAccessToken()
-        : await this.getAccessToken(advisorId);
-
     const description = [
       `<b>Contacto:</b> ${this.escHtml(contact.name)}`,
       `<b>Cargo:</b> ${this.escHtml(contact.role)}`,
@@ -221,8 +216,6 @@ export class TeamsMeetingsService {
         dateTime: meeting.endDateTime,
         timeZone: 'America/Bogota',
       },
-      isOnlineMeeting: true,
-      onlineMeetingProvider: 'teamsForBusiness',
       body: {
         contentType: 'html',
         content: description.join('<br>'),
@@ -232,28 +225,42 @@ export class TeamsMeetingsService {
       },
     };
 
-    let url: string;
     if (target === 'personal') {
-      url = 'https://graph.microsoft.com/v1.0/me/calendar/events';
-    } else {
-      const sharedMailbox = this.config.get<string>('TEAMS_SHARED_CALENDAR_ID');
-      if (!sharedMailbox) {
-        this.logger.warn(
-          'TEAMS_SHARED_CALENDAR_ID no configurado, saltando calendario compartido',
+      const accessToken = await this.getAccessToken(advisorId);
+      try {
+        await axios.post(
+          'https://graph.microsoft.com/v1.0/me/calendar/events',
+          eventBody,
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+          },
         );
-        return;
+      } catch (err: any) {
+        this.handleMicrosoftError(err, `crear evento en calendario ${target}`);
       }
-      url = `https://graph.microsoft.com/v1.0/groups/${encodeURIComponent(sharedMailbox)}/events`;
+      return;
     }
 
+    const appToken = await this.getAppAccessToken();
+    const sharedMailboxId = await this.resolveAccountId(
+      appToken,
+      this.generalAccountEmail(),
+    );
     try {
-      await axios.post(url, eventBody, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
+      await axios.post(
+        `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(sharedMailboxId)}/events`,
+        eventBody,
+        {
+          headers: {
+            Authorization: `Bearer ${appToken}`,
+            'Content-Type': 'application/json',
+          },
         },
-      });
-    } catch (err) {
+      );
+    } catch (err: any) {
       this.handleMicrosoftError(err, `crear evento en calendario ${target}`);
     }
   }
@@ -284,15 +291,18 @@ export class TeamsMeetingsService {
       throw new BadRequestException('Hora de reunion invalida');
     }
 
+    if (!user?.id) {
+      throw new UnauthorizedException('Debes iniciar sesion en Teams');
+    }
+
     const duration = Math.min(Math.max(input.durationMinutes ?? 30, 15), 240);
     const end = new Date(start.getTime() + duration * 60_000);
-    const email = this.generalAccountEmail();
-    const accessToken = await this.getAppAccessToken();
+    const advisorToken = await this.getAccessToken(user.id);
 
     let data: any;
     try {
       const response = await axios.post(
-        `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(email)}/onlineMeetings`,
+        'https://graph.microsoft.com/v1.0/me/onlineMeetings',
         {
           subject,
           startDateTime: start.toISOString(),
@@ -300,7 +310,7 @@ export class TeamsMeetingsService {
         },
         {
           headers: {
-            Authorization: `Bearer ${accessToken}`,
+            Authorization: `Bearer ${advisorToken}`,
             'Content-Type': 'application/json',
             'Accept-Language': 'es-CO',
           },
@@ -323,7 +333,12 @@ export class TeamsMeetingsService {
 
     let eventId: string | null = null;
     if (input.calendarTarget === 'shared') {
-      eventId = await this.createEventForAccount(email, meeting);
+      const appToken = await this.getAppAccessToken();
+      const sharedMailboxId = await this.resolveAccountId(
+        appToken,
+        this.generalAccountEmail(),
+      );
+      eventId = await this.createEventForAccount(sharedMailboxId, meeting);
     }
 
     const row = this.meetingRepo.create({
@@ -343,7 +358,7 @@ export class TeamsMeetingsService {
   }
 
   private async createEventForAccount(
-    email: string,
+    accountId: string,
     meeting: TeamsMeetingResult,
   ): Promise<string | null> {
     const accessToken = await this.getAppAccessToken();
@@ -361,8 +376,6 @@ export class TeamsMeetingsService {
         dateTime: meeting.endDateTime,
         timeZone: 'America/Bogota',
       },
-      isOnlineMeeting: true,
-      onlineMeetingProvider: 'teamsForBusiness',
       body: {
         contentType: 'html',
         content: description.join('<br>'),
@@ -374,7 +387,7 @@ export class TeamsMeetingsService {
 
     try {
       const response = await axios.post(
-        `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(email)}/events`,
+        `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(accountId)}/events`,
         eventBody,
         {
           headers: {
@@ -385,7 +398,7 @@ export class TeamsMeetingsService {
       );
       return response?.data?.id ?? null;
     } catch (err) {
-      this.handleMicrosoftError(err, `crear evento en calendario ${email}`);
+      this.handleMicrosoftError(err, `crear evento en calendario ${accountId}`);
     }
   }
 
@@ -409,6 +422,44 @@ export class TeamsMeetingsService {
     return (
       this.config.get<string>('TEAMS_MEETINGS_ACCOUNT') || 'soporte@innovacloud.co'
     );
+  }
+
+  /**
+   * Resuelve el Object ID (GUID) de la cuenta general.
+   * El endpoint /users/{id}/onlineMeetings exige un GUID, no un correo.
+   */
+  private async resolveAccountId(
+    accessToken: string,
+    email: string,
+  ): Promise<string> {
+    const configured = this.config
+      .get<string>('TEAMS_MEETINGS_ACCOUNT_ID')
+      ?.trim();
+    if (configured && /^[0-9a-fA-F-]{36}$/.test(configured)) {
+      return configured;
+    }
+
+    let data: any;
+    try {
+      const response = await axios.get(
+        `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(email)}`,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      data = response.data;
+    } catch (err: any) {
+      this.handleMicrosoftError(err, `resolver id de ${email}`);
+    }
+    if (!data?.id) {
+      throw new BadRequestException(
+        'No se pudo resolver el Object ID de la cuenta Teams',
+      );
+    }
+    return data.id;
   }
 
   private async getAccessToken(advisorId: string): Promise<string> {
@@ -565,13 +616,18 @@ export class TeamsMeetingsService {
     }
 
     if (status === 403) {
+      if (action.includes('resolver id')) {
+        throw new BadRequestException(
+          'No se pudo resolver el Object ID de la cuenta Teams. Agrega el permiso de aplicacion User.Read.All o define TEAMS_MEETINGS_ACCOUNT_ID con el Object ID del usuario.',
+        );
+      }
       if (action.includes('calendario')) {
         throw new BadRequestException(
           'No tienes permisos para agendar en el calendario. Revisa el permiso Calendars.ReadWrite en Azure.',
         );
       }
       throw new BadRequestException(
-        'La cuenta no tiene permisos para crear reuniones de Teams. Revisa el permiso OnlineMeetings.ReadWrite.',
+        'La cuenta conectada no tiene permisos para crear reuniones de Teams. Verifica que el asesor tenga licencia de Teams y asigna el permiso OnlineMeetings.ReadWrite (delegado) en Azure.',
       );
     }
 

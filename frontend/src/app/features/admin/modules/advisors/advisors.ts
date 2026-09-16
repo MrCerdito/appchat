@@ -679,12 +679,43 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
     return 'ACTIVO';
   }
 
+  /** Expande temporalmente los contenedores con scroll dentro del snapshot
+   *  (p.ej. .snap-list con max-height 320px, o el propio .hist-snapshot)
+   *  para que la captura incluya TODOS los agentes/períodos, no solo los
+   *  visibles. Devuelve los elementos modificados para restaurarlos después. */
+  private expandirListaSnapshot(el: HTMLElement): HTMLElement[] {
+    const candidatos = [el, ...Array.from(el.querySelectorAll('*'))] as HTMLElement[];
+    const expandidos: HTMLElement[] = [];
+    candidatos.forEach((n) => {
+      const cs = getComputedStyle(n);
+      const over = cs.overflowY || cs.overflow;
+      if (cs.maxHeight !== 'none' && (over === 'auto' || over === 'scroll')) {
+        n.dataset['snapMaxHeight'] = n.style.maxHeight;
+        n.dataset['snapOverflowY'] = n.style.overflowY;
+        n.style.maxHeight = 'none';
+        n.style.overflowY = 'visible';
+        expandidos.push(n);
+      }
+    });
+    return expandidos;
+  }
+
+  private restaurarListaSnapshot(lists: HTMLElement[]): void {
+    lists.forEach((n) => {
+      n.style.maxHeight = n.dataset['snapMaxHeight'] || '';
+      n.style.overflowY = n.dataset['snapOverflowY'] || '';
+      delete n.dataset['snapMaxHeight'];
+      delete n.dataset['snapOverflowY'];
+    });
+  }
+
   async copiarImagenHistorial(): Promise<void> {
     const el = this.historialSnapshotRef?.nativeElement;
     if (!el) return;
     this.histCopiandoImagen = true;
     this.histImgCopiada = false;
     this.cdr.detectChanges();
+    const lists = this.expandirListaSnapshot(el);
     try {
       await docFontsReady();
       const dataUrl = await domToPng(el, {
@@ -700,6 +731,7 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
       this.notification.error('Imagen', 'Tu navegador no permite copiar imágenes. Usa "Descargar imagen".');
       await this.descargarImagenHistorial();
     } finally {
+      this.restaurarListaSnapshot(lists);
       this.histCopiandoImagen = false;
       this.cdr.detectChanges();
     }
@@ -708,6 +740,7 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
   async descargarImagenHistorial(): Promise<void> {
     const el = this.historialSnapshotRef?.nativeElement;
     if (!el) return;
+    const lists = this.expandirListaSnapshot(el);
     try {
       await docFontsReady();
       const dataUrl = await domToPng(el, {
@@ -728,6 +761,8 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
       a.remove();
     } catch {
       this.notification.error('Imagen', 'No se pudo generar la imagen.');
+    } finally {
+      this.restaurarListaSnapshot(lists);
     }
   }
 
@@ -751,6 +786,10 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
     return this.conexionResultado ? this.conexionResultado.total - this.conexionResultado.conectados : 0;
   }
 
+  get asesoresSinConexion(): ConectividadAsesor[] {
+    return (this.conexionResultado?.asesores ?? []).filter((a) => !a.conectado);
+  }
+
   getEstadoConAsesor(a: ConectividadAsesor): 'activo' | 'ocupado' | 'reunion' | 'almuerzo' | 'inactivo' {
     if (!a.conectado) return 'inactivo';
     if (a.estado === 'busy') return 'ocupado';
@@ -769,6 +808,7 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
     this.copiandoImagen = true;
     this.imgCopiada = false;
     this.cdr.detectChanges();
+    const lists = this.expandirListaSnapshot(el);
     try {
       await docFontsReady();
       const dataUrl = await domToPng(el, {
@@ -784,6 +824,7 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
       this.notification.error('Imagen', 'Tu navegador no permite copiar imágenes. Usa "Descargar imagen".');
       await this.descargarImagen();
     } finally {
+      this.restaurarListaSnapshot(lists);
       this.copiandoImagen = false;
       this.cdr.detectChanges();
     }
@@ -792,6 +833,7 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
   async descargarImagen(): Promise<void> {
     const el = this.snapshotRef?.nativeElement;
     if (!el) return;
+    const lists = this.expandirListaSnapshot(el);
     try {
       await docFontsReady();
       const dataUrl = await domToPng(el, {
@@ -807,6 +849,8 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
       a.remove();
     } catch {
       this.notification.error('Imagen', 'No se pudo generar la imagen.');
+    } finally {
+      this.restaurarListaSnapshot(lists);
     }
   }
 

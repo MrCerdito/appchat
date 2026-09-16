@@ -103,7 +103,12 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/admin/admin-shell/admin-shell').then(m => m.AdminShellComponent),
     children: [
-      { path: '', redirectTo: 'advisors', pathMatch: 'full' },
+      {
+        path: 'dashboard',
+        loadComponent: () =>
+          import('./features/admin/modules/dashboard/dashboard').then(m => m.AdminDashboardComponent),
+      },
+      { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
       {
         path: 'advisors',
         canActivate: [permisoGuard('advisors')],

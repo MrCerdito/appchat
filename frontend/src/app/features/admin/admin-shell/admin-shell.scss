@@ -324,10 +324,104 @@
       gap: 0.5rem;
     }
 
+    .back-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 38px;
+      height: 38px;
+      border: none;
+      border-radius: 8px;
+      background: var(--sidebar-hover);
+      color: var(--sidebar-text);
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background 0.15s, transform 0.15s;
+
+      svg { width: 19px; height: 19px; }
+
+      &:hover { background: var(--sidebar-hover); filter: brightness(1.1); }
+      &:active { transform: scale(0.94); }
+    }
+
     .topbar-avatar {
-      width: 32px;
-      height: 32px;
-      font-size: 0.82rem;
+      width: 36px;
+      height: 36px;
+      font-size: 0.85rem;
+    }
+
+    .profile-wrap {
+      position: relative;
+    }
+
+    .profile-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 119;
+      background: transparent;
+    }
+
+    .profile-avatar {
+      border: none;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .profile-dropdown {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      z-index: 120;
+      min-width: 220px;
+      padding: 0.6rem;
+      background: var(--surface, #ffffff);
+      border: 1px solid var(--border, #e2e8f0);
+      border-radius: 12px;
+      box-shadow: var(--shadow-lg, 0 10px 30px rgba(0, 0, 0, 0.12));
+
+      .profile-dropdown-name {
+        display: block;
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: var(--text, #0f172a);
+      }
+
+      .profile-dropdown-email {
+        display: block;
+        font-size: 0.72rem;
+        color: var(--text-muted, #64748b);
+        margin-top: 2px;
+        word-break: break-all;
+      }
+
+      .profile-dropdown-divider {
+        display: block;
+        height: 1px;
+        background: var(--border, #e2e8f0);
+        margin: 0.5rem 0;
+      }
+
+      .profile-dropdown-btn {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.6rem;
+        border: none;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--danger, #dc2626);
+        font-size: 0.82rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.15s;
+
+        svg { width: 16px; height: 16px; }
+
+        &:hover {
+          background: color-mix(in srgb, var(--danger, #dc2626) 10%, transparent);
+        }
+      }
     }
   }
 

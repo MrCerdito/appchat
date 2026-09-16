@@ -229,7 +229,7 @@
     }
 
     <!-- Messages -->
-    <div class="chat-messages" #messagesContainer>
+    <div class="chat-messages" #messagesContainer (copy)="onCopyBurbuja($event)">
       @for (msg of messages; track trackById($index, msg)) {
 
         <!-- Date separator -->
@@ -1257,12 +1257,20 @@
         </div>
         <div>
           <h3>Crear reunion de Teams</h3>
-          <p class="tadv-subtitle">Se agendara con la cuenta general de Teams</p>
+          <p class="tadv-subtitle">{{ isTeamsConnected ? (teamsAccountName || 'Cuenta conectada') : 'Conecta tu cuenta Microsoft una vez' }}</p>
         </div>
       </div>
 
       @if (!teamsCreated) {
       <div class="teams-mt-body">
+        @if (!isTeamsConnected) {
+        <div class="teams-mt-connect">
+          <p>Conecta tu cuenta Microsoft para crear la videollamada. El evento se agenda en el buzón compartido soporte@innovacloud.co.</p>
+          <button class="modal-confirm" type="button" (click)="connectTeams()" [disabled]="isLoadingTeams">
+            {{ isLoadingTeams ? 'Conectando...' : 'Conectar Teams' }}
+          </button>
+        </div>
+        }
         <label class="teams-mt-field">
           <span>Nombre de la reunion</span>
           <input type="text" [(ngModel)]="teamsDraft.subject" placeholder="Reunion con el cliente" />
@@ -1282,7 +1290,7 @@
         </label>
         <label class="teams-mt-check">
           <input type="checkbox" [(ngModel)]="teamsDraft.agendarCalendario" />
-          <span>Agendar tambien en el calendario de Outlook</span>
+          <span>Agendar tambien en el calendario de Outlook (buzón compartido)</span>
         </label>
 
         @if (teamsMessage) {
@@ -1291,7 +1299,7 @@
       </div>
       <div class="tadv-actions">
         <button class="modal-cancel" type="button" (click)="closeTeamsMeeting()" [disabled]="teamsCreating">Cancelar</button>
-        <button class="modal-confirm" type="button" (click)="createTeamsMeetingForChat()" [disabled]="teamsCreating">
+        <button class="modal-confirm" type="button" (click)="createTeamsMeetingForChat()" [disabled]="teamsCreating || !isTeamsConnected">
           {{ teamsCreating ? 'Creando reunion...' : 'Crear reunion' }}
         </button>
       </div>

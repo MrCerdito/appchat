@@ -79,6 +79,11 @@ export class SaveWidgetConfigDto {
   mostrarBurbuja?: boolean;
 
   @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  ocultarEnMovil?: boolean;
+
+  @IsOptional()
   @IsString()
   @IsUrl()
   @MaxLength(255)

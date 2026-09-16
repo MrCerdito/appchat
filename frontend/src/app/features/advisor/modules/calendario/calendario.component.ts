@@ -79,6 +79,10 @@ export class CalendarioComponent implements OnInit, OnDestroy {
   createdMeeting: TeamsMeetingDto | null = null;
   copiedId: string | null = null;
 
+  isTeamsConnected = false;
+  isLoadingTeams = false;
+  teamsAccountName = '';
+
   private readonly destroy$ = new Subject<void>();
 
   constructor(
@@ -94,12 +98,68 @@ export class CalendarioComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.buildGrid();
     this.loadMeetings();
+    window.addEventListener('message', this.handleTeamsAuthMessage);
   }
 
   ngOnDestroy(): void {
+    window.removeEventListener('message', this.handleTeamsAuthMessage);
     this.destroy$.next();
     this.destroy$.complete();
   }
+
+  connectTeams(): void {
+    if (this.isLoadingTeams) return;
+    const popup = window.open('', 'innovaTeamsAuth', 'width=520,height=720');
+    this.isLoadingTeams = true;
+    this.createError = 'Abriendo inicio de sesion de Microsoft...';
+    this.waService.getTeamsAuthUrl().subscribe({
+      next: res => {
+        this.isLoadingTeams = false;
+        if (popup) {
+          popup.location.href = res.authUrl;
+        } else {
+          window.location.href = res.authUrl;
+        }
+        this.cdr.detectChanges();
+      },
+      error: err => {
+        popup?.close();
+        this.isLoadingTeams = false;
+        this.createError = this.errText(err, 'No se pudo iniciar sesion en Teams.');
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  private loadTeamsStatus(): void {
+    this.isLoadingTeams = true;
+    this.waService.getTeamsStatus().subscribe({
+      next: status => {
+        this.isLoadingTeams = false;
+        this.isTeamsConnected = status.connected;
+        this.teamsAccountName = status.accountName || '';
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.isLoadingTeams = false;
+        this.isTeamsConnected = false;
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  private handleTeamsAuthMessage = (event: MessageEvent): void => {
+    if (event.data?.type !== 'teams-auth') return;
+    if (event.data.success) {
+      this.createError = '';
+      this.loadTeamsStatus();
+    } else {
+      this.isLoadingTeams = false;
+      this.isTeamsConnected = false;
+      this.createError = event.data.error || 'No se pudo conectar Teams.';
+    }
+    this.cdr.detectChanges();
+  };
 
   async loadMeetings(): Promise<void> {
     this.loading = true;
@@ -215,6 +275,7 @@ export class CalendarioComponent implements OnInit, OnDestroy {
     this.createError = '';
     this.createdMeeting = null;
     this.showCreate = true;
+    this.loadTeamsStatus();
     this.cdr.detectChanges();
   }
 

@@ -12,7 +12,7 @@
       </span>
       <div>
         <h1>Calendario de reuniones</h1>
-        <span class="cal-account">Reuniones creadas con la cuenta general de Teams</span>
+        <span class="cal-account">{{ isTeamsConnected ? (teamsAccountName || 'Cuenta conectada') : 'Conecta tu cuenta Microsoft para crear reuniones' }}</span>
       </div>
     </div>
     <button type="button" class="primary-btn" (click)="openCreate()">
@@ -179,6 +179,14 @@
 
     @if (!createdMeeting) {
     <div class="cal-modal-body">
+      @if (!isTeamsConnected) {
+      <div class="cal-connect">
+        <p>Conecta tu cuenta Microsoft para crear la videollamada. El evento se agenda en el buzón compartido soporte@innovacloud.co.</p>
+        <button type="button" class="primary-btn" (click)="connectTeams()" [disabled]="isLoadingTeams">
+          {{ isLoadingTeams ? 'Conectando...' : 'Conectar Teams' }}
+        </button>
+      </div>
+      }
       <label class="cal-field">
         <span>Nombre de la reunion</span>
         <input type="text" [(ngModel)]="draft.subject" placeholder="Reunion con el cliente" />
@@ -204,7 +212,7 @@
         <input type="checkbox" [(ngModel)]="draft.agendarCalendario" />
         <span>
           <strong>Agendar en el calendario de Outlook</strong>
-          <small>Ademas crea el evento en la cuenta general de Teams.</small>
+          <small>El evento se crea en el buzón compartido soporte@innovacloud.co.</small>
         </span>
       </label>
 
@@ -214,7 +222,7 @@
     </div>
     <footer class="cal-modal-actions">
       <button type="button" class="secondary-btn" (click)="closeCreate()" [disabled]="creating">Cancelar</button>
-      <button type="button" class="primary-btn" (click)="createMeeting()" [disabled]="creating">
+      <button type="button" class="primary-btn" (click)="createMeeting()" [disabled]="creating || !isTeamsConnected">
         {{ creating ? 'Creando reunion...' : 'Crear reunion' }}
       </button>
     </footer>

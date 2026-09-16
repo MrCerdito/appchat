@@ -36,6 +36,9 @@ interface TimerEntry {
   settingUp: boolean;
   startTime: number;
   totalSecs: number;
+  /** Generación del timer: cada set/cancel/eliminar la incrementa para
+   *  invalidar loops y timeouts "stale" que ya no corresponden a la sesión. */
+  gen: number;
 }
 
 @WebSocketGateway({
@@ -61,10 +64,15 @@ export class ChatGateway
   private lunchInterval!: NodeJS.Timeout;
   private heartbeatInterval!: NodeJS.Timeout;
   private timers = new Map<string, TimerEntry>();
+  private timerGens = new Map<string, number>();
   private aiCloseTimers = new Map<string, NodeJS.Timeout>();
   private desconexionTimers = new Map<string, NodeJS.Timeout>();
+  private clienteGraciaTimers = new Map<string, NodeJS.Timeout>();
   private static readonly AI_CLOSE_DELAY_MS = 3 * 60 * 1000; // 3 minutos
   private static readonly GRACE_DESCONEXION_MS = 10_000;
+  // Tiempo que el backend espera tras desconectarse el socket del cliente antes
+  // de dar por finalizada la sesión (quitar de la lista del asesor + calificador).
+  private static readonly GRACE_CLIENTE_MS = 45_000;
   private readonly MAX_MSG_PER_SEC = 10;
 
   // ── Distributed state via Redis ──────────────────────────────────────────
@@ -161,6 +169,10 @@ export class ChatGateway
     if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
     for (const t of this.desconexionTimers.values()) clearTimeout(t);
     this.desconexionTimers.clear();
+    for (const t of this.clienteGraciaTimers.values()) clearTimeout(t);
+    this.clienteGraciaTimers.clear();
+    for (const t of this.aiCloseTimers.values()) clearTimeout(t);
+    this.aiCloseTimers.clear();
   }
 
   // Renueva el heartbeat de todos los sockets de asesor vivos en ESTA instancia.
@@ -353,12 +365,14 @@ export class ChatGateway
         lastSeen: new Date().toISOString(),
       });
 
-      // Si la sesión está en modo IA, iniciar timer de cierre por inactividad.
-      // Si el cliente se reconecta antes de 3 min, el timer se cancela.
+      // Si el cliente se va (cierra la página, el panel o apaga el PC), dar una
+      // gracia antes de finalizar la sesión: al vencer se cierra y la lista del
+      // asesor la descarta (también libera al asesor). Una reconexión rápida
+      // (F5/blip) la cancela. Aplica a 'active', 'waiting' y 'ai'.
       try {
         const session = await this.sessionsService.findOne(sessionId);
-        if (session && session.status === 'ai') {
-          this.startAiCloseTimer(sessionId);
+        if (session && session.status !== 'closed') {
+          this.programarCierreCliente(sessionId);
         }
       } catch {}
     }
@@ -593,9 +607,9 @@ export class ChatGateway
       const chats = await this.countChatsActivosAlmuerzo(advisorId);
       client.emit('lunch_pending', {
         mensaje: pend
-          ? `Tienes ${chats.total} chat(s) activo(s). Termínalos para iniciar tu pausa de almuerzo.`
+          ? `Tienes ${chats.web} chat(s) de la web activo(s). Termínalos para iniciar tu pausa de almuerzo.`
           : '',
-        chats: chats.total,
+        chats: chats.web,
         chatsWeb: chats.web,
         chatsWhatsapp: chats.whatsapp,
         inicio: pend?.inicioOriginal ?? '',
@@ -639,10 +653,10 @@ export class ChatGateway
         return;
       }
       const chats = await this.countChatsActivosAlmuerzo(advisorId);
-      if (chats.total > 0) {
+      if (chats.web > 0) {
         client.emit('lunch_error', {
           reason:
-            'Tienes chats activos. Termínalos para iniciar tu pausa de almuerzo.',
+            'Tienes chat(s) de la web activo(s). Termínalos para iniciar tu pausa de almuerzo.',
         });
         return;
       }
@@ -793,9 +807,11 @@ export class ChatGateway
       client.data.sessionId = data.sessionId;
     }
 
-    // Si el cliente se reconecta a una sesión IA, cancelar el timer de cierre
+    // Si el cliente se reconecta, cancelar el timer de cierre (IA) y la gracia
+    // de desconexión que se haya programado al perderse el socket anterior.
     if (client.data.role === 'client') {
       this.clearAiCloseTimer(data.sessionId);
+      this.cancelarGraciaCliente(data.sessionId);
     }
 
     const history = await this.chatService.getHistory(data.sessionId, 50);
@@ -1139,18 +1155,7 @@ export class ChatGateway
       profilePhotoUrl: session.advisor?.profilePhotoUrl ?? null,
     });
 
-    this.cancelarTimerActivo(sessionId);
-    this.timers.set(sessionId, {
-      tipo: 'none',
-      timeout: null,
-      tick: null,
-      elapsed: 0,
-      iterCliente: 0,
-      advisorId: newAdvisorId,
-      settingUp: false,
-      startTime: 0,
-      totalSecs: 0,
-    });
+    this.crearTimer(sessionId, newAdvisorId);
     await this.iniciarTimers(sessionId, newAdvisorId);
 
     const msg = await this.chatService.saveMessage(
@@ -1339,9 +1344,10 @@ export class ChatGateway
         active: true,
         lastSeen: new Date().toISOString(),
       });
-      // Si el cliente envía mensaje en sesión IA, cancelar timer de cierre
-      // (actividad = sesión sigue viva).
+      // Si el cliente envía mensaje, anula la gracia de desconexión pendiente
+      // y reinicia el timer de cierre por inactividad IA.
       this.clearAiCloseTimer(data.sessionId);
+      this.cancelarGraciaCliente(data.sessionId);
       await this.cambiarTurno(data.sessionId, 'advisor', true);
     } else if (senderType === 'advisor') {
       await this.cambiarTurno(data.sessionId, 'client', false);
@@ -1557,18 +1563,7 @@ export class ChatGateway
       data.newAdvisorId,
     );
 
-    this.cancelarTimerActivo(data.sessionId);
-    this.timers.set(data.sessionId, {
-      tipo: 'none',
-      timeout: null,
-      tick: null,
-      elapsed: 0,
-      iterCliente: 0,
-      advisorId: data.newAdvisorId,
-      settingUp: false,
-      startTime: 0,
-      totalSecs: 0,
-    });
+    this.crearTimer(data.sessionId, data.newAdvisorId);
     await this.iniciarTimers(data.sessionId, data.newAdvisorId);
 
     // Notify new advisor via Redis adapter room
@@ -1639,7 +1634,10 @@ export class ChatGateway
     this.eliminarTimer(sessionId);
     this.clearAiCloseTimer(sessionId);
 
-    this.server.to(sessionId).emit('session_closed', { sessionId });
+    this.server.to(sessionId).emit('session_closed', {
+      sessionId,
+      reason: 'advisor',
+    });
     this.broadcastSessionUpdated(sessionId, { status: 'closed' });
 
     if (advisorId) {
@@ -1677,16 +1675,36 @@ export class ChatGateway
       return;
     }
 
+    await this.cerrarSesionCliente(sessionId, 'client');
+    this.cancelarGraciaCliente(sessionId);
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // CIERRE DE SESIÓN POR SALIDA DEL CLIENTE
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Cierre común de una sesión por salida del cliente: la cierra en BD, limpia
+   * los timers y notifica a las salas (la lista del asesor la descarta vía
+   * 'session_closed'/'session_updated'). Reason describe quién/cómo la cerró.
+   */
+  private async cerrarSesionCliente(
+    sessionId: string,
+    reason: string,
+  ): Promise<void> {
+    this.cancelarGraciaCliente(sessionId);
     const session = await this.sessionsService
       .findOne(sessionId)
       .catch(() => null);
-    const advisorId = session?.advisor?.id ?? null;
+    if (!session || session.status === 'closed') return;
+    const advisorId = session.advisor?.id ?? null;
 
     await this.sessionsService.close(sessionId);
     this.eliminarTimer(sessionId);
     this.clearAiCloseTimer(sessionId);
 
-    this.server.to(sessionId).emit('session_closed', { sessionId });
+    this.server.to(sessionId).emit('session_closed', { sessionId, reason });
+    this.logger.log(`[Sesión] Cerrada por '${reason}' → ${sessionId}`);
     this.broadcastSessionUpdated(sessionId, { status: 'closed' });
     this.server.emit('metrics_updated', { type: 'session_closed', sessionId });
 
@@ -1709,6 +1727,47 @@ export class ChatGateway
     await this.redisState.deleteSessionSocket(sessionId);
     await this.broadcastQueuePositions();
     await this.assignPendingSessions();
+  }
+
+  /**
+   * Gracia de desconexión del cliente: si en GRACE_CLIENTE_MS el cliente no
+   * reconecta (F5, blip de red, cambio de pestaña), la sesión se da por
+   * finalizada → se quita de la lista del asesor y el cliente podrá calificar.
+   */
+  private programarCierreCliente(sessionId: string): void {
+    this.cancelarGraciaCliente(sessionId);
+    const timer = setTimeout(() => {
+      this.clienteGraciaTimers.delete(sessionId);
+      void this.cerrarSesionPorClienteAusente(sessionId);
+    }, ChatGateway.GRACE_CLIENTE_MS);
+    this.clienteGraciaTimers.set(sessionId, timer);
+  }
+
+  private cancelarGraciaCliente(sessionId: string): void {
+    const t = this.clienteGraciaTimers.get(sessionId);
+    if (t) {
+      clearTimeout(t);
+      this.clienteGraciaTimers.delete(sessionId);
+    }
+  }
+
+  private async cerrarSesionPorClienteAusente(
+    sessionId: string,
+  ): Promise<void> {
+    const session = await this.sessionsService
+      .findOne(sessionId)
+      .catch(() => null);
+    if (!session || session.status === 'closed') return;
+    const presence = await this.redisState
+      .getClientPresence(sessionId)
+      .catch(() => null);
+    if (presence?.online) {
+      this.logger.log(
+        `[Sesión] Cliente volvió a ${sessionId}; gracia de cierre cancelada`,
+      );
+      return;
+    }
+    await this.cerrarSesionCliente(sessionId, 'client_left');
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -1754,6 +1813,8 @@ export class ChatGateway
   ) {
     client.data.isActive = data.active;
     if (client.data.role === 'client') {
+      // Actividad del cliente → anula la gracia de desconexión pendiente.
+      this.cancelarGraciaCliente(data.sessionId);
       await this.redisState.setClientPresence(data.sessionId, {
         online: true,
         active: data.active,
@@ -1940,12 +2001,15 @@ export class ChatGateway
   ): Promise<void> {
     this.cancelarTimerActivo(sessionId);
 
-    const entry = this.timers.get(sessionId);
+    let entry = this.timers.get(sessionId);
     if (!entry) {
-      this.logger.warn(
-        `[Timer] cambiarTurno: no hay entry para sesión ${sessionId}`,
-      );
-      return;
+      // Nunca dejar la sesión sin timer: si faltó el entry (p. ej. por una
+      // carrera entre close/set), se recrea para que la franja de espera
+      // ("Esperando respuesta del agente") SIEMPRE aparezca tras un mensaje.
+      const session = await this.sessionsService
+        .findOne(sessionId)
+        .catch(() => null);
+      entry = this.crearTimer(sessionId, session?.advisor?.id ?? 'unknown');
     }
 
     if (resetIterCliente) entry.iterCliente = 0;
@@ -1960,13 +2024,14 @@ export class ChatGateway
   private async arrancarTimerAsesor(sessionId: string): Promise<void> {
     const entry = this.timers.get(sessionId);
     if (!entry || entry.settingUp) return;
+    const gen = entry.gen;
     entry.settingUp = true;
 
     try {
       const config = await this.configuracionService
         .getEfectiva(entry.advisorId)
         .catch(() => null);
-      if (!config) return;
+      if (!config || !this.esTimerVigente(sessionId, gen)) return;
 
       const total = config.asesorInactividadSeg;
       entry.tipo = 'advisor';
@@ -1984,6 +2049,7 @@ export class ChatGateway
       });
 
       const tick = () => {
+        if (!this.esTimerVigente(sessionId, gen)) return;
         const realElapsed = Math.floor((Date.now() - entry.startTime) / 1000);
         entry.elapsed = realElapsed;
         this.emitTimer(sessionId, {
@@ -2004,11 +2070,13 @@ export class ChatGateway
       const remainingMs = total * 1000 - (Date.now() - entry.startTime);
       entry.timeout = setTimeout(
         async () => {
+          if (!this.esTimerVigente(sessionId, gen)) return;
           this.cancelarTimerActivo(sessionId);
           const session = await this.sessionsService
             .findOne(sessionId)
             .catch(() => null);
           if (!session || session.status !== 'active') return;
+          if (!this.esTimerVigente(sessionId, gen)) return;
 
           const msg = await this.chatService.saveMessage(
             sessionId,
@@ -2033,13 +2101,14 @@ export class ChatGateway
   private async arrancarTimerCliente(sessionId: string): Promise<void> {
     const entry = this.timers.get(sessionId);
     if (!entry || entry.settingUp) return;
+    const gen = entry.gen;
     entry.settingUp = true;
 
     try {
       const config = await this.configuracionService
         .getEfectiva(entry.advisorId)
         .catch(() => null);
-      if (!config) return;
+      if (!config || !this.esTimerVigente(sessionId, gen)) return;
 
       const total = config.clienteInactividadSeg;
       entry.tipo = 'client';
@@ -2057,6 +2126,7 @@ export class ChatGateway
       });
 
       const tick = () => {
+        if (!this.esTimerVigente(sessionId, gen)) return;
         const realElapsed = Math.floor((Date.now() - entry.startTime) / 1000);
         entry.elapsed = realElapsed;
         this.emitTimer(sessionId, {
@@ -2077,11 +2147,13 @@ export class ChatGateway
       const remainingMs = total * 1000 - (Date.now() - entry.startTime);
       entry.timeout = setTimeout(
         async () => {
+          if (!this.esTimerVigente(sessionId, gen)) return;
           this.cancelarTimerActivo(sessionId);
           const session = await this.sessionsService
             .findOne(sessionId)
             .catch(() => null);
           if (!session || session.status !== 'active') return;
+          if (!this.esTimerVigente(sessionId, gen)) return;
 
           entry.iterCliente++;
 
@@ -2117,9 +2189,13 @@ export class ChatGateway
               maxIter: config.clienteInactividadIters,
             });
             setTimeout(async () => {
+              if (!this.esTimerVigente(sessionId, gen)) return;
               this.eliminarTimer(sessionId);
               await this.sessionsService.close(sessionId);
-              this.server.to(sessionId).emit('session_closed', { sessionId });
+              this.server.to(sessionId).emit('session_closed', {
+                sessionId,
+                reason: 'cliente_inactivo',
+              });
               this.broadcastSessionUpdated(sessionId, { status: 'closed' });
               this.server.emit('metrics_updated', {
                 type: 'session_closed',
@@ -2162,6 +2238,7 @@ export class ChatGateway
       settingUp: false,
       startTime: Date.now(),
       totalSecs: total,
+      gen: this.nuevoGenTimer(sessionId),
     };
     this.timers.set(sessionId, entry);
 
@@ -2173,6 +2250,7 @@ export class ChatGateway
     });
 
     const tick = () => {
+      if (!this.esTimerVigente(sessionId, entry.gen)) return;
       const realElapsed = Math.floor((Date.now() - entry.startTime) / 1000);
       entry.elapsed = realElapsed;
       if (realElapsed < total) {
@@ -2185,11 +2263,13 @@ export class ChatGateway
     const remainingMs = total * 1000 - (Date.now() - entry.startTime);
     entry.timeout = setTimeout(
       async () => {
+        if (!this.esTimerVigente(sessionId, entry.gen)) return;
+        if (entry.tipo !== 'reconnection') return;
         const session = await this.sessionsService
           .findOne(sessionId)
           .catch(() => null);
         if (!session || session.status !== 'active') return;
-        if (entry.tipo !== 'reconnection') return;
+        if (!this.esTimerVigente(sessionId, entry.gen)) return;
 
         this.cancelarTimerActivo(sessionId);
 
@@ -2300,11 +2380,58 @@ export class ChatGateway
     );
   }
 
+  // ── Gestión de generaciones de timers ────────────────────────────────────
+  // Un timer pertenece a una "generación": cada vez que se crea/cancela/elimina
+  // el timer de una sesión se incrementa; los loops y timeouts capturan su gen
+  // y antes de emitir/actuar verifican que siga siendo el vigente. Así un
+  // timeout "stale" ya no cancela el timer actual ni hay dos countdowns
+  // compitiendo sobre la misma sesión (oscileación de segundos / franja que
+  // desaparece / mensajes de espera duplicados).
+
+  private nuevoGenTimer(sessionId: string): number {
+    const g = (this.timerGens.get(sessionId) ?? 0) + 1;
+    this.timerGens.set(sessionId, g);
+    return g;
+  }
+
+  private genTimerActual(sessionId: string): number {
+    return this.timerGens.get(sessionId) ?? 0;
+  }
+
+  private esTimerVigente(sessionId: string, gen: number): boolean {
+    return (
+      this.genTimerActual(sessionId) === gen &&
+      this.timers.get(sessionId)?.gen === gen
+    );
+  }
+
+  /** Reemplaza el timer de la sesión con uno limpio (invalida el anterior). */
+  private crearTimer(sessionId: string, advisorId: string): TimerEntry {
+    const prev = this.timers.get(sessionId);
+    if (prev?.tick) clearTimeout(prev.tick);
+    if (prev?.timeout) clearTimeout(prev.timeout);
+    const entry: TimerEntry = {
+      tipo: 'none',
+      timeout: null,
+      tick: null,
+      elapsed: 0,
+      iterCliente: 0,
+      advisorId,
+      settingUp: false,
+      startTime: 0,
+      totalSecs: 0,
+      gen: this.nuevoGenTimer(sessionId),
+    };
+    this.timers.set(sessionId, entry);
+    return entry;
+  }
+
   private cancelarTimerActivo(sessionId: string): void {
     const entry = this.timers.get(sessionId);
     if (!entry) return;
+    this.nuevoGenTimer(sessionId);
     if (entry.tick) {
-      clearInterval(entry.tick);
+      clearTimeout(entry.tick);
       entry.tick = null;
     }
     if (entry.timeout) {
@@ -2319,10 +2446,12 @@ export class ChatGateway
   private eliminarTimer(sessionId: string): void {
     const entry = this.timers.get(sessionId);
     if (!entry) return;
-    if (entry.tick) clearInterval(entry.tick);
+    this.nuevoGenTimer(sessionId);
+    if (entry.tick) clearTimeout(entry.tick);
     if (entry.timeout) clearTimeout(entry.timeout);
     entry.settingUp = false;
     this.timers.delete(sessionId);
+    this.timerGens.delete(sessionId);
   }
 
   private emitTimer(
@@ -2681,17 +2810,7 @@ export class ChatGateway
     await this.redisState.deleteSessionSocket(sessionId);
     await this.broadcastQueuePositions();
 
-    this.timers.set(sessionId, {
-      tipo: 'none',
-      timeout: null,
-      tick: null,
-      elapsed: 0,
-      iterCliente: 0,
-      advisorId: advisor.id,
-      settingUp: false,
-      startTime: 0,
-      totalSecs: 0,
-    });
+    this.crearTimer(sessionId, advisor.id);
 
     await this.enviarBienvenidaAsesor(sessionId, advisor.name, advisor.id);
     await this.iniciarTimers(sessionId, advisor.id);
@@ -2838,17 +2957,7 @@ export class ChatGateway
     await this.redisState.deleteSessionSocket(sessionId);
     await this.broadcastQueuePositions();
 
-    this.timers.set(sessionId, {
-      tipo: 'none',
-      timeout: null,
-      tick: null,
-      elapsed: 0,
-      iterCliente: 0,
-      advisorId: advisor.id,
-      settingUp: false,
-      startTime: 0,
-      totalSecs: 0,
-    });
+    this.crearTimer(sessionId, advisor.id);
 
     await this.enviarBienvenidaAsesor(sessionId, advisor.name, advisor.id);
     await this.iniciarTimers(sessionId, advisor.id);
@@ -3036,7 +3145,7 @@ export class ChatGateway
             const chatsActivos =
               await this.countChatsActivosAlmuerzo(advisorId);
 
-            if (chatsActivos.total > 0) {
+            if (chatsActivos.web > 0) {
               await this.redisState.removeLunchNotified(advisorId);
               await this.redisState.setPendingLunch(advisorId, {
                 inicioOriginal: almuerzoHoy!.inicio,
@@ -3045,8 +3154,8 @@ export class ChatGateway
                 inicioReal: ahora.toISOString(),
               });
               this.server.to(`advisor:${advisorId}`).emit('lunch_pending', {
-                mensaje: `Tienes ${chatsActivos.total} chat(s) activo(s). Termínalos para iniciar tu pausa de almuerzo.`,
-                chats: chatsActivos.total,
+                mensaje: `Tienes ${chatsActivos.web} chat(s) de la web activo(s). Termínalos para iniciar tu pausa de almuerzo.`,
+                chats: chatsActivos.web,
                 chatsWeb: chatsActivos.web,
                 chatsWhatsapp: chatsActivos.whatsapp,
                 inicio: almuerzoHoy!.inicio,
@@ -3257,14 +3366,14 @@ export class ChatGateway
       return;
     }
 
-    if (chatsActivos.total > 0) {
+    if (chatsActivos.web > 0) {
       // Re-emitir el desglose actualizado para que la ventana pendiente refleje
       // en tiempo real la cantidad de chats (p. ej. 2 → 1 al cerrar uno).
       // Esta re-emisión ocurre en el barrido de 30s solo mientras haya
       // almuerzo pendiente, por lo que el coste es mínimo.
       this.server.to(`advisor:${advisorId}`).emit('lunch_pending', {
-        mensaje: `Tienes ${chatsActivos.total} chat(s) activo(s). Termínalos para iniciar tu pausa de almuerzo.`,
-        chats: chatsActivos.total,
+        mensaje: `Tienes ${chatsActivos.web} chat(s) de la web activo(s). Termínalos para iniciar tu pausa de almuerzo.`,
+        chats: chatsActivos.web,
         chatsWeb: chatsActivos.web,
         chatsWhatsapp: chatsActivos.whatsapp,
         inicio: pendiente.inicioOriginal,
@@ -3324,7 +3433,7 @@ export class ChatGateway
 
     const chatsActivos = await this.countChatsActivosAlmuerzo(advisorId);
 
-    if (chatsActivos.total > 0) {
+    if (chatsActivos.web > 0) {
       await this.redisState.setPendingLunch(advisorId, {
         inicioOriginal: almuerzoHoy.inicio,
         finOriginal: almuerzoHoy.fin,
@@ -3332,8 +3441,8 @@ export class ChatGateway
         inicioReal: ahora.toISOString(),
       });
       this.server.to(`advisor:${advisorId}`).emit('lunch_pending', {
-        mensaje: `Tienes ${chatsActivos.total} chat(s) activo(s). Termínalos para iniciar tu pausa de almuerzo.`,
-        chats: chatsActivos.total,
+        mensaje: `Tienes ${chatsActivos.web} chat(s) de la web activo(s). Termínalos para iniciar tu pausa de almuerzo.`,
+        chats: chatsActivos.web,
         chatsWeb: chatsActivos.web,
         chatsWhatsapp: chatsActivos.whatsapp,
         inicio: almuerzoHoy.inicio,

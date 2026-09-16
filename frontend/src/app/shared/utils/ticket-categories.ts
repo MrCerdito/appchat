@@ -59,3 +59,47 @@ export function slaColor(remaining: { ms: number; expired: boolean }): string {
   return '#10b981';
 }
 
+export function buildTicketGeneratedMessage(datos: {
+  codigo: string;
+  priority: string;
+  slaDeadline?: string | null;
+  createdAt?: string | null;
+}): string {
+  const tiempo = tiempoEstimadoResolucion(datos.slaDeadline, datos.createdAt);
+  const campos = [
+    `1. **Código:** ${datos.codigo}`,
+    `2. **Prioridad:** ${priorityLabel(datos.priority)}`,
+  ];
+  if (tiempo) campos.push(`3. **Tiempo estimado de resolución:** ${tiempo}`);
+  const lineas = [
+    'Queremos informarle que su solicitud es importante para nosotros. Para brindarle una respuesta precisa y adecuada, nuestro equipo requiere realizar una **validación e investigación interna** con el área correspondiente.',
+    '',
+    'Por este motivo, se ha generado un **ticket de atención** para realizar el seguimiento de su solicitud:',
+    '',
+    '**INFORMACIÓN DEL TICKET**',
+    '',
+    ...campos,
+    '',
+    'Nuestro equipo especializado realizará las validaciones correspondientes. Una vez contemos con la información necesaria, nos pondremos en contacto con usted a través de los datos registrados en el formulario inicial.',
+    '',
+    'Agradecemos su paciencia y comprensión mientras adelantamos este proceso.',
+  ];
+  return lineas.join('\n');
+}
+
+function tiempoEstimadoResolucion(
+  slaDeadline?: string | null,
+  createdAt?: string | null,
+): string {
+  if (!slaDeadline || !createdAt) return '';
+  const totalMs =
+    new Date(slaDeadline).getTime() - new Date(createdAt).getTime();
+  if (!(totalMs > 0)) return '';
+  const horas = totalMs / 3600000;
+  if (horas >= 24) {
+    const dias = Math.round(horas / 24);
+    return dias === 1 ? '1 día' : `${dias} días`;
+  }
+  return `${Math.round(horas)} horas`;
+}
+

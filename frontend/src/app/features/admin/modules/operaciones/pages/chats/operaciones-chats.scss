@@ -851,11 +851,56 @@
   white-space: pre-wrap;
   word-break: break-word;
 
-  a {
-    color: #02735E;
-    text-decoration: underline;
-    overflow-wrap: anywhere;
-    word-break: break-all;
+  // ::ng-deep: el contenido llega por [innerHTML], no lleva el atributo del
+  // componente; sin esto las etiquetas generadas lucen como texto plano.
+  ::ng-deep {
+    p {
+      margin: 0 0 10px;
+      white-space: normal;
+      &:last-child { margin-bottom: 0; }
+    }
+
+    .mb-heading {
+      margin: 6px 0 12px;
+      strong { line-height: 1.5; }
+    }
+
+    ol,
+    ul {
+      display: block;
+      margin: 12px 0;
+      padding-inline-start: 22px;
+      list-style-position: outside;
+      white-space: normal;
+    }
+    ol { list-style: decimal; }
+    ul {
+      list-style: disc;
+      list-style-type: "•";
+      padding-inline-start: 18px;
+    }
+    li { line-height: 1.5; margin: 5px 0; padding-left: 2px; white-space: normal; }
+    strong { font-weight: 600; }
+    em { font-style: italic; }
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 0.9em;
+      background: rgba(127,127,127,.14);
+      padding: 1px 4px;
+      border-radius: 4px;
+    }
+    pre {
+      margin: 8px 0; padding: 8px 10px;
+      background: rgba(127,127,127,.14); border-radius: 6px; overflow-x: auto;
+      code { background: none; padding: 0; }
+    }
+
+    a {
+      color: #02735E;
+      text-decoration: underline;
+      overflow-wrap: anywhere;
+      word-break: break-all;
+    }
   }
 }
 

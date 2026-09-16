@@ -391,6 +391,15 @@ closeAnonymous(sessionId: string): Observable<any> {
     return this.http.get<any>(`${environment.apiUrl}/sessions/public/${id}`);
   }
 
+  /** Conversación pública de una sesión finalizada (para mostrarla sobre el
+   *  calificador cuando el cliente vuelve con una sesión pendiente de calificar). */
+  getPublicMessages(sessionId: string, limit = 50): Observable<Message[]> {
+    return this.http.get<Message[]>(
+      `${environment.apiUrl}/sessions/public/${sessionId}/messages`,
+      { params: { limit: String(limit) } },
+    );
+  }
+
   getCodigo(sessionId: string): Observable<{ codigo: string }> {
     return this.http.get<{ codigo: string }>(`${environment.apiUrl}/sessions/${sessionId}/codigo`);
   }

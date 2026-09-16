@@ -35,6 +35,8 @@ export class AdminShellComponent implements OnInit, OnDestroy {
   sidebarOpen = false;
   appearanceOpen = false;
   internalUnread = 0;
+  currentUrl = '';
+  profileMenuOpen = false;
 
 
   private routerSub?: Subscription;
@@ -56,7 +58,9 @@ export class AdminShellComponent implements OnInit, OnDestroy {
     private layoutService: LayoutService,
     private cdr: ChangeDetectorRef,
     protected permisos: PermisosService,
-  ) {}
+  ) {
+    this.currentUrl = router.url;
+  }
 
   ngOnInit(): void {
     this.auth.user$.subscribe({
@@ -87,7 +91,10 @@ export class AdminShellComponent implements OnInit, OnDestroy {
     this.routerSub = this.router.events
       .pipe(filter(event => event instanceof NavigationEnd))
       .subscribe({
-        next: () => this.syncSidebarMode(),
+        next: () => {
+          this.currentUrl = this.router.url;
+          this.syncSidebarMode();
+        },
         error: (err) => console.error('HTTP Error:', err),
       });
     this.layoutSub = this.layoutService.sidebarForcedVisible$
@@ -227,6 +234,14 @@ export class AdminShellComponent implements OnInit, OnDestroy {
       : 'Administrador';
   }
 
+  get enDashboard(): boolean {
+    return this.currentUrl.endsWith('/admin/dashboard') || this.currentUrl === '/admin';
+  }
+
+  volverDashboard(): void {
+    this.router.navigate(['/admin/dashboard']);
+  }
+
   get esSuperadmin(): boolean {
     return this.currentAdmin?.role === 'superadmin';
   }
@@ -248,6 +263,17 @@ export class AdminShellComponent implements OnInit, OnDestroy {
 
   closeSidebarOnMobile(): void {
     this.sidebarOpen = false;
+    this.profileMenuOpen = false;
+    this.cdr.markForCheck();
+  }
+
+  toggleProfileMenu(): void {
+    this.profileMenuOpen = !this.profileMenuOpen;
+    this.cdr.markForCheck();
+  }
+
+  closeProfileMenu(): void {
+    this.profileMenuOpen = false;
     this.cdr.markForCheck();
   }
 

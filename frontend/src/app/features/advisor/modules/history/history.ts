@@ -10,11 +10,12 @@ import { SessionService } from '../../../../core/services/session.service';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { Message, TimelineItem, TimelineEvento } from '../../../../core/models/message.model';
-import { Session, SessionAssignmentEvent } from '../../../../core/models/session.model';
+import { Session, SessionAssignmentEvent, LastMessagePreview } from '../../../../core/models/session.model';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
 import { scrollToBottom } from '../../../../shared/utils/scroll';
 import { fmtDateTimeShort, fmtDateTimeFull, fmtTime } from '../../../../shared/utils/date';
 import { rangoCivilStr } from '../../../../shared/utils/fecha-bogota.util';
+import { formatMessageContent } from '../../../../shared/utils/message-format';
 
 @Component({
   selector: 'app-history-global',
@@ -404,83 +405,7 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
 
   /** Formatea el contenido (marcadores o HTML) como HTML seguro para la burbuja. */
   formatMessage(text: string): SafeHtml {
-    if (!text) return '';
-    if (this.isHtmlContent(text)) {
-      return this.sanitizer.bypassSecurityTrustHtml(this.secureHtml(text));
-    }
-    const colorMap: Record<string, string> = {
-      rojo: '#ef4444',
-      verde: '#10b981',
-      azul: '#3b82f6',
-      naranja: '#f97316',
-      morado: '#8b5cf6',
-      amarillo: '#eab308',
-    };
-    const html = this.escapeHtml(text)
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/(^|[\s(])\*([^*\n]+)\*(?=\s|$|[)])/g, '$1<strong>$2</strong>')
-      .replace(
-        /\[color:(rojo|verde|azul|naranja|morado|amarillo)\]([\s\S]*?)\[\/color\]/g,
-        (_, color, inner) =>
-          `<span style="color:${colorMap[color]}">${inner}</span>`
-      )
-      .replace(
-        /^(?:\d+\.\s+.+\n?)+/gm,
-        (block) =>
-          `<ol>${block
-            .split('\n')
-            .filter(Boolean)
-            .map(line => `<li>${line.replace(/^\d+\.\s+/, '')}</li>`)
-            .join('')}</ol>\n`
-      )
-      .replace(
-        /^(?:[-•*]\s+.+\n?)+/gm,
-        (block) =>
-          `<ul>${block
-            .split('\n')
-            .filter(Boolean)
-            .map(line => `<li>${line.replace(/^[-•*]\s+/, '')}</li>`)
-            .join('')}</ul>\n`
-      )
-      .replace(/^#\s+(.+)$/gm, '<strong>$1</strong>')
-      .replace(
-        /\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g,
-        '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
-      )
-      .replace(
-        /link:((https?:\/\/|www\.)[^\s<]+)/gi,
-        '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
-      )
-      .replace(
-        /(?<!href="|src=")((https?:\/\/|www\.)[^\s<]+)/g,
-        (match) => {
-          const url = match.startsWith('www.') ? `https://${match}` : match;
-          return `<a href="${url}" target="_blank" rel="noopener noreferrer">${match}</a>`;
-        }
-      )
-      .replace(/\n/g, '<br>');
-    return this.sanitizer.bypassSecurityTrustHtml(html);
-  }
-
-  private escapeHtml(value: string): string {
-    return value
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
-
-  private isHtmlContent(text: string): boolean {
-    return /<(strong|b|ul|ol|li|div|p|br|span)[\s>]/i.test(text);
-  }
-
-  private secureHtml(html: string): string {
-    return html
-      .replace(/<script[\s\S]*?<\/script>/gi, '')
-      .replace(/<\s*(script|iframe|object|embed)/gi, '&lt;$1')
-      .replace(/\son[a-z]+\s*=/gi, ' data-blocked=')
-      .replace(/javascript:/gi, '');
+    return this.sanitizer.bypassSecurityTrustHtml(formatMessageContent(text));
   }
 
   /** Busca el mensaje citado por replyToMessageId dentro del timeline. */
@@ -672,6 +597,25 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
     this.socket.connect(this.auth.getToken() ?? undefined);
     this.loadSessions();
     this.listenSocketEvents();
+    this.startAutoRefresh();
+  }
+
+  /** Refresca el listado en segundo plano para reflejar el estado actualizado
+   *  de las sesiones (estado, asesor, último mensaje) sin recargar la página. */
+  private autoRefreshId: ReturnType<typeof setInterval> | null = null;
+
+  private startAutoRefresh(): void {
+    this.stopAutoRefresh();
+    this.autoRefreshId = setInterval(() => {
+      this.loadSessions();
+    }, 30000);
+  }
+
+  private stopAutoRefresh(): void {
+    if (this.autoRefreshId) {
+      clearInterval(this.autoRefreshId);
+      this.autoRefreshId = null;
+    }
   }
 
   private restoreZoom(): void {
@@ -728,6 +672,7 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.layout.setSidebarForcedCollapsed(false);
     sessionStorage.removeItem(this.STORAGE_KEY);
+    this.stopAutoRefresh();
     if (this.activeSession) {
       this.socket.emit('set_active', { sessionId: this.activeSession.id, active: false });
     }
@@ -805,6 +750,7 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
       .subscribe((msg) => {
         const sessionId = msg.session?.id ?? msg.sessionId;
         if (!sessionId) return;
+        this.updateSessionFromMessage(sessionId, msg);
         if (this.activeSession && sessionId === this.activeSession.id) {
           if (!this.timeline.some(t => t.kind === 'message' && t.id === msg.id)) {
             this.timeline = [...this.timeline, { kind: 'message' as const, ...msg }];
@@ -836,9 +782,22 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
       });
 
     // Actualización en tiempo real si una sesión cambia de estado
-    this.socket.on<{ sessionId: string }>('session_updated')
+    this.socket.on<{ sessionId: string; status?: string }>('session_updated')
       .pipe(takeUntil(this.destroy$))
-      .subscribe(() => {
+      .subscribe((data) => {
+        if (data?.sessionId && data?.status) {
+          const idx = this.sessions.findIndex(s => s.id === data.sessionId);
+          if (idx !== -1) {
+            this.sessions = [
+              ...this.sessions.slice(0, idx),
+              { ...this.sessions[idx], status: data.status },
+              ...this.sessions.slice(idx + 1),
+            ];
+          }
+          if (this.activeSession?.id === data.sessionId) {
+            this.activeSession = { ...this.activeSession, status: data.status };
+          }
+        }
         this.loadSessions();
         this.cdr.detectChanges();
       });
@@ -924,7 +883,13 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
 
     this.sessionService.getTimeline(session.id, null, 50).subscribe({
       next: (resp) => {
-        this.timeline         = resp.items ?? [];
+        const servidos: TimelineItem[] = resp.items ?? [];
+        // Merge de mensajes que llegaron por socket mientras cargaba el HTTP:
+        // evita que un mensaje en vivo se pierda al reemplazar el timeline.
+        const ids = new Set(servidos.map(i => i.id));
+        const enVivo = this.timeline.filter(i => i.kind === 'message' && !ids.has(i.id));
+        this.timeline         = [...servidos, ...enVivo].sort((a, b) =>
+          +new Date(a.createdAt) - +new Date(b.createdAt));
         this.nextBefore       = resp.nextBefore ?? null;
         this.hasMoreHistorial = !!resp.hasMore;
         this.loading  = false;
@@ -933,6 +898,47 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
       },
       error: () => { this.loading = false; this.cdr.detectChanges(); },
     });
+  }
+
+  /** Actualiza la sesión de la lista (y la activa) con el último mensaje. */
+  private updateSessionFromMessage(sessionId: string, msg: any): void {
+    const preview: LastMessagePreview = {
+      id: msg.id,
+      content: msg.content ?? '',
+      senderType: msg.senderType ?? '',
+      senderName: msg.senderName ?? 'Cliente',
+      createdAt: msg.createdAt ?? new Date().toISOString(),
+      attachments: msg.attachments ?? null,
+    };
+
+    let changed = false;
+    const idx = this.sessions.findIndex(s => s.id === sessionId);
+    if (idx !== -1) {
+      const s = this.sessions[idx];
+      if (
+        !s.lastMessage ||
+        s.lastMessage.id !== preview.id ||
+        (s.status === 'waiting' && msg.senderType === 'client')
+      ) {
+        this.sessions = [
+          ...this.sessions.slice(0, idx),
+          { ...s, lastMessage: preview, status: msg.senderType === 'client' && s.status === 'waiting' ? 'active' : s.status },
+          ...this.sessions.slice(idx + 1),
+        ];
+        changed = true;
+      }
+    }
+
+    if (this.activeSession?.id === sessionId) {
+      this.activeSession = {
+        ...this.activeSession,
+        lastMessage: preview,
+        status: msg.senderType === 'client' && this.activeSession.status === 'waiting' ? 'active' : this.activeSession.status,
+      };
+      changed = true;
+    }
+
+    if (changed) this.cdr.detectChanges();
   }
 
   /** Vuelve a la lista de sesiones (oculta el chat). */

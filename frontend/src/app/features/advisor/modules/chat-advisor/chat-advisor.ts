@@ -35,7 +35,8 @@ import {
 } from '../../../../core/services/perfil-institucional.service';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
 import { environment } from '../../../../../environments/environment';
-import { priorityLabel } from '../../../../shared/utils/ticket-categories';
+import { buildTicketGeneratedMessage } from '../../../../shared/utils/ticket-categories';
+import { formatMessageContent } from '../../../../shared/utils/message-format';
 import { scrollToBottom } from '../../../../shared/utils/scroll';
 import { normalizeUploadFile } from '../../../../shared/utils/media';
 import { relativeTime, fmtTime, fmtMedium, sameBogotaDay, isTodayBogota, isYesterdayBogota } from '../../../../shared/utils/date';
@@ -118,7 +119,10 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   aiModeActive  = false;
 
   // ── Reunion Teams (panel de informacion del chat) ────────────────────────
-  showTeamsMeeting = false;
+  showTeamsMeeting  = false;
+  isTeamsConnected  = false;
+  isLoadingTeams    = false;
+  teamsAccountName  = '';
   teamsDraft = {
     subject       : '',
     startDateTime : '',
@@ -444,6 +448,8 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     this.socket.emit('advisor_ready');
 
     this.registerSocketEvents();
+
+    window.addEventListener('message', this.handleTeamsAuthMessage);
 
     // ── Compact mode (barra de avatares) ───────────────────────────────────
     this.checkCompact();
@@ -928,6 +934,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     this.teamsCreated = null;
     this.teamsCopied  = false;
     this.showTeamsMeeting = true;
+    this.loadTeamsStatus();
     this.cdr.detectChanges();
   }
 
@@ -939,6 +946,60 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     this.teamsCopied  = false;
     this.cdr.detectChanges();
   }
+
+  connectTeams(): void {
+    if (this.isLoadingTeams) return;
+    const popup = window.open('', 'innovaTeamsAuth', 'width=520,height=720');
+    this.isLoadingTeams = true;
+    this.teamsMessage = 'Abriendo inicio de sesion de Microsoft...';
+    this.waTeamService.getTeamsAuthUrl().subscribe({
+      next: res => {
+        this.isLoadingTeams = false;
+        if (popup) {
+          popup.location.href = res.authUrl;
+        } else {
+          window.location.href = res.authUrl;
+        }
+        this.cdr.detectChanges();
+      },
+      error: err => {
+        popup?.close();
+        this.isLoadingTeams = false;
+        this.teamsMessage = err?.error?.message || err?.message || 'No se pudo iniciar sesion en Teams.';
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  private loadTeamsStatus(): void {
+    this.isLoadingTeams = true;
+    this.waTeamService.getTeamsStatus().subscribe({
+      next: status => {
+        this.isLoadingTeams = false;
+        this.isTeamsConnected = status.connected;
+        this.teamsAccountName = status.accountName || '';
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.isLoadingTeams = false;
+        this.isTeamsConnected = false;
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  private handleTeamsAuthMessage = (event: MessageEvent): void => {
+    if (event.data?.type !== 'teams-auth') return;
+    if (event.data.success) {
+      this.teamsMessage = 'Teams conectado. Ya puedes crear la reunion.';
+      this.loadTeamsStatus();
+    } else {
+      this.isLoadingTeams = false;
+      this.isTeamsConnected = false;
+      this.teamsMessage = event.data.error || 'No se pudo conectar Teams.';
+    }
+    this.cdr.detectChanges();
+  };
 
   async createTeamsMeetingForChat(): Promise<void> {
     if (this.teamsCreating) return;
@@ -1998,62 +2059,19 @@ leaveCollabChat(): void {
   }
 
   formatMessage(text: string): SafeHtml {
-    if (!text) return '';
-    if (this.isHtmlContent(text)) {
-      return this.sanitizer.bypassSecurityTrustHtml(this.secureHtml(text));
-    }
-    const colorMap: Record<string, string> = {
-      rojo: '#ef4444',
-      verde: '#10b981',
-      azul: '#3b82f6',
-      naranja: '#f97316',
-      morado: '#8b5cf6',
-      amarillo: '#eab308',
-    };
-    const html = this.escapeHtml(text)
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/(^|[\s(])\*([^*\n]+)\*(?=\s|$|[)])/g, '$1<strong>$2</strong>')
-      .replace(
-        /\[color:(rojo|verde|azul|naranja|morado|amarillo)\]([\s\S]*?)\[\/color\]/g,
-        (_, color, inner) =>
-          `<span style="color:${colorMap[color]}">${inner}</span>`
-      )
-      .replace(
-        /^(?:\d+\.\s+.+\n?)+/gm,
-        (block) =>
-          `<ol>${block
-            .split('\n')
-            .filter(Boolean)
-            .map(line => `<li>${line.replace(/^\d+\.\s+/, '')}</li>`)
-            .join('')}</ol>\n`
-      )
-      .replace(
-        /^(?:[-•*]\s+.+\n?)+/gm,
-        (block) =>
-          `<ul>${block
-            .split('\n')
-            .filter(Boolean)
-            .map(line => `<li>${line.replace(/^[-•*]\s+/, '')}</li>`)
-            .join('')}</ul>\n`
-      )
-      .replace(/^#\s+(.+)$/gm, '<strong>$1</strong>')
-      .replace(
-        /\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g,
-        '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
-      )
-      .replace(
-        /link:((https?:\/\/|www\.)[^\s<]+)/gi,
-        '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
-      )
-      .replace(
-        /(?<!href="|src=")((https?:\/\/|www\.)[^\s<]+)/g,
-        (match) => {
-          const url = match.startsWith('www.') ? `https://${match}` : match;
-          return `<a href="${url}" target="_blank" rel="noopener noreferrer">${match}</a>`;
-        }
-      )
-      .replace(/\n/g, '<br>');
-    return this.sanitizer.bypassSecurityTrustHtml(html);
+    return this.sanitizer.bypassSecurityTrustHtml(formatMessageContent(text));
+  }
+
+  /**
+   * Copiar dentro de las burbujas: solo texto plano, sin el HTML (así no se
+   * pega el fondo/estilo de la burbuja en otro lugar).
+   */
+  onCopyBurbuja(event: ClipboardEvent): void {
+    const sel = window.getSelection();
+    const text = sel ? sel.toString().trim() : '';
+    if (!text) return;
+    event.clipboardData?.setData('text/plain', text);
+    event.preventDefault();
   }
 
   private escapeHtml(value: string): string {
@@ -2063,18 +2081,6 @@ leaveCollabChat(): void {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
-  }
-
-  private isHtmlContent(text: string): boolean {
-    return /<(strong|b|ul|ol|li|div|p|br|span)[\s>]/i.test(text);
-  }
-
-  private secureHtml(html: string): string {
-    return html
-      .replace(/<script[\s\S]*?<\/script>/gi, '')
-      .replace(/<\s*(script|iframe|object|embed)/gi, '&lt;$1')
-      .replace(/\son[a-z]+\s*=/gi, ' data-blocked=')
-      .replace(/javascript:/gi, '');
   }
 
   // ── Ticket ────────────────────────────────────────────────────────────
@@ -2202,11 +2208,9 @@ leaveCollabChat(): void {
           this.cdr.detectChanges();
         }, 3000);
         // Auto-mensaje
-        const label = priorityLabel(ticket.priority);
-        const advisorName = this.currentAdvisor?.name || 'Agente';
         this.socket.emit('send_message', {
           sessionId: session.id,
-          content: `Se generó el ticket ${ticket.codigo} con prioridad ${label} y fue asignado a ${advisorName}.`,
+          content: buildTicketGeneratedMessage(ticket),
         });
         this.cdr.detectChanges();
       },
@@ -2463,6 +2467,7 @@ leaveCollabChat(): void {
 
   // ── Destroy ───────────────────────────────────────────────────────────────
   ngOnDestroy(): void {
+    window.removeEventListener('message', this.handleTeamsAuthMessage);
     this.state.setActiveSession(null);
     this.destroy$.next();
     this.destroy$.complete();

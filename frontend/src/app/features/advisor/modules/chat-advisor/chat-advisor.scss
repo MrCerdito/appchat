@@ -3402,25 +3402,57 @@ a {
   .bubble-content {
     display: block;
     width: 100%;
-  }
 
-  ol,
-  ul {
-    display: block;
-    margin: 6px 0;
-    padding-inline-start: 22px;
-    list-style-position: outside;
-  }
-  ol { list-style: decimal; }
-  ul {
-    list-style: disc;
-    list-style-type: "•";
-    padding-inline-start: 18px;
-  }
-  li {
-    line-height: 1.55;
-    margin: 2px 0;
-    padding-left: 2px;
+    // ::ng-deep: el contenido llega por [innerHTML], no lleva el atributo del
+    // componente; sin esto las etiquetas generadas lucen como texto plano.
+    ::ng-deep {
+      p {
+        margin: 0 0 10px;
+        &:last-child { margin-bottom: 0; }
+      }
+
+      .mb-heading {
+        margin: 6px 0 12px;
+        strong { line-height: 1.5; }
+      }
+
+      ol,
+      ul {
+        display: block;
+        margin: 12px 0;
+        padding-inline-start: 22px;
+        list-style-position: outside;
+      }
+      ol { list-style: decimal; }
+      ul {
+        list-style: disc;
+        list-style-type: "•";
+        padding-inline-start: 18px;
+      }
+      li {
+        line-height: 1.55;
+        margin: 5px 0;
+        padding-left: 2px;
+      }
+      strong { font-weight: 600; }
+      em { font-style: italic; }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+        font-size: 0.9em;
+        background: rgba(127,127,127,.14);
+        padding: 1px 4px;
+        border-radius: 4px;
+      }
+      pre {
+        margin: 8px 0;
+        padding: 8px 10px;
+        background: rgba(127,127,127,.14);
+        border-radius: 6px;
+        overflow-x: auto;
+        code { background: none; padding: 0; }
+      }
+      br + br { display: none; }
+    }
   }
 }
 .input-field { min-width: 0; }
@@ -4689,6 +4721,25 @@ a {
     padding: 16px;
     max-height: calc(100vh - 240px);
     overflow: auto;
+  }
+
+  .teams-mt-connect {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 14px 16px;
+    border: 1px dashed $primary;
+    border-radius: $radius-md;
+    background: rgba($primary, 0.06);
+    text-align: center;
+
+    p {
+      margin: 0;
+      font-size: 12.5px;
+      line-height: 1.45;
+      color: $text-secondary;
+    }
   }
 
   .teams-mt-field {

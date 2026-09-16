@@ -461,7 +461,11 @@
           }
         </div>
         <div class="header-meta">
-          <span class="header-name">{{ aiMode ? (marcaChat || 'Asistente Virtual') : advisorName }}</span>
+          @if (!aiMode && advisorName) {
+          <span class="header-name">{{ advisorName }}</span>
+          } @else {
+          <span class="header-name">{{ aiMode ? 'Asistente Virtual' : (advisorName || 'Asistente Virtual') }}</span>
+          }
           <span class="client-presence-pill" [class.presence-active]="!chatFinalizado" [class.presence-finalized]="chatFinalizado">
             {{ chatFinalizado ? 'Finalizado' : (aiMode ? 'IA activa' : 'En linea') }}
           </span>
@@ -493,28 +497,8 @@
     </div>
     }
 
-    <!-- ══ BANNER CÓDIGO DE CASO ══ -->
-    @if (codigoSesion) {
-    <div class="codigo-banner">
-      <div class="codigo-banner-inner">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-          <path d="M2 17l10 5 10-5"/>
-          <path d="M2 12l10 5 10-5"/>
-        </svg>
-        <span class="codigo-label">Caso: <strong>{{ codigoSesion }}</strong></span>
-        <button class="codigo-btn" (click)="copiarCodigo()" [class.copiado]="codigoCopiado">
-          {{ codigoCopiado ? 'Copiado' : 'Copiar' }}
-        </button>
-        <button class="codigo-btn wa" (click)="enviarCodigoWhatsApp()">
-          WhatsApp
-        </button>
-      </div>
-    </div>
-    }
-
     <!-- ══ MENSAJES ══ -->
-    <div class="chat-messages" #messagesContainer>
+    <div class="chat-messages" #messagesContainer (copy)="onCopyBurbuja($event)">
       @for (msg of messages; let i = $index; track trackById($index, msg)) {
 
         <!-- Mensaje del sistema (centrado) -->
@@ -942,7 +926,7 @@
       <div class="client-timer-copy">
         <strong>{{ clientTimer.tipo === 'client_waiting' ? 'Esperando tu respuesta' : clientTimer.tipo === 'advisor_waiting' ? 'Esperando respuesta del agente' : 'Cerrando chat' }}</strong>
       </div>
-      <span class="client-timer-count">{{ clientTimer.restante }}s</span>
+      <span class="client-timer-count">{{ clientTimerFormato }}</span>
       <div class="client-timer-track">
         <div class="client-timer-fill" [style.width.%]="clientTimer.pct"></div>
       </div>

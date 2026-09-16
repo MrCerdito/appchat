@@ -379,7 +379,6 @@
           <span class="snap-pct" [class.ok]="conexionOptima">{{ conectadosPorcentaje }}%</span>
         </div>
         <div class="snap-summary">
-          <strong>{{ conectadosLabel }} de {{ conectadosTotal }} agentes respondieron</strong>
           <span class="snap-state-line" [class.ok]="conexionOptima">
             @if (conexionOptima) {
             Conectividad óptima · todos disponibles
@@ -389,18 +388,15 @@
           </span>
         </div>
         <div class="snap-list">
-          @for (a of conexionResultado?.asesores ?? []; track a.id) {
+          @for (a of asesoresSinConexion; track a.id) {
           <div class="snap-row">
-            <span class="snap-avatar" [class.inactivo]="getEstadoConAsesor(a) === 'inactivo'">
+            <span class="snap-avatar inactivo">
               {{ a.name.charAt(0) }}
             </span>
             <span class="snap-id">
               <span class="snap-name">{{ a.name }}</span>
-              <span class="snap-mail">{{ a.email }}</span>
             </span>
-            <span class="snap-state" [class]="'st-' + getEstadoConAsesor(a)">
-              {{ getEstadoConLabel(getEstadoConAsesor(a)) }}
-            </span>
+            <span class="snap-state st-inactivo">INACTIVO</span>
           </div>
           }
         </div>

@@ -13,6 +13,7 @@ import { VoiceRecorderComponent, VoiceRecordingResult } from '../../../../../../
 import { VoicePlayerComponent } from '../../../../../../shared/components/voice-player/voice-player.component';
 import { getInitials, getAvatarColor } from '../../../../../../shared/utils/avatar';
 import { scrollToBottom } from '../../../../../../shared/utils/scroll';
+import { formatMessageContent } from '../../../../../../shared/utils/message-format';
 
 interface Contacto {
   id: string;
@@ -797,37 +798,7 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
   }
 
   formatMessage(text: string): SafeHtml {
-    if (!text) return '';
-    const html = this.escapeHtml(text)
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>')
-      .replace(/(<li>.*<\/li>\n?)+/g, '<ol>$&</ol>')
-      .replace(
-        /\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g,
-        '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
-      )
-      .replace(
-        /link:((https?:\/\/|www\.)[^\s<]+)/gi,
-        '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
-      )
-      .replace(
-        /(?<!href="|src=")((https?:\/\/|www\.)[^\s<]+)/g,
-        (match) => {
-          const url = match.startsWith('www.') ? `https://${match}` : match;
-          return `<a href="${url}" target="_blank" rel="noopener noreferrer">${match}</a>`;
-        }
-      )
-      .replace(/\n/g, '<br>');
-    return this.sanitizer.bypassSecurityTrustHtml(html);
-  }
-
-  private escapeHtml(value: string): string {
-    return value
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
+    return this.sanitizer.bypassSecurityTrustHtml(formatMessageContent(text));
   }
 
   openMediaPreview(msg: Mensaje, event?: Event): void {

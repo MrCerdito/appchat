@@ -51,6 +51,9 @@ export class WidgetConfig {
   @Column({ name: 'mostrar_burbuja', type: 'boolean', default: true })
   mostrarBurbuja: boolean;
 
+  @Column({ name: 'ocultar_en_movil', type: 'boolean', default: false })
+  ocultarEnMovil: boolean;
+
   // ── Panel de chat (textos) ────────────────────────────────────────────────
   @Column({
     name: 'titulo_panel',

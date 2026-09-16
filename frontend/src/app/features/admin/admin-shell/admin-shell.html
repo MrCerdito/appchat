@@ -29,6 +29,17 @@
     </div>
 
     <nav class="shell-nav">
+      <a class="nav-item" routerLink="dashboard" [routerLinkActiveOptions]="{ exact: true }" routerLinkActive="active" (click)="closeSidebarOnMobile()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="9" rx="1.5"/>
+          <rect x="14" y="3" width="7" height="5" rx="1.5"/>
+          <rect x="14" y="12" width="7" height="9" rx="1.5"/>
+          <rect x="3" y="16" width="7" height="5" rx="1.5"/>
+        </svg>
+        <span>Dashboard</span>
+      </a>
+
       @if (permisos.tieneAcceso('history')) {
       <span class="nav-label">Chat en línea</span>
       }
@@ -288,21 +299,53 @@
   <div class="shell-content">
 
     <header class="admin-topbar">
+      @if (!enDashboard) {
+      <button class="back-btn" (click)="volverDashboard()" title="Volver al dashboard" aria-label="Volver al dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <line x1="19" y1="12" x2="5" y2="12"/>
+          <polyline points="12 19 5 12 12 5"/>
+        </svg>
+      </button>
+      }
+      <!--
       <button class="hamburger" [class.active]="sidebarOpen" (click)="toggleSidebar()" title="Menu" aria-label="Abrir menú">
         <span class="hamburger-bar"></span>
         <span class="hamburger-bar"></span>
         <span class="hamburger-bar"></span>
       </button>
+      -->
       <div class="topbar-right">
         <app-notification-bell></app-notification-bell>
-        <div class="profile-avatar topbar-avatar">
-          @if (currentAdmin?.profilePhotoUrl) {
-          <img
-               [src]="currentAdmin!.profilePhotoUrl"
-               [alt]="currentAdmin?.name"
-               class="profile-avatar-img" />
-          } @else {
-          {{ currentAdmin?.name?.charAt(0) }}
+        <div class="profile-wrap">
+          @if (profileMenuOpen) {
+          <div class="profile-overlay" (click)="closeProfileMenu()"></div>
+          }
+          <button class="profile-avatar topbar-avatar" (click)="toggleProfileMenu()">
+            @if (currentAdmin?.profilePhotoUrl) {
+            <img
+                 [src]="currentAdmin!.profilePhotoUrl"
+                 [alt]="currentAdmin?.name"
+                 class="profile-avatar-img" />
+            } @else {
+            {{ currentAdmin?.name?.charAt(0) }}
+            }
+          </button>
+          @if (profileMenuOpen) {
+          <div class="profile-dropdown">
+            <span class="profile-dropdown-name">{{ currentAdmin?.name }}</span>
+            <span class="profile-dropdown-email">{{ currentAdmin?.email }}</span>
+            <span class="profile-dropdown-divider"></span>
+            <button class="profile-dropdown-btn" (click)="logout()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+              Cerrar sesión
+            </button>
+          </div>
           }
         </div>
       </div>

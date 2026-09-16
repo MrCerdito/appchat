@@ -26,10 +26,7 @@ import {
   normalizarCredencialMailsender,
 } from '../common/mail/mailsender.helper';
 import { createSmtpTransport } from '../common/mail/smtp.helper';
-import {
-  embedInlineImages,
-  inlineImagesDataUri,
-} from '../common/mail/email-assets.helper';
+import { embedInlineImages } from '../common/mail/email-assets.helper';
 
 @Injectable()
 export class ComunicadosService {
@@ -321,7 +318,7 @@ export class ComunicadosService {
     modo: 'individual' | 'lote',
   ): Promise<void> {
     if (modo === 'lote') {
-      await this.enviarEnLote(destinos, c, credencial, mailsenderUrl);
+      await this.enviarEnLote(destinos, c, baseUrl, credencial, mailsenderUrl);
       return;
     }
 
@@ -349,7 +346,7 @@ export class ComunicadosService {
               this.injectTracking(c.cuerpo, c.id, dest.email, baseUrl),
               pixelUrl,
             );
-            const htmlFinal = await inlineImagesDataUri(cuerpoFinal);
+            const htmlFinal = this.absolutizarUploads(cuerpoFinal, baseUrl);
 
             let mensajeOk = '';
             for (let intento = 1; intento <= 2; intento++) {
@@ -415,11 +412,12 @@ export class ComunicadosService {
   private async enviarEnLote(
     destinos: Array<Destinatario & { emailFinal: string }>,
     c: Comunicado,
+    baseUrl: string,
     credencial: MailsenderCredencial,
     mailsenderUrl: string,
   ): Promise<void> {
     try {
-      const htmlFinal = await inlineImagesDataUri(c.cuerpo);
+      const htmlFinal = this.absolutizarUploads(c.cuerpo, baseUrl);
       const res = await enviarCorreoMailsender({
         baseUrl: mailsenderUrl,
         credencial,
@@ -972,5 +970,21 @@ export class ComunicadosService {
       const tracked = `${baseUrl}/track/click/${comunicadoId}/${encodeURIComponent(email)}?url=${encodeURIComponent(url)}`;
       return `<a href="${tracked}"`;
     });
+  }
+
+  /**
+   * Convierte las rutas locales de imagenes /uploads/... en URLs absolutas
+   * (baseUrl + ruta) para que lleguen al correo cargables desde el servidor
+   * publico sin incrustar base64 en el HTML. Incrustar base64 inflaba el
+   * mensaje y hacia que Gmail/Outlook recortaran el correo ("mensaje acortado")
+   * perdiendo las imagenes.
+   */
+  private absolutizarUploads(html: string, baseUrl: string): string {
+    const base = String(baseUrl || '').replace(/\/+$/, '');
+    if (!base) return html;
+    return html.replace(
+      /(["'()]\s*)\/(uploads\/[^"'()\s]+)/g,
+      (match, quote, ruta) => `${quote}${base}/${ruta}`,
+    );
   }
 }

@@ -45,6 +45,7 @@
     delayAutoAbrir     : 5,
     mensajeBurbuja     : '¿Necesitas ayuda? ¡Chatea con nosotros!',
     mostrarBurbuja     : true,
+    ocultarEnMovil     : false,
     chatUrl            : 'http://localhost:4200/chat',
     tituloPanelChat    : 'Soporte en línea',
     subtituloPanelChat : 'Estamos aquí para ayudarte',
@@ -373,12 +374,13 @@
       'show-bubble': 'mostrarBurbuja',
       'button-text': 'textoBoton',
       'show-text': 'mostrarTexto',
+      'hide-mobile': 'ocultarEnMovil',
     };
     for (var attr in attrs) {
       if (Object.prototype.hasOwnProperty.call(attrs, attr)) {
         var val = attrs[attr];
         var key = map[attr] || attr;
-        if (key === 'abrirAutomatico' || key === 'mostrarTexto' || key === 'mostrarBurbuja') {
+        if (key === 'abrirAutomatico' || key === 'mostrarTexto' || key === 'mostrarBurbuja' || key === 'ocultarEnMovil') {
           self._config[key] = val === 'true' || val === true;
         } else if (key === 'delayAutoAbrir') {
           self._config[key] = parseInt(val, 10) || DEF[key];
@@ -415,6 +417,8 @@
     var style = document.createElement('style');
     style.textContent = [
       ':host{display:block}',
+      ':host.hide-mobile{display:none}',
+      '@media (max-width:520px){:host.hide-mobile{display:none !important}}',
       ':host *,:host *::before,:host *::after{box-sizing:border-box}',
       '.sian-panel{position:fixed;display:none;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.18);z-index:2147483647;background:#fff;flex-direction:column}',
       '.sian-panel.sian-open{display:flex;animation:sianFadeIn .25s ease forwards}',
@@ -585,6 +589,8 @@
     var self = this;
     self._config = c;
 
+    if (self._hostEl) self._hostEl.classList.toggle('hide-mobile', !!c.ocultarEnMovil);
+
     var size    = self._btnSize();
     var hasText = c.mostrarTexto && c.textoBoton;
     var dims    = self._panelDims();
@@ -727,6 +733,7 @@
       delayAutoAbrir     : res.delayAutoAbrir      != null ? res.delayAutoAbrir     : DEF.delayAutoAbrir,
       mensajeBurbuja     : res.mensajeBurbuja      || DEF.mensajeBurbuja,
       mostrarBurbuja     : res.mostrarBurbuja      != null ? res.mostrarBurbuja     : DEF.mostrarBurbuja,
+      ocultarEnMovil     : res.ocultarEnMovil      != null ? !!res.ocultarEnMovil   : DEF.ocultarEnMovil,
       chatUrl            : res.chatUrl             || DEF.chatUrl,
       tituloPanelChat    : res.tituloPanelChat     || DEF.tituloPanelChat,
       subtituloPanelChat : res.subtituloPanelChat  || DEF.subtituloPanelChat,

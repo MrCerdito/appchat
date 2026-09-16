@@ -474,11 +474,55 @@ a { text-decoration: none; color: inherit; }
   box-shadow: 0 1px 2px var(--wa-shadow, rgba(0, 0, 0, .06));
   transition: box-shadow .15s ease, transform .15s ease;
 
-  a {
-    color: var(--wa-primary, #008069);
-    text-decoration: underline;
-    overflow-wrap: anywhere;
-    word-break: break-all;
+  // ::ng-deep: el contenido llega por [innerHTML], no lleva el atributo del
+  // componente; sin esto las etiquetas generadas lucen como texto plano.
+  ::ng-deep {
+    a {
+      color: var(--wa-primary, #008069);
+      text-decoration: underline;
+      overflow-wrap: anywhere;
+      word-break: break-all;
+    }
+
+    p {
+      margin: 0 0 10px;
+      &:last-child { margin-bottom: 0; }
+    }
+
+    .mb-heading {
+      margin: 6px 0 12px;
+      strong { line-height: 1.5; }
+    }
+
+    ol,
+    ul {
+      display: block;
+      margin: 12px 0;
+      padding-inline-start: 22px;
+      list-style-position: outside;
+    }
+    ol { list-style: decimal; }
+    ul {
+      list-style: disc;
+      list-style-type: "•";
+      padding-inline-start: 18px;
+    }
+    li { line-height: 1.55; margin: 5px 0; padding-left: 2px; }
+    strong { font-weight: 600; }
+    em { font-style: italic; }
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 0.9em;
+      background: rgba(127,127,127,.14);
+      padding: 1px 4px;
+      border-radius: 4px;
+    }
+    pre {
+      margin: 8px 0; padding: 8px 10px;
+      background: rgba(127,127,127,.14); border-radius: 6px; overflow-x: auto;
+      code { background: none; padding: 0; }
+    }
+    br + br { display: none; }
   }
 
   &:hover { box-shadow: 0 2px 10px var(--wa-shadow, rgba(0, 0, 0, .12)); }

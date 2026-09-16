@@ -512,6 +512,14 @@ export class SessionsController {
     return this.sessionsService.findPublic(id);
   }
 
+  // Publico: el cliente anonimo del widget necesita poder leer la conversación
+  // de su propia sesión ya finalizada (para mostrarla sobre el calificador).
+  // El id es un UUID no adivinable, misma garantía que public/:id y :id/codigo.
+  @Get('public/:id/messages')
+  getPublicMessages(@Param('id') id: string, @Query('limit') limit?: string) {
+    return this.sessionsService.getMessages(id, limit ? +limit : 50);
+  }
+
   @Get(':id')
   @UseGuards(JwtAuthGuard)
   @Permiso('history')

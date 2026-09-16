@@ -815,6 +815,28 @@
                 }
               </div>
             </section>
+
+            <!-- Ocultar en móvil -->
+            <section class="card">
+              <div class="card-head">
+                <span class="card-title">Ocultar en móvil</span>
+                <span class="card-hint">Muestra el widget solo en escritorio</span>
+              </div>
+              <div class="form-field">
+                <div class="toggle-row">
+                  <div class="toggle-info">
+                    <span class="sub-label">Ocultar en celulares</span>
+                    <span class="toggle-hint"
+                      >Oculta el botón del chat en pantallas de hasta 520px</span
+                    >
+                  </div>
+                  <label class="toggle">
+                    <input type="checkbox" [(ngModel)]="config.ocultarEnMovil" />
+                    <span class="track"></span>
+                  </label>
+                </div>
+              </div>
+            </section>
           }
 
           @case ('instalacion') {
@@ -1045,7 +1067,7 @@
               </div>
             </div>
 
-            @if (!previewOpen && config.mostrarBurbuja && config.mensajeBurbuja) {
+            @if (!ocultoEnMovilPreview && !previewOpen && config.mostrarBurbuja && config.mensajeBurbuja) {
               <div
                 class="prev-bubble"
                 [style]="bubbleStyle(config.posicion)"
@@ -1064,7 +1086,7 @@
               </div>
             }
 
-            @if (previewOpen) {
+            @if (previewOpen && !ocultoEnMovilPreview) {
               <div
                 class="prev-chat"
                 [style]="chatPanelStyle(config.posicion)"
@@ -1131,7 +1153,18 @@
               </div>
             }
 
-            <div class="prev-btn-wrap" [style]="btnWrapStyle(config.posicion)">
+            @if (ocultoEnMovilPreview) {
+              <div class="prev-hidden-notice">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                  <line x1="1" y1="1" x2="23" y2="23" />
+                </svg>
+                <span>Widget oculto en móvil</span>
+              </div>
+            }
+
+            @if (!ocultoEnMovilPreview) {
+              <div class="prev-btn-wrap" [style]="btnWrapStyle(config.posicion)">
               <button
                 class="prev-btn"
                 (click)="togglePreview()"
@@ -1157,6 +1190,7 @@
                 </span>
               </button>
             </div>
+            }
           </div>
         </div>
       </div>

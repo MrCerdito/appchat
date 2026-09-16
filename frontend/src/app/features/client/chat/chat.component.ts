@@ -19,6 +19,7 @@ import { HttpClient } from '@angular/common/http';
 import { trackByIndex, trackById } from '../../../shared/utils/track-by';
 import { scrollToBottom } from '../../../shared/utils/scroll';
 import { normalizeUploadFile } from '../../../shared/utils/media';
+import { formatMessageContent } from '../../../shared/utils/message-format';
 import { FaqComponent } from '../faq/faq.component';
 import { FaqService, Faq, FaqCategory } from '../../../core/services/faq.service';
 import { PqrsComponent } from '../pqrs/pqrs.component';
@@ -43,6 +44,14 @@ const COLEGIO_KEY     = 'chat_colegio';     // { id, nombre, link }
 const PAGE_URL_KEY    = 'chat_page_url';    // last known host page URL
 const IA_DEADLINE_KEY = 'chat_ia_deadline'; // timestamp absoluto del deadline IA
 const HUMAN_TIMER_KEY = 'chat_human_timer'; // { tipo, restante, total, ts }
+// Sesión que quedó sin calificar: se guarda al cerrar X/página/PC para poder
+// ofrecer el calificador la próxima vez que se abre el widget.
+const PENDING_RATING_KEY = 'chat_pending_rating'; // { sessionId, codigo, advisorName, ts }
+// Marcador de "pagehide ocurrió" en sessionStorage: persiste si fue un REFRESCO
+// de la misma pestaña y desaparece si la pestaña se cerró. Sirve para decidir
+// en el próximo arranque si mostrar el calificador pendiente (pestaña cerrada)
+// o reconectar normal sin calificador (refresh).
+const PAGEHIDE_MARKER_KEY = 'chat_pagehide_marker'; // sessionStorage: sessionId
 
 // Segundos que espera el backend antes de cerrar la sesión tras la 3ª ofensa.
 // Debe coincidir con SEGUNDOS_CIERRE_POR_OFENSAS de ai.controller.ts.
@@ -106,6 +115,10 @@ export class ChatComponent implements OnInit, OnDestroy {
   reconexionMensaje = '';
   reconexionSegundos = 0;
   private reconexionInterval: any = null;
+  // Contador local monótono de la franja de espera humana: decrementa el
+  // 'restante' cada segundo SIEMPRE en una sola dirección (evita que el valor
+  // salte arriba/abajo por llegadas irregulares de 'timer_update').
+  private humanTimerInterval: any = null;
   Math = Math;
   
   // Carga silenciosa: mientras true no se pinta ninguna pantalla (ni FAQ,
@@ -340,7 +353,6 @@ get rolLabel(): string {
   messages    : Message[] = [];
   session     : Session | null = null;
   codigoSesion = '';
-  codigoCopiado = false;
   advisorName = '';
   advisorPhotoUrl = '';
   avatarIaUrl = '';
@@ -448,6 +460,8 @@ get rolLabel(): string {
   private onlineHandler  = () => this.handleOnline();
   private offlineHandler = () => this.handleOffline();
   private visibilityHandler = () => this.handleVisibilityChange();
+  private beforeUnloadHandler = () => this.intentarNotificarSalida();
+  private pageHideHandler      = () => this.intentarNotificarSalida();
 
   /**
    * Kill switch para todos los listeners de Socket.IO.
@@ -489,6 +503,8 @@ get rolLabel(): string {
     window.addEventListener('online',  this.onlineHandler);
     window.addEventListener('offline', this.offlineHandler);
     document.addEventListener('visibilitychange', this.visibilityHandler);
+    window.addEventListener('beforeunload', this.beforeUnloadHandler);
+    window.addEventListener('pagehide', this.pageHideHandler);
 
     this.verificarJornada();
 
@@ -516,6 +532,10 @@ get rolLabel(): string {
     if (!this.colegioDetectado) {
       this.iniciarPollingUrl();
     }
+
+    // Si la sesión anterior quedó sin calificar (X/página/PC), mostrar de
+    // inmediato el chat finalizado + calificador, sin reconectar al backend.
+    if (this.restaurarRatingPendiente()) return;
 
     const savedSession = localStorage.getItem(SESSION_KEY);
     const savedName    = localStorage.getItem(CLIENT_NAME_KEY);
@@ -975,23 +995,6 @@ En el siguiente menú encontrarás varias opciones en las que te puedes apoyar, 
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // CÓDIGO DE CASO
-  // ══════════════════════════════════════════════════════════════════════════
-
-  copiarCodigo(): void {
-    if (!this.codigoSesion) return;
-    navigator.clipboard.writeText(this.codigoSesion).then(() => {
-      this.codigoCopiado = true;
-      setTimeout(() => this.codigoCopiado = false, 2000);
-    });
-  }
-
-  enviarCodigoWhatsApp(): void {
-    const msg = encodeURIComponent(`Hola, mi código de caso es: ${this.codigoSesion}`);
-    window.open(`https://wa.me/?text=${msg}`, '_blank');
-  }
-
-  // ══════════════════════════════════════════════════════════════════════════
   // NOTIFICACIONES
   // ══════════════════════════════════════════════════════════════════════════
 
@@ -1262,7 +1265,18 @@ En el siguiente menú encontrarás varias opciones en las que te puedes apoyar, 
       .pipe(takeUntil(this.socketDestroy$))
       .subscribe((payload) => {
         if (!payload?.sessionId || payload.sessionId !== this.session?.id) return;
-        this.clientTimer = this.buildClientTimer(payload);
+        const nuevo = this.buildClientTimer(payload);
+        // Monotonicidad: si el servidor llegó apenas 1s "adelantado" respecto al
+        // contador local (jitter por doble loop / reenvío), no hacemos saltar el
+        // número hacia arriba; el siguiente tick local lo alcanza solo.
+        const actual = this.clientTimer?.restante;
+        if (typeof actual === 'number' && actual > 0 && nuevo.restante === actual + 1) {
+          nuevo.restante = actual;
+          nuevo.pct = nuevo.total > 0
+            ? Math.min(100, Math.round(((nuevo.total - actual) / nuevo.total) * 100))
+            : 0;
+        }
+        this.clientTimer = nuevo;
         const remaining = this.clientTimer.restante;
         const total = this.clientTimer.total;
         if (remaining > 0) {
@@ -1272,6 +1286,7 @@ En el siguiente menú encontrarás varias opciones en las que te puedes apoyar, 
         } else {
           sessionStorage.removeItem(HUMAN_TIMER_KEY);
         }
+        this.arrancarCounterLocalTimer();
         this.cdr.detectChanges();
       });
 
@@ -1714,6 +1729,123 @@ En el siguiente menú encontrarás varias opciones en las que te puedes apoyar, 
       iteracion: payload.iteracion ?? 0,
       maxIter: payload.maxIter ?? 0,
     };
+  }
+
+  // ── Contador monótono de la franja (countdown en una sola dirección) ─────
+
+  /** Formato m:ss del tiempo restante (p. ej. "0:07"). */
+  get clientTimerFormato(): string {
+    const s = this.clientTimer?.restante ?? 0;
+    const seg = Math.max(0, Math.round(s));
+    const m = Math.floor(seg / 60);
+    return `${m}:${String(seg % 60).padStart(2, '0')}`;
+  }
+
+  private arrancarCounterLocalTimer(): void {
+    this.detenerCounterLocalTimer();
+    if (!this.clientTimer || this.clientTimer.restante <= 0) return;
+    this.humanTimerInterval = setInterval(() => this.tickHumanTimer(), 1000);
+  }
+
+  private detenerCounterLocalTimer(): void {
+    if (this.humanTimerInterval) {
+      clearInterval(this.humanTimerInterval);
+      this.humanTimerInterval = null;
+    }
+  }
+
+  private tickHumanTimer(): void {
+    if (!this.clientTimer) { this.detenerCounterLocalTimer(); return; }
+    const next = Math.max(0, this.clientTimer.restante - 1);
+    const total = this.clientTimer.total > 0 ? this.clientTimer.total : next;
+    this.clientTimer = {
+      ...this.clientTimer,
+      restante: next,
+      pct: total > 0 ? Math.min(100, Math.round(((total - next) / total) * 100)) : 0,
+    };
+    if (next <= 0) this.detenerCounterLocalTimer();
+    this.cdr.detectChanges();
+  }
+
+  // ── Cierre abrupto del cliente (X / cerrar página / apagar PC) ────────────
+
+  /**
+   * Al salir de la página (refresh o cierre de pestaña): aquí NO se cierra la
+   * sesión. Solo se guarda la sesión como "pendiente de calificar" y un marcador
+   * en sessionStorage para distinguir, en el próximo arranque, entre refresco
+   * (la pestaña sigue viva → se reconecta sin calificador) y cierre real de la
+   * pestaña (el backend la cierra por su gracia de 45s → se ofrece el
+   * calificador). La sesión solo se cierra con el botón de cerrar/finalizar
+   * (closeChat) o cuando el socket desaparece y vence la gracia del backend.
+   */
+  private intentarNotificarSalida(): void {
+    if (!this.session?.id || this.chatFinalizado || this.aiMode || this.step !== 'chat') return;
+    this.guardarRatingPendiente(this.session.id);
+    try { sessionStorage.setItem(PAGEHIDE_MARKER_KEY, this.session.id); } catch { /* noop */ }
+  }
+
+  private guardarRatingPendiente(sessionId: string): void {
+    localStorage.setItem(PENDING_RATING_KEY, JSON.stringify({
+      sessionId,
+      codigo: this.codigoSesion || '',
+      advisorName: this.advisorName || '',
+      ts: Date.now(),
+    }));
+  }
+
+  /**
+   * Si quedó una sesión por calificar, restaura el "chat finalizado" con el
+   * calificador inline en vez de reconectar. Devuelve true si se restauró.
+   *
+   * Distingue refresco de cierre real: el marcador de pagehide vive en
+   * sessionStorage, que SOBREVIVE al refresh de la pestaña pero se borra al
+   * cerrarla. Si el marcador coincide con la sesión pendiente → fue refresh →
+   * se limpia todo y se deja que el flujo normal reconecte (sin calificador).
+   */
+  private restaurarRatingPendiente(): boolean {
+    const raw = localStorage.getItem(PENDING_RATING_KEY);
+    if (!raw) return false;
+    let marker = '';
+    try { marker = sessionStorage.getItem(PAGEHIDE_MARKER_KEY) ?? ''; } catch { /* noop */ }
+
+    try {
+      const pend = JSON.parse(raw);
+      if (!pend?.sessionId) { localStorage.removeItem(PENDING_RATING_KEY); return false; }
+
+      // Refresco de la misma pestaña: el cliente sigue con su sesión, no se
+      // muestra calificador y el flujo normal reconecta al asesor.
+      if (marker === pend.sessionId) {
+        localStorage.removeItem(PENDING_RATING_KEY);
+        try { sessionStorage.removeItem(PAGEHIDE_MARKER_KEY); } catch { /* noop */ }
+        return false;
+      }
+
+      try { sessionStorage.removeItem(PAGEHIDE_MARKER_KEY); } catch { /* noop */ }
+      this.session = { id: pend.sessionId } as any;
+      this.codigoSesion       = pend.codigo ?? '';
+      this.advisorName        = pend.advisorName ?? '';
+      this.aiMode             = false;
+      this.step               = 'chat';
+      this.sessionIdParaRating = pend.sessionId;
+      this.marcarChatFinalizado();
+      this.sesionResuelta = true;
+      this.cdr.detectChanges();
+
+      // Mostrar la conversación que tuvo sobre el calificador (abajo).
+      this.sessionService.getPublicMessages(pend.sessionId, 100).subscribe({
+        next: (msgs) => {
+          this.messages = msgs ?? [];
+          this.cdr.detectChanges();
+          this.scrollToBottom();
+        },
+        error: () => {},
+      });
+
+      return true;
+    } catch {
+      localStorage.removeItem(PENDING_RATING_KEY);
+      return false;
+    }
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -2276,61 +2408,10 @@ En el siguiente menú encontrarás varias opciones en las que te puedes apoyar, 
 }
 
   formatMessage(text: string): string {
-  if (!text) return '';
-  if (this.isHtmlContent(text)) {
-    return this.secureHtml(text);
+    return formatMessageContent(text);
   }
-  return this.escapeHtml(text)
-    // Negrita: **texto** → <strong>texto</strong>
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    // Listas numeradas: "1. texto" al inicio de línea
-    .replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>')
-    // Wrappear listas consecutivas en <ol>
-    .replace(/(<li>.*<\/li>\n?)+/g, '<ol>$&</ol>')
-    // Markdown links: [texto](url) → <a href="url">texto</a>
-    .replace(
-      /\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g,
-      '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
-    )
-    // Links con prefijo: link:https://... → <a>https://...</a>
-    .replace(
-      /link:((https?:\/\/|www\.)[^\s<]+)/gi,
-      '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
-    )
-    // Hipervínculos: convertir URLs en enlaces clickables
-    .replace(
-      /(?<!href="|src=")((https?:\/\/|www\.)[^\s<]+)/g,
-      (match) => {
-        const url = match.startsWith('www.') ? `https://${match}` : match;
-        return `<a href="${url}" target="_blank" rel="noopener noreferrer">${match}</a>`;
-      }
-    )
-    // Saltos de línea
-    .replace(/\n/g, '<br>');
-}
 
-private escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-private isHtmlContent(text: string): boolean {
-  return /<(strong|b|ul|ol|li|div|p|br|span)[\s>]/i.test(text);
-}
-
-private secureHtml(html: string): string {
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/<\s*(script|iframe|object|embed)/gi, '&lt;$1')
-    .replace(/\son[a-z]+\s*=/gi, ' data-blocked=')
-    .replace(/javascript:/gi, '');
-}
-
-private normalizePhotoUrl(url: string): string {
+  private normalizePhotoUrl(url: string): string {
   if (!url) return '';
   return /^https?:\/\//i.test(url) ? url : `${environment.apiUrl}${url}`;
 }
@@ -2470,6 +2551,19 @@ private normalizePhotoUrl(url: string): string {
     navigator.clipboard.writeText(texto);
   }
 
+  /**
+   * Copiar dentro de las burbujas: solo texto plano, sin el HTML (fondos,
+   * colores ni estilos se pegan en otro lado). Intercepta el evento copy para
+   * que el portapapeles lleve únicamente la selección sin formato.
+   */
+  onCopyBurbuja(event: ClipboardEvent): void {
+    const sel = window.getSelection();
+    const text = sel ? sel.toString().trim() : '';
+    if (!text) return;
+    event.clipboardData?.setData('text/plain', text);
+    event.preventDefault();
+  }
+
   // ══════════════════════════════════════════════════════════════════════════
   // TYPING
   // ══════════════════════════════════════════════════════════════════════════
@@ -2500,6 +2594,9 @@ private normalizePhotoUrl(url: string): string {
     this.clearSession();
   } else {
     this.sessionIdParaRating = this.session.id;
+    // Aunque el chat quede abierto mostrando el calificador, se guarda la
+    // sesión como "pendiente" por si el usuario cierra la página sin calificar.
+    this.guardarRatingPendiente(this.session.id);
     this.socket.emit('client_close_session', this.session.id);
     this.socketDestroy$.next();
     this.socket.disconnect();
@@ -2522,6 +2619,7 @@ private normalizePhotoUrl(url: string): string {
 
     // Limpiar todos los timers y estados que puedan filtrar UI
     this.clientTimer = null;
+    this.detenerCounterLocalTimer();
     sessionStorage.removeItem(HUMAN_TIMER_KEY);
     sessionStorage.removeItem(IA_DEADLINE_KEY);
     this.otherTyping = false;
@@ -2554,6 +2652,7 @@ private normalizePhotoUrl(url: string): string {
       .subscribe({
         next: () => {
           this.ratingEnviado = true;
+          localStorage.removeItem(PENDING_RATING_KEY);
           this.cdr.detectChanges();
         },
         error: (err) => console.error('HTTP Error:', err),
@@ -2571,6 +2670,7 @@ private normalizePhotoUrl(url: string): string {
 
   clearSession(): void {
     if (this.timerCierreSesion) { clearTimeout(this.timerCierreSesion); this.timerCierreSesion = null; }
+    this.detenerCounterLocalTimer();
     clearInterval(this.reconexionInterval);
     this.reconexionInterval = null;
     this.reconexionActiva = false;
@@ -2583,11 +2683,13 @@ private normalizePhotoUrl(url: string): string {
     localStorage.removeItem(CLIENT_NAME_KEY);
     localStorage.removeItem(AI_HISTORY_KEY);
     localStorage.removeItem(AI_MESSAGES_KEY);
+    localStorage.removeItem(PENDING_RATING_KEY);
+    sessionStorage.removeItem(PAGEHIDE_MARKER_KEY);
     sessionStorage.removeItem(HUMAN_TIMER_KEY);
     // NOTE: COLEGIO_KEY and PAGE_URL_KEY are intentionally NOT cleared —
     // they represent the host page identity and must persist across chats.
 
-    this.session = null; this.messages = []; this.aiHistory = []; this.advisorName = ''; this.codigoSesion = ''; this.codigoCopiado = false;
+    this.session = null; this.messages = []; this.aiHistory = []; this.advisorName = ''; this.codigoSesion = '';
     this.step = 'name'; this.clientName = ''; this.submitted = false;
     this.chatFinalizado = false; this.fechaCierre = '';
     this.sesionFinalizando = false;
@@ -2667,11 +2769,14 @@ private normalizePhotoUrl(url: string): string {
     this.horarioPollInterval = null;
     clearInterval(this.reconexionInterval);
     this.reconexionInterval = null;
+    this.detenerCounterLocalTimer();
     this.detenerPollingUrl();
     if (this.detectarColegioSub) { this.detectarColegioSub.unsubscribe(); this.detectarColegioSub = null; }
     window.removeEventListener('online',  this.onlineHandler);
     window.removeEventListener('offline', this.offlineHandler);
     document.removeEventListener('visibilitychange', this.visibilityHandler);
+    window.removeEventListener('beforeunload', this.beforeUnloadHandler);
+    window.removeEventListener('pagehide', this.pageHideHandler);
     this.cancelarTimerInactividadIa();
     if (this.timerCierreSesion) { clearTimeout(this.timerCierreSesion); this.timerCierreSesion = null; }
     if (this.session && this.step === 'chat') {

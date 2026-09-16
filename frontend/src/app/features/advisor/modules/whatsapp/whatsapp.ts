@@ -3597,7 +3597,7 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
       subject: 'Reunion de seguimiento',
       startDateTime: this.toDateTimeLocalValue(start),
       durationMinutes: 30,
-      calendarTarget: 'personal',
+      calendarTarget: 'shared',
     };
   }
 

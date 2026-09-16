@@ -26,6 +26,7 @@ export interface WidgetConfig {
   delayAutoAbrir: number;
   mensajeBurbuja: string;
   mostrarBurbuja: boolean;
+  ocultarEnMovil: boolean;
   // ── Textos del panel
   tituloPanelChat: string;
   subtituloPanelChat: string;
@@ -67,6 +68,7 @@ const DEFAULT_CONFIG: WidgetConfig = {
   delayAutoAbrir: 5,
   mensajeBurbuja: '¿Necesitas ayuda? ¡Chatea con nosotros!',
   mostrarBurbuja: true,
+  ocultarEnMovil: false,
   tituloPanelChat: 'Soporte en línea',
   subtituloPanelChat: 'Estamos aquí para ayudarte',
   chatUrl: 'https://innoovacloud.com/korvix',
@@ -414,6 +416,10 @@ export class WidgetComponent implements OnInit, OnDestroy {
     this.device = d;
   }
 
+  get ocultoEnMovilPreview(): boolean {
+    return this.device === 'mobile' && this.config.ocultarEnMovil;
+  }
+
   togglePreview(): void {
     this.previewOpen = !this.previewOpen;
   }
@@ -512,7 +518,7 @@ export class WidgetComponent implements OnInit, OnDestroy {
 
   // ── Computed ───────────────────────────────────────────────────────────────
   get scriptIntegracion(): string {
-    const url = `${this.config.chatUrl}/widget.js?v=2.1.0`;
+    const url = `${this.config.chatUrl}/widget.js?v=2.2.1`;
     return `<script src="${url}" defer></script>`;
   }
 
@@ -530,6 +536,7 @@ export class WidgetComponent implements OnInit, OnDestroy {
       delayAutoAbrir: res.delayAutoAbrir ?? DEFAULT_CONFIG.delayAutoAbrir,
       mensajeBurbuja: res.mensajeBurbuja ?? DEFAULT_CONFIG.mensajeBurbuja,
       mostrarBurbuja: res.mostrarBurbuja ?? DEFAULT_CONFIG.mostrarBurbuja,
+      ocultarEnMovil: res.ocultarEnMovil ?? DEFAULT_CONFIG.ocultarEnMovil,
       tituloPanelChat: res.tituloPanelChat ?? DEFAULT_CONFIG.tituloPanelChat,
       subtituloPanelChat: res.subtituloPanelChat ?? DEFAULT_CONFIG.subtituloPanelChat,
       chatUrl: res.chatUrl ?? DEFAULT_CONFIG.chatUrl,

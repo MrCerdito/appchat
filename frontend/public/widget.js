@@ -1,7 +1,12 @@
 /**
  * widget.js — Widget de chat embebible — Sian365
- * v2.1.0
- * Versión con soporte completo de todos los campos de configuración.
+ * v2.2.1
+ * Cambios v2.2.1: fix de posición del manejador fantasma (px con unidad) y
+ * animaciones suaves al ocultar (fade + el botón se encoge) y mostrar.
+ * v2.2.0: el visitante puede ocultar el widget (clic derecho sobre el
+ * botón/burbuja → "Ocultar widget") y volver a mostrarlo desde un manejador
+ * fantasma. El estado se persiste en localStorage por navegador.
+ * v2.1.0: Versión con soporte completo de todos los campos de configuración.
  * Cambios: fix base URL con src absoluto, chatUrl derivado del script,
  * validación de event.origin, sin secuestro de document.title, match exacto
  * de nombre de archivo, sanitización de colores y loggeo bajo data-debug.
@@ -15,6 +20,7 @@
   var POLL_MS  = 5000;
   var ROOT_ID  = 'sian-widget-root';
   var API_PATH = '/widget-config';
+  var HIDE_KEY = 'sian_widget_hidden';
 
   /* ═══════════════════════════════════════════════════════════
      SECCIÓN 2 — DEFAULTS
@@ -33,6 +39,7 @@
     delayAutoAbrir     : 5,
     mensajeBurbuja     : '¿Necesitas ayuda? ¡Chatea con nosotros!',
     mostrarBurbuja     : true,
+    ocultarEnMovil     : false,
     chatUrl            : 'http://localhost:4200/chat',
     // Textos del panel
     tituloPanelChat    : 'Soporte en línea',
@@ -70,6 +77,8 @@
   ═══════════════════════════════════════════════════════════ */
   var cfg          = Object.assign({}, DEF);
   var isOpen       = false;
+  var isHidden     = false; // el visitante puede ocultar el widget (localStorage)
+  var finishHideT  = null;  // timer que aplica el estado oculto tras la animación
   var inited       = false;
   var autoT        = null;
   var _prevCfgJson = '';
@@ -81,6 +90,19 @@
   var badgeEl = null;
   var brandColor = null; // color de marca del proyecto (Sian365 / ControlAcademic)
   var brandBg    = null; // fondo claro del chat según la marca
+
+  // Estado "oculto por el visitante": persiste en localStorage de la página
+  // host. readHidden()/saveHidden() nunca lanzan (modo privado → solo dura la
+  // sesión actual).
+  function readHidden() {
+    try { return localStorage.getItem(HIDE_KEY) === '1'; } catch (_) { return false; }
+  }
+  function saveHidden(h) {
+    try {
+      if (h) localStorage.setItem(HIDE_KEY, '1');
+      else   localStorage.removeItem(HIDE_KEY);
+    } catch (_) {}
+  }
 
   /* ═══════════════════════════════════════════════════════════
      SECCIÓN 5 — SVG PATHS
@@ -282,7 +304,7 @@
         'color', 'posicion', 'forma', 'tamano', 'icono',
         'textoBoton', 'mostrarTexto',
         'abrirAutomatico', 'delayAutoAbrir',
-        'mensajeBurbuja', 'mostrarBurbuja', 'chatUrl',
+        'mensajeBurbuja', 'mostrarBurbuja', 'chatUrl', 'ocultarEnMovil',
         'tituloPanelChat', 'subtituloPanelChat',
         'chatHeaderColor', 'chatBgColor',
         'chatBubbleColor', 'chatBubbleUserColor', 'chatMarca',
@@ -291,7 +313,7 @@
       fields.forEach(function (f) {
         var v = p.get(f);
         if (v !== null) {
-          if (f === 'mostrarTexto' || f === 'abrirAutomatico' || f === 'mostrarBurbuja') {
+          if (f === 'mostrarTexto' || f === 'abrirAutomatico' || f === 'mostrarBurbuja' || f === 'ocultarEnMovil') {
             cfg[f] = v === 'true';
           } else if (f === 'delayAutoAbrir') {
             cfg[f] = parseInt(v, 10) || DEF[f];
@@ -320,10 +342,11 @@
       textoBoton         : res.textoBoton          != null ? res.textoBoton         : DEF.textoBoton,
       mostrarTexto       : res.mostrarTexto        != null ? res.mostrarTexto       : DEF.mostrarTexto,
       // Comportamiento
-      abrirAutomatico    : res.abrirAutomatico     != null ? res.abrirAutomatico    : DEF.abrirAutomatico,
-      delayAutoAbrir     : res.delayAutoAbrir      != null ? res.delayAutoAbrir     : DEF.delayAutoAbrir,
-      mensajeBurbuja     : res.mensajeBurbuja      || DEF.mensajeBurbuja,
-      mostrarBurbuja     : res.mostrarBurbuja      != null ? res.mostrarBurbuja     : DEF.mostrarBurbuja,
+      abrirAutomatico    : res.abrirAutomatico      != null ? res.abrirAutomatico    : DEF.abrirAutomatico,
+      delayAutoAbrir     : res.delayAutoAbrir       != null ? res.delayAutoAbrir     : DEF.delayAutoAbrir,
+      mensajeBurbuja     : res.mensajeBurbuja       != null ? res.mensajeBurbuja     : DEF.mensajeBurbuja,
+      mostrarBurbuja     : res.mostrarBurbuja       != null ? res.mostrarBurbuja     : DEF.mostrarBurbuja,
+      ocultarEnMovil     : res.ocultarEnMovil       != null ? !!res.ocultarEnMovil   : DEF.ocultarEnMovil,
       chatUrl            : res.chatUrl             || DEF.chatUrl,
       // Textos del panel
       tituloPanelChat    : res.tituloPanelChat     || DEF.tituloPanelChat,
@@ -422,7 +445,34 @@
     btn.appendChild(badge);
     badgeEl = badge;
 
+    // Clic derecho sobre el widget (botón o burbuja) → menú "Ocultar widget".
+    root.addEventListener('contextmenu', onRootContextMenu);
+
     document.body.appendChild(root);
+
+    // ── Manejador fantasma: queda visible cuando el visitante oculta el
+    //    widget para poder volver a mostrarlo. Se agrega al body (NO al root,
+    //    que queda display:none). ──
+    var toggle = document.createElement('button');
+    toggle.id  = 'sian-hidden-toggle';
+    toggle.setAttribute('type', 'button');
+    toggle.setAttribute('title', 'Mostrar el chat');
+    toggle.setAttribute('aria-label', 'Mostrar el chat');
+    toggle.innerHTML = makeSvg('chat', 22, 2.2);
+    toggle.addEventListener('click', restoreWidget);
+    toggle.addEventListener('contextmenu', function (e) {
+      e.preventDefault();
+      showContextMenu(e.clientX, e.clientY, [
+        { label: 'Mostrar widget', action: restoreWidget },
+      ]);
+    });
+    document.body.appendChild(toggle);
+
+    // ── Menú contextual propio ──
+    var ctxMenu = document.createElement('div');
+    ctxMenu.id  = 'sian-ctxmenu';
+    ctxMenu.setAttribute('role', 'menu');
+    document.body.appendChild(ctxMenu);
   }
 
 
@@ -530,6 +580,9 @@
   function paint(c) {
     cfg = c;
 
+    var rootEl = document.getElementById(ROOT_ID);
+    if (rootEl) rootEl.classList.toggle('sian-hide-mobile', !!cfg.ocultarEnMovil);
+
     // data-chat-url sobreescribe cualquier config de la API
     if (DATA_CHAT_URL) {
       cfg.chatUrl = DATA_CHAT_URL;
@@ -616,6 +669,16 @@
       if (autoT) clearTimeout(autoT);
       Log.autoOpen(cfg.delayAutoAbrir);
       autoT = setTimeout(openPanel, cfg.delayAutoAbrir * 1000);
+    }
+
+    // Manejador fantasma: mantener posición si el widget está oculto (la
+    // config puede cambiar posición vía polling mientras tanto).
+    if (isHidden) {
+      var toggleEl = document.getElementById('sian-hidden-toggle');
+      if (toggleEl) {
+        toggleEl.style.display = 'flex';
+        applyPos(toggleEl, getHiddenPos(cfg.posicion));
+      }
     }
 
     inited = true;
@@ -754,6 +817,11 @@
 #sian-widget-root {
   display: block;
   --sian-brand: #0b5ed7;
+}
+@media (max-width: 520px) {
+  #sian-widget-root.sian-hide-mobile {
+    display: none !important;
+  }
 }
 #sian-widget-root *,
 #sian-widget-root *::before,
@@ -936,6 +1004,105 @@
   0%,100% { transform: scale(1); }
   50% { transform: scale(1.12); }
 }
+#sian-ctxmenu {
+  position: fixed;
+  display: none;
+  min-width: 190px;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow:
+    0 16px 44px rgba(15, 23, 42, 0.22),
+    0 2px 8px rgba(15, 23, 42, 0.10);
+  z-index: 2147483647;
+  font-family: inherit;
+}
+#sian-ctxmenu.sian-open {
+  display: block;
+  animation: sianCtxIn 0.13s ease;
+}
+@keyframes sianCtxIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+#sian-ctxmenu button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  border: none;
+  background: none;
+  padding: 9px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #1f2937;
+  text-align: left;
+  font-family: inherit;
+}
+#sian-ctxmenu button:hover {
+  background: #f3f4f6;
+}
+#sian-ctxmenu .sian-ctx-ico {
+  display: flex;
+  color: #6b7280;
+}
+#sian-hidden-toggle {
+  position: fixed;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.22);
+  background: rgba(15,23,42,0.72);
+  color: #fff;
+  cursor: pointer;
+  padding: 0;
+  z-index: 2147483646;
+  opacity: 0.55;
+  box-shadow: 0 6px 18px rgba(15,23,42,0.22);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+#sian-hidden-toggle:hover {
+  opacity: 1;
+  transform: translateY(-2px);
+}
+#sian-widget-root.sian-hide-anim {
+  animation: sianRootFadeOut 0.32s ease;
+}
+@keyframes sianRootFadeOut {
+  to { opacity: 0; }
+}
+#sian-widget-root.sian-hide-anim #sian-btn {
+  animation: sianBtnOut 0.36s cubic-bezier(0.5, 0, 0.8, 0.4);
+}
+@keyframes sianBtnOut {
+  0%   { transform: scale(1); opacity: 1; }
+  100% { transform: scale(0.25) translateY(46px); opacity: 0; }
+}
+#sian-widget-root.sian-show-anim {
+  animation: sianRootFadeIn 0.4s ease;
+}
+@keyframes sianRootFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+#sian-widget-root.sian-show-anim #sian-btn {
+  animation: sianBtnIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes sianBtnIn {
+  0%   { transform: scale(0.4); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+#sian-hidden-toggle.sian-pop {
+  animation: sianToggleIn 0.34s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes sianToggleIn {
+  0%   { transform: scale(0); opacity: 0; }
+  100% { transform: scale(1); }
+}
 `;
   document.head.appendChild(widgetStyle);
 
@@ -962,6 +1129,150 @@
   }
 
   function togglePanel() { if (isOpen) closePanel(); else openPanel(); }
+
+  /* ═══════════════════════════════════════════════════════════
+     SECCIÓN 11b — OCULTAR / MOSTRAR WIDGET + MENÚ CONTEXTUAL
+  ═══════════════════════════════════════════════════════════ */
+  function onRootContextMenu(e) {
+    if (isHidden) return;
+    e.preventDefault();
+    showContextMenu(e.clientX, e.clientY, [
+      { label: 'Ocultar widget', action: hideWidget },
+    ]);
+  }
+
+  function hideWidget() {
+    if (isHidden) return;
+    isHidden = true;
+    saveHidden(true);
+    animateWidgetOut();
+  }
+
+  // Oculta el widget con animación (fade del root + el botón se encoge/cae) y
+  // al terminar aplica el estado oculto y hace aparecer el manejador fantasma.
+  function animateWidgetOut() {
+    var root   = document.getElementById(ROOT_ID);
+    var toggle = document.getElementById('sian-hidden-toggle');
+
+    if (finishHideT) { clearTimeout(finishHideT); finishHideT = null; }
+    if (root) {
+      root.classList.remove('sian-hide-anim');
+      void root.offsetWidth;               // reinicia la animación si se repite
+      root.classList.add('sian-hide-anim');
+      root.style.pointerEvents = 'none';
+    }
+
+    finishHideT = setTimeout(function () {
+      finishHideT = null;
+      applyHiddenState();
+      if (toggle) {
+        toggle.style.display = 'flex';
+        toggle.classList.remove('sian-pop');
+        void toggle.offsetWidth;           // reinicia la aparición del fantasma
+        toggle.classList.add('sian-pop');
+      }
+    }, 340);
+  }
+
+  function restoreWidget() {
+    if (!isHidden) return;
+    if (finishHideT) { clearTimeout(finishHideT); finishHideT = null; }
+    isHidden = false;
+    saveHidden(false);
+
+    var root = document.getElementById(ROOT_ID);
+    if (root) {
+      root.classList.remove('sian-hide-anim');
+      root.style.removeProperty('pointer-events');
+    }
+    applyHiddenState();
+
+    if (root) {
+      root.classList.remove('sian-show-anim');
+      void root.offsetWidth;               // reinicia la animación de entrada
+      root.classList.add('sian-show-anim');
+    }
+  }
+
+  // El manejador fantasma se posiciona donde estaba el botón (mismo criterio
+  // de posición, con +20px de margen para calzar el área del botón de 64px).
+  function getHiddenPos(pos) {
+    var base = BTN_POS[pos] || BTN_POS['bottom-right'];
+    var out  = {};
+    Object.keys(base).forEach(function (k) {
+      var num = parseInt(base[k], 10);
+      out[k] = isNaN(num) ? base[k] : (num + 20) + 'px';
+    });
+    return out;
+  }
+
+  function applyHiddenState() {
+    var root   = document.getElementById(ROOT_ID);
+    var toggle = document.getElementById('sian-hidden-toggle');
+    if (isHidden) {
+      closePanel();
+      if (root)   root.style.display = 'none';
+      if (toggle) {
+        toggle.style.display = 'flex';
+        applyPos(toggle, getHiddenPos(cfg.posicion));
+      }
+    } else {
+      if (root)   root.style.display = 'block';
+      if (toggle) toggle.style.display = 'none';
+    }
+  }
+
+  // ── Menú contextual propio ─────────────────────────────────────
+  function showContextMenu(x, y, items) {
+    var el = document.getElementById('sian-ctxmenu');
+    if (!el || !items || !items.length) return;
+    el.innerHTML = '';
+    items.forEach(function (it) {
+      var btn = document.createElement('button');
+      btn.setAttribute('type', 'button');
+      if (it.icon) {
+        var ico = document.createElement('span');
+        ico.className = 'sian-ctx-ico';
+        ico.innerHTML = it.icon;
+        btn.appendChild(ico);
+      }
+      var label = document.createElement('span');
+      label.textContent = it.label;
+      btn.appendChild(label);
+      btn.addEventListener('click', function () {
+        hideContextMenu();
+        if (it.action) it.action();
+      });
+      el.appendChild(btn);
+    });
+    el.style.left = '0px';
+    el.style.top  = '0px';
+    el.classList.add('sian-open');
+    var r = el.getBoundingClientRect();
+    el.style.left = Math.max(8, Math.min(x, window.innerWidth  - r.width  - 8)) + 'px';
+    el.style.top  = Math.max(8, Math.min(y, window.innerHeight - r.height - 8)) + 'px';
+  }
+
+  function hideContextMenu() {
+    var el = document.getElementById('sian-ctxmenu');
+    if (el) el.classList.remove('sian-open');
+  }
+
+  // Clic derecho fuera del widget: cierra nuestro menú y deja que el
+  // navegador muestre su menú normal en ese elemento.
+  document.addEventListener('contextmenu', function (e) {
+    if (e.target && e.target.closest
+        && (e.target.closest('#sian-widget-root') || e.target.closest('#sian-hidden-toggle'))) {
+      return;
+    }
+    hideContextMenu();
+  });
+
+  document.addEventListener('click', function () { hideContextMenu(); }, true);
+  document.addEventListener('scroll', function () { hideContextMenu(); }, true);
+  window.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' || e.key === 'Esc') hideContextMenu();
+  });
 
   /* ═══════════════════════════════════════════════════════════
      SECCIÓN 12 — FETCH + POLLING
@@ -997,7 +1308,14 @@
   /* ═══════════════════════════════════════════════════════════
      SECCIÓN 13 — BOOTSTRAP
   ═══════════════════════════════════════════════════════════ */
-  window.addEventListener('resize', function () { if (inited) paint(cfg); });
+  window.addEventListener('resize', function () {
+    if (isHidden) {
+      var toggle = document.getElementById('sian-hidden-toggle');
+      if (toggle) applyPos(toggle, getHiddenPos(cfg.posicion));
+      return;
+    }
+    if (inited) paint(cfg);
+  });
 
   var BOOTED = false;
 
@@ -1008,6 +1326,10 @@
     BOOTED = true;
 
     buildDOM();
+
+    // Estado "oculto por el visitante" (persistido en localStorage).
+    isHidden = readHidden();
+    applyHiddenState();
 
     var overlay = document.getElementById('loading-overlay');
     if (overlay) overlay.style.display = 'none';
