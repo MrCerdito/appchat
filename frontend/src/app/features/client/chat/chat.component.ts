@@ -1183,6 +1183,12 @@ En el siguiente menú encontrarás varias opciones en las que te puedes apoyar, 
         this.queuePosition = -1;
         this.queueTotal    = null;
         this.fueraDeHorario = false;
+        // El asesor está de vuelta: ocultar el banner de reconexión residual
+        // (puede quedar activo tras una reasignación con session_interrupted).
+        this.reconexionActiva = false;
+        this.reconexionSegundos = 0;
+        clearInterval(this.reconexionInterval);
+        this.reconexionInterval = null;
         this.step = 'chat';
         this.socket.emit('set_active', { sessionId: this.session!.id, active: true });
 
@@ -1265,6 +1271,14 @@ En el siguiente menú encontrarás varias opciones en las que te puedes apoyar, 
       .pipe(takeUntil(this.socketDestroy$))
       .subscribe((payload) => {
         if (!payload?.sessionId || payload.sessionId !== this.session?.id) return;
+        // Un timer real corriendo implica que la sesión se reanudó (asesor de
+        // vuelta o turno nuevo): limpiar cualquier banner de reconexión.
+        if (this.reconexionActiva) {
+          this.reconexionActiva = false;
+          this.reconexionSegundos = 0;
+          clearInterval(this.reconexionInterval);
+          this.reconexionInterval = null;
+        }
         const nuevo = this.buildClientTimer(payload);
         // Monotonicidad: si el servidor llegó apenas 1s "adelantado" respecto al
         // contador local (jitter por doble loop / reenvío), no hacemos saltar el
@@ -1303,16 +1317,25 @@ En el siguiente menú encontrarás varias opciones en las que te puedes apoyar, 
         if (data.sessionId !== this.session?.id) return;
         this.reconexionActiva = true;
         this.reconexionMensaje = data.mensaje || 'El agente se desconectó. Esperando reconexión...';
-        this.reconexionSegundos = data.tiempoLimiteSeg;
+        this.reconexionSegundos = data.tiempoLimiteSeg ?? 0;
         clearInterval(this.reconexionInterval);
-        this.reconexionInterval = setInterval(() => {
-          this.reconexionSegundos = Math.max(0, this.reconexionSegundos - 1);
-          this.cdr.detectChanges();
-          if (this.reconexionSegundos <= 0) {
-            clearInterval(this.reconexionInterval);
-            this.reconexionInterval = null;
-          }
-        }, 1000);
+        if (this.reconexionSegundos > 0) {
+          this.reconexionInterval = setInterval(() => {
+            this.reconexionSegundos = Math.max(0, this.reconexionSegundos - 1);
+            this.cdr.detectChanges();
+            if (this.reconexionSegundos <= 0) {
+              clearInterval(this.reconexionInterval);
+              this.reconexionInterval = null;
+            }
+          }, 1000);
+        } else {
+          this.reconexionInterval = null;
+        }
+        // Sesión interrumpida: quitar la franja de espera congelada (el strip
+        // se reanuda con el próximo timer_update al reconectarse el asesor).
+        this.clientTimer = null;
+        this.detenerCounterLocalTimer();
+        sessionStorage.removeItem(HUMAN_TIMER_KEY);
         this.cdr.detectChanges();
       });
 

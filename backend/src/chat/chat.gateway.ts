@@ -73,6 +73,21 @@ export class ChatGateway
   // Tiempo que el backend espera tras desconectarse el socket del cliente antes
   // de dar por finalizada la sesión (quitar de la lista del asesor + calificador).
   private static readonly GRACE_CLIENTE_MS = 45_000;
+  // Fallback de configuración de timers: si la config global/efectiva no existe
+  // o falla (Redis/BD caídos), jamás dejar una sesión sin vigilancia ni sin
+  // mensajes automáticos. Coincide con el seed/defectos del entity.
+  private static readonly TIMER_CONFIG_DEFAULTS = {
+    asesorInactividadSeg: 120,
+    asesorInactividadMsg:
+      'El agente se ha desconectado. En breve lo atenderá otro.',
+    asesorReconexionSeg: 120,
+    asesorReconexionMsg:
+      'El agente se ha desconectado. Por favor inicia una nueva conversacion.',
+    clienteInactividadSeg: 180,
+    clienteInactividadMsg: '¿Sigues ahí? Escribe algo para continuar.',
+    clienteInactividadIters: 2,
+    clienteCierreMsg: 'Gracias por contactarnos. Que tengas un buen día.',
+  } as const;
   private readonly MAX_MSG_PER_SEC = 10;
 
   // ── Distributed state via Redis ──────────────────────────────────────────
@@ -161,6 +176,9 @@ export class ChatGateway
       30_000,
     );
     setTimeout(() => this.sweepStalePresence(), 5_000);
+    // Restaura los timers de inactividad de sesiones activas tras un reinicio
+    // (los timers viven en memoria y se pierden si el proceso se cae).
+    setTimeout(() => this.restaurarTimersActivas(), 3_000);
   }
 
   async onModuleDestroy() {
@@ -270,6 +288,11 @@ export class ChatGateway
               this.server.to(session.id).emit('reconnection_ok', {
                 sessionId: session.id,
               });
+              // Rearmar el timer de inactividad: la tira de espera y el aviso
+              // "asesor no responde" deben volver a correr tras la reconexión.
+              if (session.status === 'active') {
+                await this.iniciarTimers(session.id, payload.sub);
+              }
             }
           }
         } catch {}
@@ -498,14 +521,16 @@ export class ChatGateway
       .getAdvisorStatus(advisorId)
       .catch(() => null);
     if (preferencia && VALIDOS.includes(preferencia)) {
-      return preferencia as 'online' | 'busy' | 'meeting' | 'almuerzo' | 'offline';
+      return preferencia as
+        'online' | 'busy' | 'meeting' | 'almuerzo' | 'offline';
     }
     if (
       persistedStatus &&
       persistedStatus !== 'offline' &&
       VALIDOS.includes(persistedStatus)
     ) {
-      return persistedStatus as 'online' | 'busy' | 'meeting' | 'almuerzo' | 'offline';
+      return persistedStatus as
+        'online' | 'busy' | 'meeting' | 'almuerzo' | 'offline';
     }
     return 'online';
   }
@@ -847,6 +872,9 @@ export class ChatGateway
       // Cancel reconnection timer — advisor is back
       const entry = this.timers.get(data.sessionId);
       if (entry && entry.tipo === 'reconnection') {
+        const session = await this.sessionsService
+          .findOne(data.sessionId)
+          .catch(() => null);
         this.cancelarTimerActivo(data.sessionId);
         this.server.to(data.sessionId).emit('reconnection_ok', {
           sessionId: data.sessionId,
@@ -854,6 +882,18 @@ export class ChatGateway
         this.logger.log(
           `[Reconexion] Asesor reconectado a sesión ${data.sessionId}`,
         );
+        // Rearmar timers: la franja "esperando respuesta" y los mensajes
+        // automáticos deben reanudarse tras la reconexión del asesor.
+        if (session?.status === 'active') {
+          this.crearTimer(
+            data.sessionId,
+            client.data.user?.id ?? session.advisor?.id,
+          );
+          await this.iniciarTimers(
+            data.sessionId,
+            session.advisor?.id ?? 'unknown',
+          );
+        }
       }
     }
 
@@ -1973,6 +2013,83 @@ export class ChatGateway
   // SISTEMA DE TIMERS
   // ══════════════════════════════════════════════════════════════════════════
 
+  /**
+   * Configuración para los timers de inactividad/reconexión con fallback
+   * triple: efectiva del asesor → global → defaults estáticos. Un fallo de
+   * Redis/BD nunca deja la sesión sin vigilancia ni sin mensaje automático.
+   */
+  private async getConfigTimers(advisorId: string): Promise<{
+    asesorInactividadSeg: number;
+    asesorInactividadMsg: string;
+    asesorReconexionSeg: number;
+    asesorReconexionMsg: string;
+    clienteInactividadSeg: number;
+    clienteInactividadMsg: string;
+    clienteInactividadIters: number;
+    clienteCierreMsg: string;
+  }> {
+    const base = ChatGateway.TIMER_CONFIG_DEFAULTS;
+    const origen =
+      (await this.configuracionService
+        .getEfectiva(advisorId)
+        .catch(() => null)) ??
+      (await this.configuracionService.getGlobal().catch(() => null)) ??
+      ({} as Partial<typeof base>);
+    return {
+      asesorInactividadSeg:
+        origen.asesorInactividadSeg ?? base.asesorInactividadSeg,
+      asesorInactividadMsg:
+        (origen.asesorInactividadMsg ?? '').trim() || base.asesorInactividadMsg,
+      asesorReconexionSeg:
+        origen.asesorReconexionSeg ?? base.asesorReconexionSeg,
+      asesorReconexionMsg:
+        (origen.asesorReconexionMsg ?? '').trim() || base.asesorReconexionMsg,
+      clienteInactividadSeg:
+        origen.clienteInactividadSeg ?? base.clienteInactividadSeg,
+      clienteInactividadMsg:
+        (origen.clienteInactividadMsg ?? '').trim() ||
+        base.clienteInactividadMsg,
+      clienteInactividadIters:
+        origen.clienteInactividadIters ?? base.clienteInactividadIters,
+      clienteCierreMsg:
+        (origen.clienteCierreMsg ?? '').trim() || base.clienteCierreMsg,
+    };
+  }
+
+  /**
+   * Restaura los timers de inactividad de todas las sesiones 'active' cuyo
+   * asesor SIGUE conectado. Cubre reinicios del servidor (los timers viven en
+   * memoria y se pierden) y sesiones rescatadas por otro proceso. Idempotente:
+   * no toca sesiones que ya tienen un timer corriendo.
+   */
+  private async restaurarTimersActivas(): Promise<void> {
+    try {
+      const activeSessions =
+        await this.sessionsService.findActiveSessionsWithAdvisor();
+      const connected = await this.redisState.getConnectedAdvisorIds();
+      const connectedSet = new Set(connected);
+      for (const session of activeSessions) {
+        const advisorId = session.advisor?.id;
+        if (!advisorId || !connectedSet.has(advisorId)) continue;
+        const entry = this.timers.get(session.id);
+        if (entry && entry.tipo !== 'none' && entry.startTime > 0) continue;
+        if (entry) {
+          this.cancelarTimerActivo(session.id);
+        } else {
+          this.crearTimer(session.id, advisorId);
+        }
+        this.logger.log(
+          `[Timer] Restaurando timers de sesión ${session.id} (asesor ${advisorId} conectado)`,
+        );
+        await this.iniciarTimers(session.id, advisorId);
+      }
+    } catch (err) {
+      this.logger.error(
+        `[Timer] Error restaurando timers de sesiones activas: ${(err as Error).message}`,
+      );
+    }
+  }
+
   private async iniciarTimers(
     sessionId: string,
     advisorId: string,
@@ -2028,10 +2145,8 @@ export class ChatGateway
     entry.settingUp = true;
 
     try {
-      const config = await this.configuracionService
-        .getEfectiva(entry.advisorId)
-        .catch(() => null);
-      if (!config || !this.esTimerVigente(sessionId, gen)) return;
+      const config = await this.getConfigTimers(entry.advisorId);
+      if (!this.esTimerVigente(sessionId, gen)) return;
 
       const total = config.asesorInactividadSeg;
       entry.tipo = 'advisor';
@@ -2076,7 +2191,10 @@ export class ChatGateway
             .findOne(sessionId)
             .catch(() => null);
           if (!session || session.status !== 'active') return;
-          if (!this.esTimerVigente(sessionId, gen)) return;
+          // cancelarTimerActivo() incrementó la generación (gen+1). Si durante
+          // el await alguien canceló o re-armó el timer (un mensaje → cambiarTurno),
+          // la generación avanzó más allá y no debemos enviar nada.
+          if (this.genTimerActual(sessionId) !== gen + 1) return;
 
           const msg = await this.chatService.saveMessage(
             sessionId,
@@ -2105,10 +2223,8 @@ export class ChatGateway
     entry.settingUp = true;
 
     try {
-      const config = await this.configuracionService
-        .getEfectiva(entry.advisorId)
-        .catch(() => null);
-      if (!config || !this.esTimerVigente(sessionId, gen)) return;
+      const config = await this.getConfigTimers(entry.advisorId);
+      if (!this.esTimerVigente(sessionId, gen)) return;
 
       const total = config.clienteInactividadSeg;
       entry.tipo = 'client';
@@ -2153,7 +2269,10 @@ export class ChatGateway
             .findOne(sessionId)
             .catch(() => null);
           if (!session || session.status !== 'active') return;
-          if (!this.esTimerVigente(sessionId, gen)) return;
+          // cancelarTimerActivo() incrementó la generación (gen+1). Si durante
+          // el await alguien canceló o re-armó el timer (mensaje → cambiarTurno),
+          // la generación avanzó más allá y no debemos enviar nada.
+          if (this.genTimerActual(sessionId) !== gen + 1) return;
 
           entry.iterCliente++;
 
@@ -2189,8 +2308,12 @@ export class ChatGateway
               maxIter: config.clienteInactividadIters,
             });
             setTimeout(async () => {
-              if (!this.esTimerVigente(sessionId, gen)) return;
+              // Ya cancelamos el timer arriba (generación gen+1). Cerramos solo
+              // si nadie re-armó la sesión durante los 3s (un mensaje del cliente
+              // → cambiarTurno → gen+2) saltaría esta guarda.
+              if (this.genTimerActual(sessionId) !== gen + 1) return;
               this.eliminarTimer(sessionId);
+              this.clearAiCloseTimer(sessionId);
               await this.sessionsService.close(sessionId);
               this.server.to(sessionId).emit('session_closed', {
                 sessionId,
@@ -2201,6 +2324,10 @@ export class ChatGateway
                 type: 'session_closed',
                 sessionId,
               });
+              await this.redisState.removeFromQueue(sessionId);
+              await this.redisState.deleteRateLimit(sessionId);
+              await this.redisState.deleteSessionSocket(sessionId);
+              await this.broadcastQueuePositions();
               await this.assignPendingSessions();
             }, 3_000);
           }
@@ -2217,13 +2344,11 @@ export class ChatGateway
     advisorId: string,
     advisorName: string,
   ): Promise<void> {
-    const config = await this.configuracionService
-      .getGlobal()
-      .catch(() => null);
-    if (!config) return;
-
-    const total = config.asesorReconexionSeg;
-    if (total <= 0) return;
+    const config = await this.getConfigTimers(advisorId);
+    // Nunca desarmar el timer de reconexión: si el valor configurado es <=0
+    // (deshabilitado) se usa el fallback para que la sesión no quede varada
+    // "activa" sin asesor ni mensaje automático.
+    const total = Math.max(config.asesorReconexionSeg, 1);
 
     // Cancel existing inactivity timer if any
     this.cancelarTimerActivo(sessionId);
@@ -2429,7 +2554,10 @@ export class ChatGateway
   private cancelarTimerActivo(sessionId: string): void {
     const entry = this.timers.get(sessionId);
     if (!entry) return;
-    this.nuevoGenTimer(sessionId);
+    // Incrementar la generación TAMBIÉN en la entrada: así cualquier re-arranque
+    // inmediato (cambiarTurno, re-arm tras mensaje) lee una generación coherente
+    // con timerGens y esTimerVigente() no descarta al timer nuevo por "stale".
+    entry.gen = this.nuevoGenTimer(sessionId);
     if (entry.tick) {
       clearTimeout(entry.tick);
       entry.tick = null;
@@ -2564,6 +2692,23 @@ export class ChatGateway
         this.logger.log(
           `[Sweep] Sesión ${session.id} activa con asesor ${session.advisor.id} desconectado, volviendo a waiting`,
         );
+
+        // Mensaje automático visible para el cliente ANTES de re-encolar: el
+        // sweep es el camino de recuperación tras reinicio, donde el timer de
+        // reconexión en memoria no existe y el cliente no recibe aviso.
+        const config = await this.getConfigTimers(session.advisor.id);
+        if (config.asesorReconexionMsg.trim()) {
+          const msg = await this.chatService
+            .saveMessage(
+              session.id,
+              config.asesorReconexionMsg,
+              'advisor',
+              'Sistema',
+            )
+            .catch(() => null);
+          if (msg) this.server.to(session.id).emit('new_message', msg);
+        }
+
         await this.sessionsService.registrarAsignacion(
           session.id,
           'desconectado',
@@ -2585,7 +2730,14 @@ export class ChatGateway
         this.server.to(session.id).emit('session_interrupted', {
           sessionId: session.id,
           reason: 'advisor_disconnected',
+          mensaje:
+            config.asesorReconexionMsg ||
+            'El agente se desconectó. Buscando otro agente disponible...',
+          tiempoLimiteSeg: 0,
         });
+        await this.redisState.deleteSessionSocket(session.id);
+        await this.redisState.deleteRateLimit(session.id);
+        await this.broadcastQueuePositions();
       }
     } catch (e) {
       this.logger.error('[Sweep] Error en barrido de sesiones huérfanas:', e);
@@ -2639,6 +2791,9 @@ export class ChatGateway
       await this.sweepStaleAiSessions();
       // Re-encolar sesiones activas con asesor huérfano
       await this.sweepOrphanedActiveSessions();
+      // Restaurar timers de sesiones activas con asesor conectado (p. ej. tras
+      // reinicio de otro vecino o instancias que recién despertaron).
+      await this.restaurarTimersActivas();
 
       const assignmentOpts = await this.getAssignmentOpts();
       const waiting = await this.sessionsService.findWaitingSessions();
