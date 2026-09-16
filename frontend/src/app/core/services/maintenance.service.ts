@@ -12,17 +12,61 @@ export class MaintenanceService implements OnDestroy {
   private socketSub: Subscription | null = null;
   private failCount = 0;
   private readonly FAIL_THRESHOLD = 8;
-  private readonly POLL_MS = 5_000;
+  private readonly POLL_MS = 30_000;
+
+  /** Bundle principal cargado al inicio (main-XXXX.js). */
+  private loadedBundle = '';
 
   constructor(
     private http: HttpClient,
     private socket: SocketService
   ) {}
 
+  /** Detecta el nombre del bundle principal en el HTML servido. */
+  private static readServedBundle(html: string): string {
+    const m = html.match(/src="(main-[A-Za-z0-9]+\.js)"/);
+    return m ? m[1] : '';
+  }
+
+  /** Al arrancar, captura el bundle que el navegador ya cargó. */
+  private captureCurrentBundle(): void {
+    if (this.loadedBundle) return;
+    const scripts = document.querySelectorAll('script[src]');
+    for (let i = 0; i < scripts.length; i++) {
+      const src = scripts[i].getAttribute('src') || '';
+      if (/main-[A-Za-z0-9]+\.js/.test(src)) {
+        this.loadedBundle = MaintenanceService.readServedBundle(
+          '<script src="' + src + '">',
+        );
+        break;
+      }
+    }
+  }
+
+  /** Cada chequeo, re-fetch index.html y compara con el bundle cargado. */
+  private async checkForNewDeploy(): Promise<void> {
+    try {
+      const indexUrl = environment.apiUrl
+        ? environment.apiUrl.replace(/\/+$/, '') + '/'
+        : '/';
+      const res = await fetch(indexUrl, { cache: 'no-store' });
+      if (!res.ok) return;
+      const html = await res.text();
+      const served = MaintenanceService.readServedBundle(html);
+      if (served && this.loadedBundle && served !== this.loadedBundle) {
+        location.reload();
+      }
+    } catch (_) {}
+  }
+
   start(): void {
     if (this.intervalId) return;
+    this.captureCurrentBundle();
     this.check();
-    this.intervalId = setInterval(() => this.check(), this.POLL_MS);
+    this.intervalId = setInterval(() => {
+      this.check();
+      this.checkForNewDeploy();
+    }, this.POLL_MS);
   }
 
   stop(): void {

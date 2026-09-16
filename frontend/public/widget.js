@@ -1,7 +1,11 @@
 /**
  * widget.js — Widget de chat embebible — Sian365
- * v2.2.1
- * Cambios v2.2.1: fix de posición del manejador fantasma (px con unidad) y
+ * v2.3.0
+ * v2.3.0: auto-actualización (si /widget-config reporta una widgetVersion
+ * mayor, recarga la versión nueva en caliente) y polling cada 30 s para
+ * reducir la carga del backend. Bump VERSION + widget-version.ts en cada
+ * deploy para que el widget se auto-propague sin Ctrl+F5.
+ * v2.2.1: fix de posición del manejador fantasma (px con unidad) y
  * animaciones suaves al ocultar (fade + el botón se encoge) y mostrar.
  * v2.2.0: el visitante puede ocultar el widget (clic derecho sobre el
  * botón/burbuja → "Ocultar widget") y volver a mostrarlo desde un manejador
@@ -17,10 +21,17 @@
   /* ═══════════════════════════════════════════════════════════
      SECCIÓN 1 — CONSTANTES
   ═══════════════════════════════════════════════════════════ */
-  var POLL_MS  = 5000;
+  var VERSION = '2.3.0';
+  var POLL_MS  = 30000;
   var ROOT_ID  = 'sian-widget-root';
   var API_PATH = '/widget-config';
   var HIDE_KEY = 'sian_widget_hidden';
+
+  // Revisión global: cada instancia del script toma un número mayor. Cuando el
+  // widget auto-actualiza (inyecta la versión nueva), la instancia vieja queda
+  // "stale" (MY_REV !== window.__sianWidgetRev) y deja de responder.
+  var MY_REV = (window.__sianWidgetRev = (window.__sianWidgetRev || 0) + 1);
+  var SWAPPED = false;
 
   /* ═══════════════════════════════════════════════════════════
      SECCIÓN 2 — DEFAULTS
@@ -82,6 +93,7 @@
   var inited       = false;
   var autoT        = null;
   var _prevCfgJson = '';
+  var _pollTimer   = null;
 
   /* ═══════════════════════════════════════════════════════════
      SECCIÓN 4b — ESTADO ADICIONAL
@@ -201,6 +213,7 @@
       })
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (res) {
+          if (MY_REV !== window.__sianWidgetRev) return;
           if (!res || !res.tipoColegio || brandColor) return;
           var p = PROYECTOS[res.tipoColegio];
           if (p) applyBrand(p.color, p.bg);
@@ -578,6 +591,8 @@
   // ─── Pintar config en el DOM ──────────────────────────────────────────────
 
   function paint(c) {
+    // Instancia vieja tras auto-actualización: ignoro todo.
+    if (MY_REV !== window.__sianWidgetRev) return;
     cfg = c;
 
     var rootEl = document.getElementById(ROOT_ID);
@@ -725,6 +740,7 @@
   // 'sian-brand'. Aplica el color al botón, el fondo claro del chat y lo
   // reenvía en el tema para que se aplique antes/instantáneamente.
   function applyBrand(color, bg) {
+    if (MY_REV !== window.__sianWidgetRev) return;
     var hex = sanitizeHex(color);
     if (!hex) return;
     brandColor = hex;
@@ -791,6 +807,7 @@
   }
 
   window.addEventListener('message', function (event) {
+    if (MY_REV !== window.__sianWidgetRev) return;
     if (!event.data || !event.origin || event.origin !== chatOrigin()) return;
     if (event.data.type === 'unread_count') {
       updateBadge(event.data.count);
@@ -1284,6 +1301,14 @@
         return r.json();
       })
       .then(function (raw) {
+        // Auto-actualización: si el backend reporta una widgetVersion mayor,
+        // inyectamos la versión nueva (URL versionada → cache-key nuevo) y
+        // dejamos que esta instancia vieja quede "stale".
+        if (raw && raw.widgetVersion && raw.widgetVersion !== VERSION) {
+          swapToVersion(raw.widgetVersion);
+          return;
+        }
+
         var normalized = normalizar(raw);
         var newJson    = JSON.stringify(normalized);
         var changed    = (newJson !== _prevCfgJson);
@@ -1305,10 +1330,30 @@
       });
   }
 
+  /**
+   * Auto-actualización: el servidor reporta una widgetVersion mayor que la de
+   * esta instancia. Inyectamos un <script> con la URL versionada (cache-key
+   * nuevo → el navegador NO reusa la copia inmutable vieja) y marcamos el
+   * swap para que esta instancia deje de responder.
+   */
+  function swapToVersion(nextVersion) {
+    if (SWAPPED || MY_REV !== window.__sianWidgetRev) return;
+    SWAPPED = true;
+    window.__sianWidgetRev += 1; // esta instancia queda stale; la nueva toma el número
+    if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+    if (autoT) { clearTimeout(autoT); autoT = null; }
+
+    var script = document.createElement('script');
+    script.src = API_BASE + '/widget.js?v=' + encodeURIComponent(nextVersion);
+    script.async = true;
+    (document.head || document.documentElement).appendChild(script);
+  }
+
   /* ═══════════════════════════════════════════════════════════
      SECCIÓN 13 — BOOTSTRAP
   ═══════════════════════════════════════════════════════════ */
   window.addEventListener('resize', function () {
+    if (MY_REV !== window.__sianWidgetRev) return;
     if (isHidden) {
       var toggle = document.getElementById('sian-hidden-toggle');
       if (toggle) applyPos(toggle, getHiddenPos(cfg.posicion));
@@ -1344,7 +1389,7 @@
     } else {
       // Normal mode: fetch from API + polling
       fetchCfg();
-      setInterval(fetchCfg, POLL_MS);
+      _pollTimer = setInterval(fetchCfg, POLL_MS);
     }
 
     // Marca por query (?sian-proyecto=...) para probar el preview sin institución.

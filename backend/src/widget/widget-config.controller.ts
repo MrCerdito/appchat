@@ -16,6 +16,7 @@ import { Roles, RolesGuard } from '../auth/roles.guard';
 import { Permiso } from '../accesos/permiso-modulo.guard';
 import { SaveWidgetConfigDto } from './dto/save-widget-config.dto';
 import { SkipThrottle } from '@nestjs/throttler';
+import { WIDGET_VERSION } from './widget-version';
 
 @Controller('widget-config')
 export class WidgetConfigController {
@@ -32,8 +33,9 @@ export class WidgetConfigController {
   @Header('Access-Control-Allow-Origin', '*')
   @SkipThrottle()
   @Get()
-  get(): Promise<WidgetConfig> {
-    return this.svc.get();
+  async get(): Promise<WidgetConfig & { widgetVersion: string }> {
+    const cfg = await this.svc.get();
+    return { ...cfg, widgetVersion: WIDGET_VERSION };
   }
 
   // ── POST /widget-config — solo admin ─────────────────────────────────────

@@ -92,6 +92,7 @@ export class WidgetComponent implements OnInit, OnDestroy {
   protected readonly trackByIndex = trackByIndex;
 
   config: WidgetConfig = { ...DEFAULT_CONFIG };
+  widgetVersion = '2.2.1';
   saved = false;
   saving = false;
   loading = true;
@@ -314,6 +315,7 @@ export class WidgetComponent implements OnInit, OnDestroy {
     this.http.get<any>(this.apiUrl).subscribe({
       next: (res) => {
         this.config = this.mapConfig(res);
+        this.widgetVersion = res.widgetVersion ?? '2.2.1';
         this.loading = false;
         this.cdr.detectChanges();
       },
@@ -518,7 +520,7 @@ export class WidgetComponent implements OnInit, OnDestroy {
 
   // ── Computed ───────────────────────────────────────────────────────────────
   get scriptIntegracion(): string {
-    const url = `${this.config.chatUrl}/widget.js?v=2.2.1`;
+    const url = `${this.config.chatUrl}/widget.js?v=${this.widgetVersion}`;
     return `<script src="${url}" defer></script>`;
   }
 
