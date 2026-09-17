@@ -510,7 +510,7 @@ get rolLabel(): string {
 
     // Re-chequea el horario periódicamente para que el widget se
     // actualice solo cuando el admin guarda cambios o inicia la jornada.
-    this.horarioPollInterval = setInterval(() => this.verificarJornada(), 30_000);
+    this.horarioPollInterval = setInterval(() => this.verificarJornada(), 60_000);
 
     this.pageUrl = document.referrer || '';
 

@@ -22,7 +22,7 @@
      SECCIÓN 1 — CONSTANTES
   ═══════════════════════════════════════════════════════════ */
   var VERSION = '2.3.0';
-  var POLL_MS  = 30000;
+  var POLL_MS  = 60000;
   var ROOT_ID  = 'sian-widget-root';
   var API_PATH = '/widget-config';
   var HIDE_KEY = 'sian_widget_hidden';

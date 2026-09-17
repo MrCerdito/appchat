@@ -12,7 +12,7 @@ export class MaintenanceService implements OnDestroy {
   private socketSub: Subscription | null = null;
   private failCount = 0;
   private readonly FAIL_THRESHOLD = 8;
-  private readonly POLL_MS = 30_000;
+  private readonly POLL_MS = 60_000;
 
   /** Bundle principal cargado al inicio (main-XXXX.js). */
   private loadedBundle = '';
