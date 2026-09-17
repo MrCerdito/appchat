@@ -51,6 +51,22 @@ export class WidgetConfig {
   @Column({ name: 'mostrar_burbuja', type: 'boolean', default: true })
   mostrarBurbuja: boolean;
 
+  // Modo de aparición de la burbuja: 'siempre' | 'timeout' | 'hover'
+  // - siempre: visible mientras el chat esté cerrado (comportamiento clásico).
+  // - timeout: aparece sola tras delay_seg, se oculta tras duracion_seg y luego
+  //   solo al pasar el mouse (una vez por sesión).
+  // - hover: únicamente al pasar el mouse por el botón.
+  @Column({ name: 'burbuja_modo', type: 'varchar', length: 20, default: 'timeout' })
+  burbujaModo: string;
+
+  // Segundos antes de mostrar la burbuja automáticamente (modo timeout).
+  @Column({ name: 'burbuja_delay_seg', type: 'int', default: 4 })
+  burbujaDelaySeg: number;
+
+  // Segundos que permanece visible antes de ocultarse sola (modo timeout).
+  @Column({ name: 'burbuja_duracion_seg', type: 'int', default: 7 })
+  burbujaDuracionSeg: number;
+
   @Column({ name: 'ocultar_en_movil', type: 'boolean', default: false })
   ocultarEnMovil: boolean;
 

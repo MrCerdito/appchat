@@ -544,6 +544,13 @@
   background: #eef2f8;
   border-radius: 10px;
 }
+.seg-group.seg-wrap {
+  flex-wrap: wrap;
+  .seg-btn {
+    flex: 1 1 auto;
+    white-space: nowrap;
+  }
+}
 .seg-btn {
   flex: 1;
   display: inline-flex;

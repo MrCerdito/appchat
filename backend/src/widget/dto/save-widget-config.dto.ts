@@ -22,6 +22,7 @@ const POSICIONES = [
 const FORMAS = ['circle', 'rounded'] as const;
 const TAMANOS = ['sm', 'md', 'lg'] as const;
 const ICONOS = ['chat', 'help', 'support'] as const;
+const BURBUJA_MODOS = ['siempre', 'timeout', 'hover'] as const;
 
 export class SaveWidgetConfigDto {
   // ── Apariencia ──
@@ -77,6 +78,24 @@ export class SaveWidgetConfigDto {
   @Type(() => Boolean)
   @IsBoolean()
   mostrarBurbuja?: boolean;
+
+  @IsOptional()
+  @IsIn(BURBUJA_MODOS)
+  burbujaModo?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  @Max(30)
+  burbujaDelaySeg?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(2)
+  @Max(60)
+  burbujaDuracionSeg?: number;
 
   @IsOptional()
   @Type(() => Boolean)

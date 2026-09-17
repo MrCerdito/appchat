@@ -21,11 +21,13 @@
   /* ═══════════════════════════════════════════════════════════
      SECCIÓN 1 — CONSTANTES
   ═══════════════════════════════════════════════════════════ */
-  var VERSION = '2.3.0';
+  var VERSION = '2.4.0';
   var POLL_MS  = 60000;
   var ROOT_ID  = 'sian-widget-root';
   var API_PATH = '/widget-config';
   var HIDE_KEY = 'sian_widget_hidden';
+  // Marca (por sesión de pestaña) de que la burbuja ya se mostró sola.
+  var BUBBLE_SESSION_KEY = 'sian_bubble_autoshown';
 
   // Revisión global: cada instancia del script toma un número mayor. Cuando el
   // widget auto-actualiza (inyecta la versión nueva), la instancia vieja queda
@@ -50,6 +52,9 @@
     delayAutoAbrir     : 5,
     mensajeBurbuja     : '¿Necesitas ayuda? ¡Chatea con nosotros!',
     mostrarBurbuja     : true,
+    burbujaModo        : 'timeout',
+    burbujaDelaySeg    : 4,
+    burbujaDuracionSeg : 7,
     ocultarEnMovil     : false,
     chatUrl            : 'http://localhost:4200/chat',
     // Textos del panel
@@ -94,6 +99,12 @@
   var autoT        = null;
   var _prevCfgJson = '';
   var _pollTimer   = null;
+
+  // ── Estado de la burbuja de bienvenida ──
+  var bubbleAutoT  = null;   // timer de aparición automática (modo timeout)
+  var bubbleHideT  = null;   // timer de ocultación automática (modo timeout)
+  var bubbleHover  = false;  // el puntero está sobre el botón o la burbuja
+  var bubbleVisible = false; // estado lógico actual de la burbuja
 
   /* ═══════════════════════════════════════════════════════════
      SECCIÓN 4b — ESTADO ADICIONAL
@@ -280,10 +291,10 @@
     }
 
     var spaBase = origin + dir;
-    // Dev local: el backend corre en :3000 mientras el SPA en :4200
-    var apiBase = (origin === 'http://localhost:4200' || origin === 'http://127.0.0.1:4200')
-      ? 'http://localhost:3000'
-      : spaBase;
+    // Misma base que el SPA: en local el dev-server (4200) proxyfica
+    // /widget-config al backend (ver frontend/proxy.conf.json); en producción
+    // el API vive en el mismo dominio. Evita hardcodear puertos del backend.
+    var apiBase = spaBase;
 
     return { apiBase: apiBase, spaBase: spaBase };
   }
@@ -318,6 +329,7 @@
         'textoBoton', 'mostrarTexto',
         'abrirAutomatico', 'delayAutoAbrir',
         'mensajeBurbuja', 'mostrarBurbuja', 'chatUrl', 'ocultarEnMovil',
+        'burbujaModo', 'burbujaDelaySeg', 'burbujaDuracionSeg',
         'tituloPanelChat', 'subtituloPanelChat',
         'chatHeaderColor', 'chatBgColor',
         'chatBubbleColor', 'chatBubbleUserColor', 'chatMarca',
@@ -328,7 +340,7 @@
         if (v !== null) {
           if (f === 'mostrarTexto' || f === 'abrirAutomatico' || f === 'mostrarBurbuja' || f === 'ocultarEnMovil') {
             cfg[f] = v === 'true';
-          } else if (f === 'delayAutoAbrir') {
+          } else if (f === 'delayAutoAbrir' || f === 'burbujaDelaySeg' || f === 'burbujaDuracionSeg') {
             cfg[f] = parseInt(v, 10) || DEF[f];
           } else {
             cfg[f] = v;
@@ -359,6 +371,9 @@
       delayAutoAbrir     : res.delayAutoAbrir       != null ? res.delayAutoAbrir     : DEF.delayAutoAbrir,
       mensajeBurbuja     : res.mensajeBurbuja       != null ? res.mensajeBurbuja     : DEF.mensajeBurbuja,
       mostrarBurbuja     : res.mostrarBurbuja       != null ? res.mostrarBurbuja     : DEF.mostrarBurbuja,
+      burbujaModo        : res.burbujaModo          != null ? res.burbujaModo        : DEF.burbujaModo,
+      burbujaDelaySeg    : res.burbujaDelaySeg      != null ? res.burbujaDelaySeg    : DEF.burbujaDelaySeg,
+      burbujaDuracionSeg : res.burbujaDuracionSeg   != null ? res.burbujaDuracionSeg : DEF.burbujaDuracionSeg,
       ocultarEnMovil     : res.ocultarEnMovil       != null ? !!res.ocultarEnMovil   : DEF.ocultarEnMovil,
       chatUrl            : res.chatUrl             || DEF.chatUrl,
       // Textos del panel
@@ -372,6 +387,128 @@
       chatMarca          : res.chatMarca           || DEF.chatMarca,
       burbujaImagen      : res.burbujaImagen       || DEF.burbujaImagen,
     };
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     SECCIÓN 8b — BURBUJA DE BIENVENIDA (modo no invasivo)
+     - siempre: visible mientras el chat esté cerrado
+     - timeout: aparece a los delay_seg, se oculta a los duracion_seg
+                y después solo con hover (una vez por sesión)
+     - hover:   solo al pasar el puntero por el botón
+  ═══════════════════════════════════════════════════════════ */
+  function bubbleShownOnce() {
+    // En preview siempre se puede volver a probar (no se marca la sesión).
+    if (IS_PREVIEW) return false;
+    try { return sessionStorage.getItem(BUBBLE_SESSION_KEY) === '1'; } catch (_) { return false; }
+  }
+  function markBubbleShown() {
+    if (IS_PREVIEW) return;
+    try { sessionStorage.setItem(BUBBLE_SESSION_KEY, '1'); } catch (_) {}
+  }
+  function canHover() {
+    return !!(window.matchMedia && window.matchMedia('(hover: hover)').matches);
+  }
+  function clearBubbleTimers() {
+    if (bubbleAutoT) { clearTimeout(bubbleAutoT); bubbleAutoT = null; }
+    if (bubbleHideT) { clearTimeout(bubbleHideT); bubbleHideT = null; }
+  }
+  function bubbleSideClass() {
+    return cfg.posicion.indexOf('-right') !== -1 ? 'sian-bubble-left' : 'sian-bubble-right';
+  }
+  function showBubble() {
+    var bubble = document.getElementById('sian-bubble');
+    if (!bubble || isOpen || isHidden) return;
+    if (!cfg.mostrarBurbuja || !cfg.mensajeBurbuja) return;
+    bubble.classList.remove('sian-bubble-hiding');
+    // Re-disparar la animación de entrada: quitar la clase de lado, forzar
+    // reflow y volver a ponerla.
+    bubble.classList.remove('sian-bubble-left', 'sian-bubble-right');
+    void bubble.offsetWidth;
+    bubble.classList.add(bubbleSideClass());
+    bubble.style.display = 'flex';
+    bubbleVisible = true;
+  }
+  function hideBubble(animate) {
+    var bubble = document.getElementById('sian-bubble');
+    bubbleVisible = false;
+    if (!bubble) return;
+    if (!animate || bubble.style.display === 'none') {
+      bubble.classList.remove('sian-bubble-hiding');
+      bubble.style.display = 'none';
+      return;
+    }
+    bubble.classList.remove('sian-bubble-left', 'sian-bubble-right');
+    bubble.classList.add(bubbleSideClass(), 'sian-bubble-hiding');
+    var done = function () {
+      bubble.removeEventListener('animationend', done);
+      bubble.classList.remove('sian-bubble-hiding');
+      bubble.style.display = 'none';
+    };
+    bubble.addEventListener('animationend', done);
+    // Respaldo por si 'animationend' no llega (pestaña en segundo plano, etc.)
+    setTimeout(done, 600);
+  }
+  function setBubbleHover(v) {
+    bubbleHover = !!v;
+    syncBubble(cfg);
+  }
+  // Decide visibilidad según modo, hover, estado del chat y sesión.
+  function syncBubble(c) {
+    cfg = c;
+    var bubble = document.getElementById('sian-bubble');
+    if (!bubble) return;
+
+    if (!c.mostrarBurbuja || !c.mensajeBurbuja || isOpen || isHidden) {
+      clearBubbleTimers();
+      hideBubble(false);
+      return;
+    }
+
+    var mode = c.burbujaModo || 'timeout';
+    if (mode === 'hover' && !canHover()) mode = 'timeout';
+
+    if (mode === 'siempre') {
+      clearBubbleTimers();
+      showBubble();
+      return;
+    }
+
+    // El hover siempre revela la burbuja (no invasivo).
+    if (canHover() && bubbleHover) {
+      clearBubbleTimers();
+      showBubble();
+      return;
+    }
+
+    if (mode === 'hover') {
+      clearBubbleTimers();
+      hideBubble(true);
+      return;
+    }
+
+    // mode === 'timeout'
+    if (bubbleVisible) {
+      if (bubbleHideT) return;        // ventana automática en curso
+      clearBubbleTimers();
+      hideBubble(true);               // estaba visible solo por hover
+      return;
+    }
+    if (bubbleShownOnce()) return;    // ya se mostró sola en esta sesión
+    if (bubbleAutoT || bubbleHideT) return;
+
+    var delay = Math.max(1, parseInt(c.burbujaDelaySeg, 10) || 4);
+    var dur   = Math.max(2, parseInt(c.burbujaDuracionSeg, 10) || 7);
+    bubbleAutoT = setTimeout(function () {
+      bubbleAutoT = null;
+      if (isOpen || isHidden || !cfg.mostrarBurbuja || !cfg.mensajeBurbuja) return;
+      if (bubbleShownOnce()) return;
+      markBubbleShown();
+      showBubble();
+      bubbleHideT = setTimeout(function () {
+        bubbleHideT = null;
+        if (!bubbleHover) hideBubble(true);
+      }, dur * 1000);
+    }, delay * 1000);
   }
 
   function buildChatSrc(baseUrl) {
@@ -399,6 +536,8 @@
     bubble.id  = 'sian-bubble';
     bubble.style.display = 'none';
     bubble.addEventListener('click', openPanel);
+    bubble.addEventListener('mouseenter', function () { setBubbleHover(true); });
+    bubble.addEventListener('mouseleave', function () { setBubbleHover(false); });
     var bubbleImg = document.createElement('img');
     bubbleImg.className = 'sian-bubble-img';
     bubbleImg.alt = '';
@@ -426,6 +565,8 @@
     btn.id  = 'sian-btn';
     btn.setAttribute('aria-label', 'Abrir chat');
     btn.addEventListener('click', togglePanel);
+    btn.addEventListener('mouseenter', function () { setBubbleHover(true); });
+    btn.addEventListener('mouseleave', function () { setBubbleHover(false); });
 
     var logo = document.createElement('span');
     logo.className = 'sian-kx-logo';
@@ -633,22 +774,17 @@
     // ── Burbuja ──
     var bubble = document.getElementById('sian-bubble');
     if (bubble) {
-      if (cfg.mostrarBurbuja && cfg.mensajeBurbuja && !isOpen) {
-        var bImg  = bubble.querySelector('.sian-bubble-img');
-        var bText = bubble.querySelector('.sian-bubble-text');
-        if (bImg) {
-          bImg.style.display = cfg.burbujaImagen ? 'block' : 'none';
-          bImg.src = cfg.burbujaImagen || '';
-        }
-        if (bText) bText.textContent = cfg.mensajeBurbuja;
-        bubble.classList.remove('sian-bubble-left', 'sian-bubble-right');
-        bubble.classList.add(cfg.posicion.indexOf('-right') !== -1 ? 'sian-bubble-left' : 'sian-bubble-right');
-        applyPos(bubble, getBubblePos(cfg.posicion, size, btn));
-        bubble.style.display = 'flex';
-      } else {
-        bubble.style.display = 'none';
+      var bImg  = bubble.querySelector('.sian-bubble-img');
+      var bText = bubble.querySelector('.sian-bubble-text');
+      if (bImg) {
+        bImg.style.display = cfg.burbujaImagen ? 'block' : 'none';
+        bImg.src = cfg.burbujaImagen || '';
       }
+      if (bText) bText.textContent = cfg.mensajeBurbuja || '';
+      applyPos(bubble, getBubblePos(cfg.posicion, size, btn));
     }
+    // Visibilidad delegada a la máquina de estado (modo siempre/timeout/hover)
+    syncBubble(cfg);
 
     // ── Panel (posición y tamaño) ──
     var panel = document.getElementById('sian-panel');
@@ -1002,6 +1138,20 @@
 #sian-bubble.sian-bubble-right {
   animation: sianBubbleInRight 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+@keyframes sianBubbleOutLeft {
+  from { opacity: 1; transform: translateX(0) translateY(-50%); }
+  to   { opacity: 0; transform: translateX(30px) translateY(-50%); }
+}
+@keyframes sianBubbleOutRight {
+  from { opacity: 1; transform: translateX(0) translateY(-50%); }
+  to   { opacity: 0; transform: translateX(-30px) translateY(-50%); }
+}
+#sian-bubble.sian-bubble-hiding.sian-bubble-left {
+  animation: sianBubbleOutLeft 0.3s cubic-bezier(0.4, 0, 1, 1) both;
+}
+#sian-bubble.sian-bubble-hiding.sian-bubble-right {
+  animation: sianBubbleOutRight 0.3s cubic-bezier(0.4, 0, 1, 1) both;
+}
 #sian-iframe {
   flex: 1;
   width: 100%;
@@ -1128,10 +1278,12 @@
   ═══════════════════════════════════════════════════════════ */
   function openPanel() {
     isOpen = true;
+    clearBubbleTimers();
+    bubbleHover = false;
     var panel  = document.getElementById('sian-panel');
     var bubble = document.getElementById('sian-bubble');
     if (panel)  panel.classList.add('sian-open');
-    if (bubble) bubble.style.display = 'none';
+    if (bubble) hideBubble(false);
     updateBadge(0);
     paint(cfg);
   }
@@ -1139,9 +1291,8 @@
   function closePanel() {
     isOpen = false;
     var panel  = document.getElementById('sian-panel');
-    var bubble = document.getElementById('sian-bubble');
     if (panel)  panel.classList.remove('sian-open');
-    if (bubble && cfg.mostrarBurbuja && cfg.mensajeBurbuja) bubble.style.display = 'block';
+    // La visibilidad de la burbuja la decide syncBubble() según el modo.
     paint(cfg);
   }
 
@@ -1161,6 +1312,8 @@
   function hideWidget() {
     if (isHidden) return;
     isHidden = true;
+    clearBubbleTimers();
+    bubbleHover = false;
     saveHidden(true);
     animateWidgetOut();
   }
@@ -1203,6 +1356,7 @@
       root.style.removeProperty('pointer-events');
     }
     applyHiddenState();
+    syncBubble(cfg);
 
     if (root) {
       root.classList.remove('sian-show-anim');
@@ -1382,8 +1536,12 @@
     if (IS_PREVIEW) {
       var previewCfg = getPreviewConfig();
       if (previewCfg) {
+        // Preview desde el panel admin: pinta lo que se está editando.
         paint(Object.assign({}, DEF, previewCfg));
       } else {
+        // URL directa de prueba: pinta de inmediato con defaults para no quedar
+        // bloqueado si el API no responde; el fetch solo enriquece la config.
+        paint(Object.assign({}, DEF));
         fetchCfg();
       }
     } else {

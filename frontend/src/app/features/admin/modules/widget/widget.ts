@@ -26,6 +26,9 @@ export interface WidgetConfig {
   delayAutoAbrir: number;
   mensajeBurbuja: string;
   mostrarBurbuja: boolean;
+  burbujaModo: 'siempre' | 'timeout' | 'hover';
+  burbujaDelaySeg: number;
+  burbujaDuracionSeg: number;
   ocultarEnMovil: boolean;
   // ── Textos del panel
   tituloPanelChat: string;
@@ -68,6 +71,9 @@ const DEFAULT_CONFIG: WidgetConfig = {
   delayAutoAbrir: 5,
   mensajeBurbuja: '¿Necesitas ayuda? ¡Chatea con nosotros!',
   mostrarBurbuja: true,
+  burbujaModo: 'timeout',
+  burbujaDelaySeg: 4,
+  burbujaDuracionSeg: 7,
   ocultarEnMovil: false,
   tituloPanelChat: 'Soporte en línea',
   subtituloPanelChat: 'Estamos aquí para ayudarte',
@@ -92,7 +98,7 @@ export class WidgetComponent implements OnInit, OnDestroy {
   protected readonly trackByIndex = trackByIndex;
 
   config: WidgetConfig = { ...DEFAULT_CONFIG };
-  widgetVersion = '2.2.1';
+  widgetVersion = '2.4.0';
   saved = false;
   saving = false;
   loading = true;
@@ -315,7 +321,7 @@ export class WidgetComponent implements OnInit, OnDestroy {
     this.http.get<any>(this.apiUrl).subscribe({
       next: (res) => {
         this.config = this.mapConfig(res);
-        this.widgetVersion = res.widgetVersion ?? '2.2.1';
+        this.widgetVersion = res.widgetVersion ?? '2.4.0';
         this.loading = false;
         this.cdr.detectChanges();
       },
@@ -538,6 +544,9 @@ export class WidgetComponent implements OnInit, OnDestroy {
       delayAutoAbrir: res.delayAutoAbrir ?? DEFAULT_CONFIG.delayAutoAbrir,
       mensajeBurbuja: res.mensajeBurbuja ?? DEFAULT_CONFIG.mensajeBurbuja,
       mostrarBurbuja: res.mostrarBurbuja ?? DEFAULT_CONFIG.mostrarBurbuja,
+      burbujaModo: res.burbujaModo ?? DEFAULT_CONFIG.burbujaModo,
+      burbujaDelaySeg: res.burbujaDelaySeg ?? DEFAULT_CONFIG.burbujaDelaySeg,
+      burbujaDuracionSeg: res.burbujaDuracionSeg ?? DEFAULT_CONFIG.burbujaDuracionSeg,
       ocultarEnMovil: res.ocultarEnMovil ?? DEFAULT_CONFIG.ocultarEnMovil,
       tituloPanelChat: res.tituloPanelChat ?? DEFAULT_CONFIG.tituloPanelChat,
       subtituloPanelChat: res.subtituloPanelChat ?? DEFAULT_CONFIG.subtituloPanelChat,

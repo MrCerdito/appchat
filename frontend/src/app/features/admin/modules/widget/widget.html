@@ -601,6 +601,80 @@
                       />
                     </div>
                   </div>
+
+                  <!-- Aparición no invasiva -->
+                  <div class="form-field">
+                    <label class="cell-label">Aparición de la burbuja</label>
+                    <div class="seg-group seg-wrap">
+                      <button
+                        class="seg-btn"
+                        [class.active]="config.burbujaModo === 'timeout'"
+                        (click)="config.burbujaModo = 'timeout'"
+                      >
+                        Automática
+                      </button>
+                      <button
+                        class="seg-btn"
+                        [class.active]="config.burbujaModo === 'hover'"
+                        (click)="config.burbujaModo = 'hover'"
+                      >
+                        Al pasar el mouse
+                      </button>
+                      <button
+                        class="seg-btn"
+                        [class.active]="config.burbujaModo === 'siempre'"
+                        (click)="config.burbujaModo = 'siempre'"
+                      >
+                        Siempre
+                      </button>
+                    </div>
+                    <span class="toggle-hint">
+                      Automática: aparece sola y se oculta; después solo con hover (una vez
+                      por sesión). No invasivo.
+                    </span>
+                  </div>
+                  @if (config.burbujaModo === 'timeout') {
+                    <div class="form-grid">
+                      <div class="form-cell">
+                        <div class="slider-wrap">
+                          <div class="slider-header">
+                            <span class="sub-label">Aparece a los</span>
+                            <span class="slider-val">{{ config.burbujaDelaySeg }}s</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="1"
+                            max="30"
+                            step="1"
+                            [(ngModel)]="config.burbujaDelaySeg"
+                            class="slider"
+                          />
+                          <div class="slider-ticks">
+                            <span>1s</span><span>10s</span><span>20s</span><span>30s</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="form-cell">
+                        <div class="slider-wrap">
+                          <div class="slider-header">
+                            <span class="sub-label">Visible por</span>
+                            <span class="slider-val">{{ config.burbujaDuracionSeg }}s</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="2"
+                            max="60"
+                            step="1"
+                            [(ngModel)]="config.burbujaDuracionSeg"
+                            class="slider"
+                          />
+                          <div class="slider-ticks">
+                            <span>2s</span><span>20s</span><span>40s</span><span>60s</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  }
                 }
               </div>
             </section>

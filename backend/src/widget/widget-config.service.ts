@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
@@ -6,7 +6,7 @@ import { Cache } from 'cache-manager';
 import { WidgetConfig } from './entities/widget-config.entity';
 
 @Injectable()
-export class WidgetConfigService {
+export class WidgetConfigService implements OnModuleInit {
   private readonly CACHE_KEY = 'widget:config';
   private readonly CACHE_TTL = 60_000;
 
@@ -16,6 +16,23 @@ export class WidgetConfigService {
     @Inject(CACHE_MANAGER)
     private readonly cache: Cache,
   ) {}
+
+  // Prod corre con synchronize:false (ver app.module.ts), así que las columnas
+  // nuevas de la burbuja se crean aquí de forma idempotente.
+  async onModuleInit(): Promise<void> {
+    await this.repo.query(`
+      ALTER TABLE IF EXISTS public.widget_config
+      ADD COLUMN IF NOT EXISTS burbuja_modo varchar(20) NOT NULL DEFAULT 'timeout'
+    `);
+    await this.repo.query(`
+      ALTER TABLE IF EXISTS public.widget_config
+      ADD COLUMN IF NOT EXISTS burbuja_delay_seg int NOT NULL DEFAULT 4
+    `);
+    await this.repo.query(`
+      ALTER TABLE IF EXISTS public.widget_config
+      ADD COLUMN IF NOT EXISTS burbuja_duracion_seg int NOT NULL DEFAULT 7
+    `);
+  }
 
   async get(): Promise<WidgetConfig> {
     const cached = await this.cache.get<WidgetConfig>(this.CACHE_KEY);
