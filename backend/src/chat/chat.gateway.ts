@@ -24,7 +24,7 @@ import { Attachment } from './entities/message.entity';
 // ─────────────────────────────────────────────────────────────────────────────
 // Tipos internos
 // ─────────────────────────────────────────────────────────────────────────────
-type TipoTimer = 'advisor' | 'client' | 'reconnection' | 'none';
+type TipoTimer = 'advisor' | 'client' | 'reconnection' | 'closing' | 'none';
 
 interface TimerEntry {
   tipo: TipoTimer;
@@ -2072,7 +2072,12 @@ export class ChatGateway
         const advisorId = session.advisor?.id;
         if (!advisorId || !connectedSet.has(advisorId)) continue;
         const entry = this.timers.get(session.id);
-        if (entry && entry.tipo !== 'none' && entry.startTime > 0) continue;
+        if (
+          entry &&
+          (entry.tipo === 'closing' ||
+            (entry.tipo !== 'none' && entry.startTime > 0))
+        )
+          continue;
         if (entry) {
           this.cancelarTimerActivo(session.id);
         } else {
@@ -2289,6 +2294,7 @@ export class ChatGateway
             );
             await this.arrancarTimerCliente(sessionId);
           } else {
+            entry.tipo = 'closing';
             this.logger.log(
               `[Timer] Cerrando sesión ${sessionId} por inactividad del cliente`,
             );
