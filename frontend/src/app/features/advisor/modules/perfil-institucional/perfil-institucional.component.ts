@@ -54,6 +54,7 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
   exportandoFormato: string = '';
   mostrarModalExportar = false;
   arrastrandoArchivo = false;
+  erroresVisibles = 15;
 
   limitePorPagina = 20;
   page = 1;
@@ -396,6 +397,7 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
     this.archivoImportar = null;
     this.resultadoImportar = null;
     this.arrastrandoArchivo = false;
+    this.erroresVisibles = 15;
   }
 
   cerrarModalImportar(): void {
@@ -445,6 +447,7 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
       .subscribe({
         next: (res) => {
           this.importando = false;
+          this.erroresVisibles = 15;
           this.resultadoImportar = res;
           this.notification.success('Importación', `${res.total} instituciones procesadas: ${res.created} creadas, ${res.updated} actualizadas`);
           this.cargar(true);
@@ -456,6 +459,11 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
           this.cdr.detectChanges();
         },
       });
+  }
+
+  masErrores(): void {
+    this.erroresVisibles += 50;
+    this.cdr.detectChanges();
   }
 
   descargarExcelReporte(): void {

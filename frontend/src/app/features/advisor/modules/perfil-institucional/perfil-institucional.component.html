@@ -502,12 +502,17 @@
 
               @if (resultadoImportar.errores.length > 0) {
                 <div class="pi-import-errors-list">
-                  <p class="pi-import-errors">{{ resultadoImportar.errores.length }} errores encontrados:</p>
-                  <ul>
-                    @for (err of resultadoImportar.errores; track err) {
+                  <p class="pi-import-errors">{{ resultadoImportar.errores.length }} aviso(s) encontrados:</p>
+                  <ul class="pi-errors-scroll">
+                    @for (err of resultadoImportar.errores | slice:0:erroresVisibles; track err) {
                       <li>{{ err }}</li>
                     }
                   </ul>
+                  @if (resultadoImportar.errores.length > erroresVisibles) {
+                    <button type="button" class="pi-btn pi-btn-ghost pi-errors-more" (click)="masErrores()">
+                      Ver m&aacute;s ({{ resultadoImportar.errores.length - erroresVisibles }})
+                    </button>
+                  }
                 </div>
               }
             </div>
