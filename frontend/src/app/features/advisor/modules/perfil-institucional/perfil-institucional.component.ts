@@ -65,9 +65,6 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
   mostrarModalImportar = false;
   archivoImportar: File | null = null;
   resultadoImportar: PiImportResp | null = null;
-  pasoImportar: 'archivo' | 'preview' | 'resultado' = 'archivo';
-  previewImportar: PiImportResp | null = null;
-  reasignarAsesoresImportar = false;
 
   private busquedaTimer?: ReturnType<typeof setTimeout>;
 
@@ -398,9 +395,6 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
     this.mostrarModalImportar = true;
     this.archivoImportar = null;
     this.resultadoImportar = null;
-    this.previewImportar = null;
-    this.pasoImportar = 'archivo';
-    this.reasignarAsesoresImportar = false;
     this.arrastrandoArchivo = false;
   }
 
@@ -408,9 +402,6 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
     this.mostrarModalImportar = false;
     this.archivoImportar = null;
     this.resultadoImportar = null;
-    this.previewImportar = null;
-    this.pasoImportar = 'archivo';
-    this.reasignarAsesoresImportar = false;
     this.importando = false;
     this.arrastrandoArchivo = false;
   }
@@ -419,8 +410,6 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
     const input = event.target as HTMLInputElement;
     this.archivoImportar = input.files?.[0] ?? null;
     this.resultadoImportar = null;
-    this.previewImportar = null;
-    this.pasoImportar = 'archivo';
     input.value = '';
   }
 
@@ -444,8 +433,6 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
     if (file) {
       this.archivoImportar = file;
       this.resultadoImportar = null;
-      this.previewImportar = null;
-      this.pasoImportar = 'archivo';
     }
   }
 
@@ -453,34 +440,12 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
     if (!this.archivoImportar || this.importando) return;
     this.importando = true;
     this.cdr.detectChanges();
-    this.piService.importar(this.archivoImportar, { preview: true })
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (res) => {
-          this.importando = false;
-          this.previewImportar = res;
-          this.pasoImportar = 'preview';
-          this.cdr.detectChanges();
-        },
-        error: (err) => {
-          this.importando = false;
-          this.notification.error('Error', err?.error?.message ?? 'No se pudo previsualizar el archivo');
-          this.cdr.detectChanges();
-        },
-      });
-  }
-
-  aplicarImportar(): void {
-    if (!this.archivoImportar || this.importando) return;
-    this.importando = true;
-    this.cdr.detectChanges();
-    this.piService.importar(this.archivoImportar, { reasignarAsesores: this.reasignarAsesoresImportar })
+    this.piService.importar(this.archivoImportar)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (res) => {
           this.importando = false;
           this.resultadoImportar = res;
-          this.pasoImportar = 'resultado';
           this.notification.success('Importación', `${res.total} instituciones procesadas: ${res.created} creadas, ${res.updated} actualizadas`);
           this.cargar(true);
           this.cdr.detectChanges();
@@ -491,13 +456,6 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
           this.cdr.detectChanges();
         },
       });
-  }
-
-  volverDesdePreview(): void {
-    this.pasoImportar = 'archivo';
-    this.previewImportar = null;
-    this.resultadoImportar = null;
-    this.importando = false;
   }
 
   descargarExcelReporte(): void {
