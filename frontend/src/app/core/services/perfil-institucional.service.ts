@@ -100,12 +100,16 @@ export interface PiImportLog {
 
 export interface PiImportResp {
   ok: boolean;
+  preview?: boolean;
   created: number;
   updated: number;
   total: number;
   errores: string[];
   logs: PiImportLog[];
   logExcelBase64: string;
+  cambiosAsesor?: { colegio: string; anterior: string | null; nuevo: string }[];
+  filas?: { nombre: string; estado: 'crear' | 'actualizar' | 'omito'; cambios: string[] }[];
+  backup?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -231,16 +235,25 @@ export class PerfilInstitucionalService {
     return this.http.get(`${this.base}/exportar`, { responseType: 'blob' });
   }
 
+  exportarCsv(): Observable<string> {
+    const params = new HttpParams().set('format', 'csv');
+    return this.http.get(`${this.base}/exportar`, { params, responseType: 'text' });
+  }
+
   exportarFicha(id: string): Observable<Blob> {
     return this.http.get(`${this.base}/exportar/${id}`, { responseType: 'blob' });
   }
 
-  importar(file: File): Observable<PiImportResp> {
+  importar(file: File, opts: { preview?: boolean; reasignarAsesores?: boolean } = {}): Observable<PiImportResp> {
     const fd = new FormData();
     fd.append('archivo', file, file.name);
+    let params = new HttpParams();
+    if (opts.preview) params = params.set('preview', 'true');
+    if (opts.reasignarAsesores) params = params.set('reasignarAsesores', 'true');
     return this.http.post<PiImportResp>(
       `${this.base}/importar`,
       fd,
+      { params },
     );
   }
 }

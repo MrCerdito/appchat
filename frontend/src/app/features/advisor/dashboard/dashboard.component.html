@@ -571,6 +571,8 @@
         </div>
       </div>
 
+      <div class="topbar-actions">
+
       <!-- ── FAQ Chat: asistente IA preguntas frecuentes ─────────────── -->
       <div class="faq-panel-wrap">
         <input type="file" #faqFileInput accept=".docx" hidden (change)="onFaqFileSelected($event)">
@@ -763,6 +765,7 @@
 
       <!-- ── Notificaciones ────────────────────────────────────────────── -->
       <app-notification-bell></app-notification-bell>
+      <div class="topbar-divider topbar-divider-spacer"></div>
       <div class="topbar-profile-wrap">
         <div class="topbar-advisor-trigger"
              [class.open]="profileOpen"
@@ -998,6 +1001,8 @@
         @if (profileOpen) {
         <div class="dropdown-overlay" (click)="profileOpen = false"></div>
         }
+      </div>
+
       </div>
     </header>
 

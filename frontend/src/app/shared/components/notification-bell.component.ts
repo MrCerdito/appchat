@@ -730,6 +730,89 @@ const TYPE_FG: Record<string, string> = {
       transition: background 0.15s;
     }
     .notif-footer-view:hover { background: #f1f2ff; }
+
+    /* ---------- Móvil: panel centrado ---------- */
+    @media (max-width: 620px) {
+      .notif-panel {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        right: auto;
+        transform: translate(-50%, -50%);
+        transform-origin: center;
+        width: min(400px, calc(100vw - 32px));
+        max-width: calc(100vw - 24px);
+        height: min(72dvh, 540px);
+        animation: panel-in-mobile 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      @keyframes panel-in-mobile {
+        from { opacity: 0; transform: translate(-50%, -50%) scale(0.92); }
+        to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+      }
+
+      .notif-panel-header {
+        padding: 12px 14px 10px;
+        h3 { font-size: 17px; }
+      }
+
+      .notif-list {
+        max-height: none;
+        padding: 8px 10px 4px;
+      }
+
+      .notif-panel-footer {
+        padding: 10px 14px;
+      }
+
+      .notif-header-actions { gap: 4px; }
+      .notif-delete-all, .notif-mark-all, .notif-bulk-del {
+        padding: 5px 8px;
+        font-size: 11px;
+      }
+
+      .notif-item {
+        gap: 10px;
+        padding: 11px 12px;
+        border-radius: 14px;
+      }
+
+      .notif-check {
+        width: 20px;
+        height: 20px;
+        margin-top: 12px;
+      }
+
+      .notif-checkbox {
+        width: 20px;
+        height: 20px;
+        border-radius: 6px;
+      }
+
+      .notif-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+      }
+
+      .notif-content { gap: 3px; }
+
+      .notif-title { font-size: 15px; }
+
+      .notif-msg { font-size: 13px; }
+
+      .notif-tag {
+        margin-top: 3px;
+        padding: 3px 9px;
+        font-size: 11.5px;
+      }
+
+      .notif-meta { gap: 8px; }
+
+      .notif-time { font-size: 12.5px; }
+
+      .notif-chevron { width: 14px; height: 14px; }
+    }
   `],
 })
 export class NotificationBellComponent implements OnInit, OnDestroy {

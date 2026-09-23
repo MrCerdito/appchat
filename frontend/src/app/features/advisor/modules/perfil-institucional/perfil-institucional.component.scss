@@ -1758,6 +1758,67 @@
   }
 }
 
+.pi-preview-title {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 800;
+  color: $pi-text;
+}
+
+.pi-preview-table {
+  max-height: 260px;
+}
+
+.pi-preview-table .pi-preview-changes {
+  max-width: 320px;
+
+  span {
+    display: block;
+    font-size: 12px;
+    color: $pi-text-secondary;
+  }
+}
+
+.pi-preview-badge {
+  background: $pi-slate-100;
+  color: $pi-text-secondary;
+
+  &--crear {
+    background: #e8f5e9;
+    color: #2e7d32;
+  }
+
+  &--actualizar {
+    background: #eef2ff;
+    color: #4f46e5;
+  }
+
+  &--omito {
+    background: $pi-slate-100;
+    color: $pi-text-secondary;
+  }
+}
+
+.pi-check-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 13px;
+  color: $pi-text;
+
+  input[type='checkbox'] {
+    margin-top: 3px;
+    accent-color: $pi-primary;
+  }
+
+  em {
+    color: $pi-text-secondary;
+    font-size: 12px;
+    font-style: normal;
+  }
+}
+
 .pi-log-val {
   max-width: 150px;
   overflow: hidden;

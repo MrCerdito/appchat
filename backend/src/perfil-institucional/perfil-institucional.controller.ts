@@ -208,7 +208,17 @@ export class PerfilInstitucionalController {
   // ── Exportar / Importar ─────────────────────────────────────────────────
 
   @Get('exportar')
-  async exportar(@Res() res: Response) {
+  async exportar(@Query('format') format: string, @Res() res: Response) {
+    if (format === 'csv') {
+      const csv = await this.svc.exportarCsv();
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader(
+        'Content-Disposition',
+        'attachment; filename=instituciones.csv',
+      );
+      res.setHeader('Content-Length', Buffer.byteLength(csv));
+      return res.send(csv);
+    }
     const buffer = await this.svc.exportarExcel();
     res.setHeader(
       'Content-Type',
@@ -270,9 +280,14 @@ export class PerfilInstitucionalController {
   async importar(
     @UploadedFile() file: Express.Multer.File,
     @Request() req: { user: { id: string } },
+    @Query('preview') preview: string,
+    @Query('reasignarAsesores') reasignarAsesores: string,
   ) {
     if (!file) throw new BadRequestException('Archivo no recibido');
-    return this.svc.importarExcel(file.path, req.user.id);
+    return this.svc.importarExcel(file.path, req.user.id, {
+      preview: preview === 'true',
+      reasignarAsesores: reasignarAsesores === 'true',
+    });
   }
 
   // ── Historial ────────────────────────────────────────────────────────────

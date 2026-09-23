@@ -1,12 +1,14 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In, FindOptionsWhere } from 'typeorm';
+import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
+import { Repository, In, FindOptionsWhere, DataSource } from 'typeorm';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { existsSync, mkdirSync, renameSync, unlinkSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import ExcelJS from 'exceljs';
 import { Colegio } from '../sessions/entities/colegio.entity';
 import { User } from '../auth/entities/user.entity';
+import { normalizarTipoColegio } from '../common/tipo-colegio.util';
+import { crearBackupColegios } from '../common/import-snapshot.util';
 import { PiCategoria } from './entities/pi-categoria.entity';
 import { PiCampo } from './entities/pi-campo.entity';
 import { PiValor } from './entities/pi-valor.entity';
@@ -40,6 +42,7 @@ export class PerfilInstitucionalService {
     @InjectRepository(PiHistorial)
     private readonly historialRepo: Repository<PiHistorial>,
     @InjectRepository(User) private readonly userRepo: Repository<User>,
+    @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
 
   private sinAcentos(texto: string): string {
@@ -714,6 +717,54 @@ export class PerfilInstitucionalService {
   // ── Exportar / Importar ───────────────────────────────────────────────────
 
   async exportarExcel(): Promise<Buffer> {
+    const { headers, rows } = await this.getDatosExport();
+
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Instituciones');
+    ws.addRow(headers);
+    const headerRow = ws.getRow(1);
+    headerRow.eachCell((cell) => {
+      cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF2563EB' },
+      };
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      cell.border = { bottom: { style: 'thin', color: { argb: 'FF1D4ED8' } } };
+    });
+    ws.autoFilter = {
+      from: { row: 1, column: 1 },
+      to: { row: 1, column: headers.length },
+    };
+
+    for (const row of rows) {
+      ws.addRow(row);
+    }
+
+    for (const col of ws.columns) {
+      if (!col) continue;
+      let max = 10;
+      col.eachCell!({ includeEmpty: false }, (cell) => {
+        const len = String(cell.value ?? '').length;
+        if (len > max) max = len;
+      });
+      col.width = Math.min(max + 4, 45);
+    }
+
+    return wb.xlsx.writeBuffer() as unknown as Promise<Buffer>;
+  }
+
+  async exportarCsv(): Promise<string> {
+    const { headers, rows } = await this.getDatosExport();
+    const csvLines = [
+      headers.map((h) => this.escapeCsvVal(h)).join(';'),
+      ...rows.map((r) => r.map((v) => this.escapeCsvVal(v)).join(';')),
+    ];
+    return '\uFEFF' + csvLines.join('\n');
+  }
+
+  async getDatosExport(): Promise<{ headers: string[]; rows: (string | null)[][] }> {
     const [colegios, campos, valores] = await Promise.all([
       this.colegioRepo.find({
         relations: { advisor: true },
@@ -747,9 +798,6 @@ export class PerfilInstitucionalService {
       (a, b) => a[1].orden - b[1].orden,
     );
 
-    const wb = new ExcelJS.Workbook();
-    const ws = wb.addWorksheet('Instituciones');
-
     const headers = [
       'Nombre',
       'Email',
@@ -771,23 +819,7 @@ export class PerfilInstitucionalService {
       }
     }
 
-    ws.addRow(headers);
-    const headerRow = ws.getRow(1);
-    headerRow.eachCell((cell) => {
-      cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-      cell.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FF2563EB' },
-      };
-      cell.alignment = { vertical: 'middle', horizontal: 'center' };
-      cell.border = { bottom: { style: 'thin', color: { argb: 'FF1D4ED8' } } };
-    });
-    ws.autoFilter = {
-      from: { row: 1, column: 1 },
-      to: { row: 1, column: headers.length },
-    };
-
+    const rows: (string | null)[][] = [];
     for (const c of colegios) {
       const vals = valoresPorColegio.get(c.id) ?? new Map();
       const row: (string | null)[] = [
@@ -796,7 +828,7 @@ export class PerfilInstitucionalService {
         c.link,
         c.calendario ?? '',
         c.ciudad ?? '',
-        c.tipoColegio ?? '',
+        normalizarTipoColegio(c.tipoColegio) ?? '',
         c.advisor?.name ?? '',
         c.activo ? 'Sí' : 'No',
       ];
@@ -828,20 +860,10 @@ export class PerfilInstitucionalService {
           row.push(val);
         }
       }
-      ws.addRow(row);
+      rows.push(row);
     }
 
-    for (const col of ws.columns) {
-      if (!col) continue;
-      let max = 10;
-      col.eachCell!({ includeEmpty: false }, (cell) => {
-        const len = String(cell.value ?? '').length;
-        if (len > max) max = len;
-      });
-      col.width = Math.min(max + 4, 45);
-    }
-
-    return wb.xlsx.writeBuffer() as unknown as Promise<Buffer>;
+    return { headers, rows };
   }
 
   async exportarFichaExcel(colegioId: string): Promise<Buffer> {
@@ -855,7 +877,7 @@ export class PerfilInstitucionalService {
       ['Link', ficha.institucion.link],
       ['Calendario', ficha.institucion.calendario ?? ''],
       ['Ciudad', ficha.institucion.ciudad ?? ''],
-      ['Tipo', ficha.institucion.tipoColegio ?? ''],
+      ['Tipo', normalizarTipoColegio(ficha.institucion.tipoColegio) ?? ''],
       ['Asesor', ficha.institucion.advisorNombre ?? ''],
       ['Activo', ficha.institucion.activo ? 'Sí' : 'No'],
     ];
@@ -911,18 +933,127 @@ export class PerfilInstitucionalService {
     return String(val).trim();
   }
 
-  async importarExcel(filePath: string, userId: string) {
+  private csvToRows(text: string): string[][] {
+    const clean = text.replace(/^\uFEFF/, '').trim();
+    if (!clean) return [];
+    const firstLine = clean.split(/\r?\n/)[0] || '';
+    const semis = (firstLine.match(/;/g) || []).length;
+    const commas = (firstLine.match(/,/g) || []).length;
+    const delimiter = semis > commas ? ';' : ',';
+
+    const rows: string[][] = [];
+    let row: string[] = [];
+    let field = '';
+    let inQuotes = false;
+    for (let i = 0; i < clean.length; i++) {
+      const ch = clean[i];
+      if (inQuotes) {
+        if (ch === '"') {
+          if (clean[i + 1] === '"') {
+            field += '"';
+            i++;
+          } else {
+            inQuotes = false;
+          }
+        } else {
+          field += ch;
+        }
+      } else if (ch === '"') {
+        inQuotes = true;
+      } else if (ch === delimiter) {
+        row.push(field);
+        field = '';
+      } else if (ch === '\n' || ch === '\r') {
+        if (ch === '\r' && clean[i + 1] === '\n') i++;
+        row.push(field);
+        field = '';
+        rows.push(row);
+        row = [];
+      } else {
+        field += ch;
+      }
+    }
+    row.push(field);
+    if (row.length > 1 || (row[0] || '').trim()) rows.push(row);
+    return rows;
+  }
+
+  private escapeCsvVal(value: string | null | undefined): string {
+    const v = (value ?? '').toString();
+    return /("|;|,|\n|\r)/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+  }
+
+  async importarExcel(
+    filePath: string,
+    userId: string,
+    opts: { preview?: boolean; reasignarAsesores?: boolean } = {},
+  ) {
+    const { preview = false, reasignarAsesores = false } = opts;
+    const MAX_FILAS = 10000;
     const wb = new ExcelJS.Workbook();
-    await wb.xlsx.readFile(filePath);
+
+    if (/\.csv$/i.test(filePath)) {
+      const text = readFileSync(filePath, 'utf8').replace(/^\uFEFF/, '');
+      const rows = this.csvToRows(text);
+      if (!rows.length)
+        throw new BadRequestException('El archivo no contiene datos válidos');
+      const ws = wb.addWorksheet('Instituciones');
+      for (const r of rows) ws.addRow(r);
+    } else {
+      try {
+        await wb.xlsx.readFile(filePath);
+      } catch {
+        throw new BadRequestException(
+          'No se pudo leer el archivo Excel. Verifica que sea un .xlsx válido.',
+        );
+      }
+    }
+
     const ws = wb.getWorksheet('Instituciones') ?? wb.worksheets[0];
     if (!ws || ws.rowCount < 2)
       throw new BadRequestException('El archivo no contiene datos válidos');
 
     const headerRow = ws.getRow(1);
     const headers: string[] = [];
+    const headerIdx = new Map<string, number>();
     headerRow.eachCell((cell, colNum) => {
-      headers[colNum - 1] = String(cell.value ?? '').trim();
+      const name = String(cell.value ?? '').trim();
+      headers[colNum - 1] = name;
+      const key = name.toLowerCase();
+      if (key && !headerIdx.has(key)) headerIdx.set(key, colNum - 1);
     });
+
+    const colOf = (...names: string[]): number => {
+      for (const n of names) {
+        const i = headerIdx.get(n.toLowerCase());
+        if (i != null) return i;
+      }
+      return -1;
+    };
+
+    const colNombre = colOf('nombre');
+    const colEmail = colOf('email', 'correo');
+    const colLink = colOf('link', 'links');
+    const colCalendario = colOf('calendario');
+    const colCiudad = colOf('ciudad');
+    const colTipo = colOf('tipo', 'tipo_colegio', 'tipocolegio', 'proyecto');
+    const colAsesor = colOf('asesor', 'asesor_principal');
+    const colActivo = colOf('activo');
+
+    if (colNombre < 0)
+      throw new BadRequestException(
+        'El archivo debe contener la columna "Nombre".',
+      );
+    if (ws.rowCount - 1 > MAX_FILAS)
+      throw new BadRequestException(
+        `El archivo supera el límite de ${MAX_FILAS} filas.`,
+      );
+
+    const truncate = (s: string | null | undefined, max: number): string => {
+      if (s == null) return '';
+      const v = String(s);
+      return v.length > max ? v.slice(0, max) : v;
+    };
 
     const [allCampos, allCategorias] = await Promise.all([
       this.campoRepo.find({ relations: { categoria: true } }),
@@ -949,8 +1080,6 @@ export class PerfilInstitucionalService {
       'asesor',
       'activo',
     ];
-    let created = 0;
-    let updated = 0;
     const errores: string[] = [];
     const logs: {
       colegio: string;
@@ -960,148 +1089,317 @@ export class PerfilInstitucionalService {
       estado: 'exito' | 'error';
       detalle: string;
     }[] = [];
+    const cambiosAsesor: {
+      colegio: string;
+      anterior: string | null;
+      nuevo: string;
+    }[] = [];
 
+    const activoBoolFrom = (raw: string): boolean => {
+      const val = raw.toLowerCase().trim();
+      return (
+        val === 'sí' ||
+        val === 'si' ||
+        val === 'true' ||
+        val === 'activo' ||
+        val === 'yes' ||
+        val === 's' ||
+        val === ''
+      );
+    };
+
+    // Asesores por nombre único (nombre ambiguo = no asignar)
+    const allUsers = await this.userRepo.find({
+      where: { role: In(['advisor', 'admin']), active: true },
+      select: ['id', 'name'],
+    });
+    const advisorMap = new Map<string, string>();
+    const advisorCount = new Map<string, number>();
+    for (const u of allUsers) {
+      if (!u.name) continue;
+      const k = u.name.toLowerCase().trim();
+      advisorMap.set(k, u.id);
+      advisorCount.set(k, (advisorCount.get(k) ?? 0) + 1);
+    }
+
+    // Lee y valida filas (dedupe por nombre)
+    type Fila = {
+      r: number;
+      nombre: string;
+      link: string;
+      email: string;
+      calendario: string;
+      ciudad: string;
+      tipo: string;
+      asesor: string;
+      activoRaw: string;
+      celdaVal: (headerName: string) => string;
+    };
+    const filas: Fila[] = [];
+    const nombres = new Set<string>();
     for (let r = 2; r <= ws.rowCount; r++) {
       const row = ws.getRow(r);
-      const nombreCell = row.getCell(1);
-      const nombre = this.getCellValue(nombreCell);
+      const nombre = truncate(
+        this.getCellValue(row.getCell(colNombre + 1)),
+        200,
+      );
       if (!nombre) continue;
+      const key = nombre.toLowerCase();
+      if (nombres.has(key)) {
+        errores.push(`Fila ${r}: nombre duplicado "${nombre}" omitido.`);
+        continue;
+      }
+      nombres.add(key);
 
-      let colegio = await this.colegioRepo.findOneBy({ nombre });
-      const linkVal = this.getCellValue(row.getCell(3)) || 'https://';
-      const emailVal = this.getCellValue(row.getCell(2)) || '';
-      const calendarioVal = this.getCellValue(row.getCell(4)) || null;
-      const ciudadVal = this.getCellValue(row.getCell(5)) || null;
-      const tipoVal = this.getCellValue(row.getCell(6)) || null;
-      const activoVal = this.getCellValue(row.getCell(8)).toLowerCase().trim();
-      const activoBool =
-        activoVal === 'sí' ||
-        activoVal === 'si' ||
-        activoVal === 'true' ||
-        activoVal === 'activo' ||
-        activoVal === 'yes' ||
-        activoVal === 's' ||
-        activoVal === '';
+      const linkRaw =
+        colLink >= 0 ? this.getCellValue(row.getCell(colLink + 1)) : '';
+      const emailRaw =
+        colEmail >= 0 ? this.getCellValue(row.getCell(colEmail + 1)) : '';
+      const calendarioRaw =
+        colCalendario >= 0
+          ? this.getCellValue(row.getCell(colCalendario + 1))
+          : '';
+      const ciudadRaw =
+        colCiudad >= 0 ? this.getCellValue(row.getCell(colCiudad + 1)) : '';
+      const tipoRaw =
+        colTipo >= 0 ? this.getCellValue(row.getCell(colTipo + 1)) : '';
+      const asesorRaw =
+        colAsesor >= 0 ? this.getCellValue(row.getCell(colAsesor + 1)) : '';
+      const activoRaw =
+        colActivo >= 0
+          ? this.getCellValue(row.getCell(colActivo + 1)).toLowerCase().trim()
+          : '';
 
-      if (!colegio) {
-        const nuevo = this.colegioRepo.create({
-          nombre,
-          link: linkVal,
-          email: emailVal,
-          calendario: calendarioVal,
-          ciudad: ciudadVal,
-          tipoColegio: tipoVal,
-          activo: activoBool,
-        });
-        colegio = await this.colegioRepo.save(nuevo);
-        created++;
-        logs.push({
-          colegio: nombre,
+      if (emailRaw && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailRaw))
+        errores.push(
+          `Fila ${r} ("${nombre}"): email inválido (${emailRaw}) — no se aplicará.`,
+        );
+      if (linkRaw && !/^https?:\/\//i.test(linkRaw))
+        errores.push(
+          `Fila ${r} ("${nombre}"): link inválido (${linkRaw}) — no se aplicará.`,
+        );
+      if (
+        calendarioRaw &&
+        calendarioRaw.toUpperCase() !== 'A' &&
+        calendarioRaw.toUpperCase() !== 'B'
+      )
+        errores.push(
+          `Fila ${r} ("${nombre}"): calendario debe ser A o B (recibido "${calendarioRaw}") — no se aplicará.`,
+        );
+      if (linkRaw.length > 500)
+        errores.push(`Fila ${r} ("${nombre}"): link recortado a 500 caracteres.`);
+      if (emailRaw.length > 200)
+        errores.push(`Fila ${r} ("${nombre}"): email recortado a 200 caracteres.`);
+      if (ciudadRaw.length > 100)
+        errores.push(`Fila ${r} ("${nombre}"): ciudad recortada a 100 caracteres.`);
+
+      filas.push({
+        r,
+        nombre,
+        link: linkRaw,
+        email: emailRaw,
+        calendario: calendarioRaw.toUpperCase(),
+        ciudad: ciudadRaw,
+        tipo: normalizarTipoColegio(tipoRaw) ?? '',
+        asesor: asesorRaw,
+        activoRaw,
+        celdaVal: (headerName: string) => {
+          const i = headerIdx.get(headerName);
+          return i == null
+            ? ''
+            : this.getCellValue(row.getCell(i + 1));
+        },
+      });
+    }
+    if (!filas.length)
+      throw new BadRequestException('El archivo no contiene datos válidos');
+
+    const existing = await this.colegioRepo.find({
+      where: { nombre: In(filas.map((f) => f.nombre)) },
+      relations: ['advisor'],
+    });
+    const existingByName = new Map(
+      existing.map((c) => [c.nombre.toLowerCase(), c]),
+    );
+    const allValores = existing.length
+      ? await this.valorRepo.find({
+          where: { colegioId: In(existing.map((c) => c.id)) },
+        })
+      : [];
+    const valoresByColegio = new Map<string, PiValor[]>();
+    for (const v of allValores) {
+      const arr = valoresByColegio.get(v.colegioId) ?? [];
+      arr.push(v);
+      valoresByColegio.set(v.colegioId, arr);
+    }
+
+    type PlanRow = {
+      nombre: string;
+      estado: 'crear' | 'actualizar' | 'omito';
+      cambiosBase: Record<string, any>;
+      baseLogs: {
+        campo: string;
+        anterior: string | null;
+        nuevo: string | null;
+        detalle: string;
+      }[];
+      valores: {
+        campo: PiCampo;
+        anteriorVal: string | null;
+        nuevoVal: string | null;
+        showAnterior: string | null;
+        showNuevo: string | null;
+      }[];
+      id?: string;
+    };
+    const plan: PlanRow[] = [];
+
+    for (const f of filas) {
+      const ex = existingByName.get(f.nombre.toLowerCase());
+      const cambiosBase: Record<string, any> = {};
+      const baseLogs: PlanRow['baseLogs'] = [];
+      const valores: PlanRow['valores'] = [];
+
+      const linkOk = /^https?:\/\//i.test(f.link);
+      const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(f.email);
+      const calOk = f.calendario === 'A' || f.calendario === 'B';
+
+      if (!ex) {
+        const link =
+          truncate(
+            linkOk
+              ? f.link
+              : f.link && /^[a-zA-Z0-9.-]+\.[a-z]{2,}/i.test(f.link)
+                ? `https://${f.link}`
+                : '',
+            500,
+          ) || 'https://';
+        cambiosBase.link = link;
+        if (emailOk) cambiosBase.email = truncate(f.email, 200);
+        if (calOk) cambiosBase.calendario = f.calendario;
+        if (f.tipo) cambiosBase.tipoColegio = f.tipo;
+        if (f.ciudad) cambiosBase.ciudad = truncate(f.ciudad, 100);
+        if (f.activoRaw !== '') cambiosBase.activo = activoBoolFrom(f.activoRaw);
+        if (f.asesor) {
+          const k = f.asesor.toLowerCase().trim();
+          if (advisorCount.get(k) === undefined) {
+            errores.push(
+              `Asesor "${f.asesor}" no encontrado para "${f.nombre}" — se creará sin asesor.`,
+            );
+          } else if (advisorCount.get(k) === 1) {
+            cambiosBase.advisorId = advisorMap.get(k);
+          } else {
+            errores.push(
+              `Asesor "${f.asesor}" es ambiguo para "${f.nombre}" — no se asigna.`,
+            );
+          }
+        }
+        baseLogs.push({
           campo: 'Institución',
           anterior: null,
           nuevo: 'Creada',
-          estado: 'exito',
           detalle: 'Institución creada',
         });
       } else {
-        const anteriorLink = colegio.link;
-        const anteriorEmail = colegio.email;
-        const anteriorCalendario = colegio.calendario;
-        const anteriorCiudad = colegio.ciudad;
-        const anteriorTipo = colegio.tipoColegio;
-        const anteriorActivo = colegio.activo;
-
-        let modificado = false;
-        if (linkVal && linkVal !== anteriorLink) {
-          colegio.link = linkVal;
-          logs.push({
-            colegio: nombre,
+        // Existente: celda en blanco = no tocar
+        if (linkOk && f.link !== (ex.link || '')) {
+          cambiosBase.link = truncate(f.link, 500);
+          baseLogs.push({
             campo: 'Link',
-            anterior: anteriorLink,
-            nuevo: linkVal,
-            estado: 'exito',
+            anterior: ex.link,
+            nuevo: cambiosBase.link,
             detalle: 'Link actualizado',
           });
-          modificado = true;
         }
-        if (emailVal !== undefined && emailVal !== anteriorEmail) {
-          colegio.email = emailVal;
-          logs.push({
-            colegio: nombre,
+        if (emailOk && f.email !== (ex.email || '')) {
+          cambiosBase.email = truncate(f.email, 200);
+          baseLogs.push({
             campo: 'Email',
-            anterior: anteriorEmail,
-            nuevo: emailVal,
-            estado: 'exito',
+            anterior: ex.email,
+            nuevo: cambiosBase.email,
             detalle: 'Email actualizado',
           });
-          modificado = true;
         }
-        if (calendarioVal !== anteriorCalendario) {
-          colegio.calendario = calendarioVal;
-          logs.push({
-            colegio: nombre,
+        if (calOk && f.calendario !== (ex.calendario || '')) {
+          cambiosBase.calendario = f.calendario;
+          baseLogs.push({
             campo: 'Calendario',
-            anterior: anteriorCalendario,
-            nuevo: calendarioVal,
-            estado: 'exito',
+            anterior: ex.calendario,
+            nuevo: f.calendario,
             detalle: 'Calendario actualizado',
           });
-          modificado = true;
         }
-        if (ciudadVal !== anteriorCiudad) {
-          colegio.ciudad = ciudadVal;
-          logs.push({
-            colegio: nombre,
-            campo: 'Ciudad',
-            anterior: anteriorCiudad,
-            nuevo: ciudadVal,
-            estado: 'exito',
-            detalle: 'Ciudad actualizada',
-          });
-          modificado = true;
-        }
-        if (tipoVal !== anteriorTipo) {
-          colegio.tipoColegio = tipoVal;
-          logs.push({
-            colegio: nombre,
+        if (f.tipo && f.tipo !== (ex.tipoColegio || '')) {
+          cambiosBase.tipoColegio = f.tipo;
+          baseLogs.push({
             campo: 'Tipo sistema',
-            anterior: anteriorTipo,
-            nuevo: tipoVal,
-            estado: 'exito',
+            anterior: ex.tipoColegio,
+            nuevo: f.tipo,
             detalle: 'Tipo sistema actualizado',
           });
-          modificado = true;
         }
-        if (activoBool !== anteriorActivo) {
-          colegio.activo = activoBool;
-          logs.push({
-            colegio: nombre,
-            campo: 'Activo',
-            anterior: anteriorActivo ? 'Sí' : 'No',
-            nuevo: activoBool ? 'Sí' : 'No',
-            estado: 'exito',
-            detalle: 'Estado actualizado',
+        if (f.ciudad && f.ciudad !== (ex.ciudad || '')) {
+          cambiosBase.ciudad = truncate(f.ciudad, 100);
+          baseLogs.push({
+            campo: 'Ciudad',
+            anterior: ex.ciudad,
+            nuevo: cambiosBase.ciudad,
+            detalle: 'Ciudad actualizada',
           });
-          modificado = true;
         }
-
-        if (modificado) {
-          await this.colegioRepo.save(colegio);
+        if (f.activoRaw !== '') {
+          const ab = activoBoolFrom(f.activoRaw);
+          if (ab !== ex.activo) {
+            cambiosBase.activo = ab;
+            baseLogs.push({
+              campo: 'Activo',
+              anterior: ex.activo ? 'Sí' : 'No',
+              nuevo: ab ? 'Sí' : 'No',
+              detalle: 'Estado actualizado',
+            });
+          }
         }
-        updated++;
+        if (reasignarAsesores && f.asesor) {
+          const k = f.asesor.toLowerCase().trim();
+          if (advisorCount.get(k) === undefined) {
+            errores.push(
+              `Asesor "${f.asesor}" no encontrado para "${f.nombre}" — se mantiene el actual.`,
+            );
+          } else if (advisorCount.get(k) === 1) {
+            const nuevoId = advisorMap.get(k)!;
+            const nuevoNombre =
+              allUsers.find((u) => u.id === nuevoId)?.name ?? f.asesor;
+            if (ex.advisorId !== nuevoId) {
+              cambiosBase.advisorId = nuevoId;
+              baseLogs.push({
+                campo: 'Asesor',
+                anterior: ex.advisor?.name ?? null,
+                nuevo: nuevoNombre,
+                detalle: 'Asesor asignado',
+              });
+              cambiosAsesor.push({
+                colegio: f.nombre,
+                anterior: ex.advisor?.name ?? null,
+                nuevo: nuevoNombre,
+              });
+            }
+          } else {
+            errores.push(
+              `Asesor "${f.asesor}" es ambiguo para "${f.nombre}" — se mantiene el actual.`,
+            );
+          }
+        }
       }
 
-      const colegioId = Array.isArray(colegio) ? colegio[0].id : colegio.id;
-      const currentValores = await this.valorRepo.findBy({ colegioId });
+      // Campos dinámicos (blanco = no tocar en existentes)
+      const currentValores = ex ? (valoresByColegio.get(ex.id) ?? []) : [];
+      for (const [headerName, campo] of campoLookup.entries()) {
+        if (baseHeaders.includes(headerName)) continue;
+        const idx = headerIdx.get(headerName);
+        if (idx == null) continue;
 
-      const valoresToSave: { campoId: string; valor: string | null }[] = [];
-      for (let c = 1; c < headers.length; c++) {
-        const h = headers[c]?.toLowerCase() ?? '';
-        if (baseHeaders.includes(h)) continue;
-        const campo = campoLookup.get(h);
-        if (!campo) continue;
-
-        const cellVal = this.getCellValue(row.getCell(c + 1));
+        const cellVal = f.celdaVal(headerName);
+        if (cellVal === '' && ex) continue;
         let nuevoVal = cellVal === '' ? null : cellVal;
 
         if (campo.tipo === 'booleano' && nuevoVal) {
@@ -1127,59 +1425,202 @@ export class PerfilInstitucionalService {
 
         const currentVal = currentValores.find((v) => v.campoId === campo.id);
         const anteriorVal = currentVal?.valor ?? null;
+        if (anteriorVal === nuevoVal) continue;
 
-        if (anteriorVal !== nuevoVal) {
-          valoresToSave.push({ campoId: campo.id, valor: nuevoVal });
+        let showAnterior = anteriorVal;
+        let showNuevo = nuevoVal;
+        if (campo.tipo === 'booleano') {
+          showAnterior =
+            anteriorVal === 'true'
+              ? 'Sí'
+              : anteriorVal === 'false'
+                ? 'No'
+                : anteriorVal;
+          showNuevo =
+            nuevoVal === 'true'
+              ? 'Sí'
+              : nuevoVal === 'false'
+                ? 'No'
+                : nuevoVal;
+        }
+        valores.push({
+          campo,
+          anteriorVal,
+          nuevoVal,
+          showAnterior,
+          showNuevo,
+        });
+      }
 
-          let showAnterior = anteriorVal;
-          let showNuevo = nuevoVal;
-          if (campo.tipo === 'booleano') {
-            showAnterior =
-              anteriorVal === 'true'
-                ? 'Sí'
-                : anteriorVal === 'false'
-                  ? 'No'
-                  : anteriorVal;
-            showNuevo =
-              nuevoVal === 'true'
-                ? 'Sí'
-                : nuevoVal === 'false'
-                  ? 'No'
-                  : nuevoVal;
-          }
+      plan.push({
+        nombre: f.nombre,
+        estado:
+          !ex
+            ? 'crear'
+            : Object.keys(cambiosBase).length || valores.length
+              ? 'actualizar'
+              : 'omito',
+        cambiosBase,
+        baseLogs,
+        valores,
+      });
+    }
 
-          logs.push({
-            colegio: nombre,
-            campo: campo.nombre,
-            anterior: showAnterior,
-            nuevo: showNuevo,
-            estado: 'exito',
-            detalle: 'Valor actualizado',
+    let created = 0;
+    let updated = 0;
+    for (const p of plan) {
+      if (p.estado === 'crear') created++;
+      else if (p.estado === 'actualizar') updated++;
+    }
+
+    for (const p of plan) {
+      for (const b of p.baseLogs) {
+        logs.push({
+          colegio: p.nombre,
+          campo: b.campo,
+          anterior: b.anterior,
+          nuevo: b.nuevo,
+          estado: 'exito',
+          detalle: b.detalle,
+        });
+      }
+      for (const v of p.valores) {
+        logs.push({
+          colegio: p.nombre,
+          campo: v.campo.nombre,
+          anterior: v.showAnterior,
+          nuevo: v.showNuevo,
+          estado: 'exito',
+          detalle: 'Valor actualizado',
+        });
+      }
+    }
+
+    const filasPlan = plan.map((p) => ({
+      nombre: p.nombre,
+      estado: p.estado,
+      cambios: [
+        ...p.baseLogs.map(
+          (l) => `${l.campo}: ${l.anterior ?? '—'} → ${l.nuevo ?? '—'}`,
+        ),
+        ...p.valores.map(
+          (v) =>
+            `${v.campo.nombre}: ${v.showAnterior ?? '—'} → ${v.showNuevo ?? '—'}`,
+        ),
+      ],
+    }));
+
+    if (preview) {
+      try {
+        unlinkSync(filePath);
+      } catch {
+        /* noop */
+      }
+      return {
+        ok: true,
+        preview: true,
+        created,
+        updated,
+        total: created + updated,
+        errores,
+        logs,
+        logExcelBase64: '',
+        cambiosAsesor,
+        filas: filasPlan,
+      };
+    }
+
+    // Backup antes de mutar (best effort)
+    let backupFile = '';
+    try {
+      backupFile = await crearBackupColegios(this.dataSource);
+    } catch {
+      /* best effort */
+    }
+
+    // Aplica todo en UNA transacción (todo o nada)
+    const qr = this.dataSource.createQueryRunner();
+    await qr.connect();
+    await qr.startTransaction();
+    const usuario = { id: userId } as User;
+    try {
+      const manager = qr.manager;
+      const colM = manager.getRepository(Colegio);
+      const valM = manager.getRepository(PiValor);
+      const histM = manager.getRepository(PiHistorial);
+
+      for (const p of plan) {
+        if (p.estado === 'omito') {
+          const existente = await colM.findOneBy({ nombre: p.nombre });
+          if (existente) p.id = existente.id;
+          continue;
+        }
+        if (p.estado === 'crear') {
+          const ent = colM.create({
+            nombre: p.nombre,
+            activo: true,
+            ...p.cambiosBase,
           });
+          const saved = await colM.save(ent);
+          p.id = saved.id;
+        } else {
+          const ent = await colM.findOneBy({ nombre: p.nombre });
+          if (!ent) continue;
+          if (p.cambiosBase.advisorId !== undefined)
+            ent.advisorId = p.cambiosBase.advisorId as string | null;
+          Object.assign(ent, p.cambiosBase);
+          await colM.save(ent);
+          p.id = ent.id;
+
+          for (const b of p.baseLogs) {
+            await histM.insert({
+              colegioId: p.id,
+              campoId: null,
+              usuario,
+              accion: 'import',
+              valorAnterior: b.anterior,
+              valorNuevo: b.nuevo,
+            });
+          }
+        }
+
+        if (p.valores.length && p.id) {
+          for (const v of p.valores) {
+            const reg = await valM.findOneBy({
+              colegioId: p.id,
+              campoId: v.campo.id,
+            });
+            if (reg) {
+              reg.valor = v.nuevoVal;
+              await valM.save(reg);
+            } else if (v.nuevoVal != null) {
+              await valM.insert({
+                colegioId: p.id,
+                campoId: v.campo.id,
+                valor: v.nuevoVal,
+                updatedBy: usuario,
+              });
+            }
+            await histM.insert({
+              colegioId: p.id,
+              campoId: v.campo.id,
+              usuario,
+              accion: 'actualizar_valor',
+              valorAnterior: v.anteriorVal,
+              valorNuevo: v.nuevoVal,
+            });
+          }
         }
       }
 
-      if (valoresToSave.length > 0) {
-        try {
-          await this.guardarValores(
-            colegioId,
-            { valores: valoresToSave },
-            userId,
-          );
-        } catch (err: any) {
-          for (const l of logs) {
-            if (
-              l.colegio === nombre &&
-              l.estado === 'exito' &&
-              l.detalle === 'Valor actualizado'
-            ) {
-              l.estado = 'error';
-              l.detalle = err.message || 'Error al guardar';
-            }
-          }
-          errores.push(`Error guardando en ${nombre}: ${err.message || err}`);
-        }
-      }
+      await qr.commitTransaction();
+    } catch (err: any) {
+      await qr.rollbackTransaction();
+      throw new BadRequestException(
+        `No se pudo aplicar la importación: ${err?.message ?? err} — no se guardó ningún cambio.`,
+      );
+    } finally {
+      await qr.release();
     }
 
     try {
@@ -1254,6 +1695,8 @@ export class PerfilInstitucionalService {
       errores,
       logs,
       logExcelBase64,
+      cambiosAsesor,
+      backup: backupFile,
     };
   }
 

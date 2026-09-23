@@ -41,6 +41,29 @@ export class ColegiosConfigComponent implements OnInit, OnDestroy {
   pageSize = 10;
   pageSizeOptions = [10, 25, 50, 100];
 
+  exportando = false;
+  mostrarModalImportar = false;
+  archivoImportar: File | null = null;
+  importando = false;
+  arrastrandoArchivo = false;
+  resultadoImportar: { imported: number; updated: number; skipped: number; warnings: string[] } | null = null;
+  pasoImportar: 'archivo' | 'preview' | 'resultado' = 'archivo';
+  previewImportar: {
+    preview: boolean;
+    imported: number;
+    updated: number;
+    skipped: number;
+    warnings: string[];
+    cambiosAsesor: { colegio: string; anterior: string | null; nuevo: string }[];
+    filas: { nombre: string; estado: 'crear' | 'actualizar' | 'omito'; cambios: string[] }[];
+  } | null = null;
+  filasImportar: any[] | null = null;
+  erroresParseImportar: string[] = [];
+  reasignarAsesoresImportar = false;
+  backups: string[] = [];
+  mostrarBackups = false;
+  backupMsg: string | null = null;
+
   private destroy$ = new Subject<void>();
 
   constructor(
@@ -86,6 +109,7 @@ export class ColegiosConfigComponent implements OnInit, OnDestroy {
       next: (data) => {
         this.colegios = data.map(c => ({
           ...c,
+          tipoColegio: this.normalizarTipo(c.tipoColegio ?? '') || null,
           advisorName: c.advisor?.name || null,
         }));
         this.loading = false;
@@ -96,6 +120,17 @@ export class ColegiosConfigComponent implements OnInit, OnDestroy {
         this.cdr.detectChanges();
       },
     });
+  }
+
+  private normalizarTipo(value: string): string {
+    const key = value.trim().toLowerCase().replace(/[\s_-]+/g, '');
+    if (['controlacademic', 'controlacademico', 'control', 'ctrl', 'ctl', 'korvixcontrol'].includes(key)) {
+      return 'ControlAcademic';
+    }
+    if (['sian365', 'sian', 'korvixsian'].includes(key)) {
+      return 'Sian365';
+    }
+    return value.trim();
   }
 
   get filteredColegios(): Colegio[] {
@@ -303,68 +338,369 @@ export class ColegiosConfigComponent implements OnInit, OnDestroy {
   }
 
   exportCsv(): void {
+    if (this.exportando) return;
+    this.exportando = true;
+    this.cdr.detectChanges();
     this.sessionService.exportColegios().pipe(takeUntil(this.destroy$)).subscribe({
       next: (res: any) => {
-        if (res.csv) {
-          const blob = new Blob([res.csv], { type: 'text/csv;charset=utf-8;' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `colegios-${Date.now()}.csv`;
-          a.click();
-          URL.revokeObjectURL(url);
+        this.exportando = false;
+        const csv = res?.csv;
+        if (!csv) {
+          this.notification.error('Error', 'No se pudo generar el archivo CSV.');
+          this.cdr.detectChanges();
+          return;
         }
+        const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `colegios-${Date.now()}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        this.notification.success('Exportación', 'Archivo CSV descargado correctamente.');
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.exportando = false;
+        this.notification.error('Error', 'No se pudo exportar los colegios.');
+        this.cdr.detectChanges();
       },
     });
   }
 
-  importCsv(event: Event): void {
+  /* ── Import (modal) ── */
+  abrirModalImportar(): void {
+    this.mostrarModalImportar = true;
+    this.archivoImportar = null;
+    this.resultadoImportar = null;
+    this.previewImportar = null;
+    this.filasImportar = null;
+    this.erroresParseImportar = [];
+    this.pasoImportar = 'archivo';
+    this.importando = false;
+    this.arrastrandoArchivo = false;
+    this.reasignarAsesoresImportar = false;
+  }
+
+  cerrarModalImportar(): void {
+    this.mostrarModalImportar = false;
+    this.archivoImportar = null;
+    this.resultadoImportar = null;
+    this.previewImportar = null;
+    this.filasImportar = null;
+    this.erroresParseImportar = [];
+    this.pasoImportar = 'archivo';
+    this.importando = false;
+    this.arrastrandoArchivo = false;
+    this.reasignarAsesoresImportar = false;
+  }
+
+  onArchivoSeleccionado(event: Event): void {
     const input = event.target as HTMLInputElement;
-    if (!input.files?.length) return;
-    const file = input.files[0];
+    this.archivoImportar = input.files?.[0] ?? null;
+    this.resultadoImportar = null;
+    this.previewImportar = null;
+    this.pasoImportar = 'archivo';
+    input.value = '';
+  }
+
+  onDragOver(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.arrastrandoArchivo = true;
+  }
+
+  onDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.arrastrandoArchivo = false;
+  }
+
+  onDrop(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.arrastrandoArchivo = false;
+    const file = event.dataTransfer?.files?.[0];
+    if (file) {
+      this.archivoImportar = file;
+      this.resultadoImportar = null;
+      this.previewImportar = null;
+      this.pasoImportar = 'archivo';
+    }
+  }
+
+  descargarPlantilla(): void {
+    const header = 'nombre;link;links;email;calendario;tipo_colegio;ciudad;asesor';
+    const ejemplo = 'Colegio Ejemplo;https://ejemplo.com;;contacto@colegio.com;A;Sian365;Bogotá;Juan Pérez';
+    const blob = new Blob(['\uFEFF' + header + '\n' + ejemplo], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'plantilla-colegios.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  ejecutarImportar(): void {
+    if (!this.archivoImportar || this.importando) return;
+    this.importando = true;
+    this.cdr.detectChanges();
+
     const reader = new FileReader();
     reader.onload = () => {
-      try {
-        const text = reader.result as string;
-        const lines = text.split('\n').filter(l => l.trim());
-        if (lines.length < 2) return;
-        const header = lines[0].toLowerCase();
-        const hasCalendario = header.includes('calendario');
-        const hasTipo = header.includes('tipo');
-        const hasCiudad = header.includes('ciudad') || header.includes('ciudad;');
-        const hasAsesor = header.includes('asesor');
-        const hasLinks = header.includes('links');
+      const text = (reader.result as string).replace(/^\uFEFF/, '');
+      const parsed = this.parseCsv(text);
 
-        const rows = lines.slice(1).map(line => {
-          const cols = line.split(';').map(c => c.replace(/"/g, '').trim());
-          const row: any = { nombre: cols[0] || '', link: cols[1] || 'https://', email: cols[2] || '' };
-          let idx = 3;
-          if (hasLinks) { row.links = (cols[idx] || '').split('|').filter((l: string) => l.trim()); idx++; }
-          if (hasCalendario) { row.calendario = cols[idx] || ''; idx++; }
-          if (hasTipo) { row.tipoColegio = cols[idx] || ''; idx++; }
-          if (hasCiudad) { row.ciudad = cols[idx] || ''; idx++; }
-          if (hasAsesor) row.asesor = cols[idx] || '';
-          return row;
-        }).filter(r => r.nombre && r.link);
-        this.sessionService.importColegios(rows).pipe(takeUntil(this.destroy$)).subscribe({
-          next: (res: any) => {
-            const msg = `${res.created?.length ?? res.imported ?? 0} colegios importados, ${res.skipped} omitidos.`;
-            const warn = res.warnings?.length ? '\n' + res.warnings.join('\n') : '';
-            this.notification.success('Importación', msg + warn);
-            this.loadColegios();
-          },
-          error: () => this.notification.error('Error', 'No se pudo importar el archivo.'),
-        });
-      } catch {
-        this.notification.error('Error', 'Formato de archivo inválido.');
+      if (!parsed.rows.length) {
+        this.importando = false;
+        this.pasoImportar = 'resultado';
+        this.resultadoImportar = { imported: 0, updated: 0, skipped: 0, warnings: parsed.errores };
+        this.cdr.detectChanges();
+        return;
       }
+
+      this.sessionService.importColegios(parsed.rows, { preview: true }).pipe(takeUntil(this.destroy$)).subscribe({
+        next: (res: any) => {
+          this.importando = false;
+          this.filasImportar = parsed.rows;
+          this.erroresParseImportar = parsed.errores;
+          this.previewImportar = res;
+          this.pasoImportar = 'preview';
+          this.cdr.detectChanges();
+        },
+        error: (err) => {
+          this.importando = false;
+          this.pasoImportar = 'resultado';
+          this.resultadoImportar = {
+            imported: 0,
+            updated: 0,
+            skipped: 0,
+            warnings: [err?.error?.message || 'No se pudo previsualizar el archivo.'],
+          };
+          this.cdr.detectChanges();
+        },
+      });
     };
-    reader.readAsText(file);
-    input.value = '';
+    reader.readAsText(this.archivoImportar);
+  }
+
+  aplicarImportar(): void {
+    if (!this.filasImportar || this.importando) return;
+    this.importando = true;
+    this.cdr.detectChanges();
+
+    this.sessionService
+      .importColegios(this.filasImportar, { reasignarAsesores: this.reasignarAsesoresImportar })
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (res: any) => {
+          this.importando = false;
+          this.resultadoImportar = {
+            imported: res?.imported ?? 0,
+            updated: res?.updated ?? 0,
+            skipped: res?.skipped ?? 0,
+            warnings: [...(res?.warnings ?? []), ...this.erroresParseImportar],
+          };
+          this.pasoImportar = 'resultado';
+          this.loadColegios();
+          this.cdr.detectChanges();
+        },
+        error: (err) => {
+          this.importando = false;
+          this.pasoImportar = 'resultado';
+          this.resultadoImportar = {
+            imported: 0,
+            updated: 0,
+            skipped: 0,
+            warnings: [err?.error?.message || 'No se pudo importar el archivo.'],
+          };
+          this.cdr.detectChanges();
+        },
+      });
+  }
+
+  volverDesdePreview(): void {
+    this.pasoImportar = 'archivo';
+    this.previewImportar = null;
+    this.filasImportar = null;
+    this.erroresParseImportar = [];
+    this.resultadoImportar = null;
+    this.importando = false;
+  }
+
+  /* ── Backups (respaldo/restauración) ── */
+  crearBackupManualColegios(): void {
+    this.backupMsg = null;
+    this.sessionService.crearBackupManual().pipe(takeUntil(this.destroy$)).subscribe({
+      next: (res) => {
+        this.backupMsg = `Respaldo creado: ${res.archivo}`;
+        this.notification.success('Respaldo', 'Se creó un respaldo de colegios y Perfil Institucional.');
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        const msg = err?.error?.message || 'No se pudo crear el respaldo.';
+        this.backupMsg = msg;
+        this.notification.error('Respaldo', msg);
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  toggleBackups(): void {
+    this.mostrarBackups = !this.mostrarBackups;
+    if (this.mostrarBackups) {
+      this.sessionService.listarBackups().pipe(takeUntil(this.destroy$)).subscribe({
+        next: (res) => {
+          this.backups = res ?? [];
+          this.cdr.detectChanges();
+        },
+        error: () => {
+          this.backups = [];
+          this.cdr.detectChanges();
+        },
+      });
+    }
+  }
+
+  restaurarBackupColegios(fileName: string): void {
+    const nombre = fileName.split(/[\\/]/).pop() || fileName;
+    if (!confirm(`¿Restaurar el respaldo "${nombre}"? Se reemplazarán colegios y valores de Perfil Institucional guardados en el respaldo.`)) return;
+    this.sessionService.restaurarBackup(fileName).pipe(takeUntil(this.destroy$)).subscribe({
+      next: (res) => {
+        this.notification.success('Restauración', `${res.colegios} colegios y ${res.valores} valores restaurados.`);
+        this.loadColegios();
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        this.notification.error('Restauración', err?.error?.message || 'No se pudo restaurar el respaldo.');
+      },
+    });
+  }
+
+  private parseCsv(text: string): { rows: any[]; errores: string[] } {
+    const errores: string[] = [];
+    const raw = this.parseCsvRows(text);
+    if (!raw.length) {
+      errores.push('El archivo está vacío o no tiene filas de datos.');
+      return { rows: [], errores };
+    }
+
+    const header = raw[0].map(h => this.normalizarHeader(h));
+    const idx = {
+      nombre: header.indexOf('nombre'),
+      link: header.indexOf('link'),
+      links: header.indexOf('links'),
+      email: header.indexOf('email'),
+      calendario: header.indexOf('calendario'),
+      tipo: header.findIndex(h => ['tipo', 'tipo_colegio', 'tipocolegio', 'proyecto'].includes(h)),
+      ciudad: header.indexOf('ciudad'),
+      asesor: header.findIndex(h => ['asesor', 'asesor_principal'].includes(h)),
+    };
+
+    if (idx.nombre === -1 || idx.link === -1) {
+      errores.push('El archivo debe contener las columnas "nombre" y "link".');
+      return { rows: [], errores };
+    }
+
+    const rows: any[] = [];
+    raw.slice(1).forEach((cols, i) => {
+      const linea = i + 2;
+      const nombre = (cols[idx.nombre] ?? '').trim();
+      const link = (cols[idx.link] ?? '').trim();
+      if (!nombre && !link) return;
+      if (!nombre || !link) {
+        errores.push(`Fila ${linea}: faltan campos obligatorios (nombre y link).`);
+        return;
+      }
+      rows.push({
+        nombre,
+        link,
+        email: idx.email !== -1 ? (cols[idx.email] ?? '').trim() : '',
+        calendario: idx.calendario !== -1 ? (cols[idx.calendario] ?? '').trim() : '',
+        tipoColegio: idx.tipo !== -1 ? (cols[idx.tipo] ?? '').trim() : '',
+        ciudad: idx.ciudad !== -1 ? (cols[idx.ciudad] ?? '').trim() : '',
+        asesor: idx.asesor !== -1 ? (cols[idx.asesor] ?? '').trim() : '',
+        ...(idx.links !== -1
+          ? { links: (cols[idx.links] ?? '').split('|').map((l: string) => l.trim()).filter(Boolean) }
+          : {}),
+      });
+    });
+
+    if (!rows.length) {
+      errores.push('No se encontraron colegios válidos en el archivo.');
+    }
+    return { rows, errores };
+  }
+
+  private parseCsvRows(text: string): string[][] {
+    const clean = text.replace(/^\uFEFF/, '').trim();
+    if (!clean) return [];
+    const firstLine = clean.split(/\r?\n/)[0] || '';
+    const semis = (firstLine.match(/;/g) || []).length;
+    const commas = (firstLine.match(/,/g) || []).length;
+    const delimiter = semis > commas ? ';' : ',';
+
+    const rows: string[][] = [];
+    let row: string[] = [];
+    let field = '';
+    let inQuotes = false;
+    for (let i = 0; i < clean.length; i++) {
+      const ch = clean[i];
+      if (inQuotes) {
+        if (ch === '"') {
+          if (clean[i + 1] === '"') {
+            field += '"';
+            i++;
+          } else {
+            inQuotes = false;
+          }
+        } else {
+          field += ch;
+        }
+      } else {
+        if (ch === '"') {
+          inQuotes = true;
+        } else if (ch === delimiter) {
+          row.push(field);
+          field = '';
+        } else if (ch === '\n' || ch === '\r') {
+          if (ch === '\r' && clean[i + 1] === '\n') i++;
+          row.push(field);
+          field = '';
+          rows.push(row);
+          row = [];
+        } else {
+          field += ch;
+        }
+      }
+    }
+    row.push(field);
+    if (row.length > 1 || (row[0] || '').trim()) rows.push(row);
+    return rows;
+  }
+
+  private normalizarHeader(h: string): string {
+    return h.replace(/"/g, '').trim().toLowerCase().replace(/\s+/g, '_');
   }
 
   getAdvisorName(id: string | null | undefined): string {
     if (!id) return '';
     return this.advisorsList.find(a => a.id === id)?.name || '';
+  }
+
+  get stats(): { total: number; sian: number; control: number; sinAsesor: number } {
+    const colegios = this.colegios;
+    return {
+      total: colegios.length,
+      sian: colegios.filter(c => c.tipoColegio === 'Sian365').length,
+      control: colegios.filter(c => c.tipoColegio === 'ControlAcademic').length,
+      sinAsesor: colegios.filter(c => !c.advisorId && !c.advisorName).length,
+    };
+  }
+
+  tipoClass(tipo: string | null | undefined): string {
+    if (tipo === 'Sian365') return 'tmc-pill--sian';
+    if (tipo === 'ControlAcademic') return 'tmc-pill--control';
+    return 'tmc-pill--tipo';
   }
 }

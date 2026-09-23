@@ -30,6 +30,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { RolesGuard, Roles } from '../auth/roles.guard';
 import { Permiso } from '../accesos/permiso-modulo.guard';
+import { normalizarTipoColegio } from '../common/tipo-colegio.util';
 import {
   IsString,
   IsNotEmpty,
@@ -175,6 +176,11 @@ export class CreateColegioDto {
   @IsUUID()
   @IsOptional()
   advisorId?: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  asesor?: string;
 
   @IsArray()
   @IsOptional()
@@ -733,9 +739,39 @@ export class SessionsController {
   async importColegios(
     @Body(new ValidationPipe({ whitelist: true, transform: false }))
     data: CreateColegioDto[],
+    @Query('preview') preview: string,
+    @Query('reasignarAsesores') reasignarAsesores: string,
+    @Request() req: { user: { id: string } },
   ) {
-    const results = await this.sessionsService.importColegios(data);
-    return { imported: results.created.length, skipped: results.skipped };
+    const results = await this.sessionsService.importColegios(data, {
+      preview: preview === 'true',
+      reasignarAsesores: reasignarAsesores === 'true',
+      userId: req.user.id,
+    });
+    return results;
+  }
+
+  @Get('colegios/import/backups')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  listarBackups() {
+    return this.sessionsService.listarBackups().map((b) => b.file);
+  }
+
+  @Post('colegios/import/backup')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  async crearBackup() {
+    const archivo = await this.sessionsService.crearBackupManual();
+    return { ok: true, archivo };
+  }
+
+  @Post('colegios/import/restore')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  async restaurarBackup(@Body('fileName') fileName: string) {
+    const resultado = await this.sessionsService.restaurarBackup(fileName);
+    return { ok: true, ...resultado };
   }
 
   @Post('colegios/delete-bulk')
@@ -757,10 +793,16 @@ export class SessionsController {
       const rows = colegios
         .map(
           (c) =>
-            `"${c.nombre}";"${c.link}";"${(c.links || []).join('|')}";"${c.email ?? ''}";"${c.calendario ?? ''}";"${c.tipoColegio ?? ''}";"${c.ciudad ?? ''}";"${c.advisor?.name ?? ''}"`,
+            `"${c.nombre}";"${c.link}";"${(c.links || []).join('|')}";"${c.email ?? ''}";"${c.calendario ?? ''}";"${normalizarTipoColegio(c.tipoColegio) ?? ''}";"${c.ciudad ?? ''}";"${c.advisor?.name ?? ''}"`,
         )
         .join('\n');
-      return { csv: header + rows, data: colegios };
+      return {
+        csv: header + rows,
+        data: colegios.map((c) => ({
+          ...c,
+          tipoColegio: normalizarTipoColegio(c.tipoColegio) ?? null,
+        })),
+      };
     }
     return colegios;
   }

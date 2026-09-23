@@ -93,7 +93,12 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   protected readonly isTodayBogota = isTodayBogota;
   protected readonly isYesterdayBogota = isYesterdayBogota;
 
+  static isNarrowViewport(): boolean {
+    return typeof window !== 'undefined' && window.matchMedia('(max-width: 700px)').matches;
+  }
+
   @ViewChild('messagesContainer') messagesContainer!: ElementRef;
+  @ViewChild('voiceRec') voiceRec?: VoiceRecorderComponent;
   @ViewChild('msgInput') msgInput!: ElementRef<HTMLTextAreaElement>;
   @ViewChild('slashMenu') slashMenu?: ElementRef<HTMLElement>;
   @ViewChild('improveInputField') improveInputField!: ElementRef<HTMLTextAreaElement>;
@@ -108,9 +113,11 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   transferSearchQuery = '';
   selectedTransferAdvisorId = '';
   showCloseConfirm = false;
-  showInfoPanel    = true;
+  showInfoPanel    = !ChatAdvisorComponent.isNarrowViewport();
   newMessage       = '';
   typingMap        = new Map<string, string>();
+  private messageDrafts = new Map<string, string>();
+  private htmlDrafts    = new Map<string, string>();
   compactList      = false;
   showRecent       = false;
 
@@ -144,6 +151,8 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
 
   // ── Formato de mensaje (Word-style) ─────────────────────────────────────
   showColorMenu = false;
+  // ── Menú desplegable de herramientas (solo móvil) ─────────────────────────
+  showMobileTools = false;
   readonly fmtColors = [
     { id: 'rojo',     label: 'Rojo',     value: '#ef4444' },
     { id: 'verde',    label: 'Verde',    value: '#10b981' },
@@ -552,7 +561,15 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe((data) => {
         this.advisorNotif.onSessionAssigned(data);
-        this.loadSessions(data.sessionId);
+        // Abrir automáticamente solo si el asesor NO está en otro chat.
+        // Si ya hay un chat activo, solo se marca como no leído (evita
+        // cambiar de conversación por una asignación entrante).
+        if (this.activeSession) {
+          this.loadSessions();
+          this.state.incrementUnread(data.sessionId, 'assigned');
+        } else {
+          this.loadSessions(data.sessionId);
+        }
         this.joinRoom(data.sessionId);
         this.showRemitFeedback('ok', `Nuevo chat asignado: ${data.clientName}`);
         this.cdr.detectChanges();
@@ -612,7 +629,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
               this.socket.emit('set_active', { sessionId, active: true });
             }
           } else if (this.state.getActiveSessionId() !== sessionId) {
-            this.state.incrementUnread(sessionId);
+            this.state.incrementUnread(sessionId, msg.id);
             // Sonido + notificación de escritorio para mensajes de otras sesiones
             if (added) {
               const session = this.sessions.find(s => s.id === sessionId);
@@ -1111,6 +1128,13 @@ leaveCollabChat(): void {
 
   // ── Seleccionar sesión ────────────────────────────────────────────────────
   joinSession(session: Session): void {
+    // 1. Guardar borrador de sesión activa actual
+    if (this.activeSession?.id) {
+      this.messageDrafts.set(this.activeSession.id, this.newMessage ?? '');
+      const html = this.msgInput?.nativeElement?.innerHTML ?? '';
+      this.htmlDrafts.set(this.activeSession.id, html);
+    }
+
     if (this.activeSession && this.activeSession.id !== session.id) {
       this.socket.emit('set_active', { sessionId: this.activeSession.id, active: false });
     }
@@ -1118,10 +1142,12 @@ leaveCollabChat(): void {
     this.activeSession    = session;
     this.showTransfer     = false;
     this.showCloseConfirm = false;
-    this.showInfoPanel    = true;
+    this.showInfoPanel    = !ChatAdvisorComponent.isNarrowViewport();
+    this.showMobileTools  = false;
     this.remitFeedback    = null;
     this.aiModeActive     = false;
     this.imagePreview     = null;
+    this.isTyping         = false;
     this.state.setActiveSession(session.id);
     this.state.setUnread(session.id, 0);
 
@@ -1135,6 +1161,19 @@ leaveCollabChat(): void {
     this.joinRoom(session.id);
     this.socket.emit('set_active', { sessionId: session.id, active: true });
     this.socket.emit('mark_read', session.id);
+
+    // 3. Restaurar borrador del nuevo chat
+    const draftText = this.messageDrafts.get(session.id) ?? '';
+    const draftHtml = this.htmlDrafts.get(session.id)  ?? '';
+
+    this.newMessage = draftText;
+    const el = this.msgInput?.nativeElement;
+    if (el) {
+      el.innerHTML = draftHtml || '';
+    }
+    this.resizeInput();
+    this.showSlashMenu = false;
+    this.ghostSuggestion = '';
 
     this.sessionService.getTimeline(session.id, null, 100).subscribe({
       next: (resp) => {
@@ -1151,11 +1190,17 @@ leaveCollabChat(): void {
   }
 
   closeActiveSessionView(): void {
+    if (this.activeSession?.id) {
+      this.messageDrafts.set(this.activeSession.id, this.newMessage ?? '');
+      const html = this.msgInput?.nativeElement?.innerHTML ?? '';
+      this.htmlDrafts.set(this.activeSession.id, html);
+    }
     if (this.activeSession) {
       this.socket.emit('set_active', { sessionId: this.activeSession.id, active: false });
     }
     this.activeSession = null;
     this.showInfoPanel = false;
+    this.showMobileTools = false;
     this.imagePreview  = null;
     this.state.setActiveSession(null);
     this.cdr.detectChanges();
@@ -1323,6 +1368,37 @@ leaveCollabChat(): void {
   toggleColorMenu(): void {
     if (!this.canSendMessage) return;
     this.showColorMenu = !this.showColorMenu;
+  }
+
+  toggleMobileTools(): void {
+    if (this.isRecordingAudio) return;
+    this.showMobileTools = !this.showMobileTools;
+    this.showColorMenu = false;
+  }
+
+  closeMobileTools(): void {
+    if (this.isRecordingAudio) return;
+    this.showMobileTools = false;
+  }
+
+  mobileAttach(): void {
+    if (this.isRecordingAudio) return;
+    this.showMobileTools = false;
+    this.cdr.detectChanges();
+    this.triggerFileInput();
+  }
+
+  mobileRecordAudio(): void {
+    if (this.isRecordingAudio || !this.canSendMessage) return;
+    this.showMobileTools = false;
+    this.cdr.detectChanges();
+    void this.voiceRec?.start();
+  }
+
+  mobileImprove(): void {
+    this.showMobileTools = false;
+    this.cdr.detectChanges();
+    this.toggleImprovePanel();
   }
 
   private overrideCommand(cmd: string, value?: string): void {
@@ -1661,6 +1737,9 @@ leaveCollabChat(): void {
     this.resizeInput();
     this.showSlashMenu = false;
     this.ghostSuggestion = '';
+
+    this.messageDrafts.delete(sessionId);
+    this.htmlDrafts.delete(sessionId);
   }
 
   canEditMessage(msg: any): boolean {

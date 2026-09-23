@@ -1516,6 +1516,16 @@
   flex-shrink: 0;
 }
 
+// Línea entre campana y perfil: solo en móvil
+.topbar-divider-spacer {
+  display: none;
+  width: 1px;
+  height: 16px;
+  background: var(--sidebar-border, rgba(255,255,255,0.12));
+  flex-shrink: 0;
+  margin: 0 2px;
+}
+
 // ── Metrics ──────────────────────────────────────────────────
 .topbar-metrics {
   display: flex;
@@ -1596,6 +1606,9 @@
     box-shadow: 0 0 0 3px rgba(37, 211, 102, 0.1);
   }
 }
+
+// ── TEMPORAL: ocultar la métrica de WhatsApp (todas las vistas) ──
+.wa-metric { display: none; }
 
 .chat-metric {
   display: flex;
@@ -2224,6 +2237,15 @@
   }
 
   @media (max-width: 1268px) { display: flex; }
+}
+
+// ── Topbar actions (clúster derecho: FAQ, campana, perfil) ──
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  min-width: 0;
 }
 
 // ── Profile dropdown (topbar) ──────────────────────────────
@@ -3190,5 +3212,128 @@
 
   .shell-outlet {
     overflow: hidden;
+  }
+}
+
+// ── Móvil: topbar en una sola fila ─────────────────────────
+// Todos los íconos caben en una línea: hamburguesa, equipo
+// (cápsulas), contadores y acciones (FAQ, campana, avatar).
+// Colocado al final para ganar la cascada sobre las reglas base.
+@media (max-width: 620px) {
+  .mobile-topbar {
+    flex-wrap: nowrap;
+    height: 58px;
+    min-height: 58px;
+    padding: 0 8px;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    &::-webkit-scrollbar { display: none; }
+  }
+
+  .hamburger {
+    width: 32px;
+    height: 32px;
+    svg { width: 16px; height: 16px; }
+  }
+
+  .mobile-topbar .topbar-logo { display: none; }
+
+  .topbar-center {
+    flex: 1 1 auto;
+    min-width: 0;
+    gap: 8px;
+    justify-content: space-between;
+    overflow: visible;
+  }
+
+  .topbar-actions {
+    margin-left: auto;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .topbar-divider { display: none; }
+
+  .topbar-divider-spacer {
+    display: block;
+    height: 14px;
+    margin: 0 1px;
+  }
+
+  .topbar-metrics {
+    flex-shrink: 0;
+    gap: 6px;
+  }
+
+  // Chat: dentro de la píldora solo queda el número (sin icono ni etiqueta)
+  .chat-metric {
+    .chat-metric-icon { display: none; }
+    .metric-label { display: none; }
+    padding: 4px 8px;
+    gap: 0;
+    justify-content: center;
+  }
+
+  .faq-trigger {
+    width: 30px;
+    height: 30px;
+    svg { width: 16px; height: 16px; }
+  }
+
+  .topbar-avatar-sm {
+    width: 30px;
+    height: 30px;
+    border-width: 2.5px;
+  }
+}
+
+// ── Móvil: lista de asesores como panel centrado ─────────────
+@media (max-width: 620px) {
+  .team-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(400px, calc(100vw - 24px));
+    max-width: calc(100vw - 24px);
+    max-height: min(80dvh, 560px);
+    overflow-y: auto;
+    animation: team-panel-center-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+
+    &::before { display: none; }
+  }
+
+  .team-overlay {
+    z-index: 208;
+  }
+
+  @keyframes team-panel-center-in {
+    from { opacity: 0; transform: translate(-50%, -50%) scale(0.92); }
+    to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  }
+}
+
+// ── Móvil: perfil (topbar) como modal centrado ───────────────
+@media (max-width: 620px) {
+  .profile-dropdown {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    right: auto;
+    transform: translate(-50%, -50%);
+    width: min(360px, calc(100vw - 24px));
+    max-height: min(82dvh, 600px);
+    overflow-y: auto;
+    border-radius: 18px;
+    z-index: 215;
+    animation: profile-center-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+
+    &::before { display: none; }
+  }
+
+  @keyframes profile-center-in {
+    from { opacity: 0; transform: translate(-50%, -50%) scale(0.92); }
+    to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
   }
 }

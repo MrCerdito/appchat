@@ -9,6 +9,7 @@ const UNREAD_KEY = 'chat_unread';
 export class ChatStateService {
   private messagesMap = new Map<string, Message[]>();
   private unreadMap = new Map<string, number>();
+  private countedMessages = new Map<string, Set<string>>();
   private joinedRooms = new Set<string>();
   private activeSessionId: string | null = null;
 
@@ -45,14 +46,24 @@ export class ChatStateService {
 
   setUnread(sessionId: string, count: number): void {
     this.unreadMap.set(sessionId, Math.max(0, count));
+    if (count === 0) this.countedMessages.delete(sessionId);
     this.saveUnreadToStorage();
     this.emitUnreadTotal();
   }
 
-  incrementUnread(sessionId: string): void {
+  /** Incrementa no leídos. Si se pasa `sourceKey` (p.ej. messageId), un mismo
+      evento contado desde varios listeners no se duplica. Retorna true si contó. */
+  incrementUnread(sessionId: string, sourceKey?: string): boolean {
+    if (sourceKey !== undefined) {
+      const seen = this.countedMessages.get(sessionId) ?? new Set<string>();
+      if (seen.has(sourceKey)) return false;
+      seen.add(sourceKey);
+      this.countedMessages.set(sessionId, seen);
+    }
     this.unreadMap.set(sessionId, (this.unreadMap.get(sessionId) ?? 0) + 1);
     this.saveUnreadToStorage();
     this.emitUnreadTotal();
+    return true;
   }
 
   getMessages(sessionId: string): Message[] {
@@ -96,6 +107,7 @@ export class ChatStateService {
   clearSession(sessionId: string): void {
     this.messagesMap.delete(sessionId);
     this.unreadMap.delete(sessionId);
+    this.countedMessages.delete(sessionId);
     this.joinedRooms.delete(sessionId);
     if (this.activeSessionId === sessionId) this.activeSessionId = null;
     this.saveUnreadToStorage();
@@ -113,6 +125,7 @@ export class ChatStateService {
     for (const sessionId of [...this.unreadMap.keys()]) {
       if (!activeIds.has(sessionId)) {
         this.unreadMap.delete(sessionId);
+        this.countedMessages.delete(sessionId);
         changed = true;
       }
     }

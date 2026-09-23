@@ -503,6 +503,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe(data => {
         this.advisorNotif.onSessionAssigned(data);
+        // Contar la asignación como no-leído aunque el asesor esté en otro chat.
+        // La key sintética evita duplicar si además lo cuenta el chat-advisor.
+        this.chatState.incrementUnread(data.sessionId, 'assigned');
       });
 
     this.socket.on<Message & { session?: Session; sessionId?: string; advisorId?: string }>('new_message')
@@ -657,7 +660,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
 
     if (shouldNotify) {
-      this.chatState.incrementUnread(sessionId);
+      this.chatState.incrementUnread(sessionId, message.id);
     }
 
     const isViewing = isAssigned && !shouldNotify && viewingSessionId === sessionId;
@@ -926,12 +929,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.chatState.reconcileSessions(sessions);
         // Sembrar el conteo desde el servidor (readAt) para que al refrescar
         // la página el contador de "chat en línea" sea consistente.
+        // Math.max evita que un unreadCount obsoleto del servidor (0) borre
+        // el contador ya acumulado en vivo por new_message/session_assigned.
         sessions.forEach(s => {
           if (
             typeof s.unreadCount === 'number' &&
             s.id !== this.chatState.getActiveSessionId()
           ) {
-            this.chatState.setUnread(s.id, s.unreadCount);
+            this.chatState.setUnread(
+              s.id,
+              Math.max(this.chatState.getUnread(s.id), s.unreadCount),
+            );
           }
         });
         this.chatState.sessions$.next(sessions);

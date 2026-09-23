@@ -17,6 +17,7 @@ import { Message } from './chat/entities/message.entity';
 import { SessionEvento } from './chat/entities/session-evento.entity';
 import { SessionAssignmentEvento } from './chat/entities/session-assignment-evento.entity';
 import { Colegio } from './sessions/entities/colegio.entity';
+import { ColegioLog } from './sessions/entities/colegio-log.entity';
 import { ComunicadosModule } from './comunicados/comunicados.module';
 import { Comunicado } from './comunicados/entities/comunicado.entity';
 import { TrackModule } from './track/track.module';
@@ -196,6 +197,7 @@ import { AppService } from './app.service';
           AccesoUsuario,
           Changelog,
           ChangelogSeen,
+          ColegioLog,
         ],
         synchronize: config.get<string>('NODE_ENV') === 'development',
         logging: config.get<string>('NODE_ENV') !== 'production',

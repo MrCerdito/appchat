@@ -1,6 +1,9 @@
 /**
  * widget.js — Widget de chat embebible — Sian365
- * v2.3.0
+ * v2.5.0
+ * v2.5.0: la imagen interna del botón cambia según la marca del proyecto
+ * (Sian365 → KorvixSian.png, ControlAcademic → KorvixControl.png), igual que
+ * el color del anillo. Las imágenes viven en la misma carpeta que widget.js.
  * v2.3.0: auto-actualización (si /widget-config reporta una widgetVersion
  * mayor, recarga la versión nueva en caliente) y polling cada 30 s para
  * reducir la carga del backend. Bump VERSION + widget-version.ts en cada
@@ -21,7 +24,7 @@
   /* ═══════════════════════════════════════════════════════════
      SECCIÓN 1 — CONSTANTES
   ═══════════════════════════════════════════════════════════ */
-  var VERSION = '2.4.0';
+  var VERSION = '2.5.0';
   var POLL_MS  = 60000;
   var ROOT_ID  = 'sian-widget-root';
   var API_PATH = '/widget-config';
@@ -227,7 +230,7 @@
           if (MY_REV !== window.__sianWidgetRev) return;
           if (!res || !res.tipoColegio || brandColor) return;
           var p = PROYECTOS[res.tipoColegio];
-          if (p) applyBrand(p.color, p.bg);
+          if (p) applyBrand(p.color, p.bg, res.tipoColegio);
         })
         .catch(function () {});
     } catch (_) {}
@@ -304,6 +307,31 @@
   var SPA_BASE = BASES.spaBase;
   var API_URL  = API_BASE + API_PATH;
   var LOGO_URL = (SPA_BASE ? SPA_BASE.replace(/\/+$/, '') : location.origin) + '/LOGO.png';
+
+  // Imagen interna del botón según la marca del proyecto (mismo criterio que el
+  // color del anillo). Fallback a LOGO.png cuando aún no hay marca detectada.
+  var BRAND_LOGOS = {
+    Sian365:         'KorvixSian.png',
+    ControlAcademic: 'KorvixControl.png',
+  };
+  var brandKey = null; // 'Sian365' | 'ControlAcademic' | null
+
+  /** Resuelve la URL del logo interno del botón según la marca actual. */
+  function brandLogoUrl(key) {
+    var file = (key && BRAND_LOGOS[key]) || '';
+    return file
+      ? (SPA_BASE ? SPA_BASE.replace(/\/+$/, '') : location.origin) + '/' + file
+      : LOGO_URL;
+  }
+
+  /** Deduce la marca desde el color del anillo (por si el chat solo manda el color). */
+  function brandKeyFromColor(hex) {
+    hex = sanitizeHex(hex);
+    for (var k in PROYECTOS) {
+      if (PROYECTOS.hasOwnProperty(k) && sanitizeHex(PROYECTOS[k].color) === hex) return k;
+    }
+    return null;
+  }
 
   // ── Data attributes sobreescritura ─────────────────────────────────────────
   var IS_PREVIEW    = getDataAttr('preview') === 'true';
@@ -571,7 +599,7 @@
     var logo = document.createElement('span');
     logo.className = 'sian-kx-logo';
     var logoImg = document.createElement('img');
-    logoImg.src = LOGO_URL;
+    logoImg.src = brandLogoUrl(brandKey);
     logoImg.alt = 'Korvix';
     logoImg.addEventListener('error', function () {
       logoImg.style.display = 'none';
@@ -875,12 +903,15 @@
   // El widget detecta la institución (tipoColegio) o el chat la notifica con
   // 'sian-brand'. Aplica el color al botón, el fondo claro del chat y lo
   // reenvía en el tema para que se aplique antes/instantáneamente.
-  function applyBrand(color, bg) {
+  function applyBrand(color, bg, key) {
     if (MY_REV !== window.__sianWidgetRev) return;
     var hex = sanitizeHex(color);
     if (!hex) return;
     brandColor = hex;
     brandBg = (bg && /^#[0-9a-fA-F]{6}$/.test(bg)) ? bg : null;
+    // La marca del proyecto también selecciona la imagen interna del botón.
+    // Si el emisor no mandó la clave, la deducimos del color del anillo.
+    brandKey = key || brandKeyFromColor(hex);
     document.documentElement.style.setProperty('--sian-brand', hex);
     if (brandBg) document.documentElement.style.setProperty('--sian-bg', brandBg);
     var f = document.getElementById('sian-iframe');
@@ -888,6 +919,8 @@
       if (brandBg) f.style.background = brandBg;
       postTheme(f, cfg);
     }
+    var logoImg = document.querySelector('#sian-btn .sian-kx-logo img');
+    if (logoImg) logoImg.src = brandLogoUrl(brandKey);
     paint(cfg);
   }
 

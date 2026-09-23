@@ -1,4 +1,10 @@
-import { Inject, Injectable, NotFoundException, Logger } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  NotFoundException,
+  Logger,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { Repository, In, DataSource, LessThan } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
@@ -11,8 +17,15 @@ import { Message } from '../chat/entities/message.entity';
 import { SessionEvento } from '../chat/entities/session-evento.entity';
 import { SessionAssignmentEvento } from '../chat/entities/session-assignment-evento.entity';
 import { Colegio } from './entities/colegio.entity';
+import { ColegioLog } from './entities/colegio-log.entity';
 import { Rating } from './entities/rating.entity';
 import { matchColegio } from '../common/url/url-match.util';
+import { normalizarTipoColegio } from '../common/tipo-colegio.util';
+import {
+  crearBackupColegios,
+  listarBackups,
+  restaurarBackupColegios,
+} from '../common/import-snapshot.util';
 import { AiLogsService } from 'src/ai/ai-logs.service';
 import { AdvisorActivityService } from '../advisor-activity/advisor-activity.service';
 
@@ -41,6 +54,8 @@ export class SessionsService {
     private readonly messageRepo: Repository<Message>,
     @InjectRepository(Colegio)
     private readonly colegioRepo: Repository<Colegio>,
+    @InjectRepository(ColegioLog)
+    private readonly colegioLogRepo: Repository<ColegioLog>,
     @InjectRepository(Rating) private readonly ratingRepo: Repository<Rating>,
     @InjectRepository(SessionEvento)
     private readonly sessionEventoRepo: Repository<SessionEvento>,
@@ -1636,87 +1651,412 @@ export class SessionsService {
       asesor?: string;
       links?: string[];
     }[],
-  ): Promise<{ created: Colegio[]; skipped: number; warnings: string[] }> {
-    const truncate = (s: string, max: number) =>
-      s.length > max ? s.slice(0, max) : s;
+    opts: {
+      preview?: boolean;
+      reasignarAsesores?: boolean;
+      userId?: string;
+    } = {},
+  ): Promise<{
+    preview: boolean;
+    imported: number;
+    updated: number;
+    skipped: number;
+    warnings: string[];
+    cambiosAsesor: {
+      colegio: string;
+      anterior: string | null;
+      nuevo: string;
+    }[];
+    filas: {
+      nombre: string;
+      estado: 'crear' | 'actualizar' | 'omito';
+      cambios: string[];
+    }[];
+    backup?: string;
+  }> {
+    const { preview = false, reasignarAsesores = false, userId } = opts;
+    const MAX_FILAS = 10000;
     const warnings: string[] = [];
+    if (data.length > MAX_FILAS)
+      throw new BadRequestException(
+        `El archivo supera el límite de ${MAX_FILAS} filas.`,
+      );
 
-    // Build advisor lookup by name (case-insensitive)
-    const advisorMap = new Map<string, string>();
-    try {
-      const allUsers = await this.userRepo.find({
-        where: { role: In(['advisor', 'admin']), active: true },
-        select: ['id', 'name'],
-      });
-      for (const u of allUsers) {
-        if (u.name) advisorMap.set(u.name.toLowerCase().trim(), u.id);
-      }
-    } catch {}
+    const truncate = (s: string | null | undefined, max: number) =>
+      s && s.length > max ? s.slice(0, max) : (s ?? '');
 
-    const truncated = data.map((d) => {
-      const nombre = truncate(d.nombre, 200);
-      const link = truncate(d.link, 500);
-      const email = d.email ? truncate(d.email, 200) : '';
-      const calendario = d.calendario ? truncate(d.calendario, 5) : '';
-      const tipoColegio = d.tipoColegio ? truncate(d.tipoColegio, 50) : '';
-      const ciudad = d.ciudad ? truncate(d.ciudad, 100) : '';
-      let advisorId: string | null = null;
-      if (d.asesor && d.asesor.trim()) {
-        const found = advisorMap.get(d.asesor.toLowerCase().trim());
-        if (found) {
-          advisorId = found;
-        } else {
-          warnings.push(
-            `Asesor "${d.asesor}" no encontrado para colegio "${nombre}"`,
-          );
-        }
-      }
-      return {
-        nombre,
-        link,
-        email,
-        calendario,
-        tipoColegio,
-        ciudad,
-        advisorId,
-        links: this.sanitizeLinks(d.links, link),
-      };
-    });
+    // Normalizar + dedupe (blank/duplicados no se procesan)
     const seen = new Set<string>();
-    const unique = truncated.filter((d) => {
-      const key = d.nombre.toLowerCase();
-      if (seen.has(key)) return false;
+    const filas: Array<{
+      nombre: string;
+      link: string;
+      links: string[];
+      email: string;
+      calendario: string;
+      tipoColegio: string;
+      ciudad: string;
+      asesor: string;
+    }> = [];
+    for (const d of data) {
+      const nombre = (d.nombre ?? '').trim();
+      if (!nombre) {
+        warnings.push('Fila sin nombre omitida.');
+        continue;
+      }
+      const key = nombre.toLowerCase();
+      if (seen.has(key)) {
+        warnings.push(`Fila duplicada "${nombre}" omitida.`);
+        continue;
+      }
       seen.add(key);
-      return true;
+      filas.push({
+        nombre: truncate(nombre, 200),
+        link: (d.link ?? '').trim(),
+        links: Array.isArray(d.links)
+          ? d.links
+              .map((l) => l.trim())
+              .filter((l) => l.length > 0)
+              .slice(0, 10)
+          : [],
+        email: (d.email ?? '').trim(),
+        calendario: (d.calendario ?? '').trim().toUpperCase(),
+        tipoColegio: normalizarTipoColegio(d.tipoColegio) ?? '',
+        ciudad: (d.ciudad ?? '').trim(),
+        asesor: (d.asesor ?? '').trim(),
+      });
+    }
+    if (!filas.length)
+      throw new BadRequestException('El archivo no contiene datos válidos');
+
+    // Validación por fila (no bloquea: advierte y no aplica el campo inválido)
+    for (const row of filas) {
+      if (row.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(row.email))
+        warnings.push(
+          `"${row.nombre}": email inválido (${row.email}) — no se aplicará.`,
+        );
+      if (row.link && !/^https?:\/\//i.test(row.link))
+        warnings.push(
+          `"${row.nombre}": link inválido (${row.link}) — no se aplicará.`,
+        );
+      if (row.calendario && row.calendario !== 'A' && row.calendario !== 'B')
+        warnings.push(
+          `"${row.nombre}": calendario debe ser A o B (recibido "${row.calendario}") — no se aplicará.`,
+        );
+      if (row.link.length > 500)
+        warnings.push(`"${row.nombre}": link recortado a 500 caracteres.`);
+      if (row.email.length > 200)
+        warnings.push(`"${row.nombre}": email recortado a 200 caracteres.`);
+      if (row.ciudad.length > 100)
+        warnings.push(`"${row.nombre}": ciudad recortada a 100 caracteres.`);
+    }
+
+    // Asesores por nombre único (nombre ambiguo = no asignar)
+    const allUsers = await this.userRepo.find({
+      where: { role: In(['advisor', 'admin']), active: true },
+      select: ['id', 'name'],
     });
+    const advisorMap = new Map<string, string>();
+    const advisorCount = new Map<string, number>();
+    for (const u of allUsers) {
+      if (!u.name) continue;
+      const k = u.name.toLowerCase().trim();
+      advisorMap.set(k, u.id);
+      advisorCount.set(k, (advisorCount.get(k) ?? 0) + 1);
+    }
 
     const existing = await this.colegioRepo.find({
-      where: { nombre: In(unique.map((d) => d.nombre)) },
-      select: ['nombre'],
+      where: { nombre: In(filas.map((f) => f.nombre)) },
+      relations: ['advisor'],
     });
-    const existingSet = new Set(existing.map((c) => c.nombre.toLowerCase()));
+    const existingByName = new Map(
+      existing.map((c) => [c.nombre.toLowerCase(), c]),
+    );
 
-    const toCreate = unique
-      .filter((d) => !existingSet.has(d.nombre.toLowerCase()))
-      .map((d) => this.colegioRepo.create(d));
+    type PlanRow = {
+      nombre: string;
+      estado: 'crear' | 'actualizar' | 'omito';
+      cambios: string[];
+      nuevo?: Partial<Colegio>;
+      campos?: Partial<Colegio>;
+      anterior?: Partial<Colegio>;
+      id?: string;
+    };
+    const plan: PlanRow[] = [];
+    const cambiosAsesor: {
+      colegio: string;
+      anterior: string | null;
+      nuevo: string;
+    }[] = [];
 
-    let created: Colegio[] = [];
-    if (toCreate.length) {
-      try {
-        created = await this.colegioRepo.save(toCreate);
-      } catch (err: any) {
-        if (err?.code === '23505') {
-          throw new NotFoundException(
-            'Uno o más colegios ya existen (nombre duplicado)',
+    for (const row of filas) {
+      const ex = existingByName.get(row.nombre.toLowerCase());
+      const cambios: string[] = [];
+
+      if (!ex) {
+        const linkOk = /^https?:\/\//i.test(row.link);
+        const parsedLink = linkOk
+          ? row.link
+          : /^[a-zA-Z0-9.-]+\.[a-z]{2,}\/?\S*/i.test(row.link)
+            ? `https://${row.link}`
+            : '';
+        const link = truncate(parsedLink, 500) || 'https://';
+        const nuevo: Partial<Colegio> = {
+          nombre: row.nombre,
+          link,
+          links: this.sanitizeLinks(row.links, link),
+          email: truncate(row.email, 200) || '',
+          calendario:
+            row.calendario === 'A' || row.calendario === 'B'
+              ? row.calendario
+              : null,
+          tipoColegio: row.tipoColegio || null,
+          ciudad: truncate(row.ciudad, 100) || null,
+        };
+        if (row.asesor) {
+          const k = row.asesor.toLowerCase().trim();
+          if (advisorCount.get(k) === undefined) {
+            warnings.push(
+              `Asesor "${row.asesor}" no encontrado para "${row.nombre}" — se creará sin asesor.`,
+            );
+          } else if (advisorCount.get(k) === 1) {
+            nuevo.advisorId = advisorMap.get(k);
+          } else {
+            warnings.push(
+              `Asesor "${row.asesor}" es ambiguo (varios con el mismo nombre) para "${row.nombre}" — no se asigna.`,
+            );
+          }
+        }
+        plan.push({
+          nombre: row.nombre,
+          estado: 'crear',
+          cambios: ['Crear colegio'],
+          nuevo,
+        });
+        continue;
+      }
+
+      // Existente: celda en blanco = no tocar
+      const campos: Partial<Colegio> = {};
+      const anterior: Partial<Colegio> = {};
+      if (row.email && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(row.email)) {
+        const email = truncate(row.email, 200);
+        if (email !== (ex.email || '')) {
+          cambios.push(`Email: ${ex.email || '—'} → ${email}`);
+          campos.email = email;
+          anterior.email = ex.email;
+        }
+      }
+      if (row.link && /^https?:\/\//i.test(row.link)) {
+        const link = truncate(row.link, 500);
+        if (link !== ex.link) {
+          cambios.push(`Link: ${ex.link} → ${link}`);
+          campos.link = link;
+          anterior.link = ex.link;
+        }
+      }
+      if (row.calendario === 'A' || row.calendario === 'B') {
+        if (row.calendario !== (ex.calendario || '')) {
+          cambios.push(
+            `Calendario: ${ex.calendario || '—'} → ${row.calendario}`,
+          );
+          campos.calendario = row.calendario;
+          anterior.calendario = ex.calendario;
+        }
+      }
+      if (row.tipoColegio) {
+        if (row.tipoColegio !== (ex.tipoColegio || '')) {
+          cambios.push(
+            `Tipo sistema: ${ex.tipoColegio || '—'} → ${row.tipoColegio}`,
+          );
+          campos.tipoColegio = row.tipoColegio;
+          anterior.tipoColegio = ex.tipoColegio;
+        }
+      }
+      if (row.ciudad) {
+        const ciudad = truncate(row.ciudad, 100);
+        if (ciudad !== (ex.ciudad || '')) {
+          cambios.push(`Ciudad: ${ex.ciudad || '—'} → ${ciudad}`);
+          campos.ciudad = ciudad;
+          anterior.ciudad = ex.ciudad;
+        }
+      }
+      if (reasignarAsesores && row.asesor) {
+        const k = row.asesor.toLowerCase().trim();
+        if (advisorCount.get(k) === undefined) {
+          warnings.push(
+            `Asesor "${row.asesor}" no encontrado para "${row.nombre}" — se mantiene el actual.`,
+          );
+        } else if (advisorCount.get(k) === 1) {
+          const nuevoId = advisorMap.get(k)!;
+          const nuevoNombre =
+            allUsers.find((u) => u.id === nuevoId)?.name ?? row.asesor;
+          if (ex.advisorId !== nuevoId) {
+            cambios.push(
+              `Asesor: ${ex.advisor?.name || 'Sin asesor'} → ${nuevoNombre}`,
+            );
+            campos.advisorId = nuevoId;
+            cambiosAsesor.push({
+              colegio: row.nombre,
+              anterior: ex.advisor?.name ?? null,
+              nuevo: nuevoNombre,
+            });
+          }
+        } else {
+          warnings.push(
+            `Asesor "${row.asesor}" es ambiguo para "${row.nombre}" — se mantiene el actual.`,
           );
         }
-        throw err;
+      }
+
+      plan.push({
+        nombre: row.nombre,
+        estado: cambios.length ? 'actualizar' : 'omito',
+        cambios,
+        campos,
+        anterior,
+      });
+    }
+
+    const resumen = {
+      preview,
+      imported: 0,
+      updated: 0,
+      skipped: 0,
+      warnings,
+      cambiosAsesor,
+      filas: plan.map((p) => ({
+        nombre: p.nombre,
+        estado: p.estado,
+        cambios: p.cambios,
+      })),
+    } as {
+      preview: boolean;
+      imported: number;
+      updated: number;
+      skipped: number;
+      warnings: string[];
+      cambiosAsesor: typeof cambiosAsesor;
+      filas: { nombre: string; estado: 'crear' | 'actualizar' | 'omito'; cambios: string[] }[];
+      backup?: string;
+    };
+
+    if (preview) {
+      for (const p of plan) {
+        if (p.estado === 'crear') resumen.imported++;
+        else if (p.estado === 'actualizar') resumen.updated++;
+        else resumen.skipped++;
+      }
+      return resumen;
+    }
+
+    // Backup antes de mutar (best effort)
+    let backupFile = '';
+    try {
+      backupFile = await crearBackupColegios(this.dataSource);
+    } catch (err) {
+      this.logger.warn(
+        `No se pudo crear backup del import: ${(err as Error).message}`,
+      );
+    }
+
+    const qr = this.dataSource.createQueryRunner();
+    await qr.connect();
+    await qr.startTransaction();
+    try {
+      const manager = qr.manager;
+      const repo = manager.getRepository(Colegio);
+
+      for (const p of plan) {
+        if (p.estado === 'crear' && p.nuevo) {
+          const ent = repo.create(p.nuevo);
+          const saved = await repo.save(ent);
+          p.nuevo.id = (saved as Colegio).id;
+          resumen.imported++;
+        } else if (p.estado === 'actualizar' && p.campos) {
+          const ent = await repo.findOneBy({ nombre: p.nombre });
+          if (!ent) {
+            resumen.skipped++;
+            continue;
+          }
+          Object.assign(ent, p.campos);
+          await repo.save(ent);
+          p.id = ent.id;
+          resumen.updated++;
+        } else if (p.estado === 'omito') {
+          resumen.skipped++;
+        }
+      }
+      await qr.commitTransaction();
+    } catch (err) {
+      await qr.rollbackTransaction();
+      throw err;
+    } finally {
+      await qr.release();
+    }
+
+    resumen.skipped = data.length - resumen.imported - resumen.updated;
+
+    // Auditoría (best effort)
+    if (userId) {
+      try {
+        const actor = { id: userId } as User;
+        const logRows: Array<Partial<ColegioLog>> = [];
+        for (const p of plan) {
+          if (p.estado === 'crear') {
+            logRows.push({
+              colegioId: (p.nuevo?.id as string) ?? null,
+              usuario: actor,
+              accion: 'import',
+              campo: 'Institución',
+              valorAnterior: null,
+              valorNuevo: p.nombre,
+            });
+          } else if (p.estado === 'actualizar' && p.campos && p.id) {
+            for (const [campo, valor] of Object.entries(p.campos)) {
+              logRows.push({
+                colegioId: p.id,
+                usuario: actor,
+                accion: 'import',
+                campo,
+                valorAnterior:
+                  p.anterior?.[campo as keyof Colegio] == null
+                    ? null
+                    : String(p.anterior[campo as keyof Colegio]),
+                valorNuevo: valor == null ? null : String(valor),
+              });
+            }
+          }
+        }
+        if (logRows.length) await this.colegioLogRepo.save(logRows);
+      } catch (err) {
+        this.logger.warn(
+          `No se pudo auditar el import de colegios: ${(err as Error).message}`,
+        );
       }
     }
+
     try {
       await this.cache.del(`${this.CACHE_PREFIX}colegios`);
     } catch {}
-    return { created, skipped: data.length - created.length, warnings };
+
+    resumen.backup = backupFile;
+    return resumen;
+  }
+
+  listarBackups() {
+    return listarBackups();
+  }
+
+  async crearBackupManual(): Promise<string> {
+    return crearBackupColegios(this.dataSource);
+  }
+
+  async restaurarBackup(fileName: string) {
+    const resultado = await restaurarBackupColegios(this.dataSource, fileName);
+    try {
+      await this.cache.del(`${this.CACHE_PREFIX}colegios`);
+    } catch {}
+    return resultado;
   }
 
   async deleteColegiosBulk(ids: string[]): Promise<{ deleted: number }> {

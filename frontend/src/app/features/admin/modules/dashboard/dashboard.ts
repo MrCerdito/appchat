@@ -24,7 +24,8 @@ export type ModuloIcono =
   | 'perfil_institucional'
   | 'faq'
   | 'widget'
-  | 'configuracion';
+  | 'configuracion'
+  | 'colegios';
 
 interface ModuloTarjeta {
   codigo: string;
@@ -143,6 +144,15 @@ const MODULOS: ModuloTarjeta[] = [
     descripcion: 'Parámetros generales del sistema',
     color: '#64748b',
     icono: 'configuracion',
+    deshabilitado: false,
+  },
+  {
+    codigo: 'configuracion',
+    ruta: 'colegios',
+    titulo: 'Colegios',
+    descripcion: 'Gestiona colegios, categorías y asesor principal',
+    color: '#7c3aed',
+    icono: 'colegios',
     deshabilitado: false,
   },
 ];

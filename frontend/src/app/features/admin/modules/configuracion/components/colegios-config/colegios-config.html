@@ -3,27 +3,41 @@
   <!-- ═══════════ HEADER ═══════════ -->
   <header class="tmc-header">
     <div class="tmc-header__left">
-      <h2 class="tmc-header__title">Gestión de Colegios</h2>
-      <p class="tmc-header__subtitle">Administra los colegios, categorías y asigna un asesor principal a cada uno.</p>
+      <div class="tmc-header__icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 21h18"/>
+          <path d="M5 21V7l7-4 7 4v14"/>
+          <path d="M9 21v-6h6v6"/>
+          <path d="M9 2h6v6H9z"/>
+        </svg>
+      </div>
+      <div class="tmc-header__txt">
+        <h2 class="tmc-header__title">Gestión de Colegios</h2>
+        <p class="tmc-header__subtitle">Administra los colegios, categorías y asigna un asesor principal a cada uno.</p>
+      </div>
     </div>
     <div class="tmc-header__right">
-      <button class="tmc-btn tmc-btn--outline" (click)="exportCsv()" title="Exportar CSV">
+      <button class="tmc-btn tmc-btn--outline" (click)="exportCsv()" [disabled]="exportando" title="Exportar CSV">
+        @if (exportando) {
+        <span class="tmc-spinner tmc-spinner--sm"></span>
+        Exportando...
+        } @else {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
           <polyline points="7 10 12 15 17 10"/>
           <line x1="12" y1="15" x2="12" y2="3"/>
         </svg>
         Exportar CSV
+        }
       </button>
-      <label class="tmc-btn tmc-btn--outline">
+      <button class="tmc-btn tmc-btn--outline" (click)="abrirModalImportar()" title="Importar CSV">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
           <polyline points="17 8 12 3 7 8"/>
           <line x1="12" y1="3" x2="12" y2="15"/>
         </svg>
         Importar CSV
-        <input type="file" accept=".csv" hidden (change)="importCsv($event)"/>
-      </label>
+      </button>
       <button class="tmc-btn tmc-btn--primary" (click)="openForm()" [disabled]="showForm">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <line x1="12" y1="5" x2="12" y2="19"/>
@@ -34,67 +48,56 @@
     </div>
   </header>
 
-  <!-- ═══════════ CSV FORMAT CARD ═══════════ -->
-  <div class="tmc-csv-card">
-    <div class="tmc-csv-card__header">
-      <div class="tmc-csv-card__icon">
+  <!-- ═══════════ STATS ═══════════ -->
+  <div class="tmc-stats">
+    <div class="tmc-stat tmc-stat--total">
+      <span class="tmc-stat__icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"/>
-          <line x1="12" y1="16" x2="12" y2="12"/>
-          <line x1="12" y1="8" x2="12.01" y2="8"/>
+          <path d="M3 21h18"/>
+          <path d="M5 21V7l7-4 7 4v14"/>
+          <path d="M9 21v-6h6v6"/>
         </svg>
-      </div>
-      <div class="tmc-csv-card__titles">
-        <span class="tmc-csv-card__title">Formato de importación CSV</span>
-        <span class="tmc-csv-card__badge">Separador: punto y coma (;)</span>
+      </span>
+      <div class="tmc-stat__body">
+        <span class="tmc-stat__value">{{ stats.total }}</span>
+        <span class="tmc-stat__label">Colegios</span>
       </div>
     </div>
-    <div class="tmc-csv-card__body">
-      <div class="tmc-csv-format">
-        <div class="tmc-csv-format__main">
-          <span class="tmc-csv-format__label">Columnas requeridas</span>
-          <code class="tmc-csv-format__code">nombre;link;email;calendario;tipo_colegio;ciudad;asesor</code>
-        </div>
-        <div class="tmc-csv-format__divider"></div>
-        <div class="tmc-csv-format__item">
-          <span class="tmc-csv-format__dot tmc-csv-format__dot--blue"></span>
-          <div>
-            <span class="tmc-csv-format__key">calendario</span>
-            <span class="tmc-csv-format__val">A o B</span>
-          </div>
-        </div>
-        <div class="tmc-csv-format__divider"></div>
-        <div class="tmc-csv-format__item">
-          <span class="tmc-csv-format__dot tmc-csv-format__dot--purple"></span>
-          <div>
-            <span class="tmc-csv-format__key">tipo_colegio</span>
-            <span class="tmc-csv-format__val">Sian365 o ControlAcademic</span>
-          </div>
-        </div>
-        <div class="tmc-csv-format__divider"></div>
-        <div class="tmc-csv-format__item">
-          <span class="tmc-csv-format__dot tmc-csv-format__dot--blue"></span>
-          <div>
-            <span class="tmc-csv-format__key">ciudad</span>
-            <span class="tmc-csv-format__val">Ciudad donde se ubica el colegio (opcional)</span>
-          </div>
-        </div>
-        <div class="tmc-csv-format__divider"></div>
-        <div class="tmc-csv-format__item">
-          <span class="tmc-csv-format__dot tmc-csv-format__dot--green"></span>
-          <div>
-            <span class="tmc-csv-format__key">asesor</span>
-            <span class="tmc-csv-format__val">Nombre exacto del asesor registrado en el sistema</span>
-          </div>
-        </div>
-        <div class="tmc-csv-format__divider"></div>
-        <div class="tmc-csv-format__item">
-          <span class="tmc-csv-format__dot tmc-csv-format__dot--amber"></span>
-          <div>
-            <span class="tmc-csv-format__key">email</span>
-            <span class="tmc-csv-format__val">Máximo 1 correo por colegio</span>
-          </div>
-        </div>
+    <div class="tmc-stat tmc-stat--sian">
+      <span class="tmc-stat__icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17.5 19a4.5 4.5 0 1 0 0-9h-1.8A7 7 0 1 0 4 14.9"/>
+        </svg>
+      </span>
+      <div class="tmc-stat__body">
+        <span class="tmc-stat__value">{{ stats.sian }}</span>
+        <span class="tmc-stat__label">Sian365</span>
+      </div>
+    </div>
+    <div class="tmc-stat tmc-stat--control">
+      <span class="tmc-stat__icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+          <path d="M6 12v5c3 3 6 3 12 0v-5"/>
+        </svg>
+      </span>
+      <div class="tmc-stat__body">
+        <span class="tmc-stat__value">{{ stats.control }}</span>
+        <span class="tmc-stat__label">ControlAcademic</span>
+      </div>
+    </div>
+    <div class="tmc-stat tmc-stat--no-advisor">
+      <span class="tmc-stat__icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+          <circle cx="12" cy="7" r="4"/>
+          <circle cx="17.5" cy="17.5" r="4.5" fill="var(--surface, #fff)"/>
+          <line x1="15.5" y1="17.5" x2="19.5" y2="17.5"/>
+        </svg>
+      </span>
+      <div class="tmc-stat__body">
+        <span class="tmc-stat__value">{{ stats.sinAsesor }}</span>
+        <span class="tmc-stat__label">Sin asesor</span>
       </div>
     </div>
   </div>
@@ -292,7 +295,7 @@
             </td>
             <td class="tmc-td-tipo">
               @if (c.tipoColegio) {
-              <span class="tmc-pill tmc-pill--tipo">{{ c.tipoColegio }}</span>
+              <span class="tmc-pill" [ngClass]="tipoClass(c.tipoColegio)">{{ c.tipoColegio }}</span>
               } @else {
               <span class="tmc-no-data">—</span>
               }
@@ -384,6 +387,217 @@
       }
     </div>
     }
+  </div>
+  }
+
+  <!-- ═══════════ IMPORT MODAL ═══════════ -->
+  @if (mostrarModalImportar) {
+  <div class="tmc-modal-backdrop" role="dialog" aria-modal="true" aria-label="Importar colegios">
+    <div class="tmc-modal" (click)="$event.stopPropagation()">
+      <div class="tmc-modal__header">
+        <h3>Importar colegios</h3>
+        <button type="button" class="tmc-modal__close" (click)="cerrarModalImportar()" aria-label="Cerrar modal">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="tmc-modal__body">
+        @if (pasoImportar === 'archivo') {
+        <p class="tmc-modal__desc">
+          Sube un archivo <strong>.csv</strong> con las columnas <code>nombre;link</code> (obligatorias) y
+          opcionalmente <code>email;calendario;tipo_colegio;ciudad;asesor;links</code>.
+          El separador puede ser punto y coma <code>;</code> o coma <code>,</code>.
+          Primero verás una <strong>previsualización</strong> antes de aplicar los cambios.
+        </p>
+        <div class="tmc-dropzone" [class.tmc-dropzone--dragging]="arrastrandoArchivo"
+          (dragover)="onDragOver($event)"
+          (dragleave)="onDragLeave($event)"
+          (drop)="onDrop($event)"
+          (click)="fileInput.click()"
+          role="button" tabindex="0" aria-label="Zona de arrastre para subir archivo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          <p>Arrastra tu archivo aquí</p>
+          <p class="tmc-dropzone__hint">o <strong>selecciona un archivo</strong> desde tu equipo</p>
+        </div>
+        <input #fileInput type="file" accept=".csv" (change)="onArchivoSeleccionado($event)" hidden/>
+        @if (archivoImportar) {
+        <div class="tmc-file-selected">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+          </svg>
+          <span>{{ archivoImportar.name }}</span>
+        </div>
+        }
+        <button type="button" class="tmc-template-link" (click)="descargarPlantilla()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Descargar plantilla de ejemplo
+        </button>
+        } @else if (pasoImportar === 'preview') {
+          @if (previewImportar) {
+          <h4 class="tmc-preview-title">Previsualización de la importación</h4>
+          <div class="tmc-import-stats">
+            <span class="tmc-import-stat tmc-import-stat--total">{{ previewImportar.imported + previewImportar.updated + previewImportar.skipped }} filas procesadas</span>
+            <span class="tmc-import-stat tmc-import-stat--success">{{ previewImportar.imported }} a crear</span>
+            <span class="tmc-import-stat tmc-import-stat--success">{{ previewImportar.updated }} a actualizar</span>
+            <span class="tmc-import-stat tmc-import-stat--muted">{{ previewImportar.skipped }} sin cambios</span>
+          </div>
+          @if (previewImportar.cambiosAsesor.length > 0) {
+          <div class="tmc-import-warnings">
+            <p>{{ previewImportar.cambiosAsesor.length }} cambio(s) de asesor detectado(s) (depende del checkbox siguiente):</p>
+            <ul>
+              @for (c of previewImportar.cambiosAsesor; track c.colegio) {
+              <li>{{ c.colegio }}: {{ c.anterior || 'sin asesor' }} → {{ c.nuevo }}</li>
+              }
+            </ul>
+          </div>
+          }
+          @if (previewImportar.warnings.length > 0) {
+          <div class="tmc-import-warnings">
+            <p>{{ previewImportar.warnings.length }} aviso(s):</p>
+            <ul>
+              @for (w of previewImportar.warnings; track w) {
+              <li>{{ w }}</li>
+              }
+            </ul>
+          </div>
+          }
+          <label class="tmc-check-row">
+            <input type="checkbox" [(ngModel)]="reasignarAsesoresImportar"/>
+            <span>Reasignar asesores según el archivo <em>(si la celda está vacía se mantiene el actual)</em></span>
+          </label>
+          <div class="tmc-preview-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Institución</th>
+                  <th>Acción</th>
+                  <th>Cambios</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (f of previewImportar.filas; track f.nombre) {
+                <tr>
+                  <td>{{ f.nombre }}</td>
+                  <td>
+                    <span class="tmc-preview-badge tmc-preview-badge--{{ f.estado }}">
+                      {{ f.estado === 'crear' ? 'Crear' : f.estado === 'actualizar' ? 'Actualizar' : 'Sin cambios' }}
+                    </span>
+                  </td>
+                  <td class="tmc-preview-changes">
+                    @if (f.cambios.length === 0) { <span class="tmc-muted">—</span> }
+                    @else {
+                      @for (c of f.cambios; track c) {
+                      <span>{{ c }}</span>
+                      }
+                    }
+                  </td>
+                </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          }
+        } @else {
+        <div class="tmc-import-result">
+          <div class="tmc-import-result__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          </div>
+          <h4>Importación finalizada</h4>
+          <div class="tmc-import-stats">
+            <span class="tmc-import-stat tmc-import-stat--total">{{ (resultadoImportar?.imported ?? 0) + (resultadoImportar?.skipped ?? 0) }} procesados</span>
+            <span class="tmc-import-stat tmc-import-stat--success">{{ resultadoImportar?.imported ?? 0 }} importados</span>
+            <span class="tmc-import-stat tmc-import-stat--success">{{ resultadoImportar?.updated ?? 0 }} actualizados</span>
+            <span class="tmc-import-stat tmc-import-stat--muted">{{ resultadoImportar?.skipped ?? 0 }} omitidos</span>
+          </div>
+          @if ((resultadoImportar?.warnings?.length ?? 0) > 0) {
+          <div class="tmc-import-warnings">
+            <p>{{ resultadoImportar!.warnings.length }} aviso(s):</p>
+            <ul>
+              @for (w of resultadoImportar!.warnings; track w) {
+              <li>{{ w }}</li>
+              }
+            </ul>
+          </div>
+          }
+          <div class="tmc-backup-panel">
+            <div class="tmc-backup-panel__row">
+              <span>Respaldo de seguridad</span>
+              <button type="button" class="tmc-btn tmc-btn--sm tmc-btn--ghost" (click)="crearBackupManualColegios()">Crear respaldo</button>
+              <button type="button" class="tmc-btn tmc-btn--sm tmc-btn--ghost" (click)="toggleBackups()">{{ mostrarBackups ? 'Ocultar respaldos' : 'Ver respaldos' }}</button>
+            </div>
+            @if (backupMsg) {
+            <p class="tmc-backup-panel__msg">{{ backupMsg }}</p>
+            }
+            @if (mostrarBackups) {
+            <ul class="tmc-backup-panel__list">
+              @if (backups.length === 0) {
+              <li class="tmc-muted">No hay respaldos disponibles.</li>
+              }
+              @for (b of backups; track b) {
+              <li>
+                <span>{{ b }}</span>
+                <button type="button" class="tmc-btn tmc-btn--sm tmc-btn--danger" (click)="restaurarBackupColegios(b)">
+                  Restaurar
+                </button>
+              </li>
+              }
+            </ul>
+            }
+          </div>
+        </div>
+        }
+      </div>
+
+      <div class="tmc-modal__footer">
+        @if (pasoImportar === 'archivo') {
+        <button type="button" class="tmc-btn tmc-btn--ghost" (click)="cerrarModalImportar()">Cancelar</button>
+        <button type="button" class="tmc-btn tmc-btn--primary" [disabled]="!archivoImportar || importando" (click)="ejecutarImportar()">
+          @if (importando) {
+          <span class="tmc-spinner tmc-spinner--sm"></span>
+          Analizando...
+          } @else {
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+          </svg>
+          Previsualizar
+          }
+        </button>
+        } @else if (pasoImportar === 'preview') {
+        <button type="button" class="tmc-btn tmc-btn--ghost" [disabled]="importando" (click)="volverDesdePreview()">Atrás</button>
+        <button type="button" class="tmc-btn tmc-btn--primary" [disabled]="importando" (click)="aplicarImportar()">
+          @if (importando) {
+          <span class="tmc-spinner tmc-spinner--sm"></span>
+          Importando...
+          } @else {
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          Confirmar importación
+          }
+        </button>
+        } @else {
+        <button type="button" class="tmc-btn tmc-btn--primary" (click)="abrirModalImportar()">Importar otro archivo</button>
+        <button type="button" class="tmc-btn tmc-btn--ghost" (click)="cerrarModalImportar()">Cerrar</button>
+        }
+      </div>
+    </div>
   </div>
   }
 </section>

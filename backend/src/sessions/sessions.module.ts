@@ -9,6 +9,7 @@ import { Message } from '../chat/entities/message.entity';
 import { SessionEvento } from '../chat/entities/session-evento.entity';
 import { SessionAssignmentEvento } from '../chat/entities/session-assignment-evento.entity';
 import { Colegio } from './entities/colegio.entity';
+import { ColegioLog } from './entities/colegio-log.entity';
 import { Rating } from './entities/rating.entity';
 import { TicketsModule } from '../tickets/tickets.module';
 import { ChatModule } from '../chat/chat.module';
@@ -24,6 +25,7 @@ import { AdvisorActivityModule } from '../advisor-activity/advisor-activity.modu
       SessionEvento,
       SessionAssignmentEvento,
       Colegio,
+      ColegioLog,
       Rating,
     ]),
     AuthModule,

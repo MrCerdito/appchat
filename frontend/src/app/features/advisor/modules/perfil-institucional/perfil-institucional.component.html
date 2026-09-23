@@ -429,8 +429,8 @@
           </button>
         </div>
         <div class="pi-modal-body">
-          @if (!resultadoImportar) {
-            <p class="pi-modal-desc">Sube un archivo <strong>.xlsx</strong> o <strong>.csv</strong>. Las instituciones se crean si el nombre no existe, o se actualizan si ya existe.</p>
+          @if (pasoImportar === 'archivo') {
+            <p class="pi-modal-desc">Sube un archivo <strong>.xlsx</strong> o <strong>.csv</strong>. Las instituciones se crean si el nombre no existe, o se actualizan si ya existe (celdas en blanco mantienen el valor actual). Primero verás una <strong>previsualización</strong>.</p>
             <div class="pi-dropzone" [class.dragging]="arrastrandoArchivo"
               (dragover)="onDragOver($event)"
               (dragleave)="onDragLeave($event)"
@@ -448,7 +448,75 @@
                 <span>{{ archivoImportar.name }}</span>
               </div>
             }
-          } @else {
+          } @else if (pasoImportar === 'preview') {
+            @if (previewImportar) {
+              <h4 class="pi-preview-title">Previsualización de la importación</h4>
+              <div class="pi-import-stats">
+                <span class="pi-import-stat">{{ previewImportar.total }} a procesar</span>
+                <span class="pi-import-stat pi-import-stat--success">{{ previewImportar.created }} a crear</span>
+                <span class="pi-import-stat pi-import-stat--info">{{ previewImportar.updated }} a actualizar</span>
+              </div>
+
+              @if ((previewImportar.cambiosAsesor?.length ?? 0) > 0) {
+                <div class="pi-import-errors-list">
+                  <p class="pi-import-errors">{{ previewImportar.cambiosAsesor!.length }} cambio(s) de asesor (según el checkbox):</p>
+                  <ul>
+                    @for (c of previewImportar.cambiosAsesor!; track c.colegio) {
+                      <li>{{ c.colegio }}: {{ c.anterior || 'sin asesor' }} &rarr; {{ c.nuevo }}</li>
+                    }
+                  </ul>
+                </div>
+              }
+
+              @if (previewImportar.errores.length > 0) {
+                <div class="pi-import-errors-list">
+                  <p class="pi-import-errors">{{ previewImportar.errores.length }} aviso(s):</p>
+                  <ul>
+                    @for (err of previewImportar.errores; track err) {
+                      <li>{{ err }}</li>
+                    }
+                  </ul>
+                </div>
+              }
+
+              <label class="pi-check-row">
+                <input type="checkbox" [(ngModel)]="reasignarAsesoresImportar"/>
+                <span>Reasignar asesores según el archivo <em>(si la celda está vacía se mantiene el actual)</em></span>
+              </label>
+
+              <div class="pi-import-log-table pi-preview-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Instituci&oacute;n</th>
+                      <th>Acci&oacute;n</th>
+                      <th>Cambios</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (f of previewImportar.filas ?? []; track f.nombre) {
+                      <tr>
+                        <td><strong>{{ f.nombre }}</strong></td>
+                        <td>
+                          <span class="pi-log-badge pi-preview-badge pi-preview-badge--{{ f.estado }}">
+                            {{ f.estado === 'crear' ? 'Crear' : f.estado === 'actualizar' ? 'Actualizar' : 'Sin cambios' }}
+                          </span>
+                        </td>
+                        <td class="pi-preview-changes">
+                          @if (f.cambios.length === 0) { <span>—</span> }
+                          @else {
+                            @for (c of f.cambios; track c) {
+                              <span>{{ c }}</span>
+                            }
+                          }
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          } @else if (resultadoImportar) {
             <div class="pi-import-result">
               <div class="pi-import-result-icon">
                 <lucide-icon [img]="icons.CheckCircle2" [size]="48" />
@@ -491,7 +559,7 @@
                       </tbody>
                     </table>
                   </div>
-                  
+
                   @if (resultadoImportar.logExcelBase64) {
                     <button type="button" class="pi-btn pi-btn-success pi-import-download-btn" (click)="descargarExcelReporte()">
                       📥 Descargar reporte de cambios (.xlsx)
@@ -514,13 +582,22 @@
           }
         </div>
         <div class="pi-modal-footer">
-          @if (!resultadoImportar) {
+          @if (pasoImportar === 'archivo') {
             <button type="button" class="pi-btn pi-btn-ghost" (click)="cerrarModalImportar()">Cancelar</button>
             <button type="button" class="pi-btn pi-btn-primary" [disabled]="!archivoImportar || importando" (click)="ejecutarImportar()">
               @if (importando) {
+                <lucide-icon [img]="icons.Loader2" [size]="16" class="pi-spin" /> Analizando...
+              } @else {
+                <lucide-icon [img]="icons.Eye" [size]="16" /> Previsualizar
+              }
+            </button>
+          } @else if (pasoImportar === 'preview') {
+            <button type="button" class="pi-btn pi-btn-ghost" [disabled]="importando" (click)="volverDesdePreview()">Atr&aacute;s</button>
+            <button type="button" class="pi-btn pi-btn-primary" [disabled]="importando" (click)="aplicarImportar()">
+              @if (importando) {
                 <lucide-icon [img]="icons.Loader2" [size]="16" class="pi-spin" /> Importando...
               } @else {
-                <lucide-icon [img]="icons.Upload" [size]="16" /> Importar
+                <lucide-icon [img]="icons.Upload" [size]="16" /> Confirmar importación
               }
             </button>
           } @else {
@@ -549,9 +626,9 @@
               <strong>Excel</strong>
               <span>Formato .xlsx</span>
             </button>
-            <button type="button" class="pi-export-option" [disabled]="exportando">
+            <button type="button" class="pi-export-option" (click)="exportarCsv()" [disabled]="exportando">
               <lucide-icon [img]="icons.FileDown" [size]="28" />
-              <strong>CSV</strong>
+              <strong>{{ exportando ? 'Generando...' : 'CSV' }}</strong>
               <span>Formato .csv</span>
             </button>
           </div>

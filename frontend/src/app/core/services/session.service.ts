@@ -243,8 +243,47 @@ export class SessionService {
     return this.http.get(`${environment.apiUrl}/sessions/colegios/export?format=csv`);
   }
 
-  importColegios(data: any[]): Observable<{ imported: number; skipped: number }> {
-    return this.http.post<{ imported: number; skipped: number }>(`${environment.apiUrl}/sessions/colegios/import`, data);
+  importColegios(
+    data: any[],
+    opts: { preview?: boolean; reasignarAsesores?: boolean } = {},
+  ): Observable<{
+    preview: boolean;
+    imported: number;
+    updated: number;
+    skipped: number;
+    warnings: string[];
+    cambiosAsesor: { colegio: string; anterior: string | null; nuevo: string }[];
+    filas: { nombre: string; estado: 'crear' | 'actualizar' | 'omito'; cambios: string[] }[];
+    backup?: string;
+  }> {
+    let params = new HttpParams();
+    if (opts.preview) params = params.set('preview', 'true');
+    if (opts.reasignarAsesores) params = params.set('reasignarAsesores', 'true');
+    return this.http.post<{
+      preview: boolean;
+      imported: number;
+      updated: number;
+      skipped: number;
+      warnings: string[];
+      cambiosAsesor: { colegio: string; anterior: string | null; nuevo: string }[];
+      filas: { nombre: string; estado: 'crear' | 'actualizar' | 'omito'; cambios: string[] }[];
+      backup?: string;
+    }>(`${environment.apiUrl}/sessions/colegios/import`, data, { params });
+  }
+
+  listarBackups(): Observable<string[]> {
+    return this.http.get<string[]>(`${environment.apiUrl}/sessions/colegios/import/backups`);
+  }
+
+  crearBackupManual(): Observable<{ ok: boolean; archivo: string }> {
+    return this.http.post<{ ok: boolean; archivo: string }>(`${environment.apiUrl}/sessions/colegios/import/backup`, {});
+  }
+
+  restaurarBackup(fileName: string): Observable<{ ok: boolean; colegios: number; valores: number; warnings: string[] }> {
+    return this.http.post<{ ok: boolean; colegios: number; valores: number; warnings: string[] }>(
+      `${environment.apiUrl}/sessions/colegios/import/restore`,
+      { fileName },
+    );
   }
 
   deleteColegiosBulk(ids: string[]): Observable<{ deleted: number }> {

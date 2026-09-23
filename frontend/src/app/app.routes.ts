@@ -171,6 +171,13 @@ export const routes: Routes = [
             .then(m => m.AdminConfiguracionComponent),
       },
       {
+        path: 'colegios',
+        canActivate: [permisoGuard('configuracion')],
+        loadComponent: () =>
+          import('./features/admin/modules/colegios/colegios-page.component')
+            .then(m => m.ColegiosPageComponent),
+      },
+      {
         path: 'cambios',
         canActivate: [permisoGuard('changelog')],
         loadComponent: () =>

@@ -1298,6 +1298,9 @@ a {
   }
 }
 
+// ── Menú desplegable de herramientas (solo móvil, ≤700px) ───────────────────
+.mobile-tools { display: none; }
+
 .input-field {
   position: relative;
   flex: 1;
@@ -1811,6 +1814,7 @@ a {
 }
 
 .panel-close {
+  display: none;
   width: 30px;
   height: 30px;
   border-radius: $radius-md;
@@ -3879,14 +3883,43 @@ a {
 }
 
 @container (max-width: 720px) {
-  .header-blocks { display: flex; }
-  .hblock-cluster { display: none; }
-  .hblock--colegio { flex: 0 1 auto; }
-  .hblock--colegio .hblock-val { max-width: 160px; }
+  .chat-header { flex-wrap: wrap; row-gap: 8px; }
+
+  .header-blocks {
+    flex: 1 1 100%;
+    order: 5;
+    margin-left: 0;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    align-items: stretch;
+  }
+
+  .hblock-cluster { display: flex; grid-column: span 2; }
+  .hblock-cluster .hblock { flex: 1 1 0; }
+  .hblock--colegio { flex: none; margin-left: 0; }
+  .hblock-cta { display: none; }
 }
 
 @container (max-width: 620px) {
-  .header-blocks { display: none; }
+  .chat-header { row-gap: 8px; }
+
+  .header-blocks {
+    flex: 1 1 100%;
+    order: 5;
+    margin-left: 0;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .hblock-cluster { display: flex; grid-column: span 2; }
+  .hblock-cluster .hblock { flex: 1 1 0; }
+
+  .hblock { padding: 5px 7px; gap: 5px; }
+  .hblock-icon { width: 22px; height: 22px; svg { width: 13px !important; height: 13px !important; } }
+  .hblock-val { max-width: none; font-size: 10px; }
+  .hblock-cta { display: none; }
   .header-meta { flex-shrink: 1; }
   .header-avatar { width: 38px; height: 38px; font-size: 15px; }
 }
@@ -4011,10 +4044,24 @@ a {
     border-radius: 0;
   }
 
-  .chat-header { padding: 10px 12px; }
+  .chat-header { padding: 10px 12px; flex-wrap: wrap; row-gap: 8px; }
+  .icon-btn.btn-back { display: none; }
+  .header-actions { margin-left: auto; }
   .header-avatar { width: 38px; height: 38px; font-size: 15px; }
   .header-name { font-size: 14px; }
-  .header-blocks { display: none; }
+  .header-blocks {
+    flex: 1 1 100%;
+    order: 5;
+    margin-left: 0;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    align-items: stretch;
+  }
+  .hblock-cluster { display: flex; grid-column: span 2; }
+  .hblock-cluster .hblock { flex: 1 1 0; }
+  .hblock--colegio { flex: none; margin-left: 0; }
+  .hblock-cta { display: none; }
 
   .chat-messages { padding: 10px 12px; }
   .msg { width: 100%; max-width: 100%; }
@@ -4046,6 +4093,103 @@ a {
     position: fixed;
     inset: 0;
     z-index: 49;
+  }
+
+  .panel-close {
+    display: grid;
+  }
+
+  // ── Barra de entrada: adjuntar/audio/mejorar en un solo botón ────────────
+  .chat-input { position: relative; }
+
+  .mobile-tools {
+    display: block;
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .tools-toggle[disabled] { opacity: 0.4; }
+
+  .tools-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 25;
+    background: transparent;
+  }
+
+  .tools-menu {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + 8px);
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 210px;
+    padding: 6px;
+    background: $surface;
+    border: 1px solid $border;
+    border-radius: $radius-lg;
+    box-shadow: $shadow-lg;
+    animation: improve-pop 0.14s ease-out;
+  }
+
+  .tools-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: none;
+    background: transparent;
+    border-radius: $radius-md;
+    font-family: var(--font);
+    font-size: 13.5px;
+    font-weight: 600;
+    color: $text;
+    cursor: pointer;
+    text-align: left;
+
+    svg {
+      width: 17px;
+      height: 17px;
+      flex-shrink: 0;
+      color: $text-faint;
+    }
+
+    span { flex: 1; }
+
+    &:hover:not(:disabled) { background: $surface-hover; }
+    &:disabled { opacity: 0.4; cursor: not-allowed; }
+  }
+
+  .desktop-ctl { display: none; }
+
+  .voice-host {
+    position: absolute;
+    left: 0;
+    bottom: 100%;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .chat-input.is-recording .voice-host {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .improve-wrap { display: contents; }
+  .improve-btn { display: none; }
+
+  .improve-panel {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    bottom: auto;
+    transform: translate(-50%, -50%);
+    width: min(340px, calc(100vw - 24px));
+    max-height: min(80dvh, 560px);
+    z-index: 60;
   }
 }
 

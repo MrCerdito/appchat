@@ -1,5 +1,5 @@
 <div class="tickets-layout" [ngStyle]="{ zoom: zoom }">
-  <aside class="ts-sidebar" [class.ts-sidebar--hidden]="activeView === 'mail'">
+  <aside class="ts-sidebar" [class.ts-sidebar--hidden]="activeView === 'mail'" [class.ts-sidebar--mobile-open]="mobileSidebarOpen">
     <div class="ts-sidebar-header">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -13,7 +13,7 @@
       </div>
     </div>
 
-    <nav class="ts-sidebar-nav">
+    <nav class="ts-sidebar-nav" (click)="onSidebarNavClick($event)">
       <div class="ts-sidebar-search">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
           <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
@@ -203,6 +203,10 @@
       }
     </nav>
   </aside>
+
+  @if (mobileSidebarOpen) {
+  <div class="ts-sidebar-overlay" (click)="closeMobileSidebar()"></div>
+  }
 
   <div class="ts-main">
     @if (activeView === 'categories') {
@@ -450,6 +454,12 @@
           <button class="ts-btn ts-btn-ghost ts-btn-sm" (click)="clearFilters()">Limpiar</button>
           }
         </div>
+        <button class="ts-mobile-menu-btn" type="button" (click)="toggleMobileSidebar()" aria-label="Abrir filtros">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" width="16" height="16">
+            <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+          </svg>
+          <span>Filtros</span>
+        </button>
         <div class="ts-header-tools">
           <div class="ts-zoom-control" title="Tamaño del módulo">
             <button type="button" class="ts-zoom-btn" (click)="zoomOut()" [disabled]="zoom <= 0.7" aria-label="Reducir zoom">

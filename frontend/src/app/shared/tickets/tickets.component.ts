@@ -119,6 +119,8 @@ export class TicketsComponent implements OnInit, OnDestroy {
   selectedFilters: Record<string, string[]> = {};
   activeView: 'list' | 'categories' | 'modules' | 'mail' = 'list';
 
+  mobileSidebarOpen = false;
+
   categories: string[] = [];
   newCategory = '';
   editingCategoryIndex = -1;
@@ -592,6 +594,22 @@ export class TicketsComponent implements OnInit, OnDestroy {
 
   toggleGroup(key: string): void {
     this.collapsed = { ...this.collapsed, [key]: !this.collapsed[key] };
+  }
+
+  toggleMobileSidebar(): void {
+    this.mobileSidebarOpen = !this.mobileSidebarOpen;
+  }
+
+  closeMobileSidebar(): void {
+    this.mobileSidebarOpen = false;
+  }
+
+  onSidebarNavClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement;
+    if (target.closest('.ts-sidebar-search') || target.closest('.ts-nav-group')) {
+      return;
+    }
+    this.closeMobileSidebar();
   }
 
   private buildQueryFilter(): Record<string, string> {
