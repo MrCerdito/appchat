@@ -510,6 +510,21 @@
     font-size: 0.72rem;
   }
 }
+.cfg-modo-dato {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  background: var(--bg-subtle);
+  border: 1px dashed var(--border-strong);
+  border-radius: 10px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  strong { color: var(--text); }
+}
 .cfg-field__tip {
   display: inline-flex;
   align-items: center;

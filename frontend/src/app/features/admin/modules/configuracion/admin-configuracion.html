@@ -176,7 +176,7 @@
             </svg>
             Reconexión
           </button>
-          <button class="cfg-seg__btn" [class.active]="tab === 'asignacion'" (click)="tab = 'asignacion'">
+          <button class="cfg-seg__btn" [class.active]="tab === 'asignacion'" (click)="irATab('asignacion')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
             </svg>
@@ -232,7 +232,7 @@
             </svg>
             Prompt IA
           </button>
-          <button class="cfg-seg__btn" [class.active]="tab === 'colegios'" (click)="tab = 'colegios'; loadColegios()">
+          <button class="cfg-seg__btn" [class.active]="tab === 'colegios'" (click)="irATab('colegios')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/>
             </svg>
@@ -1215,12 +1215,53 @@
           <div class="cfg-card__body">
 
             <div class="cfg-field">
-              <label class="cfg-field__label">Criterio de asignación</label>
+              <label class="cfg-field__label">
+                Forma de asignación
+                <span class="cfg-field__tip" title="Decide si el chat se entrega primero al agente encargado del colegio o se reparte entre todos los agentes conectados">ⓘ</span>
+              </label>
               <div class="cfg-seg">
-                <button class="cfg-seg__btn" [class.active]="config.asignacionBalanceTipo === 'carga'" (click)="config.asignacionBalanceTipo = 'carga'">
+                <button type="button" class="cfg-seg__btn" [class.active]="modoAsignacion === 'aleatoria'" (click)="setModoAsignacion('aleatoria')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M16 3h5v5"/><path d="M4 20 21 3"/><path d="M21 16v5h-5"/><path d="m15 15 6 6"/><path d="M4 4l5 5"/>
+                  </svg>
+                  Aleatoria
+                </button>
+                <button type="button" class="cfg-seg__btn" [class.active]="modoAsignacion === 'colegio'" (click)="setModoAsignacion('colegio')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 21h18"/><path d="M5 21V10"/><path d="M19 21V10"/><path d="M9 21V10"/><path d="M15 21V10"/><path d="M2 10 12 3l10 7"/>
+                  </svg>
+                  Por colegio asignado
+                </button>
+              </div>
+              <span class="cfg-field__hint">
+                @if (modoAsignacion === 'colegio') {
+                Si el cliente viene de un colegio con agente asignado, el chat se le entrega primero a ese agente. Si no está disponible (desconectado, en almuerzo o lleno), el chat entra a la cola.
+                } @else {
+                Todos los chats se reparten entre los agentes conectados usando el criterio de carga de abajo. El colegio del cliente se ignora.
+                }
+              </span>
+              @if (modoAsignacion === 'colegio') {
+              <div class="cfg-modo-dato">
+                @if (colegiosConAsesor.total === 0) {
+                <span>No hay colegios registrados, así que ningún chat se puede asignar por colegio.</span>
+                } @else {
+                <span><strong>{{ colegiosConAsesor.conAsesor }}</strong> de {{ colegiosConAsesor.total }} {{ colegiosConAsesor.total === 1 ? 'colegio tiene' : 'colegios tienen' }} agente asignado</span>
+                }
+                <button type="button" class="cfg-btn cfg-btn--ghost cfg-btn--sm" (click)="irAColegios()">Administrar colegios</button>
+              </div>
+              }
+            </div>
+
+            <div class="cfg-field">
+              <label class="cfg-field__label">
+                Criterio de carga
+                <span class="cfg-field__tip" title="Cómo se reparte el chat entre los agentes cuando entra a la cola">ⓘ</span>
+              </label>
+              <div class="cfg-seg">
+                <button type="button" class="cfg-seg__btn" [class.active]="config.asignacionBalanceTipo === 'carga'" (click)="config.asignacionBalanceTipo = 'carga'">
                   Por carga actual
                 </button>
-                <button class="cfg-seg__btn" [class.active]="config.asignacionBalanceTipo === 'hoy'" (click)="config.asignacionBalanceTipo = 'hoy'">
+                <button type="button" class="cfg-seg__btn" [class.active]="config.asignacionBalanceTipo === 'hoy'" (click)="config.asignacionBalanceTipo = 'hoy'">
                   Equitativo por atendidos hoy
                 </button>
               </div>
@@ -1231,6 +1272,8 @@
                 } @else {
                 Comportamiento clásico: se asigna al agente con <strong>menos chats activos</strong> en este momento. Los empates se resuelven al azar.
                 }
+                <br/>
+                Se aplica siempre que el chat entra a la cola: en modo aleatoria y también como respaldo del modo colegio.
               </span>
             </div>
 
@@ -1255,17 +1298,6 @@
               </div>
               <label class="cfg-toggle">
                 <input type="checkbox" [(ngModel)]="config.asignacionContarCerradasHoy"/>
-                <span class="cfg-toggle-slider"></span>
-              </label>
-            </div>
-
-            <div class="cfg-toggle-row">
-              <div class="cfg-toggle-info">
-                <span class="cfg-toggle-label">Priorizar al agente encargado del colegio</span>
-                <span class="cfg-toggle-sub">Si el chat viene de un colegio con agente asignado, se intenta primero con él antes de repartirlo a la cola</span>
-              </div>
-              <label class="cfg-toggle">
-                <input type="checkbox" [(ngModel)]="config.asignacionPriorizarColegio"/>
                 <span class="cfg-toggle-slider"></span>
               </label>
             </div>

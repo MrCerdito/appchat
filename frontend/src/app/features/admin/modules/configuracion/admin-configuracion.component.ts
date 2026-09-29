@@ -378,17 +378,51 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
   setGrupo(g: ConfigGrupo): void {
     this.grupo = g;
     this.tab = this.grupos.find((x) => x.key === g)?.tabInicial ?? 'bienvenida';
-    if (g === 'general' && this.tab === 'colegios') {
-      this.loadColegios();
-    }
+    this.cargarColegiosSiHaceFalta();
   }
 
   irA(g: ConfigGrupo, t: ConfigTab): void {
     this.grupo = g;
     this.tab = t;
-    if (t === 'colegios') {
+    this.cargarColegiosSiHaceFalta();
+  }
+
+  /** Los colegios hacen falta en la pestaña de asignación (para mostrar cuántos
+   *  tienen agente) y en la de colegios (para administrarlos). */
+  private cargarColegiosSiHaceFalta(): void {
+    if (this.tab === 'colegios' || this.tab === 'asignacion') {
       this.loadColegios();
     }
+  }
+
+  irAColegios(): void {
+    this.irA('general', 'colegios');
+  }
+
+  /** Cambio de pestaña desde la navegación superior (móvil). */
+  irATab(t: ConfigTab): void {
+    this.tab = t;
+    this.cargarColegiosSiHaceFalta();
+  }
+
+  // ── Modo de asignación de chats ───────────────────────────────────────────
+
+  /** 'aleatoria' = cola por carga (ignora el colegio); 'colegio' = primero el
+   *  agente encargado del colegio y, si no puede, cola por carga. */
+  get modoAsignacion(): 'aleatoria' | 'colegio' {
+    return this.config?.asignacionPriorizarColegio ? 'colegio' : 'aleatoria';
+  }
+
+  setModoAsignacion(modo: 'aleatoria' | 'colegio'): void {
+    if (!this.config) return;
+    this.config.asignacionPriorizarColegio = modo === 'colegio';
+  }
+
+  get colegiosConAsesor(): { total: number; conAsesor: number } {
+    const conAsesor = this.colegios.filter(
+      (c) => !!(c.advisorId || c.advisor?.id || c.advisorName),
+    ).length;
+    return { total: this.colegios.length, conAsesor };
   }
 
   getDiaNombre(dia: number): string {
