@@ -18,22 +18,70 @@
     @if (mode === 'visual') {
       <span class="mled__divider"></span>
 
-      <select class="mled__select" (change)="addFromSelect($any($event.target).value)">
-        <option value="" selected disabled>+ Agregar bloque</option>
-        <option value="heading">Titulo</option>
-        <option value="text">Texto</option>
-        <option value="image">Imagen</option>
-        @if (allowButton) {
-          <option value="button">Boton</option>
+      <div class="mled__add">
+        <button
+          type="button"
+          class="mled__btn mled__add-btn"
+          [class.mled__add-btn--open]="addMenuOpen"
+          (click)="toggleAddMenu()"
+          aria-haspopup="menu"
+          [attr.aria-expanded]="addMenuOpen"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Agregar bloque
+        </button>
+
+        @if (addMenuOpen) {
+          <div class="mled__add-menu" role="menu" aria-label="Agregar bloque">
+            <div class="mled__add-group">
+              <span class="mled__add-group-label">Contenido</span>
+              <button type="button" class="mled__add-item" role="menuitem" (click)="elegirBloque('heading')">
+                <span class="mled__add-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg></span>
+                <span class="mled__add-txt"><span class="mled__add-name">Titulo</span><span class="mled__add-desc">Encabezado del correo</span></span>
+              </button>
+              <button type="button" class="mled__add-item" role="menuitem" (click)="elegirBloque('text')">
+                <span class="mled__add-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="17" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/></svg></span>
+                <span class="mled__add-txt"><span class="mled__add-name">Texto</span><span class="mled__add-desc">Parrafo de contenido</span></span>
+              </button>
+              <button type="button" class="mled__add-item" role="menuitem" (click)="elegirBloque('image')">
+                <span class="mled__add-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></span>
+                <span class="mled__add-txt"><span class="mled__add-name">Imagen</span><span class="mled__add-desc">Sube o enlaza una imagen</span></span>
+              </button>
+              @if (allowButton) {
+                <button type="button" class="mled__add-item" role="menuitem" (click)="elegirBloque('button')">
+                  <span class="mled__add-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="10" rx="5"/></svg></span>
+                  <span class="mled__add-txt"><span class="mled__add-name">Boton</span><span class="mled__add-desc">Llamada a la accion con enlace</span></span>
+                </button>
+              }
+              <button type="button" class="mled__add-item" role="menuitem" (click)="elegirBloque('divider')">
+                <span class="mled__add-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+                <span class="mled__add-txt"><span class="mled__add-name">Separador</span><span class="mled__add-desc">Linea horizontal</span></span>
+              </button>
+              <button type="button" class="mled__add-item" role="menuitem" (click)="elegirBloque('spacer')">
+                <span class="mled__add-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 6 12 2 16 6"/><line x1="12" y1="2" x2="12" y2="22"/><polyline points="8 18 12 22 16 18"/></svg></span>
+                <span class="mled__add-txt"><span class="mled__add-name">Espacio</span><span class="mled__add-desc">Espacio en blanco vertical</span></span>
+              </button>
+            </div>
+            <div class="mled__add-group">
+              <span class="mled__add-group-label">Avanzado</span>
+              <button type="button" class="mled__add-item" role="menuitem" (click)="elegirBloque('columns')">
+                <span class="mled__add-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="18" rx="1"/></svg></span>
+                <span class="mled__add-txt"><span class="mled__add-name">2 columnas</span><span class="mled__add-desc">Distribuye el contenido en dos columnas</span></span>
+              </button>
+              <button type="button" class="mled__add-item" role="menuitem" (click)="elegirBloque('html')">
+                <span class="mled__add-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></span>
+                <span class="mled__add-txt"><span class="mled__add-name">HTML libre</span><span class="mled__add-desc">Pega tu propio HTML</span></span>
+              </button>
+              @if (allowVariables) {
+                <button type="button" class="mled__add-item" role="menuitem" (click)="elegirBloque('token')">
+                  <span class="mled__add-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3L4 12l4 9"/><path d="M16 3l4 9-4 9"/></svg></span>
+                  <span class="mled__add-txt"><span class="mled__add-name">Variable</span><span class="mled__add-desc">Inserta una variable del correo</span></span>
+                </button>
+              }
+            </div>
+          </div>
         }
-        <option value="columns">2 columnas</option>
-        <option value="divider">Separador</option>
-        <option value="spacer">Espacio</option>
-        @if (allowVariables) {
-          <option value="token">Variable (bloque)</option>
-        }
-        <option value="html">HTML libre</option>
-      </select>
+      </div>
 
       <span class="mled__divider"></span>
 

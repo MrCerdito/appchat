@@ -161,6 +161,10 @@ function uid(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
 
+function nlBr(html: string): string {
+  return String(html ?? '').replace(/\r?\n/g, '<br/>');
+}
+
 const ESC_RE = /&/g;
 
 function escHtml(s: string): string {
@@ -309,7 +313,11 @@ export class MailBlockViewComponent implements OnChanges, OnDestroy {
 
   get innerHtml(): string {
     const b = this.block as MailTextBlock | MailHeadingBlock | MailHtmlBlock;
-    return this.committed.get(this.block.id) ?? b.html;
+    const html = this.committed.get(this.block.id) ?? b.html ?? '';
+    if (this.block.type === 'text' || this.block.type === 'heading') {
+      return nlBr(html);
+    }
+    return html;
   }
 
   get label(): string {
@@ -760,6 +768,7 @@ export class MailEditorComponent implements OnChanges, OnInit, OnDestroy {
   uploading = false;
   uploadError = '';
   popoverStyle: { top: number; left: number } | null = null;
+  addMenuOpen = false;
 
   private readonly apiBase: string;
   private lastEmitted = '';
@@ -806,6 +815,7 @@ export class MailEditorComponent implements OnChanges, OnInit, OnDestroy {
     document.addEventListener('scroll', this.onDocScroll, true);
     window.addEventListener('resize', this.onWinResize);
     document.addEventListener('mousedown', this.onDocMouseDown, true);
+    document.addEventListener('keydown', this.onDocKeydown);
   }
 
   ngOnDestroy(): void {
@@ -814,6 +824,7 @@ export class MailEditorComponent implements OnChanges, OnInit, OnDestroy {
     document.removeEventListener('scroll', this.onDocScroll, true);
     window.removeEventListener('resize', this.onWinResize);
     document.removeEventListener('mousedown', this.onDocMouseDown, true);
+    document.removeEventListener('keydown', this.onDocKeydown);
     if (this.posRaf) cancelAnimationFrame(this.posRaf);
     if (this.emitTimer) clearTimeout(this.emitTimer);
   }
@@ -844,6 +855,7 @@ export class MailEditorComponent implements OnChanges, OnInit, OnDestroy {
 
   setMode(mode: 'visual' | 'html'): void {
     if (this.mode === mode) return;
+    this.addMenuOpen = false;
     if (mode === 'html') {
       this.htmlDraft = this.compilarCorreo();
       this.mode = 'html';
@@ -889,6 +901,24 @@ export class MailEditorComponent implements OnChanges, OnInit, OnDestroy {
     this.emitCambios();
     this.cdr.detectChanges();
     this.schedulePos();
+  }
+
+  toggleAddMenu(): void {
+    this.addMenuOpen = !this.addMenuOpen;
+    this.cdr.detectChanges();
+  }
+
+  elegirBloque(type: string): void {
+    if (!type) return;
+    this.addMenuOpen = false;
+    this.cdr.detectChanges();
+    this.addFromSelect(type);
+    if (type !== 'image') {
+      requestAnimationFrame(() => {
+        const el = this.selectedId ? document.querySelector(`[data-block-id="${this.selectedId}"]`) : null;
+        el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      });
+    }
   }
 
   onImagePick(event: Event): void {
@@ -971,13 +1001,28 @@ export class MailEditorComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   private readonly onDocMouseDown = (ev: MouseEvent): void => {
-    if (!this.selectedId) return;
     const target = ev.target as Node | null;
+    if (target) {
+      const addMenu = document.querySelector('.mled__add');
+      const insideAdd = addMenu?.contains(target) ?? false;
+      if (!insideAdd && this.addMenuOpen) {
+        this.addMenuOpen = false;
+        this.cdr.detectChanges();
+      }
+    }
+    if (!this.selectedId) return;
     if (!target) return;
     const block = document.querySelector(`[data-block-id="${this.selectedId}"]`);
     const pp = document.querySelector('.mled__pp');
     if (block?.contains(target) || pp?.contains(target)) return;
     this.deselect();
+  };
+
+  private readonly onDocKeydown = (ev: KeyboardEvent): void => {
+    if (ev.key === 'Escape' && this.addMenuOpen) {
+      this.addMenuOpen = false;
+      this.cdr.detectChanges();
+    }
   };
 
   private readonly onDocScroll = (): void => this.schedulePos();
@@ -1295,7 +1340,7 @@ export class MailEditorComponent implements OnChanges, OnInit, OnDestroy {
         const size = b.fontSize || 15;
         const pad = b.padding ?? 14;
         const fam = b.fontFamily || 'Arial,Helvetica,sans-serif';
-        return `<div data-sb="text" data-sb-id="${b.id}" style="padding:${pad}px 24px;text-align:${align};background:${bg};color:${color};font-size:${size}px;line-height:1.6;font-family:${fam};">${b.html}</div>`;
+        return `<div data-sb="text" data-sb-id="${b.id}" style="padding:${pad}px 24px;text-align:${align};background:${bg};color:${color};font-size:${size}px;line-height:1.6;font-family:${fam};">${nlBr(b.html)}</div>`;
       }
       case 'heading': {
         const align = b.align || 'left';
@@ -1304,7 +1349,7 @@ export class MailEditorComponent implements OnChanges, OnInit, OnDestroy {
         const size = b.fontSize || 22;
         const pad = b.padding ?? 14;
         const fam = b.fontFamily || 'Arial,Helvetica,sans-serif';
-        return `<div data-sb="heading" data-sb-id="${b.id}" style="padding:${pad}px 24px;text-align:${align};background:${bg};color:${color};font-size:${size}px;line-height:1.4;font-weight:700;font-family:${fam};">${b.html}</div>`;
+        return `<div data-sb="heading" data-sb-id="${b.id}" style="padding:${pad}px 24px;text-align:${align};background:${bg};color:${color};font-size:${size}px;line-height:1.4;font-weight:700;font-family:${fam};">${nlBr(b.html)}</div>`;
       }
       case 'image': {
         const align = b.align || 'center';

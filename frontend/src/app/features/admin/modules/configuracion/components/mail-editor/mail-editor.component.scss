@@ -116,6 +116,124 @@
   }
 }
 
+.mled__add {
+  position: relative;
+  display: inline-flex;
+}
+
+.mled__add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: #4338ca;
+  border-color: #4338ca;
+  color: #ffffff;
+  font-weight: 600;
+  transition: background 0.15s ease, border-color 0.15s ease;
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  &:hover,
+  &--open {
+    background: #3730a3;
+    border-color: #3730a3;
+    color: #ffffff;
+  }
+}
+
+.mled__add-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 70;
+  min-width: 280px;
+  max-width: calc(100vw - 24px);
+  background: #ffffff;
+  border: 1px solid #dbe2ea;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.22);
+  padding: 8px;
+  animation: mled-pp-in 0.18s ease-out;
+}
+
+.mled__add-group {
+  padding: 4px 0;
+
+  & + & {
+    border-top: 1px solid #eef2f7;
+    margin-top: 4px;
+  }
+}
+
+.mled__add-group-label {
+  display: block;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #94a3b8;
+}
+
+.mled__add-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  padding: 7px 10px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+
+  &:hover {
+    background: #eef2ff;
+  }
+}
+
+.mled__add-ic {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #eef2ff;
+  color: #4338ca;
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.mled__add-txt {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.mled__add-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.mled__add-desc {
+  font-size: 12px;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .mled__main {
   display: flex;
   flex-wrap: wrap;
