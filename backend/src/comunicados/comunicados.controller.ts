@@ -32,6 +32,16 @@ export class ComunicadoTemplateDto {
   @IsOptional() @IsArray() design?: unknown[] | null;
 }
 
+export class ComunicadoTestDto {
+  @IsString() @MaxLength(300) asunto: string;
+  @IsString() cuerpo: string;
+  @IsArray() emails: string[];
+}
+
+export class ComunicadoTestEmailsDto {
+  @IsArray() emails: string[];
+}
+
 @Controller('comunicados')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Permiso('comunicados')
@@ -71,19 +81,32 @@ export class ComunicadosController {
   }
 
   @Put('templates/:id')
-  updateTemplate(@Param('id') id: string, @Body() dto: ComunicadoTemplateDto) {
-    return this.service.updateTemplate(id, {
-      name: dto.name,
-      asunto: dto.asunto,
-      cuerpo: dto.cuerpo,
-      design: dto.design ?? null,
-    });
+  updateTemplate(
+    @Param('id') id: string,
+    @Body() dto: ComunicadoTemplateDto,
+    @Request() req: any,
+  ) {
+    return this.service.updateTemplate(
+      id,
+      {
+        name: dto.name,
+        asunto: dto.asunto,
+        cuerpo: dto.cuerpo,
+        design: dto.design ?? null,
+      },
+      req.user,
+    );
   }
 
   @Delete('templates/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  deleteTemplate(@Param('id') id: string) {
-    return this.service.deleteTemplate(id);
+  deleteTemplate(@Param('id') id: string, @Request() req: any) {
+    return this.service.deleteTemplate(id, req.user);
+  }
+
+  @Get('templates/:id/logs')
+  getTemplateLogs(@Param('id') id: string) {
+    return this.service.findTemplateLogs(id);
   }
 
   @Get('smtp-cuota')
@@ -94,6 +117,18 @@ export class ComunicadosController {
   @Post('check-bounces')
   checkBounces() {
     return this.bounce.revisarRebotesAhora();
+  }
+
+  @Roles('advisor', 'interno')
+  @Get('test-correos')
+  getTestCorreos() {
+    return this.service.getTestCorreos();
+  }
+
+  @Roles('advisor', 'interno')
+  @Put('test-correos')
+  saveTestCorreos(@Body() dto: ComunicadoTestEmailsDto) {
+    return this.service.guardarTestCorreos(dto.emails);
   }
 
   @Get(':id')
@@ -132,10 +167,16 @@ export class ComunicadosController {
   }
 
   @Roles('advisor', 'interno')
+  @Post('test')
+  enviarPrueba(@Body() dto: ComunicadoTestDto, @Request() req: any) {
+    return this.service.enviarPrueba(dto.emails, dto.asunto, dto.cuerpo, req);
+  }
+
+  @Roles('advisor', 'interno')
   @Post(':id/send')
   @HttpCode(HttpStatus.ACCEPTED)
   async send(@Param('id') id: string, @Request() req: any) {
-    return this.service.send(id, req.user);
+    return this.service.send(id, req.user, req);
   }
 
   @Roles('advisor', 'interno')

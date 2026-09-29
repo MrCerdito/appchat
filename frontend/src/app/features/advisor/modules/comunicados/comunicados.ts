@@ -14,7 +14,7 @@ import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { ComunicadosService, Colegio, FiltroPerfilComunicado, SmtpCuota, SendLanzamiento, BounceResult } from '../../../../core/services/comunicados.service';
-import { Comunicado, ComunicadoTemplate, Destinatario } from '../../../../core/models/comunicado.model';
+import { Comunicado, ComunicadoTemplate, ComunicadoTemplateLog, Destinatario } from '../../../../core/models/comunicado.model';
 import { NotificationService } from '../../../../core/services/notification.service';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
@@ -76,11 +76,19 @@ error = '';
   // Configurador de plantillas
   tplActive = false;
   tplSaving = false;
+  tplEditing = false;
   tplEditingId: string | null = null;
+  tplPreview: ComunicadoTemplate | null = null;
   tplName = '';
   tplAsunto = '';
   tplCuerpo = '';
   tplDesign: unknown[] | null = null;
+
+  // Historial de ediciones de plantillas
+  templateLogs: ComunicadoTemplateLog[] = [];
+  templateLogsLoading = false;
+  showTemplateHistory = false;
+  historyTemplate: ComunicadoTemplate | null = null;
 
   // Compose
   editingId: string | null = null;
@@ -95,6 +103,13 @@ error = '';
   // Correo manual (independiente de la planilla)
   manualEmail = '';
   manualEmailError = '';
+
+  // Correos de prueba
+  pruebaCorreos = '';
+  pruebaSending = false;
+  pruebaGuardando = false;
+  pruebaMsg = '';
+  pruebaError = '';
 
   // Filtros avanzados
   showFiltersPanel = false;
@@ -146,6 +161,7 @@ error = '';
     this.layout.setSidebarForcedCollapsed(true);
     this.loadAll();
     this.loadTemplates();
+    this.loadTestCorreos();
     this.service.getColegios().pipe(takeUntil(this.destroy$)).subscribe({
       next: (res) => {
         this.colegios = res.colegios;
@@ -190,6 +206,54 @@ error = '';
     });
   }
 
+  loadTestCorreos(): void {
+    this.service.getTestCorreos().pipe(takeUntil(this.destroy$)).subscribe({
+      next: (lista) => {
+        if (Array.isArray(lista) && lista.length) {
+          this.pruebaCorreos = lista.map((e) => `"${e}"`).join(', ');
+          this.cdr.detectChanges();
+        }
+      },
+      error: () => {
+        /* silencioso: el campo arranca vacio */
+      },
+    });
+  }
+
+  private formatearCorreos(lista: string[]): string {
+    return lista.map((e) => `"${e}"`).join(', ');
+  }
+
+  guardarPrueba(): void {
+    const correos = this.parsePruebaEmails();
+    if (!correos.length) {
+      this.pruebaError = 'Escribe al menos un correo válido para guardar.';
+      this.cdr.detectChanges();
+      return;
+    }
+    this.pruebaGuardando = true;
+    this.pruebaError = '';
+    this.pruebaMsg = '';
+    this.service
+      .saveTestCorreos(correos)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (guardados) => {
+          this.pruebaGuardando = false;
+          this.pruebaCorreos = this.formatearCorreos(
+            Array.isArray(guardados) ? guardados : correos,
+          );
+          this.pruebaMsg = `Perfiles de prueba guardados: ${guardados.length}`;
+          this.cdr.detectChanges();
+        },
+        error: () => {
+          this.pruebaGuardando = false;
+          this.pruebaError = 'No se pudieron guardar los perfiles de prueba.';
+          this.cdr.detectChanges();
+        },
+      });
+  }
+
   enterTemplates(): void {
     this.view = 'templates';
     this.selected = null;
@@ -199,7 +263,7 @@ error = '';
     this.success = '';
     if (!this.tplActive) {
       if (this.templates.length > 0) {
-        this.editTemplate(this.templates[0]);
+        this.selectTemplate(this.templates[0]);
       } else {
         this.openNewTemplate();
       }
@@ -209,6 +273,7 @@ error = '';
 
   openNewTemplate(): void {
     this.tplActive = true;
+    this.tplEditing = true;
     this.tplEditingId = null;
     this.tplName = '';
     this.tplAsunto = '';
@@ -220,8 +285,20 @@ error = '';
     this.cdr.detectChanges();
   }
 
+  selectTemplate(t: ComunicadoTemplate): void {
+    this.tplActive = true;
+    this.tplEditing = false;
+    this.tplPreview = t;
+    this.lastTplDoc = '';
+    this.lastTplRawCuerpo = '';
+    this.error = '';
+    this.cdr.detectChanges();
+  }
+
   editTemplate(t: ComunicadoTemplate): void {
     this.tplActive = true;
+    this.tplEditing = true;
+    this.tplPreview = t;
     this.tplEditingId = t.id;
     this.tplName = t.name;
     this.tplAsunto = t.asunto;
@@ -229,6 +306,60 @@ error = '';
     this.tplDesign = Array.isArray(t.design) ? t.design : null;
     this.lastTplDoc = '';
     this.lastTplRawCuerpo = '';
+    this.error = '';
+    this.cdr.detectChanges();
+  }
+
+  loadTemplateLogs(id: string): void {
+    this.templateLogsLoading = true;
+    this.service.getTemplateLogs(id).pipe(takeUntil(this.destroy$)).subscribe({
+      next: (logs) => {
+        this.templateLogs = logs;
+        this.templateLogsLoading = false;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.templateLogs = [];
+        this.templateLogsLoading = false;
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  openTemplateHistory(t: ComunicadoTemplate): void {
+    this.historyTemplate = t;
+    this.showTemplateHistory = true;
+    this.loadTemplateLogs(t.id);
+  }
+
+  closeTemplateHistory(): void {
+    this.showTemplateHistory = false;
+  }
+
+  protected accionLabel(accion: string): string {
+    if (accion === 'crear') return 'Plantilla creada';
+    if (accion === 'eliminar') return 'Plantilla eliminada';
+    return 'Plantilla editada';
+  }
+
+  protected cambioLabels(log: ComunicadoTemplateLog): string[] {
+    if (!log.cambios) return [];
+    return Object.keys(log.cambios).map((k) => {
+      if (k === 'name') return 'Nombre';
+      if (k === 'asunto') return 'Asunto';
+      if (k === 'cuerpo') return 'Contenido';
+      return 'Diseno';
+    });
+  }
+
+  cancelEditTemplate(): void {
+    if (this.tplPreview) {
+      this.selectTemplate(this.tplPreview);
+      return;
+    }
+    this.tplActive = false;
+    this.tplEditing = false;
+    this.tplEditingId = null;
     this.error = '';
     this.cdr.detectChanges();
   }
@@ -257,6 +388,13 @@ error = '';
         this.tplSaving = false;
         this.tplEditingId = t.id;
         this.tplName = t.name;
+        this.tplAsunto = t.asunto;
+        this.tplCuerpo = t.cuerpo;
+        this.tplDesign = Array.isArray(t.design) ? t.design : null;
+        this.tplPreview = t;
+        this.tplEditing = true;
+        this.lastTplDoc = '';
+        this.lastTplRawCuerpo = '';
         this.loadTemplates();
         this.showSuccessMsg(isNew ? 'Plantilla creada' : 'Plantilla actualizada');
       },
@@ -279,9 +417,11 @@ error = '';
     this.service.deleteTemplate(t.id).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
         this.templates = this.templates.filter((x) => x.id !== t.id);
-        if (this.tplEditingId === t.id) {
+        if (this.tplPreview?.id === t.id || this.tplEditingId === t.id) {
           this.tplActive = false;
+          this.tplEditing = false;
           this.tplEditingId = null;
+          this.tplPreview = null;
           this.tplName = '';
           this.tplAsunto = '';
           this.tplCuerpo = '';
@@ -289,7 +429,7 @@ error = '';
           this.lastTplDoc = '';
           this.lastTplRawCuerpo = '';
           if (this.templates.length > 0) {
-            this.editTemplate(this.templates[0]);
+            this.selectTemplate(this.templates[0]);
           } else {
             this.openNewTemplate();
           }
@@ -676,6 +816,55 @@ error = '';
     this.notification.success('Correo agregado', `${email} se agregó a los destinatarios.`);
   }
 
+  private parsePruebaEmails(): string[] {
+    const vistos = new Set<string>();
+    const fuera: string[] = [];
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    for (const raw of this.pruebaCorreos.split(/[|,;]+/)) {
+      const limpio = raw.trim().replace(/^["']+|["']+$/g, '');
+      if (!limpio) continue;
+      const clave = limpio.toLowerCase();
+      if (!emailRe.test(clave) || vistos.has(clave)) continue;
+      vistos.add(clave);
+      fuera.push(limpio);
+      if (fuera.length >= 50) break;
+    }
+    return fuera;
+  }
+
+  enviarPrueba(): void {
+    const correos = this.parsePruebaEmails();
+    if (!correos.length) {
+      this.pruebaError =
+        'Escribe al menos un correo válido, separados por comas.';
+      this.cdr.detectChanges();
+      return;
+    }
+    if (!this.asunto.trim()) {
+      this.pruebaError = 'El asunto está vacío.';
+      this.cdr.detectChanges();
+      return;
+    }
+    this.pruebaSending = true;
+    this.pruebaError = '';
+    this.pruebaMsg = '';
+    this.service
+      .enviarPrueba(this.asunto, this.cuerpo, correos)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (r) => {
+          this.pruebaSending = false;
+          this.pruebaMsg = r.mensaje;
+          this.cdr.detectChanges();
+        },
+        error: (err) => {
+          this.pruebaSending = false;
+          this.pruebaError = err.error?.message || 'No se pudo enviar la prueba.';
+          this.cdr.detectChanges();
+        },
+      });
+  }
+
   addColegio(colegio: Colegio): void {
     for (const email of this.correosDeColegio(colegio)) {
       if (
@@ -845,7 +1034,8 @@ error = '';
   }
 
   templatePreviewAsunto(): string {
-    return (this.tplAsunto || '')
+    const src = this.tplEditing ? this.tplAsunto : (this.tplPreview?.asunto ?? this.tplAsunto);
+    return (src || '')
       .replace(/\{\{\s*nombre\s*\}\}/g, 'Laura Gomez')
       .replace(/\{\{\s*colegio\s*\}\}/g, 'Colegio San Jose')
       .replace(/\{\{\s*email\s*\}\}/g, 'rectoria@colegio.edu.co')
@@ -854,7 +1044,8 @@ error = '';
   }
 
   templatePreviewCuerpo(): string {
-    const raw = this.absolutizarUploads(this.tplCuerpo);
+    const src = this.tplEditing ? this.tplCuerpo : (this.tplPreview?.cuerpo ?? this.tplCuerpo);
+    const raw = this.absolutizarUploads(src);
     if (raw !== this.lastTplRawCuerpo) {
       this.lastTplRawCuerpo = raw;
       this.lastTplCleanCuerpo = limpiarHTML(raw);
@@ -919,7 +1110,7 @@ error = '';
   }
 
   frameLoad(): void {
-    const frame = this.composeFrame?.nativeElement;
+    const frame = this.templateFrame?.nativeElement ?? this.composeFrame?.nativeElement;
     if (frame) this.syncFrameHeight(frame);
   }
 

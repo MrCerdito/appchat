@@ -48,4 +48,16 @@ export interface ComunicadoTemplate {
   design: unknown[] | null;
   createdAt: string;
   updatedAt: string;
+  createdBy?: { id: string; name: string; email: string } | null;
+  updatedBy?: { id: string; name: string; email: string } | null;
+}
+
+export interface ComunicadoTemplateLog {
+  id: string;
+  templateId: string | null;
+  templateName: string | null;
+  accion: 'crear' | 'editar' | 'eliminar';
+  cambios: Record<string, { antes: string | null; nuevo: string | null }> | null;
+  createdAt: string;
+  usuario: { id: string; name: string; email: string } | null;
 }

@@ -10,6 +10,7 @@ import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { Comunicado, Destinatario } from './entities/comunicado.entity';
 import { ComunicadoTemplate } from './entities/comunicado-template.entity';
+import { ComunicadoTemplateLog } from './entities/comunicado-template-log.entity';
 import { Colegio } from '../sessions/entities/colegio.entity';
 import { PiCampo } from '../perfil-institucional/entities/pi-campo.entity';
 import { PiValor } from '../perfil-institucional/entities/pi-valor.entity';
@@ -28,6 +29,58 @@ import {
 import { createSmtpTransport } from '../common/mail/smtp.helper';
 import { embedInlineImages } from '../common/mail/email-assets.helper';
 
+const MAX_LOG_FRAGMENT = 600;
+
+/**
+ * Resuelve la URL base publica del backend en este orden: APP_URL (se ignora si
+ * es solo el placeholder localhost:3001), BACKEND_URL/PUBLIC_URL, host del
+ * request (X-Forwarded-Host/Host). Evita quedarse clavado en localhost:3001
+ * cuando el despliegue no setea APP_URL (rompia las imagenes y el tracking).
+ */
+function resolverBaseUrl(
+  config: ConfigService,
+  req?: { headers?: Record<string, string | undefined> },
+): string {
+  const appUrl = String(
+    config.get<string>('APP_URL') ?? process.env.APP_URL ?? '',
+  ).trim();
+  if (
+    /^https?:\/\//i.test(appUrl) &&
+    !/^http:\/\/localhost(?::\d+)?$/.test(appUrl)
+  ) {
+    return appUrl.replace(/\/+$/, '');
+  }
+  for (const candidato of [process.env.BACKEND_URL, process.env.PUBLIC_URL]) {
+    const limpio = String(candidato ?? '').trim();
+    if (/^https?:\/\//i.test(limpio)) return limpio.replace(/\/+$/, '');
+  }
+  const headers = req?.headers;
+  if (headers) {
+    const forwardedHost = String(headers['x-forwarded-host'] || '').trim();
+    const forwardedProto = String(
+      headers['x-forwarded-proto'] || '',
+    ).trim();
+    let host = forwardedHost || String(headers['host'] || '').trim();
+    if (host) {
+      if (!/^https?:\/\//i.test(host)) {
+        const proto =
+          forwardedProto && /^https?:\/\//i.test(forwardedProto)
+            ? forwardedProto
+            : `${forwardedProto || 'http'}://`;
+        host = `${proto}${host}`;
+      }
+      return host.replace(/\/+$/, '');
+    }
+  }
+  return 'http://localhost:3001';
+}
+
+function truncarLog(texto: string, max = MAX_LOG_FRAGMENT): string {
+  const limpio = (texto ?? '').replace(/\s+/g, ' ').trim();
+  if (limpio.length <= max) return limpio;
+  return `${limpio.slice(0, max)}…`;
+}
+
 @Injectable()
 export class ComunicadosService {
   private readonly logger = new Logger(ComunicadosService.name);
@@ -39,6 +92,8 @@ export class ComunicadosService {
     private readonly comunicadoRepo: Repository<Comunicado>,
     @InjectRepository(ComunicadoTemplate)
     private readonly templateRepo: Repository<ComunicadoTemplate>,
+    @InjectRepository(ComunicadoTemplateLog)
+    private readonly templateLogRepo: Repository<ComunicadoTemplateLog>,
     @InjectRepository(Colegio)
     private readonly colegioRepo: Repository<Colegio>,
     @InjectRepository(PiCampo)
@@ -124,6 +179,7 @@ export class ComunicadosService {
   async send(
     id: string,
     user: User,
+    req?: { headers?: Record<string, string | undefined> },
   ): Promise<{
     id: string;
     status: 'sending';
@@ -161,7 +217,7 @@ export class ComunicadosService {
     if (!c.destinatarios.length)
       throw new BadRequestException('Sin destinatarios válidos');
 
-    const baseUrl = this.config.get('APP_URL') ?? 'http://localhost:3001';
+    const baseUrl = resolverBaseUrl(this.config, req);
     const cfg = await this.configuracion.getGlobal();
     const mailRedirectTo = String(
       process.env.MAIL_REDIRECT_TO ?? this.config.get('MAIL_REDIRECT_TO') ?? '',
@@ -260,6 +316,174 @@ export class ComunicadosService {
       enviadosHoy,
       restanteDisponible: restanteDisponible - total,
     };
+  }
+
+  /**
+   * Envia una prueba del correo (asunto + cuerpo actuales) a una lista corta
+   * de correos SIN crear comunicado ni consumir cuota diaria. Reusa el canal
+   * activo (Mailsender o SMTP directo) y las URLs publicas de imagenes.
+   */
+  async enviarPrueba(
+    emails: string[],
+    asunto: string,
+    cuerpo: string,
+    req?: { headers?: Record<string, string | undefined> },
+  ): Promise<{ ok: boolean; enviados: number; mensaje: string }> {
+    const destinos = this.normalizarTestEmails(emails);
+    if (!destinos.length)
+      throw new BadRequestException(
+        'Ingresa al menos un correo de prueba válido para enviar la prueba.',
+      );
+
+    const asuntoPrueba = /^\(PRUEBA\)\s+/i.test(asunto)
+      ? asunto
+      : `(PRUEBA) ${asunto}`;
+
+    const baseUrl = resolverBaseUrl(this.config, req);
+    const cfg = await this.configuracion.getGlobal();
+    const credencial = normalizarCredencialMailsender(
+      cfg.mailsenderCredencial as Record<string, unknown> | null | undefined,
+    );
+    const esSmtp = metodoCorreoActivo(cfg) === 'smtp';
+    const smtpHost = cfg.smtpHost?.trim() || '';
+    const smtpUser = cfg.smtpUser?.trim() || '';
+    const smtpPass = cfg.smtpPass?.trim() || '';
+    const smtpListo = Boolean(smtpHost && smtpUser && smtpPass);
+
+    if (esSmtp) {
+      if (!smtpListo)
+        throw new BadRequestException(
+          'Para enviar por SMTP configura el host, usuario y clave en Configuración > Correo.',
+        );
+    } else if (!credencial || !credencialMailsenderValida(credencial)) {
+      throw new BadRequestException(
+        'Configura la credencial de correo del servicio en Configuración antes de enviar la prueba.',
+      );
+    }
+
+    const fallos: string[] = [];
+    let enviados = 0;
+
+    if (esSmtp) {
+      const { transporter } = await createSmtpTransport({
+        host: smtpHost,
+        port: Number(cfg.smtpPort) || 587,
+        secure: cfg.smtpSecure !== false,
+        user: smtpUser,
+        pass: smtpPass,
+      });
+      const from =
+        cfg.mailFrom?.trim() ||
+        smtpUser ||
+        String(this.config.get('MAIL_FROM') ?? '');
+      const senderName = cfg.ticketEmailSenderName?.trim() || 'Soporte';
+      const remitente = from ? `${senderName} <${from}>` : '';
+      const { html: htmlEmbebido, smtpAttachments } = await embedInlineImages(
+        cuerpo,
+      );
+      const htmlFinal = this.absolutizarUploads(htmlEmbebido, baseUrl);
+      try {
+        for (const email of destinos) {
+          try {
+            await transporter.sendMail({
+              from: remitente,
+              to: email,
+              subject: asuntoPrueba,
+              html: htmlFinal,
+              attachments: smtpAttachments.length
+                ? smtpAttachments
+                : undefined,
+            });
+            enviados++;
+          } catch (err: any) {
+            fallos.push(
+              `${email}: ${String(err?.message ?? err).slice(0, 200)}`,
+            );
+          }
+        }
+      } finally {
+        transporter.close();
+      }
+      if (!enviados)
+        throw new BadRequestException(
+          `La prueba no se envió. ${fallos.join(' | ')}`,
+        );
+      return {
+        ok: true,
+        enviados,
+        mensaje: fallos.length
+          ? `Prueba enviada a ${enviados} correo(s) via SMTP. Fallaron: ${fallos.join(' | ')}`
+          : `Prueba enviada a ${enviados} correo(s) via SMTP.`,
+      };
+    }
+
+    const mailsenderUrl = cfg.mailsenderUrl?.trim() || '';
+    const htmlFinal = this.absolutizarUploads(cuerpo, baseUrl);
+    for (const email of destinos) {
+      const res = await enviarCorreoMailsender({
+        baseUrl: mailsenderUrl,
+        credencial: credencial as MailsenderCredencial,
+        asunto: asuntoPrueba,
+        correosNormales: email,
+        html: htmlFinal,
+      });
+      if (res.ok) enviados++;
+      else fallos.push(`${email}: ${res.message}`);
+    }
+    if (!enviados)
+      throw new BadRequestException(
+        `La prueba no se envió. ${fallos.join(' | ')}`,
+      );
+    return {
+      ok: true,
+      enviados,
+      mensaje: fallos.length
+        ? `Prueba enviada a ${enviados} correo(s). Fallaron: ${fallos.join(' | ')}`
+        : `Prueba enviada a ${enviados} correo(s) via ${this.proveedorMailsender(credencial as MailsenderCredencial)}.`,
+    };
+  }
+
+  private normalizarTestEmails(emails: string[]): string[] {
+    const vistos = new Set<string>();
+    const fuera: string[] = [];
+    for (const e of Array.isArray(emails) ? emails : []) {
+      const correos = String(e ?? '')
+        .split(/[|,;]+/)
+        .map((s) => s.trim().replace(/^["']+|["']+$/g, ''))
+        .filter(Boolean);
+      for (const c of correos) {
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c)) continue;
+        const clave = c.toLowerCase();
+        if (vistos.has(clave)) continue;
+        vistos.add(clave);
+        fuera.push(c);
+        if (fuera.length >= 50) return fuera;
+      }
+    }
+    return fuera;
+  }
+
+  /**
+   * Correos de prueba guardados globalmente (compartidos por todos los
+   * asesores). Los lee de la configuracion global.
+   */
+  async getTestCorreos(): Promise<string[]> {
+    return this.configuracion.getComunicadoTestEmails();
+  }
+
+  /**
+   * Guarda globalmente los perfiles de correo de prueba. Devuelve la lista
+   * normalizada que quedo persistida.
+   */
+  async guardarTestCorreos(emails: string[]): Promise<string[]> {
+    const limpios = this.normalizarTestEmails(emails);
+    const guardados = await this.configuracion.saveComunicadoTestEmails(limpios);
+    if (guardados.length && guardados.length !== limpios.length) {
+      this.logger.warn(
+        `Se persistieron ${guardados.length} correos de prueba (esperados ${limpios.length})`,
+      );
+    }
+    return guardados;
   }
 
   /**
@@ -507,8 +731,12 @@ export class ComunicadosService {
               this.injectTracking(c.cuerpo, c.id, dest.email, baseUrl),
               pixelUrl,
             );
-            const { html: htmlFinal, smtpAttachments } =
+            const { html: htmlEmbebido, smtpAttachments } =
               await embedInlineImages(cuerpoFinal);
+            const htmlFinal = this.absolutizarUploads(
+              htmlEmbebido,
+              baseUrl,
+            );
 
             let enviado = false;
             for (let intento = 1; intento <= 2; intento++) {
@@ -863,7 +1091,13 @@ export class ComunicadosService {
   }
 
   async findTemplates(): Promise<ComunicadoTemplate[]> {
-    return this.templateRepo.find({ order: { name: 'ASC' } });
+    return this.templateRepo
+      .createQueryBuilder('t')
+      .leftJoinAndSelect('t.createdBy', 'cb')
+      .leftJoinAndSelect('t.updatedBy', 'ub')
+      .addSelect(['cb.id', 'cb.name', 'cb.email', 'ub.id', 'ub.name', 'ub.email'])
+      .orderBy('t.name', 'ASC')
+      .getMany();
   }
 
   async createTemplate(
@@ -881,8 +1115,11 @@ export class ComunicadosService {
       cuerpo: data.cuerpo,
       design: data.design ?? null,
       createdBy: user,
+      updatedBy: user,
     });
-    return this.templateRepo.save(t);
+    const saved = await this.templateRepo.save(t);
+    await this.registrarTemplateLog(saved.id, saved.name, user, 'crear', null);
+    return saved;
   }
 
   async updateTemplate(
@@ -893,20 +1130,103 @@ export class ComunicadosService {
       cuerpo: string;
       design: unknown[] | null;
     },
+    user: User,
   ): Promise<ComunicadoTemplate> {
     const t = await this.templateRepo.findOneBy({ id });
     if (!t) throw new NotFoundException('Plantilla no encontrada');
+
+    const cambios = this.computarCambiosTemplate(t, data);
     t.name = data.name;
     t.asunto = data.asunto;
     t.cuerpo = data.cuerpo;
     t.design = data.design ?? null;
-    return this.templateRepo.save(t);
+    t.updatedBy = user;
+    const saved = await this.templateRepo.save(t);
+    if (Object.keys(cambios).length > 0) {
+      await this.registrarTemplateLog(
+        saved.id,
+        saved.name,
+        user,
+        'editar',
+        cambios,
+      );
+    }
+    return saved;
   }
 
-  async deleteTemplate(id: string): Promise<void> {
+  async deleteTemplate(id: string, user: User): Promise<void> {
     const t = await this.templateRepo.findOneBy({ id });
     if (!t) throw new NotFoundException('Plantilla no encontrada');
+    await this.registrarTemplateLog(t.id, t.name, user, 'eliminar', null);
     await this.templateRepo.remove(t);
+  }
+
+  async findTemplateLogs(templateId: string | null): Promise<
+    ComunicadoTemplateLog[]
+  > {
+    const qb = this.templateLogRepo
+      .createQueryBuilder('l')
+      .leftJoinAndSelect('l.usuario', 'u')
+      .addSelect(['u.id', 'u.name', 'u.email'])
+      .orderBy('l.created_at', 'DESC');
+    if (templateId) {
+      qb.where('l.template_id = :id', { id: templateId });
+    } else {
+      qb.limit(100);
+    }
+    return qb.getMany();
+  }
+
+  private async registrarTemplateLog(
+    templateId: string | null,
+    templateName: string | null,
+    user: User,
+    accion: string,
+    cambios: Record<string, { antes: string | null; nuevo: string | null }> | null,
+  ): Promise<void> {
+    try {
+      await this.templateLogRepo.save(
+        this.templateLogRepo.create({
+          templateId,
+          templateName,
+          usuario: user,
+          accion,
+          cambios,
+        }),
+      );
+    } catch (err) {
+      this.logger.warn(
+        `No se pudo registrar el log de plantilla (${accion}): ${(err as Error).message}`,
+      );
+    }
+  }
+
+  private computarCambiosTemplate(
+    t: ComunicadoTemplate,
+    data: {
+      name: string;
+      asunto: string;
+      cuerpo: string;
+      design: unknown[] | null;
+    },
+  ): Record<string, { antes: string | null; nuevo: string | null }> {
+    const cambios: Record<string, { antes: string | null; nuevo: string | null }> = {};
+    if (t.name !== data.name) {
+      cambios.name = { antes: t.name, nuevo: data.name };
+    }
+    if (t.asunto !== data.asunto) {
+      cambios.asunto = { antes: t.asunto, nuevo: data.asunto };
+    }
+    if (t.cuerpo !== data.cuerpo) {
+      cambios.cuerpo = {
+        antes: truncarLog(t.cuerpo, 600),
+        nuevo: truncarLog(data.cuerpo, 600),
+      };
+    }
+    if (JSON.stringify(t.design ?? null) !== JSON.stringify(data.design ?? null)) {
+      cambios.design = { antes: 'config', nuevo: 'modificado' };
+    }
+    return cambios;
   }
 
   async registrarApertura(
@@ -973,18 +1293,19 @@ export class ComunicadosService {
   }
 
   /**
-   * Convierte las rutas locales de imagenes /uploads/... en URLs absolutas
+   * Convierte las rutas locales de imagenes /uploads/... a URLs absolutas
    * (baseUrl + ruta) para que lleguen al correo cargables desde el servidor
-   * publico sin incrustar base64 en el HTML. Incrustar base64 inflaba el
-   * mensaje y hacia que Gmail/Outlook recortaran el correo ("mensaje acortado")
-   * perdiendo las imagenes.
+   * publico. Normaliza tanto rutas relativas como absolutas ya horneadas con
+   * otro host, para que siempre usen la base publica del momento del envio.
+   * No incrusta base64 en este canal: infla el mensaje y Gmail/Outlook lo
+   * recortan ("mensaje acortado") perdiendo las imagenes.
    */
   private absolutizarUploads(html: string, baseUrl: string): string {
     const base = String(baseUrl || '').replace(/\/+$/, '');
     if (!base) return html;
     return html.replace(
-      /(["'()]\s*)\/(uploads\/[^"'()\s]+)/g,
-      (match, quote, ruta) => `${quote}${base}/${ruta}`,
+      /(["'()]\s*)(?:https?:\/\/[^\/"'()\s]*)?\/uploads\/([^"'()\s]+)/g,
+      (match, quote, ruta) => `${quote}${base}/uploads/${ruta}`,
     );
   }
 }

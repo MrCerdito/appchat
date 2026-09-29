@@ -6,6 +6,7 @@ import { BounceService } from './bounce.service';
 import { Comunicado } from './entities/comunicado.entity';
 import { ComunicadoEvento } from './entities/comunicado-evento.entity';
 import { ComunicadoTemplate } from './entities/comunicado-template.entity';
+import { ComunicadoTemplateLog } from './entities/comunicado-template-log.entity';
 import { Colegio } from '../sessions/entities/colegio.entity';
 import { PiCampo } from '../perfil-institucional/entities/pi-campo.entity';
 import { PiValor } from '../perfil-institucional/entities/pi-valor.entity';
@@ -18,6 +19,7 @@ import { ConfiguracionModule } from '../configuracion/configuracion.module';
       Comunicado,
       ComunicadoEvento,
       ComunicadoTemplate,
+      ComunicadoTemplateLog,
       Colegio,
       PiCampo,
       PiValor,

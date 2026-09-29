@@ -339,6 +339,15 @@ export class Configuracion {
   })
   metodoEnvioCorreo: 'mailsender' | 'smtp';
 
+  // ── Correos de prueba de Comunicados (globales) ───────────────────────────
+  @Column({
+    name: 'comunicado_test_emails',
+    type: 'jsonb',
+    nullable: true,
+    default: '[]',
+  })
+  comunicadoTestEmails: string[];
+
   // ── IA Prompt ──────────────────────────────────────────────────────────────
   @Column({ name: 'ai_prompt_config', type: 'jsonb', nullable: true })
   aiPromptConfig: Record<string, any> | null;

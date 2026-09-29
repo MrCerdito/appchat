@@ -32,6 +32,10 @@ export class ComunicadoTemplate {
   @JoinColumn({ name: 'created_by' })
   createdBy: User;
 
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'updated_by' })
+  updatedBy: User;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 

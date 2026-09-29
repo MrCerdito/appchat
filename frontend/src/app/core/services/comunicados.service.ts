@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { Comunicado, ComunicadoStats, ComunicadoTemplate, Destinatario } from '../models/comunicado.model';
+import { Comunicado, ComunicadoStats, ComunicadoTemplate, ComunicadoTemplateLog, Destinatario } from '../models/comunicado.model';
 
 export interface Colegio {
   id: string;
@@ -102,6 +102,25 @@ export class ComunicadosService {
     return this.http.post<SendLanzamiento>(`${environment.apiUrl}/comunicados/${id}/send`, {});
   }
 
+  enviarPrueba(
+    asunto: string,
+    cuerpo: string,
+    emails: string[],
+  ): Observable<{ ok: boolean; enviados: number; mensaje: string }> {
+    return this.http.post<{ ok: boolean; enviados: number; mensaje: string }>(
+      `${environment.apiUrl}/comunicados/test`,
+      { asunto, cuerpo, emails },
+    );
+  }
+
+  getTestCorreos(): Observable<string[]> {
+    return this.http.get<string[]>(`${environment.apiUrl}/comunicados/test-correos`);
+  }
+
+  saveTestCorreos(emails: string[]): Observable<string[]> {
+    return this.http.put<string[]>(`${environment.apiUrl}/comunicados/test-correos`, { emails });
+  }
+
   getSmtpCuota(): Observable<SmtpCuota> {
     return this.http.get<SmtpCuota>(`${environment.apiUrl}/comunicados/smtp-cuota`);
   }
@@ -152,5 +171,9 @@ export class ComunicadosService {
 
   deleteTemplate(id: string): Observable<void> {
     return this.http.delete<void>(`${environment.apiUrl}/comunicados/templates/${id}`);
+  }
+
+  getTemplateLogs(id: string): Observable<ComunicadoTemplateLog[]> {
+    return this.http.get<ComunicadoTemplateLog[]>(`${environment.apiUrl}/comunicados/templates/${id}/logs`);
   }
 }

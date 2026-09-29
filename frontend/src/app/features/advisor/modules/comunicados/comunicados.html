@@ -1,4 +1,4 @@
-﻿<div class="mail-shell">
+﻿<div class="mail-shell" [class.mc-shell--tpl-editing]="view === 'templates' && tplEditing">
 
   <aside class="mc-sidebar">
     <button class="mc-compose-btn" (click)="openCompose()" title="Redactar">
@@ -56,8 +56,8 @@
         }
         @for (t of templates; track trackById($index, t)) {
         <div class="mc-item mc-item--card"
-          [class.selected]="tplActive && tplEditingId === t.id"
-          (click)="editTemplate(t)" [title]="t.name">
+          [class.selected]="(tplEditing ? tplEditingId : (tplPreview?.id ?? null)) === t.id"
+          (click)="selectTemplate(t)" [title]="t.name">
           <div class="mc-item__top-row">
             <div class="mc-item__avatar mc-item__avatar--template">{{ t.name.charAt(0).toUpperCase() }}</div>
             <div class="mc-item__info">
@@ -66,7 +66,21 @@
                 <span class="mc-item__time">{{ fmtDateFull(t.updatedAt) }}</span>
               </div>
               <span class="mc-item__subject">{{ t.asunto || '(Sin asunto)' }}</span>
+              @if (t.updatedBy) {
+              <span class="mc-item__meta" title="Ultima edicion por {{ t.updatedBy.name }}">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                Editada por {{ t.updatedBy.name }}
+              </span>
+              }
             </div>
+            <button class="mc-item__history" type="button" title="Historial de cambios"
+              (click)="$event.stopPropagation(); openTemplateHistory(t)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </button>
+            <button class="mc-item__edit" type="button" title="Editar plantilla"
+              (click)="$event.stopPropagation(); editTemplate(t)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            </button>
             <button class="mc-item__del" type="button" title="Eliminar plantilla"
               (click)="$event.stopPropagation(); deleteTemplate(t)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -135,8 +149,15 @@
   @if (view !== 'compose') {
   <div class="mc-detail">
     @if (view === 'templates') {
-      @if (tplActive) {
+      @if (tplEditing) {
       <div class="mc-tpl">
+        <div class="mc-tpl__topbar">
+          <button class="mc-btn mc-btn--outline mc-btn--sm" (click)="cancelEditTemplate()" [disabled]="tplSaving" title="Volver a la lista">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+            Volver
+          </button>
+          <h3 class="mc-tpl__topbar-title">{{ tplEditingId ? 'Editando plantilla' : 'Nueva plantilla' }}</h3>
+        </div>
         @if (success) {
         <div class="mc-alert mc-alert--success">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -191,10 +212,6 @@
             <div class="mc-section mc-section--actions">
               <div class="mc-action-bar">
                 <div class="mc-action-bar__left">
-                  <button class="mc-btn mc-btn--outline" (click)="openNewTemplate()" [disabled]="tplSaving">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>
-                    Descartar
-                  </button>
                   @if (tplEditingId) {
                   <button class="mc-btn mc-btn--subtle mc-btn--error" (click)="deleteCurrentTemplate()" [disabled]="tplSaving">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
@@ -230,10 +247,31 @@
           </div>
         </div>
       </div>
+      } @else if (tplPreview) {
+      <div class="mc-tpl-preview">
+        <div class="mc-tpl-preview__head">
+          <div class="mc-tpl-preview__info">
+            <h3 class="mc-tpl-preview__name">{{ tplPreview.name }}</h3>
+            @if (tplPreview.updatedBy) {
+            <span class="mc-tpl-preview__sub">Editada el {{ fmtDateTimeFull(tplPreview.updatedAt) }} por {{ tplPreview.updatedBy.name }}</span>
+            } @else {
+            <span class="mc-tpl-preview__sub">Vista previa de la plantilla</span>
+            }
+          </div>
+        </div>
+        <div class="mc-preview__email">
+          <div class="mc-preview__subjectbar">
+            <strong class="mc-preview__subject">{{ templatePreviewAsunto() }}</strong>
+          </div>
+          <div class="mc-preview__body">
+            <iframe #templateFrame class="mc-preview__frame" title="Vista previa de la plantilla" (load)="frameLoad()"></iframe>
+          </div>
+        </div>
+      </div>
       } @else {
       <div class="mc-detail__empty">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-        <p>Selecciona una plantilla de la lista para configurarla</p>
+        <p>Selecciona una plantilla de la lista para ver su vista previa</p>
         <button class="mc-btn mc-btn--primary" (click)="openNewTemplate()">Crear nueva plantilla</button>
       </div>
       }
@@ -453,6 +491,7 @@
             }
           </div>
 
+          <div class="mc-manual-stack">
           <div class="mc-section mc-manual">
             <div class="mc-section__header">
               <div class="mc-section__icon mc-section__icon--teal">
@@ -476,6 +515,38 @@
               <span>{{ destinatarios.length }} destinatario{{ destinatarios.length === 1 ? '' : 's' }} en total</span>
             </div>
             }
+          </div>
+
+          <div class="mc-section mc-test">
+            <div class="mc-section__header">
+              <div class="mc-section__icon mc-section__icon--purple">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/></svg>
+              </div>
+              <div>
+                <h3 class="mc-section__title">Correos de prueba</h3>
+                <p class="mc-section__sub">Pega los correos separados por comas y envía la prueba</p>
+              </div>
+            </div>
+            <div class="mc-test__field">
+              <textarea class="mc-dest__manual-input mc-test__area" [(ngModel)]="pruebaCorreos" placeholder="&quot;prueba1@gmail.com&quot;,&quot;prueba2@gmail.com&quot;" (ngModelChange)="pruebaError = ''; pruebaMsg = ''"></textarea>
+            </div>
+            <div class="mc-test__actions">
+              <button type="button" class="mc-btn mc-btn--primary mc-btn--sm mc-test__send" [disabled]="pruebaSending" (click)="enviarPrueba()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                {{ pruebaSending ? 'Enviando...' : 'Enviar' }}
+              </button>
+              <button type="button" class="mc-btn mc-btn--outline mc-btn--sm mc-test__save" [disabled]="pruebaGuardando" (click)="guardarPrueba()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                {{ pruebaGuardando ? 'Guardando...' : 'Guardar perfiles prueba' }}
+              </button>
+            </div>
+            @if (pruebaMsg) {
+            <p class="mc-test__msg">{{ pruebaMsg }}</p>
+            }
+            @if (pruebaError) {
+            <p class="mc-test__msg mc-test__msg--err">{{ pruebaError }}</p>
+            }
+          </div>
           </div>
         </div>
 
@@ -958,6 +1029,60 @@
       </div>
       <div class="mc-dialog__footer">
         <button class="mc-btn mc-btn--outline" (click)="showSendErrors = false">Cerrar</button>
+      </div>
+    </div>
+  </div>
+  }
+
+  @if (showTemplateHistory) {
+  <div class="mc-overlay" (click)="closeTemplateHistory()">
+    <div class="mc-dialog mc-dialog--history" (click)="$event.stopPropagation()">
+      <div class="mc-dialog__header">
+        <div class="mc-dialog__header-group">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <h3>Historial de cambios</h3>
+        </div>
+        <button type="button" class="mc-dialog__close" (click)="closeTemplateHistory()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="mc-dialog__body mc-dialog__body--scroll">
+        <div class="mc-tpl-log__head">
+          <h4 class="mc-tpl-log__title">{{ historyTemplate?.name || 'Plantilla' }}</h4>
+          <span class="mc-tpl-log__count">{{ templateLogs.length }} eventos</span>
+        </div>
+        @if (templateLogsLoading) {
+        <div class="mc-empty mc-empty--sm"><div class="mc-spinner"></div>Cargando historial...</div>
+        } @else if (templateLogs.length === 0) {
+        <p class="mc-tpl-log__empty">Aun no hay registros de cambios.</p>
+        } @else {
+        <ul class="mc-tpl-log__list">
+          @for (l of templateLogs; track l.id) {
+          <li class="mc-tpl-log__item" [class.mc-tpl-log__item--create]="l.accion === 'crear'" [class.mc-tpl-log__item--delete]="l.accion === 'eliminar'">
+            <span class="mc-tpl-log__dot"></span>
+            <div class="mc-tpl-log__content">
+              <div class="mc-tpl-log__headline">
+                <strong>{{ accionLabel(l.accion) }}</strong>
+                <span class="mc-tpl-log__date">{{ fmtDateTimeFull(l.createdAt) }}</span>
+              </div>
+              <div class="mc-tpl-log__who">
+                por {{ l.usuario?.name || 'Usuario no disponible' }} <span class="mc-tpl-log__mail">({{ l.usuario?.email || '—' }})</span>
+              </div>
+              @if (cambioLabels(l).length > 0) {
+              <div class="mc-tpl-log__changes">
+                @for (c of cambioLabels(l); track c) {
+                <span class="mc-tpl-log__chip">{{ c }}</span>
+                }
+              </div>
+              }
+            </div>
+          </li>
+          }
+        </ul>
+        }
+      </div>
+      <div class="mc-dialog__footer">
+        <button class="mc-btn mc-btn--outline" (click)="closeTemplateHistory()">Cerrar</button>
       </div>
     </div>
   </div>

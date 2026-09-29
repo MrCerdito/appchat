@@ -621,6 +621,7 @@ export class ConfiguracionService implements OnModuleInit {
       mailsenderModo: 'individual',
       metodoEnvioCorreo: 'mailsender',
       mailsenderCredencial: this.mailsenderEnv().credencial,
+      comunicadoTestEmails: [],
       aiPromptConfig: {
         roles: {
           administrador: {
@@ -824,6 +825,26 @@ export class ConfiguracionService implements OnModuleInit {
 
   async getGlobal(): Promise<Configuracion> {
     return this.getEfectiva();
+  }
+
+  /**
+   * Correos de prueba globales de Comunicados. Viven en la fila global
+   * (advisor_id IS NULL) y son compartidos por todos los asesores.
+   */
+  async getComunicadoTestEmails(): Promise<string[]> {
+    const row = await this.getGlobalRow();
+    return Array.isArray(row.comunicadoTestEmails)
+      ? row.comunicadoTestEmails
+      : [];
+  }
+
+  async saveComunicadoTestEmails(emails: string[]): Promise<string[]> {
+    const row = await this.getGlobalRow();
+    row.comunicadoTestEmails = Array.isArray(emails) ? emails : [];
+    const guardado = await this.repo.save(row);
+    return Array.isArray(guardado.comunicadoTestEmails)
+      ? guardado.comunicadoTestEmails
+      : [];
   }
 
   async guardar(
