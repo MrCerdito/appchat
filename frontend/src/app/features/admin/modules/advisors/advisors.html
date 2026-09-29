@@ -102,23 +102,14 @@
   <!-- ═══════════ TOOLBAR: FILTROS + BÚSQUEDA ═══════════ -->
   <div class="toolbar">
     <div class="role-filter" role="group" aria-label="Filtrar por rol">
-      <button class="filter-chip" [class.active]="filtroRol === 'todos'" (click)="setFiltroRol('todos')">
-        Todos <span class="chip-count">{{ roleCounts.todos }}</span>
-      </button>
       <button class="filter-chip" [class.active]="filtroRol === 'advisor'" (click)="setFiltroRol('advisor')">
         Agentes <span class="chip-count">{{ roleCounts.advisor }}</span>
       </button>
-      <button class="filter-chip" [class.active]="filtroRol === 'admin'" (click)="setFiltroRol('admin')">
-        Administradores <span class="chip-count">{{ roleCounts.admin }}</span>
+      <button class="filter-chip" [class.active]="filtroRol === 'todos'" (click)="setFiltroRol('todos')">
+        Todos <span class="chip-count">{{ roleCounts.todos }}</span>
       </button>
       <button class="filter-chip" [class.active]="filtroRol === 'desarrollador'" (click)="setFiltroRol('desarrollador')">
         Desarrolladores <span class="chip-count">{{ roleCounts.desarrollador }}</span>
-      </button>
-      <button class="filter-chip" [class.active]="filtroRol === 'interno'" (click)="setFiltroRol('interno')">
-        Internos <span class="chip-count">{{ roleCounts.interno }}</span>
-      </button>
-      <button class="filter-chip" [class.active]="filtroRol === 'superadmin'" (click)="setFiltroRol('superadmin')">
-        Superadmins <span class="chip-count">{{ roleCounts.superadmin }}</span>
       </button>
     </div>
     <div class="toolbar-actions">
@@ -380,23 +371,24 @@
         </div>
         <div class="snap-summary">
           <span class="snap-state-line" [class.ok]="conexionOptima">
-            @if (conexionOptima) {
-            Conectividad óptima · todos disponibles
-            } @else {
-            {{ conexionSinConexion }} {{ conexionSinConexion === 1 ? 'agente' : 'agentes' }} sin conexión
-            }
+            {{ conexionOptima ? 'Conectividad óptima · todos disponibles' : resumenConectividad }}
           </span>
         </div>
         <div class="snap-list">
-          @for (a of asesoresSinConexion; track a.id) {
+          @for (a of listaConectividad; track a.id) {
           <div class="snap-row">
-            <span class="snap-avatar inactivo">
+            <span class="snap-avatar" [class.inactivo]="getEstadoConAsesor(a) === 'inactivo'">
               {{ a.name.charAt(0) }}
             </span>
             <span class="snap-id">
               <span class="snap-name">{{ a.name }}</span>
+              <span class="snap-mail">{{ a.email }}</span>
             </span>
-            <span class="snap-state st-inactivo">INACTIVO</span>
+            <span class="snap-state st-{{ getEstadoConAsesor(a) }}">{{ getEstadoConLabel(getEstadoConAsesor(a)) }}</span>
+          </div>
+          } @empty {
+          <div class="snap-row">
+            <span class="snap-state-line">Sin asesores registrados.</span>
           </div>
           }
         </div>
@@ -475,15 +467,6 @@
           <span>Sin actividad registrada para este día.</span>
         </div>
         } @else {
-        @if (actividadActual.resumen.estadoFinal) {
-        <div class="hist-resumen-finale">
-          <span class="snap-state" [class]="'st-' + (actividadActual.resumen.estadoFinal === 'busy' ? 'ocupado' : actividadActual.resumen.estadoFinal === 'online' ? 'activo' : 'inactivo')">
-            {{ estadoActualLabel(actividadActual) }}
-          </span>
-          <span class="hist-finale-tail">{{ actividadActual.resumen.primeraConexion ? 'Primera conexión ' + formatHoraMin(actividadActual.resumen.primeraConexion) : 'Sin conexión registrada' }}</span>
-        </div>
-        }
-
         <div class="hist-bar" [title]="jornadaActiva ? 'Jornada laboral ' + jornadaRangoTexto : 'Distribución del día (00:00 → 24:00)'">
           @for (b of barrasActividad(actividadActual); track $index) {
           <span class="hist-bar-seg {{ b.clase }}" [style.width.%]="b.pct" [title]="formatoDuracionMin(b.minutos)"></span>

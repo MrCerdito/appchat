@@ -17,7 +17,8 @@ export type TipoActividad =
   | 'desconexion'
   | 'status'
   | 'almuerzo_inicio'
-  | 'almuerzo_fin';
+  | 'almuerzo_fin'
+  | 'almuerzo';
 
 @Entity('advisor_activity_log')
 @Index('idx_advisor_activity_usuario_fecha', ['userId', 'fecha', 'desde'])

@@ -157,6 +157,8 @@ export class AdvisorsService {
       .take(limit)
       .getManyAndCount();
 
+    await this.aplicarPresencia(data);
+
     const counts = await this.getRoleCounts();
 
     return {
@@ -225,13 +227,40 @@ export class AdvisorsService {
   }
 
   /**
+   * Estados en VIVO para las filas (reutilizado por el listado y la prueba de
+   * conectividad para que ambos coincidan). La presencia real se lee de Redis
+   * (SET de sockets + HASH de estados mantenido por el gateway). Si el asesor
+   * no tiene socket activo se considera 'offline' aunque el hash de preferencia
+   * conserve un estado anterior (ese hash solo se conserva para reconectar).
+   */
+  private async aplicarPresencia<T extends { id: string; status?: string | null }>(
+    filas: T[],
+  ): Promise<T[]> {
+    if (filas.length === 0) return filas;
+    const [connectedIds, statuses] = await Promise.all([
+      this.redisState.getConnectedAdvisorIds().catch(() => [] as string[]),
+      this.redisState
+        .getAdvisorStatuses()
+        .catch(() => ({} as Record<string, string>)),
+    ]);
+    const connectedSet = new Set(connectedIds);
+    for (const f of filas) {
+      const presente = connectedSet.has(f.id);
+      f.status = presente
+        ? (statuses[f.id] ?? f.status ?? 'offline')
+        : 'offline';
+    }
+    return filas;
+  }
+
+  /**
    * Prueba real de conectividad de los asesores (solo rol advisor).
    * La presencia viva se lee de Redis (SET de sockets conectados + HASH de
    * estados), que el gateway mantiene en tiempo real. Un asesor se considera
    * "conectado" si su socket está registrado y su estado es online o busy.
    */
   async checkConectividad(): Promise<ConectividadResult> {
-    const asesores = await this.userRepo.find({
+      const asesores = await this.userRepo.find({
       where: { role: 'advisor' },
       select: [
         'id',
@@ -244,24 +273,18 @@ export class AdvisorsService {
       ],
     });
 
-    const [connectedIds, statuses] = await Promise.all([
-      this.redisState.getConnectedAdvisorIds(),
-      this.redisState.getAdvisorStatuses(),
-    ]);
-    const connectedSet = new Set(connectedIds);
+    const out = await this.aplicarPresencia(asesores);
 
     const lista: ConectividadAsesor[] = [];
     let conectados = 0;
 
-    for (const u of asesores) {
-      const presente = connectedSet.has(u.id);
-      const estado = statuses[u.id] ?? u.status ?? 'offline';
+    for (const u of out) {
+      const estado = u.status ?? 'offline';
       const conectado =
-        presente &&
-        (estado === 'online' ||
-          estado === 'busy' ||
-          estado === 'meeting' ||
-          estado === 'almuerzo');
+        estado === 'online' ||
+        estado === 'busy' ||
+        estado === 'meeting' ||
+        estado === 'almuerzo';
       if (conectado) conectados++;
       lista.push({
         id: u.id,

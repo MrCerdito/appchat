@@ -9,7 +9,10 @@ import {
 import { RedisStateService } from '../common/redis/redis-state.service';
 import { User } from '../auth/entities/user.entity';
 import { ConfiguracionService } from '../configuracion/configuracion.service';
-import { HorarioSlot } from '../configuracion/entities/configuracion.entity';
+import {
+  HorarioSlot,
+  HorarioAlmuerzo,
+} from '../configuracion/entities/configuracion.entity';
 
 export interface RegistrarActividadOpts {
   tipo?: TipoActividad;
@@ -163,6 +166,192 @@ export class AdvisorActivityService {
     return out;
   }
 
+  /** Fusiona rangos de tiempo solapados / consecutivos (para jornada ∪ almuerzo). */
+  private unirRangos(
+    rangos: { ini: Date; fin: Date }[],
+  ): { ini: Date; fin: Date }[] {
+    const sorted = [...rangos].sort(
+      (a, b) => a.ini.getTime() - b.ini.getTime(),
+    );
+    const merged: { ini: Date; fin: Date }[] = [];
+    for (const r of sorted) {
+      const last = merged[merged.length - 1];
+      if (last && r.ini.getTime() <= last.fin.getTime()) {
+        if (r.fin.getTime() > last.fin.getTime()) last.fin = r.fin;
+      } else {
+        merged.push({ ini: r.ini, fin: r.fin });
+      }
+    }
+    return merged;
+  }
+
+  /**
+   * Franja(s) de almuerzo configura del asesor para el día consultado. Es la
+   * fuente de verdad del "almuerzo SIEMPRE": aunque el asesor estuviera
+   * desconectado y no se hayan registrado eventos, la franja se marca igual.
+   * Solo se omite si HOY el asesor la suprimió (skip de almuerzo en Redis).
+   */
+  private async franjasAlmuerzoDelDia(
+    advisorId: string,
+    config: { almuerzos?: HorarioAlmuerzo[] } | undefined,
+    dow: number,
+    dayStartUtc: Date,
+    dia: string,
+    esHoy: boolean,
+  ): Promise<{ ini: Date; fin: Date }[]> {
+    if (!config) return [];
+    const franja = (config.almuerzos ?? []).find((a) => a.dia === dow);
+    if (!franja || !franja.inicio || !franja.fin) return [];
+    if (esHoy) {
+      const salteado = await this.redisState
+        .isLunchSkipped(advisorId, dia)
+        .catch(() => false);
+      if (salteado) return [];
+    }
+    const ini = new Date(
+      dayStartUtc.getTime() + this.hhmmToMin(franja.inicio) * 60000,
+    );
+    const fin = new Date(
+      dayStartUtc.getTime() + this.hhmmToMin(franja.fin) * 60000,
+    );
+    if (fin.getTime() <= ini.getTime()) return [];
+    return [{ ini, fin }];
+  }
+
+  /**
+   * Overlay del almuerzo configurado sobre los periodos del día. Todo
+   * subsegmento que caiga dentro de la franja de almuerzo se marca como
+   * 'almuerzo' conservando el estado original (offline durante el almuerzo se
+   * ve como Almuerzo). Los segmentos ya marcados almuerzo por eventos reales
+   * (y que no se duplican) quedan intactos. No altera conteos por tipo porque
+   * los trozos de conexión/desconexión conservan su tipo original.
+   */
+  private overlayAlmuerzo(
+    periodos: PeriodoActividad[],
+    franjas: { ini: Date; fin: Date }[],
+    esHoy: boolean,
+    ahora: Date,
+  ): PeriodoActividad[] {
+    if (franjas.length === 0) return periodos;
+    const out: PeriodoActividad[] = [];
+    const ahoraMs = ahora.getTime();
+
+    for (const p of periodos) {
+      if (p.almuerzo) {
+        out.push(p);
+        continue;
+      }
+      const pIniMs = new Date(p.desde).getTime();
+      const pFinMs = p.hasta ? new Date(p.hasta).getTime() : ahoraMs;
+
+      const cortes = new Set<number>([pIniMs, pFinMs]);
+      for (const f of franjas) {
+        const li = f.ini.getTime();
+        const lf = f.fin.getTime();
+        if (li > pIniMs) cortes.add(li);
+        if (lf < pFinMs) cortes.add(lf);
+      }
+      const puntos = [...cortes].sort((a, b) => a - b);
+
+      for (let i = 0; i < puntos.length - 1; i++) {
+        const a = puntos[i];
+        const b = puntos[i + 1];
+        if (b <= a) continue;
+        const enAlmuerzo = franjas.some(
+          (f) => a >= f.ini.getTime() && b <= f.fin.getTime(),
+        );
+        const esUltimoTramo = i === puntos.length - 2;
+        const quedaAbierto =
+          esHoy && p.hasta === null && esUltimoTramo && b === pFinMs;
+        out.push({
+          desde: aIso(new Date(a)),
+          hasta: quedaAbierto ? null : aIso(new Date(b)),
+          duracionMs: b - a,
+          estado: p.estado,
+          almuerzo: enAlmuerzo,
+          tipo: enAlmuerzo ? 'almuerzo' : p.tipo,
+          causa: enAlmuerzo ? 'almuerzo' : p.causa,
+        });
+      }
+    }
+    return out;
+  }
+
+  /** Convertir la/s franja/s de almuerzo en periodos de historial (solo los
+   *  tramos ya comenzados; hoy los que aún no empiezan no cuentan). */
+  private periodosFranjaAlmuerzo(
+    franjas: { ini: Date; fin: Date }[],
+    esHoy: boolean,
+    ahora: Date,
+  ): PeriodoActividad[] {
+    const ahoraMs = ahora.getTime();
+    const out: PeriodoActividad[] = [];
+    for (const f of franjas) {
+      const iniMs = f.ini.getTime();
+      const finMs = Math.min(
+        f.fin.getTime(),
+        esHoy ? ahoraMs : f.fin.getTime(),
+      );
+      if (finMs <= iniMs) continue;
+      const abierto = esHoy && ahoraMs < f.fin.getTime();
+      out.push({
+        desde: aIso(f.ini),
+        hasta: abierto ? null : aIso(new Date(finMs)),
+        duracionMs: finMs - iniMs,
+        estado: 'offline',
+        almuerzo: true,
+        tipo: 'almuerzo',
+        causa: 'almuerzo',
+      });
+    }
+    return out;
+  }
+
+  /** Item del historial para un asesor sin eventos pero con almuerzo
+   *  configurado ese día (se registra el almuerzo igual). */
+  private itemSoloAlmuerzo(
+    user: User | undefined,
+    dia: string,
+    esHoy: boolean,
+    userId: string,
+    jornadaActiva: boolean,
+    jornadaIniMs: number,
+    jornadaFinMs: number,
+    lunchPeriodos: PeriodoActividad[],
+  ): ActividadAsesorItem {
+    const baseInactivo = esHoy
+      ? 0
+      : Math.round((jornadaFinMs - jornadaIniMs) / 60000);
+    const almuerzoMin = lunchPeriodos.reduce(
+      (s, p) => s + Math.round(p.duracionMs / 60000),
+      0,
+    );
+    const ultimo = lunchPeriodos[lunchPeriodos.length - 1] ?? null;
+    return {
+      asesorId: userId,
+      nombre: user?.name ?? null,
+      email: user?.email ?? null,
+      profilePhotoUrl: user?.profilePhotoUrl ?? null,
+      rol: user?.role ?? null,
+      resumen: {
+        disponibleMin: 0,
+        ocupadoMin: 0,
+        reunionMin: 0,
+        almuerzoMin,
+        inactivoMin: Math.max(0, baseInactivo - almuerzoMin),
+        desconexiones: 0,
+        primeraConexion: null,
+        ultimaAccion: null,
+        estadoFinal: ultimo?.estado ?? null,
+        segmentoAbierto: !!ultimo && ultimo.hasta === null,
+        sinActividadAntesDe: lunchPeriodos.length
+          ? lunchPeriodos[0].desde
+          : null,
+      },
+      periodos: lunchPeriodos,
+    };
+  }
+
   /**
    * Registra un evento de actividad. Solo guarda si el estado efectivo cambió.
    * Se invoca desde SessionsService.setAdvisorStatus (chokepoint de TODOS los
@@ -296,11 +485,27 @@ export class AdvisorActivityService {
         : [];
     const mapa = new Map(usuarios.map((u) => [u.id, u]));
 
+    const dow = new Date(Date.UTC(y, m - 1, dd)).getUTCDay();
+    const configMap = await this.configuracion
+      .getEfectivaBatch(ids)
+      .catch(() => new Map<string, { almuerzos?: HorarioAlmuerzo[] }>());
+
     const asesores: ActividadAsesorItem[] = [];
 
     for (const userId of ids) {
       const lista = porAsesor[userId];
       const user = mapa.get(userId);
+
+      // Franja de almuerzo configurada para el asesor ese día. Es la fuente de
+      // verdad del "almuerzo SIEMPRE": se marca aunque no haya eventos.
+      const franjasAlmuerzo = await this.franjasAlmuerzoDelDia(
+        userId,
+        configMap.get(userId),
+        dow,
+        dayStartUtc,
+        dia,
+        esHoy,
+      );
 
       // Periodo abierto previo al día (opener): define el estado al arrancar el día.
       const periodos: PeriodoActividad[] = [];
@@ -363,22 +568,76 @@ export class AdvisorActivityService {
       }
 
       if (periodos.length === 0) {
-        // Sin eventos: asesor sin actividad registrada en el día.
+        // Sin eventos: el almuerzo configurado se marca igual (si o si).
+        const lunchSolo = this.periodosFranjaAlmuerzo(
+          franjasAlmuerzo,
+          esHoy,
+          ahora,
+        );
         asesores.push(
-          this.itemVacio(user, dia, esHoy, userId, jornadaActiva, jornadaIniMs, jornadaFinMs),
+          lunchSolo.length > 0
+            ? this.itemSoloAlmuerzo(
+                user,
+                dia,
+                esHoy,
+                userId,
+                jornadaActiva,
+                jornadaIniMs,
+                jornadaFinMs,
+                lunchSolo,
+              )
+            : this.itemVacio(
+                user,
+                dia,
+                esHoy,
+                userId,
+                jornadaActiva,
+                jornadaIniMs,
+                jornadaFinMs,
+              ),
         );
         continue;
       }
 
-      // Recorte a la jornada laboral: solo se cuenta el tiempo dentro de los
-      // slots configurados. Sin jornada (o día sin horario) se mantiene el día completo.
-      const finales: PeriodoActividad[] = jornadaActiva
-        ? periodos.flatMap((p) => this.clipAPeriodo(p, slotRanges, esHoy, ahora))
+      // Recorte a la jornada laboral ∪ almuerzo: solo se cuenta el tiempo
+      // dentro de los slots configurados (el almuerzo, aunque sea hueco entre
+      // slots como 12:00–14:00, siempre cuenta). Sin jornada se mantiene todo.
+      const ventana = this.unirRangos([...slotRanges, ...franjasAlmuerzo]);
+      let finales: PeriodoActividad[] = jornadaActiva
+        ? periodos.flatMap((p) => this.clipAPeriodo(p, ventana, esHoy, ahora))
         : periodos;
 
+      // Overlay: el tramo de la franja de almuerzo se marca como Almuerzo
+      // incluso si el asesor estaba desconectado en ese rango.
+      finales = this.overlayAlmuerzo(finales, franjasAlmuerzo, esHoy, ahora);
+
       if (finales.length === 0) {
+        const lunchSolo = this.periodosFranjaAlmuerzo(
+          franjasAlmuerzo,
+          esHoy,
+          ahora,
+        );
         asesores.push(
-          this.itemVacio(user, dia, esHoy, userId, jornadaActiva, jornadaIniMs, jornadaFinMs),
+          lunchSolo.length > 0
+            ? this.itemSoloAlmuerzo(
+                user,
+                dia,
+                esHoy,
+                userId,
+                jornadaActiva,
+                jornadaIniMs,
+                jornadaFinMs,
+                lunchSolo,
+              )
+            : this.itemVacio(
+                user,
+                dia,
+                esHoy,
+                userId,
+                jornadaActiva,
+                jornadaIniMs,
+                jornadaFinMs,
+              ),
         );
         continue;
       }

@@ -16,7 +16,7 @@ import { SocketService } from '../../../../core/services/socket.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { NotificationService } from '../../../../core/services/notification.service';
 import { User } from '../../../../core/models/user.model';
-import { Subject, debounceTime, distinctUntilChanged, of, Observable, switchMap, tap, firstValueFrom } from 'rxjs';
+import { Subject, debounceTime, distinctUntilChanged, of, Observable, switchMap, tap, firstValueFrom, interval } from 'rxjs';
 import { takeUntil, finalize } from 'rxjs/operators';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
 import { domToPng } from 'modern-screenshot';
@@ -82,13 +82,13 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
   advisors: User[] = [];
   total = 0;
   page = 1;
-  limit = 5;
+  limit = 50;
   pages = 0;
   search = '';
   loading = false;
   error = '';
   success = '';
-  filtroRol: RoleFilter = 'todos';
+  filtroRol: RoleFilter = 'advisor';
   currentUserId: string | null = null;
 
   roleCounts = { todos: 0, advisor: 0, admin: 0, desarrollador: 0, interno: 0, superadmin: 0 };
@@ -196,6 +196,12 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
       takeUntil(this.destroy$),
     ).subscribe(() => this.refreshConectividad());
 
+    // Refresco periódico de la tarjeta aunque no llegue evento de socket
+    // (p. ej. una caída de red sin emit acá): mantiene el estado al día.
+    interval(20_000).pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.refreshConectividad();
+    });
+
     // Recarga el historial individual mostrado (cancela la petición anterior).
     this.historialLoadSubject.pipe(
       takeUntil(this.destroy$),
@@ -282,7 +288,7 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
 
   restablecerFiltros(): void {
     this.search = '';
-    this.filtroRol = 'todos';
+    this.filtroRol = 'advisor';
     this.filterOptions = { activo: false, conectado: false };
     this.page = 1;
     this.menuFiltrosAbierto = false;
@@ -570,10 +576,19 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
     }
 
     // Huecos entre slots de la jornada (p. ej. 12:00–14:00 con jornada 08–12 y 14–18).
+    // Si un periodo ya cubre el hueco (el almuerzo inyectado), no se pinta encima.
     for (let i = 1; i < slots.length; i++) {
       const ini = hhmmToMin(slots[i - 1].fin);
       const fin = hhmmToMin(slots[i].inicio);
       if (fin > ini) {
+        const cubierto = a.periodos.some((p) => {
+          const pIni = (new Date(p.desde).getTime() - dayStartMs) / 60000;
+          const pFin = p.hasta
+            ? (new Date(p.hasta).getTime() - dayStartMs) / 60000
+            : Math.max(0, Math.min((Date.now() - dayStartMs) / 60000, MINUTOS_DIA));
+          return pIni <= ini && pFin >= fin - 0.01;
+        });
+        if (cubierto) continue;
         datos.push({
           ini,
           fin,
@@ -667,16 +682,6 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
     if (p.estado === 'meeting') return 'En reunión';
     if (p.estado === 'online') return 'Disponible';
     return 'Inactivo';
-  }
-
-  estadoActualLabel(a: ActividadAsesor): string {
-    const r = a.resumen;
-    if (!r.estadoFinal) return 'Sin actividad';
-    if (r.estadoFinal === 'offline') return 'INACTIVO';
-    if (r.estadoFinal === 'busy') return 'OCUPADO';
-    if (r.estadoFinal === 'meeting') return 'REUNIÓN';
-    if (r.estadoFinal === 'almuerzo') return 'ALMUERZO';
-    return 'ACTIVO';
   }
 
   /** Expande temporalmente los contenedores con scroll dentro del snapshot
@@ -786,8 +791,37 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
     return this.conexionResultado ? this.conexionResultado.total - this.conexionResultado.conectados : 0;
   }
 
-  get asesoresSinConexion(): ConectividadAsesor[] {
-    return (this.conexionResultado?.asesores ?? []).filter((a) => !a.conectado);
+  /** TODOS los asesores con su estado real (el reporte debe incluir activos,
+   *  ocupados, en reunión, en almuerzo e inactivos, no solo los desconectados). */
+  get listaConectividad(): ConectividadAsesor[] {
+    return [...(this.conexionResultado?.asesores ?? [])].sort((a, b) =>
+      (a.name ?? '').localeCompare(b.name ?? '', 'es'),
+    );
+  }
+
+  /** Conteo por estado, para el resumen del snapshot. */
+  get conteoPorEstado(): Record<'activo' | 'ocupado' | 'reunion' | 'almuerzo' | 'inactivo', number> {
+    const c = { activo: 0, ocupado: 0, reunion: 0, almuerzo: 0, inactivo: 0 };
+    for (const a of this.listaConectividad) c[this.getEstadoConAsesor(a)]++;
+    return c;
+  }
+
+  /** "3 de 5 conectados · 1 en almuerzo · 1 inactivo" */
+  get resumenConectividad(): string {
+    const r = this.conexionResultado;
+    if (!r) return '';
+    const c = this.conteoPorEstado;
+    const partes = [`${r.conectados} de ${r.total} conectados`];
+    if (c.activo) partes.push(this.pluraliza(c.activo, 'activo', 'activos'));
+    if (c.ocupado) partes.push(this.pluraliza(c.ocupado, 'ocupado', 'ocupados'));
+    if (c.reunion) partes.push(this.pluraliza(c.reunion, 'en reunion', 'en reunion'));
+    if (c.almuerzo) partes.push(this.pluraliza(c.almuerzo, 'en almuerzo', 'en almuerzo'));
+    if (c.inactivo) partes.push(this.pluraliza(c.inactivo, 'inactivo', 'inactivos'));
+    return partes.join(' · ');
+  }
+
+  private pluraliza(n: number, singular: string, plural: string): string {
+    return `${n} ${n === 1 ? singular : plural}`;
   }
 
   getEstadoConAsesor(a: ConectividadAsesor): 'activo' | 'ocupado' | 'reunion' | 'almuerzo' | 'inactivo' {
