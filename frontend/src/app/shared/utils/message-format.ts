@@ -35,13 +35,37 @@ export function isHtmlContentLike(text: string): boolean {
   return /<(strong|b|ul|ol|li|div|p|br|span)[\s>]/i.test(text);
 }
 
-/** Limpia HTML existente eliminando etiquetas/atributos peligrosos. */
+/** Limpia HTML existente eliminando etiquetas/atributos peligrosos y todo
+ *  estilo inline (color, fondo, tamaño, etc.) para que las burbujas muestren
+ *  SIEMPRE el color de texto de su tema (p. ej. blanco sobre el gradiente del
+ *  asesor) aunque el contenido venga pegado desde Teams u otra app. Además
+ *  convierte en enlaces clicables las URLs sueltas (https:// y www.). */
 export function secureMessageHtml(html: string): string {
-  return html
+  const cleaned = html
     .replace(/<script[\s\S]*?<\/script>/gi, '')
     .replace(/<\s*(script|iframe|object|embed)/gi, '&lt;$1')
     .replace(/\son[a-z]+\s*=/gi, ' data-blocked=')
+    .replace(/\sstyle\s*=\s*(".*?"|'.*?'|[^\s>]*)/gi, '')
     .replace(/javascript:/gi, '');
+  return linkifyPlainUrls(cleaned);
+}
+
+/** Convierte URLs sueltas en <a> SOLO dentro de nodos de texto, sin tocar
+ *  atributos ni etiquetas (p. ej. "Unirse: https://teams.microsoft.com/..."). */
+function linkifyPlainUrls(text: string): string {
+  if (!/https?:\/\/|www\./i.test(text)) return text;
+  const URL_RE = /(?:https?:\/\/|www\.)[^\s<"']+/gi;
+  return text
+    .split(/(<[^>]+>)/g)
+    .map((part) =>
+      part.startsWith('<')
+        ? part
+        : part.replace(URL_RE, (match) => {
+            const href = match.startsWith('www.') ? `https://${match}` : match;
+            return `<a href="${href}" target="_blank" rel="noopener noreferrer">${match}</a>`;
+          }),
+    )
+    .join('');
 }
 
 /** Punto de entrada: formatea cualquier contenido de mensaje como HTML seguro. */
@@ -49,6 +73,24 @@ export function formatMessageContent(text: string): string {
   if (!text) return '';
   if (isHtmlContentLike(text)) return secureMessageHtml(text);
   return markdownToHtml(text);
+}
+
+// Cache de renderizado por contenido. Evita que Angular reescriba el innerHTML
+// de las burbujas en cada ciclo de detección de cambios (lo que borraba la
+// seleccion del usuario al intentar copiar un mensaje).
+const FORMAT_CACHE_MAX = 600;
+const formatCache = new Map<string, string>();
+
+/** Igual a formatMessageContent pero con cache: mismo contenido → misma
+ *  referencia de string, asi el binding [innerHTML] no se vuelve a escribir. */
+export function memoFormatMessageContent(text: string): string {
+  const key = text ?? '';
+  const cached = formatCache.get(key);
+  if (cached !== undefined) return cached;
+  const html = formatMessageContent(key);
+  if (formatCache.size >= FORMAT_CACHE_MAX) formatCache.clear();
+  formatCache.set(key, html);
+  return html;
 }
 
 // ── Markdown → HTML ────────────────────────────────────────────────────────

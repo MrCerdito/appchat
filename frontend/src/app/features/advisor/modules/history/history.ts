@@ -15,7 +15,7 @@ import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
 import { scrollToBottom } from '../../../../shared/utils/scroll';
 import { fmtDateTimeShort, fmtDateTimeFull, fmtTime } from '../../../../shared/utils/date';
 import { rangoCivilStr } from '../../../../shared/utils/fecha-bogota.util';
-import { formatMessageContent } from '../../../../shared/utils/message-format';
+import { memoFormatMessageContent } from '../../../../shared/utils/message-format';
 
 @Component({
   selector: 'app-history-global',
@@ -105,6 +105,7 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
 
   private currentUserId: string | null = null;
   private destroy$ = new Subject<void>();
+  private msgFormatCache = new Map<string, SafeHtml>();
 
   constructor(
     private sessionService: SessionService,
@@ -405,7 +406,15 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
 
   /** Formatea el contenido (marcadores o HTML) como HTML seguro para la burbuja. */
   formatMessage(text: string): SafeHtml {
-    return this.sanitizer.bypassSecurityTrustHtml(formatMessageContent(text));
+    const key = text ?? '';
+    const cached = this.msgFormatCache.get(key);
+    if (cached) return cached;
+    const html = this.sanitizer.bypassSecurityTrustHtml(
+      memoFormatMessageContent(text),
+    );
+    if (this.msgFormatCache.size >= 600) this.msgFormatCache.clear();
+    this.msgFormatCache.set(key, html);
+    return html;
   }
 
   /** Busca el mensaje citado por replyToMessageId dentro del timeline. */

@@ -13,7 +13,7 @@ import { VoiceRecorderComponent, VoiceRecordingResult } from '../../../../../../
 import { VoicePlayerComponent } from '../../../../../../shared/components/voice-player/voice-player.component';
 import { getInitials, getAvatarColor } from '../../../../../../shared/utils/avatar';
 import { scrollToBottom } from '../../../../../../shared/utils/scroll';
-import { formatMessageContent } from '../../../../../../shared/utils/message-format';
+import { memoFormatMessageContent } from '../../../../../../shared/utils/message-format';
 
 interface Contacto {
   id: string;
@@ -120,6 +120,7 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
   private subs: Subscription[] = [];
   private progressTimer: ReturnType<typeof setInterval> | null = null;
   private dataReady = false;
+  private msgFormatCache = new Map<string, SafeHtml>();
 
   readonly allowedUploadTypes = [
     'image/jpeg',
@@ -798,7 +799,15 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
   }
 
   formatMessage(text: string): SafeHtml {
-    return this.sanitizer.bypassSecurityTrustHtml(formatMessageContent(text));
+    const key = text ?? '';
+    const cached = this.msgFormatCache.get(key);
+    if (cached) return cached;
+    const html = this.sanitizer.bypassSecurityTrustHtml(
+      memoFormatMessageContent(text),
+    );
+    if (this.msgFormatCache.size >= 600) this.msgFormatCache.clear();
+    this.msgFormatCache.set(key, html);
+    return html;
   }
 
   openMediaPreview(msg: Mensaje, event?: Event): void {

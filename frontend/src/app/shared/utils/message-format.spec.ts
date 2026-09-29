@@ -151,6 +151,37 @@ describe('message-format (renderizado de burbujas)', () => {
       expect(secureMessageHtml('<script>alert(1)</script>')).not.toMatch(/<script/i);
     });
 
+    it('contenido pegado (Teams) pierde los colores inline y convierte la URL en enlace clicable', () => {
+      const teams = '<p>Reunión<br><span class="chat-color" style="color:rgb(36, 36, 36)">Unirse:</span><span class="chat-color" style="color:rgb(91, 95, 199)"><u>https://teams.example.com/x</u></span><br><span style="color:rgb(97, 97, 97)">Código:</span><span style="color:rgb(36, 36, 36)">ic6ge34L</span></p>';
+      const html = formatMessageContent(teams);
+      expect(html).not.toMatch(/style=/);
+      expect(html).toContain(
+        '<u><a href="https://teams.example.com/x" target="_blank" rel="noopener noreferrer">https://teams.example.com/x</a></u>',
+      );
+      expect(html).toContain('class="chat-color"');
+    });
+
+    it('no re-enlaza URLs que ya están dentro de un atributo href de una etiqueta <a>', () => {
+      const html = formatMessageContent('<span><a href="https://teams.example.com/ya">Click aquí</a></span>');
+      expect(html).toContain('<a href="https://teams.example.com/ya">Click aquí</a>');
+    });
+
+    it('enlaza URLs sueltas de texto plano entre etiquetas', () => {
+      const html = formatMessageContent('<div>Más info en https://sian365.com/page y www.ejemplo.org</div>');
+      expect(html).toContain(
+        '<a href="https://sian365.com/page" target="_blank" rel="noopener noreferrer">https://sian365.com/page</a>',
+      );
+      expect(html).toContain(
+        '<a href="https://www.ejemplo.org" target="_blank" rel="noopener noreferrer">www.ejemplo.org</a>',
+      );
+    });
+
+    it('el color por marcador [color:...] sí se conserva (canal Markdown, no passthrough)', () => {
+      expect(formatMessageContent('[color:rojo]Urgente[/color]')).toBe(
+        '<p><span style="color:#ef4444">Urgente</span></p>',
+      );
+    });
+
     it('detecta contenido HTML', () => {
       expect(isHtmlContentLike('<strong>x</strong>')).toBe(true);
       expect(isHtmlContentLike('**x**')).toBe(false);

@@ -39,7 +39,7 @@ import {
   isTodayBogota,
   isYesterdayBogota,
 } from '../../../../../shared/utils/date';
-import { formatMessageContent } from '../../../../../shared/utils/message-format';
+import { memoFormatMessageContent } from '../../../../../shared/utils/message-format';
 
 type SelectedFileKind = 'image' | 'audio' | 'file' | null;
 
@@ -156,6 +156,7 @@ export class InternalChatPanelComponent implements OnInit, OnDestroy {
   ];
 
   private subs = new Subscription();
+  private msgFormatCache = new Map<string, SafeHtml>();
   unreadDividerMsgId: string | null = null;
   unreadDividerCount = 0;
   chatReady = false;
@@ -444,7 +445,15 @@ export class InternalChatPanelComponent implements OnInit, OnDestroy {
   }
 
   formatMessage(text: string): SafeHtml {
-    return this.sanitizer.bypassSecurityTrustHtml(formatMessageContent(text));
+    const key = text ?? '';
+    const cached = this.msgFormatCache.get(key);
+    if (cached) return cached;
+    const html = this.sanitizer.bypassSecurityTrustHtml(
+      memoFormatMessageContent(text),
+    );
+    if (this.msgFormatCache.size >= 600) this.msgFormatCache.clear();
+    this.msgFormatCache.set(key, html);
+    return html;
   }
 
   quotedThumb(msg: InternalMessage): string | null {

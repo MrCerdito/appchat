@@ -36,7 +36,7 @@ import {
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
 import { environment } from '../../../../../environments/environment';
 import { buildTicketGeneratedMessage } from '../../../../shared/utils/ticket-categories';
-import { formatMessageContent } from '../../../../shared/utils/message-format';
+import { memoFormatMessageContent } from '../../../../shared/utils/message-format';
 import { scrollToBottom } from '../../../../shared/utils/scroll';
 import { normalizeUploadFile } from '../../../../shared/utils/media';
 import { relativeTime, fmtTime, fmtMedium, sameBogotaDay, isTodayBogota, isYesterdayBogota } from '../../../../shared/utils/date';
@@ -226,6 +226,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   private isTyping       = false;
   private destroy$       = new Subject<void>();
   private resizeObserver: ResizeObserver | null = null;
+  private msgFormatCache = new Map<string, SafeHtml>();
 
   // Sesiones a las que este asesor se unió como apoyo (join_active_chat).
   // Se usan para saber quién puede escribir en un chat activo de otro asesor.
@@ -2138,7 +2139,15 @@ leaveCollabChat(): void {
   }
 
   formatMessage(text: string): SafeHtml {
-    return this.sanitizer.bypassSecurityTrustHtml(formatMessageContent(text));
+    const key = text ?? '';
+    const cached = this.msgFormatCache.get(key);
+    if (cached) return cached;
+    const html = this.sanitizer.bypassSecurityTrustHtml(
+      memoFormatMessageContent(text),
+    );
+    if (this.msgFormatCache.size >= 600) this.msgFormatCache.clear();
+    this.msgFormatCache.set(key, html);
+    return html;
   }
 
   /**

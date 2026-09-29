@@ -19,7 +19,7 @@ import { HttpClient } from '@angular/common/http';
 import { trackByIndex, trackById } from '../../../shared/utils/track-by';
 import { scrollToBottom } from '../../../shared/utils/scroll';
 import { normalizeUploadFile } from '../../../shared/utils/media';
-import { formatMessageContent } from '../../../shared/utils/message-format';
+import { memoFormatMessageContent } from '../../../shared/utils/message-format';
 import { FaqComponent } from '../faq/faq.component';
 import { FaqService, Faq, FaqCategory } from '../../../core/services/faq.service';
 import { PqrsComponent } from '../pqrs/pqrs.component';
@@ -2431,7 +2431,7 @@ En el siguiente menú encontrarás varias opciones en las que te puedes apoyar, 
 }
 
   formatMessage(text: string): string {
-    return formatMessageContent(text);
+    return memoFormatMessageContent(text);
   }
 
   private normalizePhotoUrl(url: string): string {
