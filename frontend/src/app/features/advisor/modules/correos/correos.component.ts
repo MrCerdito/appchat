@@ -621,7 +621,7 @@ export class CorreosComponent implements OnInit, OnDestroy {
           this.recargarEnSilencio();
           this.cdr.markForCheck();
         },
-        error: (err) => {
+        error: (err: unknown) => {
           this.sincronizando = false;
           this.notifs.error(
             'No se pudieron buscar correos nuevos',

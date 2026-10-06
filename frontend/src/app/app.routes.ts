@@ -95,6 +95,12 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/advisor/modules/calendario/calendario.component').then(m => m.CalendarioComponent),
       },
+      {
+        path: 'correos',
+        canActivate: [permisoGuard('correos')],
+        loadComponent: () =>
+          import('./features/advisor/modules/correos/correos.component').then(m => m.CorreosComponent),
+      },
     ],
   },
   {
@@ -207,6 +213,20 @@ export const routes: Routes = [
         canActivate: [permisoGuard('calendario')],
         loadComponent: () =>
           import('./features/advisor/modules/calendario/calendario.component').then(m => m.CalendarioComponent),
+      },
+      {
+        path: 'correos',
+        canActivate: [permisoGuard('correos')],
+        loadComponent: () =>
+          import('./features/admin/modules/correos/correos-admin').then(m => m.CorreosAdmin),
+      },
+      {
+        path: 'correos/asesores',
+        canActivate: [permisoGuard('correos')],
+        loadComponent: () =>
+          import('./features/admin/modules/correos/pages/asesor/correos-asesor-admin').then(
+            m => m.CorreosAsesorAdmin,
+          ),
       },
       {
         path: 'perfil-institucional',

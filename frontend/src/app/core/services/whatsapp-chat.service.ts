@@ -63,6 +63,8 @@ export interface CreateStandaloneMeetingRequest {
   startDateTime: string;
   durationMinutes?: number;
   calendarTarget?: 'shared' | 'none';
+  /** Nombres literales de categoria en Outlook ("Yellow category"). */
+  categorias?: string[];
 }
 
 @Injectable({ providedIn: 'root' })
