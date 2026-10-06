@@ -45,6 +45,7 @@ import {
 export class TareaFormModalComponent implements OnInit {
   @Input() tarea: Tarea | null = null;
   @Input() parentTaskId: string | null = null;
+  @Input() parentRuta = '';
   @Input() ticketId: string | null = null;
 
   @Output() cerrar = new EventEmitter<void>();

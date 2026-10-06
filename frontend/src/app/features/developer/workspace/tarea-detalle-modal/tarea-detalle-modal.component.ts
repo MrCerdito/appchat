@@ -60,6 +60,7 @@ export class TareaDetalleModalComponent implements OnInit, OnChanges {
   @Output() editar = new EventEmitter<Tarea>();
   /** Emite la tarea padre completa, para que el alta herede su ticket. */
   @Output() nuevaSubtarea = new EventEmitter<Tarea>();
+  @Output() eliminada = new EventEmitter<void>();
 
   readonly statusMeta = TAREA_STATUS_META;
   readonly prioridadMeta = TAREA_PRIORIDAD_META;
@@ -75,6 +76,8 @@ export class TareaDetalleModalComponent implements OnInit, OnChanges {
   notaTiempo = '';
   registrandoTiempo = false;
   guardandoEstado = false;
+  confirmandoEliminacion = false;
+  eliminando = false;
 
   /** Ids de nodos colapsados. Vacio = todo expandido. */
   private colapsados = new Set<string>();
@@ -137,6 +140,10 @@ export class TareaDetalleModalComponent implements OnInit, OnChanges {
   get puedeEditar(): boolean {
     if (this.esAdmin || this.soyCreador) return true;
     return (this.detalle?.asignados.length ?? 0) > 0;
+  }
+
+  get puedeEliminar(): boolean {
+    return this.esAdmin || this.soyCreador;
   }
 
   // ── Encabezado ────────────────────────────────────────
@@ -224,21 +231,35 @@ export class TareaDetalleModalComponent implements OnInit, OnChanges {
    * contadores del backend solo miran descendientes; `totalRaiz` y
    * `completadasRaiz` hacen el +1 de la tarea abierta por separado.
    */
+  conteoArbol(tarea: Tarea): { total: number; completadas: number } {
+    let total = 0;
+    let completadas = 0;
+    const contar = (n: Tarea): void => {
+      for (const h of n.hijos ?? []) {
+        total++;
+        if (this.estaCompletada(h)) completadas++;
+        contar(h);
+      }
+    };
+    contar(tarea);
+    return { total, completadas };
+  }
+
   rollup(id: string, campo: 'total' | 'completadas'): number {
     if (!this.detalle) return 0;
     const t = id === this.detalle.id ? this.detalle : this.buscar(id);
-    return t ? t.subtareas[campo] : 0;
+    return t ? this.conteoArbol(t)[campo] : 0;
   }
 
   /** Total del subarbol incluyendo la tarea abierta. */
   get totalRaiz(): number {
-    return this.detalle ? this.detalle.subtareas.total + 1 : 0;
+    return this.detalle ? this.conteoArbol(this.detalle).total + 1 : 0;
   }
 
   /** Completadas del subarbol incluyendo la tarea abierta. */
   get completadasRaiz(): number {
     if (!this.detalle) return 0;
-    return this.detalle.subtareas.completadas + (this.estaCompletada(this.detalle) ? 1 : 0);
+    return this.conteoArbol(this.detalle).completadas + (this.estaCompletada(this.detalle) ? 1 : 0);
   }
 
   get porcentajeRaiz(): number {
@@ -358,7 +379,26 @@ export class TareaDetalleModalComponent implements OnInit, OnChanges {
           this.cambiado.emit();
         },
         error: (e) => this.notif.error(e?.error?.message ?? 'No se pudo eliminar'),
-      });
+    });
+  }
+
+  confirmarBorrado(): void {
+    if (!this.puedeEliminar || this.eliminando || !this.detalle) return;
+    this.eliminando = true;
+    this.tareas.remove(this.detalle.id).pipe(takeUntil(this.destroy$)).subscribe({
+      next: (r) => {
+        this.eliminando = false;
+        this.notif.success(r.descendientes ? `Tarea y ${r.descendientes} subtareas eliminadas` : 'Tarea eliminada');
+        this.eliminada.emit();
+        this.cerrar.emit();
+      },
+      error: (e) => {
+        this.eliminando = false;
+        this.confirmandoEliminacion = false;
+        this.notif.error(e?.error?.message ?? 'No se pudo eliminar la tarea');
+        this.cdr.markForCheck();
+      },
+    });
   }
 
   // ── Utilidades ────────────────────────────────────────

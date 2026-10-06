@@ -15,6 +15,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import {
   NotificationsService,
   CreateNotificationDto,
+  NotificationSection,
 } from './notifications.service';
 import { NotificationPreferences } from './user-notification-preference.entity';
 
@@ -47,16 +48,28 @@ export class NotificationsController {
     return this.svc.markAsRead(id, req.user.id);
   }
 
+  @Patch('correo/:correoId/read')
+  @HttpCode(HttpStatus.OK)
+  markCorreoAbierto(@Param('correoId') correoId: string, @Request() req: any) {
+    return this.svc.markCorreoAbierto(correoId, req.user.id);
+  }
+
   @Patch('read-all')
   @HttpCode(HttpStatus.OK)
-  markAllAsRead(@Request() req: any) {
-    return this.svc.markAllAsRead(req.user.id);
+  markAllAsRead(
+    @Request() req: any,
+    @Body() body?: { section?: NotificationSection },
+  ) {
+    return this.svc.markAllAsRead(req.user.id, body?.section);
   }
 
   @Delete()
   @HttpCode(HttpStatus.OK)
-  removeMany(@Request() req: any, @Body() body: { ids?: string[] }) {
-    return this.svc.removeMany(req.user.id, body?.ids);
+  removeMany(
+    @Request() req: any,
+    @Body() body: { ids?: string[]; section?: NotificationSection },
+  ) {
+    return this.svc.removeMany(req.user.id, body?.ids, body?.section);
   }
 
   @Delete(':id')

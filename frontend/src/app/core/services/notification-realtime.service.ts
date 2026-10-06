@@ -1,7 +1,7 @@
 import { Injectable, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Observable, map, takeUntil, Subject } from 'rxjs';
+import { Observable, map, takeUntil, Subject, timer, filter, fromEvent, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { SocketService } from './socket.service';
 import { AuthService } from './auth.service';
@@ -9,6 +9,7 @@ import {
   Notification as AppNotification,
   NotificationListResponse,
   NotificationPreferences,
+  NotificationSection,
 } from '../models/notification.model';
 
 /**
@@ -23,6 +24,8 @@ export class NotificationRealtimeService {
   private readonly api = `${environment.apiUrl}/notifications`;
   private destroy$ = new Subject<void>();
   private initialized = false;
+  private baselineLoaded = false;
+  private refreshing = false;
   private currentUserId = '';
 
   readonly notifications = signal<AppNotification[]>([]);
@@ -34,6 +37,7 @@ export class NotificationRealtimeService {
   readonly permission = signal<NotificationPermission>(
     typeof Notification !== 'undefined' ? Notification.permission : 'default'
   );
+  readonly preferences = signal<NotificationPreferences | null>(null);
 
   constructor(
     private readonly http: HttpClient,
@@ -53,6 +57,11 @@ export class NotificationRealtimeService {
           this.currentUserId = id;
           this.resetState();
           this.loadAll();
+          this.getPreferences().subscribe({ error: () => undefined });
+        } else if (!id && this.currentUserId) {
+          this.currentUserId = '';
+          this.resetState();
+          this.preferences.set(null);
         }
       });
 
@@ -71,6 +80,26 @@ export class NotificationRealtimeService {
           this.showDesktopNotification(notif);
         }
       });
+
+    // Las notificaciones no dependen de que el usuario tenga abierto el panel
+    // ni el módulo de correos. Se recuperan eventos perdidos al reconectar,
+    // volver a la pestaña o mediante un sondeo liviano como último respaldo.
+    socket.connected$
+      .pipe(filter(Boolean), takeUntil(this.destroy$))
+      .subscribe(() => this.refresh(true));
+    timer(60_000, 60_000)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => this.refresh(true));
+    if (typeof document !== 'undefined') {
+      fromEvent(document, 'visibilitychange')
+        .pipe(filter(() => document.visibilityState === 'visible'), takeUntil(this.destroy$))
+        .subscribe(() => this.refresh(true));
+    }
+    if (typeof window !== 'undefined') {
+      fromEvent(window, 'focus')
+        .pipe(takeUntil(this.destroy$))
+        .subscribe(() => this.refresh(true));
+    }
   }
 
   private resetState(): void {
@@ -78,30 +107,73 @@ export class NotificationRealtimeService {
     this.total.set(0);
     this.unreadCount.set(0);
     this.nextPage.set(2);
+    this.baselineLoaded = false;
   }
 
   private loadAll(): void {
     this.fetchUnreadCount().subscribe({ error: () => undefined });
-    this.fetchAll(50).subscribe({ error: () => undefined });
-  }
-
-  requestPermission(): void {
-    if (typeof Notification === 'undefined') return;
-    if (Notification.permission === 'granted') {
-      this.permission.set('granted');
-      return;
-    }
-    if (Notification.permission === 'denied') {
-      this.permission.set('denied');
-      return;
-    }
-    Notification.requestPermission().then((result) => {
-      this.permission.set(result);
+    this.fetchAll(50).subscribe({
+      error: () => undefined,
+      complete: () => { this.baselineLoaded = true; },
     });
   }
 
-  setPermission(value: 'granted' | 'denied' | 'default'): void {
-    this.permission.set(value as NotificationPermission);
+  /** Actualiza el inicio de la bandeja y conserva el historial ya cargado. */
+  refresh(notifyMissed = true): void {
+    if (!this.currentUserId || this.refreshing) return;
+    this.refreshing = true;
+    this.http.get<NotificationListResponse>(this.api, {
+      params: { page: '1', limit: '50' },
+    }).subscribe({
+      next: (res) => {
+        const current = this.notifications();
+        const ids = new Set(current.map((n) => n.id));
+        const incoming = res.data.filter((n) => !ids.has(n.id));
+        if (notifyMissed && this.baselineLoaded && this.permission() === 'granted') {
+          for (const n of incoming) {
+            if (this.preferences()?.[n.type as keyof NotificationPreferences]?.desktop) {
+              this.showDesktopNotification(n);
+            }
+          }
+        }
+        const merged = new Map<string, AppNotification>();
+        for (const n of incoming) merged.set(n.id, n);
+        for (const n of current) merged.set(n.id, n);
+        for (const n of res.data) merged.set(n.id, n);
+        this.notifications.set([...merged.values()].sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        ));
+        this.total.set(res.total);
+        this.unreadCount.set(res.unreadCount);
+      },
+      error: () => { this.refreshing = false; },
+      complete: () => { this.refreshing = false; },
+    });
+  }
+
+  requestPermission(): Promise<NotificationPermission> {
+    if (typeof Notification === 'undefined') {
+      const unavailable = 'denied' as NotificationPermission;
+      this.permission.set(unavailable);
+      return Promise.resolve(unavailable);
+    }
+    if (Notification.permission === 'granted') {
+      this.permission.set('granted');
+      return Promise.resolve('granted');
+    }
+    if (Notification.permission === 'denied') {
+      this.permission.set('denied');
+      return Promise.resolve('denied');
+    }
+    return Notification.requestPermission()
+      .then((result) => {
+        this.permission.set(result);
+        return result;
+      })
+      .catch(() => {
+        this.permission.set(Notification.permission);
+        return Notification.permission;
+      });
   }
 
   private showDesktopNotification(notif: any): void {
@@ -245,16 +317,50 @@ export class NotificationRealtimeService {
       );
   }
 
-  markAllAsRead(): Observable<void> {
+  /** Se invoca únicamente después de cargar el cuerpo del correo en la app. */
+  markCorreoAbierto(correoId: string): Observable<void> {
+    return this.http.patch<void>(`${this.api}/correo/${correoId}/read`, {}).pipe(
+      map(() => {
+        let marcadas = 0;
+        const ahora = new Date().toISOString();
+        this.notifications.update((items) => items.map((n) => {
+          if (n.type !== 'correo_nuevo' || n.read) return n;
+          const metaIds = n.meta?.['correoIds'];
+          const ids: string[] = Array.isArray(metaIds) && metaIds.length
+            ? metaIds.filter((id): id is string => typeof id === 'string')
+            : [n.entityId];
+          if (!ids.includes(correoId)) return n;
+          const previos = n.meta?.['correoLeidos'];
+          const leidos = new Set<string>(
+            Array.isArray(previos) ? previos.filter((id): id is string => typeof id === 'string') : [],
+          );
+          leidos.add(correoId);
+          const read = ids.every((id) => leidos.has(id));
+          if (read) marcadas++;
+          return {
+            ...n,
+            read,
+            readAt: read ? ahora : null,
+            meta: { ...(n.meta ?? {}), correoLeidos: [...leidos] },
+          };
+        }));
+        if (marcadas) this.unreadCount.update((count) => Math.max(0, count - marcadas));
+      }),
+    );
+  }
+
+  markAllAsRead(section?: NotificationSection): Observable<void> {
     return this.http
-      .patch<void>(`${this.api}/read-all`, {})
+      .patch<void>(`${this.api}/read-all`, section ? { section } : {})
       .pipe(
         map(() => {
           const current = this.notifications();
           this.notifications.set(
-            current.map((n) => ({ ...n, read: true, readAt: new Date().toISOString() })),
+            current.map((n) => this.inSection(n.type, section) && !n.read
+              ? { ...n, read: true, readAt: new Date().toISOString() }
+              : n),
           );
-          this.unreadCount.set(0);
+          this.unreadCount.set(current.filter((n) => !n.read && !this.inSection(n.type, section)).length);
         }),
       );
   }
@@ -272,10 +378,11 @@ export class NotificationRealtimeService {
     );
   }
 
-  removeMany(ids?: string[]): Observable<void> {
-    return this.http.request<void>('delete', this.api, { body: { ids } }).pipe(
+  removeMany(ids?: string[], section?: NotificationSection): Observable<void> {
+    return this.http.request<void>('delete', this.api, { body: { ids, section } }).pipe(
       map(() => {
-        const toRemove = new Set<string>(ids ?? this.notifications().map((n) => n.id));
+        const toRemove = new Set<string>(ids ?? this.notifications()
+          .filter((n) => this.inSection(n.type, section)).map((n) => n.id));
         const keep = this.notifications().filter((n) => !toRemove.has(n.id));
         this.notifications.set(keep);
         this.total.set(keep.length);
@@ -285,10 +392,21 @@ export class NotificationRealtimeService {
   }
 
   getPreferences(): Observable<NotificationPreferences> {
-    return this.http.get<NotificationPreferences>(`${this.api}/preferences`);
+    return this.http.get<NotificationPreferences>(`${this.api}/preferences`).pipe(
+      tap((prefs) => this.preferences.set(prefs)),
+    );
   }
 
   updatePreferences(prefs: NotificationPreferences): Observable<NotificationPreferences> {
-    return this.http.patch<NotificationPreferences>(`${this.api}/preferences`, prefs);
+    return this.http.patch<NotificationPreferences>(`${this.api}/preferences`, prefs).pipe(
+      tap((updated) => this.preferences.set(updated)),
+    );
+  }
+
+  private inSection(type: string, section?: NotificationSection): boolean {
+    if (!section) return true;
+    if (section === 'tickets') return type.startsWith('ticket_');
+    if (section === 'correos') return type === 'correo_nuevo';
+    return !type.startsWith('ticket_') && type !== 'correo_nuevo';
   }
 }

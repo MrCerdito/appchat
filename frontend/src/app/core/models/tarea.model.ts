@@ -180,6 +180,8 @@ export interface TareaUpdateDto {
   descripcion?: string | null;
   status?: TareaStatus;
   prioridad?: TareaPrioridad;
+  /** null mueve la tarea al nivel raíz. */
+  parentTaskId?: string | null;
   ticketId?: string | null;
   moduloId?: string | null;
   asignados?: string[];
@@ -199,7 +201,7 @@ export interface TareaQuery {
   q?: string;
   soloSinTicket?: boolean;
   soloRaiz?: boolean;
-  vista?: 'panel' | 'kanban' | 'lista';
+  vista?: 'panel' | 'kanban' | 'lista' | 'arbol';
   page?: number;
   limit?: number;
 }

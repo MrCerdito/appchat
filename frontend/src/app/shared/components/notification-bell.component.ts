@@ -5,6 +5,12 @@ import { Subject, takeUntil } from 'rxjs';
 import { SocketService } from '../../core/services/socket.service';
 import { AuthService } from '../../core/services/auth.service';
 import { NotificationRealtimeService } from '../../core/services/notification-realtime.service';
+import { Notification, NotificationSection } from '../../core/models/notification.model';
+import {
+  countNotificationsInSection,
+  NOTIFICATION_SECTIONS,
+  notificationsInSection,
+} from '../../core/models/notification-section.util';
 
 const TYPE_LABELS: Record<string, string> = {
   ticket_created: 'Ticket creado',
@@ -83,7 +89,14 @@ const TYPE_FG: Record<string, string> = {
                 <path d="M13.73 21a1.94 1.94 0 0 1-3.46 0"/>
               </svg>
             </div>
-            <h3>Notificaciones</h3>
+            <div class="notif-heading-copy"><h3>Notificaciones</h3><span>Actividad de tu cuenta</span></div>
+            <label class="notif-global-switch" title="Activar o desactivar los avisos del dispositivo">
+              <span class="notif-global-copy"><strong>Avisos</strong><small>{{ notificacionesEstado }}</small>@if (preferencesError) { <small class="notif-global-error">{{ preferencesError }}</small> }</span>
+              <input type="checkbox" [checked]="notificacionesActivas"
+                [disabled]="preferencesLoading || savingGlobalNotifications || !svc.preferences()"
+                (change)="toggleGlobalNotifications($event)" aria-label="Activar o desactivar todas las notificaciones de escritorio">
+              <span class="notif-global-track"><span></span></span>
+            </label>
           </div>
           <div class="notif-header-actions">
             @if (selectedIds.size > 0) {
@@ -96,56 +109,54 @@ const TYPE_FG: Record<string, string> = {
               </button>
               <button class="notif-bulk-cancel" (click)="clearSelection()">Cancelar</button>
             } @else {
-              @if (svc.hasUnread() && svc.notifications().length > 0) {
-                <button class="notif-mark-all" (click)="markAllRead()">Marcar le&iacute;dos</button>
+              @if (activeSection !== 'correos' && unreadInSection(activeSection) > 0) {
+                <button class="notif-mark-all" (click)="markAllRead()">Marcar sección leída</button>
               }
-              @if (svc.notifications().length > 0) {
+              @if (activeSection !== 'correos' && totalInSection(activeSection) > 0) {
                 <button class="notif-delete-all" (click)="deleteAll()">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
                     <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
                   </svg>
-                  Borrar todo
+                  Borrar sección
                 </button>
               }
             }
           </div>
         </div>
 
-        <div class="notif-desktop-row">
-          <div class="notif-desk-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
-              <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
-            </svg>
-          </div>
-          <div class="notif-desk-text">
-            <span class="notif-desk-title">Notificaciones de escritorio</span>
-            <span class="notif-desk-sub">Recibe alertas en tiempo real</span>
-          </div>
-          <label class="notif-toggle">
-            <input type="checkbox" [checked]="svc.permission() === 'granted'" (change)="toggleDesktop($event)">
-            <span class="notif-toggle-track"><span class="notif-toggle-thumb"></span></span>
-          </label>
-        </div>
+        <nav class="notif-sections" role="tablist" aria-label="Secciones de notificaciones">
+          @for (section of sections; track section.id) {
+          <button type="button" class="notif-section-tab" role="tab"
+            [class.active]="activeSection === section.id"
+            [attr.aria-selected]="activeSection === section.id"
+            (click)="setSection(section.id)">
+            <span class="notif-section-name">{{ section.label }}</span>
+            <span class="notif-section-count" [class.has-unread]="unreadInSection(section.id) > 0"
+              [attr.aria-label]="unreadInSection(section.id) + ' notificaciones sin leer'">{{ unreadInSection(section.id) > 99 ? '99+' : unreadInSection(section.id) }}</span>
+          </button>
+          }
+        </nav>
 
         <div class="notif-list">
-          @if (svc.notifications().length === 0) {
+          @if (filteredNotifications.length === 0) {
             <div class="notif-empty">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="44" height="44">
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
                 <path d="M13.73 21a1.94 1.94 0 0 1-3.46 0"/>
               </svg>
-              <p>Sin notificaciones</p>
+              <p>{{ emptyTitle }}</p>
+              <span>{{ emptyDescription }}</span>
             </div>
           }
-          @for (n of svc.notifications(); track n.id) {
+          @for (n of filteredNotifications; track n.id) {
           <div class="notif-item-wrap" [class.deleting]="deletingId === n.id" [class.dragging]="draggingId === n.id">
             <div class="notif-delete-bg" [style.opacity]="deleteOpacity(n.id)">
-              <button class="notif-delete-btn" title="Eliminar" (click)="deleteNotif(n)">
+              @if (n.type !== 'correo_nuevo') { <button class="notif-delete-btn" title="Eliminar" (click)="deleteNotif(n)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
                   <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
                 </svg>
                 <span class="notif-delete-label">Borrar</span>
-              </button>
+              </button> }
             </div>
             <div
               class="notif-item"
@@ -159,12 +170,12 @@ const TYPE_FG: Record<string, string> = {
               (pointerup)="onPointerUp($event, n.id)"
               (pointercancel)="onPointerCancel($event, n.id)"
             >
-              <label class="notif-check" (click)="$event.stopPropagation()" (pointerdown)="$event.stopPropagation()">
+              @if (n.type !== 'correo_nuevo') { <label class="notif-check" (click)="$event.stopPropagation()" (pointerdown)="$event.stopPropagation()">
                 <input type="checkbox" [checked]="isSelected(n.id)" (change)="toggleSelect(n.id, $event)" aria-label="Seleccionar">
                 <span class="notif-checkbox">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="12" height="12"><polyline points="20 6 9 17 4 12"/></svg>
                 </span>
-              </label>
+              </label> }
               <div class="notif-icon" [style.background]="iconBg(n.type)" [style.color]="iconFg(n.type)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24">
                   @switch (n.type) {
@@ -180,6 +191,7 @@ const TYPE_FG: Record<string, string> = {
                     @case ('ticket_deleted') { <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/> }
                     @case ('ticket_sla_warning') { <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/> }
                     @case ('ticket_sla_expired') { <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/> }
+                    @case ('correo_nuevo') { <rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/> }
                     @default { <circle cx="12" cy="12" r="10"/> }
                   }
                 </svg>
@@ -187,11 +199,14 @@ const TYPE_FG: Record<string, string> = {
               <div class="notif-content">
                 <span class="notif-title">{{ n.title }}</span>
                 <span class="notif-msg">{{ n.message }}</span>
+                @if (emailSubject(n)) {
+                  <span class="notif-email-subject">Asunto: {{ emailSubject(n) }}</span>
+                }
                 <span
                   class="notif-tag"
                   [style.background]="iconBg(n.type)"
                   [style.color]="iconFg(n.type)"
-                >{{ tagLabel(n.type) }}</span>
+                >{{ tagLabel(n.type, n) }}</span>
               </div>
               <div class="notif-meta">
                 <span class="notif-time">{{ fmtTime(n.createdAt) }}</span>
@@ -209,7 +224,7 @@ const TYPE_FG: Record<string, string> = {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="15" height="15">
               <polyline points="20 6 9 17 4 12"/>
             </svg>
-            Mostrando las &uacute;ltimas {{ svc.notifications().length }}
+            {{ totalInSection(activeSection) }} aviso{{ totalInSection(activeSection) === 1 ? '' : 's' }} · {{ unreadInSection(activeSection) }} sin leer
           </span>
           @if (!svc.loadedAll()) {
             <button class="notif-footer-view" (click)="viewAll()">Ver todas
@@ -295,6 +310,7 @@ const TYPE_FG: Record<string, string> = {
       display: flex;
       align-items: center;
       justify-content: space-between;
+      flex-wrap: wrap;
       gap: 12px;
       padding: 20px 24px 16px;
       border-bottom: 1px solid #eef0f5;
@@ -327,6 +343,27 @@ const TYPE_FG: Record<string, string> = {
       letter-spacing: -0.01em;
       white-space: nowrap;
     }
+
+    .notif-heading-copy { min-width: 0; }
+    .notif-heading-copy > span { display: block; margin-top: 2px; color: #98a1b3; font-size: 12px; }
+
+    .notif-global-switch {
+      display: inline-flex; align-items: center; gap: 9px; flex: none; cursor: pointer;
+      padding: 7px 10px; border: 1px solid #e7eaf0; border-radius: 12px; background: #fff;
+      transition: border-color .15s, background .15s;
+    }
+    .notif-global-switch:hover { border-color: #c7d2fe; background: #fafaff; }
+    .notif-global-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .notif-global-copy strong { color: #344054; font-size: 11px; font-weight: 750; }
+    .notif-global-copy small { max-width: 150px; color: #98a1b3; font-size: 9px; line-height: 1.25; }
+    .notif-global-switch input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+    .notif-global-track { display: block; position: relative; width: 34px; height: 19px; flex: none; border-radius: 99px; background: #d0d5dd; transition: background .16s; }
+    .notif-global-track span { position: absolute; top: 2px; left: 2px; width: 15px; height: 15px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(16,24,40,.2); transition: transform .16s; }
+    .notif-global-switch input:checked + .notif-global-track { background: #4f46e5; }
+    .notif-global-switch input:checked + .notif-global-track span { transform: translateX(15px); }
+    .notif-global-switch input:focus-visible + .notif-global-track { outline: 3px solid rgba(99,102,241,.25); outline-offset: 2px; }
+    .notif-global-switch input:disabled + .notif-global-track { opacity: .55; }
+    .notif-global-error { display: block; margin-top: 2px; color: #dc2626 !important; }
 
     .notif-header-actions {
       display: flex;
@@ -364,6 +401,34 @@ const TYPE_FG: Record<string, string> = {
       white-space: nowrap;
     }
     .notif-delete-all:hover { background: #fef2f2; border-color: #fca5a5; }
+
+    .notif-permission-btn {
+      border: 1px solid #c7d2fe; border-radius: 9px; padding: 7px 11px;
+      background: #eef2ff; color: #4f46e5; font-size: 12px; font-weight: 700; cursor: pointer;
+    }
+    .notif-permission-btn:hover { background: #e0e7ff; }
+    .notif-permission-state { flex: none; padding: 5px 9px; border-radius: 999px; background: #f2f4f7; color: #667085; font-size: 11px; font-weight: 650; }
+    .notif-permission-state.is-on { background: #ecfdf3; color: #16803c; }
+
+    .notif-sections {
+      display: flex; gap: 7px; overflow-x: auto; padding: 12px 20px;
+      border-bottom: 1px solid #eef0f5; background: #fff;
+    }
+    .notif-section-tab {
+      position: relative; display: inline-flex; align-items: center; gap: 7px; flex: none;
+      border: 1px solid #e7eaf0; border-radius: 999px; padding: 8px 12px;
+      background: #fff; color: #667085; font: inherit; cursor: pointer; transition: .15s ease;
+    }
+    .notif-section-tab:hover { border-color: #c7d2fe; background: #f8f9ff; }
+    .notif-section-tab.active { border-color: #c7d2fe; background: #eef2ff; color: #4338ca; }
+    .notif-section-name { font-size: 12px; font-weight: 700; }
+    .notif-section-count { display: grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: rgba(16,24,40,.06); color: inherit; font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .notif-section-count.has-unread { background: #e5484d; color: white; }
+    .notif-email-setting { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 22px; border-bottom: 1px solid #eef0f5; background: #fbfcfe; }
+    .notif-email-setting-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .notif-email-setting-copy strong { color: #344054; font-size: 11px; font-weight: 700; }
+    .notif-email-setting-copy small { color: #98a1b3; font-size: 10px; }
+    .notif-email-setting-copy .notif-pref-error { color: #dc2626; }
 
     .notif-selected-count {
       font-size: 13px;
@@ -667,6 +732,8 @@ const TYPE_FG: Record<string, string> = {
       overflow: hidden;
     }
 
+    .notif-email-subject { color: #475467; font-size: 13px; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }
+
     .notif-tag {
       align-self: flex-start;
       margin-top: 5px;
@@ -758,6 +825,15 @@ const TYPE_FG: Record<string, string> = {
         padding: 12px 14px 10px;
         h3 { font-size: 17px; }
       }
+      .notif-heading-copy > span { font-size: 10px; }
+      .notif-head-left { flex: 1 1 100%; justify-content: space-between; gap: 7px; }
+      .notif-global-switch { gap: 6px; padding: 6px 7px; }
+      .notif-global-copy small { max-width: 112px; font-size: 8px; }
+      .notif-header-actions { width: 100%; justify-content: flex-end; }
+      .notif-sections { padding: 9px 11px; gap: 5px; }
+      .notif-section-tab { gap: 5px; padding: 7px 9px; }
+      .notif-section-name { font-size: 11px; }
+      .notif-email-setting { padding: 8px 13px; }
 
       .notif-list {
         max-height: none;
@@ -769,7 +845,7 @@ const TYPE_FG: Record<string, string> = {
       }
 
       .notif-header-actions { gap: 4px; }
-      .notif-delete-all, .notif-mark-all, .notif-bulk-del {
+      .notif-delete-all, .notif-mark-all, .notif-bulk-del, .notif-permission-btn {
         padding: 5px 8px;
         font-size: 11px;
       }
@@ -819,7 +895,12 @@ const TYPE_FG: Record<string, string> = {
   `],
 })
 export class NotificationBellComponent implements OnInit, OnDestroy {
+  readonly sections = NOTIFICATION_SECTIONS;
+  activeSection: NotificationSection = 'tickets';
   panelOpen = false;
+  preferencesLoading = true;
+  savingGlobalNotifications = false;
+  preferencesError = '';
   private destroy$ = new Subject<void>();
   private userRole: string | null = null;
 
@@ -833,6 +914,10 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.svc.init(this.socket);
+    this.svc.getPreferences().subscribe({
+      next: () => { this.preferencesLoading = false; this.preferencesError = ''; this.cdr.markForCheck(); },
+      error: () => { this.preferencesLoading = false; this.preferencesError = 'No se pudo cargar esta preferencia.'; this.cdr.markForCheck(); },
+    });
     this.auth.user$.pipe(takeUntil(this.destroy$)).subscribe(user => {
       this.userRole = user?.role ?? null;
     });
@@ -847,8 +932,7 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
     e.stopPropagation();
     this.panelOpen = !this.panelOpen;
     if (this.panelOpen) {
-      this.svc.requestPermission();
-      this.svc.fetch().subscribe();
+      this.svc.refresh();
     } else {
       this.clearPanelState();
     }
@@ -865,17 +949,97 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
-  toggleDesktop(e: Event): void {
-    e.stopPropagation();
-    if (this.svc.permission() === 'granted') {
-      this.svc.setPermission('denied');
-    } else {
-      this.svc.requestPermission();
+  get notificacionesActivas(): boolean {
+    const preferences = this.svc.preferences();
+    return this.svc.permission() === 'granted' && !!preferences &&
+      Object.values(preferences).every((preference) => preference.desktop);
+  }
+
+  get notificacionesEstado(): string {
+    if (this.preferencesError) return this.preferencesError;
+    if (this.preferencesLoading || this.savingGlobalNotifications) return 'Actualizando…';
+    if (this.svc.permission() === 'denied') return 'Permiso bloqueado en el navegador';
+    if (this.svc.permission() !== 'granted') return 'Activa para recibir avisos en este dispositivo';
+    return this.notificacionesActivas ? 'Avisos activados en este dispositivo' : 'Avisos desactivados';
+  }
+
+  toggleGlobalNotifications(event: Event): void {
+    const enabled = (event.target as HTMLInputElement).checked;
+    const prefs = this.svc.preferences();
+    if (!prefs || this.savingGlobalNotifications) return;
+    this.preferencesError = '';
+    if (!enabled) {
+      this.guardarPreferenciaGlobal(prefs, false);
+      return;
     }
+
+    if (this.svc.permission() === 'granted') {
+      this.guardarPreferenciaGlobal(prefs, true);
+      return;
+    }
+
+    this.svc.requestPermission().then((permission) => {
+      if (permission === 'granted') this.guardarPreferenciaGlobal(prefs, true);
+      else {
+        if (permission === 'denied') this.guardarPreferenciaGlobal(prefs, false);
+        this.preferencesError = permission === 'denied'
+          ? 'Habilita los avisos en la configuración del navegador.'
+          : 'No se activaron los avisos.';
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  private guardarPreferenciaGlobal(
+    preferences: NonNullable<ReturnType<NotificationRealtimeService['preferences']>>,
+    enabled: boolean,
+  ): void {
+    const updated = Object.fromEntries(Object.entries(preferences).map(([type, setting]) => [
+      type,
+      { ...setting, desktop: enabled },
+    ])) as typeof preferences;
+    this.savingGlobalNotifications = true;
+    this.svc.updatePreferences(updated).subscribe({
+      next: () => { this.savingGlobalNotifications = false; this.cdr.markForCheck(); },
+      error: () => {
+        this.savingGlobalNotifications = false;
+        this.preferencesError = 'No se pudo guardar la configuración.';
+        this.cdr.markForCheck();
+      },
+    });
+  }
+
+  setSection(section: NotificationSection): void {
+    if (this.activeSection === section) return;
+    this.activeSection = section;
+    this.clearPanelState();
+  }
+
+  get filteredNotifications(): Notification[] {
+    return notificationsInSection(this.svc.notifications(), this.activeSection);
+  }
+
+  totalInSection(section: NotificationSection): number {
+    return countNotificationsInSection(this.svc.notifications(), section).total;
+  }
+
+  unreadInSection(section: NotificationSection): number {
+    return countNotificationsInSection(this.svc.notifications(), section).unread;
+  }
+
+  get emptyTitle(): string {
+    if (this.activeSection === 'correos') return 'Sin notificaciones de correo';
+    if (this.activeSection === 'tickets') return 'Sin notificaciones de tickets';
+    return 'Sin otras notificaciones';
+  }
+
+  get emptyDescription(): string {
+    if (this.activeSection === 'correos') return 'Los avisos de nuevas llegadas a tu carpeta aparecerán aquí.';
+    return 'Cuando haya actividad nueva aparecerá en esta sección.';
   }
 
   markAllRead(): void {
-    this.svc.markAllAsRead().subscribe();
+    this.svc.markAllAsRead(this.activeSection).subscribe();
   }
 
   loadMore(): void {
@@ -898,7 +1062,9 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
       this.suppressClick = false;
       return;
     }
-    if (!notif.read) {
+    // El aviso de correo se conserva hasta que el cuerpo se abra en la bandeja;
+    // pulsar la campana solo navega al mensaje.
+    if (!notif.read && notif.entityType !== 'correo') {
       this.svc.markAsRead(notif.id).subscribe();
     }
     this.closePanel();
@@ -954,6 +1120,7 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
 
   onPointerDown(e: PointerEvent, id: string): void {
     if (this.deletingId) return;
+    if (this.svc.notifications().some((n) => n.id === id && n.type === 'correo_nuevo')) return;
     this.draggingId = id;
     this.dragStartX = e.clientX;
     this.dragStartY = e.clientY;
@@ -1024,13 +1191,15 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
   }
 
   deleteAll(): void {
-    if (!window.confirm('Borrar todas las notificaciones?')) return;
+    const label = this.sections.find((section) => section.id === this.activeSection)?.label ?? 'esta sección';
+    if (!window.confirm(`¿Borrar las ${this.totalInSection(this.activeSection)} notificaciones de ${label}?`)) return;
     this.selectedIds.clear();
     this.cdr.markForCheck();
-    this.svc.removeMany().subscribe();
+    this.svc.removeMany(undefined, this.activeSection).subscribe();
   }
 
   deleteNotif(notif: any): void {
+    if (notif?.type === 'correo_nuevo') return;
     this.performDelete(notif.id);
   }
 
@@ -1072,8 +1241,15 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
     }
   }
 
-  tagLabel(type: string): string {
+  tagLabel(type: string, notif?: Notification): string {
+    const carpeta = notif?.meta?.['carpeta'];
+    if (type === 'correo_nuevo' && typeof carpeta === 'string' && carpeta) return `Correo · ${carpeta}`;
     return TYPE_LABELS[type] ?? 'Notificaci\u00f3n';
+  }
+
+  emailSubject(notif: Notification): string {
+    const asunto = notif.meta?.['asunto'];
+    return typeof asunto === 'string' ? asunto : '';
   }
 
   iconBg(type: string): string {

@@ -24,6 +24,11 @@
         <span class="mod-chip">{{ detalle.moduloNombre }}</span>
         }
         <div class="head-actions">
+          @if (puedeEliminar) {
+          <button type="button" class="icon-btn danger-action" (click)="confirmandoEliminacion = true" title="Eliminar tarea y subtareas" aria-label="Eliminar tarea y subtareas">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2m3 0-.9 14H5.9L5 6m4 4v6m6-6v6"/></svg>
+          </button>
+          }
           @if (puedeEditar) {
           <button type="button" class="icon-btn" (click)="editarTarea()" title="Editar" aria-label="Editar">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -216,9 +221,9 @@
                 @if (n.tarea.timeSpentMinutes) {
                 <span class="n-meta mono">{{ formatTiempo(n.tarea.timeSpentMinutes) }}</span>
                 }
-                @if (n.tarea.subtareas.total) {
+                @if (rollup(n.tarea.id, 'total')) {
                 <span class="n-meta">
-                  {{ n.tarea.subtareas.completadas }}/{{ n.tarea.subtareas.total }} sub
+                  {{ rollup(n.tarea.id, 'completadas') }}/{{ rollup(n.tarea.id, 'total') }} sub
                 </span>
                 }
                 <button type="button" class="n-add" (click)="nuevaSubtarea.emit(n.tarea)"
@@ -344,4 +349,15 @@
     </div>
     }
   </div>
+  @if (confirmandoEliminacion) {
+  <div class="delete-shade" role="presentation">
+    <section class="delete-confirm" role="alertdialog" aria-modal="true" aria-labelledby="delete-title">
+      <span class="delete-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4m0 4h.01M10.3 3.9 2.8 17.5A2 2 0 0 0 4.5 20h15a2 2 0 0 0 1.7-2.5L13.7 3.9a2 2 0 0 0-3.4 0Z" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <h3 id="delete-title">Eliminar esta tarea y su rama</h3>
+      <p>Se eliminará <strong>{{ detalle?.titulo }}</strong> y todas sus subtareas, comentarios y registros de tiempo. Esta acción no se puede deshacer.</p>
+      <div class="delete-count">{{ detalle ? conteoArbol(detalle).total : 0 }} subtarea(s) incluidas</div>
+      <footer><button type="button" class="btn-ghost" (click)="confirmandoEliminacion = false" [disabled]="eliminando">Cancelar</button><button type="button" class="btn-danger" (click)="confirmarBorrado()" [disabled]="eliminando">{{ eliminando ? 'Eliminando…' : 'Eliminar rama' }}</button></footer>
+    </section>
+  </div>
+  }
 </div>

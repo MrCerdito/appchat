@@ -97,6 +97,21 @@
   gap: 1rem;
 }
 
+.parent-context {
+  display: flex;
+  flex-direction: column;
+  gap: .28rem;
+  margin: .9rem 1.25rem 0;
+  padding: .65rem .75rem;
+  border: 1px solid color-mix(in srgb, var(--ts-brand) 20%, var(--border));
+  border-radius: var(--radius-md);
+  background: var(--primary-soft);
+}
+
+.parent-context-label { color: var(--ts-brand); font-size: .59rem; font-weight: 750; letter-spacing: .07em; }
+.parent-context-path { color: var(--text-muted); font-size: .74rem; line-height: 1.45; overflow-wrap: anywhere; }
+.parent-context-next { color: var(--text); font-size: .76rem; font-weight: 650; }
+
 .alert {
   display: flex;
   align-items: center;

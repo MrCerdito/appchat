@@ -13,15 +13,8 @@ import { TAREA_STATUSES, TAREA_PRIORIDADES } from '../tarea.entity';
 /**
  * Actualizacion parcial de una tarea.
  *
- * `parentTaskId` NO aparece a proposito. El unico modo de colgar una subtarea
- * es crearla ya con su padre (`CreateTareaDto.parentTaskId`), asi que la
- * jerarquia es inmutable en la practica y un ciclo es imposible por
- * construccion. Admitir el reparentado exigiria validar que el nuevo padre no
- * este dentro del subarbol de la tarea, que es una consulta recursiva extra en
- * cada guardado. Queda fuera de esta version.
- *
  * Los campos anulables aceptan `null` explicito para desasignar:
- * `ticketId`, `moduloId` y `dueDate`. Omitirlos no los toca.
+ * `ticketId`, `moduloId`, `dueDate` y `parentTaskId`. Omitirlos no los toca.
  */
 export class UpdateTareaDto {
   @IsString()
@@ -43,6 +36,11 @@ export class UpdateTareaDto {
   @IsOptional()
   @IsIn(TAREA_PRIORIDADES as unknown as string[])
   prioridad?: string;
+
+  /** Mueve la tarea bajo otro padre; `null` la convierte en tarea raiz. */
+  @IsUUID()
+  @IsOptional()
+  parentTaskId?: string | null;
 
   @IsUUID()
   @IsOptional()

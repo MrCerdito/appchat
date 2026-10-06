@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Repository, In, Not } from 'typeorm';
 import { Notification } from './notification.entity';
 import {
   UserNotificationPreference,
@@ -20,6 +20,17 @@ export interface CreateNotificationDto {
   senderId?: string;
   meta?: Record<string, any>;
 }
+
+export type NotificationSection = 'tickets' | 'correos' | 'otros';
+
+const TIPOS_TICKETS = [
+  'ticket_created', 'ticket_assigned', 'ticket_reassigned', 'ticket_updated',
+  'ticket_status_changed', 'ticket_priority_changed', 'ticket_closed',
+  'ticket_denied', 'ticket_note', 'ticket_deleted', 'ticket_sla_warning',
+  'ticket_sla_expired',
+];
+const TIPOS_CORREO = ['correo_nuevo'];
+const TIPOS_PRINCIPALES = [...TIPOS_TICKETS, ...TIPOS_CORREO];
 
 @Injectable()
 export class NotificationsService {
@@ -43,6 +54,27 @@ export class NotificationsService {
     }
 
     if (!eventPrefs.inApp && !eventPrefs.desktop) return null;
+
+    // A correo outbox may retry after the notification row was saved but before
+    // its delivery checkpoint was updated. Reuse and re-emit the saved row so a
+    // transient gateway/database error cannot create duplicate bell entries.
+    if (dto.type === 'correo_nuevo' && dto.entityId) {
+      const existing = await this.notifRepo.findOne({
+        where: {
+          recipientId: dto.recipientId,
+          type: dto.type,
+          entityType: dto.entityType ?? 'ticket',
+          entityId: dto.entityId,
+        },
+      });
+      if (existing) {
+        this.gateway.sendToUser(dto.recipientId, {
+          ...existing,
+          _desktop: eventPrefs.desktop,
+        });
+        return existing;
+      }
+    }
 
     const notif = this.notifRepo.create({
       type: dto.type,
@@ -104,11 +136,10 @@ export class NotificationsService {
     );
   }
 
-  async markAllAsRead(userId: string): Promise<void> {
-    await this.notifRepo.update(
-      { recipientId: userId, read: false },
-      { read: true, readAt: new Date() },
-    );
+  async markAllAsRead(userId: string, section?: NotificationSection): Promise<void> {
+    const where: any = { recipientId: userId, read: false };
+    this.aplicarSeccion(where, section);
+    await this.notifRepo.update(where, { read: true, readAt: new Date() });
   }
 
   async remove(id: string, userId: string): Promise<void> {
@@ -118,11 +149,54 @@ export class NotificationsService {
   async removeMany(
     userId: string,
     ids?: string[],
+    section?: NotificationSection,
   ): Promise<{ removed: number }> {
-    const where: Record<string, unknown> = { recipientId: userId };
+    const where: any = { recipientId: userId };
     if (ids && ids.length) where.id = In(ids);
+    this.aplicarSeccion(where, section);
     const result = await this.notifRepo.delete(where);
     return { removed: result.affected ?? 0 };
+  }
+
+  /**
+   * Un aviso agrupado de correo solo se lee desde la bandeja, al abrir mensajes
+   * que pertenecen a esa tanda. Si incluye varios, permanece sin leer hasta que
+   * se hayan abierto todos desde la aplicación.
+   */
+  async markCorreoAbierto(correoId: string, userId: string): Promise<void> {
+    const pendientes = await this.notifRepo.find({
+      where: { recipientId: userId, type: 'correo_nuevo', entityType: 'correo', read: false },
+    });
+    const ahora = new Date();
+    for (const notif of pendientes) {
+      const idsMeta = notif.meta?.['correoIds'];
+      const ids = Array.isArray(idsMeta) && idsMeta.length
+        ? idsMeta.filter((id): id is string => typeof id === 'string')
+        : [notif.entityId];
+      if (!ids.includes(correoId)) continue;
+      const abiertosMeta = notif.meta?.['correoLeidos'];
+      const abiertos = new Set<string>(
+        Array.isArray(abiertosMeta) ? abiertosMeta.filter((id): id is string => typeof id === 'string') : [],
+      );
+      abiertos.add(correoId);
+      const todosAbiertos = ids.every((id) => abiertos.has(id));
+      await this.notifRepo.update(
+        { id: notif.id, recipientId: userId },
+        {
+          read: todosAbiertos,
+          readAt: todosAbiertos ? ahora : null,
+          meta: { ...(notif.meta ?? {}), correoLeidos: [...abiertos] },
+        },
+      );
+    }
+  }
+
+  /** Añade el filtro de sección a un criterio TypeORM sin perder compatibilidad con acciones globales. */
+  private aplicarSeccion(where: Record<string, unknown>, section?: NotificationSection): void {
+    if (!section) return;
+    if (section === 'tickets') where['type'] = In(TIPOS_TICKETS);
+    else if (section === 'correos') where['type'] = In(TIPOS_CORREO);
+    else where['type'] = Not(In(TIPOS_PRINCIPALES));
   }
 
   async getPreferences(userId: string): Promise<NotificationPreferences> {

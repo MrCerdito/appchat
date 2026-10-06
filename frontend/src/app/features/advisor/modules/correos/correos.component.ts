@@ -29,6 +29,7 @@ import {
 } from '../../../../shared/utils/categoria-correo.util';
 import { SocketService } from '../../../../core/services/socket.service';
 import { NotificationService } from '../../../../core/services/notification.service';
+import { NotificationRealtimeService } from '../../../../core/services/notification-realtime.service';
 
 const TAMANO_PAGINA = 50;
 
@@ -176,6 +177,7 @@ export class CorreosComponent implements OnInit, OnDestroy {
     private readonly layout: LayoutService,
     private readonly socket: SocketService,
     private readonly notifs: NotificationService,
+    private readonly notificationRealtime: NotificationRealtimeService,
     private readonly route: ActivatedRoute,
   ) {}
 
@@ -539,6 +541,7 @@ export class CorreosComponent implements OnInit, OnDestroy {
       this.correos.cuerpo(mensaje.id).subscribe({
         next: (c) => {
           this.cuerpo = c;
+          this.subs.add(this.notificationRealtime.markCorreoAbierto(mensaje.id).subscribe({ error: () => undefined }));
           this.cargandoCuerpo = false;
           this.cuerpoIframe = this.sanitizer.bypassSecurityTrustResourceUrl(
             this.envelopeHtml(c.html),

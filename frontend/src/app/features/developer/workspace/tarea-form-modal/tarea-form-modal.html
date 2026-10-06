@@ -4,7 +4,7 @@
       <div class="head-text">
         <h2>{{ tituloModal }}</h2>
         @if (esSubtarea) {
-        <p>Se anadira como subtarea de la tarea abierta</p>
+        <p>Se añadirá debajo de esta ubicación</p>
         }
         @if (esEdicion && tarea) {
         <p class="mono">{{ tarea.codigo }}</p>
@@ -15,7 +15,15 @@
           <path d="M18 6L6 18M6 6l12 12" stroke-linecap="round" />
         </svg>
       </button>
-    </header>
+      </header>
+
+      @if (esSubtarea) {
+      <div class="parent-context" aria-label="Ubicación de la subtarea">
+        <span class="parent-context-label">UBICACIÓN</span>
+        <span class="parent-context-path">{{ parentRuta }}</span>
+        <span class="parent-context-next">Nueva subtarea</span>
+      </div>
+      }
 
     <div class="modal-body">
       @if (error) {
@@ -179,7 +187,7 @@
           @if (guardando) {
           <span class="mini"></span> Guardando
           } @else {
-          {{ esEdicion ? 'Guardar cambios' : 'Crear tarea' }}
+          {{ esEdicion ? 'Guardar cambios' : esSubtarea ? 'Crear subtarea' : 'Crear tarea' }}
           }
         </button>
       </div>

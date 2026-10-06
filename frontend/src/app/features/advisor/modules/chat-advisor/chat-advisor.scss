@@ -1917,7 +1917,7 @@ a {
 
 // Info card
 .sinfo-card {
-  margin: 0 24px;
+  margin: 0 clamp(12px, 2vw, 24px);
   background: #f8fafc;
   border: 1px solid #e7ebf2;
   border-radius: 12px;
@@ -1928,11 +1928,12 @@ a {
 .sinfo-row {
   width: 100%;
   min-height: 48px;
-  padding: 0 12px;
-  display: flex;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  display: grid;
+  grid-template-columns: minmax(90px, 0.7fr) minmax(0, 1.3fr);
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 8px 12px;
   border: none;
   background: transparent;
   color: $text;
@@ -1944,6 +1945,7 @@ a {
 
   &.sinfo-row--link {
     cursor: pointer;
+    font: inherit;
     transition: background 0.12s ease;
 
     &:hover {
@@ -1976,6 +1978,7 @@ a {
 }
 
 .sinfo-lbl {
+  min-width: 0;
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
@@ -1984,16 +1987,20 @@ a {
 }
 
 .sinfo-val {
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 6px;
+  min-width: 0;
+  max-width: none;
   font-size: 13px;
   font-weight: 600;
   color: #1e2a44;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 150px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  line-height: 1.4;
+  text-align: right;
 }
 
 .sinfo-arrow {
@@ -2001,6 +2008,19 @@ a {
   height: 13px;
   color: #94a3b8;
   flex-shrink: 0;
+}
+
+@media (max-width: 420px) {
+  .sinfo-card { margin-inline: 12px; }
+
+  .sinfo-row {
+    grid-template-columns: minmax(80px, 0.65fr) minmax(0, 1.35fr);
+    padding-inline: 9px;
+    gap: 8px;
+  }
+
+  .sinfo-lhs { gap: 7px; }
+  .sinfo-val { font-size: 12px; }
 }
 
 // Advisor card

@@ -20,6 +20,8 @@ export interface NotificationListResponse {
   unreadCount: number;
 }
 
+export type NotificationSection = 'tickets' | 'correos' | 'otros';
+
 export interface NotificationPreferenceItem {
   inApp: boolean;
   desktop: boolean;
@@ -34,6 +36,7 @@ export interface NotificationPreferences {
   ticket_priority_changed: NotificationPreferenceItem;
   ticket_closed: NotificationPreferenceItem;
   ticket_denied: NotificationPreferenceItem;
+  ticket_note: NotificationPreferenceItem;
   ticket_deleted: NotificationPreferenceItem;
   ticket_sla_warning: NotificationPreferenceItem;
   ticket_sla_expired: NotificationPreferenceItem;

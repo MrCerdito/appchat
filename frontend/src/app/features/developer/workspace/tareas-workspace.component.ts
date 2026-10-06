@@ -10,12 +10,13 @@ import { CommonModule } from '@angular/common';
 import { RouterModule, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { DragDropModule, CdkDragDrop } from '@angular/cdk/drag-drop';
-import { Subject, takeUntil } from 'rxjs';
+import { Subject, forkJoin, takeUntil } from 'rxjs';
 
 import { TareaService } from '../../../core/services/tarea.service';
 import { ModuloService } from '../../../core/services/modulo.service';
 import { SocketService } from '../../../core/services/socket.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { NotificationService } from '../../../core/services/notification.service';
 import {
   Tarea,
   TareaStatus,
@@ -29,7 +30,14 @@ import { TareaCardComponent } from './tarea-card/tarea-card.component';
 import { TareaFormModalComponent } from './tarea-form-modal/tarea-form-modal.component';
 import { TareaDetalleModalComponent } from './tarea-detalle-modal/tarea-detalle-modal.component';
 
-type Vista = 'panel' | 'kanban' | 'lista';
+type Vista = 'panel' | 'kanban' | 'lista' | 'estructura';
+
+interface FilaArbol {
+  tarea: Tarea;
+  profundidad: number;
+  tieneHijos: boolean;
+  ruta: string;
+}
 
 interface Filtros {
   q: string;
@@ -98,6 +106,16 @@ resumen: Partial<Record<string, number>> = {};
 
   /** Drag & drop del kanban. */
   dragId: string | null = null;
+  /** Ramas cerradas en la vista Estructura; por defecto el árbol se ve abierto. */
+  ramasCerradas = new Set<string>();
+  private estructuraInicializada = false;
+  tareaAMover: Tarea | null = null;
+  rutaTareaAMover = '';
+  destinos: Array<{ id: string; ruta: string }> = [];
+  destinoSeleccionado = '';
+  cargandoDestinos = false;
+  guardandoMovimiento = false;
+  filtroEstructura = '';
 
   /** Modales. */
   detalleId: string | null = null;
@@ -106,6 +124,7 @@ resumen: Partial<Record<string, number>> = {};
   formAbierto = false;
   formTarea: Tarea | null = null;
   formPadreId: string | null = null;
+  formPadreRuta = '';
   formTicketId: string | null = null;
 
   private readonly destroy$ = new Subject<void>();
@@ -115,12 +134,13 @@ resumen: Partial<Record<string, number>> = {};
     private readonly moduloService: ModuloService,
     private readonly socket: SocketService,
     private readonly auth: AuthService,
+    private readonly notif: NotificationService,
     private readonly route: ActivatedRoute,
     private readonly cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit(): void {
-    this.esAdmin = (this.auth.getUser()?.role ?? '') === 'admin';
+    this.esAdmin = ['admin', 'superadmin'].includes(this.auth.getUser()?.role ?? '');
 
     // La campana navega aqui con ?tarea=<id> para abrir el detalle directo.
     this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe((p) => {
@@ -182,7 +202,7 @@ resumen: Partial<Record<string, number>> = {};
     this.error = '';
 
     const query: any = {
-      vista: this.vista === 'lista' ? 'lista' : this.vista === 'kanban' ? 'kanban' : 'panel',
+      vista: this.vista === 'lista' ? 'lista' : this.vista === 'kanban' ? 'kanban' : this.vista === 'estructura' ? 'arbol' : 'panel',
       page: this.page,
       limit: this.limite,
       q: this.filtros.q || undefined,
@@ -202,6 +222,14 @@ resumen: Partial<Record<string, number>> = {};
       .subscribe({
         next: (r) => {
           this.tareas = r.items;
+          if (this.vista === 'estructura' && !this.estructuraInicializada) {
+            for (const raiz of this.tareas) {
+              for (const hijo of raiz.hijos ?? []) {
+                if (hijo.hijos?.length) this.ramasCerradas.add(hijo.id);
+              }
+            }
+            this.estructuraInicializada = true;
+          }
           this.resumen = r.resumen ?? {};
           this.total = r.total;
           this.loading = false;
@@ -250,6 +278,124 @@ resumen: Partial<Record<string, number>> = {};
 
   tareasDe(status: TareaStatus): Tarea[] {
     return this.tareas.filter((t) => t.status === status);
+  }
+
+  /** Filas planas para la tabla jerárquica, respetando ramas contraídas. */
+  get filasEstructura(): FilaArbol[] {
+    const filas: FilaArbol[] = [];
+    const termino = this.filtroEstructura.trim().toLocaleLowerCase();
+    const coincide = (t: Tarea): boolean =>
+      `${t.titulo} ${t.codigo} ${t.descripcion ?? ''}`.toLocaleLowerCase().includes(termino);
+    const coincideEnArbol = (t: Tarea): boolean => coincide(t) || (t.hijos ?? []).some(coincideEnArbol);
+    const incluirVisible = (t: Tarea, nivel: number, ruta: string): void => {
+      const hijos = t.hijos ?? [];
+      if (termino && !coincideEnArbol(t)) return;
+      filas.push({ tarea: t, profundidad: nivel, tieneHijos: hijos.length > 0, ruta });
+      if (!this.ramasCerradas.has(t.id) || !!termino) {
+        for (const h of hijos) incluirVisible(h, nivel + 1, `${ruta} › ${h.titulo}`);
+      }
+    };
+    for (const raiz of this.tareas) incluirVisible(raiz, 0, raiz.titulo);
+    return filas;
+  }
+
+  toggleRama(tarea: Tarea): void {
+    if (this.ramasCerradas.has(tarea.id)) this.ramasCerradas.delete(tarea.id);
+    else this.ramasCerradas.add(tarea.id);
+    this.cdr.markForCheck();
+  }
+
+  progresoArbol(tarea: Tarea): { total: number; completadas: number; porcentaje: number } {
+    let total = 0;
+    let completadas = 0;
+    const contar = (t: Tarea): void => {
+      for (const h of t.hijos ?? []) {
+        total++;
+        if (h.status === 'completada') completadas++;
+        contar(h);
+      }
+    };
+    contar(tarea);
+    return { total, completadas, porcentaje: total ? Math.round((completadas / total) * 100) : 0 };
+  }
+
+  expandirTodo(expandir: boolean): void {
+    this.ramasCerradas = expandir
+      ? new Set<string>()
+      : new Set(this.filasEstructura.filter((f) => f.tieneHijos).map((f) => f.tarea.id));
+    this.cdr.markForCheck();
+  }
+
+  abrirMover(tarea: Tarea, ruta = tarea.titulo): void {
+    if (!this.puedeMover(tarea)) return;
+    this.tareaAMover = tarea;
+    this.rutaTareaAMover = ruta;
+    this.destinoSeleccionado = tarea.parentTaskId ?? '';
+    this.cargandoDestinos = true;
+    this.tareasService.findAll({ vista: 'arbol', limit: 200 }).pipe(takeUntil(this.destroy$)).subscribe({
+      next: (r) => {
+        const paginas = Math.ceil(r.total / 200);
+        const solicitudes = Array.from({ length: Math.max(0, paginas - 1) }, (_, i) =>
+          this.tareasService.findAll({ vista: 'arbol', limit: 200, page: i + 2 }),
+        );
+        if (!solicitudes.length) this.aplicarDestinos([r], tarea);
+        else forkJoin(solicitudes).pipe(takeUntil(this.destroy$)).subscribe({
+          next: (resto) => this.aplicarDestinos([r, ...resto], tarea),
+          error: () => { this.destinos = []; this.cargandoDestinos = false; this.cdr.markForCheck(); },
+        });
+      },
+      error: () => { this.destinos = []; this.cargandoDestinos = false; this.cdr.markForCheck(); },
+    });
+  }
+
+  private aplicarDestinos(respuestas: Array<{ items: Tarea[] }>, tarea: Tarea): void {
+    const destinos: Array<{ id: string; ruta: string }> = [];
+    const bajar = (n: Tarea, ruta: string): void => {
+      destinos.push({ id: n.id, ruta });
+      for (const h of n.hijos ?? []) bajar(h, `${ruta} › ${h.titulo}`);
+    };
+    respuestas.forEach((r) => r.items.forEach((root) => bajar(root, root.titulo)));
+    const propios = new Set<string>();
+    const marcar = (n: Tarea): void => { propios.add(n.id); for (const h of n.hijos ?? []) marcar(h); };
+    marcar(tarea);
+    this.destinos = destinos.filter((d) => !propios.has(d.id));
+    this.cargandoDestinos = false;
+    this.cdr.markForCheck();
+  }
+
+  puedeMover(tarea: Tarea): boolean {
+    const usuario = this.auth.getUser();
+    return usuario?.role === 'admin' || usuario?.role === 'superadmin' || tarea.createdById === usuario?.id;
+  }
+
+  cerrarMover(): void {
+    if (this.guardandoMovimiento) return;
+    this.tareaAMover = null;
+    this.rutaTareaAMover = '';
+    this.destinos = [];
+  }
+
+  guardarMovimiento(): void {
+    const tarea = this.tareaAMover;
+    if (!tarea || this.guardandoMovimiento) return;
+    const parentTaskId = this.destinoSeleccionado || null;
+    if ((tarea.parentTaskId ?? null) === parentTaskId) { this.cerrarMover(); return; }
+    this.guardandoMovimiento = true;
+    this.tareasService.update(tarea.id, { parentTaskId }).pipe(takeUntil(this.destroy$)).subscribe({
+      next: () => {
+        this.guardandoMovimiento = false;
+        this.tareaAMover = null;
+        this.rutaTareaAMover = '';
+        this.notif.success('Tarea reubicada');
+        this.cargar(false);
+        this.cdr.markForCheck();
+      },
+      error: (e) => {
+        this.guardandoMovimiento = false;
+        this.notif.error(e?.error?.message ?? 'No se pudo mover la tarea');
+        this.cdr.markForCheck();
+      },
+    });
   }
 
   /** Tareas del panel ya vienen ordenadas por urgencia desde el backend. */
@@ -499,17 +645,24 @@ get vencidasSerie(): number {
     this.cargar(false);
   }
 
+  onDetalleEliminada(): void {
+    this.detalleId = null;
+    this.cargar(false);
+  }
+
   abrirNueva(): void {
     this.formTarea = null;
     this.formPadreId = null;
+    this.formPadreRuta = '';
     this.formTicketId = null;
     this.formAbierto = true;
   }
 
   /** Alta de subtarea: el padre se fija y no se puede cambiar despues. */
-  abrirSubtarea(padre: Tarea): void {
+  abrirSubtarea(padre: Tarea, ruta?: string): void {
     this.formTarea = null;
     this.formPadreId = padre.id;
+    this.formPadreRuta = ruta ?? this.rutaEnDetalle(padre.id) ?? padre.titulo;
     this.formTicketId = padre.ticketId;
     this.formAbierto = true;
   }
@@ -517,6 +670,7 @@ get vencidasSerie(): number {
   editar(t: Tarea): void {
     this.formTarea = t;
     this.formPadreId = null;
+    this.formPadreRuta = '';
     this.formTicketId = t.ticketId;
     this.formAbierto = true;
   }
@@ -525,6 +679,7 @@ get vencidasSerie(): number {
     this.formAbierto = false;
     this.formTarea = null;
     this.formPadreId = null;
+    this.formPadreRuta = '';
     this.formTicketId = null;
   }
 
@@ -532,6 +687,22 @@ get vencidasSerie(): number {
     this.cerrarForm();
     this.detalleRefresco++;
     this.cargar(false);
+  }
+
+  private rutaEnDetalle(id: string): string | null {
+    const recorre = (nodos: Tarea[], partes: string[]): string[] | null => {
+      for (const nodo of nodos) {
+        const ruta = [...partes, nodo.titulo];
+        if (nodo.id === id) return ruta;
+        const encontrada = recorre(nodo.hijos ?? [], ruta);
+        if (encontrada) return encontrada;
+      }
+      return null;
+    };
+    const raiz = this.detalleId ? this.tareas.find((t) => t.id === this.detalleId) : null;
+    if (raiz?.id === id) return raiz.titulo;
+    const encontrada = recorre(raiz?.hijos ?? [], raiz ? [raiz.titulo] : []);
+    return encontrada?.join(' › ') ?? null;
   }
 
   /** Cambio de estado desde la tarjeta (menu rapido). */

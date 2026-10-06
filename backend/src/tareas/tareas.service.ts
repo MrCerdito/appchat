@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException, ForbiddenException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like, In, SelectQueryBuilder } from 'typeorm';
 import { Tarea, TareaStatus } from './tarea.entity';
@@ -192,9 +192,12 @@ export class TareasService {
     }
 
     // 1) Count sobre el filtro completo.
+    const filtrosListado = query.vista === 'arbol'
+      ? { ...query, soloRaiz: true }
+      : query;
     const total = await this.aplicarFiltros(
       this.repo.createQueryBuilder('t'),
-      query,
+      filtrosListado,
       visibles,
     ).getCount();
 
@@ -202,7 +205,7 @@ export class TareasService {
     //    la misma query hace que TypeORM dedupe por id y el OFFSET deja de
     //    corresponder con lo que se ve. Separar los pasos lo evita.
     const raw = await this.aplicarOrden(
-      this.aplicarFiltros(this.repo.createQueryBuilder('t'), query, visibles),
+      this.aplicarFiltros(this.repo.createQueryBuilder('t'), filtrosListado, visibles),
       query,
     )
       .select('t.id', 'id')
@@ -211,7 +214,9 @@ export class TareasService {
       .getRawMany<{ id: string }>();
 
     const ids = raw.map((r) => r.id);
-    const items = await this.cargarPagina(ids);
+    const items = query.vista === 'arbol'
+      ? await this.cargarArboles(ids)
+      : await this.cargarPagina(ids);
 
     return { items, total, page, resumen: await this.resumen(query, actor) };
   }
@@ -337,6 +342,50 @@ export class TareasService {
       .map((id) => porId.get(id))
       .filter((t): t is Tarea => !!t)
       .map((t) => this.aItem(t, rollups.get(t.id) ?? { total: 0, completadas: 0 }));
+  }
+
+  /** Carga una pagina de raices y todos sus descendientes para la vista Estructura. */
+  private async cargarArboles(raizIds: string[]): Promise<TareaItemOut[]> {
+    if (!raizIds.length) return [];
+    const filas: Array<{ id: string }> = await this.repo.query(
+      `WITH RECURSIVE arbol(id, visitados) AS (
+         SELECT raiz.id, ARRAY[raiz.id] FROM unnest($1::uuid[]) AS raiz(id)
+         UNION ALL
+         SELECT t.id, a.visitados || t.id
+         FROM tasks t JOIN arbol a ON t.parent_task_id = a.id
+         WHERE NOT t.id = ANY(a.visitados)
+       )
+       SELECT DISTINCT id FROM arbol`,
+      [raizIds],
+    );
+    const ids = filas.map((f) => f.id);
+    const tareas = await this.repo.find({
+      where: { id: In(ids) },
+      relations: { asignees: { user: true }, ticket: true, modulo: true, createdBy: true },
+    });
+    const rollups = await this.rollupDirecto(ids);
+    const porId = new Map<string, TareaItemOut & { _parent: string | null }>();
+    for (const t of tareas) {
+      porId.set(t.id, {
+        ...this.aItem(t, rollups.get(t.id) ?? { total: 0, completadas: 0 }),
+        _parent: t.parentTaskId ?? null,
+        hijos: [],
+      });
+    }
+    for (const item of porId.values()) {
+      if (!item._parent) continue;
+      const padre = porId.get(item._parent);
+      if (padre) padre.hijos!.push(item);
+    }
+    const ordenar = (lista: Array<TareaItemOut & { _parent?: string | null }>): TareaItemOut[] =>
+      lista
+        .sort((a, b) => a.orderIndex - b.orderIndex || a.createdAt.localeCompare(b.createdAt))
+        .map(({ _parent: _omit, ...item }) => {
+          item.hijos = ordenar(item.hijos as Array<TareaItemOut & { _parent?: string | null }> ?? []);
+          if (!item.hijos.length) item.hijos = undefined;
+          return item;
+        });
+    return ordenar(raizIds.map((id) => porId.get(id)).filter((t): t is TareaItemOut & { _parent: string | null } => !!t));
   }
 
   /** Cuantas hijas directas tiene cada tarea y cuantas estan completadas. */
@@ -923,6 +972,30 @@ const saved = await this.repo.save(tarea);
     if (dto.prioridad !== undefined) tarea.prioridad = dto.prioridad as Tarea['prioridad'];
     if (dto.moduloId !== undefined) tarea.moduloId = dto.moduloId;
 
+    if (dto.parentTaskId !== undefined && (dto.parentTaskId ?? null) !== (tarea.parentTaskId ?? null)) {
+      if (!this.veTodo(actor.role) && tarea.createdById !== actor.id) {
+        throw new ForbiddenException('Solo quien creó la tarea o un administrador puede cambiar su ubicación');
+      }
+      const nuevoPadreId = dto.parentTaskId ?? null;
+      if (nuevoPadreId) {
+        await this.assertAcceso(nuevoPadreId, actor);
+        if (nuevoPadreId === id) throw new BadRequestException('Una tarea no puede ser su propio padre');
+        const descendientes: Array<{ id: string }> = await this.repo.query(
+          `WITH RECURSIVE descendientes AS (
+             SELECT id FROM tasks WHERE parent_task_id = $1
+             UNION ALL
+             SELECT t.id FROM tasks t JOIN descendientes d ON t.parent_task_id = d.id
+           ) SELECT id FROM descendientes`,
+          [id],
+        );
+        if (descendientes.some((d) => d.id === nuevoPadreId)) {
+          throw new BadRequestException('No se puede mover una tarea dentro de su propio subarbol');
+        }
+      }
+      tarea.parentTaskId = nuevoPadreId;
+      tarea.orderIndex = await this.siguienteOrden(tarea.status, nuevoPadreId);
+    }
+
     if (dto.ticketId !== undefined) {
       if (dto.ticketId) await this.assertTicket(dto.ticketId);
       tarea.ticketId = dto.ticketId;
@@ -998,6 +1071,9 @@ const saved = await this.repo.save(tarea);
     actor: TareaActor,
   ): Promise<{ eliminadas: number; descendientes: number }> {
     const tarea = await this.assertAcceso(id, actor);
+    if (!this.veTodo(actor.role) && tarea.createdById !== actor.id) {
+      throw new ForbiddenException('Solo quien creó la tarea o un administrador puede eliminarla');
+    }
 
     const [{ count }] = await this.repo.query(
       `WITH RECURSIVE descendientes AS (

@@ -89,7 +89,7 @@ export class QueryTareasDto {
 
   @IsString()
   @IsOptional()
-  @IsIn(['panel', 'kanban', 'lista'])
+  @IsIn(['panel', 'kanban', 'lista', 'arbol'])
   vista?: string;
 
   @Type(() => Number)
