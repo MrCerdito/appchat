@@ -1,0 +1,198 @@
+<div class="page">
+
+  <header class="head">
+    <div class="head-main">
+      <a class="back" routerLink="/admin/correos" aria-label="Volver al tablero">&larr;</a>
+      <div>
+        <h1>{{ nombreAsesor() }}</h1>
+        <p class="sub">
+          @if (carpeta(); as c) {
+            {{ c }}
+          } @else {
+            Bandeja del agente
+          }
+          <span class="sep">/</span> Solo lectura
+        </p>
+      </div>
+    </div>
+    @if (fila(); as f) {
+    <span
+      class="state-badge"
+      [style.--chip-fondo]="estiloNivel().fondo"
+      [style.--chip-borde]="estiloNivel().borde"
+      [style.--dot]="estiloNivel().color"
+    >
+      <i class="dot"></i>{{ estiloNivel().etiqueta }}
+    </span>
+    }
+  </header>
+
+  <section class="toolbar">
+    <div class="segments">
+      <button class="segment" [class.on]="cubo() === ''" (click)="setCubo('')">
+        Todos
+      </button>
+      @for (c of cubosVisibles; track c.valor) {
+      <button
+        class="segment"
+        [class.on]="cubo() === c.valor"
+        [style.--dot]="c.color"
+        (click)="setCubo(c.valor)"
+      >
+        <i class="dot"></i>{{ c.etiqueta }}
+      </button>
+      }
+    </div>
+
+    <label class="toggle">
+      <input type="checkbox" [checked]="soloNoLeidos()" (change)="toggleNoLeidos()" />
+      <span>Solo no leídos</span>
+    </label>
+
+    <div class="search">
+      <input
+        type="text"
+        placeholder="Buscar asunto o remitente"
+        [value]="buscar()"
+        (input)="onBuscar($event)"
+        (keyup.enter)="aplicar()"
+      />
+    </div>
+  </section>
+
+  @if (error()) {
+  <div class="alert">
+    <span>{{ error() }}</span>
+    <button class="btn" (click)="cargar()">Reintentar</button>
+  </div>
+  }
+
+  @if (cargando() && !listado()) {
+  <!-- Cuatro filas con la forma de un mensaje: la lista entra en su sitio sin
+       que el contenido salte. -->
+  <div class="skeleton" aria-hidden="true">
+    <div class="sk-row"></div>
+    <div class="sk-row"></div>
+    <div class="sk-row"></div>
+    <div class="sk-row"></div>
+  </div>
+  <span class="sr-only">Cargando la bandeja del asesor</span>
+  }
+
+  @if (listado(); as l) {
+
+    <div class="count">
+      <strong>{{ rango() }}</strong>
+      @if (l.total !== l.totalEnCarpeta) {
+      <span>de {{ l.total }} en la carpeta</span>
+      }
+      @if (cubo() !== '') {
+      <span class="count-filter">{{ nombreCubo(cubo()) }}</span>
+      }
+    </div>
+
+    @if (l.mensajes.length) {
+    <ul class="list">
+      @for (m of l.mensajes; track m.id) {
+      <li>
+        <button
+          class="msg"
+          [class.unread]="!m.isRead"
+          (click)="verCuerpo(m, boton)"
+          #boton
+        >
+          <div class="msg-line">
+            <span class="msg-from" [title]="m.fromEmail || ''">
+              {{ m.fromNombre || m.fromEmail || 'Sin remitente' }}
+            </span>
+            <span class="msg-date" [title]="tituloFecha(m.receivedAt)">{{ desde(m.receivedAt) }}</span>
+          </div>
+          <div class="msg-line">
+            <span class="msg-subject" [title]="m.subject || ''">{{ m.subject || 'Sin asunto' }}</span>
+            @if (m.hasAttachments) {
+            <span class="meta-chip" title="{{ m.adjuntos }} archivos adjuntos">
+              {{ m.adjuntos }} adj.
+            </span>
+            }
+            @if (m.importance === 'high') {
+            <span class="meta-chip warn">Alta importancia</span>
+            }
+          </div>
+          @if (m.bodyPreview) {
+          <p class="msg-preview">{{ m.bodyPreview }}</p>
+          }
+          @if (m.categorias.length) {
+          <div class="cats">
+            @for (cat of m.categorias; track cat) {
+            <span
+              class="categoria"
+              [class.categoria-pendiente]="esPendienteCat(cat)"
+              [style.--cat-color]="colorCat(cat)"
+            >
+              <span class="punto-categoria"></span>
+              {{ etiquetaCat(cat) }}
+            </span>
+            }
+          </div>
+          } @else {
+          <div class="cats"><span class="categoria vacia">Sin categoría</span></div>
+          }
+        </button>
+      </li>
+      }
+    </ul>
+    } @else {
+    <div class="empty-state">No hay correos con este filtro.</div>
+    }
+
+    @if (l.total > limite) {
+    <nav class="pager">
+      <button class="btn" [disabled]="!hayAnterior()" (click)="pagina(-1)">Anterior</button>
+      <span class="pager-info">
+        Página {{ paginaActual() }} de {{ totalPaginas() }}
+      </span>
+      <button class="btn" [disabled]="!haySiguiente()" (click)="pagina(1)">Siguiente</button>
+    </nav>
+    }
+  }
+
+  <!-- Visor. El HTML viene sanitizado por el backend y ademas se pinta en un
+       iframe sin `allow-same-origin`: ahi no corre script, no carga recursos
+       externos y no puede leer la sesion del admin. Se cierra con Escape. -->
+  @if (abierto(); as m) {
+  <div class="overlay" (click)="cerrarCuerpo()">
+    <div
+      class="viewer"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="viewer-titulo"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="viewer-head">
+        <div class="viewer-titles">
+          <h2 id="viewer-titulo">{{ m.subject || 'Sin asunto' }}</h2>
+          <p>{{ m.fromNombre || m.fromEmail }} <span class="sep">/</span> {{ fecha(m.receivedAt) }}</p>
+        </div>
+        <button class="close" (click)="cerrarCuerpo()" aria-label="Cerrar">&times;</button>
+      </header>
+
+      @if (cargandoCuerpo()) {
+      <div class="loading">Cargando cuerpo…</div>
+      } @else if (cuerpoAbierto(); as c) {
+        @if (c.truncado) {
+        <p class="truncated">Correo muy largo: se muestra solo el inicio.</p>
+        }
+        <iframe
+          class="viewer-body"
+          sandbox=""
+          referrerpolicy="no-referrer"
+          [srcdoc]="c.html"
+          title="Cuerpo del correo"
+        ></iframe>
+      } @else {
+      <div class="empty-state">No se pudo cargar el cuerpo del correo.</div>
+      }
+    </div>
+  </div>
+  }
+</div>

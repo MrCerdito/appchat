@@ -1,608 +1,1242 @@
+// ══════════════════════════════════════════════════════════════════════════════
+// Calendario de reuniones · dashboard
+//
+// El sidebar y el header del shell NO se tocan: este archivo solo estiliza el
+// interior del modulo. Superficies y textos usan los tokens globales
+// (--surface, --bg, --text, --border...) para que el tema oscuro siga funcionando.
+// ══════════════════════════════════════════════════════════════════════════════
+
 :host {
-  display: block;
-  height: 100%;
-}
-
-$brand: #6366f1;
-$brand2: #8b5cf6;
-$bg: #f4f5fb;
-$surface: #ffffff;
-$border: #e6e8f2;
-$text: #33354a;
-$muted: #8a8fa8;
-$chip: #eef2ff;
-$chip-text: #4338ca;
-$danger: #ef4444;
-
-.cal-wrap {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
-  height: 100%;
-  padding: 20px 24px;
-  box-sizing: border-box;
-  overflow: hidden;
-}
-
-/* ── Header ────────────────────────────────────────────────────────────── */
-.cal-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.cal-title {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-
-  h1 {
-    margin: 0;
-    font-size: 20px;
-    font-weight: 700;
-    color: $text;
-  }
-
-  .cal-account {
-    display: block;
-    margin-top: 2px;
-    font-size: 12px;
-    color: $muted;
-  }
-
-  &-ico {
-    display: grid;
-    place-items: center;
-    width: 42px;
-    height: 42px;
-    border-radius: 12px;
-    background: linear-gradient(135deg, $brand, $brand2);
-    color: #fff;
-    flex-shrink: 0;
-
-    svg { width: 22px; height: 22px; }
-  }
-}
-
-.primary-btn,
-.secondary-btn,
-.ghost-btn,
-.icon-btn,
-.mini-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: background 0.15s, box-shadow 0.15s, border-color 0.15s;
-  font-family: inherit;
-
-  svg { width: 16px; height: 16px; flex-shrink: 0; }
-}
-
-.primary-btn {
-  padding: 10px 16px;
-  border: 1px solid transparent;
-  background: linear-gradient(135deg, $brand, $brand2);
-  color: #fff;
-  font-size: 14px;
-  font-weight: 600;
-
-  &:hover:not(:disabled) { filter: brightness(1.05); }
-  &:disabled { opacity: 0.6; cursor: default; }
-}
-
-.secondary-btn {
-  padding: 10px 16px;
-  border: 1px solid $border;
-  background: $surface;
-  color: $text;
-  font-size: 14px;
-
-  &:hover:not(:disabled) { border-color: $brand; color: $brand; }
-}
-
-.ghost-btn {
-  padding: 8px 12px;
-  border: 1px solid $border;
-  background: $surface;
-  color: $text;
-  font-size: 13px;
-
-  &:hover { border-color: $brand; color: $brand; }
-}
-
-.icon-btn {
-  width: 34px;
-  height: 34px;
-  padding: 0;
-  border: 1px solid $border;
-  background: $surface;
-  color: $text;
-
-  &:hover { border-color: $brand; color: $brand; }
-
-  svg { width: 18px; height: 18px; }
-}
-
-.mini-btn {
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 1px solid $border;
-  background: $surface;
-  color: $muted;
-
-  &:hover { border-color: $brand; color: $brand; }
-
-  svg { width: 15px; height: 15px; }
-
-  &-primary {
-    color: $brand;
-    &:hover { background: $chip; }
-  }
-}
-
-/* ── States ────────────────────────────────────────────────────────────── */
-.cal-error {
-  padding: 10px 14px;
-  border-radius: 10px;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: $danger;
-  font-size: 13px;
-}
-
-.cal-loading {
-  color: $muted;
-  font-size: 14px;
-  padding: 8px 0;
-}
-
-/* ── Layout ────────────────────────────────────────────────────────────── */
-.cal-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 16px;
   flex: 1;
   min-height: 0;
+  height: 100%;
+  font-family: var(--font);
+  color: var(--text);
 }
 
-.cal-main {
-  display: flex;
-  flex-direction: column;
-  background: $surface;
-  border: 1px solid $border;
-  border-radius: 14px;
-  overflow: hidden;
-  min-height: 0;
-}
+/* Tokens locales: acentos y radios del dashboard. */
+$indigo: #6366f1;
+$indigo-dark: #4f46e5;
+$indigo-soft: #eef2ff;
+$azul: #3b82f6;
+$oro: #eab308;
+$violeta: #a855f7;
+$borde: rgba(15, 23, 42, 0.07);
+$sombra-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+$sombra-md: 0 4px 14px rgba(15, 23, 42, 0.06);
+$sombra-lg: 0 12px 32px rgba(15, 23, 42, 0.09);
 
-.cal-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 14px;
-  border-bottom: 1px solid $border;
-
-  .ghost-btn { margin-left: 6px; }
-}
-
-.cal-month {
-  font-size: 16px;
-  font-weight: 700;
-  color: $text;
-  padding: 0 8px;
-}
-
-.cal-grid-head {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  border-bottom: 1px solid $border;
-
-  span {
-    padding: 8px 6px;
-    text-align: center;
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
-    color: $muted;
-  }
-}
-
-.cal-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  grid-template-rows: repeat(6, minmax(76px, 1fr));
+.cal-dash {
   flex: 1;
-  gap: 1px;
-  background: $border;
-  min-height: 0;
-}
-
-.cal-cell {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 6px;
-  border: 0;
-  background: $surface;
-  text-align: left;
-  cursor: pointer;
-  overflow: hidden;
-  font-family: inherit;
-
-  &:hover { background: #f8f7ff; }
-
-  &.out {
-    background: #fafbff;
-    .cal-cell-day { color: #c2c6d8; }
-  }
-
-  &.today .cal-cell-day {
-    display: inline-grid;
-    place-items: center;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: $brand;
-    color: #fff;
-    font-weight: 700;
-  }
-
-  &.selected {
-    outline: 2px solid $brand;
-    outline-offset: -2px;
-    background: $chip;
-  }
-}
-
-.cal-cell-day {
-  font-size: 13px;
-  font-weight: 600;
-  color: $text;
-  line-height: 1.2;
-}
-
-.cal-cell-meetings {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  overflow: hidden;
-}
-
-.cal-chip {
-  display: block;
-  padding: 3px 6px;
-  border-radius: 6px;
-  background: $chip;
-  color: $chip-text;
-  font-size: 11px;
-  line-height: 1.35;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-
-  &.past {
-    background: #f1f2f7;
-    color: $muted;
-  }
-}
-
-/* ── Side panel ────────────────────────────────────────────────────────── */
-.cal-side {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 14px;
-  background: $surface;
-  border: 1px solid $border;
-  border-radius: 14px;
-  padding: 14px;
-  overflow: auto;
+  padding: 16px 18px 18px;
+  background: var(--bg);
+  overflow: hidden;
 }
 
-.cal-side-head {
+// ── Grupo de la agenda ─────────────────────────────────────────────────────────
+
+/*
+ * Identifica el grupo M365 del que viene la agenda. Va en la barra de
+ * herramientas porque el encabezado del modulo se elimino: la franja superior
+ * se le daba completa a la grilla para que las celdas no quedaran aplastadas.
+ */
+.cal-group {
+  flex: none;
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  font-weight: 700;
-  color: $text;
-
-  svg { width: 17px; height: 17px; color: $brand; }
-}
-
-.cal-side-section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.cal-side-lbl {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  color: $muted;
-}
-
-.cal-empty {
-  margin: 0;
-  font-size: 13px;
-  color: $muted;
-  padding: 6px 0;
-}
-
-.cal-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.cal-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 9px 10px;
-  border: 1px solid $border;
+  gap: 7px;
+  min-width: 0;
+  padding: 5px 12px;
+  background: var(--surface);
+  border: 1px solid $borde;
   border-radius: 10px;
-  background: #fbfbff;
+  box-shadow: $sombra-sm;
+  color: var(--text-muted);
 
-  &.past {
-    opacity: 0.65;
-  }
+  svg { width: 16px; height: 16px; flex: none; color: $indigo; }
 
-  &-time {
-    font-size: 12px;
-    font-weight: 700;
-    color: $brand;
-    padding-top: 1px;
-    min-width: 44px;
-  }
-
-  &-body {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    flex: 1;
-    min-width: 0;
-  }
-
-  &-subject {
-    font-size: 13px;
-    font-weight: 600;
-    color: $text;
+  .cal-group-name {
+    font-size: 0.78rem;
+    font-weight: 620;
+    color: var(--text);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    max-width: 220px;
   }
 
-  &-info {
-    font-size: 11px;
-    color: $muted;
-  }
-
-  &-actions {
-    display: flex;
-    gap: 4px;
-    flex-shrink: 0;
+  .cal-group-mail {
+    font-size: 0.73rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 260px;
+    padding-left: 8px;
+    border-left: 1px solid $borde;
   }
 }
 
-/* ── Modal ─────────────────────────────────────────────────────────────── */
+.primary-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border: 0;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: #fff;
+  background: linear-gradient(135deg, $indigo-dark 0%, #7c3aed 100%);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease;
+
+  svg { width: 16px; height: 16px; }
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.36);
+    filter: brightness(1.04);
+  }
+
+  &:active:not(:disabled) { transform: translateY(0); }
+
+  &:disabled { opacity: 0.55; cursor: not-allowed; box-shadow: none; }
+}
+
+.secondary-btn,
+.ghost-btn {
+  padding: 8px 14px;
+  border-radius: 9px;
+  font-size: 0.82rem;
+  font-weight: 550;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
+}
+
+.ghost-btn {
+  border: 1px solid $borde;
+  background: var(--surface);
+  color: var(--text-muted);
+
+  &:hover { background: var(--bg-subtle); color: var(--text); border-color: rgba(15, 23, 42, 0.14); }
+}
+
+.secondary-btn {
+  border: 1px solid $borde;
+  background: var(--surface);
+  color: var(--text);
+
+  &:hover:not(:disabled) { background: var(--bg-subtle); }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.icon-btn {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border: 1px solid $borde;
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
+
+  svg { width: 15px; height: 15px; }
+
+  &:hover {
+    background: $indigo-soft;
+    color: $indigo-dark;
+    border-color: rgba(99, 102, 241, 0.3);
+  }
+}
+
+// ── Alertas ───────────────────────────────────────────────────────────────────
+
+.cal-alert {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 11px;
+  font-size: 0.82rem;
+  border: 1px solid transparent;
+
+  svg { width: 17px; height: 17px; flex: none; }
+}
+
+.cal-alert-err {
+  color: #b91c1c;
+  background: #fef2f2;
+  border-color: rgba(239, 68, 68, 0.22);
+}
+
+.cal-alert-warn {
+  color: #92400e;
+  background: #fffbeb;
+  border-color: rgba(245, 158, 11, 0.25);
+}
+
+// ── Columnas ──────────────────────────────────────────────────────────────────
+
+.cal-columns {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 336px;
+  gap: 14px;
+}
+
+.cal-card,
+.pnl-card {
+  background: var(--surface);
+  border: 1px solid $borde;
+  border-radius: 15px;
+  box-shadow: $sombra-sm;
+}
+
+.cal-card {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 14px 15px 15px;
+  overflow: hidden;
+}
+
+// Encabezado de la tarjeta del calendario
+.cal-card-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-bottom: 11px;
+}
+
+/* Dia seleccionado: icono + fecha + numero de eventos. */
+.cal-head-left {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+
+.cal-date-ico {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  color: #fff;
+  background: linear-gradient(140deg, $indigo 0%, #7c3aed 100%);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.26);
+
+  svg { width: 19px; height: 19px; }
+}
+
+.cal-date-title {
+  margin: 0;
+  font-size: 1.06rem;
+  font-weight: 650;
+  letter-spacing: -0.018em;
+  line-height: 1.2;
+}
+
+.cal-date-sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+
+  b { color: var(--text); font-weight: 650; }
+}
+
+.cal-nav {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.cal-head-right {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+/* El boton de crear se queda pegado al selector de vista, sin salirse de la
+   tarjeta: asi el encabezado del modulo pudo eliminarse. */
+.cal-head-right .primary-btn {
+  padding: 7px 13px;
+  font-size: 0.8rem;
+  border-radius: 9px;
+}
+
+/* Grupo + buscador en la misma linea: el grupo identifica la agenda y el input
+   se queda con el ancho restante para no empujar el boton de crear. */
+.cal-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 11px;
+}
+
+// Buscador
+.cal-searchbar {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+
+  input {
+    width: 100%;
+    padding: 8px 34px 8px 34px;
+    border: 1px solid $borde;
+    border-radius: 10px;
+    background: var(--bg-subtle);
+    font-family: inherit;
+    font-size: 0.82rem;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+
+    &::placeholder { color: var(--text-faint); }
+
+    &:focus {
+      background: var(--surface);
+      border-color: rgba(99, 102, 241, 0.5);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.13);
+    }
+  }
+}
+
+.cal-search-ico {
+  position: absolute;
+  left: 11px;
+  width: 15px;
+  height: 15px;
+  color: var(--text-faint);
+  pointer-events: none;
+}
+
+.cal-search-clear {
+  position: absolute;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 21px;
+  height: 21px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.07);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.16s ease, color 0.16s ease;
+
+  svg { width: 12px; height: 12px; }
+  &:hover { background: rgba(15, 23, 42, 0.13); color: var(--text); }
+}
+
+.cal-loading {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 12px;
+  margin-bottom: 10px;
+  border-radius: 9px;
+  background: $indigo-soft;
+  color: $indigo-dark;
+  font-size: 0.8rem;
+}
+
+.spin {
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgba(99, 102, 241, 0.25);
+  border-top-color: $indigo;
+  border-radius: 50%;
+  animation: cal-spin 0.7s linear infinite;
+}
+
+@keyframes cal-spin { to { transform: rotate(360deg); } }
+
+// ── Listado por horas (estilo Teams) ──────────────────────────────────────────
+
+/*
+ * Columna de franjas: 24 horas, scroll propio.
+ *
+ * Cada franja tiene alto minimo de 58px, suficiente para una tarjeta de evento
+ * legible. Con 24 franjas la columna siempre es mas alta que la caja, asi que el
+ * scroll vertical es estructural y no un parche: es la columna la que crece al
+ * agregar una reunion, nunca el resto del layout.
+ */
+.agenda {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-top: 1px solid $borde;
+  padding-top: 4px;
+}
+
+.agenda-slot {
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr);
+  gap: 10px;
+  min-height: 58px;
+  padding: 5px 2px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.035);
+
+  /*
+   * Franja ya vencida: se apaga SOLO la etiqueta de hora, no la fila entera.
+   * Si se apagara la fila, una reunion en curso que empezo a las 9 y sigue
+   * hasta las 11 quedaria casi invisible al pasar de las 10, y cada evento se
+   * apaga por su cuenta con `.ev.past`.
+   */
+  &.past .agenda-hour { opacity: 0.38; }
+
+  /* Hora actual: fondo tenue para ubicarse rapido en la columna. */
+  &.now {
+    background: rgba(99, 102, 241, 0.045);
+    border-radius: 8px;
+  }
+}
+
+.agenda-hour {
+  padding-top: 7px;
+  text-align: right;
+  font-size: 0.71rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.agenda-events {
+  min-width: 0;
+  display: flex;
+  /*
+   * Varias reuniones en la misma hora van una al lado de la otra, no apiladas.
+   *
+   * `flex-wrap` deja que bajen de fila cuando ya no caben y `align-items:
+   * stretch` las iguala en alto, para que dos tarjetas en la misma fila no
+   * queden con alturas distintas y la fila se vea pareja.
+   */
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 6px;
+  padding-bottom: 3px;
+}
+
+.agenda-ahora {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(99, 102, 241, 0.11);
+  color: $indigo-dark;
+  font-size: 0.7rem;
+  font-weight: 650;
+}
+
+/* Tarjeta de evento dentro de la franja. */
+.ev {
+  position: relative;
+  display: flex;
+  /*
+   * Base de 190px: dos reuniones caben de lado en una franja normal y cada una
+   * crece hasta repartirse el ancho. `min-width: 0` deja que el contenido se
+   * encoja y trunque el titulo con puntos suspensivos en vez de desbordar la
+   * tarjeta, igual que hace Teams con nombres largos.
+   */
+  flex: 1 1 190px;
+  min-width: 0;
+  align-items: stretch;
+  gap: 0;
+  border: 1px solid $borde;
+  border-radius: 11px;
+  background: var(--surface);
+  box-shadow: $sombra-sm;
+  overflow: hidden;
+  transition: box-shadow 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+
+  /*
+   * Al apuntar la tarjeta se levanta y se pone POR ENCIMA de las vecinas
+   * (`z-index` + `translateY`), que es lo que pide el "se amplia hacia al
+   * frente": el titulo desplegado tiene que leerse completo y no quedar tapado
+   * por la reunion que esta al lado.
+   */
+  &:hover {
+    border-color: rgba(99, 102, 241, 0.34);
+    box-shadow: $sombra-md;
+    z-index: 3;
+    transform: translateY(-2px);
+  }
+
+  /*
+   * Finalizada: se atenua para marcar que ya paso, pero conserva el color de
+   * su categoria. El gris es un efecto de "atras", no una decision sobre el
+   * evento: quitar el color seria pierde la informacion de a que categoria
+   * pertenece la reunion.
+   */
+  &.past { opacity: 0.5; }
+
+  &.cancelled .ev-subject { text-decoration: line-through; }
+}
+
+/* Franja de color de la categoria, como la barra lateral de Teams. */
+.ev-bar {
+  flex: none;
+  width: 3px;
+  background: var(--cat-color, #94a3b8);
+}
+
+.ev-body {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 12px 10px;
+}
+
+.ev-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 3px;
+}
+
+.ev-time {
+  font-size: 0.73rem;
+  font-weight: 620;
+  font-variant-numeric: tabular-nums;
+  color: var(--cat-color, var(--text-muted));
+  white-space: nowrap;
+
+  em {
+    font-style: normal;
+    font-weight: 500;
+    opacity: 0.78;
+  }
+}
+
+.ev-who {
+  min-width: 0;
+  font-size: 0.71rem;
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.ev-subject {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.012em;
+  color: var(--text);
+
+  /*
+   * En reposo el titulo se corta en una linea: la agenda es una lista de 24
+   * franjas y un nombre largo no puede empujar la de abajo.
+   *
+   * Al pasar el mouse se despliega entero. No hace falta `overflow: visible`
+   * para que se vea la tarjeta mas alta: `.agenda-slot` es una fila de grid que
+   * crece con su contenido, asi que al_envolver el titulo la fila estira y nada
+   * se superpone ni queda cortado por el scroll de `.agenda`.
+   */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  .ev:hover & {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+  }
+}
+
+/* El organizador tambien se despliebla: los nombres largos se cortan igual. */
+.ev-who {
+  .ev:hover & {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+  }
+}
+
+.ev-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 7px;
+}
+
+.ev-act {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 11px 0 6px;
+  align-self: center;
+}
+
+// ── Panel lateral ─────────────────────────────────────────────────────────────
+
+.cal-panel {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  // Scroll propio: el calendario de la izquierda nunca se desplaza por esto.
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 3px;
+}
+
+.pnl-card {
+  flex: none;
+  padding: 13px 14px 14px;
+}
+
+.pnl-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 11px;
+}
+
+/* Navegacion de mes del mini calendario: queda a la derecha del titulo. */
+.mini-nav {
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+}
+
+.icon-btn.sm {
+  width: 26px;
+  height: 26px;
+
+  svg { width: 14px; height: 14px; }
+}
+
+// ── Mini calendario ───────────────────────────────────────────────────────────
+
+/*
+ * Calendario de apoyo del panel derecho: 6 semanas en 7 columnas, celdas
+ * pequenas con el numero y hasta 3 puntitos de categoria. Al elegir un dia, el
+ * listado de la izquierda se repone con ese dia.
+ */
+.mini-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 3px;
+  margin-bottom: 4px;
+
+  span {
+    text-align: center;
+    font-size: 0.65rem;
+    font-weight: 650;
+    color: var(--text-faint);
+  }
+}
+
+.mini-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 3px;
+}
+
+.mini-cell {
+  position: relative;
+  min-width: 0;
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 2px 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.13s ease, border-color 0.13s ease;
+
+  &:hover { background: var(--bg-subtle); }
+
+  /* Dias del mes vecino: se apagan sin desaparecer. */
+  &.out .mini-day { color: var(--text-faint); }
+
+  &.today .mini-day {
+    color: #fff;
+    background: $indigo;
+    box-shadow: 0 1px 5px rgba(99, 102, 241, 0.34);
+  }
+
+  &.selected {
+    background: $indigo-soft;
+    border-color: rgba(99, 102, 241, 0.5);
+
+    .mini-day { color: $indigo-dark; font-weight: 700; }
+  }
+}
+
+.mini-day {
+  font-size: 0.74rem;
+  font-weight: 550;
+  color: var(--text);
+  line-height: 1.1;
+}
+
+/* Puntos de categoria: hasta 3, en linea, bajo el numero. */
+.mini-dots {
+  display: flex;
+  gap: 2px;
+  height: 4px;
+
+  i {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--cat-color, #cbd5e1);
+  }
+}
+
+.pnl-head-ico {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  color: $indigo-dark;
+  background: $indigo-soft;
+
+  svg { width: 15px; height: 15px; }
+}
+
+.pnl-head h2 {
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 640;
+  letter-spacing: -0.012em;
+}
+
+.pnl-head-sub {
+  display: block;
+  margin-top: 1px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.pnl-badge {
+  margin-left: auto;
+  flex: none;
+  display: grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: $indigo-soft;
+  color: $indigo-dark;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.cat-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 640;
+  color: color-mix(in srgb, var(--cat-color, #64748b) 78%, #000);
+  background: color-mix(in srgb, var(--cat-color, #64748b) 15%, #fff);
+
+  &.sm { font-size: 0.63rem; padding: 1px 7px; }
+}
+
+.meta-txt {
+  font-size: 0.69rem;
+  color: var(--text-muted);
+}
+
+.mini-btn {
+  display: grid;
+  place-items: center;
+  width: 25px;
+  height: 25px;
+  border: 1px solid $borde;
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+
+  svg { width: 13px; height: 13px; }
+
+  &:hover { background: var(--bg-subtle); color: var(--text); }
+}
+
+.mini-btn-primary {
+  border-color: transparent;
+  color: #fff;
+  background: linear-gradient(135deg, $indigo-dark, #7c3aed);
+
+  &:hover { filter: brightness(1.07); color: #fff; background: linear-gradient(135deg, $indigo-dark, #7c3aed); }
+}
+
+// Resumen del mes
+.sum-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.sum-cell {
+  padding: 9px 11px;
+  border: 1px solid $borde;
+  border-radius: 10px;
+  background: var(--bg-subtle);
+  border-left: 3px solid var(--sum-accent, $indigo);
+
+  b {
+    display: block;
+    font-size: 1.1rem;
+    font-weight: 680;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+  }
+
+  span {
+    display: block;
+    margin-top: 2px;
+    font-size: 0.68rem;
+    color: var(--text-muted);
+  }
+
+  &.k-presencial { --sum-accent: $oro; }
+  &.k-virtual { --sum-accent: $azul; }
+  &.k-especial { --sum-accent: $violeta; }
+}
+
+// Donut
+.donut-wrap {
+  position: relative;
+  width: 118px;
+  height: 118px;
+  margin: 2px auto 12px;
+}
+
+.donut {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.donut-track {
+  fill: none;
+  stroke: rgba(15, 23, 42, 0.06);
+  stroke-width: 4;
+}
+
+.donut-seg {
+  fill: none;
+  stroke-width: 4;
+  stroke-linecap: butt;
+  transition: stroke-dasharray 0.4s ease, stroke-dashoffset 0.4s ease;
+}
+
+.donut-mid {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  pointer-events: none;
+
+  b {
+    display: block;
+    font-size: 1.3rem;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.035em;
+  }
+
+  span { font-size: 0.65rem; color: var(--text-muted); }
+}
+
+.cat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cat-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.76rem;
+}
+
+.cat-dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 3px;
+  background: var(--cat-color, #cbd5e1);
+}
+
+.cat-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+.cat-val {
+  margin-left: auto;
+  font-weight: 660;
+  font-variant-numeric: tabular-nums;
+}
+
+.cat-pct {
+  width: 34px;
+  text-align: right;
+  font-size: 0.7rem;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+// Estados vacios
+.cal-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  flex: 1;
+  padding: 26px 16px;
+  color: var(--text-muted);
+
+  svg { width: 30px; height: 30px; color: var(--text-faint); }
+  p { margin: 0; font-size: 0.82rem; text-align: center; }
+
+  &.sm {
+    flex: none;
+    padding: 16px 12px;
+
+    svg { width: 24px; height: 24px; }
+  }
+}
+
+// ── Modal (misma funcionalidad, acabado nuevo) ────────────────────────────────
+
 .cal-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 18, 32, 0.45);
-  z-index: 9000;
+  z-index: 60;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+  animation: cal-fade 0.18s ease;
 }
 
 .cal-modal {
   position: fixed;
   top: 50%;
   left: 50%;
+  z-index: 61;
   transform: translate(-50%, -50%);
-  width: min(460px, calc(100vw - 32px));
-  background: $surface;
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid $borde;
   border-radius: 16px;
-  box-shadow: 0 24px 60px rgba(20, 24, 50, 0.25);
-  z-index: 9001;
+  box-shadow: $sombra-lg;
   overflow: hidden;
+  animation: cal-pop 0.2s ease;
 }
 
+@keyframes cal-fade { from { opacity: 0; } }
+@keyframes cal-pop { from { opacity: 0; transform: translate(-50%, -46%); } }
+
 .cal-modal-head {
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 16px;
-  border-bottom: 1px solid $border;
+  gap: 12px;
+  padding: 15px 18px;
+  border-bottom: 1px solid $borde;
 
-  strong { font-size: 16px; color: $text; }
+  strong { font-size: 0.98rem; font-weight: 640; letter-spacing: -0.015em; }
 }
 
 .cal-modal-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px;
-  max-height: calc(100vh - 220px);
-  overflow: auto;
+  gap: 14px;
+  padding: 17px 18px;
 }
 
-.cal-connect {
+.cal-modal-actions {
+  flex: none;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 14px 16px;
-  border: 1px dashed $brand;
-  border-radius: 10px;
-  background: rgba(99, 102, 241, 0.06);
-  text-align: center;
-
-  p {
-    margin: 0;
-    font-size: 12.5px;
-    line-height: 1.45;
-    color: $muted;
-  }
+  justify-content: flex-end;
+  gap: 9px;
+  padding: 13px 18px;
+  border-top: 1px solid $borde;
+  background: var(--bg-subtle);
 }
 
 .cal-field {
   display: flex;
   flex-direction: column;
   gap: 5px;
-  flex: 1;
+  min-width: 0;
 
-  > span {
-    font-size: 12px;
+  > span,
+  .cal-field-lbl {
+    font-size: 0.75rem;
     font-weight: 600;
-    color: $muted;
+    color: var(--text-muted);
   }
 
   input,
   select {
     width: 100%;
-    box-sizing: border-box;
     padding: 9px 11px;
-    border: 1px solid $border;
-    border-radius: 9px;
-    background: #fff;
-    color: $text;
-    font-size: 14px;
+    border: 1px solid $borde;
+    border-radius: 10px;
+    background: var(--bg-subtle);
     font-family: inherit;
+    font-size: 0.85rem;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
 
     &:focus {
-      outline: none;
-      border-color: $brand;
-      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+      background: var(--surface);
+      border-color: rgba(99, 102, 241, 0.5);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.13);
     }
   }
 }
 
 .cal-field-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 11px;
+}
+
+.cal-field-note {
+  font-size: 0.71rem;
+  color: var(--text-faint);
+}
+
+.cal-cats {
   display: flex;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.cal-cat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  border: 1px solid $borde;
+  border-radius: 999px;
+  background: var(--surface);
+  font-family: inherit;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+
+  .cal-cat-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--cat-color, #cbd5e1);
+  }
+
+  &:hover { background: var(--bg-subtle); color: var(--text); }
+
+  &.on {
+    border-color: var(--cat-color);
+    background: color-mix(in srgb, var(--cat-color) 12%, #fff);
+    color: color-mix(in srgb, var(--cat-color) 72%, #000);
+    font-weight: 600;
+  }
 }
 
 .cal-check {
   display: flex;
-  gap: 10px;
   align-items: flex-start;
-  padding: 10px;
-  border: 1px solid $border;
-  border-radius: 10px;
-  background: #fbfbff;
+  gap: 9px;
+  padding: 11px 12px;
+  border: 1px solid $borde;
+  border-radius: 11px;
+  background: var(--bg-subtle);
+  cursor: pointer;
 
-  input { margin-top: 2px; accent-color: $brand; }
+  input { margin-top: 2px; accent-color: $indigo; }
 
-  span {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    font-size: 13px;
-    color: $text;
-  }
+  strong { display: block; font-size: 0.82rem; font-weight: 600; }
+  small { display: block; margin-top: 3px; font-size: 0.72rem; color: var(--text-muted); }
+}
 
-  small { color: $muted; }
+.cal-connect {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 12px;
+  border-radius: 11px;
+  background: $indigo-soft;
+
+  p { margin: 0; font-size: 0.8rem; color: #3730a3; }
 }
 
 .cal-msg {
   margin: 0;
-  font-size: 13px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 0.8rem;
 
-  &-err { color: $danger; }
-}
-
-.cal-modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  padding: 12px 16px;
-  border-top: 1px solid $border;
+  &-err { background: #fef2f2; color: #b91c1c; border: 1px solid rgba(239, 68, 68, 0.22); }
 }
 
 .cal-success {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 22px 20px;
+  gap: 9px;
+  padding: 26px 20px;
   text-align: center;
-
-  &-ico {
-    display: grid;
-    place-items: center;
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    background: #ecfdf5;
-    color: #10b981;
-
-    svg { width: 24px; height: 24px; }
-  }
-
-  &-title {
-    margin: 0;
-    font-size: 16px;
-    font-weight: 700;
-    color: $text;
-  }
-
-  &-sub {
-    margin: 0;
-    font-size: 13px;
-    color: $muted;
-  }
-
-  &-note {
-    margin: 0;
-    font-size: 12px;
-    color: $muted;
-  }
 }
+
+.cal-success-ico {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  color: #fff;
+  background: linear-gradient(140deg, #10b981, #059669);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.3);
+
+  svg { width: 24px; height: 24px; }
+}
+
+.cal-success-title { margin: 0; font-size: 1rem; font-weight: 650; }
+.cal-success-sub { margin: 0; font-size: 0.83rem; color: var(--text-muted); }
+.cal-success-note { margin: 0; font-size: 0.76rem; color: var(--text-faint); }
 
 .cal-link-box {
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
-  padding: 9px 10px;
-  border: 1px solid $border;
+  padding: 9px 11px;
+  border: 1px solid $borde;
   border-radius: 10px;
-  background: #fbfbff;
-  box-sizing: border-box;
-
-  .cal-link-text {
-    flex: 1;
-    min-width: 0;
-    font-size: 12px;
-    color: $text;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
+  background: var(--bg-subtle);
 }
 
-@media (max-width: 980px) {
-  .cal-layout {
-    grid-template-columns: 1fr;
-    overflow: auto;
+.cal-link-text {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 0.71rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+// ── Responsive ────────────────────────────────────────────────────────────────
+
+// Laptop: panel mas angosto.
+@media (max-width: 1180px) {
+  .cal-columns { grid-template-columns: minmax(0, 1fr) 300px; }
+}
+
+// Tablet: el panel pasa debajo del calendario.
+@media (max-width: 1024px) {
+  .cal-dash { overflow-y: auto; }
+
+  .cal-columns {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: auto;
   }
 
-  .cal-grid {
-    grid-template-rows: repeat(6, 72px);
-  }
+  .cal-card { min-height: 620px; }
+  .cal-panel { overflow: visible; padding-right: 0; }
+}
 
-  .cal-wrap {
-    overflow: auto;
+@media (max-width: 900px) {
+  .sum-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 768px) {
+  .cal-dash { padding: 12px 12px 14px; gap: 12px; }
+
+  .cal-card { padding: 12px; min-height: 0; }
+  .cal-card-head { gap: 8px; }
+  .cal-field-row { grid-template-columns: minmax(0, 1fr); }
+
+  // La etiqueta de hora se estrecha para devolverle ancho al titulo.
+  .agenda-slot { grid-template-columns: 52px minmax(0, 1fr); gap: 8px; min-height: 54px; }
+
+  // El grupo baja a su propia fila para no empujar el buscador.
+  .cal-tools { flex-wrap: wrap; }
+  .cal-group { width: 100%; }
+  .cal-group-mail { display: none; }
+}
+
+@media (max-width: 640px) {
+  .primary-btn { flex: 1; justify-content: center; }
+  .donut-wrap { width: 104px; height: 104px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
   }
 }

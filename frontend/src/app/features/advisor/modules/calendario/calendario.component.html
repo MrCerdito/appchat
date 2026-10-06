@@ -1,169 +1,338 @@
-<div class="cal-wrap">
-
-  <header class="cal-top">
-    <div class="cal-title">
-      <span class="cal-title-ico">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="4" width="18" height="18" rx="2"/>
-          <line x1="16" y1="2" x2="16" y2="6"/>
-          <line x1="8" y1="2" x2="8" y2="6"/>
-          <line x1="3" y1="10" x2="21" y2="10"/>
-        </svg>
-      </span>
-      <div>
-        <h1>Calendario de reuniones</h1>
-        <span class="cal-account">{{ isTeamsConnected ? (teamsAccountName || 'Cuenta conectada') : 'Conecta tu cuenta Microsoft para crear reuniones' }}</span>
-      </div>
-    </div>
-    <button type="button" class="primary-btn" (click)="openCreate()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="12" y1="5" x2="12" y2="19"/>
-        <line x1="5" y1="12" x2="19" y2="12"/>
-      </svg>
-      Nueva reunion
-    </button>
-  </header>
+<div class="cal-dash">
 
   @if (error) {
-  <div class="cal-error">{{ error }}</div>
+  <div class="cal-alert cal-alert-err">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="13"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg>
+    <span>{{ error }}</span>
+  </div>
   }
 
-  @if (loading) {
-  <div class="cal-loading">Cargando reuniones...</div>
+  @if (truncado) {
+  <div class="cal-alert cal-alert-warn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+    </svg>
+    <span>El calendario tiene demasiados eventos y la lectura se corto. Amplia el rango o avisale al administrador.</span>
+  </div>
   }
 
-  <section class="cal-layout">
-    <div class="cal-main">
-      <div class="cal-toolbar">
-        <button type="button" class="icon-btn" (click)="prevMonth()" title="Mes anterior" aria-label="Mes anterior">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="15 18 9 12 15 6"></polyline>
-          </svg>
-        </button>
-        <span class="cal-month">{{ monthLabel }}</span>
-        <button type="button" class="icon-btn" (click)="nextMonth()" title="Mes siguiente" aria-label="Mes siguiente">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="9 18 15 12 9 6"></polyline>
-          </svg>
-        </button>
-        <button type="button" class="ghost-btn" (click)="goToday()">Hoy</button>
+  <div class="cal-columns">
+
+    <!-- ── Izquierda: listado por horas, estilo Teams ─────────────────── -->
+    <section class="cal-card">
+      <div class="cal-card-head">
+        <div class="cal-head-left">
+          <span class="cal-date-ico">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2.5"/>
+              <line x1="16" y1="2" x2="16" y2="6"/>
+              <line x1="8" y1="2" x2="8" y2="6"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+          </span>
+          <div>
+            <h1 class="cal-date-title">{{ selectedLabel }}</h1>
+            <span class="cal-date-sub">
+              <b>{{ selectedMeetings.length }}</b>
+              {{ selectedMeetings.length === 1 ? 'evento' : 'eventos' }} este dia
+            </span>
+          </div>
+        </div>
+
+        <div class="cal-head-right">
+          <button type="button" class="icon-btn" (click)="prevDay()" title="Dia anterior" aria-label="Dia anterior">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+          </button>
+          <button type="button" class="ghost-btn" (click)="goToday()">Hoy</button>
+          <button type="button" class="icon-btn" (click)="nextDay()" title="Dia siguiente" aria-label="Dia siguiente">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </button>
+          <button type="button" class="primary-btn" (click)="openCreate()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Nueva reunion
+          </button>
+        </div>
       </div>
 
-      <div class="cal-grid-head">
-        @for (w of weekdayLabels; track $index) {
-        <span>{{ w }}</span>
+      <!-- Identifica el grupo M365 y filtra lo ya traido: no consulta nada. -->
+      <div class="cal-tools">
+        <div class="cal-group" [title]="grupo?.mail ?? 'Las reuniones se crean en el calendario compartido'">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="9" cy="8" r="3.2"/>
+            <path d="M3 20a6 6 0 0 1 12 0"/>
+            <path d="M16 11.2a3 3 0 1 0 0-5.6"/>
+            <path d="M17.5 20a5.6 5.6 0 0 0-1.6-3.9"/>
+          </svg>
+          <span class="cal-group-name">{{ grupo ? 'Grupo ' + grupo.displayName : 'Grupo Soporte' }}</span>
+          @if (grupo?.mail; as mail) {
+          <span class="cal-group-mail">{{ mail }}</span>
+          }
+        </div>
+
+        <div class="cal-searchbar">
+          <svg class="cal-search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.5" y2="16.5"/>
+          </svg>
+          <input type="search" [(ngModel)]="busqueda" (ngModelChange)="aplicarBusqueda()"
+            placeholder="Buscar evento, reunion o integrante..." aria-label="Buscar evento, reunion o integrante" />
+          @if (hayBusqueda) {
+          <button type="button" class="cal-search-clear" (click)="limpiarBusqueda()" title="Limpiar busqueda" aria-label="Limpiar busqueda">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+          }
+        </div>
+      </div>
+
+      @if (loading) {
+      <div class="cal-loading">
+        <span class="spin"></span> Cargando calendario...
+      </div>
+      }
+
+      <!-- Franjas de una hora. Las 24 se dibujan siempre para que la columna no
+           "baille" al agregar o quitar una reunion. -->
+      <div class="agenda">
+        @for (slot of horasDelDia; track slot.hora) {
+        <div class="agenda-slot"
+          [class.has-events]="slot.eventos.length > 0"
+          [class.past]="franjaPasada(slot)"
+          [class.now]="selectedKey === todayKey && slot.hora === horaActual">
+          <span class="agenda-hour">{{ slot.etiqueta }}</span>
+
+          <div class="agenda-events">
+            @if (slot.eventos.length === 0) {
+            @if (selectedKey === todayKey && slot.hora === horaActual) {
+            <span class="agenda-ahora">Ahora</span>
+            }
+            } @else {
+            @for (m of slot.eventos; track m.eventId) {
+            <article class="ev" [class.past]="isPastMeeting(m)" [class.cancelled]="m.isCancelled"
+              [style.--cat-color]="categoria(m)?.color ?? null">
+              <span class="ev-bar"></span>
+
+              <div class="ev-body">
+                <div class="ev-top">
+                  <span class="ev-time">
+                    {{ m.isAllDay ? 'Todo el dia' : fmtTime(m.startDateTime) }}
+                    @if (!m.isAllDay && m.durationMinutes) {
+                    <em>– {{ fmtTime(m.endDateTime) }}</em>
+                    }
+                  </span>
+                  <span class="ev-who">{{ responsable(m) }}</span>
+                </div>
+
+                <h3 class="ev-subject" [title]="m.subject">{{ m.subject }}</h3>
+
+                <div class="ev-meta">
+                  @if (categoria(m); as cat) {
+                  <span class="cat-pill" [style.--cat-color]="cat.color">{{ cat.alias }}</span>
+                  }
+                  @if (tipoEvento(m); as tipo) {
+                  <span class="meta-txt">{{ tipo }}</span>
+                  }
+                </div>
+              </div>
+
+              <!-- Sin acciones si la reunion ya termino: el enlace ya no sirve. -->
+              @if (m.joinUrl && !isPastMeeting(m)) {
+              <div class="ev-act">
+                <button type="button" class="mini-btn" (click)="copyLink(m)" title="Copiar enlace" [attr.aria-label]="'Copiar enlace de ' + m.subject">
+                  @if (copiedId === m.eventId) {
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                  } @else {
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  </svg>
+                  }
+                </button>
+                <button type="button" class="mini-btn mini-btn-primary" (click)="openLink(m)" title="Abrir reunion" [attr.aria-label]="'Abrir ' + m.subject">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="13 17 18 12 13 7"></polyline>
+                    <polyline points="6 17 11 12 6 7"></polyline>
+                  </svg>
+                </button>
+              </div>
+              }
+            </article>
+            }
+            }
+          </div>
+        </div>
         }
       </div>
 
-      <div class="cal-grid">
-        @for (cell of cells; track cell.key) {
-        <button type="button" class="cal-cell"
-          [class.out]="!cell.inMonth"
-          [class.today]="cell.isToday"
-          [class.selected]="cell.isSelected"
-          (click)="selectDay(cell.key)">
-          <span class="cal-cell-day">{{ cell.day }}</span>
-          <span class="cal-cell-meetings">
-            @for (m of cell.meetings; track m.id) {
-            <span class="cal-chip" [class.past]="isPastMeeting(m)" [title]="m.subject + ' · ' + fmtTime(m.startDateTime)">
-              {{ fmtTime(m.startDateTime) }} · {{ m.subject.length > 26 ? (m.subject.slice(0, 26) + '…') : m.subject }}
+      @if (hayBusqueda && eventosVisibles.length === 0) {
+      <div class="cal-empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.5" y2="16.5"/><line x1="8.5" y1="11" x2="13.5" y2="11"/>
+        </svg>
+        <p>Sin resultados para "{{ busqueda }}".</p>
+        <button type="button" class="ghost-btn" (click)="limpiarBusqueda()">Limpiar busqueda</button>
+      </div>
+      }
+    </section>
+
+    <!-- ── Derecha: mini calendario + resumenes ──────────────────────── -->
+    <aside class="cal-panel">
+      <section class="pnl-card">
+        <header class="pnl-head">
+          <span class="pnl-head-ico">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2.5"/>
+              <line x1="16" y1="2" x2="16" y2="6"/>
+              <line x1="8" y1="2" x2="8" y2="6"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+          </span>
+          <div>
+            <h2>{{ monthLabel }}</h2>
+            <span class="pnl-head-sub" [class.warn]="truncado">
+              {{ eventosVisibles.length }} evento(s)
+            </span>
+          </div>
+
+          <div class="mini-nav">
+            <button type="button" class="icon-btn sm" (click)="prevMonth()" title="Mes anterior" aria-label="Mes anterior">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"></polyline>
+              </svg>
+            </button>
+            <button type="button" class="icon-btn sm" (click)="nextMonth()" title="Mes siguiente" aria-label="Mes siguiente">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </button>
+          </div>
+        </header>
+
+        <div class="mini-week">
+          @for (w of weekdayLabels; track $index) {
+          <span>{{ w }}</span>
+          }
+        </div>
+
+        <div class="mini-grid">
+          @for (cell of cells; track cell.key) {
+          <button type="button" class="mini-cell"
+            [class.out]="!cell.inMonth"
+            [class.today]="cell.isToday"
+            [class.selected]="cell.isSelected"
+            [class.has]="cell.meetings.length > 0"
+            [title]="selectedLabelFor(cell.key) + (cell.meetings.length ? ' · ' + cell.meetings.length + ' evento(s)' : '')"
+            (click)="selectDay(cell.key)">
+            <span class="mini-day">{{ cell.day }}</span>
+            @if (cell.meetings.length) {
+            <span class="mini-dots">
+              @for (d of dotsDe(cell); track $index) {
+              <i [style.--cat-color]="d"></i>
+              }
             </span>
             }
+          </button>
+          }
+        </div>
+      </section>
+
+      <!-- Resumen del mes -->
+      <section class="pnl-card">
+        <header class="pnl-head">
+          <span class="pnl-head-ico">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 3v18h18"/><line x1="7" y1="15" x2="11" y2="10"/><line x1="11" y1="10" x2="14" y2="13"/><line x1="14" y1="13" x2="21" y2="6"/>
+            </svg>
           </span>
-        </button>
-        }
-      </div>
-    </div>
+          <div>
+            <h2>Resumen del mes</h2>
+            <span class="pnl-head-sub">{{ monthLabel }}</span>
+          </div>
+        </header>
+        <div class="sum-grid">
+          <div class="sum-cell">
+            <b>{{ metricas.total }}</b>
+            <span>Total de eventos</span>
+          </div>
+          <div class="sum-cell k-presencial">
+            <b>{{ metricas.presencial }}</b>
+            <span>Presenciales</span>
+          </div>
+          <div class="sum-cell k-virtual">
+            <b>{{ metricas.virtual }}</b>
+            <span>En linea</span>
+          </div>
+          <div class="sum-cell k-especial">
+            <b>{{ metricas.especiales }}</b>
+            <span>Especiales</span>
+          </div>
+        </div>
+      </section>
 
-    <aside class="cal-side">
-      <div class="cal-side-head">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"/>
-          <polyline points="12 6 12 12 16 14"/>
-        </svg>
-        <span>{{ selectedLabel }}</span>
-      </div>
+      <!-- Categorias del mes: donut + lista -->
+      <section class="pnl-card">
+        <header class="pnl-head">
+          <span class="pnl-head-ico">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12a9 9 0 1 1-9-9v9h9z"/>
+            </svg>
+          </span>
+          <div>
+            <h2>Categorias del mes</h2>
+            <span class="pnl-head-sub">{{ totalCategorias }} con categoria</span>
+          </div>
+        </header>
 
-      <div class="cal-side-section">
-        <span class="cal-side-lbl">Reuniones de este dia</span>
-        @if (selectedMeetings.length === 0) {
-        <p class="cal-empty">Sin reuniones este dia.</p>
-        } @else {
-        <ul class="cal-list">
-          @for (m of selectedMeetings; track m.id) {
-          <li class="cal-item" [class.past]="isPastMeeting(m)">
-            <span class="cal-item-time">{{ fmtTime(m.startDateTime) }}</span>
-            <span class="cal-item-body">
-              <span class="cal-item-subject">{{ m.subject }}</span>
-              <span class="cal-item-info">{{ isPastMeeting(m) ? 'Finalizada' : 'Reunion Teams' }} · {{ fmtTime(m.startDateTime) }} a {{ fmtTime(m.endDateTime) }}</span>
-            </span>
-            <span class="cal-item-actions">
-              <button type="button" class="mini-btn" (click)="copyLink(m)" [title]="'Copiar enlace'">
-                @if (copiedId === m.id) {
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="20 6 9 17 4 12"></polyline>
-                </svg>
-                } @else {
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="9" y="9" width="13" height="13" rx="2"/>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                </svg>
-                }
-              </button>
-              <button type="button" class="mini-btn mini-btn-primary" (click)="openLink(m)" [title]="'Abrir reunion'">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="13 17 18 12 13 7"></polyline>
-                  <polyline points="6 17 11 12 6 7"></polyline>
-                </svg>
-              </button>
-            </span>
+        @if (resumenCategorias.length) {
+        <div class="donut-wrap">
+          <svg class="donut" viewBox="0 0 36 36" role="img" aria-label="Distribucion por categoria">
+            <circle class="donut-track" cx="18" cy="18" r="15.915"></circle>
+            @for (s of segmentosDonut; track s.alias) {
+            <circle class="donut-seg" cx="18" cy="18" r="15.915"
+              [style.stroke]="s.color"
+              [attr.stroke-dasharray]="s.dash"
+              [attr.stroke-dashoffset]="s.offset">
+              <title>{{ s.alias }}: {{ s.total }} ({{ s.pct }}%)</title>
+            </circle>
+            }
+          </svg>
+          <div class="donut-mid">
+            <b>{{ totalCategorias }}</b>
+            <span>eventos</span>
+          </div>
+        </div>
+
+        <ul class="cat-list">
+          @for (r of resumenCategorias; track r.cat.alias) {
+          <li class="cat-row" [style.--cat-color]="r.cat.color">
+            <span class="cat-dot"></span>
+            <span class="cat-name">{{ r.cat.alias }}</span>
+            <span class="cat-val">{{ r.total }}</span>
+            <span class="cat-pct">{{ totalCategorias ? ((r.total / totalCategorias) * 100 | number: '1.0-0') : 0 }}%</span>
           </li>
           }
         </ul>
-        }
-      </div>
-
-      <div class="cal-side-section">
-        <span class="cal-side-lbl">Proximas reuniones</span>
-        @if (upcoming.length === 0) {
-        <p class="cal-empty">No hay reuniones programadas.</p>
         } @else {
-        <ul class="cal-list">
-          @for (m of upcoming; track m.id) {
-          <li class="cal-item">
-            <span class="cal-item-time">{{ fmtMedium(m.startDateTime) }}</span>
-            <span class="cal-item-body">
-              <span class="cal-item-subject">{{ m.subject }}</span>
-              <span class="cal-item-info">{{ m.durationMinutes }} min</span>
-            </span>
-            <span class="cal-item-actions">
-              <button type="button" class="mini-btn" (click)="copyLink(m)" [title]="'Copiar enlace'">
-                @if (copiedId === m.id) {
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="20 6 9 17 4 12"></polyline>
-                </svg>
-                } @else {
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="9" y="9" width="13" height="13" rx="2"/>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                </svg>
-                }
-              </button>
-              <button type="button" class="mini-btn mini-btn-primary" (click)="openLink(m)" [title]="'Abrir reunion'">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="13 17 18 12 13 7"></polyline>
-                  <polyline points="6 17 11 12 6 7"></polyline>
-                </svg>
-              </button>
-            </span>
-          </li>
-          }
-        </ul>
+        <div class="cal-empty-state sm">
+          <p>Ningun evento del rango tiene categoria.</p>
+        </div>
         }
-      </div>
+      </section>
     </aside>
-  </section>
+  </div>
 
+  <!-- ── Modal de creación (sin cambios funcionales) ─────────────── -->
   @if (showCreate) {
   <div class="cal-modal-backdrop" (click)="closeCreate()"></div>
   <section class="cal-modal" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
@@ -179,9 +348,9 @@
 
     @if (!createdMeeting) {
     <div class="cal-modal-body">
-      @if (!isTeamsConnected) {
+      @if (!isTeamsConnected && !draft.agendarCalendario) {
       <div class="cal-connect">
-        <p>Conecta tu cuenta Microsoft para crear la videollamada. El evento se agenda en el buzón compartido soporte@innovacloud.co.</p>
+        <p>Conecta tu cuenta Microsoft para crear la videollamada en tu calendario.</p>
         <button type="button" class="primary-btn" (click)="connectTeams()" [disabled]="isLoadingTeams">
           {{ isLoadingTeams ? 'Conectando...' : 'Conectar Teams' }}
         </button>
@@ -208,11 +377,29 @@
         </label>
       </div>
 
+      <div class="cal-field">
+        <span class="cal-field-lbl">Categoria</span>
+        <div class="cal-cats">
+          @for (c of categoriasReunion; track c.alias) {
+          <button type="button" class="cal-cat"
+            [class.on]="draft.categoria === c.alias"
+            [style.--cat-color]="c.color"
+            (click)="draft.categoria = c.alias">
+            <span class="cal-cat-dot"></span>
+            {{ c.alias }}
+          </button>
+          }
+        </div>
+        <small class="cal-field-note">
+          El color aparece en Outlook y en Teams con el mismo nombre de categoria.
+        </small>
+      </div>
+
       <label class="cal-check">
         <input type="checkbox" [(ngModel)]="draft.agendarCalendario" />
         <span>
-          <strong>Agendar en el calendario de Outlook</strong>
-          <small>El evento se crea en el buzón compartido soporte@innovacloud.co.</small>
+          <strong>Agendar en el calendario compartido</strong>
+          <small>{{ draft.agendarCalendario ? 'Se crea en el calendario de ' + (grupo ? grupo.displayName : 'Soporte') + ' con tu cuenta de Microsoft; si no esta conectada, queda en el buzon compartido.' : 'Desmarcado: se creara en tu cuenta de Microsoft, asi que necesitas conectar Teams.' }}</small>
         </span>
       </label>
 
@@ -222,7 +409,7 @@
     </div>
     <footer class="cal-modal-actions">
       <button type="button" class="secondary-btn" (click)="closeCreate()" [disabled]="creating">Cancelar</button>
-      <button type="button" class="primary-btn" (click)="createMeeting()" [disabled]="creating || !isTeamsConnected">
+      <button type="button" class="primary-btn" (click)="createMeeting()" [disabled]="creating || (!draft.agendarCalendario && !isTeamsConnected)">
         {{ creating ? 'Creando reunion...' : 'Crear reunion' }}
       </button>
     </footer>
@@ -235,13 +422,15 @@
       </span>
       <p class="cal-success-title">Reunion creada</p>
       <p class="cal-success-sub">{{ createdMeeting.subject }} · {{ fmtMedium(createdMeeting.startDateTime) }}</p>
+      @if (createdMeeting.joinUrl) {
       <div class="cal-link-box">
         <span class="cal-link-text">{{ createdMeeting.joinUrl }}</span>
-        <button type="button" class="ghost-btn" (click)="copyLink(createdMeeting)">
-          {{ copiedId === createdMeeting.id ? 'Copiado' : 'Copiar enlace' }}
+        <button type="button" class="ghost-btn" (click)="copyCreatedLink()">
+          {{ copiedId === 'creada' ? 'Copiado' : 'Copiar enlace' }}
         </button>
       </div>
       <p class="cal-success-note">Comparte el enlace con el cliente por el medio que prefieras.</p>
+      }
       <div class="cal-modal-actions">
         <button type="button" class="primary-btn" (click)="closeCreate()">Listo</button>
       </div>

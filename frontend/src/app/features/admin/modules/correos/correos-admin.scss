@@ -1,0 +1,700 @@
+@use 'design-tokens' as *;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Correos admin — SLA por agente
+// Mismo lenguaje visual que `perfil-institucional`: superficies blancas sobre
+// slate-50, bordes solidos slate-200, radios de 12 a 16, sombras sutiles y
+// chips pastel de la escala -50 / -100 / -700.
+// ═══════════════════════════════════════════════════════════════════════════
+
+:host {
+  display: block;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: $c-text;
+}
+
+.page {
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: clamp(16px, 4vw, 40px) clamp(16px, 4vw, 40px) 48px;
+}
+
+// ── Encabezado ───────────────────────────────────────────────────────────────
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $c-sp-6;
+  flex-wrap: wrap;
+  margin-bottom: $c-sp-6;
+
+  h1 {
+    margin: 0;
+    font-size: $c-text-3xl;
+    font-weight: 700;
+    color: $c-text;
+    letter-spacing: -0.02em;
+  }
+}
+
+.sub {
+  margin: 6px 0 0;
+  font-size: $c-text-base;
+  color: $c-text-secondary;
+}
+
+.head-right {
+  display: flex;
+  align-items: center;
+  gap: $c-sp-4;
+}
+
+.stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: $c-text-xs;
+  color: $c-text-muted;
+  white-space: nowrap;
+}
+
+// Indicador de recarga en curso: un punto girando junto a la hora. La tabla no
+// se oculta nunca, porque el admin la esta leyendo.
+.spin {
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  border: 1.5px solid $c-slate-400;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: girar 0.7s linear infinite;
+}
+
+@keyframes girar {
+  to { transform: rotate(360deg); }
+}
+
+// ── Botones ──────────────────────────────────────────────────────────────────
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0 $c-sp-5;
+  border: 1px solid transparent;
+  border-radius: $c-radius-lg;
+  background: $c-primary;
+  color: #fff;
+  font-family: inherit;
+  font-size: $c-text-base;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background $c-transition-fast, box-shadow $c-transition-fast;
+
+  &:hover:not(:disabled) {
+    background: $c-primary-hover;
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+  }
+}
+
+// ── Avisos ───────────────────────────────────────────────────────────────────
+.alert {
+  display: flex;
+  align-items: center;
+  gap: $c-sp-3;
+  flex-wrap: wrap;
+  margin-bottom: $c-sp-5;
+  padding: $c-sp-3 $c-sp-4;
+  border: 1px solid $c-red-100;
+  border-radius: $c-radius-md;
+  background: $c-red-50;
+  color: $c-red-600;
+  font-size: $c-text-base;
+
+  &.soft {
+    border-color: $c-amber-100;
+    background: $c-amber-50;
+    color: $c-amber-700;
+  }
+}
+
+.alert-title {
+  font-weight: 600;
+}
+
+// ── Cifras ───────────────────────────────────────────────────────────────────
+// Cuatro tarjetas separadas, no una tira con divisiones: el dato se escanea
+// tarjeta por tarjeta y el gap hace de separador.
+.figures {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: $c-sp-4;
+  margin-bottom: $c-sp-6;
+}
+
+.figure {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: $c-sp-5;
+  background: $c-surface;
+  border: 1px solid $c-border;
+  border-radius: $c-radius-2xl;
+  box-shadow: $c-shadow-xs;
+}
+
+.fig-value {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: $c-text;
+  letter-spacing: -0.02em;
+}
+
+.fig-label {
+  font-size: $c-text-sm;
+  color: $c-text-secondary;
+}
+
+.fig-value.muted {
+  color: $c-green-600;
+}
+
+// ── Filtros y busqueda ───────────────────────────────────────────────────────
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $c-sp-4;
+  flex-wrap: wrap;
+  margin-bottom: $c-sp-4;
+}
+
+// Un solo control con forma de pastilla, no un grupo de cajas: el filtro se lee
+// como una opcion, no como un boton de pagina.
+.segments {
+  display: inline-flex;
+  align-items: center;
+  gap: $c-sp-2;
+  flex-wrap: wrap;
+  padding: 5px;
+  background: $c-surface;
+  border: 1px solid $c-border;
+  border-radius: $c-radius-lg;
+  box-shadow: $c-shadow-xs;
+}
+
+.segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: $c-radius-md;
+  background: transparent;
+  color: $c-text-secondary;
+  font-family: inherit;
+  font-size: $c-text-sm;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background $c-transition-fast, color $c-transition-fast;
+
+  &:hover {
+    background: $c-surface-hover;
+    color: $c-text;
+  }
+
+  &.on {
+    background: $c-blue-50;
+    border-color: $c-blue-100;
+    color: $c-blue-700;
+    font-weight: 600;
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+  }
+}
+
+.seg-count {
+  padding: 1px 6px;
+  border-radius: $c-radius-pill;
+  background: $c-slate-100;
+  color: $c-text-secondary;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.segment.on .seg-count {
+  background: #fff;
+  color: $c-blue-700;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--dot, $c-slate-400);
+}
+
+.search {
+  width: 260px;
+  max-width: 100%;
+  height: 42px;
+  padding: 0 $c-sp-4;
+  border: 1px solid $c-border;
+  border-radius: $c-radius-md;
+  background: $c-surface;
+  color: $c-text;
+  font-family: inherit;
+  font-size: $c-text-base;
+  transition: border-color $c-transition-fast, box-shadow $c-transition-fast;
+
+  &::placeholder {
+    color: $c-text-muted;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: $c-blue-600;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+  }
+}
+
+// ── Paneles ──────────────────────────────────────────────────────────────────
+.panel {
+  background: $c-surface;
+  border: 1px solid $c-border;
+  border-radius: $c-radius-2xl;
+  box-shadow: $c-shadow-sm;
+  overflow: hidden;
+  margin-bottom: $c-sp-6;
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  gap: $c-sp-2;
+  padding: $c-sp-4 $c-sp-5;
+  border-bottom: 1px solid $c-border-light;
+
+  h2 {
+    margin: 0;
+    font-size: $c-text-lg;
+    font-weight: 600;
+    color: $c-text;
+  }
+}
+
+.panel-count {
+  padding: 1px 8px;
+  border-radius: $c-radius-pill;
+  background: $c-slate-100;
+  color: $c-text-secondary;
+  font-size: $c-text-xs;
+  font-weight: 600;
+}
+
+.pending-note {
+  margin: 0;
+  padding: $c-sp-6 $c-sp-5;
+  color: $c-text-muted;
+  font-size: $c-text-base;
+}
+
+// ── Tabla ────────────────────────────────────────────────────────────────────
+// El contenedor hace de scroll horizontal en pantallas angostas. Sin esto la
+// tabla se estira hasta romper el panel en vez de desplazarse.
+.table-wrap {
+  overflow-x: auto;
+}
+
+.grid {
+  width: 100%;
+  min-width: 900px;
+  // `fixed` con anchos declarados: las columnas miden lo mismo en todas las
+  // filas. Con `auto`, una carpeta larga ensancha su columna y el resto de los
+  // numeros dejan de estar en la misma vertical.
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: $c-text-base;
+
+  th {
+    padding: $c-sp-3 $c-sp-4;
+    background: $c-slate-50;
+    border-bottom: 1px solid $c-border;
+    color: $c-text-secondary;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  td {
+    padding: $c-sp-3 $c-sp-4;
+    border-bottom: 1px solid $c-border-light;
+    // Borde vertical entre columnas: la tabla se lee como una rejilla, no como
+    // cinco listas pegadas.
+    border-right: 1px solid $c-border-light;
+
+    &:last-child {
+      border-right: none;
+    }
+  }
+}
+
+// ── Encabezado de dos niveles ────────────────────────────────────────────────
+// El grupo de los cinco estados va tintado y alineado a la derecha, igual que
+// los numeros que resume: si el bloque de datos esta a la derecha, su etiqueta
+// tambien.
+.head-groups {
+  th {
+    padding-top: 10px;
+    padding-bottom: 10px;
+    font-size: 10px;
+  }
+
+  .grupo-num {
+    text-align: right;
+    background: $c-blue-50;
+    color: $c-blue-700;
+    // Solo el ultimo borde del grupo: los internos los pone cada columna.
+    border-right: 2px solid $c-border;
+  }
+
+  .grupo-res {
+    text-align: right;
+    background: $c-slate-100;
+  }
+
+  .grupo-lda {
+    background: $c-slate-100;
+    border-left: 2px solid $c-border;
+  }
+
+  .grupo-sla {
+    text-align: center;
+    background: $c-slate-100;
+  }
+
+  // El separador fuerte va en el encabezado tambien, o al bajar a la segunda
+  // fila de encabezados el bloque pierde el filo.
+  .col-agente {
+    border-bottom: 1px solid $c-border;
+  }
+}
+
+.head-cols th {
+  border-bottom: 1px solid $c-border;
+  // Cierre del grupo numerico en la segunda fila.
+  &:last-child {
+    border-right: 2px solid $c-border;
+  }
+}
+
+// ── Anchos por columna ───────────────────────────────────────────────────────
+// Repartidos en porcentajes para que la tabla conserve la proporcion al
+// estrecharse, en vez de deformar solo unas columnas.
+.col-agente {
+  width: 22%;
+}
+
+.col-num {
+  width: 9%;
+}
+
+.col-total {
+  width: 8%;
+}
+
+.col-sync {
+  width: 15%;
+}
+
+.col-sla {
+  width: 12%;
+}
+
+// ── Alineacion ───────────────────────────────────────────────────────────────
+// Regla unica: si el dato es un numero, la columna va a la derecha; el
+// encabezado se alinea con el dato y no por su cuenta. Este era el desajuste
+// que hacia ver la tabla descuadrada.
+.col-num,
+.col-total,
+.grupo-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.col-num.zero {
+  color: $c-slate-400;
+}
+
+// El punto del encabezado te dice de que color se pinta la columna; el cero
+// dentro de la celda se apaga solo para no gritar donde no hay nada.
+.head-estado {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  &::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--dot, transparent);
+  }
+}
+
+.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: color $c-transition-fast;
+
+  &:hover {
+    color: $c-text;
+  }
+}
+
+.caret {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  margin-left: 5px;
+  border-left: 3.5px solid transparent;
+  border-right: 3.5px solid transparent;
+  border-bottom: 5px solid $c-slate-300;
+  opacity: 0;
+  transition: opacity $c-transition-fast;
+
+  &.on {
+    opacity: 1;
+    border-bottom-color: $c-text-secondary;
+  }
+
+  &.on.asc {
+    transform: rotate(180deg);
+  }
+}
+
+// Barra de 3 px con el color del nivel a la izquierda. Es la unica senal de SLA
+// que sigue a la fila cuando la tabla se desplaza en horizontal, y evita tener
+// que mirar la columna de estado para saber a quien revisar primero.
+.row {
+  cursor: pointer;
+  transition: background $c-transition-fast;
+
+  &:hover {
+    background: $c-surface-hover;
+  }
+
+  // Filas alternas muy tenues: ayuda a seguir una fila hasta el otro lado sin
+  // necesidad de un color fuerte.
+  &:nth-child(even) {
+    background: #fcfdfe;
+  }
+
+  &:last-child td {
+    border-bottom: none;
+  }
+
+  &.static {
+    cursor: default;
+  }
+
+  &.static td {
+    background: #fafbfc;
+  }
+
+  // Fila alcanzable con teclado: el anillo de foco tiene que verse tambien
+  // cuando el recorrido es con Tab.
+  &:focus-visible {
+    outline: none;
+    background: $c-blue-50;
+
+    td {
+      border-bottom-color: $c-blue-200;
+    }
+  }
+}
+
+.agent {
+  display: block;
+  font-weight: 600;
+  color: $c-text;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.folder {
+  display: block;
+  margin-top: 1px;
+  font-size: $c-text-xs;
+  color: $c-text-muted;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// ── Chip de estado ───────────────────────────────────────────────────────────
+// El pastel lo lleva la celda, no el chip: asi la columna SLA se lee de un solo
+// vistazo como una franja de color y el chip queda como la etiqueta encima. Con
+// el chip teñido y la celda blanca se pierde esa lectura vertical.
+.col-sla {
+  width: 12%;
+  text-align: center;
+  white-space: nowrap;
+  background: var(--celda-fondo, transparent);
+  border-left: 2px solid var(--celda-borde, $c-border);
+}
+
+.col-total {
+  font-weight: 600;
+}
+
+.col-sync {
+  color: $c-text-secondary;
+  font-size: $c-text-sm;
+  white-space: nowrap;
+
+  &.never {
+    color: $c-slate-300;
+  }
+}
+
+.state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: $c-radius-pill;
+  background: #fff;
+  color: var(--dot, $c-text-secondary);
+  font-size: $c-text-xs;
+  font-weight: 600;
+  box-shadow: $c-shadow-xs;
+}
+
+.empty {
+  padding: 40px $c-sp-4;
+  text-align: center;
+  color: $c-text-muted;
+}
+
+.note {
+  display: flex;
+  align-items: center;
+  gap: $c-sp-3;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: $c-sp-3 $c-sp-5;
+  border-top: 1px solid $c-border-light;
+  background: $c-slate-50;
+  color: $c-text-muted;
+  font-size: $c-text-xs;
+}
+
+.note-count {
+  margin-left: auto;
+  font-weight: 600;
+  color: $c-text-secondary;
+}
+
+.origin {
+  margin: 0;
+  text-align: center;
+  color: $c-text-muted;
+  font-size: $c-text-xs;
+}
+
+// ── Esqueleto de carga ───────────────────────────────────────────────────────
+// Cuatro barras con la altura de una fila. Sin destellos ni numeritos: el
+// esqueleto dice "aun no hay nada", no "esto tarda mucho".
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: $c-sp-2;
+  margin-bottom: $c-sp-6;
+}
+
+.sk-row {
+  height: 56px;
+  border: 1px solid $c-border-light;
+  border-radius: $c-radius-lg;
+  background: linear-gradient(90deg, $c-slate-50 25%, $c-slate-100 50%, $c-slate-50 75%);
+  background-size: 200% 100%;
+  animation: brillo 1.4s ease-in-out infinite;
+}
+
+@keyframes brillo {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
+// Texto solo para lectores de pantalla.
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+// ── Responsive ───────────────────────────────────────────────────────────────
+@media (max-width: 1100px) {
+  .figures {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .figures {
+    grid-template-columns: 1fr;
+  }
+
+  .search {
+    width: 100%;
+  }
+
+  .head-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+// Quien pide menos movimiento recibe menos movimiento.
+@media (prefers-reduced-motion: reduce) {
+  .spin,
+  .sk-row {
+    animation: none;
+  }
+
+  .row,
+  .btn,
+  .segment {
+    transition: none;
+  }
+}

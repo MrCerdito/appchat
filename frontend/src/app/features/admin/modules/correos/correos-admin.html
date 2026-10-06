@@ -1,0 +1,247 @@
+<div class="page">
+
+  <header class="head">
+    <div>
+      <h1>Correos</h1>
+      <p class="sub">Estado de las bandejas por agente &middot; solo lectura</p>
+    </div>
+    <div class="head-right">
+      @if (datos(); as d) {
+      <span class="stamp" aria-live="polite">
+        @if (refrescando()) {
+          <i class="spin"></i>Actualizando
+        } @else {
+          Actualizado {{ desde(d.generadoEn) }}
+        }
+      </span>
+      }
+      <button class="btn" [disabled]="cargando() || refrescando()" (click)="cargar()">
+        Actualizar
+      </button>
+    </div>
+  </header>
+
+  @if (error()) {
+  <div class="alert">
+    <span>{{ error() }}</span>
+    <button class="btn" (click)="cargar()">Reintentar</button>
+  </div>
+  } @else if (cargando()) {
+  <!-- Esqueleto: mantiene la forma de la pagina para que al llegar los datos no
+       salte el contenido. Cuatro barras, sin texto ni animacion llamativa. -->
+  <div class="skeleton" aria-hidden="true">
+    <div class="sk-row"></div>
+    <div class="sk-row"></div>
+    <div class="sk-row"></div>
+    <div class="sk-row"></div>
+  </div>
+  <span class="sr-only">Cargando el resumen de correos</span>
+  }
+
+  @if (datos(); as d) {
+
+    @if (d.avisos.length) {
+    <div class="alert soft">
+      <span class="alert-title">Datos parciales</span>
+      @for (a of d.avisos; track a) {
+      <span>{{ a }}</span>
+      }
+    </div>
+    }
+
+    <!-- Resumen global: cuatro numeros y nada mas. -->
+    <section class="figures">
+      <div class="figure">
+        <span class="fig-value">{{ num(d.totales.total) }}</span>
+        <span class="fig-label">Correos</span>
+      </div>
+      <div class="figure">
+        <span class="fig-value">{{ num(d.totales.abiertos) }}</span>
+        <span class="fig-label">Sin resolver</span>
+      </div>
+      <div class="figure">
+        <span class="fig-value">{{ num(d.conAiertos) }}</span>
+        <span class="fig-label">Carpetas con pendientes</span>
+      </div>
+      <div class="figure">
+        <span class="fig-value muted">{{ num(d.totales.resuelto) }}</span>
+        <span class="fig-label">Resueltos</span>
+      </div>
+    </section>
+
+    <!-- Filtro por estado y busqueda, en una sola fila. -->
+    <section class="toolbar">
+      <div class="segments">
+        <button class="segment" [class.on]="filtroNivel() === null" (click)="filtroNivel.set(null)">
+          Todos <span class="seg-count">{{ d.asesores.length }}</span>
+        </button>
+        @for (n of ordenNivel; track n) {
+        <button
+          class="segment"
+          [class.on]="filtroNivel() === n"
+          [style.--dot]="estiloNivel(n).color"
+          (click)="alternarNivel(n)"
+        >
+          <i class="dot"></i>{{ estiloNivel(n).etiqueta }}
+          <span class="seg-count">{{ d.porNivel[n] }}</span>
+        </button>
+        }
+      </div>
+      <input
+        class="search"
+        type="text"
+        placeholder="Buscar agente o carpeta"
+        [value]="busqueda()"
+        (input)="onBuscar($event)"
+      />
+    </section>
+
+    <section class="panel">
+      <div class="table-wrap">
+      <table class="grid">
+        <thead>
+          <!-- Cabecera de dos niveles: los cinco estados son un bloque, y
+               Agente / Total / Sincronizacion / SLA son columnas propias. Asi se
+               ve de un vistazo cuales numeros se suman entre si. -->
+          <tr class="head-groups">
+            <th class="col-agente" scope="col" rowspan="2">Agente</th>
+            <th class="grupo-num" scope="colgroup" colspan="5">Estado de los correos</th>
+            <th
+              class="grupo-res sortable"
+              scope="col"
+              rowspan="2"
+              [attr.aria-sort]="ordenAria('total')"
+              (click)="alternarOrden('total')"
+            >
+              Total
+              <i class="caret" [class.on]="ordenDe('total')" [class.asc]="ordenDe('total') === 'asc'"></i>
+            </th>
+            <th
+              class="grupo-lda sortable"
+              scope="col"
+              rowspan="2"
+              [attr.aria-sort]="ordenAria('ultimoSync')"
+              (click)="alternarOrden('ultimoSync')"
+            >
+              &Uacute;ltima sincronizaci&oacute;n
+              <i class="caret" [class.on]="ordenDe('ultimoSync')" [class.asc]="ordenDe('ultimoSync') === 'asc'"></i>
+            </th>
+            <th class="grupo-sla" scope="col" rowspan="2">SLA</th>
+          </tr>
+          <tr class="head-cols">
+            @for (c of columnas; track c.clave) {
+            <th
+              class="col-num sortable"
+              scope="col"
+              [attr.aria-sort]="ordenAria(c.clave)"
+              [style.--dot]="colorEstado(c.clave)"
+              (click)="alternarOrden(c.clave)"
+            >
+              <span class="head-estado">{{ c.titulo }}</span>
+              <i class="caret" [class.on]="ordenDe(c.clave)" [class.asc]="ordenDe(c.clave) === 'asc'"></i>
+            </th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (a of filas(); track a.asesorId) {
+          <tr
+            class="row"
+            tabindex="0"
+            [attr.aria-label]="'Ver la bandeja de ' + a.asesor"
+            (click)="abrirAsesor(a)"
+            (keydown)="abrirConTecla($event, a)"
+          >
+            <td class="col-agente">
+              <span class="agent" [title]="a.asesor">{{ a.asesor }}</span>
+              <span class="folder" [title]="a.carpeta">{{ a.carpeta }}</span>
+            </td>
+            @for (c of columnas; track c.clave) {
+            <td class="col-num" [class.zero]="a[c.clave] === 0">{{ num(a[c.clave]) }}</td>
+            }
+            <td class="col-total">{{ num(a.total) }}</td>
+            <td class="col-sync" [class.never]="!a.ultimoSync" [title]="tituloFecha(a.ultimoSync)">
+              {{ desde(a.ultimoSync) }}
+            </td>
+            <td
+              class="col-sla"
+              [style.--celda-fondo]="estilo(a).fondo"
+              [style.--celda-borde]="estilo(a).borde"
+              [style.--dot]="estilo(a).color"
+            >
+              <span class="state">
+                <i class="dot"></i>{{ estilo(a).etiqueta }}
+              </span>
+            </td>
+          </tr>
+          } @empty {
+          <tr>
+            <td class="empty" colspan="9">Ninguna carpeta coincide con el filtro.</td>
+          </tr>
+          }
+        </tbody>
+      </table>
+      </div>
+
+      <p class="note">
+        El SLA suma pendientes, en proceso y escalados. Un correo resuelto deja de contar,
+        aunque conserve otra categor&iacute;a.
+        @if (filas().length !== d.asesores.length) {
+        <span class="note-count">Mostrando {{ filas().length }} de {{ d.asesores.length }}.</span>
+        }
+      </p>
+    </section>
+
+    @if (sinAsesor().length || faltanCarpetas()) {
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Carpetas sin agente</h2>
+        @if (sinAsesor().length) {
+        <span class="panel-count">{{ sinAsesor().length }}</span>
+        }
+      </div>
+      @if (faltanCarpetas()) {
+      <p class="pending-note">
+        Leyendo las carpetas de Outlook&hellip; esta seccion se completa sola.
+      </p>
+      } @else {
+      <div class="table-wrap">
+      <table class="grid">
+        <thead>
+          <tr>
+            <th class="col-agente" scope="col">Carpeta</th>
+            <th class="col-num" scope="col">Correos</th>
+            <th class="col-num" scope="col">No le&iacute;dos</th>
+            <th class="col-sla" scope="col">Acceso</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (c of sinAsesor(); track c.carpetaId) {
+          <tr class="row static">
+            <td class="col-agente"><span class="agent" [title]="c.carpeta">{{ c.carpeta }}</span></td>
+            <td class="col-num">{{ num(c.totalEnGraph) }}</td>
+            <td class="col-num" [class.zero]="c.noLeidosEnGraph === 0">
+              {{ num(c.noLeidosEnGraph) }}
+            </td>
+            <td
+              class="col-sla"
+              [style.--celda-fondo]="acceso(c.sincronizada).fondo"
+              [style.--celda-borde]="acceso(c.sincronizada).borde"
+              [style.--dot]="acceso(c.sincronizada).color"
+            >
+              <span class="state">
+                <i class="dot"></i>{{ c.sincronizada ? 'Sincronizada' : 'No accesible' }}
+              </span>
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+      </div>
+      }
+    </section>
+    }
+
+    <p class="origin">{{ d.carpetaPadre }}@if (d.buzon) { &middot; {{ d.buzon }}}</p>
+  }
+</div>
