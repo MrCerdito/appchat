@@ -1,0 +1,358 @@
+<div class="correos">
+  <header class="barra">
+    <div class="barra-titulo">
+      <h1>Correos</h1>
+      @if (carpetaNombre) {
+        <span class="carpeta-chip" title="Carpeta en el buzón compartido">
+          {{ carpetaNombre }}
+        </span>
+      }
+    </div>
+    <div class="barra-acciones">
+      <button class="btn btn-fantasma filtros-movil" (click)="alternarFiltros()">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round">
+          <line x1="3" y1="6" x2="21" y2="6" />
+          <line x1="3" y1="12" x2="15" y2="12" />
+          <line x1="3" y1="18" x2="9" y2="18" />
+        </svg>
+        Filtros
+        @if (hayFiltros) {
+          <span class="filtros-activos-dot" title="Hay filtros aplicados"></span>
+        }
+      </button>
+      <button
+        class="btn btn-fantasma"
+        [class.activo]="soloNoLeidos"
+        (click)="alternarNoLeidos()"
+      >
+        Solo no leídos ({{ noLeidosTotal }})
+      </button>
+      <button class="btn btn-fantasma" (click)="refrescar()" [disabled]="cargando">
+        Actualizar
+      </button>
+      <button class="btn btn-primario" (click)="sincronizar()" [disabled]="sincronizando">
+        {{ sincronizando ? 'Buscando…' : 'Buscar nuevos' }}
+      </button>
+    </div>
+  </header>
+
+  <div class="cuerpo-app">
+    <!-- Lateral de filtros, al estilo del de History -->
+    @if (filtrosAbiertos) {
+      <div class="filtros-backdrop" (click)="cerrarFiltros()"></div>
+    }
+    <aside class="filtros" [class.abierto]="filtrosAbiertos">
+      <!-- Cabecera en una sola linea: titulo, resultado y cierre. "Limpiar" no
+           va aqui porque en el pie queda al lado del numero que explica lo que
+           hace, y repetirlo arriba solo cargaba la cabecera. -->
+      <div class="filtros-head">
+        <h2>Filtros</h2>
+        <span class="filtros-conteo" title="Correos visibles con los filtros aplicados">
+          {{ total }}
+        </span>
+        <button class="filtros-cerrar" (click)="cerrarFiltros()" title="Cerrar filtros">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="filtros-cuerpo">
+        <!-- Buscar: primero porque es el filtro que mas se usa. Sin helper
+             debajo: el placeholder ya dice donde busca y el detalle largo esta
+             en el title, asi el campo no arrastra una linea de texto. -->
+        <div class="filtros-grupo">
+          <div class="filtros-buscador">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round">
+              <circle cx="11" cy="11" r="7" />
+              <line x1="20" y1="20" x2="16.7" y2="16.7" />
+            </svg>
+            <input
+              id="correo-buscar"
+              type="search"
+              placeholder="Asunto, remitente o destinatario"
+              title="Busca en asunto, remitente, destinatarios y vista previa"
+              [(ngModel)]="textoBusqueda"
+              (ngModelChange)="onBuscar()"
+              (keydown.enter)="buscarInmediato()"
+            />
+          </div>
+        </div>
+
+        <!-- Categoria. La lista tiene alto maximo y scroll propio: con muchas
+             categorias de Outlook empujaba "Fechas" fuera de la vista y había
+             que recorrer el panel entero para llegar al rango. -->
+        <div class="filtros-grupo">
+          <label class="filtros-label">Categoría</label>
+          <div class="filtros-chips">
+            <button
+              class="chip-filtro"
+              [class.activo]="!categoriaSeleccionada"
+              (click)="limpiarCategoria()"
+            >
+              <span class="chip-etiqueta">Todas</span>
+              <span class="chip-conteo">{{ totalCarpeta }}</span>
+            </button>
+            <button
+              class="chip-filtro chip-pendiente"
+              [class.activo]="categoriaPendienteSeleccionada"
+              (click)="elegirCategoria(SIN_CATEGORIA)"
+            >
+              <span class="chip-etiqueta">Pendiente</span>
+              <span class="chip-conteo">{{ sinCategoriaTotal }}</span>
+            </button>
+
+            <!-- "Todas" y "Pendiente" no son categorias de Outlook sino estados
+                 del filtro, asi que van separados de las de verdad. -->
+            @if (categoriasDisponibles.length) {
+            <div class="filtros-divisor"></div>
+            }
+
+            @for (c of categoriasDisponibles; track c.categoria) {
+              <button
+                class="chip-filtro"
+                [class.activo]="categoriaSeleccionada === c.categoria"
+                (click)="elegirCategoria(c.categoria)"
+              >
+                <span class="chip-etiqueta">
+                  @if (color(etiqueta(c.categoria)); as colorCat) {
+                  <span class="punto-categoria" [style.background-color]="colorCat"></span>
+                  }
+                  {{ etiqueta(c.categoria) }}
+                </span>
+                <span class="chip-conteo">{{ c.total }}</span>
+              </button>
+            }
+            @if (!categoriasDisponibles.length) {
+              <span class="filtros-vacio">Todavía no hay categorías en Outlook.</span>
+            }
+          </div>
+        </div>
+
+        <!-- Fechas: los presets en una fila y el rango manual debajo. Cuando hay
+             preset activo el rango se apaga, que es lo que hacia el helper
+             "Si eliges un preset, el rango se reinicia": ahora se ve solo. -->
+        <div class="filtros-grupo">
+          <label class="filtros-label">Fechas</label>
+          <div class="filtros-presets">
+            @for (p of presets; track p.valor) {
+              <button
+                class="preset-btn"
+                [class.activo]="presetFecha === p.valor"
+                (click)="elegirPreset(p.valor)"
+              >
+                {{ p.etiqueta }}
+              </button>
+            }
+          </div>
+
+          <div class="filtros-rango" [class.inactivo]="!!presetFecha">
+            <div class="rango-campo">
+              <label for="correo-desde">Desde</label>
+              <input
+                id="correo-desde"
+                type="date"
+                [max]="hoyIso"
+                [disabled]="!!presetFecha"
+                [(ngModel)]="desde"
+                (ngModelChange)="onCambiarRango()"
+              />
+            </div>
+            <div class="rango-campo">
+              <label for="correo-hasta">Hasta</label>
+              <input
+                id="correo-hasta"
+                type="date"
+                [max]="hoyIso"
+                [disabled]="!!presetFecha"
+                [(ngModel)]="hasta"
+                (ngModelChange)="onCambiarRango()"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pie fijo: el resultado y la accion que lo deshace, siempre a la vista
+           sin importar cuanto se haya desplazado el panel. -->
+      <div class="filtros-pie">
+        <span class="filtros-pie-texto" title="Correos visibles de los que hay en tu carpeta">
+          <strong>{{ total }}</strong>
+          <span>de {{ totalCarpeta }}</span>
+        </span>
+        <button
+          class="filtros-pie-limpiar"
+          [disabled]="!hayFiltros"
+          (click)="limpiarFiltros()"
+        >
+          Limpiar filtros
+        </button>
+      </div>
+    </aside>
+
+    <div class="paneles">
+      <section class="lista" [class.ocupado]="cargando">
+      @if (cargando) {
+        <div class="vacio">Cargando correos…</div>
+      } @else if (!mensajes.length) {
+        @if (hayFiltros) {
+          <div class="vacio">
+            <p>Ningún correo coincide con el filtro.</p>
+            <p class="vacio-hint">
+              Prueba con otra categoría, otro texto o amplía el rango de fechas.
+            </p>
+            <button class="btn btn-fantasma" (click)="limpiarFiltros()">
+              Limpiar filtros ({{ totalCarpeta }})
+            </button>
+          </div>
+        } @else if (soloNoLeidos) {
+          <div class="vacio">
+            <p>No tienes correos no leídos.</p>
+            <p class="vacio-hint">Ya los leíste todos, o no te ha llegado nada nuevo.</p>
+            <button class="btn btn-fantasma" (click)="verTodos()">
+              Ver todos ({{ totalCarpeta }})
+            </button>
+          </div>
+        } @else {
+          <div class="vacio">
+            <p>No hay correos en tu carpeta.</p>
+            <p class="vacio-hint">
+              Recibes en Outlook los correos que el sistema deposita en
+              <strong>{{ estado?.carpetaPadre ?? 'ASIGNADOS' }}</strong> bajo tu nombre.
+            </p>
+          </div>
+        }
+      } @else {
+        <ul class="mensajes">
+          @for (m of mensajes; track m.id) {
+            <li
+              class="mensaje"
+              [class.no-leido]="!m.isRead"
+              [class.seleccionado]="seleccionado?.id === m.id"
+              (click)="abrir(m)"
+            >
+              <span class="avatar">{{ iniciales(m.fromNombre, m.fromEmail) }}</span>
+              <div class="mensaje-cuerpo">
+                <div class="linea-1">
+                  <span class="remitente">{{ m.fromNombre || m.fromEmail || 'Sin remitente' }}</span>
+                  <span class="fecha">{{ fecha(m.receivedAt) }}</span>
+                </div>
+                <div class="asunto">{{ m.subject || '(sin asunto)' }}</div>
+                @if (m.bodyPreview) {
+                  <div class="preview">{{ m.bodyPreview }}</div>
+                }
+                <div class="linea-categoria">
+                  @for (cat of categorias(m); track cat) {
+                    <span
+                      class="categoria"
+                      [class.categoria-pendiente]="cat === PENDIENTE"
+                      [style.background-color]="color(cat)"
+                    >
+                      {{ cat }}
+                    </span>
+                  }
+                </div>
+                <div class="tags">
+                  @if (m.hasAttachments) {
+                    <span class="tag">
+                      <svg viewBox="0 0 24 24" width="12" height="12" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <path d="M21.4 11.1 12.3 20.2a5.5 5.5 0 0 1-7.8-7.8l9.2-9.2a3.7 3.7 0 1 1 5.2 5.2l-9.2 9.2a1.8 1.8 0 0 1-2.6-2.6l8.5-8.5" />
+                      </svg>
+                      {{ m.adjuntos }}
+                    </span>
+                  }
+                  @if (m.importance === 'high') {
+                    <span class="tag tag-alerta">Alta importancia</span>
+                  }
+                  @if (m.origen === 'movido_interno') {
+                    <span class="tag">Movido por la app</span>
+                  }
+                </div>
+              </div>
+            </li>
+          }
+        </ul>
+
+        @if (hayMasVisible) {
+          <button class="btn btn-fantasma cargar-mas" (click)="cargarMas()">
+            Cargar más ({{ total - mensajes.length }} restantes)
+          </button>
+        }
+      }
+    </section>
+
+    <section class="lector">
+      @if (!seleccionado) {
+        <div class="vacio">Selecciona un correo para leerlo.</div>
+      } @else {
+        <div class="lector-cabecera">
+          <h2>{{ seleccionado.subject || '(sin asunto)' }}</h2>
+          <div class="remitente-detalle">
+            <strong>{{ seleccionado.fromNombre || 'Sin remitente' }}</strong>
+            @if (seleccionado.fromEmail) {
+              <span class="mono">&lt;{{ seleccionado.fromEmail }}&gt;</span>
+            }
+            <span class="fecha">{{ fecha(seleccionado.receivedAt) }}</span>
+          </div>
+          <div class="linea-categoria">
+            @for (cat of categorias(seleccionado); track cat) {
+              <span
+                class="categoria"
+                [class.categoria-pendiente]="cat === PENDIENTE"
+                [style.background-color]="color(cat)"
+              >
+                {{ cat }}
+              </span>
+            }
+          </div>
+          @if (seleccionado.para?.length) {
+            <div class="linea-detalle"><b>Para:</b> {{ seleccionado.para.join(', ') }}</div>
+          }
+          @if (seleccionado.cc?.length) {
+            <div class="linea-detalle"><b>CC:</b> {{ seleccionado.cc.join(', ') }}</div>
+          }
+        </div>
+
+        @if (adjuntos.length) {
+          <div class="adjuntos">
+            @for (a of adjuntos; track a.id) {
+              <button class="adjunto" (click)="descargar(a)">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none"
+                  stroke="currentColor" stroke-width="2">
+                  <path d="M21.4 11.1 12.3 20.2a5.5 5.5 0 0 1-7.8-7.8l9.2-9.2a3.7 3.7 0 1 1 5.2 5.2l-9.2 9.2a1.8 1.8 0 0 1-2.6-2.6l8.5-8.5" />
+                </svg>
+                <span class="adjunto-nombre">{{ a.nombre }}</span>
+                @if (tamano(a.tamano)) {
+                  <span class="adjunto-tamano">{{ tamano(a.tamano) }}</span>
+                }
+              </button>
+            }
+          </div>
+        }
+
+        @if (cargandoCuerpo) {
+          <div class="vacio">Cargando contenido…</div>
+        } @else if (cuerpoIframe) {
+          @if (cuerpo?.truncado) {
+            <div class="aviso-chico">
+              El correo es muy grande y se muestra recortado.
+            </div>
+          }
+          <iframe
+            class="cuerpo-iframe"
+            [src]="cuerpoIframe"
+            sandbox=""
+            referrerpolicy="no-referrer"
+            title="Contenido del correo"
+          ></iframe>
+        }
+      }
+    </section>
+    </div>
+  </div>
+</div>

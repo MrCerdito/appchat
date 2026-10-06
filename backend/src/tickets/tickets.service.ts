@@ -2,12 +2,15 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
   ServiceUnavailableException,
   ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like } from 'typeorm';
+import { existsSync, unlinkSync } from 'fs';
+import { basename, join, resolve } from 'path';
 import { Ticket } from './ticket.entity';
 import { User } from '../auth/entities/user.entity';
 import { CreateTicketDto } from './dto/create-ticket.dto';
@@ -18,6 +21,7 @@ import { TicketMailService } from './ticket-mail.service';
 import { TicketsGateway } from './tickets.gateway';
 import { NotificationsService } from '../notifications/notifications.service';
 import { SlaService } from '../slaprotection/sla.service';
+import { TicketAuditService } from './ticket-audit.service';
 
 const STATUS_LABELS: Record<string, string> = {
   open: 'Abierto',
@@ -39,6 +43,17 @@ const PRIORITY_LABELS: Record<string, string> = {
 export class TicketsService {
   private readonly logger = new Logger(TicketsService.name);
 
+  /**
+   * Imágenes de notas, FUERA de `uploads/`. Ese directorio se sirve como
+   * estático sin comprobar sesión, y estas capturas llevan datos personales del
+   * cliente.
+   */
+  static readonly IMAGENES_DIR = join(
+    process.cwd(),
+    'uploads-private',
+    'tickets',
+  );
+
   constructor(
     @InjectRepository(Ticket) private readonly repo: Repository<Ticket>,
     @InjectRepository(User) private readonly userRepo: Repository<User>,
@@ -46,6 +61,7 @@ export class TicketsService {
     private readonly notifications: NotificationsService,
     private readonly sla: SlaService,
     private readonly gateway: TicketsGateway,
+    private readonly audit: TicketAuditService,
   ) {}
 
   private async generarCodigo(): Promise<string> {
@@ -133,6 +149,20 @@ export class TicketsService {
 
     const saved = await this.repo.save(ticket);
 
+    await this.audit.registrar({
+      ticketId: saved.id,
+      ticketCodigo: saved.codigo,
+      accion: 'ticket_creado',
+      campo: null,
+      after: {
+        status: saved.status,
+        priority: saved.priority,
+        sourceType: saved.sourceType,
+        assignedTo: saved.assignedTo?.id ?? null,
+      },
+      actor: { id: createdBy?.id ?? userId, name: createdBy?.name, role: createdBy?.role },
+    });
+
     let emailEnviado = false;
     if (dto.email) {
       const res = await this.ticketMail.enviarTicket(saved, dto.email);
@@ -177,6 +207,19 @@ export class TicketsService {
     return result;
   }
 
+  /**
+   * Listado de tickets.
+   *
+   * VISIBILIDAD (decision de negocio): a proposito NO se filtra por rol ni por
+   * asesor. El equipo necesita ver los tickets de los demas para atender
+   * derivaciones, y el filtro "solo los mios" del frontend es de conveniencia,
+   * no de seguridad.
+   *
+   * OJO: `userRole` y `userId` se reciben pero no se usan para filtrar. No es un
+   * descuido: si algun dia se quiere aislamiento, el sitio para hacerlo es aqui,
+   * junto con una comprobacion equivalente en `findOne` (H-04), porque hoy ambos
+   * devuelven cualquier ticket del sistema.
+   */
   async findAll(
     query: QueryTicketDto,
     userRole?: string,
@@ -407,8 +450,16 @@ export class TicketsService {
 
     if (dto.priority !== undefined && dto.priority !== oldPriority) {
       ticket.priority = dto.priority;
-      ticket.slaDeadline = await this.sla.calculateDeadline(dto.priority);
       ticket.slaAlertedAt = null;
+
+      // Recalcular el SLA solo si el ticket sigue vivo. Antes se recalculaba
+      // siempre, y subirle la prioridad a un ticket ya cerrado le resucitaba un
+      // slaDeadline: la UI mostraba un vencimiento en un ticket que ya no
+      // tiene nada que resolver.
+      const activo = ticket.status === 'open' || ticket.status === 'in_progress';
+      ticket.slaDeadline = activo
+        ? await this.sla.calculateDeadline(dto.priority)
+        : null;
 
       const recipients = this.collectTicketRecipients(ticket, userId);
 
@@ -421,6 +472,16 @@ export class TicketsService {
         recipientIds: recipients,
         senderId: userId,
         meta: { oldPriority, newPriority: dto.priority },
+      });
+
+      await this.audit.registrar({
+        ticketId: ticket.id,
+        ticketCodigo: ticket.codigo,
+        accion: 'ticket_prioridad_cambiada',
+        campo: 'priority',
+        before: { priority: oldPriority },
+        after: { priority: dto.priority, slaDeadline: ticket.slaDeadline },
+        actor: { id: userId, name: sender?.name, role },
       });
     }
 
@@ -440,9 +501,25 @@ export class TicketsService {
     }
 
     if (dto.status !== undefined && dto.status !== oldStatus) {
-      if (role === 'desarrollador' && dto.status === 'closed') {
+      // REGLA DE CIERRE: `closed` solo se alcanza desde `resolved` y mediante el
+      // endpoint POST /tickets/:id/close. Aqui se bloquea el atajo para que un
+      // PATCH directo, un drag-and-drop manipulado o una llamada suelta no
+      // esquiven el flujo de correo de confirmacion.
+      const adminOverride = role === 'admin' || role === 'superadmin';
+      if (dto.status === 'closed' && role === 'desarrollador') {
         throw new ForbiddenException(
-          'Solo el asesor o administrador puede cerrar tickets',
+          'El perfil desarrollador no puede cerrar tickets. Dejalo en resuelto.',
+        );
+      }
+      // El cierre va SIEMPRE por POST /tickets/:id/close, incluso viniendo de
+      // `resolved`. Un PATCH directo saltaria la decision de enviar o no el
+      // correo, y con ella la auditoria: quedaria un `ticket_estado_cambiado`
+      // sin registro de si se notificó al cliente. El admin conserva el
+      // override por soporte.
+      if (dto.status === 'closed' && !adminOverride) {
+        throw new ConflictException(
+          `No se puede cerrar ${ticket.codigo} con una actualizacion directa. ` +
+            'Usa "Enviar correo y cerrar" o "Solamente cerrar".',
         );
       }
       const prevStatus = ticket.status;
@@ -458,6 +535,19 @@ export class TicketsService {
         ticket.closedAt = new Date();
         ticket.closedBy = sender;
         ticket.slaDeadline = null;
+      }
+
+      // REAPERTURA: al salir de un estado terminal hay que limpiar la marca de
+      // cierre y devolver el SLA. Antes no se hacia y el ticket quedaba
+      // "abierto" con closedAt puesto y sin slaDeadline, lo que hacia que los
+      // filtros por fecha de cierre y la columna de SLA mostraran datos
+      // incoherentes.
+      const esTerminal = (s: string) => s === 'closed' || s === 'denied';
+      if (esTerminal(prevStatus) && !esTerminal(dto.status)) {
+        ticket.closedAt = null;
+        ticket.closedBy = null;
+        // El SLA solo tiene sentido sobre un ticket vivo.
+        ticket.slaDeadline = await this.sla.calculateDeadline(ticket.priority);
       }
 
       if (dto.status === 'on_hold') {
@@ -494,6 +584,23 @@ export class TicketsService {
         senderId: userId,
         meta: { oldStatus: prevStatus, newStatus: dto.status },
       });
+
+      const terminal = (s: string) => s === 'closed' || s === 'denied';
+      await this.audit.registrar({
+        ticketId: ticket.id,
+        ticketCodigo: ticket.codigo,
+        accion: terminal(prevStatus) && !terminal(dto.status)
+          ? 'ticket_reabierto'
+          : 'ticket_estado_cambiado',
+        campo: 'status',
+        before: { status: prevStatus },
+        after: {
+          status: dto.status,
+          closedAt: ticket.closedAt,
+          slaDeadline: ticket.slaDeadline,
+        },
+        actor: { id: userId, name: sender?.name, role },
+      });
     }
 
     if (dto.assignedToId !== undefined) {
@@ -504,6 +611,18 @@ export class TicketsService {
       const prevAssignedId = oldAssignedToId;
       ticket.assignedTo = newAssigned;
       ticket.assignedToName = newAssigned?.name ?? (null as any);
+
+      if (newAssigned?.id !== prevAssignedId) {
+        await this.audit.registrar({
+          ticketId: ticket.id,
+          ticketCodigo: ticket.codigo,
+          accion: newAssigned ? 'ticket_reasignado' : 'ticket_desasignado',
+          campo: 'assignedTo',
+          before: { assignedTo: prevAssignedId ?? null },
+          after: { assignedTo: newAssigned?.id ?? null },
+          actor: { id: userId, name: sender?.name, role },
+        });
+      }
 
       if (newAssigned && newAssigned.id !== prevAssignedId) {
         if (prevAssignedId && prevAssignedId !== userId) {
@@ -548,9 +667,29 @@ export class TicketsService {
   async delete(id: string, userId?: string): Promise<void> {
     const ticket = await this.findById(id);
 
+    // Se resuelve el actor ANTES de borrar: después la ficha ya no está.
+    const actor = userId ? await this.resolveUser(userId) : null;
+
     const result = await this.repo.delete(id);
     if (result.affected === 0)
       throw new NotFoundException('Ticket no encontrado');
+
+    await this.audit.registrar({
+      ticketId: id,
+      ticketCodigo: ticket.codigo,
+      accion: 'ticket_eliminado',
+      campo: null,
+      before: {
+        status: ticket.status,
+        priority: ticket.priority,
+        notas: Array.isArray(ticket.notes) ? ticket.notes.length : 0,
+      },
+      after: null,
+      actor: { id: actor?.id ?? userId, name: actor?.name, role: actor?.role },
+    });
+
+    // Sin esto, las capturas de PII del ticket eliminado seguian en disco.
+    this.borrarArchivosDeNotas(Array.isArray(ticket.notes) ? ticket.notes : []);
 
     this.gateway.broadcastTicketEvent('ticket:deleted', {
       id,
@@ -561,8 +700,18 @@ export class TicketsService {
   async addNote(id: string, dto: AddNoteDto, user?: any): Promise<Ticket> {
     const ticket = await this.findById(id);
 
-    const images = (dto.images ?? []).filter((u: string) =>
-      /^\/uploads\//.test(u),
+    // Solo se aceptan rutas servidas por este modulo y con el nombre de archivo que
+    // genera multer. Antes el filtro era `/^\/uploads\//`, que admitia CUALQUIER
+    // archivo publico de la aplicacion (incluso credenciales de sesion) y
+    // ademas rechazaba la ruta autenticada nueva.
+    const IMAGEN_RE =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|jpeg|png|webp|gif|avif)$/;
+    const images = (dto.images ?? []).filter(
+      (u: string) =>
+        typeof u === 'string' &&
+        (u.startsWith('/tickets/imagenes/') ||
+          u.startsWith('/uploads/tickets/')) &&
+        IMAGEN_RE.test(basename(u)),
     );
 
     const note = {
@@ -581,6 +730,23 @@ export class TicketsService {
     ticket.notes.unshift(note);
 
     const updated = await this.repo.save(ticket);
+
+    // El texto de la nota sí queda en la auditoría: es la evidencia de qué se
+    // le dijo al cliente. Las imágenes solo se referencian por nombre.
+    await this.audit.registrar({
+      ticketId: ticket.id,
+      ticketCodigo: ticket.codigo,
+      accion: 'ticket_nota_agregada',
+      campo: 'notes',
+      before: null,
+      after: {
+        noteId: note.id,
+        content: note.content,
+        images: images.length,
+        authorName: note.authorName,
+      },
+      actor: { id: user?.id, name: user?.name, role: user?.role },
+    });
 
     const actorName = user?.name ?? 'Sistema';
     const recipients = this.collectTicketRecipients(ticket, user?.id);
@@ -629,11 +795,115 @@ export class TicketsService {
 
     ticket.notes.splice(noteIndex, 1);
     await this.repo.save(ticket);
+    await this.audit.registrar({
+      ticketId: ticket.id,
+      ticketCodigo: ticket.codigo,
+      accion: 'ticket_nota_eliminada',
+      campo: 'notes',
+      before: { noteId: note.id, images: (note.images ?? []).length },
+      after: null,
+      actor: { id: user?.id, name: user?.name, role: user?.role },
+    });
+    // Las imágenes de la nota se borran del disco: si no, el archivo queda
+    // vivo para siempre y la fila que lo autorizaba ya no existe.
+    this.borrarArchivosDeNotas([note]);
     this.gateway.broadcastTicketEvent('ticket:updated', {
       id: ticket.id,
       codigo: ticket.codigo,
     });
     return { ok: true };
+  }
+
+  // ==================================================================
+  // IMÁGENES DE NOTAS
+  // ==================================================================
+
+  /** UUID v4 + extensión de imagen. Cualquier otra cosa se descarta. */
+  private static readonly IMAGEN_RE =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|jpeg|png|webp|gif|avif)$/;
+
+  private static readonly MIME_POR_EXT: Record<string, string> = {
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    webp: 'image/webp',
+    gif: 'image/gif',
+    avif: 'image/avif',
+  };
+
+  /**
+   * Valida que el ticket exista al subir la imagen. La subida ya está en disco
+   * cuando se llama: si el ticket no existe, el archivo se elimina para no dejar
+   * basura que nadie va a poder leer ni borrar.
+   */
+  async registrarImagenSubida(id: string, filename: string): Promise<void> {
+    await this.findById(id);
+    if (!TicketsService.IMAGEN_RE.test(filename)) {
+      throw new BadRequestException('Nombre de archivo no permitido');
+    }
+  }
+
+  /**
+   * Localiza la imagen en disco SOLO si alguna nota de algún ticket la
+   * referencia. Devolver el archivo sin esa comprobación convertiría el endpoint
+   * en un buscador de archivos por UUID adivinable.
+   *
+   * Busca primero en el directorio privado (subidas nuevas) y después en el
+   * legacy `uploads/tickets` (subidas anteriores al cambio), para que las notas
+   * ya guardadas sigan mostrando sus imágenes.
+   */
+  async buscarImagenDeTicket(
+    filename: string,
+  ): Promise<{ path: string; mime: string } | null> {
+    // `basename` primero: mata cualquier intento de traversal (`../`) antes de
+    // tocar el sistema de archivos, y la regex descarta el resto.
+    const seguro = basename(filename ?? '');
+    if (seguro !== filename || !TicketsService.IMAGEN_RE.test(seguro)) return null;
+
+    const candidatos = [
+      join(TicketsService.IMAGENES_DIR, seguro),
+      join(process.cwd(), 'uploads', 'tickets', seguro),
+    ];
+    const archivo = candidatos.find((p) => existsSync(p));
+    if (!archivo) return null;
+
+    // Que el archivo exista no basta: tiene que estar referenciado por una nota.
+    // Se busca el nombre dentro del jsonb de notas.
+    const referenciadas = await this.repo
+      .createQueryBuilder('t')
+      .where('t.notes::text LIKE :f', { f: `%${seguro}%` })
+      .getMany();
+    if (!referenciadas.length) return null;
+
+    const ext = seguro.split('.').pop() as string;
+    return {
+      path: archivo,
+      mime: TicketsService.MIME_POR_EXT[ext] ?? 'application/octet-stream',
+    };
+  }
+
+  /** Borra los archivos de un conjunto de notas. Ignora errores de disco. */
+  private borrarArchivosDeNotas(notes: any[]): void {
+    const directorios = [
+      TicketsService.IMAGENES_DIR,
+      join(process.cwd(), 'uploads', 'tickets'),
+    ];
+    for (const note of notes ?? []) {
+      for (const url of note?.images ?? []) {
+        const name = basename(typeof url === 'string' ? url : '');
+        if (!TicketsService.IMAGEN_RE.test(name)) continue;
+        for (const dir of directorios) {
+          const p = join(dir, name);
+          if (existsSync(p)) {
+            try {
+              unlinkSync(p);
+            } catch {
+              // Un archivo ya borrado o bloqueado no debe tumbar la operacion.
+            }
+          }
+        }
+      }
+    }
   }
 
   /**
@@ -646,6 +916,19 @@ export class TicketsService {
     to?: string,
   ): Promise<{ enviado: boolean; mensaje: string }> {
     const ticket = await this.findById(id);
+
+    // El correo dice "tu solicitud ha sido resuelta". Enviarlo con el ticket
+    // abierto le promete al cliente algo que todavia no ha ocurrido, y como el
+    // endpoint es independiente del cierre, se podia repetir cuantas veces se
+    // quisiera. Solo tiene sentido en `resolved` o ya en `closed`.
+    if (ticket.status !== 'resolved' && ticket.status !== 'closed') {
+      throw new ConflictException(
+        `No se puede enviar la confirmacion: ${ticket.codigo} esta en ` +
+          `"${STATUS_LABELS[ticket.status] ?? ticket.status}". ` +
+          'El ticket debe estar Resuelto.',
+      );
+    }
+
     if (ticket.sourceType !== 'web' && ticket.sourceType !== 'whatsapp') {
       return {
         enviado: false,
@@ -677,6 +960,130 @@ export class TicketsService {
       mensaje: enviado
         ? 'Correo enviado correctamente.'
         : 'No se pudo enviar el correo.',
+    };
+  }
+
+  /**
+   * Cierre controlado de un ticket. Es el UNICO camino permitido para llegar a
+   * `closed` (salvo el override del admin).
+   *
+   * Regla de negocio: un ticket solo se cierra cuando ya esta en `resolved`, y
+   * siempre mediante una accion explicita del usuario: "enviar correo y cerrar"
+   * o "solamente cerrar". Antes el cierre era un cambio de estado mas, con lo
+   * que se cerraban tickets a medias desde cualquier estado.
+   *
+   * El correo se envia ANTES de cerrar. Al reves se dejaba el ticket cerrado
+   * aunque el correo fallara, y el cliente se quedaba sin la confirmacion sin
+   * que nadie se enterara. Aqui si el correo falla no se cierra nada.
+   *
+   * @param enviarCorreo si es true, el correo es obligatorio: si falla, aborta.
+   */
+  async cerrarTicket(
+    id: string,
+    opciones: { enviarCorreo?: boolean; to?: string } = {},
+    actor?: { id?: string; role?: string },
+  ): Promise<{ cerrado: boolean; correoEnviado: boolean; mensaje: string }> {
+    const ticket = await this.findById(id);
+    const role = actor?.role ?? 'advisor';
+
+    // El desarrollador nunca cierra: su flujo termina en `resolved`.
+    if (role === 'desarrollador') {
+      throw new ForbiddenException(
+        'El perfil desarrollador no puede cerrar tickets. Dejalo en resuelto y el asesor lo cerrara.',
+      );
+    }
+
+    if (ticket.status === 'closed') {
+      return {
+        cerrado: true,
+        correoEnviado: false,
+        mensaje: 'El ticket ya estaba cerrado.',
+      };
+    }
+
+    // El admin puede cerrar desde cualquier estado como override de soporte.
+    const adminOverride = role === 'admin' || role === 'superadmin';
+    if (!adminOverride && ticket.status !== 'resolved') {
+      throw new ConflictException(
+        `Solo se puede cerrar un ticket que este en "Resuelto". ` +
+          `${ticket.codigo} esta en "${STATUS_LABELS[ticket.status] ?? ticket.status}". ` +
+          'Marcalo como Resuelto y despues cerralo.',
+      );
+    }
+
+    let correoEnviado = false;
+    if (opciones.enviarCorreo) {
+      const resultado = await this.enviarConfirmacionCierre(id, opciones.to);
+      if (!resultado.enviado) {
+        // No se cierra: es preferible un ticket resuelto con el correo pendiente
+        // que un ticket cerrado que el cliente nunca recibio.
+        throw new ServiceUnavailableException(
+          `No se cerro el ticket porque no se pudo enviar el correo: ${resultado.mensaje}`,
+        );
+      }
+      correoEnviado = true;
+    }
+
+    const sender = actor?.id ? await this.resolveUser(actor.id) : null;
+
+    const prevStatus = ticket.status;
+    ticket.status = 'closed';
+    ticket.closedAt = new Date();
+    ticket.closedBy = sender ?? ticket.closedBy ?? null;
+    ticket.slaDeadline = null;
+    ticket.updatedAt = new Date();
+    await this.repo.save(ticket);
+
+    const recipients = this.collectTicketRecipients(ticket, actor?.id);
+    const toLabel = 'Cerrado';
+    const fromLabel = STATUS_LABELS[prevStatus] ?? prevStatus;
+    const quien = sender?.name ?? 'Sistema';
+
+    await this.emitNotification({
+      type: 'ticket_closed',
+      title: `${toLabel}: ${ticket.codigo}`,
+      message:
+        `${quien} cerro ${ticket.codigo}: "${ticket.titulo}"` +
+        (correoEnviado ? ' (con correo de confirmacion al cliente)' : ' (sin correo)'),
+      entityId: ticket.id,
+      entityCodigo: ticket.codigo,
+      recipientIds: recipients,
+      senderId: actor?.id,
+      meta: { from: prevStatus, to: 'closed', correoEnviado },
+    });
+
+    await this.audit.registrar({
+      ticketId: ticket.id,
+      ticketCodigo: ticket.codigo,
+      accion: 'ticket_cerrado',
+      campo: 'status',
+      before: { status: prevStatus },
+      after: {
+        status: 'closed',
+        closedAt: ticket.closedAt,
+        correoEnviado,
+        correoDestinatario: correoEnviado ? opciones.to ?? 'registrado' : null,
+        adminOverride: prevStatus !== 'resolved',
+      },
+      actor: { id: actor?.id, name: sender?.name, role },
+    });
+
+    this.gateway.broadcastTicketEvent('ticket:updated', {
+      id: ticket.id,
+      codigo: ticket.codigo,
+    });
+
+    this.logger.log(
+      `Ticket ${ticket.codigo} cerrado por ${quien} ` +
+        `(estado previo: ${fromLabel}, correo: ${correoEnviado ? 'si' : 'no'}).`,
+    );
+
+    return {
+      cerrado: true,
+      correoEnviado,
+      mensaje: correoEnviado
+        ? 'Ticket cerrado y correo de confirmacion enviado.'
+        : 'Ticket cerrado.',
     };
   }
 
