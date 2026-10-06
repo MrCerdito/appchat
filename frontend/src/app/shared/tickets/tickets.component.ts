@@ -10,6 +10,7 @@ import { ModuloService } from '../../core/services/modulo.service';
 import { AuthService } from '../../core/services/auth.service';
 import { SessionService, Colegio } from '../../core/services/session.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { PermisosService } from '../../core/services/permisos.service';
 import { LayoutService } from '../../core/services/layout.service';
 import { SocketService } from '../../core/services/socket.service';
 import { Ticket, TicketQuery, TicketUpdateDto, ConversationMessage } from '../../core/models/ticket.model';
@@ -25,13 +26,14 @@ import { trackByIndex, trackById } from '../utils/track-by';
 import { fmtDateShort, fmtMedium, fmtDateTime, sameBogotaDay } from '../utils/date';
 import { minutesSince, formatShortDuration } from '../utils/duration';
 import { TicketMailTemplateComponent } from './components/ticket-mail-template/ticket-mail-template.component';
+import { TicketTareasComponent } from './components/ticket-tareas/ticket-tareas.component';
 
 const SLA_HOURS: Record<string, number> = { low: 168, medium: 72, high: 24, critical: 8 };
 
 @Component({
   selector: 'app-tickets',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, DragDropModule, TicketMailTemplateComponent],
+  imports: [CommonModule, FormsModule, RouterModule, DragDropModule, TicketMailTemplateComponent, TicketTareasComponent],
   templateUrl: './tickets.component.html',
   styleUrl: './tickets.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -55,11 +57,13 @@ export class TicketsComponent implements OnInit, OnDestroy {
   isAdmin = false;
   isDesarrollador = false;
 
+  /**
+   * `closed` nunca aparece como estado seleccionable: el cierre se hace siempre
+   * desde el modal, que valida `resolved` y decide si se envía el correo.
+   * Tampoco se ofrece a `desarrollador`.
+   */
   get statusChangeOptions(): { value: string; label: string; color: string }[] {
-    if (this.isDesarrollador) {
-      return TICKET_STATUSES.filter(s => s.value !== 'closed');
-    }
-    return [...TICKET_STATUSES];
+    return TICKET_STATUSES.filter(s => s.value !== 'closed');
   }
   isAdvisor = false;
   currentUserId = '';
@@ -156,6 +160,13 @@ export class TicketsComponent implements OnInit, OnDestroy {
   noteImages: string[] = [];
   noteUploading = false;
   noteSending = false;
+
+  /**
+   * URLs de objeto para las imágenes de notas. Se piden como Blob porque la
+   * ruta es autenticada: un `<img src>` sin el token devolvería 401.
+   */
+  private imagenesCache = new Map<string, string>();
+  private imagenesCargando = new Set<string>();
 
   showEditModal = false;
   editModalDto = { titulo: '', descripcion: '', category: '' };
@@ -409,8 +420,18 @@ export class TicketsComponent implements OnInit, OnDestroy {
     private socket: SocketService,
     private route: ActivatedRoute,
     private router: Router,
+    private permisos: PermisosService,
     private cdr: ChangeDetectorRef,
   ) {}
+
+  /**
+   * El bloque de tareas solo se monta con permiso `tareas` (desarrollador y
+   * admin). Aun asi el backend filtra por visibilidad, asi que un desarrollador
+   * nunca ve tareas ajenas aunque el ticket sea compartido.
+   */
+  canSeeTasks(): boolean {
+    return this.permisos.tieneAcceso('tareas');
+  }
 
   ngOnInit(): void {
     const user = this.auth.getUser();
@@ -838,7 +859,29 @@ export class TicketsComponent implements OnInit, OnDestroy {
   }
 
   noteImageUrl(path: string): string {
-    return /^https?:\/\//.test(path) ? path : `${environment.apiUrl}${path}`;
+    if (/^https?:\/\//.test(path)) return path;
+    // Las notas anteriores guardan `/uploads/tickets/<uuid>.<ext>`. Se toma solo
+    // el nombre de archivo para pedirlo por la ruta autenticada.
+    const file = path.split('/').pop() ?? '';
+    const cached = this.imagenesCache.get(file);
+    if (cached) return cached;
+
+    // Primera llamada: se devuelve un placeholder y se carga en segundo plano.
+    if (!this.imagenesCargando.has(file)) {
+      this.imagenesCargando.add(file);
+      this.ticketService.cargarImagen(file).subscribe({
+        next: (blob) => {
+          const url = URL.createObjectURL(blob);
+          this.imagenesCache.set(file, url);
+          this.imagenesCargando.delete(file);
+          this.cdr.detectChanges();
+        },
+        error: () => {
+          this.imagenesCargando.delete(file);
+        },
+      });
+    }
+    return '';
   }
 
   onNoteImageSelected(event: Event): void {
@@ -961,6 +1004,16 @@ export class TicketsComponent implements OnInit, OnDestroy {
     const ticket = event.previousContainer.data[event.previousIndex];
     if (this.isDesarrollador && targetStatus === 'closed') {
       this.notification.error('Accion no permitida', 'Solo el asesor puede cerrar tickets.');
+      return;
+    }
+    // Arrastrar a "Cerrado" es un atajo que se salta el flujo de correo. Se
+    // rechaza: el cierre pasa por el modal, que exige `resolved` y decide si se
+    // envía o no la confirmación.
+    if (targetStatus === 'closed' && !this.isAdmin) {
+      this.notification.error(
+        'No se puede cerrar arrastrando',
+        'Marca el ticket como Resuelto y usa "Enviar correo y cerrar" o "Solamente cerrar".',
+      );
       return;
     }
     if (this.tryOpenCloseEmailModal(ticket, targetStatus, 'kanban')) { return; }
@@ -1129,6 +1182,11 @@ export class TicketsComponent implements OnInit, OnDestroy {
     this.actionMenuTicketId = null;
     if (this.isDesarrollador && newStatus === 'closed') {
       this.notification.error('Accion no permitida', 'Solo el asesor puede cerrar tickets.');
+      return;
+    }
+    // Menú de la tabla: "Cerrado" abre el modal de cierre, nunca un PATCH directo.
+    if (newStatus === 'closed' && !this.isAdmin) {
+      this.openCloseEmailModal(ticket, 'table');
       return;
     }
     if (this.tryOpenCloseEmailModal(ticket, newStatus, 'table')) { return; }
@@ -1397,6 +1455,11 @@ export class TicketsComponent implements OnInit, OnDestroy {
       this.notification.error('Accion no permitida', 'Solo el asesor puede cerrar tickets.');
       return;
     }
+    // Igual que en la tabla y el kanban: el cierre siempre por el modal.
+    if (newStatus === 'closed' && !this.isAdmin) {
+      this.openCloseEmailModal(this.selectedTicket, 'detail');
+      return;
+    }
     if (this.tryOpenCloseEmailModal(this.selectedTicket, newStatus, 'detail')) return;
     this.applyStatusChange(this.selectedTicket, newStatus, 'detail');
   }
@@ -1454,41 +1517,84 @@ export class TicketsComponent implements OnInit, OnDestroy {
     const ticket = this.closeEmailTicket;
     const status = this.closeEmailStatus;
     if (!ticket || !status) return;
+    if (status === 'closed') {
+      this.ejecutarCierre(ticket, sendEmail);
+      return;
+    }
+    this.applyStatusChange(ticket, status, this.closeEmailSource);
+    this.showCloseEmailModal = false;
+    this.closeEmailTicket = null;
+    this.closeEmailStatus = '';
+  }
+
+  /**
+   * Camino único de cierre. Delega en POST /tickets/:id/close para que el
+   * backend sea quien valide `resolved`, envíe el correo y cierre en ese orden.
+   */
+  private ejecutarCierre(ticket: Ticket, enviarCorreo: boolean): void {
+    if (this.closeEmailSending) return;
+
+    // El backend exige `resolved`; avisamos antes de gastar la llamada.
+    if (ticket.status !== 'resolved') {
+      this.notification.error(
+        'No se puede cerrar',
+        `El ticket esta en "${ticket.status}". Marcalo primero como Resuelto.`,
+      );
+      this.showCloseEmailModal = false;
+      this.closeEmailTicket = null;
+      this.closeEmailStatus = '';
+      this.cdr.detectChanges();
+      return;
+    }
+
+    if (enviarCorreo && !this.ticketEmail(ticket)) {
+      this.notification.error(
+        'El cliente no tiene correo',
+        'No se envio el correo y no se marco como cerrado.',
+      );
+      return;
+    }
 
     this.closeEmailSending = true;
-    const update$ = this.ticketService.update(ticket.id, { status: status as any }).pipe(
-      finalize(() => { this.closeEmailSending = false; this.cdr.detectChanges(); }),
-    );
+    this.ticketService
+      .close(ticket.id, { enviarCorreo })
+      .pipe(
+        finalize(() => {
+          this.closeEmailSending = false;
+          this.cdr.detectChanges();
+        }),
+      )
+      .subscribe({
+        next: (t) => {
+          this.showCloseEmailModal = false;
+          this.closeEmailTicket = null;
+          this.closeEmailStatus = '';
+          if (this.selectedTicket?.id === t.id) {
+            this.selectedTicket = t;
+          }
+          this.load();
+          this.loadCounts();
+          this.cdr.detectChanges();
 
-    update$.subscribe({
-      next: () => {
-        this.showCloseEmailModal = false;
-        this.closeEmailTicket = null;
-        this.closeEmailStatus = '';
-        if (this.closeEmailSource === 'detail' && this.selectedTicket) {
-          this.ticketService.findById(ticket.id).subscribe((t) => { this.selectedTicket = t; this.cdr.detectChanges(); });
-        }
-        this.load(); this.loadCounts();
-        this.notification.success('Estado actualizado', 'El ticket fue marcado como cerrado.');
-        this.cdr.detectChanges();
-
-        if (sendEmail) {
-          this.ticketService.sendCloseConfirmation(ticket.id).subscribe({
-            next: (res) => {
-              if (res?.enviado) {
-                this.notification.success('Correo enviado', `Se envio la confirmacion al cliente ${ticket.clientName}.`);
-              } else {
-                this.notification.error('Correo no enviado', res?.mensaje || 'No se pudo enviar el correo.');
-              }
-            },
-            error: () => this.notification.error('Correo no enviado', 'No se pudo enviar el correo de confirmacion.'),
-          });
-        }
-      },
-      error: (err) => {
-        this.notification.error('Error', err.error?.message || 'No se pudo cambiar el estado.');
-      },
-    });
+          if (enviarCorreo) {
+            this.notification.success(
+              'Ticket cerrado',
+              `Se envio la confirmacion al cliente ${ticket.clientName}.`,
+            );
+          } else {
+            this.notification.success(
+              'Ticket cerrado',
+              'El ticket fue marcado como cerrado sin enviar correo.',
+            );
+          }
+        },
+        error: (err) => {
+          this.notification.error(
+            'No se pudo cerrar',
+            err?.error?.message || 'Ocurrio un error al cerrar el ticket.',
+          );
+        },
+      });
   }
 
   cancelCloseEmail(): void {
@@ -1499,49 +1605,18 @@ export class TicketsComponent implements OnInit, OnDestroy {
     this.cdr.detectChanges();
   }
 
-  sendCloseEmailDirect(ticket: Ticket): void {
-    if (!ticket || this.closeEmailSending) return;
-
-    if (!this.ticketEmail(ticket)) {
-      this.notification.error('El cliente no tiene correo', 'No se envio el correo y no se marco como cerrado.');
-      return;
-    }
-
-    this.closeEmailSending = true;
-    this.ticketService.update(ticket.id, { status: 'closed' as any }).pipe(
-      finalize(() => { this.closeEmailSending = false; this.cdr.detectChanges(); }),
-    ).subscribe({
-      next: () => {
-        this.closeEmailTicket = null;
-        this.closeEmailStatus = '';
-        this.showCloseEmailModal = false;
-        this.ticketService.findById(ticket.id).subscribe((t) => { this.selectedTicket = t; this.cdr.detectChanges(); });
-        this.load(); this.loadCounts();
-        this.notification.success('Estado actualizado', 'El ticket fue marcado como cerrado.');
-        this.cdr.detectChanges();
-
-        this.ticketService.sendCloseConfirmation(ticket.id).subscribe({
-          next: (res) => {
-            if (res?.enviado) {
-              this.notification.success('Correo enviado', `Se envio la confirmacion al cliente ${ticket.clientName}.`);
-            } else {
-              this.notification.error('Correo no enviado', res?.mensaje || 'No se pudo enviar el correo.');
-            }
-          },
-          error: () => this.notification.error('Correo no enviado', 'No se pudo enviar el correo de confirmacion.'),
-        });
-      },
-      error: (err) => {
-        this.notification.error('Error', err.error?.message || 'No se pudo cambiar el estado.');
-      },
-    });
-  }
-
   private applyStatusChange(ticket: Ticket, newStatus: string, source: 'detail' | 'table' | 'kanban'): void {
     this.ticketService.update(ticket.id, { status: newStatus as any }).subscribe({
-      next: () => {
+      next: (updated) => {
+        // El PATCH ya devuelve el ticket completo y actualizado (ver
+        // tickets.service.ts: `return updated`). Antes se hacia un `findById`
+        // encima: durante ese segundo viaje el modal seguia pintando el estado
+        // anterior y el desplegable quedaba abierto, y como esa peticion no
+        // tenia `error`, si fallaba el badge se quedaba viejo para siempre.
+        // Usar la respuesta del PATCH quita esa espera y ese punto de fallo.
         if (source === 'detail') {
-          this.ticketService.findById(ticket.id).subscribe((t) => { this.selectedTicket = t; this.cdr.detectChanges(); });
+          this.selectedTicket = updated;
+          this.detailMenu = null;
         }
         this.load(); this.loadCounts();
         this.notification.success('Estado actualizado', 'El estado del ticket fue actualizado.');

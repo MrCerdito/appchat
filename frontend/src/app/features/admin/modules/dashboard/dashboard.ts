@@ -21,6 +21,7 @@ export type ModuloIcono =
   | 'reportes'
   | 'tickets'
   | 'calendario'
+  | 'correos'
   | 'perfil_institucional'
   | 'faq'
   | 'widget'
@@ -111,6 +112,15 @@ const MODULOS: ModuloTarjeta[] = [
     deshabilitado: false,
   },
   {
+    codigo: 'correos',
+    ruta: 'correos',
+    titulo: 'Correos',
+    descripcion: 'SLA por agente',
+    color: '#b3701a',
+    icono: 'correos',
+    deshabilitado: false,
+  },
+  {
     codigo: 'perfil_institucional',
     ruta: 'perfil-institucional',
     titulo: 'Perfil Institucional',
@@ -147,7 +157,7 @@ const MODULOS: ModuloTarjeta[] = [
     deshabilitado: false,
   },
   {
-    codigo: 'configuracion',
+    codigo: 'colegios',
     ruta: 'colegios',
     titulo: 'Colegios',
     descripcion: 'Gestiona colegios, categorías y asesor principal',

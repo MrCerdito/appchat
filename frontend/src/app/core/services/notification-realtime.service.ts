@@ -11,6 +11,13 @@ import {
   NotificationPreferences,
 } from '../models/notification.model';
 
+/**
+ * Icono del popup del escritorio. Antes apuntaba a
+ * `/assets/icons/icon-192x192.png`, ruta que no existe en este proyecto: por eso
+ * todos los avisos salian sin imagen. Estos archivos si estan en el build.
+ */
+const ICONO_NOTIFICACION = 'favicon-192x192.png';
+
 @Injectable({ providedIn: 'root' })
 export class NotificationRealtimeService {
   private readonly api = `${environment.apiUrl}/notifications`;
@@ -101,8 +108,8 @@ export class NotificationRealtimeService {
     try {
       const desktopNotif = new window.Notification(notif.title || 'Notificacion', {
         body: notif.message || '',
-        icon: '/assets/icons/icon-192x192.png',
-        badge: '/assets/icons/icon-72x72.png',
+        icon: ICONO_NOTIFICACION,
+        badge: ICONO_NOTIFICACION,
         tag: notif.id,
       } as NotificationOptions);
 
@@ -113,6 +120,11 @@ export class NotificationRealtimeService {
           this.navigateToTicket(notif.entityCodigo);
         } else if (notif.entityType === 'ticket') {
           this.navigateToTicket();
+        } else if (notif.entityType === 'correo') {
+          // Sin esta rama el clic solo enfocaba la ventana y el aviso de correo
+          // no llevaba a la bandeja, que es justo para donde se quiere ir.
+          const queryParams = notif.entityId ? { correo: notif.entityId } : undefined;
+          this.router.navigate(['/dashboard/correos'], { queryParams });
         }
       };
 

@@ -51,7 +51,7 @@ export class TeamsMeeting {
     length: 20,
     default: 'shared',
   })
-  calendarTarget: 'shared' | 'none';
+  calendarTarget: 'personal' | 'shared' | 'none';
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;

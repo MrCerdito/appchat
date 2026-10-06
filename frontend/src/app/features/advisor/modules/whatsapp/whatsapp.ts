@@ -784,6 +784,17 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     return this.activeContact.assignedTo === this.currentUserId;
   }
 
+  /**
+   * En "Compartido" la videollamada la crea la cuenta de la empresa con token
+   * de aplicacion, asi que no hace falta tener Microsoft conectado. En "Mi
+   * calendario" o "No agendar" la reunion nace en la cuenta del advisor y si
+   * requiere su sesion de Teams.
+   */
+  get canCreateTeamsMeeting(): boolean {
+    if (this.teamsMeetingDraft.calendarTarget !== 'shared') return this.isTeamsConnected;
+    return true;
+  }
+
   restartWaConnection(): void {
     if (this.isRestartingConnection) return;
     this.isRestartingConnection = true;

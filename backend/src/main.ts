@@ -142,6 +142,11 @@ async function bootstrap() {
   // =========================
   // Middleware de bloqueo defensivo: nunca servir credenciales ni archivos de
   // sesión aunque existan bajo /uploads.
+  //
+  // Las imágenes de los tickets tampoco se sirven como estaticos. Contienen
+  // capturas con datos personales del cliente y el directorio estático no valida
+  // sesión: cualquiera que formularios el UUID podía verlas. Ahora pasan por
+  // GET /tickets/imagenes/:file, que exige el permiso 'tickets'.
   app.use((req, res, next) => {
     const p = (req.path || '/').toLowerCase();
     if (
@@ -149,6 +154,12 @@ async function bootstrap() {
       (p.startsWith('/uploads/') && p.endsWith('.json'))
     ) {
       return res.status(404).json({ statusCode: 404, message: 'Not Found' });
+    }
+    // Las notas ya guardadas guardan la URL antigua en su jsonb. Se redirige a
+    // la ruta autenticada para que sigan viéndose sin abrir el estático.
+    const legacy = p.match(/^\/uploads\/tickets\/([a-z0-9-]+\.[a-z0-9]+)$/);
+    if (legacy) {
+      return res.redirect(302, `/tickets/imagenes/${legacy[1]}`);
     }
     next();
   });

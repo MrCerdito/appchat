@@ -137,17 +137,17 @@
     <header>
       <div>
         <strong>Reunion en Teams</strong>
-        <span>{{ isTeamsConnected ? (teamsAccountName || 'Cuenta conectada') : 'Conecta Microsoft una vez' }}</span>
+        <span>{{ isTeamsConnected ? (teamsAccountName || 'Cuenta conectada') : (teamsMeetingDraft.calendarTarget === 'shared' ? 'Se agendara en el calendario compartido' : 'Conecta Microsoft una vez') }}</span>
       </div>
       <button type="button" class="icon-action" (click)="closeTeamsMeeting()" title="Cerrar">
         <wa-icon name="x"></wa-icon>
       </button>
     </header>
 
-    @if (!isTeamsConnected) {
+    @if (!isTeamsConnected && teamsMeetingDraft.calendarTarget !== 'shared') {
     <div class="teams-connect">
       <wa-icon name="brand-teams"></wa-icon>
-      <p>Inicia sesion con la cuenta que creara las videollamadas.</p>
+      <p>Necesitas iniciar sesion con la cuenta que creara la videollamada.</p>
       <button type="button" class="primary-btn" (click)="connectTeams()" [disabled]="isLoadingTeams">
         <wa-icon [name]="isLoadingTeams ? 'loader-2' : 'login-2'"></wa-icon>
         Conectar Teams
@@ -183,14 +183,14 @@
       <span>Agendar en calendario</span>
       <div class="radio-group">
         <label class="radio-item">
-          <input type="radio" name="calendarTarget" [value]="'personal'" [(ngModel)]="teamsMeetingDraft.calendarTarget" />
-          <wa-icon name="calendar"></wa-icon>
-          Personal
-        </label>
-        <label class="radio-item">
           <input type="radio" name="calendarTarget" [value]="'shared'" [(ngModel)]="teamsMeetingDraft.calendarTarget" />
           <wa-icon name="users"></wa-icon>
           Compartido
+        </label>
+        <label class="radio-item">
+          <input type="radio" name="calendarTarget" [value]="'personal'" [(ngModel)]="teamsMeetingDraft.calendarTarget" />
+          <wa-icon name="calendar"></wa-icon>
+          Mi calendario
         </label>
         <label class="radio-item">
           <input type="radio" name="calendarTarget" [value]="'none'" [(ngModel)]="teamsMeetingDraft.calendarTarget" />
@@ -198,6 +198,7 @@
           No agendar
         </label>
       </div>
+      <em>En "Compartido" la reunion la crea la cuenta soporte@innovacloud.co y no necesitas conectar tu Microsoft.</em>
     </div>
 
     @if (teamsMeetingMessage) {
@@ -210,7 +211,7 @@
         type="button"
         class="primary-btn"
         (click)="createTeamsMeeting()"
-        [disabled]="!isTeamsConnected || isCreatingTeamsMeeting || !canReply"
+        [disabled]="isCreatingTeamsMeeting || !canReply || !canCreateTeamsMeeting"
       >
         <wa-icon [name]="isCreatingTeamsMeeting ? 'loader-2' : 'video-plus'"></wa-icon>
         Crear y enviar link

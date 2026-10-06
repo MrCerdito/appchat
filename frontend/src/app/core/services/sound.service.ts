@@ -40,7 +40,13 @@ export class SoundService {
   }
 
   init(): void {
-    this.enableDesktopNotifications();
+    // NO se pide el permiso de escritorio aqui. Este init() corre al cargar el
+    // dashboard, sin gesto del usuario, y Chrome rechaza en silencio una peticion
+    // sin gesto Y la bloquea de forma permanente: un unico arranque dejaba los
+    // avisos de escritorio inutilizados para siempre. Ahora solo se LEE el estado
+    // actual; el permiso se pide con `requestNotifications()` desde un clic real
+    // (el boton de la campana).
+    this.refreshNotificationPermission();
     this.installAudioUnlock();
     this.loadSoundConfig();
   }
@@ -1028,18 +1034,18 @@ export class SoundService {
     } catch { /* ignore */ }
   }
 
-  enableDesktopNotifications(): void {
-    if (!('Notification' in window)) {
-      this.notificationPermissionSubject.next('unsupported');
-      return;
-    }
-    if (Notification.permission === 'default') {
-      Notification.requestPermission()
-        .then((p) => this.notificationPermissionSubject.next(p))
-        .catch(() => undefined);
-    } else {
-      this.notificationPermissionSubject.next(Notification.permission);
-    }
+  /**
+   * Publica el estado real del permiso sin pedirlo.
+   *
+   * Pedir el permiso aqui es el bug que dejo sin notificaciones de escritorio a
+   * los usuarios: esta funcion se llamaba desde `init()`, que corre al abrir el
+   * dashboard sin que el usuario haya hecho nada. Chrome ignora la peticion y
+   * ademas la marca como bloqueada, asi que despues ningun boton vuelve a
+   * conseguir el permiso. Para pedirlo esta `requestNotifications()`, que debe
+   * llamarse desde un gesto.
+   */
+  refreshNotificationPermission(): void {
+    this.notificationPermissionSubject.next(this.currentNotificationPermission());
   }
 
   /** Solicita el permiso de notificaciones del sistema. Debe llamarse desde

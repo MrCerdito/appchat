@@ -19,6 +19,7 @@ const TYPE_LABELS: Record<string, string> = {
   ticket_deleted: 'Ticket eliminado',
   ticket_sla_warning: 'SLA por vencer',
   ticket_sla_expired: 'SLA vencido',
+  correo_nuevo: 'Correo nuevo',
 };
 
 const TYPE_BG: Record<string, string> = {
@@ -34,6 +35,7 @@ const TYPE_BG: Record<string, string> = {
   ticket_deleted: '#F3F4F6',
   ticket_sla_warning: '#FFF7ED',
   ticket_sla_expired: '#FEF2F2',
+  correo_nuevo: '#EFF4FF',
 };
 
 const TYPE_FG: Record<string, string> = {
@@ -49,6 +51,7 @@ const TYPE_FG: Record<string, string> = {
   ticket_deleted: '#6B7280',
   ticket_sla_warning: '#D97706',
   ticket_sla_expired: '#DC2626',
+  correo_nuevo: '#2563EB',
 };
 
 @Component({
@@ -906,6 +909,25 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
       } else {
         this.router.navigate([route]);
       }
+      return;
+    }
+    if (notif.entityType === 'tarea') {
+      // El workspace de tareas no existe para asesor ni para interno, asi que
+      // un tipo de aviso que se recibiera ahi no debe llevar a una ruta muerta.
+      const route = this.getTareasRoute();
+      if (!route) return;
+      if (notif.entityId) {
+        this.router.navigate([route], { queryParams: { tarea: notif.entityId } });
+      } else {
+        this.router.navigate([route]);
+      }
+      return;
+    }
+    if (notif.entityType === 'correo') {
+      // El aviso lleva el id local del correo mas reciente para abrirlo directo.
+      // Sin ese dato solo se entra a la bandeja, que tambien es valido.
+      const queryParams = notif.entityId ? { correo: notif.entityId } : undefined;
+      this.router.navigate(['/dashboard/correos'], { queryParams });
     }
   }
 
@@ -1038,6 +1060,15 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
       case 'desarrollador': return '/developer/tickets';
       case 'interno': return '/interno/tickets';
       default: return '/admin/tickets';
+    }
+  }
+
+  /** `null` para los roles que no tienen workspace de tareas. */
+  private getTareasRoute(): string | null {
+    switch (this.userRole) {
+      case 'admin': return '/admin/tareas';
+      case 'desarrollador': return '/developer/tareas';
+      default: return null;
     }
   }
 

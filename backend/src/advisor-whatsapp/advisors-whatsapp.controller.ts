@@ -610,11 +610,17 @@ export class AdvisorsWhatsappController {
       subject: string;
       startDateTime: string;
       durationMinutes?: number;
-      calendarTarget?: 'shared' | 'none';
+      calendarTarget?: 'personal' | 'shared' | 'none';
+      /** Categorias literales de Outlook ("Yellow category", ...). */
+      categorias?: string[];
     },
   ) {
     return this.teamsService.createStandaloneMeeting(
-      { id: req.user.id, name: req.user.name || req.user.email || null },
+      {
+        id: req.user.id,
+        name: req.user.name || req.user.email || null,
+        email: req.user.email || null,
+      },
       body,
     );
   }
@@ -638,7 +644,26 @@ export class AdvisorsWhatsappController {
       req.user.id,
       req.user.role,
     );
-    const meeting = await this.teamsService.createMeeting(req.user.id, body);
+
+    // Crea la reunion y la agenda en el calendario pedido. Si Microsoft falla
+    // la excepcion sube: antes se tragaba con logger.warn y el asesor creia
+    // que estaba agendado cuando no habia quedado nada.
+    const meeting = await this.teamsService.createMeeting(
+      {
+        id: req.user.id,
+        name: req.user.name || req.user.email || null,
+        email: req.user.email || null,
+      },
+      body,
+      {
+        name: chat.name,
+        role: chat.role,
+        institution: chat.institution,
+        phone: chat.phone,
+        email: chat.email,
+      },
+    );
+
     const text = this.teamsWhatsappText(
       meeting.subject,
       meeting.startDateTime,
@@ -656,27 +681,6 @@ export class AdvisorsWhatsappController {
       message: result.message,
       assignedAdvisorId: result.chat.assignedTo,
     });
-
-    if (body.calendarTarget && body.calendarTarget !== 'none') {
-      try {
-        await this.teamsService.createCalendarEvent(
-          req.user.id,
-          body.calendarTarget,
-          meeting,
-          {
-            name: chat.name,
-            role: chat.role,
-            institution: chat.institution,
-            phone: chat.phone,
-            email: chat.email,
-          },
-        );
-      } catch (err: any) {
-        this.logger.warn(
-          `No se pudo agendar al calendario: ${err?.message ?? err}`,
-        );
-      }
-    }
 
     return { ok: true, meeting, chat: result.chat };
   }
@@ -842,8 +846,19 @@ export class AdvisorsWhatsappController {
     return { ok: true, messageId: result.message.id, chat: result.chat };
   }
 
+  /**
+   * Crea un ticket desde la conversacion de WhatsApp.
+   *
+   * La clase ya exige `@Permiso('whatsapp')`, pero esto ademas CREA un ticket:
+   * dispara notificaciones, email de confirmacion y SLA. Por eso se vuelve a
+   * exigir `@Permiso('tickets')` de forma explicita, igual que hace la ruta
+   * equivalente de sesiones. Con solo el permiso 'whatsapp' se podian generar
+   * tickets sin acceso al modulo.
+   */
   @Post(':id/ticket')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Permiso('tickets')
+  @Roles('admin', 'advisor', 'interno')
   @HttpCode(HttpStatus.CREATED)
   async createTicketFromWhatsapp(
     @Param('id') id: string,

@@ -134,6 +134,20 @@ export const routes: Routes = [
           import('./features/advisor/modules/history/history').then(m => m.HistoryGlobalComponent),
       },
       {
+        path: 'correos',
+        canActivate: [permisoGuard('correos')],
+        loadComponent: () =>
+          import('./features/admin/modules/correos/correos-admin').then(m => m.CorreosAdmin),
+      },
+      {
+        path: 'correos/asesor/:id',
+        canActivate: [permisoGuard('correos')],
+        loadComponent: () =>
+          import('./features/admin/modules/correos/pages/asesor/correos-asesor-admin').then(
+            m => m.CorreosAsesorAdmin,
+          ),
+      },
+      {
         path: 'operaciones',
         canActivate: [permisoGuard('whatsapp')],
         loadComponent: () =>
@@ -209,6 +223,12 @@ export const routes: Routes = [
           import('./shared/tickets/tickets.component').then(m => m.TicketsComponent),
       },
       {
+        path: 'tareas',
+        canActivate: [permisoGuard('tareas')],
+        loadComponent: () =>
+          import('./features/developer/workspace/tareas-workspace.component').then(m => m.TareasWorkspaceComponent),
+      },
+      {
         path: 'calendario',
         canActivate: [permisoGuard('calendario')],
         loadComponent: () =>
@@ -260,6 +280,12 @@ export const routes: Routes = [
         canActivate: [permisoGuard('tickets')],
         loadComponent: () =>
           import('./shared/tickets/tickets.component').then(m => m.TicketsComponent),
+      },
+      {
+        path: 'tareas',
+        canActivate: [permisoGuard('tareas')],
+        loadComponent: () =>
+          import('./features/developer/workspace/tareas-workspace.component').then(m => m.TareasWorkspaceComponent),
       },
     ],
   },

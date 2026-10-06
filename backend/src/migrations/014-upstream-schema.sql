@@ -69,3 +69,32 @@ CREATE TABLE IF NOT EXISTS modulo_desarrolladores (
   CONSTRAINT fk_modulo_dev_modulo FOREIGN KEY (modulo_id) REFERENCES modulos(id) ON DELETE CASCADE,
   CONSTRAINT fk_modulo_dev_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+-- ───── Auditoria de tickets ─────────────────────────────────────────────────
+-- Registro de solo-append: que paso, quien lo hizo y cuando. No tiene FK a
+-- tickets a proposito: la fila de auditoria de un ticket eliminado debe
+-- sobrevivir al borrado del ticket, que es justo el caso que hay que poder
+-- investigar despues.
+--
+-- Los nombres de columna van en camelCase y entre comillas a proposito: el
+-- proyecto NO usa naming strategy de TypeORM, asi que la entidad pide
+-- literalmente "ticketId", "actorId", etc. Con snake_case el arranque en
+-- produccion fallaria con `column "ticketId" does not exist`.
+CREATE TABLE IF NOT EXISTS ticket_audit (
+  id              uuid        PRIMARY KEY DEFAULT uuid_generate_v4(),
+  "ticketId"      uuid        NOT NULL,
+  "ticketCodigo"  varchar(20) NOT NULL,
+  accion          varchar(40) NOT NULL,
+  campo           varchar(60),
+  "before"        jsonb,
+  "after"         jsonb,
+  "actorId"       uuid,
+  "actorName"     varchar(120),
+  "actorRole"     varchar(20),
+  created_at      timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ticket_audit_ticket
+  ON ticket_audit ("ticketId", created_at);
+CREATE INDEX IF NOT EXISTS idx_ticket_audit_usuario
+  ON ticket_audit ("actorId");

@@ -1600,39 +1600,77 @@
   flex-direction: column;
 }
 
-.ts-detail-header {
+/* ════════════════════════════════════════════════════════════════
+   DETALLE DE TICKET — SISTEMA VISUAL
+   Tarjetas en lugar de lineas divisorias: cada bloque (informacion,
+   notas, resumen, acciones) es una superficie independiente, lo que
+   hace que la columna derecha se lea como un panel aparte y no como
+   una continuacion del texto.
+   ════════════════════════════════════════════════════════════════ */
+
+// ── Superficie del modal ──
+.ts-detail-modal {
+  width: 92vw;
+  max-width: 1240px;
+  min-height: 80vh;
+  max-height: 92vh;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.18);
+  overflow: hidden;
+}
+
+// ── Cabecera: solo identidad. Los badges viven en "Resumen del ticket". ──
+.ts-detail-head {
   flex-shrink: 0;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 20px;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 20px 24px 18px;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
 }
 
-.ts-detail-header-left {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.ts-detail-ticket-icon {
+.ts-detail-head-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 9px;
-  background: color-mix(in srgb, var(--primary, #6366f1) 12%, transparent);
-  color: var(--primary, #6366f1);
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--ts-brand) 12%, transparent);
+  color: var(--ts-brand);
 }
 
-.ts-detail-header-id {
-  font-size: 16px;
+.ts-detail-head-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.ts-detail-head-code {
+  font-family: var(--font-mono);
+  font-size: 18px;
   font-weight: 700;
-  letter-spacing: 0.01em;
-  color: var(--text);
-  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  color: var(--ts-ink);
+}
+
+// El titulo puede ser largo: una sola linea con ellipsis, para que el
+// codigo y el boton de cerrar nunca se desplacen.
+.ts-detail-head-title {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.35;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .ts-detail-close {
@@ -1641,198 +1679,290 @@
   justify-content: center;
   width: 32px;
   height: 32px;
-  border: 0;
+  flex-shrink: 0;
+  border: 1px solid transparent;
   border-radius: 8px;
   background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  margin-left: auto;
-  &:hover { background: rgba(0, 0, 0, 0.05); color: var(--text); }
-}
-
-.ts-detail-statusbar {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  flex-wrap: wrap;
-  padding: 10px 20px;
-  border-bottom: 1px solid var(--border);
-  background: color-mix(in srgb, var(--surface) 60%, #fafafa);
-}
-
-.ts-detail-status-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.ts-detail-status-lbl {
-  font-size: 12px;
-  font-weight: 500;
   color: var(--text-faint);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+
+  &:hover { background: var(--surface-hover); color: var(--text); border-color: var(--border); }
 }
 
-.ts-detail-status-code {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text);
-  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-}
-
-.ts-detail-status-sep {
-  width: 1px;
-  height: 20px;
-  background: var(--border);
-}
-
+// ── Cuerpo 70 / 30 ──
 .ts-detail-body {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  padding: 20px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
-  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) 312px;
+  gap: 18px;
   align-items: start;
+  padding: 20px 24px 24px;
 }
 
-.ts-detail-main {
+.ts-detail-col {
   display: flex;
   flex-direction: column;
   gap: 16px;
   min-width: 0;
 }
 
-.ts-detail-card-main {
-  padding: 18px 20px;
-}
-
-.ts-detail-card-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
-  .ts-detail-card-title { margin: 0; }
-}
-
-.ts-detail-actions-side {
+.ts-detail-side {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 16px;
+  min-width: 0;
   position: sticky;
   top: 0;
 }
 
-.ts-detail-actions-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text);
-  margin: 0 0 2px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-faint);
+// ── Tarjeta base ──
+.ts-card {
+  padding: 18px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-sm);
 }
 
-.ts-close-email-cta {
+.ts-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.ts-card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 16px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+
+  svg { flex-shrink: 0; color: var(--ts-brand); }
+}
+
+// Cuando el titulo comparte fila con un boton, no debe_pushar el margen.
+.ts-card-head .ts-card-title { margin-bottom: 0; }
+
+.ts-card-subtitle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 10px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-faint);
+
+  svg { flex-shrink: 0; }
+}
+
+// Separador interno entre sub-bloques de una misma tarjeta.
+.ts-card-split {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+// ── Particion por audiencia ──
+// No es decoracion: el asesor necesita el contexto del cliente y de quien
+// registro el caso; el desarrollador necesita la carga tecnica. Cada rol
+// lee una columna y descarta la otra.
+.ts-audience-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.ts-audience {
+  min-width: 0;
+  padding: 14px 16px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.ts-audience-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+
+  svg { flex-shrink: 0; color: var(--ts-brand); }
+}
+
+.ts-info-list {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 16px;
-  margin-top: 12px;
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, #10b981 8%, transparent);
-  border: 1px solid color-mix(in srgb, #10b981 26%, transparent);
 }
 
-.ts-close-email-cta-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 11px;
-  background: color-mix(in srgb, #10b981 14%, transparent);
-  color: #059669;
+// ── Descripcion: texto plano con scroll propio para no romper el modal ──
+.ts-desc {
+  margin: 0;
+  padding: 14px 16px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 240px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
 }
 
-.ts-close-email-cta-text {
+// ── Resumen del ticket ──
+.ts-detail-summary {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  strong { font-size: 13px; font-weight: 700; color: var(--text); }
-  span { font-size: 12px; color: var(--text-muted); line-height: 1.4; }
+  gap: 10px;
 }
 
-.ts-close-email-cta-btn {
+.ts-detail-summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 12px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.ts-detail-summary-lbl {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.ts-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+// Cierre del ticket: una sola fila, sin tarjeta grande.
+.ts-side-cta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  margin-bottom: 2px;
+  text-align: left;
+  font-family: var(--font);
+  background: var(--success-soft);
+  border: 1px solid color-mix(in srgb, var(--success) 26%, transparent);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: color-mix(in srgb, var(--success) 15%, transparent);
+    border-color: color-mix(in srgb, var(--success) 40%, transparent);
+  }
+  &:disabled { opacity: 0.55; cursor: default; }
+}
+
+.ts-side-cta-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  padding: 9px 14px;
-  border-radius: 8px;
-  border: 0;
-  background: #10b981;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  font-family: var(--font);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  &:hover { background: #059669; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3); }
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--success) 18%, transparent);
+  color: var(--success);
+  flex-shrink: 0;
+}
+
+.ts-side-cta-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+
+  strong { font-size: 13px; font-weight: 700; color: var(--text); }
+  span {
+    font-size: 11.5px;
+    color: var(--text-muted);
+    line-height: 1.35;
+  }
 }
 
 .ts-info-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px 24px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px 22px;
 }
 
 .ts-info-field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   min-width: 0;
 }
 
 .ts-info-lbl {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
+  gap: 5px;
+  font-size: 11px;
   font-weight: 500;
   color: var(--text-faint);
   svg { flex-shrink: 0; }
 }
 
 .ts-info-val {
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--text);
   word-break: break-word;
 }
 
 .ts-detail-empty {
-  font-size: 14px;
+  font-size: 13.5px;
   color: var(--text-faint);
   font-style: italic;
   margin: 0;
-  opacity: 0.8;
 }
 
+// Los badges del encabezado son pequenos y teñidos con el color del estado.
 .ts-badge-pill {
   border-radius: 99px;
-  padding: 3px 10px;
-  font-size: 12px;
+  padding: 2px 9px;
+  font-size: 11px;
   font-weight: 600;
+  background: color-mix(in srgb, var(--ts-color) 12%, transparent);
+  color: var(--ts-color);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ts-color) 22%, transparent);
 }
 
 .ts-badge-canal {
-  background: color-mix(in srgb, #8b5cf6 12%, transparent);
-  color: #7c3aed;
-  border: 1px solid color-mix(in srgb, #8b5cf6 25%, transparent);
+  --ts-color: #8b5cf6;
+  background: color-mix(in srgb, var(--ts-color) 12%, transparent);
+  color: var(--ts-color);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ts-color) 22%, transparent);
 }
 
 .ts-note-avatar {
@@ -1857,208 +1987,52 @@
   flex-shrink: 0;
 }
 
-.ts-detail-modal-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px 20px 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.ts-detail-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-.ts-detail-code {
-  font-family: 'SF Mono', 'JetBrains Mono', monospace;
-  font-weight: 700;
-  font-size: 15px;
-  color: #6366f1;
-}
-
-.ts-detail-badges {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.ts-detail-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 20px;
-
-  h2 {
-    margin: 0 0 8px;
-    font-size: 17px;
-    font-weight: 700;
-  }
-}
-
-.ts-detail-card-title {
-  margin: 0 0 12px;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-faint);
-}
-
-.ts-detail-desc {
-  font-size: 13px;
-  color: var(--text-muted);
-  line-height: 1.5;
-  margin: 0 0 14px;
-  &-empty { color: var(--text-faint); font-style: italic; }
-}
-
-.ts-detail-info {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.ts-detail-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 13px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--border);
-  &:last-child { border-bottom: 0; }
-}
-
-.ts-detail-lbl { color: var(--text-faint); font-weight: 500; }
-.ts-detail-val { color: var(--text); font-weight: 600; text-align: right; }
-
-.ts-detail-actions {
-  margin-top: 14px;
-  display: flex;
-  gap: 8px;
-}
-
-.ts-detail-conv {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.ts-detail-msg {
-  display: flex;
-  &-client { justify-content: flex-start; }
-  &-advisor { justify-content: flex-end; }
-}
-
-.ts-detail-bubble {
-  max-width: 85%;
-  background: var(--bg);
-  border-radius: var(--radius-lg);
-  padding: 12px 16px;
-  strong { font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 4px; }
-  p { margin: 0; font-size: 13px; line-height: 1.45; color: var(--text); }
-}
-
-.ts-detail-time {
-  font-size: 10px;
-  color: var(--text-faint);
-  display: block;
-  margin-top: 6px;
-}
-
-.ts-detail-field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: 14px;
-  span {
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--text-faint);
-  }
-  input, textarea, select {
-    padding: 9px 12px;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    color: var(--text);
-    font-size: 13px;
-    font-family: var(--font);
-    outline: none;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
-    &:focus {
-      border-color: #6366f1;
-      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.08);
-    }
-  }
-  textarea { resize: vertical; }
-}
-
-.ts-detail-edit-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.ts-detail-client-info {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.ts-detail-client-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 13px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--border);
-  &:last-child { border-bottom: 0; }
-  span:first-child { color: var(--text-faint); font-weight: 500; }
-  span:last-child { color: var(--text); font-weight: 600; text-align: right; }
-}
-
 .ts-note-count {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
-  font-size: 12px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  font-size: 11px;
   font-weight: 700;
-  color: #fff;
-  background: var(--primary, #6366f1);
-  border-radius: 10px;
-  margin-left: 6px;
-  vertical-align: middle;
+  color: var(--primary);
+  background: var(--primary-soft);
+  border-radius: 9px;
+  letter-spacing: 0;
 }
 
+// Composer: un bloque redondeado, no un formulario.
 .ts-note-composer {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 14px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--border);
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:focus-within {
+    border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 10%, transparent);
+  }
 
   textarea {
     width: 100%;
-    border: 1px solid var(--border);
-    border-radius: var(--radius, 10px);
-    padding: 8px 10px;
-    font-family: inherit;
-    font-size: 13px;
-    resize: vertical;
-    background: var(--surface);
+    border: 0;
+    padding: 2px 4px;
+    background: transparent;
     color: var(--text);
-    &:focus { outline: none; border-color: var(--primary, #6366f1); }
+    font-family: var(--font);
+    font-size: 13.5px;
+    line-height: 1.55;
+    resize: vertical;
+    min-height: 62px;
+
+    &::placeholder { color: var(--text-faint); }
+    &:focus { outline: none; }
   }
 }
 
@@ -2066,8 +2040,10 @@
   display: flex;
   gap: 8px;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   flex-wrap: wrap;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
 }
 
 .ts-note-upload-btn {
@@ -2075,6 +2051,14 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  border-color: transparent !important;
+  background: transparent !important;
+  color: var(--text-muted) !important;
+
+  &:hover {
+    background: var(--surface-hover) !important;
+    color: var(--text) !important;
+  }
   input { display: none; }
 }
 
@@ -2086,9 +2070,9 @@
 
 .ts-note-preview {
   position: relative;
-  width: 56px;
-  height: 56px;
-  border-radius: 8px;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
   border: 1px solid var(--border);
 
@@ -2112,17 +2096,17 @@
   padding: 0;
 }
 
+// Notas: se leen como comentarios, separadas por una linea fina.
 .ts-note-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
 }
 
 .ts-note-item {
-  border: 1px solid var(--border);
-  border-radius: var(--radius, 10px);
-  padding: 10px 12px;
-  background: color-mix(in srgb, var(--surface) 100%, #fff 40%);
+  padding: 12px 2px;
+
+  & + & { border-top: 1px solid var(--border); }
+  &:first-child { padding-top: 4px; }
 }
 
 .ts-note-head {
@@ -2130,13 +2114,13 @@
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  margin-bottom: 4px;
-  strong { color: var(--primary, #6366f1); }
+  margin-bottom: 5px;
+  strong { color: var(--text); font-weight: 600; }
 }
 
 .ts-note-time {
   color: var(--text-faint);
-  font-size: 12px;
+  font-size: 11.5px;
 }
 
 .ts-note-del {
@@ -2145,14 +2129,16 @@
   background: transparent;
   color: var(--text-faint);
   cursor: pointer;
-  padding: 2px;
-  border-radius: 4px;
-  &:hover { color: #ef4444; background: rgba(239, 68, 68, 0.08); }
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  &:hover { color: var(--danger); background: var(--danger-soft); }
 }
 
 .ts-note-content {
-  font-size: 13px;
-  color: var(--text);
+  font-size: 13.5px;
+  color: var(--text-muted);
+  line-height: 1.55;
   margin: 0;
   white-space: pre-wrap;
   word-break: break-word;
@@ -2170,21 +2156,20 @@
 }
 
 .ts-note-img {
-  width: 96px;
-  height: 96px;
+  width: 88px;
+  height: 88px;
   object-fit: cover;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   cursor: pointer;
-  transition: transform 0.15s ease;
-  &:hover { transform: scale(1.03); }
+  transition: transform 0.15s ease, opacity 0.15s ease;
+  &:hover { transform: scale(1.03); opacity: 0.92; }
 }
 
 .ts-note-empty {
   font-size: 13px;
   color: var(--text-faint);
   margin: 0;
-  opacity: 0.8;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -3651,52 +3636,57 @@
 }
 
 // DETAIL ACTION CARDS (sidebar)
-.ts-action-card {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+// Acciones: filas compactas dentro de un unico contenedor, sin tarjeta propia.
+.ts-action-group {
+  display: flex;
+  flex-direction: column;
   background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-
-  &:hover {
-    border-color: color-mix(in srgb, var(--primary, #6366f1) 35%, var(--border));
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-  }
 }
 
-.ts-action-card-btn {
+// NOTA: esta clase NO puede llamarse `ts-action-item`. Ese nombre ya lo usa el
+// menu de fila de la tabla (linea ~1048) con `display: flex`, y al colisionar
+// convertia este contenedor en horizontal. `display: block` queda explicito para
+// que la cabecera y la lista se apilen siempre.
+.ts-action-entry {
+  display: block;
+
+  & + & { border-top: 1px solid var(--border); }
+}
+
+.ts-action-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   width: 100%;
-  padding: 12px 14px;
+  padding: 9px 12px;
   border: 0;
   background: transparent;
   font-family: var(--font);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background 0.15s ease;
 
-  &:hover {
-    background: color-mix(in srgb, var(--primary, #6366f1) 6%, transparent);
-  }
+  &:hover { background: var(--surface-hover); }
 }
 
 .ts-action-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--ts-accent, var(--primary, #6366f1)) 12%, transparent);
-  color: var(--ts-accent, var(--primary, #6366f1));
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--ts-accent, var(--primary)) 12%, transparent);
+  color: var(--ts-accent, var(--primary));
   flex-shrink: 0;
 }
 
 .ts-action-label {
   flex: 1;
   text-align: left;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text);
 }
@@ -3707,13 +3697,47 @@
   transition: transform 0.2s ease;
 }
 
-.ts-action-card.open .ts-action-arrow { transform: rotate(90deg); }
+.ts-action-entry.is-open .ts-action-arrow { transform: rotate(90deg); }
 
+// Desplegable: acordeon. La fila se queda arriba como cabecera y la lista
+// cuelga debajo, sangrada y con una guia a la izquierda. El truco de
+// `grid-template-rows: 0fr -> 1fr` anima la apertura sin conocer la altura del
+// contenido, asi que nunca recorta opciones si la lista es larga.
 .ts-action-options {
+  display: grid;
+  grid-template-rows: 1fr;
+  margin: 0 10px 9px 13px;
+  border-left: 2px solid var(--border);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--bg-subtle);
+  animation: ts-dd-open 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ts-action-options-inner {
   display: flex;
   flex-direction: column;
-  padding: 4px 8px 10px;
   gap: 2px;
+  padding: 6px 7px;
+  min-height: 0;
+  overflow: hidden;
+  animation: ts-dd-fade 0.2s ease;
+}
+
+@keyframes ts-dd-open {
+  from { grid-template-rows: 0fr; }
+  to   { grid-template-rows: 1fr; }
+}
+
+@keyframes ts-dd-fade {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ts-action-options,
+  .ts-action-options-inner {
+    animation: none;
+  }
 }
 
 .ts-action-option {
@@ -3721,11 +3745,11 @@
   align-items: center;
   gap: 10px;
   width: 100%;
-  padding: 8px 12px;
+  padding: 7px 10px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: transparent;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 500;
   font-family: var(--font);
   color: var(--text-muted);
@@ -3734,15 +3758,42 @@
   transition: all 0.15s ease;
 
   &:hover {
-    background: var(--surface-hover);
+    background: var(--surface);
     color: var(--text);
   }
 }
 
-.ts-action-card--status { --ts-accent: #3b82f6; }
-.ts-action-card--assign { --ts-accent: #10b981; }
-.ts-action-card--priority { --ts-accent: #f59e0b; }
-.ts-action-card--category { --ts-accent: #8b5cf6; }
+// Opcion vigente: se marca para no cambiar un valor por error.
+.ts-action-option.is-selected {
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+
+  .ts-dot { transform: scale(1.15); }
+
+  &::after {
+    content: '';
+    width: 14px;
+    height: 14px;
+    margin-left: auto;
+    flex-shrink: 0;
+    background: currentColor;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E") no-repeat center / contain;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E") no-repeat center / contain;
+  }
+}
+
+// El acento vive en el item para que lo heriden la fila y la lista desplegada.
+.ts-action-entry--status { --ts-accent: var(--info); }
+.ts-action-entry--assign { --ts-accent: var(--success); }
+.ts-action-entry--priority { --ts-accent: var(--warning); }
+.ts-action-entry--category { --ts-accent: #8b5cf6; }
+
+// Al desplegarse NO se pinta la fila: el usuario pidio fondo neutro. La unica
+// senal de que esta abierta es la flecha rotada.
+.ts-action-entry.is-open > .ts-action-row .ts-action-arrow {
+  color: var(--text);
+}
 
 .ts-client-name {
   display: block;
@@ -3762,38 +3813,20 @@
   svg { flex-shrink: 0; }
 }
 
-.ts-info-field--school {
-  .ts-info-val--school {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-weight: 700;
-    color: #0369a1;
-    background: #f0f9ff;
-    border: 1px solid rgba(14, 165, 233, 0.25);
-    border-radius: 8px;
-    padding: 3px 10px;
-  }
-}
-.ts-action-card--conversation {
-  --ts-accent: #0ea5e9;
-  border: 1px solid color-mix(in srgb, #0ea5e9 30%, var(--border));
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, #0ea5e9 5%, var(--surface));
-  margin-bottom: 10px;
-}
+// "Ver Conversacion" comparte el formato de fila, sin caja propia.
+.ts-action-row--conversation { --ts-accent: var(--info); }
 
 .ts-action-conv-count {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 22px;
-  height: 22px;
+  min-width: 20px;
+  height: 20px;
   padding: 0 6px;
-  border-radius: 11px;
-  background: color-mix(in srgb, #0ea5e9 16%, transparent);
-  color: #0369a1;
-  font-size: 12px;
+  border-radius: 10px;
+  background: var(--info-soft);
+  color: var(--info);
+  font-size: 11px;
   font-weight: 700;
 }
 
@@ -4235,22 +4268,63 @@
   background: var(--surface);
 }
 
-// DETAIL RESPONSIVE
+// DETALLE RESPONSIVE
+// Escritorio: informacion a la izquierda, resumen y acciones a la derecha.
+@media (max-width: 1200px) {
+  .ts-detail-body {
+    grid-template-columns: minmax(0, 1fr) 272px;
+  }
+}
+
+// Escritorio angosto: el panel derecho baja debajo del contenido. Sigue siendo
+// legible porque las dos sub-columnas de audiencia ya caben en dos columnas.
 @media (max-width: 1024px) {
   .ts-detail-body {
     grid-template-columns: 1fr;
   }
-  .ts-detail-actions-side {
+  .ts-detail-side {
     position: static;
   }
 }
 
+// Movil: una sola columna de audiencia y tarjetas mas compactas.
 @media (max-width: 640px) {
-  .ts-info-grid {
+  .ts-detail-modal {
+    width: 96vw;
+    min-height: 0;
+  }
+  .ts-detail-head {
+    gap: 10px;
+    padding: 14px;
+  }
+  .ts-detail-head-icon {
+    width: 32px;
+    height: 32px;
+  }
+  // En movil el titulo puede ocupar dos lineas: la cabecera crece un poco.
+  .ts-detail-head-title {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  .ts-detail-body {
+    padding: 14px;
+    gap: 14px;
+  }
+  .ts-card {
+    padding: 14px;
+    border-radius: 12px;
+  }
+  .ts-audience-grid {
     grid-template-columns: 1fr;
   }
-  .ts-detail-status-item {
+  .ts-card-head {
     flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .ts-desc {
+    max-height: 200px;
   }
 }
 

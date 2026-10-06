@@ -27,6 +27,20 @@ export interface NotificationPreferences {
   ticket_deleted: NotificationPreferenceItem;
   ticket_sla_warning: NotificationPreferenceItem;
   ticket_sla_expired: NotificationPreferenceItem;
+
+  // ── Workspace de tareas ─────────────────────────────────────────────
+  tarea_asignada: NotificationPreferenceItem;
+  tarea_comentario: NotificationPreferenceItem;
+  tarea_actualizada: NotificationPreferenceItem;
+  tarea_completada: NotificationPreferenceItem;
+  tarea_vencimiento: NotificationPreferenceItem;
+
+  /**
+   * Correo nuevo en la carpeta del asesor. El aviso es agrupado por tanda de
+   * sincronizacion, no uno por correo: asignarle una carpeta con 20 mensajes a
+   * un asesor no debe llenar la campana de 20 notificaciones.
+   */
+  correo_nuevo: NotificationPreferenceItem;
 }
 
 export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
@@ -42,6 +56,12 @@ export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   ticket_deleted: { inApp: true, desktop: false },
   ticket_sla_warning: { inApp: true, desktop: true },
   ticket_sla_expired: { inApp: true, desktop: true },
+  tarea_asignada: { inApp: true, desktop: true },
+  tarea_comentario: { inApp: true, desktop: false },
+  tarea_actualizada: { inApp: true, desktop: false },
+  tarea_completada: { inApp: true, desktop: false },
+  tarea_vencimiento: { inApp: true, desktop: true },
+  correo_nuevo: { inApp: true, desktop: true },
 };
 
 @Entity('user_notification_preferences')

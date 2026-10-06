@@ -1304,15 +1304,15 @@
         </div>
         <div>
           <h3>Crear reunion de Teams</h3>
-          <p class="tadv-subtitle">{{ isTeamsConnected ? (teamsAccountName || 'Cuenta conectada') : 'Conecta tu cuenta Microsoft una vez' }}</p>
+          <p class="tadv-subtitle">{{ isTeamsConnected ? (teamsAccountName || 'Cuenta conectada') : 'Las reuniones se crean en el calendario compartido' }}</p>
         </div>
       </div>
 
       @if (!teamsCreated) {
       <div class="teams-mt-body">
-        @if (!isTeamsConnected) {
+        @if (!isTeamsConnected && !teamsDraft.agendarCalendario) {
         <div class="teams-mt-connect">
-          <p>Conecta tu cuenta Microsoft para crear la videollamada. El evento se agenda en el buzón compartido soporte@innovacloud.co.</p>
+          <p>Conecta tu cuenta Microsoft para crear la videollamada en tu calendario.</p>
           <button class="modal-confirm" type="button" (click)="connectTeams()" [disabled]="isLoadingTeams">
             {{ isLoadingTeams ? 'Conectando...' : 'Conectar Teams' }}
           </button>
@@ -1337,7 +1337,7 @@
         </label>
         <label class="teams-mt-check">
           <input type="checkbox" [(ngModel)]="teamsDraft.agendarCalendario" />
-          <span>Agendar tambien en el calendario de Outlook (buzón compartido)</span>
+          <span>Crear en el calendario compartido (soporte@innovacloud.co). Desmarca para crearla en tu cuenta, que requiere conectar Teams.</span>
         </label>
 
         @if (teamsMessage) {
@@ -1346,7 +1346,7 @@
       </div>
       <div class="tadv-actions">
         <button class="modal-cancel" type="button" (click)="closeTeamsMeeting()" [disabled]="teamsCreating">Cancelar</button>
-        <button class="modal-confirm" type="button" (click)="createTeamsMeetingForChat()" [disabled]="teamsCreating || !isTeamsConnected">
+        <button class="modal-confirm" type="button" (click)="createTeamsMeetingForChat()" [disabled]="teamsCreating || (!teamsDraft.agendarCalendario && !isTeamsConnected)">
           {{ teamsCreating ? 'Creando reunion...' : 'Crear reunion' }}
         </button>
       </div>

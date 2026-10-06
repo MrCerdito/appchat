@@ -17,6 +17,32 @@ export class TicketService {
     );
   }
 
+  /**
+   * Descarga una imagen de nota como Blob.
+   *
+   * No se puede poner la ruta en el `src` de un `<img>`: las imágenes de
+   * tickets ya no se sirven como archivo estático, exigen el permiso `tickets`
+   * y el interceptor de autenticación solo añade el token a las peticiones de
+   * HttpClient. Un `<img src>` sin cabecera devolvería 401.
+   */
+  cargarImagen(filename: string): Observable<Blob> {
+    return this.http.get(`${environment.apiUrl}/tickets/imagenes/${filename}`, {
+      responseType: 'blob',
+    });
+  }
+
+  /**
+   * Cierre controlado: el backend valida que el ticket esté `resolved`, envía el
+   * correo antes de cerrar y revierte el estado si el envío falla.
+   *
+   * Sustituye a `update({ status: 'closed' })`, que cerraba primero y enviaba el
+   * correo después como segundo paso: si el correo fallaba, el ticket quedaba
+   * cerrado sin avisar al cliente.
+   */
+  close(id: string, opts: { enviarCorreo: boolean; to?: string }): Observable<Ticket> {
+    return this.http.post<Ticket>(`${environment.apiUrl}/tickets/${id}/close`, opts);
+  }
+
   addNote(id: string, dto: { content: string; images: string[] }): Observable<Ticket> {
     return this.http.post<Ticket>(`${environment.apiUrl}/tickets/${id}/notes`, dto);
   }
