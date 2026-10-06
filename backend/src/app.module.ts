@@ -49,6 +49,7 @@ import { CorreoMensaje } from './correos/entities/correo-mensaje.entity';
 import { CorreoAdjunto } from './correos/entities/correo-adjunto.entity';
 import { CorreoCarpetaSync } from './correos/entities/correo-carpeta-sync.entity';
 import { CorreosModule } from './correos/correos.module';
+import { CalendarioModule } from './calendario/calendario.module';
 import { PqrsModule } from './pqrs/pqrs.module';
 import { Pqrs } from './pqrs/entities/pqrs.entity';
 import { AdvisorActivityLog } from './advisor-activity/entities/advisor-activity.entity';
@@ -228,6 +229,7 @@ import { AppService } from './app.service';
     FaqModule,
     TicketsModule,
     CorreosModule,
+    CalendarioModule,
     PqrsModule,
     InternalChatModule,
     PerfilInstitucionalModule,
