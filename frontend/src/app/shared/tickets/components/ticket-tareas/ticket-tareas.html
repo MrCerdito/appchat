@@ -1,0 +1,138 @@
+<section class="tt-card">
+  <header class="tt-head">
+    <h3 class="tt-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+        <path d="M9 11l3 3L22 4" stroke-linecap="round" stroke-linejoin="round" />
+        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+      Tareas
+      @if (total) {
+      <span class="tt-count">{{ total }}</span>
+      }
+    </h3>
+
+    <button type="button" class="tt-add" (click)="abrirNueva()" title="Nueva tarea para este ticket" aria-label="Nueva tarea">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+        <path d="M12 5v14M5 12h14" stroke-linecap="round" />
+      </svg>
+    </button>
+  </header>
+
+  @if (cargando) {
+  <div class="tt-loading"><span class="tt-spin"></span></div>
+  } @else if (error) {
+  <p class="tt-msg is-error">{{ error }}</p>
+  } @else {
+
+  @if (total) {
+  <div class="tt-prog">
+    <div class="tt-prog-head">
+      <span class="tt-prog-lbl">Progreso</span>
+      <span class="tt-prog-val">{{ resumen }} · {{ porcentaje }}%</span>
+    </div>
+    <div class="tt-prog-bar"><span [style.width.%]="porcentaje"></span></div>
+  </div>
+  }
+
+  @if (tareas.length) {
+  <div class="tt-tools">
+    <label class="tt-switch">
+      <input type="checkbox" [(ngModel)]="soloRaices" (change)="cargar()" />
+      <span>Solo raices</span>
+    </label>
+  </div>
+  }
+
+  @if (!tareas.length) {
+  <p class="tt-empty">
+    Este ticket no tiene tareas aun.
+    <button type="button" class="tt-link" (click)="abrirNueva()">Crear la primera</button>
+  </p>
+  } @else {
+  <ul class="tt-list">
+    @for (t of tareas; track t.id) {
+    <li class="tt-item" [class.done]="t.status === 'completada'">
+      <button
+        type="button"
+        class="tt-check"
+        [class.is-done]="t.status === 'completada'"
+        (click)="alternarCompletada(t)"
+        [attr.aria-label]="t.status === 'completada' ? 'Reabrir tarea' : 'Completar tarea'"
+        title="Marcar como completada"
+      >
+        @if (t.status === 'completada') {
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="11" height="11">
+          <path d="M20 6L9 17l-5-5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        }
+      </button>
+
+      <button type="button" class="tt-main" (click)="abrirDetalle(t)">
+        <span class="tt-text">
+          <span class="tt-code">{{ t.codigo }}</span>
+          {{ t.titulo }}
+        </span>
+        <span class="tt-sub">
+          <span class="badge {{ statusBadge(t.status) }}">{{ statusLabel(t.status) }}</span>
+          @if (t.moduloNombre) {
+          <span class="tt-meta">{{ t.moduloNombre }}</span>
+          }
+          @if (t.asignados.length) {
+          <span class="tt-meta">{{ t.asignados.length }} resp.</span>
+          }
+          @if (t.subtareas.total) {
+          <span class="tt-meta">
+            {{ t.subtareas.completadas }}/{{ t.subtareas.total }} sub
+          </span>
+          }
+        </span>
+      </button>
+
+      <span class="tt-actions">
+        <button
+          type="button"
+          class="tt-ic"
+          (click)="abrirSubtarea(t)"
+          title="Anadir subtarea"
+          aria-label="Anadir subtarea"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+            <path d="M12 5v14M5 12h14" stroke-linecap="round" />
+          </svg>
+        </button>
+        @if (esAdmin) {
+        <button type="button" class="tt-ic" (click)="editar(t)" title="Editar" aria-label="Editar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+            <path d="M12 20h9" stroke-linecap="round" />
+            <path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z" stroke-linejoin="round" />
+          </svg>
+        </button>
+        }
+      </span>
+    </li>
+    }
+  </ul>
+  }
+  }
+</section>
+
+@if (formAbierto) {
+<app-tarea-form-modal
+  [tarea]="formTarea"
+  [parentTaskId]="formPadreId"
+  [ticketId]="ticketId"
+  (cerrar)="cerrarForm()"
+  (guardado)="onGuardado()"
+/>
+}
+
+@if (detalleId) {
+<app-tarea-detalle-modal
+  [tareaId]="detalleId"
+  [refrescar]="detalleRefresco"
+  (cerrar)="cerrarDetalle()"
+  (cambiado)="onDetalleCambiado()"
+  (editar)="editar($event)"
+  (nuevaSubtarea)="abrirSubtarea($event)"
+/>
+}

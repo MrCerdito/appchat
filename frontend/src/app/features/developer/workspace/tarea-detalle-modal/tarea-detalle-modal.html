@@ -1,0 +1,347 @@
+<div class="overlay" (mousedown)="onOverlay($event)" (keydown)="onKeydown($event)" tabindex="-1">
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Detalle de tarea">
+    @if (cargando) {
+    <div class="loading">
+      <span class="spin"></span>
+      Cargando tarea...
+    </div>
+    } @else if (error || !detalle) {
+    <div class="error-box">
+      <p>{{ error || 'Tarea no encontrada' }}</p>
+      <button type="button" class="btn-ghost" (click)="cerrar.emit()">Cerrar</button>
+    </div>
+    } @else {
+    <header class="head">
+      <div class="head-top">
+        <span class="codigo">{{ detalle.codigo }}</span>
+        @if (detalle.ticketCodigo) {
+        <span class="ticket-chip">{{ detalle.ticketCodigo }}</span>
+        }
+        <span class="prio-chip {{ prioBadge(detalle.prioridad) }}">
+          {{ prioridadMeta[detalle.prioridad].label }}
+        </span>
+        @if (detalle.moduloNombre) {
+        <span class="mod-chip">{{ detalle.moduloNombre }}</span>
+        }
+        <div class="head-actions">
+          @if (puedeEditar) {
+          <button type="button" class="icon-btn" (click)="editarTarea()" title="Editar" aria-label="Editar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 20h9" stroke-linecap="round" />
+              <path
+                d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+          }
+          <button type="button" class="icon-btn" (click)="cerrar.emit()" aria-label="Cerrar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 6L6 18M6 6l12 12" stroke-linecap="round" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <h2>{{ detalle.titulo }}</h2>
+
+      <div class="head-meta">
+        <select
+          class="status-sel"
+          [class]="'is-' + detalle.status"
+          [ngModel]="detalle.status"
+          (ngModelChange)="cambiarEstado($event)"
+          [disabled]="!puedeEditar || guardandoEstado"
+          aria-label="Estado"
+        >
+          @for (s of statusMeta; track s.key) {
+          <option [value]="s.key">{{ s.label }}</option>
+          }
+        </select>
+
+        @if (detalle.dueDate) {
+        <span class="meta-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="18" rx="2" />
+            <path d="M16 2v4M8 2v4M3 10h18" stroke-linecap="round" />
+          </svg>
+          {{ detalle.dueDate | date: 'dd/MM/yyyy HH:mm' }}
+        </span>
+        }
+
+        <span class="meta-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 6v6l4 2" stroke-linecap="round" />
+          </svg>
+          {{ formatTiempo(detalle.timeSpentMinutes) }}
+        </span>
+
+        <span class="meta-item muted">
+          Creada {{ detalle.createdAt | date: 'dd/MM/yyyy' }}
+          @if (detalle.createdByName) {
+          por {{ detalle.createdByName }}
+          }
+        </span>
+      </div>
+
+      @if (detalle.asignados.length) {
+      <div class="assignees">
+        @for (a of detalle.asignados; track a.userId) {
+        <span class="chip-av">
+          @if (a.avatarUrl) {
+          <img [src]="a.avatarUrl" [alt]="a.nombre" />
+          } @else {
+          <span class="ini">{{ a.nombre.charAt(0) }}</span>
+          }
+          {{ a.nombre }}
+        </span>
+        }
+      </div>
+      }
+
+      @if (detalle.tags.length) {
+      <div class="tags">
+        @for (t of detalle.tags; track t) {
+        <span class="tag">#{{ t }}</span>
+        }
+      </div>
+      }
+    </header>
+
+    <div class="body">
+      @if (detalle.descripcion) {
+      <section class="block">
+        <h3 class="block-title">Descripcion</h3>
+        <p class="desc">{{ detalle.descripcion }}</p>
+      </section>
+      }
+
+      <!-- ── Pestañas ───────────────────────────────────── -->
+      <div class="tabs">
+        <button
+          type="button"
+          class="tab"
+          [class.on]="tab === 'subtareas'"
+          (click)="tab = 'subtareas'"
+        >
+          Subtareas
+          <em class="n">{{ detalle.subtareas.total }}</em>
+        </button>
+        <button
+          type="button"
+          class="tab"
+          [class.on]="tab === 'comentarios'"
+          (click)="tab = 'comentarios'"
+        >
+          Comentarios
+          <em class="n">{{ detalle.comentarios.length }}</em>
+        </button>
+        <button type="button" class="tab" [class.on]="tab === 'tiempo'" (click)="tab = 'tiempo'">
+          Tiempo
+          <em class="n">{{ detalle.tiempos.length }}</em>
+        </button>
+      </div>
+
+      <!-- ── Subarbol ───────────────────────────────────── -->
+      @if (tab === 'subtareas') {
+      <div class="pane">
+        <div class="sub-head">
+          <div class="prog">
+            <span class="prog-txt">
+              {{ completadasRaiz }} de {{ totalRaiz }} completadas · {{ porcentajeRaiz }}%
+            </span>
+            <div class="prog-bar"><span [style.width.%]="porcentajeRaiz"></span></div>
+          </div>
+          <button type="button" class="btn-add" (click)="nuevaSubtarea.emit(detalle)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 5v14M5 12h14" stroke-linecap="round" />
+            </svg>
+            Nueva subtarea
+          </button>
+        </div>
+
+        @if (!nodos.length) {
+        <p class="empty">Sin subtareas. Divide el trabajo para dar seguimiento fino.</p>
+        } @else {
+        <ul class="tree">
+          @for (n of nodos; track n.tarea.id) {
+          <li class="node" [style.--d]="n.profundidad">
+            @if (n.tieneHijos) {
+            <button
+              type="button"
+              class="twisty"
+              (click)="toggle(n.tarea.id)"
+              [attr.aria-label]="colapsado(n.tarea.id) ? 'Expandir' : 'Colapsar'"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                [class.rot]="!colapsado(n.tarea.id)">
+                <path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+            } @else {
+            <span class="twisty-spacer"></span>
+            }
+
+            <span class="bullet {{ statusBadge(n.tarea.status) }}"></span>
+
+            <div class="node-main">
+              <div class="node-title">
+                @if (n.tarea.codigo) {
+                <span class="n-codigo">{{ n.tarea.codigo }}</span>
+                }
+                <span class="n-text" [class.done]="n.tarea.status === 'completada'">
+                  {{ n.tarea.titulo }}
+                </span>
+                <span class="prio-chip sm {{ prioBadge(n.tarea.prioridad) }}">
+                  {{ prioridadMeta[n.tarea.prioridad].label }}
+                </span>
+              </div>
+
+              <div class="node-sub">
+                @if (n.tarea.asignados.length) {
+                <span class="n-avatars">
+                  @for (a of n.tarea.asignados.slice(0, 3); track a.userId) {
+                  @if (a.avatarUrl) {
+                  <img [src]="a.avatarUrl" [alt]="a.nombre" />
+                  } @else {
+                  <span class="ini">{{ a.nombre.charAt(0) }}</span>
+                  }
+                  }
+                </span>
+                }
+                @if (n.tarea.dueDate) {
+                <span class="n-meta">vence {{ n.tarea.dueDate | date: 'dd/MM' }}</span>
+                }
+                @if (n.tarea.timeSpentMinutes) {
+                <span class="n-meta mono">{{ formatTiempo(n.tarea.timeSpentMinutes) }}</span>
+                }
+                @if (n.tarea.subtareas.total) {
+                <span class="n-meta">
+                  {{ n.tarea.subtareas.completadas }}/{{ n.tarea.subtareas.total }} sub
+                </span>
+                }
+                <button type="button" class="n-add" (click)="nuevaSubtarea.emit(n.tarea)"
+                  title="Anadir subtarea" aria-label="Anadir subtarea">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 5v14M5 12h14" stroke-linecap="round" />
+                  </svg>
+                </button>
+                @if (puedeEditar) {
+                <button type="button" class="n-check" (click)="alternarCompletada(n.tarea)"
+                  [title]="n.tarea.status === 'completada' ? 'Reabrir' : 'Completar'"
+                  [attr.aria-label]="n.tarea.status === 'completada' ? 'Reabrir' : 'Completar'">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M20 6L9 17l-5-5" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </button>
+                }
+              </div>
+            </div>
+          </li>
+          }
+        </ul>
+        }
+      </div>
+      }
+
+      <!-- ── Comentarios ────────────────────────────────── -->
+      @if (tab === 'comentarios') {
+      <div class="pane">
+        <div class="composer">
+          <textarea
+            [(ngModel)]="comentario"
+            rows="3"
+            placeholder="Escribe un comentario... (Ctrl+Enter para enviar)"
+            (keydown.control.enter)="enviarComentario()"
+            (keydown.meta.enter)="enviarComentario()"
+          ></textarea>
+          <button
+            type="button"
+            class="btn-primary"
+            (click)="enviarComentario()"
+            [disabled]="!puedeComentar()"
+          >
+            @if (enviandoComentario) {
+            <span class="mini"></span>
+            } @else {
+            Comentar
+            }
+          </button>
+        </div>
+
+        @if (!detalle.comentarios.length) {
+        <p class="empty">Sin comentarios aun.</p>
+        } @else {
+        <ul class="comments">
+          @for (c of detalle.comentarios; track c.id) {
+          <li class="comment">
+            @if (c.authorAvatarUrl) {
+            <img class="c-av" [src]="c.authorAvatarUrl" [alt]="c.authorName" />
+            } @else {
+            <span class="c-av ini">{{ c.authorName.charAt(0) }}</span>
+            }
+            <div class="c-main">
+              <div class="c-head">
+                <strong>{{ c.authorName }}</strong>
+                <time>{{ c.createdAt | date: 'dd/MM/yyyy HH:mm' }}</time>
+              </div>
+              <p class="c-text">{{ c.contenido }}</p>
+            </div>
+          </li>
+          }
+        </ul>
+        }
+      </div>
+      }
+
+      <!-- ── Tiempo ─────────────────────────────────────── -->
+      @if (tab === 'tiempo') {
+      <div class="pane">
+        <div class="time-form">
+          <label class="tf">
+            <span>Minutos</span>
+            <input type="number" [(ngModel)]="minutos" min="1" max="1440" />
+          </label>
+          <label class="tf grow">
+            <span>Nota</span>
+            <input type="text" [(ngModel)]="notaTiempo" placeholder="En que se trabajo (opcional)" />
+          </label>
+          <button type="button" class="btn-primary" (click)="registrarTiempo()" [disabled]="!puedeRegistrar()">
+            Registrar
+          </button>
+        </div>
+
+        @if (!detalle.tiempos.length) {
+        <p class="empty">Sin registros de tiempo.</p>
+        } @else {
+        <ul class="times">
+          @for (t of detalle.tiempos; track t.id) {
+          <li class="time">
+            <span class="t-dur">{{ formatTiempo(t.minutos) }}</span>
+            <div class="t-main">
+              <span class="t-who">{{ t.userName }}</span>
+              @if (t.nota) {
+              <span class="t-note">{{ t.nota }}</span>
+              }
+            </div>
+            <time class="t-date">{{ t.loggedAt | date: 'dd/MM/yyyy' }}</time>
+            @if (esAdmin) {
+            <button type="button" class="icon-btn sm" (click)="quitarTiempo(t.id)" title="Eliminar"
+              aria-label="Eliminar registro">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>
+            </button>
+            }
+          </li>
+          }
+        </ul>
+        }
+      </div>
+      }
+    </div>
+    }
+  </div>
+</div>

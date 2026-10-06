@@ -1,0 +1,188 @@
+<div class="overlay" (mousedown)="onOverlay($event)" (keydown)="onKeydown($event)" tabindex="-1">
+  <div class="modal" role="dialog" aria-modal="true" [attr.aria-label]="tituloModal">
+    <header class="modal-head">
+      <div class="head-text">
+        <h2>{{ tituloModal }}</h2>
+        @if (esSubtarea) {
+        <p>Se anadira como subtarea de la tarea abierta</p>
+        }
+        @if (esEdicion && tarea) {
+        <p class="mono">{{ tarea.codigo }}</p>
+        }
+      </div>
+      <button type="button" class="icon-btn" (click)="cerrar.emit()" aria-label="Cerrar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 6L6 18M6 6l12 12" stroke-linecap="round" />
+        </svg>
+      </button>
+    </header>
+
+    <div class="modal-body">
+      @if (error) {
+      <div class="alert">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 8v4M12 16h.01" stroke-linecap="round" />
+        </svg>
+        {{ error }}
+      </div>
+      }
+
+      <label class="field">
+        <span class="lbl">Titulo <b class="req">*</b></span>
+        <input
+          type="text"
+          [(ngModel)]="titulo"
+          placeholder="Describe el trabajo a realizar"
+          maxlength="200"
+          autofocus
+        />
+      </label>
+
+      <label class="field">
+        <span class="lbl">Descripcion</span>
+        <textarea
+          [(ngModel)]="descripcion"
+          rows="4"
+          placeholder="Detalles, criterios de aceptacion, contexto tecnico..."
+        ></textarea>
+      </label>
+
+      <div class="row-2">
+        <div class="field">
+          <span class="lbl">Estado</span>
+          <div class="status-group">
+            @for (s of statusMeta; track s.key) {
+            <button
+              type="button"
+              class="stg {{ s.badge }}"
+              [class.on]="status === s.key"
+              [disabled]="esSubtarea && s.key === 'completada'"
+              [title]="esSubtarea && s.key === 'completada' ? 'Una subtarea nueva no puede iniciar completada' : ''"
+              (click)="status = s.key"
+            >
+              {{ s.label }}
+            </button>
+            }
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="lbl">Modulo</span>
+          <select [(ngModel)]="moduloId" (ngModelChange)="alCambiarModulo()">
+            <option value="">Sin modulo</option>
+            @for (m of modulos; track m.id) {
+            <option [value]="m.id">{{ m.nombre }}</option>
+            }
+          </select>
+        </div>
+      </div>
+
+      <div class="row-2">
+        <div class="field">
+          <span class="lbl">Prioridad</span>
+          <div class="prio-group">
+            @for (p of prioridades; track p) {
+            <button
+              type="button"
+              class="prio {{ p }}"
+              [class.on]="prioridad === p"
+              (click)="prioridad = p"
+            >
+              {{ p === 'low' ? 'Baja' : p === 'medium' ? 'Media' : p === 'high' ? 'Alta' : 'Critica' }}
+            </button>
+            }
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="lbl">Vencimiento</span>
+          <input type="datetime-local" [(ngModel)]="dueDate" />
+        </div>
+      </div>
+
+      <!-- ── Etiquetas ─────────────────────────────────── -->
+      <div class="field">
+        <span class="lbl">Etiquetas</span>
+        <div class="tags-editor">
+          @for (t of tags; track t) {
+          <span class="tag">
+            #{{ t }}
+            <button type="button" (click)="removeTag(t)" [attr.aria-label]="'Quitar ' + t">&times;</button>
+          </span>
+          }
+          <input
+            type="text"
+            [(ngModel)]="tagInput"
+            (keydown)="onTagKey($event)"
+            (blur)="addTag()"
+            placeholder="{{ tags.length ? 'Agregar mas...' : 'backend, ui, urgente' }}"
+          />
+        </div>
+        <small class="hint">Separate con coma o Enter. Maximo 20.</small>
+      </div>
+
+      <!-- ── Responsables ───────────────────────────────── -->
+      @if (!esEdicion) {
+      <div class="field">
+        <span class="lbl">
+          Responsables
+          @if (selected.length) {
+          <em class="count">{{ selected.length }}</em>
+          }
+        </span>
+        @if (selected.length) {
+        <div class="picked">
+          @for (id of selected; track id) {
+          <span class="pick">
+            {{ nombreDe(id) }}
+            <button type="button" (click)="toggleUser(id)" [attr.aria-label]="'Quitar ' + id">&times;</button>
+          </span>
+          }
+        </div>
+        }
+        @if (responsablesVisibles.length) {
+        <div class="people">
+          @for (d of responsablesVisibles; track d.id) {
+          <button
+            type="button"
+            class="person"
+            [class.on]="isSelected(d.id)"
+            (click)="toggleUser(d.id)"
+          >
+            <img *ngIf="d.profilePhotoUrl" [src]="d.profilePhotoUrl" [alt]="d.name" />
+            <span *ngIf="!d.profilePhotoUrl" class="ini">{{ d.name.charAt(0) }}</span>
+            {{ d.name }}
+          </button>
+          }
+        </div>
+        } @else {
+        <p class="hint">
+          @if (moduloSeleccionado) {
+          Este modulo no tiene responsables cargados.
+          } @else {
+          No hay desarrolladores cargados. La tarea quedara asignada a ti.
+          }
+        </p>
+        }
+      </div>
+      }
+    </div>
+
+    <footer class="modal-foot">
+      <span class="foot-hint">Ctrl+Enter para guardar</span>
+      <div class="foot-actions">
+        <button type="button" class="btn-ghost" (click)="cerrar.emit()" [disabled]="guardando">
+          Cancelar
+        </button>
+        <button type="button" class="btn-primary" (click)="guardar()" [disabled]="!puedeGuardar()">
+          @if (guardando) {
+          <span class="mini"></span> Guardando
+          } @else {
+          {{ esEdicion ? 'Guardar cambios' : 'Crear tarea' }}
+          }
+        </button>
+      </div>
+    </footer>
+  </div>
+</div>
