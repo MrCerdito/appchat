@@ -1,0 +1,823 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+.correos {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* ── Barra superior ─────────────────────────────────── */
+.barra {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--borde, #e5e7eb);
+  flex-wrap: wrap;
+}
+
+.barra-titulo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.barra h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.carpeta-chip {
+  font-size: 12px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primario, #2563eb) 12%, transparent);
+  color: var(--primario, #2563eb);
+  font-weight: 500;
+}
+
+.barra-acciones {
+  display: flex;
+  gap: 8px;
+}
+
+/* ── Botones ────────────────────────────────────────── */
+.btn {
+  border: 1px solid var(--borde, #e5e7eb);
+  background: transparent;
+  border-radius: 8px;
+  padding: 7px 13px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-fantasma:hover:not(:disabled) {
+  background: rgba(127, 127, 127, 0.09);
+}
+
+.btn-fantasma.activo {
+  background: color-mix(in srgb, var(--primario, #2563eb) 12%, transparent);
+  border-color: var(--primario, #2563eb);
+  color: var(--primario, #2563eb);
+}
+
+.btn-primario {
+  background: var(--primario, #2563eb);
+  border-color: var(--primario, #2563eb);
+  color: #fff;
+}
+
+.btn-primario:hover:not(:disabled) {
+  filter: brightness(0.94);
+}
+
+/* Los errores y estados de carga ya no se pintan aqui: salen como avisos
+   flotantes. Solo queda el aviso del cuerpo recortado, que va pegado al
+   iframe y no tiene equivalente flotante. */
+.aviso-chico {
+  padding: 11px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  background: rgba(37, 99, 235, 0.08);
+  color: #1d4ed8;
+  border: 1px solid rgba(37, 99, 235, 0.22);
+}
+
+/* ── Zona lateral + paneles ───────────────────────── */
+.cuerpo-app {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.paneles {
+  display: grid;
+  grid-template-columns: minmax(280px, 380px) 1fr;
+  flex: 1;
+  min-height: 0;
+}
+
+/* ── Lateral de filtros ────────────────────────────── */
+
+/*
+ * El lateral es una columna de tres tramos: cabecera fija, cuerpo que se
+ * desplaza y pie fijo. El cuerpo es el unico con scroll vertical, asi la
+ * cabecera y el pie no se van nunca y el resultado se lee sin recorrer el
+ * panel.
+ *
+ * 288 px en vez de 272: con el ancho anterior los tres presets de fecha quedaban
+ * de ~85 px cada uno y "Ultimos 7 dias" se partia en dos lineas.
+ */
+.filtros {
+  flex: 0 0 288px;
+  width: 288px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--superficie, #fff);
+  border-right: 1px solid var(--borde, #e5e7eb);
+}
+
+.filtros-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 14px 12px;
+  border-bottom: 1px solid var(--borde, #eef0f2);
+
+  h2 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    color: #111827;
+  }
+}
+
+/* Resultado de los filtros, como contador compacto pegado al titulo. */
+.filtros-conteo {
+  min-width: 22px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primario, #2563eb) 11%, transparent);
+  color: var(--primario, #2563eb);
+  font-size: 11.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* Solo visible en movil, donde el lateral va encima de la lista. */
+.filtros-cerrar {
+  display: none;
+  margin-left: auto;
+  width: 26px;
+  height: 26px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  border: 1px solid var(--borde, #e5e7eb);
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+
+  svg {
+    width: 13px;
+    height: 13px;
+  }
+}
+
+/* Unico tramo con scroll: todo lo de abajo cae aqui. */
+.filtros-cuerpo {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 4px;
+  }
+}
+
+/* Los tres grupos se separan por una linea, no solo por espacio: asi se lee
+   donde acaba uno y empieza el siguiente. */
+.filtros-grupo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  /* El buscador no lleva etiqueta: es el primero y el placeholder ya lo
+     nombra. Una etiqueta "Buscar" encima seria redundante. */
+  & + & {
+    padding-top: 16px;
+    border-top: 1px solid var(--borde, #eef0f2);
+  }
+}
+
+.filtros-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #9ca3af;
+}
+
+.filtros-buscador {
+  position: relative;
+
+  svg {
+    position: absolute;
+    left: 11px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 15px;
+    height: 15px;
+    color: #9ca3af;
+    pointer-events: none;
+  }
+
+  input {
+    width: 100%;
+    height: 38px;
+    box-sizing: border-box;
+    padding: 0 12px 0 34px;
+    border: 1px solid var(--borde, #e5e7eb);
+    border-radius: 10px;
+    background: var(--bg-subtle, #f8fafc);
+    font-family: inherit;
+    font-size: 13px;
+    color: inherit;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+
+    &::placeholder {
+      color: #9ca3af;
+    }
+
+    &:focus {
+      background: var(--superficie, #fff);
+      border-color: var(--primario, #2563eb);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--primario, #2563eb) 12%, transparent);
+    }
+  }
+}
+
+.filtros-vacio {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: #9ca3af;
+}
+
+/*
+ * Categorias: alto maximo y scroll propio.
+ *
+ * Es la unica parte que puede crecer sin limite (Outlook deja anadir categorias
+ * sin tope), y sin este tope empujaba "Fechas" fuera del panel: habia que
+ * desplazarse entero para cambiar el rango de fechas.
+ */
+.filtros-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 216px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin: 0 -4px;
+  padding: 0 4px;
+
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #e2e5ea;
+    border-radius: 4px;
+  }
+}
+
+/* Separa los estados del filtro ("Todas", "Pendiente") de las categorias
+   reales de Outlook: son cosas distintas y mezcladas se leian igual. */
+.filtros-divisor {
+  height: 1px;
+  margin: 6px 2px;
+  background: var(--borde, #eef0f2);
+}
+
+.chip-filtro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  font-family: inherit;
+  font-size: 12.5px;
+  color: #374151;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.14s, border-color 0.14s, color 0.14s;
+
+  &:hover {
+    background: rgba(127, 127, 127, 0.07);
+  }
+
+  /* La categoria activa se marca con relleno e barra de color a la izquierda:
+     la lista es larga y un cambio de color de texto solo no se distingue
+     cuando hay que recorrerla. */
+  &.activo {
+    background: color-mix(in srgb, var(--primario, #2563eb) 11%, transparent);
+    border-color: color-mix(in srgb, var(--primario, #2563eb) 32%, transparent);
+    color: var(--primario, #2563eb);
+    font-weight: 600;
+    box-shadow: inset 2px 0 0 var(--primario, #2563eb);
+  }
+}
+
+/**
+ * Punto de color de la categoria dentro del chip del lateral. El chip conserva
+ * su fondo transparente para que el estado activo siga mandando, asi que el
+ * color se lleva aqui en lugar de pintar el boton entero.
+ */
+.chip-etiqueta {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.punto-categoria {
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+
+.chip-pendiente:not(.activo) {
+  color: #b45309;
+}
+
+.chip-conteo {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.65;
+  flex-shrink: 0;
+}
+
+/* Tres presets en una fila, con la misma altura siempre. */
+.filtros-presets {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.preset-btn {
+  padding: 7px 4px;
+  border: 1px solid var(--borde, #e5e7eb);
+  border-radius: 8px;
+  background: transparent;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 550;
+  color: #4b5563;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.14s, border-color 0.14s, color 0.14s;
+
+  &:hover {
+    background: rgba(127, 127, 127, 0.07);
+  }
+
+  &.activo {
+    background: var(--primario, #2563eb);
+    border-color: var(--primario, #2563eb);
+    color: #fff;
+    font-weight: 650;
+  }
+}
+
+.filtros-rango {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  transition: opacity 0.15s;
+
+  /* Con un preset activo el rango manual no aplica: se apaga en vez de
+     explicar con un texto que ya no hace falta. */
+  &.inactivo {
+    opacity: 0.45;
+  }
+}
+
+.rango-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  label {
+    font-size: 10.5px;
+    font-weight: 600;
+    color: #6b7280;
+  }
+
+  input {
+    height: 32px;
+    box-sizing: border-box;
+    padding: 0 6px;
+    border: 1px solid var(--borde, #e5e7eb);
+    border-radius: 8px;
+    background: transparent;
+    font-family: inherit;
+    font-size: 11.5px;
+    color: inherit;
+    outline: none;
+
+    &:focus {
+      border-color: var(--primario, #2563eb);
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+      background: rgba(127, 127, 127, 0.05);
+    }
+  }
+}
+
+/* Pie fijo: resultado a la izquierda, accion a la derecha. */
+.filtros-pie {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--borde, #eef0f2);
+  background: var(--superficie, #fff);
+}
+
+.filtros-pie-texto {
+  min-width: 0;
+  font-size: 11.5px;
+  color: #9ca3af;
+  white-space: nowrap;
+
+  strong {
+    font-size: 13px;
+    font-weight: 700;
+    color: #111827;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.filtros-pie-limpiar {
+  flex: none;
+  padding: 6px 11px;
+  border: 1px solid var(--borde, #e5e7eb);
+  border-radius: 8px;
+  background: transparent;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #4b5563;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.14s, color 0.14s, border-color 0.14s;
+
+  &:hover:not(:disabled) {
+    background: rgba(127, 127, 127, 0.07);
+    color: #111827;
+  }
+
+  /* Sin filtros aplicados no hay nada que deshacer: el boton se apaga en vez
+     de estar ahi pidiendo un clic que no cambia nada. */
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+}
+
+.filtros-backdrop {
+  display: none;
+}
+
+.filtros-activos-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--primario, #2563eb);
+}
+
+/* En movil el boton de la barra abre el lateral; en escritorio no hace falta. */
+.filtros-movil {
+  display: none;
+}
+
+.lista {
+  border-right: 1px solid var(--borde, #e5e7eb);
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.mensajes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mensaje {
+  display: flex;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--borde, #eef0f2);
+  cursor: pointer;
+}
+
+.mensaje:hover {
+  background: rgba(127, 127, 127, 0.05);
+}
+
+.mensaje.seleccionado {
+  background: color-mix(in srgb, var(--primario, #2563eb) 9%, transparent);
+}
+
+.avatar {
+  flex: 0 0 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--primario, #2563eb) 15%, transparent);
+  color: var(--primario, #2563eb);
+}
+
+.mensaje-cuerpo {
+  flex: 1;
+  min-width: 0;
+}
+
+.linea-1 {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.remitente {
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mensaje.no-leido .remitente,
+.mensaje.no-leido .asunto {
+  font-weight: 700;
+}
+
+.fecha {
+  font-size: 11px;
+  opacity: 0.6;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.asunto {
+  font-size: 13px;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.preview {
+  font-size: 12px;
+  opacity: 0.7;
+  margin-top: 3px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tags {
+  display: flex;
+  gap: 6px;
+  margin-top: 5px;
+  flex-wrap: wrap;
+}
+
+/* Categoria de Outlook, junto al remitente. */
+.linea-categoria {
+  display: flex;
+  gap: 5px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.categoria {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: rgba(37, 99, 235, 0.12);
+  // Texto oscuro neutro y no azul: los fondos los pone el componente con el
+  // color de cada categoria (pasteles) y el azul no se leia bien encima.
+  color: #334155;
+}
+
+/* Sin categoria en Outlook: se ve neutra, para que destaque lo que si esta clasificado. */
+.categoria-pendiente {
+  background: rgba(217, 119, 6, 0.14);
+  color: #b45309;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(127, 127, 127, 0.14);
+}
+
+.tag-alerta {
+  background: rgba(220, 38, 38, 0.14);
+  color: #991b1b;
+}
+
+.cargar-mas {
+  display: block;
+  width: calc(100% - 28px);
+  margin: 12px 14px;
+}
+
+/* ── Lector ────────────────────────────────────────── */
+.lector {
+  overflow-y: auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.lector-cabecera {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--borde, #e5e7eb);
+}
+
+.lector-cabecera h2 {
+  margin: 0 0 8px;
+  font-size: 17px;
+  line-height: 1.35;
+}
+
+.remitente-detalle {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.linea-detalle {
+  font-size: 12px;
+  opacity: 0.78;
+  margin-top: 3px;
+  word-break: break-word;
+}
+
+.adjuntos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 11px 20px;
+  border-bottom: 1px solid var(--borde, #e5e7eb);
+}
+
+.adjunto {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--borde, #e5e7eb);
+  background: transparent;
+  border-radius: 8px;
+  padding: 6px 11px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  max-width: 260px;
+}
+
+.adjunto:hover {
+  background: rgba(127, 127, 127, 0.09);
+}
+
+.adjunto-nombre {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adjunto-tamano {
+  opacity: 0.6;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.cuerpo-iframe {
+  flex: 1;
+  width: 100%;
+  min-height: 420px;
+  border: 0;
+  background: #fff;
+}
+
+.vacio {
+  padding: 40px 22px;
+  text-align: center;
+  opacity: 0.65;
+  font-size: 13px;
+}
+
+.vacio-hint {
+  font-size: 12px;
+  margin-top: 9px;
+  line-height: 1.5;
+}
+
+@media (max-width: 860px) {
+  .paneles {
+    grid-template-columns: 1fr;
+  }
+
+  .lista {
+    border-right: 0;
+    border-bottom: 1px solid var(--borde, #e5e7eb);
+    max-height: 45vh;
+  }
+
+  .filtros-movil {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* El lateral pasa a ser un cajon encima de la lista, igual que en History. */
+  .filtros {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(300px, 86vw);
+    flex-basis: auto;
+    z-index: 70;
+    border-right: 0;
+    box-shadow: 8px 0 24px rgba(15, 23, 42, 0.14);
+    transform: translateX(-100%);
+    transition: transform 0.22s ease;
+
+    &.abierto {
+      transform: translateX(0);
+    }
+  }
+
+  .filtros-cerrar {
+    display: inline-flex;
+  }
+
+  .filtros-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 69;
+    background: rgba(17, 24, 39, 0.45);
+  }
+}
