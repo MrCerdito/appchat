@@ -146,11 +146,10 @@
 
     @if (!isTeamsConnected && teamsMeetingDraft.calendarTarget !== 'shared') {
     <div class="teams-connect">
-      <wa-icon name="brand-teams"></wa-icon>
-      <p>Necesitas iniciar sesion con la cuenta que creara la videollamada.</p>
-      <button type="button" class="primary-btn" (click)="connectTeams()" [disabled]="isLoadingTeams">
-        <wa-icon [name]="isLoadingTeams ? 'loader-2' : 'login-2'"></wa-icon>
-        Conectar Teams
+      <p>Para crear reuniones, primero conecta la cuenta que las organizará desde Configuración del asesor.</p>
+      <button type="button" class="primary-btn" (click)="openTeamsSettings()">
+        <wa-icon name="settings"></wa-icon>
+        Ir a Configuración → Teams
       </button>
     </div>
     }

@@ -459,8 +459,6 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
 
     this.registerSocketEvents();
 
-    window.addEventListener('message', this.handleTeamsAuthMessage);
-
     // ── Compact mode (barra de avatares) ───────────────────────────────────
     this.checkCompact();
     this.resizeObserver = new ResizeObserver(() => this.checkCompact());
@@ -965,27 +963,9 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     this.cdr.detectChanges();
   }
 
-  connectTeams(): void {
-    if (this.isLoadingTeams) return;
-    const popup = window.open('', 'innovaTeamsAuth', 'width=520,height=720');
-    this.isLoadingTeams = true;
-    this.teamsMessage = 'Abriendo inicio de sesion de Microsoft...';
-    this.waTeamService.getTeamsAuthUrl().subscribe({
-      next: res => {
-        this.isLoadingTeams = false;
-        if (popup) {
-          popup.location.href = res.authUrl;
-        } else {
-          window.location.href = res.authUrl;
-        }
-        this.cdr.detectChanges();
-      },
-      error: err => {
-        popup?.close();
-        this.isLoadingTeams = false;
-        this.teamsMessage = err?.error?.message || err?.message || 'No se pudo iniciar sesion en Teams.';
-        this.cdr.detectChanges();
-      },
+  openTeamsSettings(): void {
+    this.router.navigate(['/dashboard/configuracion'], {
+      queryParams: { tab: 'teams' },
     });
   }
 
@@ -1005,19 +985,6 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
       },
     });
   }
-
-  private handleTeamsAuthMessage = (event: MessageEvent): void => {
-    if (event.data?.type !== 'teams-auth') return;
-    if (event.data.success) {
-      this.teamsMessage = 'Teams conectado. Ya puedes crear la reunion.';
-      this.loadTeamsStatus();
-    } else {
-      this.isLoadingTeams = false;
-      this.isTeamsConnected = false;
-      this.teamsMessage = event.data.error || 'No se pudo conectar Teams.';
-    }
-    this.cdr.detectChanges();
-  };
 
   async createTeamsMeetingForChat(): Promise<void> {
     if (this.teamsCreating) return;
@@ -2555,7 +2522,6 @@ leaveCollabChat(): void {
 
   // ── Destroy ───────────────────────────────────────────────────────────────
   ngOnDestroy(): void {
-    window.removeEventListener('message', this.handleTeamsAuthMessage);
     this.state.setActiveSession(null);
     this.destroy$.next();
     this.destroy$.complete();

@@ -12,7 +12,7 @@ import {
 } from '@angular/core';
 import { CommonModule, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { WaIconComponent } from '../../../../shared/components/wa-icon/wa-icon.component';
 import { VoicePlayerComponent } from '../../../../shared/components/voice-player/voice-player.component';
@@ -392,6 +392,7 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     private readonly themeService: ThemeService,
     private readonly sanitizer: DomSanitizer,
     private readonly route: ActivatedRoute,
+    private readonly router: Router,
     private readonly cdr: ChangeDetectorRef,
   ) {}
 
@@ -539,7 +540,6 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
       this.waService.onQueueUpdated().subscribe(event => this.handleQueueUpdate(event)),
     );
 
-    window.addEventListener('message', this.handleTeamsAuthMessage);
     window.addEventListener('click', this.closeMessageMenuOnWindowClick);
     document.addEventListener('click', this.handleMentionClick);
 
@@ -646,7 +646,6 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     this.stopProgressTimer();
     this.subs.unsubscribe();
     this.resizeObserver?.disconnect();
-    window.removeEventListener('message', this.handleTeamsAuthMessage);
     window.removeEventListener('click', this.closeMessageMenuOnWindowClick);
     document.removeEventListener('click', this.handleMentionClick);
     if (this.toastTimer) clearTimeout(this.toastTimer);
@@ -2604,31 +2603,10 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
     this.teamsMeetingMessage = '';
   }
 
-  connectTeams(): void {
-    if (this.isLoadingTeams) return;
-    const popup = window.open('', 'innovaTeamsAuth', 'width=520,height=720');
-    this.isLoadingTeams = true;
-    this.teamsMeetingMessage = 'Abriendo inicio de sesion de Microsoft...';
-
-    this.subs.add(
-      this.waService.getTeamsAuthUrl().subscribe({
-        next: res => {
-          this.isLoadingTeams = false;
-          if (popup) {
-            popup.location.href = res.authUrl;
-          } else {
-            window.location.href = res.authUrl;
-          }
-          this.cdr.detectChanges();
-        },
-        error: err => {
-          popup?.close();
-          this.isLoadingTeams = false;
-          this.teamsMeetingMessage = this.errorText(err, 'No se pudo iniciar sesion en Teams.');
-          this.cdr.detectChanges();
-        },
-      }),
-    );
+  openTeamsSettings(): void {
+    this.router.navigate(['/dashboard/configuracion'], {
+      queryParams: { tab: 'teams' },
+    });
   }
 
   createTeamsMeeting(): void {
@@ -2692,20 +2670,6 @@ reactionSummaryLabel(msg: WaMessage, messages: WaMessage[]): string {
       }),
     );
   }
-
-  private handleTeamsAuthMessage = (event: MessageEvent): void => {
-    if (event.data?.type !== 'teams-auth') return;
-    if (event.data.success) {
-      this.teamsMeetingMessage = 'Teams conectado. Ya puedes crear la reunion.';
-      this.loadTeamsStatus();
-    } else {
-      this.isLoadingTeams = false;
-      this.isTeamsConnected = false;
-      this.teamsMeetingMessage = event.data.error || 'No se pudo conectar Teams.';
-    }
-    this.cdr.detectChanges();
-  };
-
 
   handleKey(event: KeyboardEvent): void {
     if (this.showSlashMenu) {

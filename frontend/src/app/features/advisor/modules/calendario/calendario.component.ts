@@ -7,6 +7,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { WhatsappChatService } from '../../../../core/services/whatsapp-chat.service';
 import { LayoutService } from '../../../../core/services/layout.service';
@@ -231,6 +232,7 @@ export class CalendarioComponent implements OnInit, OnDestroy {
     private readonly waService: WhatsappChatService,
     private readonly calendario: CalendarioService,
     private readonly layout: LayoutService,
+    private readonly router: Router,
     private readonly cdr: ChangeDetectorRef,
   ) {
     // El mes visible se deriva de la hora de Bogota, no de `getMonth()` del
@@ -249,13 +251,11 @@ export class CalendarioComponent implements OnInit, OnDestroy {
     this.buildGrid();
     this.loadCalendar();
     this.iniciarRefresco();
-    window.addEventListener('message', this.handleTeamsAuthMessage);
   }
 
   ngOnDestroy(): void {
     this.layout.setSidebarForcedCollapsed(false);
     this.stopRefresco();
-    window.removeEventListener('message', this.handleTeamsAuthMessage);
   }
 
   /** Aplica el texto del buscador y repinta la grilla. */
@@ -270,27 +270,9 @@ export class CalendarioComponent implements OnInit, OnDestroy {
     this.cdr.detectChanges();
   }
 
-  connectTeams(): void {
-    if (this.isLoadingTeams) return;
-    const popup = window.open('', 'innovaTeamsAuth', 'width=520,height=720');
-    this.isLoadingTeams = true;
-    this.createError = 'Abriendo inicio de sesion de Microsoft...';
-    this.waService.getTeamsAuthUrl().subscribe({
-      next: res => {
-        this.isLoadingTeams = false;
-        if (popup) {
-          popup.location.href = res.authUrl;
-        } else {
-          window.location.href = res.authUrl;
-        }
-        this.cdr.detectChanges();
-      },
-      error: err => {
-        popup?.close();
-        this.isLoadingTeams = false;
-        this.createError = this.errText(err, 'No se pudo iniciar sesion en Teams.');
-        this.cdr.detectChanges();
-      },
+  openTeamsSettings(): void {
+    this.router.navigate(['/dashboard/configuracion'], {
+      queryParams: { tab: 'teams' },
     });
   }
 
@@ -310,19 +292,6 @@ export class CalendarioComponent implements OnInit, OnDestroy {
       },
     });
   }
-
-  private handleTeamsAuthMessage = (event: MessageEvent): void => {
-    if (event.data?.type !== 'teams-auth') return;
-    if (event.data.success) {
-      this.createError = '';
-      this.loadTeamsStatus();
-    } else {
-      this.isLoadingTeams = false;
-      this.isTeamsConnected = false;
-      this.createError = event.data.error || 'No se pudo conectar Teams.';
-    }
-    this.cdr.detectChanges();
-  };
 
   /**
    * Pide al backend el calendario real del grupo para las 6 semanas que

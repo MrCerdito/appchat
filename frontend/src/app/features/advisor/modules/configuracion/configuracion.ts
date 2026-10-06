@@ -1,6 +1,7 @@
 import { ChangeDetectorRef, Component, OnInit, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import {
@@ -9,6 +10,7 @@ import {
   HorarioAlmuerzo,
 } from '../../../../core/services/configuracion.service';
 import { NotificationService } from '../../../../core/services/notification.service';
+import { WhatsappChatService } from '../../../../core/services/whatsapp-chat.service';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
 
 @Component({
@@ -27,7 +29,14 @@ export class ConfiguracionComponent implements OnInit, OnDestroy {
   saving = false;
   saved = false;
   error = '';
-  tab: 'almuerzo' | 'respuestas' = 'almuerzo';
+  tab: 'almuerzo' | 'respuestas' | 'teams' = 'almuerzo';
+  teamsLoading = true;
+  teamsConnecting = false;
+  teamsDisconnecting = false;
+  teamsConnected = false;
+  teamsAccountName = '';
+  teamsError = '';
+  teamsMessage = '';
   diaSeleccionado: number | null = null;
 
   quickReplies: Array<{ id: string; name: string; content: string }> = [];
@@ -54,14 +63,24 @@ export class ConfiguracionComponent implements OnInit, OnDestroy {
   ];
 
   private destroy$ = new Subject<void>();
+  private teamsPopup: Window | null = null;
 
   constructor(
     private readonly svc: ConfiguracionFrontendService,
     private readonly notification: NotificationService,
     private readonly cdr: ChangeDetectorRef,
+    private readonly waService: WhatsappChatService,
+    private readonly route: ActivatedRoute,
+    private readonly router: Router,
   ) {}
 
   ngOnInit(): void {
+    window.addEventListener('message', this.handleTeamsAuthMessage);
+    this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe((params) => {
+      if (params.get('tab') === 'teams') this.tab = 'teams';
+    });
+    this.loadTeamsStatus();
+
     this.svc.getEfectiva().pipe(takeUntil(this.destroy$)).subscribe({
       next: (config) => {
         this.config = { ...config, almuerzos: config.almuerzos ?? [] };
@@ -89,9 +108,108 @@ export class ConfiguracionComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    window.removeEventListener('message', this.handleTeamsAuthMessage);
     this.destroy$.next();
     this.destroy$.complete();
   }
+
+  private loadTeamsStatus(): void {
+    this.teamsLoading = true;
+    this.waService.getTeamsStatus().pipe(takeUntil(this.destroy$)).subscribe({
+      next: (status) => {
+        this.teamsLoading = false;
+        this.teamsConnected = status.connected;
+        this.teamsAccountName = status.accountName || '';
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        this.teamsLoading = false;
+        this.teamsConnected = false;
+        this.teamsError = this.extractError(err);
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  connectTeams(): void {
+    if (this.teamsConnecting) return;
+    this.teamsError = '';
+    this.teamsMessage = '';
+    const popup = window.open('', 'innovaTeamsAuth', 'width=520,height=720');
+    if (!popup) {
+      this.teamsError = 'Permite las ventanas emergentes para conectar Microsoft.';
+      return;
+    }
+
+    this.teamsPopup = popup;
+    this.teamsConnecting = true;
+    this.waService.getTeamsAuthUrl().pipe(takeUntil(this.destroy$)).subscribe({
+      next: (response) => {
+        popup.location.href = response.authUrl;
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        popup.close();
+        this.teamsPopup = null;
+        this.teamsConnecting = false;
+        this.teamsError = this.extractError(err);
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  disconnectTeams(): void {
+    if (!this.teamsConnected || this.teamsDisconnecting) return;
+    if (!window.confirm('¿Desconectar esta cuenta de Teams?')) return;
+
+    this.teamsError = '';
+    this.teamsMessage = '';
+    this.teamsDisconnecting = true;
+    this.waService.disconnectTeams().pipe(takeUntil(this.destroy$)).subscribe({
+      next: () => {
+        this.teamsDisconnecting = false;
+        this.teamsConnected = false;
+        this.teamsAccountName = '';
+        this.teamsMessage = 'Cuenta de Teams desconectada.';
+        this.notification.success('Teams desconectado', this.teamsMessage);
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        this.teamsDisconnecting = false;
+        this.teamsError = this.extractError(err);
+        this.notification.error('No se pudo desconectar Teams', this.teamsError);
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  irATabTeams(): void {
+    this.tab = 'teams';
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { tab: 'teams' },
+      queryParamsHandling: 'merge',
+    });
+  }
+
+  private handleTeamsAuthMessage = (event: MessageEvent): void => {
+    if (event.origin !== window.location.origin) return;
+    if (event.source !== this.teamsPopup) return;
+    if (event.data?.type !== 'teams-auth') return;
+
+    this.teamsPopup?.close();
+    this.teamsPopup = null;
+    this.teamsConnecting = false;
+    if (event.data.success) {
+      this.teamsMessage = 'Teams conectado. Ya puedes crear reuniones.';
+      this.notification.success('Teams conectado', this.teamsMessage);
+      this.loadTeamsStatus();
+    } else {
+      this.teamsError = event.data.error || 'No se pudo conectar Teams.';
+      this.notification.error('Error al conectar Teams', this.teamsError);
+    }
+    this.cdr.detectChanges();
+  };
 
     private advisorFields: (keyof ConfiguracionData)[] = [
     'almuerzos',

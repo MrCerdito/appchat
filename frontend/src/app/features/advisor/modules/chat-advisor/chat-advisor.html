@@ -1304,7 +1304,7 @@
         </div>
         <div>
           <h3>Crear reunion de Teams</h3>
-          <p class="tadv-subtitle">{{ isTeamsConnected ? (teamsAccountName || 'Cuenta conectada') : 'Las reuniones se crean en el calendario compartido' }}</p>
+          <p class="tadv-subtitle">{{ isTeamsConnected ? (teamsAccountName || 'Cuenta conectada') : (teamsDraft.agendarCalendario ? 'Las reuniones se crean en el calendario compartido' : 'Conecta Teams desde Configuración') }}</p>
         </div>
       </div>
 
@@ -1312,9 +1312,9 @@
       <div class="teams-mt-body">
         @if (!isTeamsConnected && !teamsDraft.agendarCalendario) {
         <div class="teams-mt-connect">
-          <p>Conecta tu cuenta Microsoft para crear la videollamada en tu calendario.</p>
-          <button class="modal-confirm" type="button" (click)="connectTeams()" [disabled]="isLoadingTeams">
-            {{ isLoadingTeams ? 'Conectando...' : 'Conectar Teams' }}
+          <p>Conecta la cuenta organizadora desde Configuración del asesor para crear la videollamada.</p>
+          <button class="modal-confirm" type="button" (click)="openTeamsSettings()">
+            Ir a Configuración → Teams
           </button>
         </div>
         }
