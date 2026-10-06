@@ -120,6 +120,14 @@ export class CorreosService {
   private readonly secretoFirma: string;
 
   /**
+   * Prefijo publico de la API. El nginx interno lo elimina con un `rewrite`
+   * antes del `proxy_pass`, pero el proxy de entrada solo enruta hacia el
+   * prefijo `/korvix/...`, asi que las URLs de imagenes deben emitirse con el
+   * prefijo para que el navegador pueda resolverlas.
+   */
+  private readonly prefijoPublico: string;
+
+  /**
    * Validaciones de adjuntos inline en vuelo. Si el navegador pide dos veces la
    * misma imagen a la vez (navegadores duplican peticiones de `img`), se hace
    * una sola llamada a Graph. El registro se borra al resolver: no es cache.
@@ -181,6 +189,7 @@ export class CorreosService {
     private readonly config: ConfigService,
   ) {
     this.secretoFirma = this.config.get<string>('JWT_SECRET') ?? '';
+    this.prefijoPublico = (this.config.get<string>('CORREOS_PUBLIC_PATH') ?? '/korvix').replace(/\/+$/, '');
   }
 
   // ── Listado desde el espejo local ────────────────────────────
@@ -579,7 +588,7 @@ const qb = this.mensajeRepo
       total += tam;
 
       const url =
-        `${urlBase}/correos/mensajes/${encodeURIComponent(fila.id)}` +
+        `${urlBase}${this.prefijoPublico}/correos/mensajes/${encodeURIComponent(fila.id)}` +
         `/inline/${encodeURIComponent(adj.id)}` +
         `?e=${exp}&f=${this.firma(fila.id, adj.id, exp)}`;
       // El Content-ID MIME se compara sin distinguir mayusculas.
