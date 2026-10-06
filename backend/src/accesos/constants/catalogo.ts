@@ -78,6 +78,13 @@ export const CATALOGO_MODULOS: ModuloDef[] = [
     descripcion: 'Agenda de reuniones de Teams de la cuenta general',
     aplicaA: ['advisor', 'admin', 'interno'],
   },
+  {
+    codigo: 'correos',
+    nombre: 'Correos',
+    grupo: 'Gestión',
+    descripcion: 'Buzón compartido y bandeja de correo de los asesores',
+    aplicaA: ['advisor', 'admin'],
+  },
 
   // ── Análisis ────────────────────────────────────────────────
   {

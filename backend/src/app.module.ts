@@ -44,6 +44,11 @@ import { Faq } from './faq/entities/faq.entity';
 import { FaqCategory } from './faq/entities/faq-category.entity';
 import { TicketsModule } from './tickets/tickets.module';
 import { Ticket } from './tickets/ticket.entity';
+import { TicketAudit } from './tickets/entities/ticket-audit.entity';
+import { CorreoMensaje } from './correos/entities/correo-mensaje.entity';
+import { CorreoAdjunto } from './correos/entities/correo-adjunto.entity';
+import { CorreoCarpetaSync } from './correos/entities/correo-carpeta-sync.entity';
+import { CorreosModule } from './correos/correos.module';
 import { PqrsModule } from './pqrs/pqrs.module';
 import { Pqrs } from './pqrs/entities/pqrs.entity';
 import { AdvisorActivityLog } from './advisor-activity/entities/advisor-activity.entity';
@@ -200,6 +205,10 @@ import { AppService } from './app.service';
           Changelog,
           ChangelogSeen,
           ColegioLog,
+          TicketAudit,
+          CorreoMensaje,
+          CorreoAdjunto,
+          CorreoCarpetaSync,
         ],
         synchronize: config.get<string>('NODE_ENV') === 'development',
         logging: config.get<string>('NODE_ENV') !== 'production',
@@ -218,6 +227,7 @@ import { AppService } from './app.service';
     AdvisorsWhatsappModule,
     FaqModule,
     TicketsModule,
+    CorreosModule,
     PqrsModule,
     InternalChatModule,
     PerfilInstitucionalModule,
