@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
+  HostBinding,
   OnDestroy,
   OnInit,
 } from '@angular/core';
@@ -22,6 +23,7 @@ import {
   SIN_CATEGORIA,
 } from '../../../../core/services/correos.service';
 import { LayoutService } from '../../../../core/services/layout.service';
+import { ThemeService } from '../../../../core/services/theme.service';
 import {
   colorCategoria,
   normalizarCategoria,
@@ -166,6 +168,13 @@ export class CorreosComponent implements OnInit, OnDestroy {
    */
   cuerpoIframe: SafeResourceUrl | null = null;
 
+  /**
+   * Tema del shell: la clase viaja al host del componente y el SCSS usa
+   * `:host.theme-dark`, porque el `data-theme` vive en `<html>` y los
+   * selectores del modulo con empaquetado de Angular nunca lo alcanzan.
+   */
+  @HostBinding('class.theme-dark') protected themeDark = false;
+
   private subs = new Subscription();
 
   /** Timer del sondeo de seguridad. */
@@ -180,9 +189,17 @@ export class CorreosComponent implements OnInit, OnDestroy {
     private readonly notifs: NotificationService,
     private readonly notificationRealtime: NotificationRealtimeService,
     private readonly route: ActivatedRoute,
+    private readonly themeService: ThemeService,
   ) {}
 
   ngOnInit(): void {
+    this.themeDark = this.themeService.currentTheme === 'dark';
+    this.subs.add(
+      this.themeService.currentTheme$.subscribe((t) => {
+        this.themeDark = t === 'dark';
+        this.cdr.markForCheck();
+      }),
+    );
     // La bandeja ocupa toda la pantalla, igual que history y comunicados: se
     // colapsa la barra de modulos al entrar y se devuelve al salir.
     this.layout.setSidebarForcedCollapsed(true);

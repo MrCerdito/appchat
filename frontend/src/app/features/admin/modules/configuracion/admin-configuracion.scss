@@ -5,6 +5,13 @@
   --cfg-h: 76px;
 }
 
+/* Tema oscuro: los valores claros viven en los fallbacks de cada uso (light pixel-idéntico) */
+:host.theme-dark {
+  --bg-secondary: #151b23;
+  --cfg-wa-bubble: rgba(31, 175, 83, 0.16);
+  --cfg-body-ink: #e6edf7;
+}
+
 .config-page {
   min-height: 100%;
   background: var(--bg);
@@ -876,12 +883,12 @@
   padding: 1rem 1.1rem;
   font-size: 0.85rem;
   line-height: 1.6;
-  color: #1e293b;
+  color: var(--cfg-body-ink, #1e293b);
   max-height: 460px;
   overflow-y: auto;
   p { margin: 0 0 12px; }
   table { font-size: 0.8rem; margin: 4px 0 12px; }
-  strong { color: #334155; }
+  strong { color: var(--cfg-body-ink, #334155); }
 }
 .cfg-mock__iframe {
   width: 100%;
@@ -983,7 +990,7 @@
   line-height: 1.5;
   box-shadow: 0 2px 8px rgba(10, 30, 80, 0.06);
   &--wa {
-    background: #e7ffdb;
+    background: var(--cfg-wa-bubble, #e7ffdb);
     border-color: rgba(31, 175, 83, 0.25);
     border-radius: 6px 14px 14px 14px;
   }

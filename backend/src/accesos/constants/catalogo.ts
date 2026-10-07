@@ -65,6 +65,13 @@ export const CATALOGO_MODULOS: ModuloDef[] = [
     aplicaA: ['advisor', 'interno'],
   },
   {
+    codigo: 'sharepoint',
+    nombre: 'SharePoint',
+    grupo: 'Gestión',
+    descripcion: 'Archivos y carpetas del sitio SharePoint de Soporte (solo lectura)',
+    aplicaA: ['advisor', 'admin', 'interno'],
+  },
+  {
     codigo: 'perfil_institucional',
     nombre: 'Perfil institucional',
     grupo: 'Gestión',

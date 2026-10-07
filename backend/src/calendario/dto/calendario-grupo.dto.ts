@@ -42,6 +42,11 @@ export interface EventoCalendarioDto {
   type: string | null;
   /** true si ademas esta guardado en la tabla teams_meetings (creado en la app). */
   creadaEnLaApp: boolean;
+  /** Registro local y creador, solo para gestionar reuniones creadas en Korvix. */
+  meetingRecordId: string | null;
+  createdById: string | null;
+  calendarTarget: 'personal' | 'shared' | 'none' | null;
+  eventSource: 'group' | 'shared-mailbox' | 'personal' | 'none' | null;
   /**
    * De que calendario salio el evento.
    *

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, HostBinding, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -11,6 +11,7 @@ import {
 } from '../../../../core/services/perfil-institucional.service';
 import { NotificationService } from '../../../../core/services/notification.service';
 import { AuthService } from '../../../../core/services/auth.service';
+import { ThemeService } from '../../../../core/services/theme.service';
 import { PI_ICONS } from './pi-icons';
 
 interface FiltroDinamico {
@@ -30,6 +31,8 @@ interface FiltroDinamico {
 })
 export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
   readonly icons = PI_ICONS;
+
+  @HostBinding('class.theme-dark') protected themeDark = false;
 
   private destroy$ = new Subject<void>();
 
@@ -75,9 +78,16 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
     private cdr: ChangeDetectorRef,
     private router: Router,
     private auth: AuthService,
+    private themeService: ThemeService,
   ) {}
 
   ngOnInit(): void {
+    this.themeDark = this.themeService.currentTheme === 'dark';
+    this.themeService.currentTheme$.pipe(takeUntil(this.destroy$)).subscribe((t) => {
+      this.themeDark = t === 'dark';
+      this.cdr.markForCheck();
+    });
+
     const user = this.auth.getUser();
     if (user && user.role === 'advisor' && user.name) {
       this.filtroAsesor.add(user.name.trim());

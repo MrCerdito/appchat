@@ -2,12 +2,6 @@
 
   <!-- ═══ CONVERSATIONS PANEL ═══════════════════════════════════════════════ -->
   <aside class="conversations-panel" [class.compact]="compactList">
-    <div class="conv-header">
-      <div class="conv-brand-row">
-        <img class="conv-logo" src="icon.jpg" alt="Innova Cloud">
-        <span class="conv-title">Innova Cloud</span>
-      </div>
-    </div>
 
     <!-- Assigned chats -->
     <div class="conv-assigned">
@@ -789,20 +783,6 @@
         </svg>
       </button>
     </header>
-
-    <div class="pp2">
-      <div class="pp2-ava" [ngClass]="clientPresenceClass(activeSession)">
-        {{ safeInitial(activeSession.clientName) }}
-      </div>
-      <div class="pp2-body">
-        <div class="pp2-name">{{ sessionFullName(activeSession) }}</div>
-        <div class="pp2-status" [ngClass]="clientPresenceClass(activeSession)"
-             [title]="clientPresenceLabel(activeSession)">
-          <span class="pp2-status-dot" [ngClass]="clientPresenceClass(activeSession)"></span>
-          <span>{{ statusLabel(activeSession) }}</span>
-        </div>
-      </div>
-    </div>
 
     <div class="sinfo-card">
       <div class="sinfo-row">

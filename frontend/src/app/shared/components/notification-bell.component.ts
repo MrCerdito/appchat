@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef, HostBinding } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
@@ -6,6 +6,7 @@ import { SocketService } from '../../core/services/socket.service';
 import { AuthService } from '../../core/services/auth.service';
 import { NotificationRealtimeService } from '../../core/services/notification-realtime.service';
 import { SoundService } from '../../core/services/sound.service';
+import { ThemeService } from '../../core/services/theme.service';
 import { Notification, NotificationSection } from '../../core/models/notification.model';
 import {
   countNotificationsInSection,
@@ -953,9 +954,46 @@ const TYPE_FG: Record<string, string> = {
 
       .notif-chevron { width: 14px; height: 14px; }
     }
+
+    /* ---------- Tema oscuro: recordatorio de reunion ---------- */
+    :host.theme-dark .meeting-reminder {
+      background: #1a1f26;
+      border-color: rgba(255, 255, 255, 0.1);
+      border-left-color: #60a5fa;
+      color: #e6edf7;
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
+    }
+    :host.theme-dark .meeting-reminder-kicker { color: #7ea2ff; }
+    :host.theme-dark .meeting-reminder h2 { color: #e6edf7; }
+    :host.theme-dark .meeting-reminder p { color: #9aa7bd; }
+    :host.theme-dark .meeting-reminder .meeting-reminder-countdown { color: #a9c2ff; }
+    :host.theme-dark .meeting-reminder.meeting-reminder-urgent {
+      border-color: rgba(239, 68, 68, 0.4);
+      border-left-color: #ef4444;
+    }
+    :host.theme-dark .meeting-reminder-urgent .meeting-reminder-countdown { color: #fca5a5; }
+    :host.theme-dark .meeting-reminder-actions button {
+      background: #242b35;
+      color: #cbd5e1;
+      border-color: rgba(255, 255, 255, 0.16);
+    }
+    :host.theme-dark .meeting-reminder-actions button:hover { background: #2d3542; }
+    :host.theme-dark .meeting-reminder-actions .meeting-reminder-join {
+      border-color: #4a72e8;
+      background: #4a72e8;
+      color: #fff;
+    }
+    :host.theme-dark .meeting-reminder-actions .meeting-reminder-join:hover { background: #3b62d4; }
   `],
 })
 export class NotificationBellComponent implements OnInit, OnDestroy {
+  /**
+   * Tema oscuro: ThemeService escribe `data-theme` en <html> y aqui se
+   * replica como clase en el host para `:host.theme-dark` (recordatorio
+   * de reunion y demas piezas con color fijo).
+   */
+  @HostBinding('class.theme-dark') protected themeDark = false;
+
   readonly sections = NOTIFICATION_SECTIONS;
   activeSection: NotificationSection = 'tickets';
   panelOpen = false;
@@ -977,9 +1015,15 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
     private readonly auth: AuthService,
     private readonly cdr: ChangeDetectorRef,
     private readonly sound: SoundService,
+    private readonly theme: ThemeService,
   ) {}
 
   ngOnInit(): void {
+    this.themeDark = this.theme.currentTheme === 'dark';
+    this.theme.currentTheme$.pipe(takeUntil(this.destroy$)).subscribe(tema => {
+      this.themeDark = tema === 'dark';
+      this.cdr.markForCheck();
+    });
     this.svc.init(this.socket);
     this.svc.getPreferences().subscribe({
       next: () => { this.preferencesLoading = false; this.preferencesError = ''; this.cdr.markForCheck(); },

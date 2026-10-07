@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, HostBinding, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Location } from '@angular/common';
@@ -10,6 +10,7 @@ import {
   PiCategoria,
 } from '../../../../core/services/perfil-institucional.service';
 import { NotificationService } from '../../../../core/services/notification.service';
+import { ThemeService } from '../../../../core/services/theme.service';
 
 const TIPOS_LABEL: Record<string, string> = {
   texto: 'Texto',
@@ -36,6 +37,8 @@ const TIPOS_LABEL: Record<string, string> = {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class GestionarCamposComponent implements OnInit, OnDestroy {
+  @HostBinding('class.theme-dark') protected themeDark = false;
+
   private destroy$ = new Subject<void>();
 
   campos: PiCampo[] = [];
@@ -58,9 +61,16 @@ export class GestionarCamposComponent implements OnInit, OnDestroy {
     private notification: NotificationService,
     private location: Location,
     private cdr: ChangeDetectorRef,
+    private themeService: ThemeService,
   ) {}
 
   ngOnInit(): void {
+    this.themeDark = this.themeService.currentTheme === 'dark';
+    this.themeService.currentTheme$.pipe(takeUntil(this.destroy$)).subscribe((t) => {
+      this.themeDark = t === 'dark';
+      this.cdr.markForCheck();
+    });
+
     this.cargar();
   }
 

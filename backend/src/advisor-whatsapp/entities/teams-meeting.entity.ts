@@ -34,6 +34,9 @@ export class TeamsMeeting {
   })
   categories: string[];
 
+  @Column({ name: 'event_source', type: 'varchar', length: 20, nullable: true })
+  eventSource: 'group' | 'shared-mailbox' | 'personal' | 'none' | null;
+
   @Index()
   @Column({ name: 'start_date_time', type: 'timestamptz' })
   startDateTime: Date;

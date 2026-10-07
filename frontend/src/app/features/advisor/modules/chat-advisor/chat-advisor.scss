@@ -1,35 +1,41 @@
 // ══════════════════════════════════════════════════════════════════════════════
 // DESIGN TOKENS
 // ══════════════════════════════════════════════════════════════════════════════
+// Los tokens de SUPERFICIE (fondos, texto, bordes, tintes suaves y sombras) se
+// exponen como custom properties para poder invertirlos en modo oscuro desde
+// :host.theme-dark (bloque DARK al final del archivo). Los acentos de estado
+// ($primary, $success, $warning, $danger, $purple, $text-faint) se quedan como
+// literales de SCSS porque además se usan dentro de rgba()/darken(), que no
+// aceptan var().
 $primary:       #2563eb;
-$primary-hover: #1d4ed8;
-$primary-soft:  rgba(37, 99, 235, 0.06);
-$primary-border: rgba(37, 99, 235, 0.18);
+$primary-hover: var(--ca-primary-hover);
+$primary-soft:  var(--ca-primary-soft);
+$primary-border: var(--ca-primary-border);
 
 $success:       #10b981;
-$success-soft:  rgba(16, 185, 129, 0.08);
+$success-soft:  var(--ca-success-soft);
 $warning:       #f59e0b;
-$warning-soft:  rgba(245, 158, 11, 0.08);
-$warning-border: #fde68a;
+$warning-soft:  var(--ca-warning-soft);
+$warning-border: var(--ca-warning-border);
 $danger:        #ef4444;
-$danger-soft:   rgba(239, 68, 68, 0.08);
+$danger-soft:   var(--ca-danger-soft);
 $purple:        #7c3aed;
-$purple-soft:   rgba(124, 58, 237, 0.08);
+$purple-soft:   var(--ca-purple-soft);
 
-$bg:            #f8fafc;
-$surface:       #ffffff;
-$surface-hover: #f9fafb;
-$text:          #111827;
-$text-secondary: #6b7280;
+$bg:            var(--ca-bg);
+$surface:       var(--ca-surface);
+$surface-hover: var(--ca-surface-hover);
+$text:          var(--ca-text);
+$text-secondary: var(--ca-text-secondary);
 $text-faint:    #9ca3af;
-$border:        #e5e7eb;
-$border-light:  #f3f4f6;
+$border:        var(--ca-border);
+$border-light:  var(--ca-border-light);
 
-$shadow-xs:  0 1px 2px rgba(0, 0, 0, 0.04);
-$shadow-sm:  0 1px 3px rgba(0, 0, 0, 0.06);
-$shadow-md:  0 4px 12px rgba(0, 0, 0, 0.06);
-$shadow-lg:  0 8px 24px rgba(0, 0, 0, 0.08);
-$shadow-xl:  0 16px 48px rgba(0, 0, 0, 0.1);
+$shadow-xs:  var(--ca-shadow-xs);
+$shadow-sm:  var(--ca-shadow-sm);
+$shadow-md:  var(--ca-shadow-md);
+$shadow-lg:  var(--ca-shadow-lg);
+$shadow-xl:  var(--ca-shadow-xl);
 
 $radius-sm:  8px;
 $radius-md:  10px;
@@ -48,6 +54,140 @@ $radius-pill: 999px;
   height: 100%;
   overflow: hidden;
   font-family: var(--font);
+
+  /* ── Tokens de tema (CLARO por defecto) ────────────────────────────────
+     El bloque :host.theme-dark del final los invierte cuando ThemeService
+     pone data-theme='dark' y chat-advisor.ts refleja la clase en el host. */
+  --ca-bg: #f8fafc;
+  --ca-surface: #ffffff;
+  --ca-surface-hover: #f9fafb;
+  --ca-text: #111827;
+  --ca-text-secondary: #6b7280;
+  --ca-border: #e5e7eb;
+  --ca-border-light: #f3f4f6;
+  --ca-primary-hover: #1d4ed8;
+  --ca-primary-soft: rgba(37, 99, 235, 0.06);
+  --ca-primary-border: rgba(37, 99, 235, 0.18);
+  --ca-success-soft: rgba(16, 185, 129, 0.08);
+  --ca-warning-soft: rgba(245, 158, 11, 0.08);
+  --ca-warning-border: #fde68a;
+  --ca-danger-soft: rgba(239, 68, 68, 0.08);
+  --ca-purple-soft: rgba(124, 58, 237, 0.08);
+  --ca-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --ca-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --ca-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
+  --ca-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08);
+  --ca-shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.1);
+
+  /* Tintes y superficies teñidas */
+  --ca-tint-blue: #f0f4ff;
+  --ca-tint-blue-border: #dbeafe;
+  --ca-tint-gray: #f1f5f9;
+  --ca-tint-amber: #fef3c7;
+  --ca-tint-amber-border: #fde68a;
+  --ca-tint-cream: #fffbeb;
+  --ca-tint-violet: #ede9fe;
+  --ca-tint-violet-border: #ddd6fe;
+  --ca-card: #f8fafc;
+  --ca-card-border: #e7ebf2;
+  --ca-blue-soft: #f3f7ff;
+  --ca-blue-soft-border: #e3ecfb;
+  --ca-bubble-collab: #eef2ff;
+  --ca-bubble-ia: #eff6ff;
+  --ca-lilac: #f6f4ff;
+  --ca-lilac-border: #eae6fb;
+  --ca-lilac-hover: #f0edff;
+  --ca-lilac-strong: #ece7ff;
+
+  /* Botones con fondo claro y borde de color */
+  --ca-btn: #ffffff;
+  --ca-btn-amber-border: #ffdfc4;
+  --ca-btn-amber-hover: #fffaf5;
+  --ca-btn-indigo-border: #c7d2fe;
+  --ca-btn-indigo-hover: #eef2ff;
+  --ca-btn-red-border: #ffd3d3;
+  --ca-btn-red-hover: #fff5f5;
+  --ca-btn-gray: #e2e4e8;
+  --ca-disabled-bg: #f3f4f6;
+  --ca-scroll: #cccccc;
+
+  /* Textos sobre tintes (se aclaran en oscuro) */
+  --ca-amber-text: #b45309;
+  --ca-blue-text: #2563eb;
+  --ca-violet-text: #5b21b6;
+  --ca-red-text: #991b1b;
+  --ca-indigo-text: #4f46e5;
+  --ca-error-text: #dc2626;
+  --ca-accent-text: #6366f1;
+  --ca-overlay-bg: rgba(255, 255, 255, 0.9);
+}
+
+/* ── MODO OSCURO ──────────────────────────────────────────────────────────
+   Paleta navy compatible con navbar y sidebar (#091525). La clase la pone
+   chat-advisor.ts vía @HostBinding siguiendo ThemeService.currentTheme$. */
+:host.theme-dark {
+  --ca-bg: #0b1526;
+  --ca-surface: #101b30;
+  --ca-surface-hover: #16233c;
+  --ca-text: #e6edf7;
+  --ca-text-secondary: #9fb0c9;
+  --ca-border: rgba(255, 255, 255, 0.09);
+  --ca-border-light: rgba(255, 255, 255, 0.06);
+  --ca-primary-hover: #3b82f6;
+  --ca-primary-soft: rgba(77, 141, 255, 0.14);
+  --ca-primary-border: rgba(77, 141, 255, 0.32);
+  --ca-success-soft: rgba(16, 185, 129, 0.16);
+  --ca-warning-soft: rgba(245, 158, 11, 0.16);
+  --ca-warning-border: rgba(245, 158, 11, 0.4);
+  --ca-danger-soft: rgba(239, 68, 68, 0.16);
+  --ca-purple-soft: rgba(124, 58, 237, 0.22);
+  --ca-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --ca-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --ca-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --ca-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.55);
+  --ca-shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.6);
+
+  /* Tintes y superficies teñidas */
+  --ca-tint-blue: rgba(77, 141, 255, 0.12);
+  --ca-tint-blue-border: rgba(77, 141, 255, 0.3);
+  --ca-tint-gray: rgba(255, 255, 255, 0.07);
+  --ca-tint-amber: rgba(245, 158, 11, 0.16);
+  --ca-tint-amber-border: rgba(245, 158, 11, 0.42);
+  --ca-tint-cream: rgba(245, 158, 11, 0.14);
+  --ca-tint-violet: rgba(139, 92, 246, 0.18);
+  --ca-tint-violet-border: rgba(139, 92, 246, 0.42);
+  --ca-card: #0d1729;
+  --ca-card-border: rgba(255, 255, 255, 0.08);
+  --ca-blue-soft: rgba(77, 141, 255, 0.1);
+  --ca-blue-soft-border: rgba(77, 141, 255, 0.28);
+  --ca-bubble-collab: rgba(129, 140, 248, 0.16);
+  --ca-bubble-ia: rgba(77, 141, 255, 0.14);
+  --ca-lilac: rgba(124, 58, 237, 0.16);
+  --ca-lilac-border: rgba(124, 58, 237, 0.36);
+  --ca-lilac-hover: rgba(124, 58, 237, 0.26);
+  --ca-lilac-strong: rgba(124, 58, 237, 0.32);
+
+  /* Botones con fondo claro y borde de color */
+  --ca-btn: #131f36;
+  --ca-btn-amber-border: rgba(245, 158, 11, 0.45);
+  --ca-btn-amber-hover: rgba(245, 158, 11, 0.16);
+  --ca-btn-indigo-border: rgba(129, 140, 248, 0.45);
+  --ca-btn-indigo-hover: rgba(129, 140, 248, 0.16);
+  --ca-btn-red-border: rgba(248, 113, 113, 0.45);
+  --ca-btn-red-hover: rgba(248, 113, 113, 0.16);
+  --ca-btn-gray: rgba(255, 255, 255, 0.1);
+  --ca-disabled-bg: rgba(255, 255, 255, 0.06);
+  --ca-scroll: rgba(255, 255, 255, 0.3);
+
+  /* Textos sobre tintes */
+  --ca-amber-text: #fbbf24;
+  --ca-blue-text: #60a5fa;
+  --ca-violet-text: #c4b5fd;
+  --ca-red-text: #fca5a5;
+  --ca-indigo-text: #a5b4fc;
+  --ca-error-text: #f87171;
+  --ca-accent-text: #a5b4fc;
+  --ca-overlay-bg: rgba(9, 21, 37, 0.92);
 }
 
 button, input, textarea, select {
@@ -94,34 +234,6 @@ a {
   border: 1px solid $border;
   box-shadow: $shadow-xs;
   overflow: hidden;
-}
-
-.conv-header {
-  padding: 10px 14px;
-  border-bottom: 1px solid $border-light;
-  flex-shrink: 0;
-}
-
-.conv-brand-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.conv-logo {
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
-  object-fit: contain;
-  flex-shrink: 0;
-}
-
-.conv-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: $text;
-  white-space: nowrap;
-  letter-spacing: -0.01em;
 }
 
 // Assigned section
@@ -208,7 +320,7 @@ a {
 
 .ava-blue   { background: $primary; color: #fff; }
 .ava-green  { background: $success-soft; color: $success; }
-.ava-amber  { background: $warning-soft; color: #b45309; }
+.ava-amber  { background: $warning-soft; color: var(--ca-amber-text); }
 .ava-purple { background: $purple-soft; color: $purple; }
 
 .session-card:hover .ava { transform: scale(1.03); }
@@ -323,7 +435,7 @@ a {
   padding: 1px 6px;
   border-radius: $radius-pill;
   background: $warning-soft;
-  color: #b45309;
+  color: var(--ca-amber-text);
 }
 
 .badge-activo {
@@ -416,7 +528,6 @@ a {
   padding: 8px 0;
   overflow: hidden;
 
-  .conv-header,
   .session-txt,
   .conv-recent,
   .empty-list {
@@ -577,7 +688,7 @@ a {
   justify-content: center;
   gap: 3px;
   min-width: 0;
-  flex-shrink: 0;
+  flex-shrink: 1;
 }
 
 .header-name-row {
@@ -1016,7 +1127,7 @@ a {
   align-items: flex-end;
 
   .bubble {
-    background: #eef2ff;
+    background: var(--ca-bubble-collab);
     color: $text;
     border: 1px solid rgba($purple, 0.12);
     border-radius: $radius-2xl $radius-2xl 4px $radius-2xl;
@@ -1042,12 +1153,12 @@ a {
 }
 
 .msg-sender--ia {
-  color: #2563eb;
+  color: var(--ca-blue-text);
   display: flex;
   align-items: center;
   gap: 4px;
 
-  svg { stroke: #2563eb; }
+  svg { stroke: var(--ca-blue-text); }
 }
 
 // ── Session event chips ──────────────────────────────────────────────────────
@@ -1057,12 +1168,12 @@ a {
   align-items: center;
   gap: 10px;
   max-width: 85%;
-  background: #f0f4ff;
-  border: 1px solid #dbeafe;
+  background: var(--ca-tint-blue);
+  border: 1px solid var(--ca-tint-blue-border);
   border-radius: 999px;
   padding: 8px 16px;
   font-size: 12.5px;
-  color: #475569;
+  color: $text-secondary;
   line-height: 1.4;
   margin: 6px 0;
 
@@ -1080,12 +1191,12 @@ a {
 
   .event-text {
     font-weight: 500;
-    color: #334155;
+    color: $text;
   }
 
   .event-detail {
     font-size: 11.5px;
-    color: #64748b;
+    color: $text-secondary;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1099,17 +1210,17 @@ a {
   }
 
   &--asesor {
-    background: #fef3c7;
-    border-color: #fde68a;
+    background: var(--ca-tint-amber);
+    border-color: var(--ca-tint-amber-border);
 
-    .event-text { color: #92400e; }
+    .event-text { color: var(--ca-amber-text); }
   }
 
   &--faq {
-    background: #ede9fe;
-    border-color: #ddd6fe;
+    background: var(--ca-tint-violet);
+    border-color: var(--ca-tint-violet-border);
 
-    .event-text { color: #5b21b6; }
+    .event-text { color: var(--ca-violet-text); }
   }
 }
 
@@ -1119,7 +1230,7 @@ a {
   align-items: flex-end;
 
   .bubble {
-    background: #eff6ff;
+    background: var(--ca-bubble-ia);
     color: $text;
     border: 1px solid rgba(37, 99, 235, 0.15);
     border-radius: $radius-2xl $radius-2xl 4px $radius-2xl;
@@ -1147,12 +1258,12 @@ a {
     display: flex;
     align-items: center;
     gap: 8px;
-    background: #fffbeb;
+    background: var(--ca-tint-cream);
     border: 1px solid $warning-border;
     border-radius: $radius-lg;
     padding: 8px 14px;
     font-size: 12px;
-    color: #92400e;
+    color: var(--ca-amber-text);
     line-height: 1.4;
   }
 
@@ -1178,7 +1289,7 @@ a {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: #b45309;
+    color: var(--ca-amber-text);
   }
 
   .msg-time {
@@ -1801,14 +1912,14 @@ a {
   justify-content: space-between;
   height: 58px;
   padding: 0 24px;
-  border-bottom: 1px solid #eef1f5;
+  border-bottom: 1px solid $border-light;
   flex-shrink: 0;
 }
 
 .panel-title {
   font-size: 16px;
   font-weight: 700;
-  color: #14213d;
+  color: $text;
   margin: 0;
   letter-spacing: -0.01em;
 }
@@ -1820,7 +1931,7 @@ a {
   border-radius: $radius-md;
   display: grid;
   place-items: center;
-  color: #64748b;
+  color: $text-secondary;
   border: none;
   background: transparent;
   transition: all 0.12s ease;
@@ -1828,8 +1939,8 @@ a {
   svg { width: 17px; height: 17px; }
 
   &:hover {
-    background: #f1f5f9;
-    color: #475569;
+    background: var(--ca-tint-gray);
+    color: $text-secondary;
   }
 }
 
@@ -1843,7 +1954,7 @@ a {
 
 .panel-divider {
   height: 1px;
-  background: #eef1f5;
+  background: $border-light;
   margin: 4px 24px;
   flex-shrink: 0;
   align-self: stretch;
@@ -1856,70 +1967,10 @@ a {
 }
 
 // Profile
-.pp2 {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px 24px 14px;
-  flex-shrink: 0;
-}
-
-.pp2-ava {
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  background: $primary;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  font-weight: 600;
-  flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba($primary, 0.2);
-}
-
-.pp2-body {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.pp2-name {
-  font-size: 15px;
-  font-weight: 700;
-  color: #14213d;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.pp2-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 500;
-  color: $text-secondary;
-}
-
-.pp2-status-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  flex-shrink: 0;
-
-  &.presence-active { background: $success; }
-  &.presence-open   { background: $primary; }
-  &.presence-offline{ background: $text-faint; }
-}
-
-// Info card
 .sinfo-card {
   margin: 0 clamp(12px, 2vw, 24px);
-  background: #f8fafc;
-  border: 1px solid #e7ebf2;
+  background: var(--ca-card);
+  border: 1px solid var(--ca-card-border);
   border-radius: 12px;
   overflow: hidden;
   flex-shrink: 0;
@@ -1940,7 +1991,7 @@ a {
   text-align: left;
 
   & + .sinfo-row {
-    border-top: 1px solid #eef1f6;
+    border-top: 1px solid $border-light;
   }
 
   &.sinfo-row--link {
@@ -1949,7 +2000,7 @@ a {
     transition: background 0.12s ease;
 
     &:hover {
-      background: #f0f4ff;
+      background: var(--ca-tint-blue);
       .sinfo-val { color: $primary; }
     }
   }
@@ -1967,7 +2018,7 @@ a {
   height: 26px;
   border-radius: 7px;
   background: $surface;
-  border: 1px solid #e7ebf2;
+  border: 1px solid var(--ca-card-border);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1995,7 +2046,7 @@ a {
   max-width: none;
   font-size: 13px;
   font-weight: 600;
-  color: #1e2a44;
+  color: $text;
   white-space: normal;
   overflow-wrap: anywhere;
   word-break: normal;
@@ -2027,8 +2078,8 @@ a {
 .advisor-card {
   margin: 12px 24px 0;
   padding: 12px 14px;
-  background: #f3f7ff;
-  border: 1px solid #e3ecfb;
+  background: var(--ca-blue-soft);
+  border: 1px solid var(--ca-blue-soft-border);
   border-radius: 12px;
   display: flex;
   gap: 12px;
@@ -2075,7 +2126,7 @@ a {
 .advisor-name {
   font-size: 13px;
   font-weight: 700;
-  color: #1e2a44;
+  color: $text;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2157,7 +2208,7 @@ a {
   content: '';
   flex: 1;
   height: 1px;
-  background: #eef1f5;
+  background: $border-light;
   margin-left: 4px;
 }
 
@@ -2165,8 +2216,8 @@ a {
 .details-card {
   margin: 10px 24px 0;
   padding: 13px 14px;
-  background: #f8fafc;
-  border: 1px solid #e8ecf2;
+  background: var(--ca-card);
+  border: 1px solid var(--ca-card-border);
   border-radius: 12px;
   display: flex;
   flex-direction: column;
@@ -2191,7 +2242,7 @@ a {
 .dt-val {
   font-size: 13px;
   font-weight: 600;
-  color: #1e2a44;
+  color: $text;
   line-height: 1.4;
   word-break: break-word;
 }
@@ -2200,8 +2251,8 @@ a {
 .ai-card2 {
   margin: 12px 24px 0;
   padding: 13px 14px;
-  background: #f6f4ff;
-  border: 1px solid #eae6fb;
+  background: var(--ca-lilac);
+  border: 1px solid var(--ca-lilac-border);
   border-radius: 12px;
   cursor: pointer;
   display: flex;
@@ -2210,7 +2261,7 @@ a {
   flex-shrink: 0;
   transition: background 0.12s ease;
 
-  &:hover { background: #f0edff; }
+  &:hover { background: var(--ca-lilac-hover); }
   &.loading { cursor: wait; }
 }
 
@@ -2224,7 +2275,7 @@ a {
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: #ece7ff;
+  background: var(--ca-lilac-strong);
   color: $purple;
   display: flex;
   align-items: center;
@@ -2282,10 +2333,10 @@ a {
   }
 
   &.p-btn-transfer {
-    background: #fff;
-    border-color: #ffdfc4;
+    background: var(--ca-btn);
+    border-color: var(--ca-btn-amber-border);
     color: #f59e0b;
-    &:hover:not(:disabled) { background: #fffaf5; border-color: #fbbf24; }
+    &:hover:not(:disabled) { background: var(--ca-btn-amber-hover); border-color: #fbbf24; }
   }
 
   &.p-btn-ai {
@@ -2302,17 +2353,17 @@ a {
   }
 
   &.p-btn-meeting {
-    background: #fff;
-    border-color: #c7d2fe;
-    color: #4f46e5;
-    &:hover:not(:disabled) { background: #eef2ff; border-color: #a5b4fc; }
+    background: var(--ca-btn);
+    border-color: var(--ca-btn-indigo-border);
+    color: var(--ca-indigo-text);
+    &:hover:not(:disabled) { background: var(--ca-btn-indigo-hover); border-color: #a5b4fc; }
   }
 
   &.p-btn-close {
-    background: #fff;
-    border-color: #ffd3d3;
+    background: var(--ca-btn);
+    border-color: var(--ca-btn-red-border);
     color: #ef4444;
-    &:hover:not(:disabled) { background: #fff5f5; border-color: #fca5a5; }
+    &:hover:not(:disabled) { background: var(--ca-btn-red-hover); border-color: #fca5a5; }
   }
 }
 
@@ -2375,9 +2426,9 @@ a {
   font-size: 12px;
   font-weight: 600;
   color: $text-secondary;
-  .timer-advisor & { color: #92400e; }
-  .timer-client  & { color: #1e40af; }
-  .timer-closing & { color: #991b1b; }
+  .timer-advisor & { color: var(--ca-amber-text); }
+  .timer-client  & { color: var(--ca-blue-text); }
+  .timer-closing & { color: var(--ca-red-text); }
 }
 
 .timer-count {
@@ -2513,7 +2564,7 @@ a {
   }
 
   &.status--active  { background: $success-soft; color: $success; }
-  &.status--waiting { background: $warning-soft; color: #b45309; }
+  &.status--waiting { background: $warning-soft; color: var(--ca-amber-text); }
   &.status--closed  { background: $surface-hover; color: $text-faint; }
 }
 
@@ -2928,7 +2979,7 @@ a {
   }
 
   .ticket-modal-locked input:disabled {
-    background: #f3f4f6;
+    background: var(--ca-disabled-bg);
     color: $text-secondary;
     cursor: not-allowed;
     border-color: $border;
@@ -2966,7 +3017,7 @@ a {
 
 .ticket-assign-modulo {
   font-weight: 600;
-  color: #6366f1;
+  color: var(--ca-accent-text);
   white-space: nowrap;
 }
 
@@ -3008,12 +3059,12 @@ a {
   font: inherit;
   font-size: 13px;
   font-weight: 600;
-  color: #6366f1;
+  color: var(--ca-accent-text);
   cursor: pointer;
   transition: all 0.15s;
 
   &:hover {
-    border-color: #6366f1;
+    border-color: var(--ca-accent-text);
     background: rgba(99, 102, 241, 0.06);
   }
 }
@@ -3113,13 +3164,13 @@ a {
   font: inherit;
 
   &:hover {
-    border-color: #6366f1;
+    border-color: var(--ca-accent-text);
     background: rgba(99, 102, 241, 0.06);
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.06);
   }
 
   svg:last-child { color: $text-faint; flex-shrink: 0; transition: color 0.15s; }
-  &:hover svg:last-child { color: #6366f1; }
+  &:hover svg:last-child { color: var(--ca-accent-text); }
 }
 
 .cat-modulo-picker-item-icon {
@@ -3130,7 +3181,7 @@ a {
   height: 38px;
   border-radius: 10px;
   background: rgba(99, 102, 241, 0.1);
-  color: #6366f1;
+  color: var(--ca-accent-text);
   flex-shrink: 0;
 }
 
@@ -3142,7 +3193,7 @@ a {
   height: 38px;
   border-radius: 50%;
   background: rgba(99, 102, 241, 0.1);
-  color: #6366f1;
+  color: var(--ca-accent-text);
   font-size: 14px;
   font-weight: 700;
   flex-shrink: 0;
@@ -3186,7 +3237,7 @@ a {
   gap: 5px;
   border: none;
   background: transparent;
-  color: #6366f1;
+  color: var(--ca-accent-text);
   font: inherit;
   font-size: 13px;
   font-weight: 600;
@@ -3860,7 +3911,7 @@ a {
 .edit-cancel {
   background: $border-light;
   color: $text-secondary;
-  &:hover { background: #e2e4e8; }
+  &:hover { background: var(--ca-btn-gray); }
 }
 
 .edit-save {
@@ -3904,6 +3955,7 @@ a {
 
 @container (max-width: 720px) {
   .chat-header { flex-wrap: wrap; row-gap: 8px; }
+  .header-actions { margin-left: auto; }
 
   .header-blocks {
     flex: 1 1 100%;
@@ -3923,6 +3975,7 @@ a {
 
 @container (max-width: 620px) {
   .chat-header { row-gap: 8px; }
+  .header-actions { margin-left: auto; }
 
   .header-blocks {
     flex: 1 1 100%;
@@ -3962,7 +4015,6 @@ a {
   .chat-header { padding: 14px 16px; gap: 12px; }
   .chat-messages { padding: 16px; }
   .chat-input { padding: 10px 16px 14px; }
-  .conv-header { padding: 8px 12px; }
   .conv-assigned { padding: 6px 8px; }
   .session-card { padding: 7px 8px; }
   .msg { width: 100%; max-width: 100%; }
@@ -4226,7 +4278,6 @@ a {
   .chat-input { padding: 6px 10px 8px; gap: 6px; }
   .input-icon-btn { width: 34px; height: 34px; }
   .send-btn { width: 34px; height: 34px; }
-  .conv-header { padding: 8px 10px; }
   .session-card { padding: 6px 8px; gap: 6px; }
   .ava { width: 30px; height: 30px; font-size: 11px; }
   .s-name { font-size: 11px; }
@@ -4247,7 +4298,7 @@ a {
   padding: 4px 0 6px;
 
   &::-webkit-scrollbar { height: 3px; }
-  &::-webkit-scrollbar-thumb { background: #ccc; border-radius: 99px; }
+  &::-webkit-scrollbar-thumb { background: var(--ca-scroll); border-radius: 99px; }
 }
 
 .preview-item {
@@ -4335,8 +4386,8 @@ a {
   left: 0;
   right: 0;
   font-size: 0.5rem;
-  color: #dc2626;
-  background: rgba(255, 255, 255, 0.9);
+  color: var(--ca-error-text);
+  background: var(--ca-overlay-bg);
   padding: 1px 3px;
   text-align: center;
   white-space: nowrap;
@@ -4403,7 +4454,7 @@ a {
   color: inherit;
   transition: background 0.15s;
 
-  &:hover { background: #f1f5f9; }
+  &:hover { background: var(--ca-tint-gray); }
 }
 
 .att-doc-icon {
@@ -4924,7 +4975,7 @@ a {
       padding: 9px 11px;
       border: 1px solid $border;
       border-radius: $radius-md;
-      background: #fff;
+      background: $surface;
       color: $text;
       font-size: 14px;
       font-family: inherit;
@@ -4944,7 +4995,7 @@ a {
     padding: 9px 10px;
     border: 1px solid $border;
     border-radius: $radius-md;
-    background: #fafbff;
+    background: $surface-hover;
 
     input { margin-top: 2px; accent-color: $primary; }
 
@@ -4995,7 +5046,7 @@ a {
     padding: 8px 10px;
     border: 1px solid $border;
     border-radius: $radius-md;
-    background: #fafbff;
+    background: $surface-hover;
 
     span {
       flex: 1;

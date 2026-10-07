@@ -128,6 +128,61 @@
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 
+/* ─── Advisor shell: navbar en modo oscuro (navy #091525) ────────────
+   Vive en el stylesheet global a proposito: [data-theme] esta en <html> y,
+   con encapsulacion emulada, las reglas del componente reciben [_ngcontent]
+   en cada selector, por lo que nunca casarian con la raiz.
+   Solo re-declara tokens dentro de .advisor-shell > header.mobile-topbar
+   (marca, campana, contador, panel Equipo, dropdown de perfil); el sidebar
+   y el contenido se tocan en su propio paso. */
+[data-theme='dark'] .advisor-shell .mobile-topbar {
+  --sidebar-bg: #091525;
+  --sidebar-surface: #0d1b30;
+  --sidebar-text: #e6edf7;
+  --sidebar-text-muted: #94a7c2;
+  --sidebar-text-faint: #7d93b3;
+  --sidebar-border: rgba(255, 255, 255, 0.09);
+  --sidebar-hover: rgba(255, 255, 255, 0.06);
+  --sidebar-active: rgba(255, 255, 255, 0.05);
+  --sidebar-accent: #4d8dff;
+  --sidebar-accent-soft: rgba(77, 141, 255, 0.16);
+
+  --bg-hover: rgba(255, 255, 255, 0.08);
+  --text-muted: #94a7c2;
+
+  --nb-soft: rgba(255, 255, 255, 0.05);
+  --nb-line: rgba(255, 255, 255, 0.12);
+  --nb-ring: rgba(77, 141, 255, 0.18);
+  --nb-accent-line: rgba(77, 141, 255, 0.45);
+}
+
+[data-theme='dark'] .advisor-shell .mobile-topbar .capsule-badge:hover,
+[data-theme='dark'] .advisor-shell .mobile-topbar .capsule-badge.open {
+  background: #2563eb;
+}
+
+/* ─── Advisor shell: sidebar izquierdo en modo oscuro (navy #091525) ───
+   Mismo motivo que arriba: selector global para casar con <html data-theme>.
+   Cubre todo lo que vive dentro de <aside class="shell-sidebar"> (logo,
+   grupos de nav, badges, tooltip, botón de cerrar sesión) en TODOS los
+   módulos, ya que el sidebar es el mismo nodo en cada vista. */
+[data-theme='dark'] .advisor-shell .shell-sidebar {
+  --sidebar-bg: #091525;
+  --sidebar-surface: #0d1b30;
+  --sidebar-text: #e6edf7;
+  --sidebar-text-muted: #94a7c2;
+  --sidebar-text-faint: #7d93b3;
+  --sidebar-border: rgba(255, 255, 255, 0.09);
+  --sidebar-hover: rgba(255, 255, 255, 0.06);
+  --sidebar-active: rgba(255, 255, 255, 0.05);
+  --sidebar-accent: #4d8dff;
+  --sidebar-accent-soft: rgba(77, 141, 255, 0.16);
+
+  --sb-hover: rgba(255, 255, 255, 0.07);
+  --sb-logout-bg: rgba(239, 68, 68, 0.14);
+  --sb-logout-text: #f87171;
+}
+
 /* ─── Admin shell accent override ──────────────────── */
 .admin-shell {
   --sidebar-accent: #7c3aed;
@@ -168,6 +223,10 @@ a {
 button {
   cursor: pointer;
   font-family: inherit;
+  /* Los <button> nativos NO heredan color: el UA de Chrome pone
+     `color: initial` (negro), que en claro parece bien y en oscuro deja el
+     texto invisible. Hereda del ancestro para que siga --text en ambos temas. */
+  color: inherit;
 }
 
 img {

@@ -9,6 +9,15 @@
   </div>
   }
 
+  @if (aviso) {
+  <div class="cal-alert cal-alert-ok" role="status">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="20 6 9 17 4 12"></polyline>
+    </svg>
+    <span>{{ aviso }}</span>
+  </div>
+  }
+
   @if (truncado) {
   <div class="cal-alert cal-alert-warn">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -94,7 +103,7 @@
 
       <!-- Franjas de una hora. Las 24 se dibujan siempre para que la columna no
            "baille" al agregar o quitar una reunion. -->
-      <div class="agenda">
+      <div class="agenda" #agendaScroll>
         @for (slot of horasDelDia; track slot.hora) {
         <div class="agenda-slot"
           [class.has-events]="slot.eventos.length > 0"
@@ -136,9 +145,12 @@
                 </div>
               </div>
 
-              <!-- Sin acciones si la reunion ya termino: el enlace ya no sirve. -->
-              @if (m.joinUrl && !isPastMeeting(m)) {
+              <!-- Sin acciones si la reunion ya termino: el enlace ya no sirve.
+                   Editar/eliminar solo aparece en reuniones creadas desde la
+                   app y que hizo el usuario actual (o un administrador). -->
+              @if ((m.joinUrl && !isPastMeeting(m)) || esEditable(m)) {
               <div class="ev-act">
+                @if (m.joinUrl && !isPastMeeting(m)) {
                 <button type="button" class="mini-btn" (click)="copyLink(m)" title="Copiar enlace" [attr.aria-label]="'Copiar enlace de ' + m.subject">
                   @if (copiedId === m.eventId) {
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -157,6 +169,24 @@
                     <polyline points="6 17 11 12 6 7"></polyline>
                   </svg>
                 </button>
+                }
+
+                @if (esEditable(m) && !isPastMeeting(m)) {
+                <button type="button" class="mini-btn" (click)="openEdit(m)" title="Editar reunion" [attr.aria-label]="'Editar ' + m.subject">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 20h9"/>
+                    <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+                  </svg>
+                </button>
+                }
+                @if (esEditable(m)) {
+                <button type="button" class="mini-btn mini-btn-danger" (click)="askDelete(m)" title="Eliminar reunion" [attr.aria-label]="'Eliminar ' + m.subject">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                  </svg>
+                </button>
+                }
               </div>
               }
             </article>
@@ -305,7 +335,7 @@
   <div class="cal-modal-backdrop" (click)="closeCreate()"></div>
   <section class="cal-modal" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
     <header class="cal-modal-head">
-      <strong>Nueva reunion de Teams</strong>
+      <strong>{{ editingId ? 'Editar reunion' : 'Nueva reunion de Teams' }}</strong>
       <button type="button" class="icon-btn" (click)="closeCreate()" title="Cerrar" aria-label="Cerrar">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="18" y1="6" x2="6" y2="18"/>
@@ -316,7 +346,7 @@
 
     @if (!createdMeeting) {
     <div class="cal-modal-body">
-      @if (!isTeamsConnected && !draft.agendarCalendario) {
+      @if (!editingId && !isTeamsConnected && !draft.agendarCalendario) {
       <div class="cal-connect">
         <p>Conecta la cuenta de Microsoft que organizará la reunión desde Configuración del asesor.</p>
         <button type="button" class="primary-btn" (click)="openTeamsSettings()" [disabled]="isLoadingTeams">
@@ -337,10 +367,9 @@
         <label class="cal-field">
           <span>Duracion</span>
           <select [(ngModel)]="draft.durationMinutes">
-            <option [ngValue]="15">15 minutos</option>
-            <option [ngValue]="30">30 minutos</option>
-            <option [ngValue]="45">45 minutos</option>
-            <option [ngValue]="60">60 minutos</option>
+            @for (d of duracionesVisibles; track d) {
+            <option [ngValue]="d">{{ d }} minutos</option>
+            }
           </select>
         </label>
       </div>
@@ -359,10 +388,16 @@
           }
         </div>
         <small class="cal-field-note">
-          El color aparece en Outlook y en Teams con el mismo nombre de categoria.
+          En Outlook y Teams la reunion queda marcada con la categoria de su color.
         </small>
       </div>
 
+      @if (editingId) {
+      <p class="cal-field-note">
+        El evento sigue en el mismo calendario de Microsoft: aqui solo cambian
+        nombre, hora, duracion y categoria.
+      </p>
+      } @else {
       <label class="cal-check">
         <input type="checkbox" [(ngModel)]="draft.agendarCalendario" />
         <span>
@@ -370,16 +405,23 @@
           <small>{{ draft.agendarCalendario ? 'La cuenta empresarial crea la reunión y el evento en el calendario compartido.' : 'Se guardará en tu calendario personal; conecta Teams desde Configuración para crear la videollamada.' }}</small>
         </span>
       </label>
+      }
 
-      @if (createError) {
-      <p class="cal-msg cal-msg-err">{{ createError }}</p>
+      @if (editingId ? editError : createError) {
+      <p class="cal-msg cal-msg-err">{{ editingId ? editError : createError }}</p>
       }
     </div>
     <footer class="cal-modal-actions">
       <button type="button" class="secondary-btn" (click)="closeCreate()" [disabled]="creating">Cancelar</button>
+      @if (editingId) {
+      <button type="button" class="primary-btn" (click)="saveEdit()" [disabled]="creating">
+        {{ creating ? 'Guardando...' : 'Guardar cambios' }}
+      </button>
+      } @else {
       <button type="button" class="primary-btn" (click)="createMeeting()" [disabled]="creating || (!draft.agendarCalendario && (isLoadingTeams || !isTeamsConnected))">
         {{ creating ? 'Creando reunion...' : 'Crear reunion' }}
       </button>
+      }
     </footer>
     } @else {
     <div class="cal-success">
@@ -404,6 +446,40 @@
       </div>
     </div>
     }
+  </section>
+  }
+
+  <!-- ── Confirmación de eliminación ─────────────────────────────────── -->
+  @if (deleteTarget) {
+  <div class="cal-modal-backdrop" (click)="cancelDelete()"></div>
+  <section class="cal-modal cal-modal-sm" role="alertdialog" aria-modal="true" (click)="$event.stopPropagation()">
+    <header class="cal-modal-head">
+      <strong>Eliminar reunion</strong>
+      <button type="button" class="icon-btn" (click)="cancelDelete()" title="Cerrar" aria-label="Cerrar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </header>
+
+    <div class="cal-modal-body">
+      <p class="cal-modal-text">
+        Se eliminara <b>{{ deleteTarget.subject }}</b>
+        ({{ fmtMedium(deleteTarget.startDateTime) }}) del calendario de
+        Microsoft y de Korvix. Los asistentes recibiran la cancelacion.
+      </p>
+      @if (deleteError) {
+      <p class="cal-msg cal-msg-err">{{ deleteError }}</p>
+      }
+    </div>
+
+    <footer class="cal-modal-actions">
+      <button type="button" class="secondary-btn" (click)="cancelDelete()" [disabled]="deleting">Cancelar</button>
+      <button type="button" class="primary-btn cal-btn-danger" (click)="confirmDelete()" [disabled]="deleting">
+        {{ deleting ? 'Eliminando...' : 'Eliminar' }}
+      </button>
+    </footer>
   </section>
   }
 

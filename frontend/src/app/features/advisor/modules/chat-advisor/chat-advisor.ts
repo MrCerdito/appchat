@@ -1,6 +1,6 @@
 import {
   Component, OnInit, OnDestroy, ViewChild,
-  ElementRef, ChangeDetectorRef, ChangeDetectionStrategy, HostListener
+  ElementRef, ChangeDetectorRef, ChangeDetectionStrategy, HostListener, HostBinding
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -46,6 +46,7 @@ import {
   VoiceRecordingResult,
 } from '../../../../shared/components/voice-recorder/voice-recorder.component';
 import { VoicePlayerComponent } from '../../../../shared/components/voice-player/voice-player.component';
+import { ThemeService } from '../../../../core/services/theme.service';
 
 // ── Payload exacto que emite el backend ──────────────────────────────────────
 export interface TimerUpdatePayload {
@@ -102,6 +103,11 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   @ViewChild('msgInput') msgInput!: ElementRef<HTMLTextAreaElement>;
   @ViewChild('slashMenu') slashMenu?: ElementRef<HTMLElement>;
   @ViewChild('improveInputField') improveInputField!: ElementRef<HTMLTextAreaElement>;
+
+  // ── Tema ──────────────────────────────────────────────────────────────────
+  // La clase en el host invierte los tokens del módulo (bloque :host.theme-dark
+  // del SCSS); se sincroniza con ThemeService en ngOnInit.
+  @HostBinding('class.theme-dark') protected themeDark = false;
 
   // ── Estado UI ─────────────────────────────────────────────────────────────
   currentAdvisor   : User | null    = null;
@@ -249,9 +255,10 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     private route       : ActivatedRoute,
     private router      : Router,
     private cdr         : ChangeDetectorRef,
-    private chatMedia   : ChatMediaService,
-    private waTeamService: WhatsappChatService,
-  ) {}
+      private chatMedia   : ChatMediaService,
+      private waTeamService: WhatsappChatService,
+      private themeService: ThemeService,
+    ) {}
 
   // ── Getters ───────────────────────────────────────────────────────────────
 
@@ -424,6 +431,13 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
       this.currentAdvisor = u;
       this.cdr.detectChanges();
     });
+
+    // Tema claro/oscuro → clase .theme-dark en el host
+    this.themeService.currentTheme$.pipe(takeUntil(this.destroy$)).subscribe((t) => {
+      this.themeDark = t === 'dark';
+      this.cdr.markForCheck();
+    });
+
     this.loadSessions();
     this.loadAdvisors();
 
@@ -2295,14 +2309,6 @@ leaveCollabChat(): void {
   sessionFullName(session?: Session | null): string {
     if (!session) return '';
     return `${session.clientName || ''} ${session.apellido || ''}`.trim() || 'Cliente';
-  }
-
-  statusLabel(session?: Session | null): string {
-    if (!session) return '';
-    if (session.status === 'waiting') return 'En espera';
-    if (session.status === 'active') return 'Activo';
-    if (session.status === 'closed') return 'Cerrado';
-    return session.status || 'Sin estado';
   }
 
   get panelAdvisorId(): string | null {

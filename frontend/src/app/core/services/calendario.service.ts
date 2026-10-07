@@ -29,6 +29,15 @@ export interface EventoCalendario {
   type: string | null;
   creadaEnLaApp: boolean;
   /**
+   * Presente solo si el evento se creo desde Korvix: con esto el front sabe que
+   * la reunion se puede editar o eliminar. Los eventos creados directamente en
+   * Teams/Outlook los tratan Microsoft, no la app.
+   */
+  meetingRecordId: string | null;
+  createdById: string | null;
+  calendarTarget: 'personal' | 'shared' | 'none' | null;
+  eventSource: 'group' | 'shared-mailbox' | 'personal' | 'none' | null;
+  /**
    * De que calendario vino. 'buzon' es lo que creo la app: Microsoft no deja
    * escribir en el calendario del grupo con permisos de aplicacion, asi que el
    * backend lee los dos y los fusiona.

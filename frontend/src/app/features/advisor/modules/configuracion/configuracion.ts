@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, OnInit, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, OnDestroy, HostBinding, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -11,7 +11,9 @@ import {
 } from '../../../../core/services/configuracion.service';
 import { NotificationService } from '../../../../core/services/notification.service';
 import { WhatsappChatService } from '../../../../core/services/whatsapp-chat.service';
+import { environment } from '../../../../../environments/environment';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
+import { ThemeService } from '../../../../core/services/theme.service';
 
 @Component({
   selector: 'app-configuracion',
@@ -62,8 +64,12 @@ export class ConfiguracionComponent implements OnInit, OnDestroy {
     { value: 6, label: 'Sabado', short: 'Sab' },
   ];
 
+  @HostBinding('class.theme-dark') protected themeDark = false;
+
   private destroy$ = new Subject<void>();
   private teamsPopup: Window | null = null;
+  /** Sondeo de estado mientras el popup de Microsoft esta abierto. */
+  private timerVigilancia: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     private readonly svc: ConfiguracionFrontendService,
@@ -72,9 +78,16 @@ export class ConfiguracionComponent implements OnInit, OnDestroy {
     private readonly waService: WhatsappChatService,
     private readonly route: ActivatedRoute,
     private readonly router: Router,
+    private readonly themeService: ThemeService,
   ) {}
 
   ngOnInit(): void {
+    this.themeDark = this.themeService.currentTheme === 'dark';
+    this.themeService.currentTheme$.pipe(takeUntil(this.destroy$)).subscribe((t) => {
+      this.themeDark = t === 'dark';
+      this.cdr.markForCheck();
+    });
+
     window.addEventListener('message', this.handleTeamsAuthMessage);
     this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe((params) => {
       if (params.get('tab') === 'teams') this.tab = 'teams';
@@ -109,26 +122,88 @@ export class ConfiguracionComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     window.removeEventListener('message', this.handleTeamsAuthMessage);
+    this.detenerVigilanciaConexion();
     this.destroy$.next();
     this.destroy$.complete();
   }
 
-  private loadTeamsStatus(): void {
-    this.teamsLoading = true;
+  /**
+   * Consulta el estado de la conexion.
+   *
+   * `silencioso` es para la vigilancia que corre mientras el popup de Microsoft
+   * esta abierto: no toca `teamsLoading` ni parpadea la tarjeta mientras el
+   * asesor esta en la ventana de login.
+   */
+  private loadTeamsStatus(silencioso = false): void {
+    if (!silencioso) this.teamsLoading = true;
     this.waService.getTeamsStatus().pipe(takeUntil(this.destroy$)).subscribe({
       next: (status) => {
         this.teamsLoading = false;
         this.teamsConnected = status.connected;
         this.teamsAccountName = status.accountName || '';
+        // Si la conexion se completo (por el mensaje del popup o por esta
+        // consulta), se cierra la ventana y se refleja en la interfaz sin
+        // esperar a que el asesor recargue la pagina.
+        if (status.connected) this.confirmarConexion();
         this.cdr.detectChanges();
       },
       error: (err) => {
         this.teamsLoading = false;
-        this.teamsConnected = false;
-        this.teamsError = this.extractError(err);
+        if (!silencioso) {
+          this.teamsConnected = false;
+          this.teamsError = this.extractError(err);
+        }
         this.cdr.detectChanges();
       },
     });
+  }
+
+  /**
+   * Respaldo del `postMessage` del popup: mientras dura la conexion consulta el
+   * estado cada 2 s.
+   *
+   * El callback de OAuth lo sirve el API, que en local es otro origen que la
+   * aplicacion, asi que el mensaje a veces no llega y el boton se quedaba
+   * trabado en "Conectando..." hasta recargar. Con esto basta con que el estado
+   * cambie en el servidor.
+   */
+  private iniciarVigilanciaConexion(): void {
+    this.detenerVigilanciaConexion();
+    const inicio = Date.now();
+    this.timerVigilancia = setInterval(() => {
+      if (!this.teamsConnecting) {
+        this.detenerVigilanciaConexion();
+        return;
+      }
+      if (Date.now() - inicio > 90_000) {
+        this.detenerVigilanciaConexion();
+        this.teamsConnecting = false;
+        this.teamsError =
+          'No se pudo conectar Teams. Vuelve a intentarlo y no cierres la ventana de Microsoft.';
+        this.cdr.detectChanges();
+        return;
+      }
+      this.loadTeamsStatus(true);
+    }, 2000);
+  }
+
+  private detenerVigilanciaConexion(): void {
+    if (this.timerVigilancia) {
+      clearInterval(this.timerVigilancia);
+      this.timerVigilancia = null;
+    }
+  }
+
+  /** Todo quedo bien: cierra el popup, apaga "Conectando..." y avisa. */
+  private confirmarConexion(): void {
+    if (!this.teamsConnecting && !this.teamsPopup) return;
+    this.detenerVigilanciaConexion();
+    this.teamsConnecting = false;
+    if (this.teamsPopup && !this.teamsPopup.closed) this.teamsPopup.close();
+    this.teamsPopup = null;
+    this.teamsError = '';
+    this.teamsMessage = 'Teams conectado. Ya puedes crear reuniones.';
+    this.notification.success('Teams conectado', this.teamsMessage);
   }
 
   connectTeams(): void {
@@ -143,6 +218,7 @@ export class ConfiguracionComponent implements OnInit, OnDestroy {
 
     this.teamsPopup = popup;
     this.teamsConnecting = true;
+    this.iniciarVigilanciaConexion();
     this.waService.getTeamsAuthUrl().pipe(takeUntil(this.destroy$)).subscribe({
       next: (response) => {
         popup.location.href = response.authUrl;
@@ -152,6 +228,7 @@ export class ConfiguracionComponent implements OnInit, OnDestroy {
         popup.close();
         this.teamsPopup = null;
         this.teamsConnecting = false;
+        this.detenerVigilanciaConexion();
         this.teamsError = this.extractError(err);
         this.cdr.detectChanges();
       },
@@ -193,23 +270,37 @@ export class ConfiguracionComponent implements OnInit, OnDestroy {
   }
 
   private handleTeamsAuthMessage = (event: MessageEvent): void => {
-    if (event.origin !== window.location.origin) return;
     if (event.source !== this.teamsPopup) return;
+    // El popup termina en el API (callback de OAuth), que en local NO es el
+    // mismo origen que la aplicacion: validar solo contra `location.origin`
+    // hacia que el mensaje se descartara y el estado solo cambiaba al
+    // recargar la pagina.
+    if (!this.esOrigenAuth(event.origin)) return;
     if (event.data?.type !== 'teams-auth') return;
 
-    this.teamsPopup?.close();
-    this.teamsPopup = null;
-    this.teamsConnecting = false;
     if (event.data.success) {
-      this.teamsMessage = 'Teams conectado. Ya puedes crear reuniones.';
-      this.notification.success('Teams conectado', this.teamsMessage);
-      this.loadTeamsStatus();
+      this.confirmarConexion();
+      this.loadTeamsStatus(true);
     } else {
+      this.detenerVigilanciaConexion();
+      this.teamsPopup?.close();
+      this.teamsPopup = null;
+      this.teamsConnecting = false;
       this.teamsError = event.data.error || 'No se pudo conectar Teams.';
       this.notification.error('Error al conectar Teams', this.teamsError);
     }
     this.cdr.detectChanges();
   };
+
+  /** Origenes desde los que el callback puede avisarnos. */
+  private esOrigenAuth(origen: string): boolean {
+    if (origen === window.location.origin) return true;
+    try {
+      return origen === new URL(environment.apiUrl, window.location.origin).origin;
+    } catch {
+      return false;
+    }
+  }
 
     private advisorFields: (keyof ConfiguracionData)[] = [
     'almuerzos',

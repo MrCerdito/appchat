@@ -1,0 +1,520 @@
+<!-- sharepoint.component.html · gestión documental (área de contenido) -->
+
+<div class="dm">
+
+  <!-- ── 1. Encabezado del módulo ─────────────────────────────────────────── -->
+  <header class="dm-head">
+    <div class="head-izq">
+      <div class="head-icono">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+        </svg>
+      </div>
+      <div class="head-txt">
+        <h1>Documentos</h1>
+        <p>Aquí encontrarás todas las carpetas y archivos compartidos.</p>
+      </div>
+    </div>
+
+    <div class="head-acc">
+      <!-- Nuevo (principal, con desplegable) -->
+      <div class="js-menu">
+        <button type="button" class="btn pri" (click)="alternarMenuNuevo($event)"
+          [attr.aria-expanded]="menuNuevo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          Nuevo
+          <svg class="caret" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+        @if (menuNuevo) {
+        <div class="menu">
+          <button type="button" (click)="nuevo()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+            </svg>
+            Nueva carpeta
+          </button>
+          <button type="button" (click)="nuevo()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+            </svg>
+            Documento en blanco
+          </button>
+          <span class="menu-nota">Solo lectura · se administra en SharePoint</span>
+        </div>
+        }
+      </div>
+
+      <button type="button" class="btn" (click)="cargarArchivo()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        Cargar
+      </button>
+
+      <button type="button" class="btn" (click)="compartir()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+        </svg>
+        Compartir
+      </button>
+
+      <div class="js-menu">
+        <button type="button" class="btn solo-ico" (click)="alternarMenuMas($event)"
+          title="Más acciones" aria-label="Más acciones">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/>
+            <circle cx="19" cy="12" r="1.9"/>
+          </svg>
+        </button>
+        @if (menuMas) {
+        <div class="menu menu-der">
+          <button type="button" (click)="cargar()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"/>
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+            Actualizar
+          </button>
+          <button type="button" (click)="abrirSitio()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+              <polyline points="15 3 21 3 21 9"/>
+              <line x1="10" y1="14" x2="21" y2="3"/>
+            </svg>
+            Abrir el sitio en SharePoint
+          </button>
+        </div>
+        }
+      </div>
+    </div>
+  </header>
+
+  <!-- ── Ruta ─────────────────────────────────────────────────────────────── -->
+  <nav class="dm-ruta" aria-label="Ruta de navegación">
+    <button type="button" class="ruta-up" (click)="subir()" [disabled]="pila.length <= 1"
+      title="Subir una carpeta" aria-label="Subir una carpeta">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="18 15 12 9 6 15"/>
+      </svg>
+    </button>
+    @for (n of pila; track $index; let last = $last) {
+    <button type="button" class="ruta-crumb" [class.actual]="last" [disabled]="last"
+      (click)="navegarA($index)">{{ n.nombre }}</button>
+    @if (!last) { <span class="ruta-sep">›</span> }
+    }
+    @if (enBusqueda) {
+    <span class="ruta-sep">›</span>
+    <span class="ruta-crumb actual">Resultados de “{{ busqueda }}”</span>
+    }
+  </nav>
+
+  <!-- ── 5. Barra de acciones contextual ──────────────────────────────────── -->
+  @if (seleccion.size) {
+  <div class="dm-selbar">
+    <div class="sel-info">
+      <b>{{ seleccion.size }}</b> {{ seleccion.size === 1 ? 'elemento seleccionado' : 'elementos seleccionados' }}
+    </div>
+
+    <div class="sel-acc">
+      <button type="button" (click)="compartir()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+        </svg>
+        Compartir
+      </button>
+
+      <button type="button" (click)="descargarSeleccion()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Descargar
+      </button>
+
+      <button type="button" (click)="moverSeleccion()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+        Mover
+      </button>
+
+      <button type="button" class="peligro" (click)="eliminarSeleccion()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="3 6 5 6 21 6"/>
+          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+          <path d="M10 11v6M14 11v6"/>
+          <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+        </svg>
+        Eliminar
+      </button>
+
+      <div class="js-menu">
+        <button type="button" (click)="alternarMenuSel($event)">Más</button>
+        @if (menuSel) {
+        <div class="menu">
+          <button type="button" (click)="alternarTodos(); menuSel = false">Seleccionar todo</button>
+          <button type="button" (click)="limpiarSeleccion(); menuSel = false">Deseleccionar</button>
+        </div>
+        }
+      </div>
+    </div>
+
+    <button type="button" class="sel-cerrar" (click)="limpiarSeleccion()"
+      title="Limpiar selección" aria-label="Limpiar selección">✕</button>
+  </div>
+  }
+
+  <!-- ── 2. Navegación del módulo ─────────────────────────────────────────── -->
+  <div class="dm-tabs">
+    <nav class="tabs" aria-label="Filtros">
+      @for (p of pestanas; track p.codigo) {
+      <button type="button" class="tab" [class.activa]="pestana === p.codigo"
+        (click)="irAPestana(p.codigo)">
+        {{ p.label }}
+        <span class="tab-n">{{ conteoPestanas[p.codigo] }}</span>
+      </button>
+      }
+    </nav>
+
+    <div class="tabs-der">
+      <div class="buscar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input type="text" [(ngModel)]="busqueda" (keyup.enter)="buscar()"
+          placeholder="Buscar…"/>
+        @if (busqueda) {
+        <button type="button" class="limpiar" (click)="limpiarBusqueda()"
+          aria-label="Limpiar búsqueda">✕</button>
+        }
+      </div>
+
+      <label class="ordenar">
+        <span>Ordenar por</span>
+        <select [(ngModel)]="orden" (change)="onOrdenChange()">
+          <option value="fecha">Fecha de modificación</option>
+          <option value="nombre">Nombre</option>
+          <option value="tamano">Tamaño</option>
+        </select>
+        <button type="button" class="dir" (click)="asc = !asc" title="Invertir orden"
+          aria-label="Invertir orden">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+            stroke-linecap="round" stroke-linejoin="round" [class.inv]="!asc">
+            <line x1="12" y1="5" x2="12" y2="19"/>
+            <polyline points="19 12 12 19 5 12"/>
+          </svg>
+        </button>
+      </label>
+
+      <div class="vista" role="group" aria-label="Selector de vista">
+        <button type="button" [class.act]="vista === 'lista'" (click)="vista = 'lista'"
+          title="Vista de lista" aria-label="Vista de lista">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/>
+            <line x1="8" y1="18" x2="21" y2="18"/>
+            <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/>
+            <line x1="3" y1="18" x2="3.01" y2="18"/>
+          </svg>
+        </button>
+        <button type="button" [class.act]="vista === 'cuadricula'" (click)="vista = 'cuadricula'"
+          title="Vista de cuadrícula" aria-label="Vista de cuadrícula">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+            <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+            <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+            <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 3. Contenido ─────────────────────────────────────────────────────── -->
+  <div class="dm-cuerpo" [class.cargando]="cargando && items.length > 0">
+    @if (cargando && items.length > 0) {
+    <div class="carga-bar" role="progressbar" aria-label="Cargando carpeta"></div>
+    }
+
+    <!-- Cargando -->
+    @if (loading || (cargando && items.length === 0)) {
+    <div class="sk">
+      @for (s of skeleton; track s) {
+      <div class="sk-fila">
+        <span class="sk-b"></span>
+        <span class="sk-b ico"></span>
+        <span class="sk-b txt" [style.width.%]="34 + (s % 4) * 9"></span>
+        <span class="sk-b txt chico"></span>
+        <span class="sk-b txt med"></span>
+      </div>
+      }
+    </div>
+
+    <!-- Error -->
+    } @else if (error) {
+    <div class="estado">
+      <div class="estado-ico err">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+          stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+      </div>
+      <strong>No se pudo cargar la biblioteca</strong>
+      <span>{{ error }}</span>
+      <button type="button" class="btn pri" (click)="cargar()">Reintentar</button>
+    </div>
+
+    <!-- Vacío -->
+    } @else if (itemsOrdenados.length === 0) {
+    <div class="estado">
+      <div class="estado-ico">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+        </svg>
+      </div>
+      @if (enBusqueda) {
+      <strong>Sin resultados</strong>
+      <span>No hay archivos que coincidan con “{{ busqueda }}”.</span>
+      <button type="button" class="btn" (click)="limpiarBusqueda()">Limpiar búsqueda</button>
+      } @else {
+      <strong>Esta vista está vacía</strong>
+      <span>{{ nivel.nombre }} no tiene elementos en “{{ pestanaLabel[pestana] }}”.</span>
+      }
+    </div>
+
+    <!-- Vista lista -->
+    } @else if (vista === 'lista') {
+    <div class="tabla-wrap">
+      <table class="tabla">
+        <thead>
+          <tr>
+            <th class="c-check">
+              <input type="checkbox" [checked]="todosMarcados" (change)="alternarTodos()"
+                aria-label="Seleccionar todo"/>
+            </th>
+            <th class="c-nombre">Nombre</th>
+            <th class="c-tipo">Tipo</th>
+            <th class="c-fecha">Modificado</th>
+            <th class="c-autor">Autor</th>
+            <th class="c-acc"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of itemsPagina; track trackById($index, item)) {
+          <tr [class.sel]="seleccion.has(item.id)" [class.act]="menuFila === item.id"
+            (click)="abrir(item)" (mouseenter)="prefetch(item)"
+            (mouseleave)="cancelarPrefetch()">
+
+            <td class="c-check" (click)="$event.stopPropagation()">
+              <input type="checkbox" [checked]="seleccion.has(item.id)"
+                (change)="marcar(item)" [attr.aria-label]="'Seleccionar ' + item.nombre"/>
+            </td>
+
+            <td class="c-nombre">
+              <span class="celda">
+                <span class="ico" [ngClass]="[claseIcono(item), colorCarpeta(item)]">
+                  @if (item.tipo === 'carpeta') {
+                  <svg class="folder" viewBox="0 0 24 24" aria-hidden="true">
+                    <path class="f-back"
+                      d="M3 6.6A1.6 1.6 0 0 1 4.6 5h4.1l1.9 2.2h6.9c.9 0 1.6.7 1.6 1.6v8.6c0 .9-.7 1.6-1.6 1.6H4.6A1.6 1.6 0 0 1 3 17.4z"/>
+                    <path class="f-front"
+                      d="M3 10.2h18v7.2c0 .9-.7 1.6-1.6 1.6H4.6A1.6 1.6 0 0 1 3 17.4z"/>
+                  </svg>
+                  } @else if (esImagen(item)) {
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                    <path d="M21 15l-5-5L5 21"/>
+                  </svg>
+                  } @else {
+                  <span class="ext">{{ item.extension ? (item.extension | uppercase) : 'FILE' }}</span>
+                  }
+                </span>
+
+                <span class="nom">
+                  <span class="n1" [title]="item.nombre">{{ item.nombre }}</span>
+                  <span class="n2">
+                    {{ meta(item) }}
+                    @if (enBusqueda && carpeta(item)) { <i>· en {{ carpeta(item) }}</i> }
+                    @if (item.compartido) { <i class="comp">· Compartido</i> }
+                  </span>
+                </span>
+              </span>
+            </td>
+
+            <td class="c-tipo">
+              <span class="chip" [ngClass]="claseIcono(item)">{{ tipoLabel(item) }}</span>
+            </td>
+
+            <td class="c-fecha">{{ fmtDateTime(item.modificado) }}</td>
+            <td class="c-autor">{{ item.modificadoPor || '—' }}</td>
+
+            <td class="c-acc js-menu" (click)="$event.stopPropagation()">
+              <button type="button" class="fila-puntos" title="Acciones"
+                [attr.aria-label]="'Acciones de ' + item.nombre"
+                (click)="alternarMenuFila(item.id, $event)">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/>
+                  <circle cx="19" cy="12" r="1.9"/>
+                </svg>
+              </button>
+
+              @if (menuFila === item.id) {
+              <div class="menu menu-derecha" (click)="$event.stopPropagation()">
+                @if (item.tipo === 'carpeta') {
+                <button type="button" (click)="entrar(item)">Abrir</button>
+                } @else if (puedePrevisualizar(item)) {
+                <button type="button" (click)="abrirPreview(item)">Vista previa</button>
+                }
+                @if (item.tipo === 'archivo') {
+                <button type="button" (click)="descargar(item)">Descargar</button>
+                }
+                <button type="button" (click)="copiarEnlace(item)">Copiar enlace</button>
+                <button type="button" (click)="compartir(item)">Compartir</button>
+              </div>
+              }
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Vista cuadrícula -->
+    } @else {
+    <div class="grid">
+      @for (item of itemsPagina; track trackById($index, item)) {
+      <div class="card" [class.sel]="seleccion.has(item.id)" (click)="abrir(item)"
+        (mouseenter)="prefetch(item)" (mouseleave)="cancelarPrefetch()">
+
+        <label class="card-check js-menu" (click)="$event.stopPropagation()">
+          <input type="checkbox" [checked]="seleccion.has(item.id)" (change)="marcar(item)"
+            [attr.aria-label]="'Seleccionar ' + item.nombre"/>
+        </label>
+
+        <span class="ico grande" [ngClass]="[claseIcono(item), colorCarpeta(item)]">
+          @if (item.tipo === 'carpeta') {
+          <svg class="folder" viewBox="0 0 24 24" aria-hidden="true">
+            <path class="f-back"
+              d="M3 6.6A1.6 1.6 0 0 1 4.6 5h4.1l1.9 2.2h6.9c.9 0 1.6.7 1.6 1.6v8.6c0 .9-.7 1.6-1.6 1.6H4.6A1.6 1.6 0 0 1 3 17.4z"/>
+            <path class="f-front"
+              d="M3 10.2h18v7.2c0 .9-.7 1.6-1.6 1.6H4.6A1.6 1.6 0 0 1 3 17.4z"/>
+          </svg>
+          } @else if (esImagen(item)) {
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <path d="M21 15l-5-5L5 21"/>
+          </svg>
+          } @else {
+          <span class="ext">{{ item.extension ? (item.extension | uppercase) : 'FILE' }}</span>
+          }
+        </span>
+
+        <span class="card-nom" [title]="item.nombre">{{ item.nombre }}</span>
+        <span class="card-meta">{{ meta(item) }}</span>
+
+        <div class="card-acc js-menu" (click)="$event.stopPropagation()">
+          <button type="button" class="fila-puntos" (click)="alternarMenuFila(item.id, $event)"
+            title="Acciones" [attr.aria-label]="'Acciones de ' + item.nombre">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/>
+              <circle cx="19" cy="12" r="1.9"/>
+            </svg>
+          </button>
+          @if (menuFila === item.id) {
+          <div class="menu menu-derecha" (click)="$event.stopPropagation()">
+            @if (item.tipo === 'carpeta') {
+            <button type="button" (click)="entrar(item)">Abrir</button>
+            } @else if (puedePrevisualizar(item)) {
+            <button type="button" (click)="abrirPreview(item)">Vista previa</button>
+            }
+            @if (item.tipo === 'archivo') {
+            <button type="button" (click)="descargar(item)">Descargar</button>
+            }
+            <button type="button" (click)="copiarEnlace(item)">Copiar enlace</button>
+            <button type="button" (click)="compartir(item)">Compartir</button>
+          </div>
+          }
+        </div>
+      </div>
+      }
+    </div>
+    }
+
+    <!-- Paginador: máximo 20 elementos por página -->
+    @if (itemsOrdenados.length > porPagina) {
+    <div class="dm-paginador">
+      <span class="pag-info">Mostrando {{ rangoTexto }} · 20 por página</span>
+      <div class="pag-botones">
+        <button type="button" class="pag-btn" (click)="irAPagina(pagina - 1)"
+          [disabled]="pagina === 1" aria-label="Página anterior">‹</button>
+        @for (p of paginasVisibles(); track p) {
+        <button type="button" class="pag-btn num" [class.act]="p === pagina"
+          [attr.aria-current]="p === pagina ? 'page' : null"
+          (click)="irAPagina(p)">{{ p }}</button>
+        }
+        <button type="button" class="pag-btn" (click)="irAPagina(pagina + 1)"
+          [disabled]="pagina === totalPaginas" aria-label="Página siguiente">›</button>
+      </div>
+    </div>
+    }
+  </div>
+</div>
+
+<!-- ── Modal de vista previa ──────────────────────────────────────────────── -->
+@if (previewAbierto) {
+<div class="dm-modal" (click)="cerrarPreview()" role="dialog" aria-modal="true">
+  <div class="modal-box" (click)="$event.stopPropagation()">
+    <div class="modal-head">
+      <span class="modal-titulo" [title]="previewNombre">{{ previewNombre }}</span>
+      <button type="button" class="btn" (click)="descargar(previewItem)">
+        Descargar
+      </button>
+      <button type="button" class="modal-x" (click)="cerrarPreview()"
+        title="Cerrar" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="modal-body">
+      @if (previewCargando) {
+      <div class="prev-cargando"><div class="spinner"></div><span>Cargando vista previa…</span></div>
+      } @else if (previewEsPdf) {
+      <iframe class="preview" [src]="previewSrc" title="Vista previa"></iframe>
+      } @else {
+      <img class="preview" [src]="previewSrc" [alt]="previewNombre"/>
+      }
+    </div>
+  </div>
+</div>
+}

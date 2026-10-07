@@ -1,7 +1,9 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   Logger,
+  NotFoundException,
   Optional,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -16,6 +18,35 @@ import { CalendarioGrupoService } from '../calendario/calendario-grupo.service';
 
 const BOGOTA_TZ = 'America/Bogota';
 
+/**
+ * Nombres con que la app identifica cada categoria dentro de Korvix
+ * ("Reunion presencial", "Reunion virtual", "Reunion equipo", "Cumpleanos").
+ *
+ * NO se escriben en el evento de Graph: Outlook no tiene esas categorias en el
+ * buzón y las conserva como etiqueta gris sin color, de modo que en Teams y en
+ * Outlook quedarian DOS categorias ("Blue category" mas "Reunion presencial").
+ * El alias vive solo en la fila local (teams_meetings.categories), que es con
+ * lo que la app pinta su chip; al evento viaja unicamente el nombre literal de
+ * Outlook ("Blue category", "Orange category", ...), que si tiene color.
+ */
+const ALIAS_CATEGORIAS_APP: ReadonlySet<string> = new Set([
+  'reunion presencial',
+  'reunion virtual',
+  'reunion equipo',
+  'cumpleanos',
+]);
+
+/**
+ * Categorias listas para escribir el evento de Graph: solo nombres literales
+ * de Outlook (se caen los alias de la app), normalizados y hasta 10.
+ */
+function categoriasParaGraph(categorias?: string[] | null): string[] {
+  return (categorias ?? [])
+    .map((c) => String(c ?? '').trim())
+    .filter((c) => c.length > 0 && !ALIAS_CATEGORIAS_APP.has(c.toLowerCase()))
+    .slice(0, 10);
+}
+
 interface PendingAuth {
   advisorId: string;
   codeVerifier: string;
@@ -27,10 +58,11 @@ export interface TeamsMeetingInput {
   startDateTime: string;
   durationMinutes?: number;
   /**
-   * Categorias de Outlook tal cual las nombra la app de Teams
-   * ("Yellow category", "Blue category"...). Se envian literales al evento para
-   * que Outlook lo pinte del color que corresponda. Opcional: si no viene, el
-   * evento se crea sin categoria, que es como se creaba antes.
+   * Categorias que elija el usuario: el alias que ve en la app
+   * ("Reunion presencial", ...) y el nombre literal de Outlook
+   * ("Blue category", ...). El alias se guarda en la fila local para pintar
+   * el chip; al evento de Graph solo viajan los nombres de Outlook.
+   * Opcional: sin categorias, el evento se crea sin etiqueta.
    */
   categorias?: string[];
 }
@@ -45,6 +77,7 @@ export type TeamsMeetingOrganizer = 'shared' | 'advisor';
 
 /** Alcance de organizador de la videollamada de Teams. */
 export type TeamsMeetingOrganizerScope = 'group' | 'shared-mailbox' | 'advisor';
+export type TeamsMeetingCalendarSource = 'group' | 'shared-mailbox' | 'personal' | 'none';
 
 /**
  * Tope del asunto, ya con el prefijo "(Nombre Asesor)" incluido.
@@ -71,10 +104,11 @@ export interface TeamsMeetingResult {
   meetingId: string | null;
   eventId: string | null;
   calendarTarget: TeamsCalendarTarget;
+  eventSource: TeamsMeetingCalendarSource;
 }
 
 /** Reunion creada por el asesor: sin evento de calendario todavia. */
-type AdvisorMeeting = Omit<TeamsMeetingResult, 'eventId' | 'calendarTarget'>;
+type AdvisorMeeting = Omit<TeamsMeetingResult, 'eventId' | 'calendarTarget' | 'eventSource'>;
 
 export interface CalendarEventContact {
   name: string;
@@ -94,6 +128,9 @@ export interface TeamsMeetingDto {
   meetingId: string | null;
   eventId: string | null;
   calendarTarget: TeamsCalendarTarget;
+  eventSource: TeamsMeetingCalendarSource | null;
+  /** Alias de la app y nombres literales de Outlook ("Blue category", ...). */
+  categorias: string[];
   createdByName: string | null;
   createdAt: string;
 }
@@ -261,6 +298,7 @@ export class TeamsMeetingsService {
         meetingId: meeting.meetingId,
         eventId: meeting.eventId,
         calendarTarget: meeting.calendarTarget,
+        eventSource: meeting.eventSource,
       }),
     );
     return meeting;
@@ -350,19 +388,22 @@ export class TeamsMeetingsService {
     );
 
     let eventId: string | null = null;
+    let eventSource: TeamsMeetingCalendarSource = 'none';
     if (calendarTarget === 'personal') {
       eventId = await this.createAdvisorCalendarEvent(
         user.id,
         meeting,
         contact,
       );
+      eventSource = 'personal';
     } else if (calendarTarget === 'shared') {
       // Modo legado: la reunion es del asesor y se copia el evento (con el
       // enlace) a la cuenta compartida.
       eventId = await this.createSharedCalendarEvent(meeting, contact);
+      eventSource = 'shared-mailbox';
     }
 
-    return { ...meeting, eventId, calendarTarget };
+    return { ...meeting, eventId, calendarTarget, eventSource };
   }
 
   /**
@@ -457,13 +498,12 @@ export class TeamsMeetingsService {
       body: { contentType: 'html', content: description.join('<br>') },
     };
 
-    // Categorias de Outlook: se envian literales ("Yellow category") para que
-    // el evento salga coloreado igual que en la app de Teams. Graph ignora el
-    // campo si el nombre no existe en el buzon, asi que se filtran vacios.
-    const categoriasLimpias = (categorias ?? [])
-      .map((c) => String(c ?? '').trim())
-      .filter((c) => c.length > 0)
-      .slice(0, 10);
+    // Solo el nombre literal de Outlook viaja al evento ("Blue category",
+    // "Orange category", ...): es el que el buzón reconoce y el que Teams y
+    // Outlook pintan con su color. Los alias de la app se caen ahi (Graph los
+    // conservaria como etiqueta gris y se verian dos categorias); el alias
+    // queda en la fila local, con la que la app pinta su chip.
+    const categoriasLimpias = categoriasParaGraph(categorias);
     if (categoriasLimpias.length) {
       (eventBody as Record<string, unknown>).categories = categoriasLimpias;
     }
@@ -520,6 +560,7 @@ export class TeamsMeetingsService {
       meetingId: data?.onlineMeeting?.id ?? null,
       eventId: data?.id ?? null,
       calendarTarget,
+      eventSource: 'group',
     };
   }
 
@@ -589,12 +630,10 @@ export class TeamsMeetingsService {
       body: { contentType: 'html', content: description.join('<br>') },
     };
 
-    // Categorias de Outlook ("Yellow category", ...): literales, porque es lo
-    // que la app de Teams/Outlook reconoce y por eso los pinta de color.
-    const categoriasLimpias = (categorias ?? [])
-      .map((c) => String(c ?? '').trim())
-      .filter((c) => c.length > 0)
-      .slice(0, 10);
+    // Igual que en el calendario del grupo: al evento solo van los nombres
+    // literales de Outlook, nunca los alias de la app (Teams los pintaria en
+    // gris como una segunda categoria).
+    const categoriasLimpias = categoriasParaGraph(categorias);
     if (categoriasLimpias.length) {
       (eventBody as Record<string, unknown>).categories = categoriasLimpias;
     }
@@ -642,6 +681,7 @@ export class TeamsMeetingsService {
       meetingId: null,
       eventId: data?.id ?? null,
       calendarTarget,
+      eventSource: 'shared-mailbox',
     };
   }
 
@@ -819,6 +859,257 @@ export class TeamsMeetingsService {
     return rows.map((row) => this.toDto(row));
   }
 
+  async updateMeeting(
+    actor: TeamsMeetingUser & { role?: string },
+    meetingRecordId: string,
+    input: TeamsMeetingInput,
+  ): Promise<TeamsMeetingDto> {
+    const reunion = await this.meetingRepo.findOne({ where: { id: meetingRecordId } });
+    if (!reunion) throw new NotFoundException('No se encontró la reunión.');
+    this.assertCanManageMeeting(reunion, actor);
+
+    const subject = this.subjectConAsesor(
+      this.cleanSubject(input.subject),
+      { id: reunion.createdBy ?? actor.id, name: reunion.createdByName },
+      input.categorias ?? reunion.categories ?? [],
+    );
+    const start = new Date(input.startDateTime);
+    if (Number.isNaN(start.getTime())) throw new BadRequestException('Hora de reunión inválida.');
+    const duration = this.clampDuration(input.durationMinutes);
+    const end = new Date(start.getTime() + duration * 60_000);
+    const categories = (input.categorias ?? reunion.categories ?? [])
+      .map((category) => String(category ?? '').trim())
+      .filter(Boolean)
+      .slice(0, 10);
+
+    // El evento de Graph recibe solo los nombres de Outlook (si antes tenia
+    // un alias gris, la edicion lo limpia); la fila local conserva la lista
+    // completa, alias incluido, para que la app siga pintando su chip.
+    await this.updateCalendarEvent(
+      reunion,
+      subject,
+      start,
+      end,
+      categoriasParaGraph(categories),
+    );
+    reunion.subject = subject;
+    reunion.startDateTime = start;
+    reunion.endDateTime = end;
+    reunion.durationMinutes = duration;
+    reunion.categories = categories;
+    const saved = await this.meetingRepo.save(reunion);
+    this.invalidarCacheCalendario();
+    return this.toDto(saved);
+  }
+
+  async deleteMeeting(
+    actor: TeamsMeetingUser & { role?: string },
+    meetingRecordId: string,
+  ): Promise<{ ok: true }> {
+    const reunion = await this.meetingRepo.findOne({ where: { id: meetingRecordId } });
+    if (!reunion) throw new NotFoundException('No se encontró la reunión.');
+    this.assertCanManageMeeting(reunion, actor);
+
+    await this.deleteCalendarEvent(reunion);
+    await this.meetingRepo.delete({ id: reunion.id });
+    this.invalidarCacheCalendario();
+    return { ok: true };
+  }
+
+  private assertCanManageMeeting(
+    reunion: TeamsMeeting,
+    actor: TeamsMeetingUser & { role?: string },
+  ): void {
+    if (reunion.createdBy !== actor.id && actor.role !== 'admin' && actor.role !== 'superadmin') {
+      throw new ForbiddenException('Solo quien creó la reunión puede editarla o eliminarla.');
+    }
+    if (!reunion.eventId && reunion.eventSource !== 'none' && !reunion.meetingId) {
+      throw new BadRequestException('La reunión no tiene un identificador editable en Microsoft.');
+    }
+  }
+
+  private async updateCalendarEvent(
+    reunion: TeamsMeeting,
+    subject: string,
+    start: Date,
+    end: Date,
+    categories: string[],
+  ): Promise<void> {
+    const source = this.eventSourceOf(reunion);
+    const body = {
+      subject,
+      start: { dateTime: this.toBogotaNaive(start), timeZone: BOGOTA_TZ },
+      end: { dateTime: this.toBogotaNaive(end), timeZone: BOGOTA_TZ },
+      categories,
+    };
+
+    try {
+      if (source === 'none') {
+        await this.mutateOnlineMeeting(reunion, 'patch', {
+          subject,
+          startDateTime: start.toISOString(),
+          endDateTime: end.toISOString(),
+        });
+        return;
+      }
+      await this.mutateCalendarEvent(reunion, source, 'patch', body);
+    } catch (error: any) {
+      if (this.esNotFound(error) && this.puedeEstarEnBuzon(reunion)) {
+        await this.mutateCalendarEvent(reunion, 'shared-mailbox', 'patch', body);
+        reunion.eventSource = 'shared-mailbox';
+        return;
+      }
+      if (this.esNotFound(error)) {
+        throw new BadRequestException(
+          'La reunion ya no existe en Microsoft. Actualiza el calendario para ver los cambios.',
+        );
+      }
+      throw error;
+    }
+    reunion.eventSource = source;
+  }
+
+  private async deleteCalendarEvent(reunion: TeamsMeeting): Promise<void> {
+    const source = this.eventSourceOf(reunion);
+
+    try {
+      if (source === 'none') {
+        await this.mutateOnlineMeeting(reunion, 'delete');
+        return;
+      }
+      await this.mutateCalendarEvent(reunion, source, 'delete');
+    } catch (error: any) {
+      if (this.esNotFound(error) && this.puedeEstarEnBuzon(reunion)) {
+        try {
+          await this.mutateCalendarEvent(reunion, 'shared-mailbox', 'delete');
+          reunion.eventSource = 'shared-mailbox';
+          return;
+        } catch (fallbackError: any) {
+          if (this.esNotFound(fallbackError)) {
+            this.logger.warn(
+              `El evento de la reunion ${reunion.id} ya no existia en Microsoft.`,
+            );
+            return;
+          }
+          throw fallbackError;
+        }
+      }
+      if (this.esNotFound(error)) {
+        // Borrado idempotente: si Microsoft ya no lo tiene, lo unico que queda
+        // es limpiar el registro local.
+        this.logger.warn(
+          `El evento de la reunion ${reunion.id} ya no existia en Microsoft.`,
+        );
+        return;
+      }
+      throw error;
+    }
+    reunion.eventSource = source;
+  }
+
+  /** Filas antiguas: si se dedujo Grupo y no estaba ahi, prueba el buzon. */
+  private puedeEstarEnBuzon(reunion: TeamsMeeting): boolean {
+    return (
+      !reunion.eventSource &&
+      reunion.calendarTarget === 'shared' &&
+      this.eventSourceOf(reunion) !== 'shared-mailbox'
+    );
+  }
+
+  private esNotFound(error: any): boolean {
+    return error?.response?.status === 404 || error?.status === 404;
+  }
+
+  /** Videollamada sin evento de calendario: solo existe el onlineMeeting. */
+  private async mutateOnlineMeeting(
+    reunion: TeamsMeeting,
+    method: 'patch' | 'delete',
+    payload?: Record<string, unknown>,
+  ): Promise<void> {
+    if (!reunion.meetingId) {
+      throw new BadRequestException('La reunion no tiene un identificador de Teams.');
+    }
+    if (!reunion.createdBy) {
+      throw new BadRequestException('No se conoce el creador de esta reunion.');
+    }
+    const token = await this.getAccessToken(reunion.createdBy);
+    await this.microsoftRequest(
+      method,
+      `https://graph.microsoft.com/v1.0/me/onlineMeetings/${encodeURIComponent(reunion.meetingId)}`,
+      token,
+      payload,
+      `${method === 'patch' ? 'editar' : 'eliminar'} reunion de Teams`,
+    );
+  }
+
+  private eventSourceOf(reunion: TeamsMeeting): TeamsMeetingCalendarSource {
+    if (reunion.eventSource) return reunion.eventSource;
+    if (reunion.calendarTarget === 'personal') return 'personal';
+    if (reunion.calendarTarget === 'none') return 'none';
+    return this.organizerScope() === 'group' ? 'group' : 'shared-mailbox';
+  }
+
+  private async mutateCalendarEvent(
+    reunion: TeamsMeeting,
+    source: Exclude<TeamsMeetingCalendarSource, 'none'>,
+    method: 'patch' | 'delete',
+    payload?: Record<string, unknown>,
+  ): Promise<void> {
+    if (!reunion.eventId) throw new BadRequestException('La reunión no tiene evento de calendario.');
+
+    let url: string;
+    let token: string;
+    if (source === 'group') {
+      if (!reunion.createdBy) throw new BadRequestException('No se conoce quién creó esta reunión del grupo.');
+      token = await this.getAccessToken(reunion.createdBy);
+      const groupId = await this.getGroupId();
+      if (!groupId) throw new BadRequestException('No se pudo resolver el calendario del grupo.');
+      url = `https://graph.microsoft.com/v1.0/groups/${groupId}/events/${encodeURIComponent(reunion.eventId)}`;
+    } else if (source === 'personal') {
+      if (!reunion.createdBy) throw new BadRequestException('No se conoce el creador del calendario personal.');
+      token = await this.getAccessToken(reunion.createdBy);
+      url = `https://graph.microsoft.com/v1.0/me/calendar/events/${encodeURIComponent(reunion.eventId)}`;
+    } else {
+      token = await this.getAppAccessToken();
+      const accountId = await this.resolveAccountId(token, this.generalAccountEmail());
+      url = `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(accountId)}/events/${encodeURIComponent(reunion.eventId)}`;
+    }
+
+    await this.microsoftRequest(
+      method,
+      url,
+      token,
+      payload,
+      `${method === 'patch' ? 'editar' : 'eliminar'} reunión del calendario`,
+    );
+  }
+
+  private async microsoftRequest(
+    method: 'patch' | 'delete',
+    url: string,
+    token: string,
+    payload: Record<string, unknown> | undefined,
+    action: string,
+  ): Promise<void> {
+    try {
+      if (method === 'patch') {
+        await axios.patch(url, payload, {
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        });
+      } else {
+        await axios.delete(url, {
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        });
+      }
+    } catch (error: any) {
+      // El 404 se propaga crudo: `handleMicrosoftError` lo convertiria en un
+      // BadRequestException generico y el llamador no podria detectar que el
+      // evento ya no existe (caso normal en borrados repetidos).
+      if (error?.response?.status === 404) throw error;
+      this.handleMicrosoftError(error, action);
+    }
+  }
+
   async createStandaloneMeeting(
     user: TeamsMeetingUser | null,
     input: TeamsMeetingInput & { calendarTarget?: TeamsCalendarTarget },
@@ -846,6 +1137,7 @@ export class TeamsMeetingsService {
       meetingId: meeting.meetingId,
       eventId: meeting.eventId,
       calendarTarget: meeting.calendarTarget,
+      eventSource: meeting.eventSource,
     });
     const saved = await this.meetingRepo.save(row);
     // La reunion ya quedo en el grupo o en el buzon: la lectura del calendario
@@ -865,6 +1157,8 @@ export class TeamsMeetingsService {
       meetingId: row.meetingId,
       eventId: row.eventId,
       calendarTarget: row.calendarTarget,
+      eventSource: row.eventSource,
+      categorias: row.categories ?? [],
       createdByName: row.createdByName,
       createdAt: row.createdAt.toISOString(),
     };
@@ -1264,8 +1558,9 @@ export class TeamsMeetingsService {
     const requierePrefijo = claves.some((categoria) =>
       categoria === 'reunion presencial' ||
       categoria === 'yellow category' ||
+      categoria === 'blue category' ||
       categoria === 'reunion virtual' ||
-      categoria === 'blue category',
+      categoria === 'orange category',
     );
 
     if (!requierePrefijo) {
@@ -1306,7 +1601,10 @@ export class TeamsMeetingsService {
   }
 
   private authority(): string {
-    const tenant = this.config.get<string>('MICROSOFT_TENANT_ID') || 'common';
+    const tenant =
+      this.config.get<string>('MICROSOFT_TENANT_ID') ||
+      this.config.get<string>('MICROSOFT_APP_TENANT_ID') ||
+      'common';
     return `https://login.microsoftonline.com/${tenant}`;
   }
 

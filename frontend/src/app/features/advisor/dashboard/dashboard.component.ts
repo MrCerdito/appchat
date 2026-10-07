@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy, ElementRef, HostListener, ViewChild } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy, ElementRef, HostBinding, HostListener, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ToastContainerComponent } from '../../../shared/components/toast-container.component';
@@ -49,6 +49,13 @@ interface ConnectedAdvisor {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DashboardComponent implements OnInit, OnDestroy {
+  /**
+   * Tema oscuro: ThemeService escribe `data-theme` en <html> y aqui se
+   * replica como clase en el host para el bloque `:host.theme-dark` de la
+   * alerta flotante de almuerzo (emulacion de encapsulamiento).
+   */
+  @HostBinding('class.theme-dark') protected themeDark = false;
+
   protected readonly trackByIndex = trackByIndex;
   protected readonly trackById = trackById;
   @ViewChild('faqScroll') faqScrollRef!: ElementRef<HTMLElement>;
@@ -221,6 +228,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
   whatsappMode: 'clients' | 'advisors' | null = null;
 
   ngOnInit(): void {
+    this.themeDark = this.themeService.currentTheme === 'dark';
+    this.themeService.currentTheme$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(tema => {
+        this.themeDark = tema === 'dark';
+        this.cdr.markForCheck();
+      });
     this.layout.sidebarForcedCollapsed$
       .pipe(takeUntil(this.destroy$))
       .subscribe((collapsed) => {
@@ -232,6 +246,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
         }
         this.cdr.detectChanges();
       });
+    // El sidebar queda oculto en TODAS las rutas del shell: se abre solo con
+    // la hamburguesa del navbar (overlay).
+    this.layout.setSidebarForcedCollapsed(true);
     this.permisos.permisosChanged$
       .pipe(takeUntil(this.destroy$))
       .subscribe(() => this.cdr.detectChanges());
@@ -594,6 +611,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
           this.topbarTitle = 'CHAT EN LINEA';
           this.chatState.setActiveSession(null);
         }
+        // Algunos módulos devuelven el flag en su ngOnDestroy: se vuelve a
+        // forzar tras cada navegación para que el sidebar nunca reaparezca.
+        this.layout.setSidebarForcedCollapsed(true);
         this.syncShellMode(url);
         this.syncWhatsappMode(url);
         this.cdr.detectChanges();
@@ -1326,6 +1346,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    // Otros shells (admin/interno/desarrollador) leen el mismo flag:
+    // se libera al salir del shell del asesor.
+    this.layout.setSidebarForcedCollapsed(false);
     this.destroy$.next();
     this.destroy$.complete();
     this.stopLunchCountdown();

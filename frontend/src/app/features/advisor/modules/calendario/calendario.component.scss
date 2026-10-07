@@ -13,19 +13,102 @@
   height: 100%;
   font-family: var(--font);
   color: var(--text);
+
+  /* ── Tokens del módulo ─────────────────────────────────────────────────────
+     El bloque claro replica el aspecto actual. El oscuro vive en
+     `:host.theme-dark` (clase que inyecta ThemeService): [data-theme] está en
+     <html> y, con encapsulación emulada, no casaría dentro del componente. */
+  --cal-indigo: #6366f1;
+  --cal-indigo-text: #4f46e5;
+  --cal-indigo-soft: #eef2ff;
+  --cal-indigo-chip: rgba(99, 102, 241, 0.11);
+  --cal-day-sel: #6366f1;
+  --cal-borde: rgba(15, 23, 42, 0.07);
+  --cal-borde-soft: rgba(15, 23, 42, 0.035);
+  --cal-borde-strong: rgba(15, 23, 42, 0.14);
+  --cal-ev: #ffffff;
+  --cal-now-bg: rgba(99, 102, 241, 0.045);
+  --cal-pill-bg: #ffffff;
+  --cal-pill-ink: #000000;
+  --cal-track: rgba(15, 23, 42, 0.06);
+  --cal-backdrop: rgba(15, 23, 42, 0.45);
+  --cal-past: 0.5;
+  --cal-past-hour: 0.38;
+  --cal-err-text: #b91c1c;
+  --cal-err-bg: #fef2f2;
+  --cal-warn-text: #92400e;
+  --cal-warn-bg: #fffbeb;
+  --cal-ok-text: #047857;
+  --cal-ok-bg: #ecfdf5;
+  --cal-connect-text: #3730a3;
+  --cal-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --cal-shadow-md: 0 4px 14px rgba(15, 23, 42, 0.06);
+  --cal-shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.09);
 }
 
-/* Tokens locales: acentos y radios del dashboard. */
-$indigo: #6366f1;
-$indigo-dark: #4f46e5;
-$indigo-soft: #eef2ff;
+/* Tokens locales: acentos y radios. Apuntan a variables CSS para que el modo
+   oscuro pueda invertir borde/sombra/tinte sin reescribir cada regla. */
+$indigo: var(--cal-indigo);
+$indigo-dark: var(--cal-indigo-text);
+$indigo-soft: var(--cal-indigo-soft);
 $azul: #3b82f6;
 $oro: #eab308;
 $violeta: #a855f7;
-$borde: rgba(15, 23, 42, 0.07);
-$sombra-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
-$sombra-md: 0 4px 14px rgba(15, 23, 42, 0.06);
-$sombra-lg: 0 12px 32px rgba(15, 23, 42, 0.09);
+$borde: var(--cal-borde);
+$sombra-sm: var(--cal-shadow-sm);
+$sombra-md: var(--cal-shadow-md);
+$sombra-lg: var(--cal-shadow-lg);
+
+/* ── Modo oscuro ──────────────────────────────────────────────────────────────
+   Re-declara también tokens globales (--surface, --bg-subtle, --text-faint,
+   --border): al declararlos en el host solo se propagan hacia DENTRO del
+   módulo, así las tarjetas se separan del fondo #0e1217 en vez de fundirse.
+   Objetivo: fondo page → tarjeta → evento, tres escalones visibles y bordes
+   blancos al 14% que dibujen cada superficie. */
+:host.theme-dark {
+  --surface: #161e2b;
+  --surface-hover: #1e2736;
+  --bg-subtle: #1b2433;
+  --text-faint: #9aa5b8;
+  --border: rgba(255, 255, 255, 0.12);
+
+  --cal-indigo: #818cf8;
+  --cal-indigo-text: #a5b4fc;
+  --cal-indigo-soft: rgba(129, 140, 248, 0.18);
+  --cal-indigo-chip: rgba(129, 140, 248, 0.2);
+  --cal-day-sel: #4f46e5;
+  --cal-borde: rgba(255, 255, 255, 0.14);
+  --cal-borde-soft: rgba(255, 255, 255, 0.07);
+  --cal-borde-strong: rgba(255, 255, 255, 0.26);
+  --cal-ev: #1f2a3d;
+  --cal-now-bg: rgba(129, 140, 248, 0.14);
+  --cal-pill-bg: #0f1626;
+  --cal-pill-ink: #ffffff;
+  --cal-track: rgba(255, 255, 255, 0.1);
+  --cal-backdrop: rgba(0, 0, 0, 0.62);
+  --cal-past: 0.72;
+  --cal-past-hour: 0.6;
+  --cal-err-text: #fca5a5;
+  --cal-err-bg: rgba(239, 68, 68, 0.14);
+  --cal-warn-text: #fcd34d;
+  --cal-warn-bg: rgba(245, 158, 11, 0.14);
+  --cal-ok-text: #6ee7b7;
+  --cal-ok-bg: rgba(16, 185, 129, 0.14);
+  --cal-connect-text: #c7d2fe;
+  --cal-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --cal-shadow-md: 0 6px 18px rgba(0, 0, 0, 0.5);
+  --cal-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.6);
+
+  /* Colores de categoría: los oscuros (#7c3aed, #3b82f6...) se aclaran mez-
+     clando con blanco para que barra, hora, puntos y pills sigan leyéndose. */
+  .ev { background: color-mix(in srgb, var(--cat-color, #6366f1) 15%, var(--cal-ev)); }
+  .ev-time { color: color-mix(in srgb, var(--cat-color, #94a3b8) 70%, #ffffff); }
+  .ev-bar { background: color-mix(in srgb, var(--cat-color, #94a3b8) 76%, #ffffff); }
+  .upcoming-event { border-left-color: color-mix(in srgb, var(--cat-color, #6366f1) 76%, #ffffff); }
+  .cat-dot,
+  .mini-dots i,
+  .cal-cat-dot { background: color-mix(in srgb, var(--cat-color, #cbd5e1) 72%, #ffffff); }
+}
 
 .cal-dash {
   flex: 1;
@@ -92,7 +175,7 @@ $sombra-lg: 0 12px 32px rgba(15, 23, 42, 0.09);
   font-weight: 600;
   font-family: inherit;
   color: #fff;
-  background: linear-gradient(135deg, $indigo-dark 0%, #7c3aed 100%);
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
   box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
   cursor: pointer;
   transition: transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease;
@@ -126,7 +209,7 @@ $sombra-lg: 0 12px 32px rgba(15, 23, 42, 0.09);
   background: var(--surface);
   color: var(--text-muted);
 
-  &:hover { background: var(--bg-subtle); color: var(--text); border-color: rgba(15, 23, 42, 0.14); }
+  &:hover { background: var(--bg-subtle); color: var(--text); border-color: var(--cal-borde-strong); }
 }
 
 .secondary-btn {
@@ -176,15 +259,21 @@ $sombra-lg: 0 12px 32px rgba(15, 23, 42, 0.09);
 }
 
 .cal-alert-err {
-  color: #b91c1c;
-  background: #fef2f2;
+  color: var(--cal-err-text);
+  background: var(--cal-err-bg);
   border-color: rgba(239, 68, 68, 0.22);
 }
 
 .cal-alert-warn {
-  color: #92400e;
-  background: #fffbeb;
+  color: var(--cal-warn-text);
+  background: var(--cal-warn-bg);
   border-color: rgba(245, 158, 11, 0.25);
+}
+
+.cal-alert-ok {
+  color: var(--cal-ok-text);
+  background: var(--cal-ok-bg);
+  border-color: rgba(16, 185, 129, 0.28);
 }
 
 // ── Columnas ──────────────────────────────────────────────────────────────────
@@ -290,7 +379,7 @@ $sombra-lg: 0 12px 32px rgba(15, 23, 42, 0.09);
   cursor: pointer;
   transition: border-color .15s ease, background .15s ease, transform .15s ease;
 
-  &:hover { background: var(--surface); border-color: rgba(99, 102, 241, .28); transform: translateY(-1px); }
+  &:hover { background: var(--surface-hover); border-color: rgba(99, 102, 241, .28); transform: translateY(-1px); }
   &:focus-visible { outline: 3px solid rgba(99, 102, 241, .25); outline-offset: 2px; }
 }
 
@@ -413,7 +502,7 @@ $sombra-lg: 0 12px 32px rgba(15, 23, 42, 0.09);
     &::placeholder { color: var(--text-faint); }
 
     &:focus {
-      background: var(--surface);
+      background: var(--surface-hover);
       border-color: rgba(99, 102, 241, 0.5);
       box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.13);
     }
@@ -438,13 +527,13 @@ $sombra-lg: 0 12px 32px rgba(15, 23, 42, 0.09);
   height: 21px;
   border: 0;
   border-radius: 50%;
-  background: rgba(15, 23, 42, 0.07);
+  background: var(--cal-borde);
   color: var(--text-muted);
   cursor: pointer;
   transition: background 0.16s ease, color 0.16s ease;
 
   svg { width: 12px; height: 12px; }
-  &:hover { background: rgba(15, 23, 42, 0.13); color: var(--text); }
+  &:hover { background: var(--cal-borde-strong); color: var(--text); }
 }
 
 .cal-loading {
@@ -496,7 +585,7 @@ $sombra-lg: 0 12px 32px rgba(15, 23, 42, 0.09);
   gap: 10px;
   min-height: 58px;
   padding: 5px 2px;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.035);
+  border-bottom: 1px solid var(--cal-borde-soft);
 
   /*
    * Franja ya vencida: se apaga SOLO la etiqueta de hora, no la fila entera.
@@ -504,11 +593,11 @@ $sombra-lg: 0 12px 32px rgba(15, 23, 42, 0.09);
    * hasta las 11 quedaria casi invisible al pasar de las 10, y cada evento se
    * apaga por su cuenta con `.ev.past`.
    */
-  &.past .agenda-hour { opacity: 0.38; }
+  &.past .agenda-hour { opacity: var(--cal-past-hour); }
 
   /* Hora actual: fondo tenue para ubicarse rapido en la columna. */
   &.now {
-    background: rgba(99, 102, 241, 0.045);
+    background: var(--cal-now-bg);
     border-radius: 8px;
   }
 }
@@ -543,7 +632,7 @@ $sombra-lg: 0 12px 32px rgba(15, 23, 42, 0.09);
   display: inline-block;
   padding: 3px 10px;
   border-radius: 999px;
-  background: rgba(99, 102, 241, 0.11);
+  background: var(--cal-indigo-chip);
   color: $indigo-dark;
   font-size: 0.7rem;
   font-weight: 650;
@@ -565,7 +654,9 @@ $sombra-lg: 0 12px 32px rgba(15, 23, 42, 0.09);
   gap: 0;
   border: 1px solid $borde;
   border-radius: 11px;
-  background: var(--surface);
+  /* Relleno sutil con el color de la categoría (9% sobre la tarjeta clara):
+     da identidad a cada evento sin restar legibilidad al texto. */
+  background: color-mix(in srgb, var(--cat-color, #6366f1) 9%, var(--cal-ev));
   box-shadow: $sombra-sm;
   overflow: hidden;
   transition: box-shadow 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
@@ -589,7 +680,7 @@ $sombra-lg: 0 12px 32px rgba(15, 23, 42, 0.09);
    * evento: quitar el color seria pierde la informacion de a que categoria
    * pertenece la reunion.
    */
-  &.past { opacity: 0.5; }
+  &.past { opacity: var(--cal-past); }
 
   &.cancelled .ev-subject { text-decoration: line-through; }
 }
@@ -778,7 +869,7 @@ $sombra-lg: 0 12px 32px rgba(15, 23, 42, 0.09);
 
   &.selected .mini-day {
     color: #fff;
-    background: $indigo;
+    background: var(--cal-day-sel);
     box-shadow: 0 1px 5px rgba(99, 102, 241, 0.34);
     font-weight: 700;
   }
@@ -847,8 +938,8 @@ $sombra-lg: 0 12px 32px rgba(15, 23, 42, 0.09);
   border-radius: 999px;
   font-size: 0.66rem;
   font-weight: 640;
-  color: color-mix(in srgb, var(--cat-color, #64748b) 78%, #000);
-  background: color-mix(in srgb, var(--cat-color, #64748b) 15%, #fff);
+  color: color-mix(in srgb, var(--cat-color, #64748b) 78%, var(--cal-pill-ink));
+  background: color-mix(in srgb, var(--cat-color, #64748b) 15%, var(--cal-pill-bg));
 
   &.sm { font-size: 0.63rem; padding: 1px 7px; }
 }
@@ -878,9 +969,24 @@ $sombra-lg: 0 12px 32px rgba(15, 23, 42, 0.09);
 .mini-btn-primary {
   border-color: transparent;
   color: #fff;
-  background: linear-gradient(135deg, $indigo-dark, #7c3aed);
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
 
-  &:hover { filter: brightness(1.07); color: #fff; background: linear-gradient(135deg, $indigo-dark, #7c3aed); }
+  &:hover { filter: brightness(1.07); color: #fff; background: linear-gradient(135deg, #4f46e5, #7c3aed); }
+}
+
+.mini-btn-danger:hover {
+  color: var(--cal-err-text);
+  border-color: rgba(239, 68, 68, 0.45);
+  background: var(--cal-err-bg);
+}
+
+// Boton de peligro del dialogo de confirmacion.
+.cal-btn-danger {
+  color: #fff;
+  background: #dc2626;
+  border: 1px solid #dc2626;
+
+  &:hover:not(:disabled) { background: #b91c1c; border-color: #b91c1c; }
 }
 
 // Donut
@@ -899,7 +1005,7 @@ $sombra-lg: 0 12px 32px rgba(15, 23, 42, 0.09);
 
 .donut-track {
   fill: none;
-  stroke: rgba(15, 23, 42, 0.06);
+  stroke: var(--cal-track);
   stroke-width: 4;
 }
 
@@ -1003,9 +1109,21 @@ $sombra-lg: 0 12px 32px rgba(15, 23, 42, 0.09);
   position: fixed;
   inset: 0;
   z-index: 60;
-  background: rgba(15, 23, 42, 0.45);
+  background: var(--cal-backdrop);
   backdrop-filter: blur(2px);
   animation: cal-fade 0.18s ease;
+}
+
+// Dialogo de confirmacion: mas angosto que el modal de edicion.
+.cal-modal-sm { width: min(430px, calc(100vw - 32px)); }
+
+.cal-modal-text {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+
+  b { color: var(--text); font-weight: 640; }
 }
 
 .cal-modal {
@@ -1088,7 +1206,7 @@ $sombra-lg: 0 12px 32px rgba(15, 23, 42, 0.09);
     transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
 
     &:focus {
-      background: var(--surface);
+      background: var(--surface-hover);
       border-color: rgba(99, 102, 241, 0.5);
       box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.13);
     }
@@ -1138,8 +1256,8 @@ $sombra-lg: 0 12px 32px rgba(15, 23, 42, 0.09);
 
   &.on {
     border-color: var(--cat-color);
-    background: color-mix(in srgb, var(--cat-color) 12%, #fff);
-    color: color-mix(in srgb, var(--cat-color) 72%, #000);
+    background: color-mix(in srgb, var(--cat-color) 12%, var(--cal-pill-bg));
+    color: color-mix(in srgb, var(--cat-color) 72%, var(--cal-pill-ink));
     font-weight: 600;
   }
 }
@@ -1169,7 +1287,7 @@ $sombra-lg: 0 12px 32px rgba(15, 23, 42, 0.09);
   border-radius: 11px;
   background: $indigo-soft;
 
-  p { margin: 0; font-size: 0.8rem; color: #3730a3; }
+  p { margin: 0; font-size: 0.8rem; color: var(--cal-connect-text); }
 }
 
 .cal-msg {
@@ -1178,7 +1296,7 @@ $sombra-lg: 0 12px 32px rgba(15, 23, 42, 0.09);
   border-radius: 10px;
   font-size: 0.8rem;
 
-  &-err { background: #fef2f2; color: #b91c1c; border: 1px solid rgba(239, 68, 68, 0.22); }
+  &-err { background: var(--cal-err-bg); color: var(--cal-err-text); border: 1px solid rgba(239, 68, 68, 0.22); }
 }
 
 .cal-success {

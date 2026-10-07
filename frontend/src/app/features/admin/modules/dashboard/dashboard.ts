@@ -22,6 +22,7 @@ export type ModuloIcono =
   | 'tickets'
   | 'calendario'
   | 'correos'
+  | 'sharepoint'
   | 'perfil_institucional'
   | 'faq'
   | 'widget'
@@ -118,6 +119,15 @@ const MODULOS: ModuloTarjeta[] = [
     descripcion: 'SLA por agente',
     color: '#b3701a',
     icono: 'correos',
+    deshabilitado: false,
+  },
+  {
+    codigo: 'sharepoint',
+    ruta: 'sharepoint',
+    titulo: 'SharePoint',
+    descripcion: 'Archivos del sitio de Soporte',
+    color: '#0ea5e9',
+    icono: 'sharepoint',
     deshabilitado: false,
   },
   {

@@ -611,7 +611,7 @@ export class AdvisorsWhatsappController {
       startDateTime: string;
       durationMinutes?: number;
       calendarTarget?: 'personal' | 'shared' | 'none';
-      /** Categorias literales de Outlook ("Yellow category", ...). */
+      /** Alias y nombres literales de Outlook ("Blue category", ...). */
       categorias?: string[];
     },
   ) {
@@ -622,6 +622,50 @@ export class AdvisorsWhatsappController {
         email: req.user.email || null,
       },
       body,
+    );
+  }
+
+  @Patch('teams/meetings/:id')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  async updateTeamsMeeting(
+    @Param('id') id: string,
+    @Req() req: Request & { user: any },
+    @Body()
+    body: {
+      subject: string;
+      startDateTime: string;
+      durationMinutes?: number;
+      categorias?: string[];
+    },
+  ) {
+    return this.teamsService.updateMeeting(
+      {
+        id: req.user.id,
+        name: req.user.name || req.user.email || null,
+        email: req.user.email || null,
+        role: req.user.role,
+      },
+      id,
+      body,
+    );
+  }
+
+  @Delete('teams/meetings/:id')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  async deleteTeamsMeeting(
+    @Param('id') id: string,
+    @Req() req: Request & { user: any },
+  ) {
+    return this.teamsService.deleteMeeting(
+      {
+        id: req.user.id,
+        name: req.user.name || req.user.email || null,
+        email: req.user.email || null,
+        role: req.user.role,
+      },
+      id,
     );
   }
 

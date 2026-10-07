@@ -55,6 +55,12 @@ export const routes: Routes = [
           import('./features/advisor/modules/documentos/documentos.component').then(m => m.DocumentosComponent),
       },
       {
+        path: 'sharepoint',
+        canActivate: [permisoGuard('sharepoint')],
+        loadComponent: () =>
+          import('./features/advisor/modules/sharepoint/sharepoint.component').then(m => m.SharePointComponent),
+      },
+      {
         path: 'perfil-institucional',
         canActivate: [permisoGuard('perfil_institucional')],
         loadComponent: () =>
@@ -146,6 +152,12 @@ export const routes: Routes = [
           import('./features/admin/modules/correos/pages/asesor/correos-asesor-admin').then(
             m => m.CorreosAsesorAdmin,
           ),
+      },
+      {
+        path: 'sharepoint',
+        canActivate: [permisoGuard('sharepoint')],
+        loadComponent: () =>
+          import('./features/advisor/modules/sharepoint/sharepoint.component').then(m => m.SharePointComponent),
       },
       {
         path: 'operaciones',
@@ -325,6 +337,12 @@ export const routes: Routes = [
         canActivate: [permisoGuard('documentos')],
         loadComponent: () =>
           import('./features/advisor/modules/documentos/documentos.component').then(m => m.DocumentosComponent),
+      },
+      {
+        path: 'sharepoint',
+        canActivate: [permisoGuard('sharepoint')],
+        loadComponent: () =>
+          import('./features/advisor/modules/sharepoint/sharepoint.component').then(m => m.SharePointComponent),
       },
       {
         path: 'perfil-institucional',

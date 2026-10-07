@@ -3337,3 +3337,559 @@
     to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
   }
 }
+
+/* ════════════════════════════════════════════════════════════
+   REDISEÑO PREMIUM — Navbar superior + Sidebar izquierdo
+   (solo el shell del asesor; el área principal no cambia)
+   ════════════════════════════════════════════════════════════ */
+
+// ── Paleta clara (scoped al shell del asesor) ──────────────
+.advisor-shell {
+  --sidebar-bg: #ffffff;
+  --sidebar-surface: #ffffff;
+  --sidebar-text: #172033;
+  --sidebar-text-muted: #64748b;
+  --sidebar-text-faint: #94a3b8;
+  --sidebar-border: #e8ecf2;
+  --sidebar-hover: #f1f5f9;
+  --sidebar-active: #eef4ff;
+  --sidebar-accent: #2563eb;
+  --sidebar-accent-soft: #eef4ff;
+}
+
+// ── Sidebar ────────────────────────────────────────────────
+.shell-sidebar {
+  width: 256px;
+  min-width: 256px;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--sidebar-border);
+
+  // Tokens locales: en claro estos valores, en oscuro se redeclaran en
+  // frontend/src/styles.scss (regla global [data-theme='dark'] .advisor-shell .shell-sidebar).
+  --sb-hover: #f5f8ff;
+  --sb-logout-bg: #fef2f2;
+  --sb-logout-text: #dc2626;
+}
+
+.advisor-shell.sidebar-forced-collapsed .shell-sidebar.open {
+  width: 256px;
+  min-width: 256px;
+}
+
+// La marca vive en el navbar: se oculta en escritorio
+@media (min-width: 1270px) {
+  .shell-logo { display: none; }
+}
+.advisor-shell.sidebar-forced-collapsed .shell-sidebar.open .shell-logo {
+  display: flex;
+}
+
+.shell-logo {
+  padding: 1rem 1.1rem;
+  gap: 0.6rem;
+
+  .logo-text {
+    flex: 1;
+    font-size: 1.05rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+}
+
+.shell-nav {
+  padding: 1rem 0.85rem 0.5rem;
+  gap: 3px;
+}
+
+.nav-label {
+  font-size: 0.63rem;
+  font-weight: 600;
+  color: var(--sidebar-text-faint);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  padding: 0 0.6rem;
+  margin: 1.15rem 0 0.4rem;
+
+  &:first-child { margin-top: 0.3rem; }
+}
+
+.nav-item {
+  min-height: 42px;
+  padding: 0 0.85rem;
+  gap: 0.75rem;
+  border-radius: 9px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--sidebar-text-muted);
+  transition: background 0.18s ease, color 0.18s ease;
+
+  svg {
+    width: 18px;
+    height: 18px;
+    stroke-width: 1.8;
+    color: currentColor;
+  }
+
+  &:hover {
+    background: var(--sb-hover);
+    color: var(--sidebar-text);
+  }
+
+  &.active {
+    background: var(--sidebar-accent-soft);
+    color: var(--sidebar-accent);
+    font-weight: 600;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 3px;
+      height: 20px;
+      border-radius: 0 3px 3px 0;
+      background: var(--sidebar-accent);
+    }
+  }
+}
+
+.nav-badge {
+  background: #ef4444;
+  color: #ffffff;
+  border: none;
+  box-shadow: 0 0 0 2px var(--sidebar-bg);
+}
+
+.topbar-badge {
+  color: #ffffff;
+}
+
+// ── Cerrar sesión ──────────────────────────────────────────
+.shell-profile-trigger {
+  padding: 0.6rem 0.85rem;
+  border-top: 1px solid var(--sidebar-border);
+}
+
+.drawer-action-btn {
+  min-height: 40px;
+  border-radius: 9px;
+  padding: 0 0.85rem;
+
+  &--logout {
+    color: var(--sidebar-text-muted);
+
+    &:hover {
+      background: var(--sb-logout-bg);
+      color: var(--sb-logout-text);
+    }
+  }
+}
+
+// ── Ajustes de contraste en superficies claras ─────────────
+.status-opt-btn,
+.appearance-opt {
+  &.active { color: var(--sidebar-accent); }
+
+  .check-icon { color: var(--sidebar-accent); }
+}
+
+.coming-soon {
+  background: rgba(245, 158, 11, 0.16);
+  color: #b45309;
+}
+
+.profile-avatar,
+.topbar-avatar-sm,
+.capsule-avatar,
+.team-avatar,
+.pd-photo-initial,
+.drawer-profile-initial {
+  color: #ffffff;
+}
+
+.profile-photo-wrap { border-color: var(--sidebar-accent); }
+
+.capsule-badge {
+  background: var(--sidebar-accent);
+  color: #ffffff;
+  border-color: transparent;
+
+  &:hover, &.open {
+    background: #1d4ed8;
+    color: #ffffff;
+  }
+}
+
+.nav-item::after {
+  background: var(--sidebar-surface);
+  color: var(--sidebar-text);
+  border: 1px solid var(--sidebar-border);
+  box-shadow: 0 10px 30px rgba(16, 24, 40, 0.14);
+}
+
+// ── Navbar superior ────────────────────────────────────────
+// Tokens locales del navbar: en claro son los valores fijos de siempre y en
+// oscuro (data-theme='dark') se redeclaran abajo con el navy #091525.
+.mobile-topbar {
+  background: var(--sidebar-bg);
+  border-bottom: 1px solid var(--sidebar-border);
+  box-shadow: none;
+  gap: 0.75rem;
+  padding: 0 1.1rem;
+  transition: background-color 0.25s ease, border-color 0.25s ease;
+
+  --bg-hover: #f1f5f9;
+  --text-muted: #64748b;
+  --nb-soft: #f8fafc;
+  --nb-line: #d7dee9;
+  --nb-ring: #e8effd;
+  --nb-accent-line: rgba(37, 99, 235, 0.35);
+}
+
+@media (min-width: 621px) {
+  .mobile-topbar { height: 70px; }
+}
+
+.topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.brand-name {
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--sidebar-text);
+  white-space: nowrap;
+}
+
+.brand-sep {
+  width: 1px;
+  height: 22px;
+  background: var(--sidebar-border);
+  flex-shrink: 0;
+}
+
+.brand-page {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sidebar-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hamburger {
+  background: var(--nb-soft);
+  border: 1px solid var(--sidebar-border);
+  border-radius: 10px;
+  color: var(--sidebar-text-muted);
+
+  &:hover {
+    background: var(--sidebar-accent-soft);
+    color: var(--sidebar-accent);
+    border-color: var(--nb-accent-line);
+  }
+}
+
+// ── Centro: etiqueta Equipo + cápsulas + contador ──────────
+.topbar-center { gap: 12px; }
+
+.capsule-tag {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--sidebar-text-muted);
+  opacity: 1;
+}
+
+.capsule-avatar { background: var(--nb-ring); color: var(--sidebar-accent); }
+
+// ── Divisor y contador de chats (único contador) ───────────
+.topbar-divider { background: var(--sidebar-border); }
+.topbar-divider-spacer { background: var(--sidebar-border); }
+
+.topbar-metrics { gap: 8px; }
+
+.chat-metric {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--sidebar-bg);
+  border: 1px solid var(--sidebar-border);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+
+  &:hover {
+    background: var(--nb-soft);
+    border-color: var(--nb-line);
+    box-shadow: none;
+  }
+
+  &.has-unread {
+    background: var(--sidebar-accent-soft);
+    border-color: var(--nb-accent-line);
+    box-shadow: none;
+  }
+}
+
+.chat-metric-info { gap: 0; }
+
+.chat-metric-head {
+  gap: 6px;
+  align-items: baseline;
+
+  .metric-value {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--sidebar-text);
+  }
+
+  .metric-value.metric-zero {
+    color: var(--sidebar-text-faint);
+    font-weight: 600;
+  }
+
+  .metric-value.chat-has-unread {
+    color: var(--sidebar-accent);
+    text-shadow: none;
+  }
+
+  .metric-label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--sidebar-text-muted);
+  }
+}
+
+// ── Acciones derechas: FAQ, campana, perfil ────────────────
+.topbar-actions { gap: 8px; }
+
+.faq-trigger {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--sidebar-bg);
+  border: 1px solid var(--sidebar-border);
+  color: var(--sidebar-text-muted);
+
+  svg { width: 17px; height: 17px; }
+
+  &:hover {
+    background: var(--sidebar-accent-soft);
+    border-color: var(--nb-accent-line);
+    color: var(--sidebar-accent);
+  }
+
+  &.open {
+    background: var(--sidebar-accent);
+    border-color: var(--sidebar-accent);
+    color: #ffffff;
+    box-shadow: 0 0 0 3px var(--sidebar-accent-soft);
+  }
+}
+
+app-notification-bell { display: inline-flex; }
+
+.topbar-advisor-trigger {
+  gap: 8px;
+  padding: 4px 8px 4px 4px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+
+  &:hover {
+    background: var(--nb-soft);
+    border-color: var(--sidebar-border);
+    box-shadow: none;
+  }
+
+  &.open {
+    background: var(--nb-soft);
+    border-color: var(--sidebar-border);
+
+    .topbar-chevron { transform: rotate(180deg); }
+  }
+}
+
+.topbar-avatar-sm {
+  width: 34px;
+  height: 34px;
+  border-width: 2px;
+  font-size: 13px;
+}
+
+.topbar-advisor-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.topbar-advisor-role {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--sidebar-text-muted);
+}
+
+.topbar-chevron { color: var(--sidebar-text-faint); }
+
+// ── Modo oscuro del navbar (navy #091525) ─────────────────
+// Está en frontend/src/styles.scss (global): [data-theme] vive en <html> y,
+// con encapsulación emulada, Angular añade [_ngcontent] al selector de este
+// archivo, por lo que la regla jamás casaría con la raíz.
+
+// ── Responsive del rediseño ────────────────────────────────
+@media (max-width: 620px) {
+  .topbar-brand .brand-sep,
+  .topbar-brand .brand-page { display: none; }
+
+  .brand-name { font-size: 0.95rem; }
+
+  .topbar-center { gap: 8px; }
+  .topbar-metrics { gap: 6px; }
+
+  .chat-metric {
+    padding: 4px 8px;
+    gap: 0;
+    justify-content: center;
+  }
+  .chat-metric .chat-metric-icon { display: none; }
+  .chat-metric .metric-label { display: none; }
+
+  .faq-trigger { width: 32px; height: 32px; }
+  .faq-trigger svg { width: 16px; height: 16px; }
+
+  .topbar-avatar-sm { width: 30px; height: 30px; }
+}
+
+@media (max-width: 480px) {
+  .brand-name { display: none; }
+
+  .mobile-topbar { gap: 0.5rem; padding: 0 0.6rem; }
+}
+
+// ============================================================
+//  Tema oscuro: alerta flotante de almuerzo (widget, popup,
+//  badge minimizado y sus partes). Los selectores replican la
+//  estructura de las reglas base para empatar especificidad.
+// ============================================================
+:host.theme-dark {
+
+  // ---- Widget flotante de almuerzo ----
+  .lunch-widget {
+    background: var(--surface, #1a1f26);
+    border-color: rgba(245, 158, 11, 0.38);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+
+    .lunch-widget-close {
+      color: #7f8ba0;
+      &:hover { background: rgba(255, 255, 255, 0.08); color: #e6edf7; }
+    }
+
+    .lunch-widget-icon {
+      background: rgba(245, 158, 11, 0.12);
+      border-color: rgba(245, 158, 11, 0.4);
+      svg { stroke: #fbbf24; }
+    }
+
+    .lunch-widget-body {
+      h3 { color: #e6edf7; }
+      .lunch-widget-sub { color: #7f8ba0; }
+    }
+  }
+
+  // ---- Botonera ----
+  .lunch-btn {
+    &--cancel {
+      background: #1a1f26;
+      color: #cbd5e1;
+      border-color: rgba(255, 255, 255, 0.14);
+      &:hover { background: #242b35; }
+    }
+  }
+
+  // ---- Confirmacion de fin de almuerzo ----
+  .lunch-confirm {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.35);
+
+    .lunch-confirm-msg { color: #fca5a5; }
+  }
+
+  // ---- Contador regresivo ----
+  .almuerzo-countdown-wrap {
+    background: #151b23;
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .countdown-label { color: #7f8ba0; }
+  .countdown-timer { color: #fbbf24; }
+  .countdown-sub { color: #7f8ba0; }
+
+  .almuerzo-progress { background: rgba(255, 255, 255, 0.08); }
+  .almuerzo-progress-bar { background: #f59e0b; }
+  .almuerzo-nota { color: #7f8ba0; }
+
+  .almuerzo-schedule {
+    .schedule-label { color: #7f8ba0; }
+    .schedule-range { color: #e6edf7; }
+  }
+
+  // ---- Texto pendiente/proximo almuerzo ----
+  .lunch-pending-text {
+    .pending-title { color: #fcd34d; }
+    .pending-desc { color: #fbbf24; }
+
+    .pending-breakdown .breakdown-item { color: #fbbf24; }
+
+    .pending-hours { color: #fdba74; }
+  }
+
+  // ---- Popup pendiente / proximo ----
+  .lunch-popup {
+    background: var(--surface, #1a1f26);
+    border-color: rgba(96, 165, 250, 0.35);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+
+    &--pending { border-color: rgba(245, 158, 11, 0.38); }
+
+    .lunch-widget-close {
+      color: #7f8ba0;
+      &:hover { background: rgba(255, 255, 255, 0.08); color: #e6edf7; }
+    }
+
+    .lunch-widget-icon {
+      background: rgba(245, 158, 11, 0.12);
+      border-color: rgba(245, 158, 11, 0.4);
+      svg { stroke: #fbbf24; }
+    }
+
+    .lunch-popup-icon--approaching {
+      background: rgba(59, 130, 246, 0.14);
+      border-color: rgba(59, 130, 246, 0.45);
+      svg { stroke: #60a5fa; }
+    }
+
+    .lunch-widget-body {
+      h3 { color: #e6edf7; }
+      .lunch-widget-sub { color: #7f8ba0; }
+    }
+
+    .popup-breakdown {
+      background: rgba(245, 158, 11, 0.1);
+      border-color: rgba(245, 158, 11, 0.35);
+    }
+    .popup-breakdown-item { color: #fbbf24; }
+  }
+}
+

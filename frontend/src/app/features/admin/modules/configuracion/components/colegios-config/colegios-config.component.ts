@@ -3,6 +3,7 @@ import {
   ChangeDetectorRef,
   Component,
   EventEmitter,
+  HostBinding,
   Input,
   Output,
   OnDestroy,
@@ -14,6 +15,7 @@ import { RouterLink } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
 import { Colegio, SessionService } from '../../../../../../core/services/session.service';
 import { NotificationService } from '../../../../../../core/services/notification.service';
+import { ThemeService } from '../../../../../../core/services/theme.service';
 
 @Component({
   selector: 'app-colegios-config',
@@ -64,15 +66,24 @@ export class ColegiosConfigComponent implements OnInit, OnDestroy {
   mostrarBackups = false;
   backupMsg: string | null = null;
 
+  @HostBinding('class.theme-dark') protected themeDark = false;
+
   private destroy$ = new Subject<void>();
 
   constructor(
     private sessionService: SessionService,
     private notification: NotificationService,
     private cdr: ChangeDetectorRef,
+    private themeService: ThemeService,
   ) {}
 
   ngOnInit(): void {
+    this.themeDark = this.themeService.currentTheme === 'dark';
+    this.themeService.currentTheme$.pipe(takeUntil(this.destroy$)).subscribe((t) => {
+      this.themeDark = t === 'dark';
+      this.cdr.markForCheck();
+    });
+
     this.loadColegios();
   }
 

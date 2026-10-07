@@ -36,7 +36,8 @@ export class MeetingReminderService implements OnModuleInit, OnModuleDestroy {
       // para conservar la categoría elegida al crear la reunión.
       await this.dataSource.query(
         `ALTER TABLE teams_meetings
-         ADD COLUMN IF NOT EXISTS categories text[] NOT NULL DEFAULT '{}'::text[]`,
+         ADD COLUMN IF NOT EXISTS categories text[] NOT NULL DEFAULT '{}'::text[],
+         ADD COLUMN IF NOT EXISTS event_source varchar(20)`,
       );
     } catch (error: any) {
       this.logger.error(`No se pudo preparar la categoría para recordatorios: ${error?.message ?? error}`);

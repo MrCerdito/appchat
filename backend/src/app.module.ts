@@ -50,6 +50,7 @@ import { CorreoAdjunto } from './correos/entities/correo-adjunto.entity';
 import { CorreoCarpetaSync } from './correos/entities/correo-carpeta-sync.entity';
 import { CorreosModule } from './correos/correos.module';
 import { CalendarioModule } from './calendario/calendario.module';
+import { SharepointModule } from './sharepoint/sharepoint.module';
 import { TareasModule } from './tareas/tareas.module';
 import { Tarea } from './tareas/tarea.entity';
 import { TaskAssignee } from './tareas/entities/task-assignee.entity';
@@ -239,6 +240,7 @@ import { AppService } from './app.service';
     TicketsModule,
     CorreosModule,
     CalendarioModule,
+    SharepointModule,
     TareasModule,
     PqrsModule,
     InternalChatModule,
