@@ -36,6 +36,8 @@ export interface BandejaCorreo {
   totalCarpeta: number;
   /** No leidos en la carpeta, sin importar el filtro activo. Alimenta el boton. */
   noLeidosTotal: number;
+  /** Mensajes sin categoria en toda la carpeta; independiente de otros filtros. */
+  sinCategoriaTotal: number;
   carpetaNombre: string;
   folderId: string;
   /** Categorias reales de la carpeta con su conteo, para el filtro lateral. */

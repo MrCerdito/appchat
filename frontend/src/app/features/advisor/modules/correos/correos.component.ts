@@ -97,6 +97,7 @@ export class CorreosComponent implements OnInit, OnDestroy {
   total = 0;
   totalCarpeta = 0;
   noLeidosTotal = 0;
+  sinCategoriaTotal = 0;
   carpetaNombre = '';
   soloNoLeidos = false;
 
@@ -287,6 +288,7 @@ export class CorreosComponent implements OnInit, OnDestroy {
           this.total = b.total;
           this.totalCarpeta = b.totalCarpeta;
           this.noLeidosTotal = b.noLeidosTotal;
+          this.sinCategoriaTotal = b.sinCategoriaTotal;
           this.carpetaNombre = b.carpetaNombre;
           this.categoriasDisponibles = b.categoriasDisponibles ?? [];
           this.offset = b.mensajes.length;
@@ -474,6 +476,7 @@ export class CorreosComponent implements OnInit, OnDestroy {
             this.total = b.total;
             this.totalCarpeta = b.totalCarpeta;
             this.noLeidosTotal = b.noLeidosTotal;
+            this.sinCategoriaTotal = b.sinCategoriaTotal;
             this.carpetaNombre = b.carpetaNombre;
             this.categoriasDisponibles = b.categoriasDisponibles ?? [];
             this.offset += b.mensajes.length;
@@ -703,16 +706,6 @@ color(cat: string): string | null {
 etiqueta(categoriaCruda: string): string {
   return normalizarCategoria(categoriaCruda);
 }
-
-  /**
-   * Conteo de correos sin ninguna categoria en la carpeta. Se deriva de los
-   * totales reales que ya trae la respuesta, no de un filtro aparte: asi el
-   * numero nunca puede contradecir la lista.
-   */
-  get sinCategoriaTotal(): number {
-    const clasificados = this.categoriasDisponibles.reduce((suma, c) => suma + c.total, 0);
-    return Math.max(this.totalCarpeta - clasificados, 0);
-  }
 
   /** `2026-01-15`, para los <input type="date">. */
   get hoyIso(): string {

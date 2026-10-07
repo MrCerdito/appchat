@@ -207,6 +207,7 @@ export class CorreosService {
     total: number;
     totalCarpeta: number;
     noLeidosTotal: number;
+    sinCategoriaTotal: number;
     carpetaNombre: string;
     folderId: string;
     categoriasDisponibles: CategoriaConTotal[];
@@ -245,42 +246,52 @@ const qb = this.mensajeRepo
     const adjuntosPorMensaje = await this.contarAdjuntos(mensajes.map((m) => m.id));
 
     // `total` respeta TODOS los filtros (incluidos texto y fecha) para que
-    // "cargar mas" no prometa mensajes que el filtro excluye. `totalCarpeta` y
-    // `noLeidosTotal` los ignoran a proposito: alimentan el boton "ver todos" y
-    // el contador de no leidos, que deben decir cuantos hay de verdad.
+    // "cargar mas" no prometa mensajes que el filtro excluye. Los contadores
+    // globales de carpeta (`totalCarpeta`, `noLeidosTotal` y `sinCategoriaTotal`)
+    // se calculan aparte y no cambian por los filtros laterales.
     const qbConteo = this.mensajeRepo
       .createQueryBuilder('m')
       .select('COUNT(*)', 'total')
-      .addSelect('COUNT(*) FILTER (WHERE m.is_read = false)', 'noLeidos')
       .where('m.asesor_id = :asesorId AND m.folder_id = :folderId', { asesorId, folderId });
     if (opciones.soloNoLeidos) qbConteo.andWhere('m.is_read = false');
     this.aplicarFiltros(qbConteo, opciones);
 
-    const conteos = await qbConteo.getRawOne<{ total: string; noLeidos: string }>();
-
-    const totalCarpeta = await this.contarEnCarpeta(asesorId, folderId);
-    const noLeidosTotal = Number(conteos?.noLeidos ?? 0);
+    const conteos = await qbConteo.getRawOne<{ total: string }>();
+    const resumenCarpeta = await this.resumenCarpeta(asesorId, folderId);
     const total = Number(conteos?.total ?? 0);
 
     return {
       mensajes: mensajes.map((e) => this.aListado(e, adjuntosPorMensaje.get(e.id) ?? 0)),
       total,
-      totalCarpeta,
-      noLeidosTotal,
+      totalCarpeta: resumenCarpeta.total,
+      noLeidosTotal: resumenCarpeta.noLeidos,
+      sinCategoriaTotal: resumenCarpeta.sinCategoria,
       carpetaNombre,
       folderId,
       categoriasDisponibles: await this.categoriasDeCarpeta(asesorId, folderId, opciones),
     };
   }
 
-  /** Total sin ningun filtro: lo que hay de verdad en la carpeta. */
-  private async contarEnCarpeta(asesorId: string, folderId: string): Promise<number> {
+  /** Contadores globales de la carpeta, independientes de filtros y categorías. */
+  private async resumenCarpeta(
+    asesorId: string,
+    folderId: string,
+  ): Promise<{ total: number; noLeidos: number; sinCategoria: number }> {
     const fila = await this.mensajeRepo
       .createQueryBuilder('m')
       .select('COUNT(*)', 'total')
+      .addSelect('COUNT(*) FILTER (WHERE m.is_read = false)', 'noLeidos')
+      .addSelect(
+        `COUNT(*) FILTER (WHERE m.categorias IS NULL OR m.categorias IN ('[]', 'null', ''))`,
+        'sinCategoria',
+      )
       .where('m.asesor_id = :asesorId AND m.folder_id = :folderId', { asesorId, folderId })
-      .getRawOne<{ total: string }>();
-    return Number(fila?.total ?? 0);
+      .getRawOne<{ total: string; noLeidos: string; sinCategoria: string }>();
+    return {
+      total: Number(fila?.total ?? 0),
+      noLeidos: Number(fila?.noLeidos ?? 0),
+      sinCategoria: Number(fila?.sinCategoria ?? 0),
+    };
   }
 
   /**
