@@ -227,6 +227,15 @@ export class SoundService {
     ]);
   }
 
+  /** Aviso breve y de volumen bajo para recordar que una reunión está por empezar. */
+  playMeetingReminder(): void {
+    if (!this.soundEnabled) return;
+    this.playToneSequence([
+      { frequency: 659, at: 0, duration: 0.11, gain: 0.075, type: 'sine' },
+      { frequency: 784, at: 0.16, duration: 0.14, gain: 0.065, type: 'sine' },
+    ]);
+  }
+
   ping(): void {
     try {
       const ctx = this.getCtx();

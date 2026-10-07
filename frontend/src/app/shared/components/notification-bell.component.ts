@@ -26,6 +26,8 @@ const TYPE_LABELS: Record<string, string> = {
   ticket_sla_warning: 'SLA por vencer',
   ticket_sla_expired: 'SLA vencido',
   correo_nuevo: 'Correo nuevo',
+  cumpleanos_recordatorio: 'Cumpleaños',
+  reunion_recordatorio: 'Reunión próxima',
 };
 
 const TYPE_BG: Record<string, string> = {
@@ -42,6 +44,8 @@ const TYPE_BG: Record<string, string> = {
   ticket_sla_warning: '#FFF7ED',
   ticket_sla_expired: '#FEF2F2',
   correo_nuevo: '#EFF4FF',
+  cumpleanos_recordatorio: '#ECFDF3',
+  reunion_recordatorio: '#EEF4FF',
 };
 
 const TYPE_FG: Record<string, string> = {
@@ -58,6 +62,8 @@ const TYPE_FG: Record<string, string> = {
   ticket_sla_warning: '#D97706',
   ticket_sla_expired: '#DC2626',
   correo_nuevo: '#2563EB',
+  cumpleanos_recordatorio: '#16A34A',
+  reunion_recordatorio: '#3659C9',
 };
 
 @Component({
@@ -77,27 +83,35 @@ const TYPE_FG: Record<string, string> = {
         }
       </button>
 
+      @if (meetingReminder; as reminder) {
+        <aside class="meeting-reminder" role="alertdialog" aria-live="assertive" aria-label="Recordatorio de reunión">
+          <span class="meeting-reminder-kicker">REUNIÓN EN 5 MINUTOS · {{ meetingReminderTime(reminder) }}</span>
+          <h2>{{ reminder.meta?.['subject'] || 'Tu reunión está por empezar' }}</h2>
+          <p>Abre el calendario o entra directamente a la videollamada.</p>
+          <div class="meeting-reminder-actions">
+            <button type="button" class="meeting-reminder-open" (click)="openMeetingCalendar(reminder)">Abrir calendario</button>
+            @if (reminder.meta?.['joinUrl']) {
+              <button type="button" class="meeting-reminder-join" (click)="joinMeeting(reminder)">Ir a Teams</button>
+            }
+          </div>
+        </aside>
+      }
+
       @if (panelOpen) {
       <div class="notif-panel-overlay" (click)="closePanel()"></div>
       <div class="notif-panel" (click)="$event.stopPropagation()">
 
         <div class="notif-panel-header">
           <div class="notif-head-left">
-            <div class="notif-head-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                <path d="M13.73 21a1.94 1.94 0 0 1-3.46 0"/>
-              </svg>
-            </div>
             <div class="notif-heading-copy"><h3>Notificaciones</h3><span>Actividad de tu cuenta</span></div>
-            <label class="notif-global-switch" title="Activar o desactivar los avisos del dispositivo">
-              <span class="notif-global-copy"><strong>Avisos</strong><small>{{ notificacionesEstado }}</small>@if (preferencesError) { <small class="notif-global-error">{{ preferencesError }}</small> }</span>
-              <input type="checkbox" [checked]="notificacionesActivas"
-                [disabled]="preferencesLoading || savingGlobalNotifications || !svc.preferences()"
-                (change)="toggleGlobalNotifications($event)" aria-label="Activar o desactivar todas las notificaciones de escritorio">
-              <span class="notif-global-track"><span></span></span>
-            </label>
           </div>
+          <label class="notif-global-switch" title="Activar o desactivar los avisos del dispositivo">
+            <span class="notif-global-copy"><strong>Avisos</strong><small>{{ notificacionesEstado }}</small>@if (preferencesError) { <small class="notif-global-error">{{ preferencesError }}</small> }</span>
+            <input type="checkbox" [checked]="notificacionesActivas"
+              [disabled]="preferencesLoading || savingGlobalNotifications || !svc.preferences()"
+              (change)="toggleGlobalNotifications($event)" aria-label="Activar o desactivar todas las notificaciones de escritorio">
+            <span class="notif-global-track"><span></span></span>
+          </label>
           <div class="notif-header-actions">
             @if (selectedIds.size > 0) {
               <span class="notif-selected-count">{{ selectedIds.size }} seleccionada{{ selectedIds.size > 1 ? 's' : '' }}</span>
@@ -109,10 +123,10 @@ const TYPE_FG: Record<string, string> = {
               </button>
               <button class="notif-bulk-cancel" (click)="clearSelection()">Cancelar</button>
             } @else {
-              @if (activeSection !== 'correos' && unreadInSection(activeSection) > 0) {
+              @if (unreadInSection(activeSection) > 0) {
                 <button class="notif-mark-all" (click)="markAllRead()">Marcar sección leída</button>
               }
-              @if (activeSection !== 'correos' && totalInSection(activeSection) > 0) {
+              @if (totalInSection(activeSection) > 0) {
                 <button class="notif-delete-all" (click)="deleteAll()">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
                     <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
@@ -151,12 +165,12 @@ const TYPE_FG: Record<string, string> = {
           @for (n of filteredNotifications; track n.id) {
           <div class="notif-item-wrap" [class.deleting]="deletingId === n.id" [class.dragging]="draggingId === n.id">
             <div class="notif-delete-bg" [style.opacity]="deleteOpacity(n.id)">
-              @if (n.type !== 'correo_nuevo') { <button class="notif-delete-btn" title="Eliminar" (click)="deleteNotif(n)">
+              <button class="notif-delete-btn" title="Eliminar" (click)="deleteNotif(n)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
                   <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
                 </svg>
                 <span class="notif-delete-label">Borrar</span>
-              </button> }
+              </button>
             </div>
             <div
               class="notif-item"
@@ -170,12 +184,12 @@ const TYPE_FG: Record<string, string> = {
               (pointerup)="onPointerUp($event, n.id)"
               (pointercancel)="onPointerCancel($event, n.id)"
             >
-              @if (n.type !== 'correo_nuevo') { <label class="notif-check" (click)="$event.stopPropagation()" (pointerdown)="$event.stopPropagation()">
+              <label class="notif-check" (click)="$event.stopPropagation()" (pointerdown)="$event.stopPropagation()">
                 <input type="checkbox" [checked]="isSelected(n.id)" (change)="toggleSelect(n.id, $event)" aria-label="Seleccionar">
                 <span class="notif-checkbox">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="12" height="12"><polyline points="20 6 9 17 4 12"/></svg>
                 </span>
-              </label> }
+              </label>
               <div class="notif-icon" [style.background]="iconBg(n.type)" [style.color]="iconFg(n.type)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24">
                   @switch (n.type) {
@@ -192,6 +206,8 @@ const TYPE_FG: Record<string, string> = {
                     @case ('ticket_sla_warning') { <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/> }
                     @case ('ticket_sla_expired') { <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/> }
                     @case ('correo_nuevo') { <rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/> }
+                    @case ('cumpleanos_recordatorio') { <path d="M4 21h16M5 21v-8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v8"/><path d="M3 16s1.5-2 4-2 4 2 5 2 2.5-2 5-2 4 2 4 2M8 8v3M12 8v3M16 8v3"/><path d="M8 4h.01M12 4h.01M16 4h.01"/> }
+                    @case ('reunion_recordatorio') { <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/> }
                     @default { <circle cx="12" cy="12" r="10"/> }
                   }
                 </svg>
@@ -201,6 +217,9 @@ const TYPE_FG: Record<string, string> = {
                 <span class="notif-msg">{{ n.message }}</span>
                 @if (emailSubject(n)) {
                   <span class="notif-email-subject">Asunto: {{ emailSubject(n) }}</span>
+                }
+                @if (emailPreview(n)) {
+                  <span class="notif-email-preview">{{ emailPreview(n) }}</span>
                 }
                 <span
                   class="notif-tag"
@@ -256,6 +275,48 @@ const TYPE_FG: Record<string, string> = {
       transition: all 0.15s;
     }
     .notif-bell:hover { background: var(--bg-hover, rgba(255,255,255,0.06)); color: var(--text, #e5e7eb); }
+
+    .meeting-reminder {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      z-index: 10001;
+      width: min(410px, calc(100vw - 28px));
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 18px;
+      border: 1px solid #dbe5fb;
+      border-left: 4px solid #3659c9;
+      border-radius: 16px;
+      background: #fff;
+      color: #172033;
+      box-shadow: 0 18px 48px rgba(16, 24, 40, .2);
+      animation: reminder-in .2s ease-out;
+    }
+    @keyframes reminder-in {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .meeting-reminder-kicker { color: #3659c9; font-size: 10px; font-weight: 800; letter-spacing: .08em; }
+    .meeting-reminder h2 { margin: 0; color: #172033; font-size: 17px; line-height: 1.35; overflow-wrap: anywhere; }
+    .meeting-reminder p { margin: 0; color: #667085; font-size: 13px; line-height: 1.45; }
+    .meeting-reminder-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 2px; }
+    .meeting-reminder-actions button {
+      min-height: 36px;
+      padding: 0 12px;
+      border: 1px solid #d0d5dd;
+      border-radius: 9px;
+      background: #fff;
+      color: #344054;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .meeting-reminder-actions button:hover { background: #f8f9fc; }
+    .meeting-reminder-actions .meeting-reminder-join { border-color: #3659c9; background: #3659c9; color: #fff; }
+    .meeting-reminder-actions .meeting-reminder-join:hover { background: #2948ae; }
 
     .notif-badge {
       position: absolute;
@@ -316,24 +377,7 @@ const TYPE_FG: Record<string, string> = {
       border-bottom: 1px solid #eef0f5;
     }
 
-    .notif-head-left {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      min-width: 0;
-    }
-
-    .notif-head-icon {
-      width: 46px;
-      height: 46px;
-      border-radius: 50%;
-      background: #eef0ff;
-      color: #6366f1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
+    .notif-head-left { display: flex; align-items: center; gap: 14px; min-width: 0; flex: 1 1 auto; }
 
     .notif-panel-header h3 {
       margin: 0;
@@ -733,6 +777,16 @@ const TYPE_FG: Record<string, string> = {
     }
 
     .notif-email-subject { color: #475467; font-size: 13px; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }
+    .notif-email-preview {
+      color: #667085;
+      font-size: 13px;
+      line-height: 1.4;
+      overflow-wrap: anywhere;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
 
     .notif-tag {
       align-self: flex-start;
@@ -826,9 +880,10 @@ const TYPE_FG: Record<string, string> = {
         h3 { font-size: 17px; }
       }
       .notif-heading-copy > span { font-size: 10px; }
-      .notif-head-left { flex: 1 1 100%; justify-content: space-between; gap: 7px; }
+      .notif-head-left { flex: 1 1 auto; justify-content: flex-start; gap: 7px; }
       .notif-global-switch { gap: 6px; padding: 6px 7px; }
       .notif-global-copy small { max-width: 112px; font-size: 8px; }
+      .meeting-reminder { right: 12px; bottom: 12px; padding: 14px; }
       .notif-header-actions { width: 100%; justify-content: flex-end; }
       .notif-sections { padding: 9px 11px; gap: 5px; }
       .notif-section-tab { gap: 5px; padding: 7px 9px; }
@@ -903,6 +958,7 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
   preferencesError = '';
   private destroy$ = new Subject<void>();
   private userRole: string | null = null;
+  private readonly meetingRemindersDismissed = new Set<string>();
 
   constructor(
     public readonly svc: NotificationRealtimeService,
@@ -953,6 +1009,51 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
     const preferences = this.svc.preferences();
     return this.svc.permission() === 'granted' && !!preferences &&
       Object.values(preferences).every((preference) => preference.desktop);
+  }
+
+  get meetingReminder(): Notification | null {
+    return this.svc.notifications().find((notification) =>
+      notification.type === 'reunion_recordatorio' &&
+      !notification.read &&
+      !this.meetingRemindersDismissed.has(notification.id),
+    ) ?? null;
+  }
+
+  meetingReminderTime(notification: Notification): string {
+    const start = notification.meta?.['startDateTime'];
+    if (typeof start !== 'string') return '';
+    return new Intl.DateTimeFormat('es-CO', {
+      hour: 'numeric',
+      minute: '2-digit',
+      timeZone: 'America/Bogota',
+    }).format(new Date(start));
+  }
+
+  openMeetingCalendar(notification: Notification): void {
+    const fecha = notification.meta?.['fecha'];
+    this.descartarRecordatorioReunion(notification);
+    this.closePanel();
+    this.router.navigate([this.getCalendarRoute()], {
+      queryParams: typeof fecha === 'string' ? { fecha } : undefined,
+    });
+  }
+
+  joinMeeting(notification: Notification): void {
+    const joinUrl = notification.meta?.['joinUrl'];
+    if (typeof joinUrl !== 'string' || !joinUrl) return;
+    window.open(joinUrl, '_blank', 'noopener,noreferrer');
+    this.descartarRecordatorioReunion(notification);
+  }
+
+  private descartarRecordatorioReunion(notification: Notification): void {
+    this.meetingRemindersDismissed.add(notification.id);
+    this.cdr.markForCheck();
+    this.svc.markAsRead(notification.id).subscribe({
+      error: () => {
+        this.meetingRemindersDismissed.delete(notification.id);
+        this.cdr.markForCheck();
+      },
+    });
   }
 
   get notificacionesEstado(): string {
@@ -1094,6 +1195,20 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
       // Sin ese dato solo se entra a la bandeja, que tambien es valido.
       const queryParams = notif.entityId ? { correo: notif.entityId } : undefined;
       this.router.navigate(['/dashboard/correos'], { queryParams });
+      return;
+    }
+    if (notif.entityType === 'calendario') {
+      const fecha = notif.meta?.['fecha'];
+      this.router.navigate([this.getCalendarRoute()], {
+        queryParams: typeof fecha === 'string' ? { fecha } : undefined,
+      });
+      return;
+    }
+    if (notif.entityType === 'meeting') {
+      const fecha = notif.meta?.['fecha'];
+      this.router.navigate([this.getCalendarRoute()], {
+        queryParams: typeof fecha === 'string' ? { fecha } : undefined,
+      });
     }
   }
 
@@ -1120,7 +1235,6 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
 
   onPointerDown(e: PointerEvent, id: string): void {
     if (this.deletingId) return;
-    if (this.svc.notifications().some((n) => n.id === id && n.type === 'correo_nuevo')) return;
     this.draggingId = id;
     this.dragStartX = e.clientX;
     this.dragStartY = e.clientY;
@@ -1199,7 +1313,6 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
   }
 
   deleteNotif(notif: any): void {
-    if (notif?.type === 'correo_nuevo') return;
     this.performDelete(notif.id);
   }
 
@@ -1247,9 +1360,23 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
     return TYPE_LABELS[type] ?? 'Notificaci\u00f3n';
   }
 
+  private getCalendarRoute(): string {
+    switch (this.userRole) {
+      case 'admin': return '/admin/calendario';
+      case 'desarrollador': return '/developer/calendario';
+      case 'interno': return '/interno/calendario';
+      default: return '/dashboard/calendario';
+    }
+  }
+
   emailSubject(notif: Notification): string {
     const asunto = notif.meta?.['asunto'];
-    return typeof asunto === 'string' ? asunto : '';
+    return typeof asunto === 'string' && asunto !== notif.title ? asunto : '';
+  }
+
+  emailPreview(notif: Notification): string {
+    const preview = notif.meta?.['vistaPrevia'];
+    return typeof preview === 'string' ? preview.trim() : '';
   }
 
   iconBg(type: string): string {

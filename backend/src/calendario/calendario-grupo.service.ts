@@ -325,10 +325,23 @@ export class CalendarioGrupoService {
     // El enlace de Graph es la fuente de verdad: al releer el calendario se
     // corrige solo el cruce que dejan las filas con join_url desactualizado.
     const joinUrl = this.joinUrl(ev) ?? fila?.joinUrl ?? null;
+    const categorias = Array.isArray(ev?.categories)
+      ? ev.categories.filter((c: unknown): c is string => typeof c === 'string')
+      : [];
+    const categoriasNormalizadas = categorias.map((categoria) =>
+      categoria.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
+    );
+    const sinPrefijoCreador = categoriasNormalizadas.some((categoria) =>
+      ['cumpleanos', 'green category', 'reunion equipo', 'purple category'].includes(categoria),
+    );
+    const asuntoOriginal = ev.subject?.trim() ? ev.subject.trim() : '(sin titulo)';
+    const subject = sinPrefijoCreador
+      ? asuntoOriginal.replace(/^\([^)]{1,100}\)\s*/, '').trim() || asuntoOriginal
+      : asuntoOriginal;
 
     return {
       eventId: ev.id,
-      subject: ev.subject?.trim() ? ev.subject.trim() : '(sin titulo)',
+      subject,
       startDateTime: inicio,
       endDateTime: fin || inicio,
       durationMinutes: this.duracion(inicio, fin || inicio),
@@ -337,9 +350,7 @@ export class CalendarioGrupoService {
       isAllDay: ev.isAllDay === true,
       isCancelled: ev.isCancelled === true,
       response: ev?.responseStatus?.response ?? null,
-      categorias: Array.isArray(ev?.categories)
-        ? ev.categories.filter((c: unknown): c is string => typeof c === 'string')
-        : [],
+      categorias,
       joinUrl,
       showAs: ev.showAs ?? null,
       type: ev.type ?? null,

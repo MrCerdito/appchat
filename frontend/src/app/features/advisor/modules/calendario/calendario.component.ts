@@ -24,6 +24,7 @@ import {
   GrupoCalendario,
 } from '../../../../core/services/calendario.service';
 import {
+  fmtDateMedium,
   fmtMedium,
   fmtTime,
 } from '../../../../shared/utils/date';
@@ -94,11 +95,6 @@ const INTERVALO_REFRESCO = 30_000;
 function aDate(v: Date | string): Date {
   return typeof v === 'string' ? new Date(v) : v;
 }
-
-/** Alias de la categoria que agrupa las reuniones en linea. */
-const ALIAS_VIRTUAL = 'reunion virtual';
-/** Alias de la categoria que agrupa las reuniones presenciales. */
-const ALIAS_PRESENCIAL = 'reunion presencial';
 
 /**
  * Sin acentos ni mayusculas, para que "reunion nazire" encuentre
@@ -248,6 +244,13 @@ export class CalendarioComponent implements OnInit, OnDestroy {
     // El sidebar del shell y su header NO se tocan: se siguen colapsando igual
     // que antes. Este modulo solo rediseña su propio contenido.
     this.layout.setSidebarForcedCollapsed(true);
+    const fechaAviso = this.router.parseUrl(this.router.url).queryParams['fecha'];
+    if (typeof fechaAviso === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(fechaAviso)) {
+      const [year, month] = fechaAviso.split('-').map(Number);
+      this.selectedKey = fechaAviso;
+      this.viewYear = year;
+      this.viewMonth = month - 1;
+    }
     this.buildGrid();
     this.loadCalendar();
     this.iniciarRefresco();
@@ -462,38 +465,31 @@ export class CalendarioComponent implements OnInit, OnDestroy {
     });
   }
 
-  get hayBusqueda(): boolean {
-    return normalizar(this.busqueda).length > 0;
+  /** Próximos cumpleaños y reuniones de equipo; excluye reuniones virtuales y presenciales. */
+  get proximosEventos(): EventoCalendario[] {
+    const ahora = Date.now();
+    return this.eventosVisibles
+      .filter((evento) => {
+        if (evento.isCancelled || aDate(evento.startDateTime).getTime() < ahora) return false;
+        const alias = normalizar(categoriaDeEvento(evento.categorias)?.alias);
+        return alias === normalizar('Cumpleanos') || alias === normalizar('Reunion equipo');
+      })
+      .sort((a, b) => a.startDateTime.localeCompare(b.startDateTime))
+      .slice(0, 3);
   }
 
-  /**
-   * Indicadores del modulo. Todos salen de los eventos ya cargados: no hay
-   * ninguna cifra fija en el template.
-   *
-   * "Eventos especiales" es el resto que no es presencial ni en linea (reunion
-   * de equipo, cumpleaños y eventos sin categoria), por eso se define como
-   * total - presencial - virtual en vez de inventar una quinta categoria.
-   */
-  get metricas(): {
-    total: number;
-    presencial: number;
-    virtual: number;
-    especiales: number;
-  } {
-    const lista = this.eventosVisibles;
-    let presencial = 0;
-    let virtual = 0;
-    for (const e of lista) {
-      const alias = normalizar(categoriaDeEvento(e.categorias)?.alias);
-      if (alias === ALIAS_PRESENCIAL) presencial++;
-      else if (alias === ALIAS_VIRTUAL) virtual++;
-    }
-    return {
-      total: lista.length,
-      presencial,
-      virtual,
-      especiales: lista.length - presencial - virtual,
-    };
+  /** Fecha legible del evento, sin mostrar medianoche como hora para eventos de día completo. */
+  fechaProximoEvento(evento: EventoCalendario): string {
+    const fecha = fmtDateMedium(evento.startDateTime);
+    return evento.isAllDay ? `${fecha} · Todo el día` : `${fecha} · ${fmtTime(evento.startDateTime)}`;
+  }
+
+  organizadorEvento(evento: EventoCalendario): string | null {
+    return evento.organizerName?.trim() || null;
+  }
+
+  get hayBusqueda(): boolean {
+    return normalizar(this.busqueda).length > 0;
   }
 
   /**
@@ -765,6 +761,21 @@ responsable(m: EventoCalendario): string {
     this.selectedKey = key;
     this.buildGrid();
     this.cdr.detectChanges();
+  }
+
+  /** Abre la agenda diaria en la fecha de un evento próximo. */
+  selectEvent(event: EventoCalendario): void {
+    const key = keyDeInstante(event.startDateTime);
+    const [year, month] = key.split('-').map(Number);
+    const cambioMes = year !== this.viewYear || month - 1 !== this.viewMonth;
+    this.selectedKey = key;
+    if (cambioMes) {
+      this.viewYear = year;
+      this.viewMonth = month - 1;
+    }
+    this.buildGrid();
+    if (cambioMes) void this.loadCalendar();
+    else this.cdr.detectChanges();
   }
 
   /**

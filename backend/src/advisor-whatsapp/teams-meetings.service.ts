@@ -253,6 +253,7 @@ export class TeamsMeetingsService {
         createdBy: user.id ?? null,
         createdByName: user.name ?? null,
         subject: meeting.subject,
+        categories: input.categorias ?? [],
         startDateTime: new Date(meeting.startDateTime),
         endDateTime: new Date(meeting.endDateTime),
         durationMinutes: this.clampDuration(input.durationMinutes),
@@ -276,7 +277,11 @@ export class TeamsMeetingsService {
     calendarTarget: TeamsCalendarTarget,
     contact?: CalendarEventContact,
   ): Promise<TeamsMeetingResult> {
-    const subject = this.subjectConAsesor(this.cleanSubject(input.subject), user);
+    const subject = this.subjectConAsesor(
+      this.cleanSubject(input.subject),
+      user,
+      input.categorias,
+    );
     const start = new Date(input.startDateTime);
     if (Number.isNaN(start.getTime())) {
       throw new BadRequestException('Hora de reunion invalida');
@@ -833,6 +838,7 @@ export class TeamsMeetingsService {
       createdBy: user?.id ?? null,
       createdByName: user?.name ?? null,
       subject: meeting.subject,
+      categories: input.categorias ?? [],
       startDateTime: new Date(meeting.startDateTime),
       endDateTime: new Date(meeting.endDateTime),
       durationMinutes: duration,
@@ -1246,21 +1252,27 @@ export class TeamsMeetingsService {
     return subject;
   }
 
-  /**
-   * Prefija el asunto con el nombre del asesor, como hacen Outlook y Teams.
-   *
-   * Cuando un organizador agenda desde Outlook o desde Teams, su cliente
-   * antepone "(Nombre Apellido)" al asunto. Las reuniones creadas por la API no
-   * pasan por ahi, asi que sin esto el calendario del grupo acaba mezclando
-   * "(Jesus) Marymount - Tesoreria" con "Reunion soporte" a secas, y se pierde
-   * de un vistazo quien organiza cada reunion.
-   *
-   * Es idempotente: si el asunto ya llega con el prefijo (porque el asesor lo
-   * escribio a mano, o porque la reunion se copio de otro calendario) no se
-   * repite. Sin nombre del asesor el asunto se deja tal cual, para no inventar
-   * un rotulo vacio tipo "() Reunion soporte".
-   */
-  private subjectConAsesor(subject: string, user: TeamsMeetingUser): string {
+  /** Solo presencial/virtual muestran el nombre del creador en el asunto. */
+  private subjectConAsesor(
+    subject: string,
+    user: TeamsMeetingUser,
+    categorias: string[] = [],
+  ): string {
+    const claves = categorias.map((categoria) =>
+      categoria.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
+    );
+    const requierePrefijo = claves.some((categoria) =>
+      categoria === 'reunion presencial' ||
+      categoria === 'yellow category' ||
+      categoria === 'reunion virtual' ||
+      categoria === 'blue category',
+    );
+
+    if (!requierePrefijo) {
+      // Cumpleaños y reuniones de equipo no llevan el nombre del creador.
+      return subject.replace(/^\([^)]{1,100}\)\s*/, '').trim() || subject;
+    }
+
     const nombre = (user?.name ?? '').replace(/\s+/g, ' ').trim();
     if (!nombre) return subject;
 

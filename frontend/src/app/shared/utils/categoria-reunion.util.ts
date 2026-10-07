@@ -1,28 +1,25 @@
 /**
- * Categorias de reuniones, con el color que Outlook les pinta.
+ * Categorias de reuniones y su presentacion en el calendario de la app.
  *
  * OJO con el nombre: en el calendario real del grupo las categorias no son
  * "REUNION PRESENCIAL" sino los nombres que crea la app de Teams/Outlook
  * ("Yellow category", "Blue category", "Purple category"...). Graph guarda
- * esos literales, asi que para que un evento nuevo salga coloreado hay que
- * enviar EXACTAMENTE uno de ellos.
- *
- * Verificado en el calendario del grupo (sep-dic 2026): 45 de 50 eventos usan
- * "Yellow category", 2 "Blue category" y 1 "Purple category". Por eso
- * `REUNION PRESENCIAL` (que es la mayoritaria) mapea a Yellow y no a otro.
+ * esos literales, asi que para que un evento nuevo conserve su categoria hay
+ * que enviar EXACTAMENTE uno de ellos. `color` es independiente y controla el
+ * color que se muestra en la interfaz.
  *
  * `alias` es lo que ve el usuario; `outlook` es lo que se manda a Graph.
  */
 export interface CategoriaReunion {
   alias: string;
   outlook: string;
-  /** Color de la UI, alineado al que usa la app de Teams. */
+  /** Color visual del calendario en la app. */
   color: string;
 }
 
 export const CATEGORIAS_REUNION: CategoriaReunion[] = [
-  { alias: 'Reunion presencial', outlook: 'Yellow category', color: '#eab308' },
-  { alias: 'Reunion virtual', outlook: 'Blue category', color: '#3b82f6' },
+  { alias: 'Reunion presencial', outlook: 'Yellow category', color: '#3b82f6' },
+  { alias: 'Reunion virtual', outlook: 'Blue category', color: '#f97316' },
   { alias: 'Reunion equipo', outlook: 'Purple category', color: '#a855f7' },
   { alias: 'Cumpleanos', outlook: 'Green category', color: '#22c55e' },
 ];

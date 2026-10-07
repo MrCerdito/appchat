@@ -35,10 +35,11 @@ export interface NotificationPreferences {
   tarea_completada: NotificationPreferenceItem;
   tarea_vencimiento: NotificationPreferenceItem;
 
+  cumpleanos_recordatorio: NotificationPreferenceItem;
+  reunion_recordatorio: NotificationPreferenceItem;
+
   /**
-   * Correo nuevo en la carpeta del asesor. El aviso es agrupado por tanda de
-   * sincronizacion, no uno por correo: asignarle una carpeta con 20 mensajes a
-   * un asesor no debe llenar la campana de 20 notificaciones.
+   * Correo nuevo en la carpeta del asesor. Se crea un aviso individual por correo.
    */
   correo_nuevo: NotificationPreferenceItem;
 }
@@ -61,6 +62,9 @@ export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   tarea_actualizada: { inApp: true, desktop: false },
   tarea_completada: { inApp: true, desktop: false },
   tarea_vencimiento: { inApp: true, desktop: true },
+
+  cumpleanos_recordatorio: { inApp: true, desktop: true },
+  reunion_recordatorio: { inApp: true, desktop: true },
   correo_nuevo: { inApp: true, desktop: true },
 };
 

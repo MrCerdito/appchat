@@ -193,7 +193,8 @@ $sombra-lg: 0 12px 32px rgba(15, 23, 42, 0.09);
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 336px;
+  grid-template-columns: minmax(0, 1.55fr) minmax(450px, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   gap: 14px;
 }
 
@@ -206,6 +207,10 @@ $sombra-lg: 0 12px 32px rgba(15, 23, 42, 0.09);
 }
 
 .cal-card {
+  grid-column: 1;
+  grid-row: 1;
+  width: 100%;
+  justify-self: stretch;
   min-width: 0;
   min-height: 0;
   display: flex;
@@ -213,6 +218,109 @@ $sombra-lg: 0 12px 32px rgba(15, 23, 42, 0.09);
   padding: 14px 15px 15px;
   overflow: hidden;
 }
+
+.cal-panel {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: minmax(320px, 1.35fr) minmax(190px, 0.65fr);
+  gap: 12px;
+  overflow: hidden;
+}
+
+.cal-month { grid-column: 1; grid-row: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.cal-categories { grid-column: 2; grid-row: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.cal-categories .donut-wrap {
+  flex: none;
+  align-self: center;
+  width: 112px;
+  height: 112px;
+  margin: 18px auto 10px;
+}
+.cal-categories .cat-list {
+  width: 100%;
+  margin-top: auto;
+  padding-top: 11px;
+  border-top: 1px solid $borde;
+  gap: 5px;
+}
+.cal-categories .cat-row { font-size: .69rem; }
+
+.upcoming-card {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.upcoming-card > .pnl-head { flex: none; }
+
+.upcoming-list {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-content: stretch;
+  gap: 9px;
+  overflow: hidden;
+}
+
+.upcoming-event {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  min-height: 0;
+  padding: 8px 9px;
+  border: 1px solid $borde;
+  border-left: 3px solid var(--cat-color, $indigo);
+  border-radius: 10px;
+  background: var(--bg-subtle);
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color .15s ease, background .15s ease, transform .15s ease;
+
+  &:hover { background: var(--surface); border-color: rgba(99, 102, 241, .28); transform: translateY(-1px); }
+  &:focus-visible { outline: 3px solid rgba(99, 102, 241, .25); outline-offset: 2px; }
+}
+
+.upcoming-event-time {
+  color: $indigo-dark;
+  font-size: .69rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.upcoming-event-subject {
+  font-size: .76rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.upcoming-event-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; margin-top: auto; }
+.upcoming-event-organizer { color: var(--text-muted); font-size: .68rem; }
+
+.cal-month .mini-week { flex: none; }
+.cal-month .mini-grid {
+  flex: 1;
+  min-height: 0;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-rows: repeat(6, minmax(0, 1fr));
+  grid-auto-flow: row;
+}
+.cal-month .mini-cell { width: 100%; height: 100%; min-height: 0; aspect-ratio: auto; }
 
 // Encabezado de la tarjeta del calendario
 .cal-card-head {
@@ -225,26 +333,12 @@ $sombra-lg: 0 12px 32px rgba(15, 23, 42, 0.09);
   padding-bottom: 11px;
 }
 
-/* Dia seleccionado: icono + fecha + numero de eventos. */
+/* Dia seleccionado: fecha y numero de eventos. */
 .cal-head-left {
   display: flex;
   align-items: center;
   gap: 11px;
   min-width: 0;
-}
-
-.cal-date-ico {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 11px;
-  color: #fff;
-  background: linear-gradient(140deg, $indigo 0%, #7c3aed 100%);
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.26);
-
-  svg { width: 19px; height: 19px; }
 }
 
 .cal-date-title {
@@ -599,18 +693,7 @@ $sombra-lg: 0 12px 32px rgba(15, 23, 42, 0.09);
   align-self: center;
 }
 
-// ── Panel lateral ─────────────────────────────────────────────────────────────
-
-.cal-panel {
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  // Scroll propio: el calendario de la izquierda nunca se desplaza por esto.
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding-right: 3px;
-}
+// ── Tarjetas de apoyo dentro del panel derecho ────────────────────────────────
 
 .pnl-card {
   flex: none;
@@ -729,19 +812,6 @@ $sombra-lg: 0 12px 32px rgba(15, 23, 42, 0.09);
   }
 }
 
-.pnl-head-ico {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 9px;
-  color: $indigo-dark;
-  background: $indigo-soft;
-
-  svg { width: 15px; height: 15px; }
-}
-
 .pnl-head h2 {
   margin: 0;
   font-size: 0.86rem;
@@ -811,40 +881,6 @@ $sombra-lg: 0 12px 32px rgba(15, 23, 42, 0.09);
   background: linear-gradient(135deg, $indigo-dark, #7c3aed);
 
   &:hover { filter: brightness(1.07); color: #fff; background: linear-gradient(135deg, $indigo-dark, #7c3aed); }
-}
-
-// Resumen del mes
-.sum-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 7px;
-}
-
-.sum-cell {
-  padding: 9px 11px;
-  border: 1px solid $borde;
-  border-radius: 10px;
-  background: var(--bg-subtle);
-  border-left: 3px solid var(--sum-accent, $indigo);
-
-  b {
-    display: block;
-    font-size: 1.1rem;
-    font-weight: 680;
-    line-height: 1.1;
-    letter-spacing: -0.03em;
-  }
-
-  span {
-    display: block;
-    margin-top: 2px;
-    font-size: 0.68rem;
-    color: var(--text-muted);
-  }
-
-  &.k-presencial { --sum-accent: $oro; }
-  &.k-virtual { --sum-accent: $azul; }
-  &.k-especial { --sum-accent: $violeta; }
 }
 
 // Donut
@@ -1196,9 +1232,10 @@ $sombra-lg: 0 12px 32px rgba(15, 23, 42, 0.09);
 
 // ── Responsive ────────────────────────────────────────────────────────────────
 
-// Laptop: panel mas angosto.
+// Laptop: conserva dos paneles a la derecha sin apretar las tarjetas.
 @media (max-width: 1180px) {
-  .cal-columns { grid-template-columns: minmax(0, 1fr) 300px; }
+  .cal-columns { grid-template-columns: minmax(0, 1.35fr) minmax(420px, 1fr); gap: 12px; }
+  .cal-panel { gap: 10px; }
 }
 
 // Tablet: el panel pasa debajo del calendario.
@@ -1207,23 +1244,42 @@ $sombra-lg: 0 12px 32px rgba(15, 23, 42, 0.09);
 
   .cal-columns {
     grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    grid-auto-rows: auto;
     min-height: auto;
   }
 
+  .cal-card,
+  .cal-panel { grid-column: 1; grid-row: auto; }
   .cal-card { min-height: 620px; }
-  .cal-panel { overflow: visible; padding-right: 0; }
+  .cal-panel {
+    min-height: 500px;
+    grid-template-rows: minmax(220px, auto) minmax(260px, auto);
+    overflow: visible;
+  }
 }
 
 @media (max-width: 900px) {
-  .sum-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 768px) {
   .cal-dash { padding: 12px 12px 14px; gap: 12px; }
 
-  .cal-card { padding: 12px; min-height: 0; }
+  .cal-card { padding: 12px; min-height: 520px; }
   .cal-card-head { gap: 8px; }
   .cal-field-row { grid-template-columns: minmax(0, 1fr); }
+  .cal-panel {
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    grid-auto-rows: minmax(220px, auto);
+  }
+  .cal-panel > .pnl-card { grid-column: 1; grid-row: auto; }
+  .cal-panel > .cal-month { grid-row: 1; }
+  .cal-panel > .cal-categories { grid-row: 2; }
+  .cal-panel > .upcoming-card { grid-column: 1; grid-row: 3; }
+  .upcoming-list { grid-template-columns: minmax(0, 1fr); }
+  .upcoming-list { grid-template-columns: minmax(0, 1fr); }
 
   // La etiqueta de hora se estrecha para devolverle ancho al titulo.
   .agenda-slot { grid-template-columns: 52px minmax(0, 1fr); gap: 8px; min-height: 54px; }

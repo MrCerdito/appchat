@@ -46,6 +46,8 @@ export interface NotificationPreferences {
   tarea_completada: NotificationPreferenceItem;
   tarea_vencimiento: NotificationPreferenceItem;
   correo_nuevo: NotificationPreferenceItem;
+  cumpleanos_recordatorio: NotificationPreferenceItem;
+  reunion_recordatorio: NotificationPreferenceItem;
 }
 
 export const NOTIFICATION_TYPE_LABELS: Record<string, string> = {
@@ -66,6 +68,8 @@ export const NOTIFICATION_TYPE_LABELS: Record<string, string> = {
   tarea_completada: 'Tarea completada',
   tarea_vencimiento: 'Tarea por vencer',
   correo_nuevo: 'Correo nuevo',
+  cumpleanos_recordatorio: 'Cumpleaños mañana',
+  reunion_recordatorio: 'Reunión en 5 minutos',
 };
 
 export const NOTIFICATION_TYPE_ICONS: Record<string, string> = {
@@ -86,4 +90,6 @@ export const NOTIFICATION_TYPE_ICONS: Record<string, string> = {
   tarea_completada: 'check-circle',
   tarea_vencimiento: 'alarm-clock',
   correo_nuevo: 'mail',
+  cumpleanos_recordatorio: 'cake',
+  reunion_recordatorio: 'clock',
 };

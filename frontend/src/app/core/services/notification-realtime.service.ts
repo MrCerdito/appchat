@@ -5,6 +5,7 @@ import { Observable, map, takeUntil, Subject, timer, filter, fromEvent, tap } fr
 import { environment } from '../../../environments/environment';
 import { SocketService } from './socket.service';
 import { AuthService } from './auth.service';
+import { SoundService } from './sound.service';
 import {
   Notification as AppNotification,
   NotificationListResponse,
@@ -43,6 +44,7 @@ export class NotificationRealtimeService {
     private readonly http: HttpClient,
     private readonly router: Router,
     private readonly auth: AuthService,
+    private readonly sound: SoundService,
   ) {}
 
   init(socket: SocketService): void {
@@ -75,6 +77,10 @@ export class NotificationRealtimeService {
         this.notifications.update((list) => [notif, ...list]);
         this.unreadCount.update((c) => c + 1);
         this.total.update((t) => t + 1);
+
+        if (notif.type === 'reunion_recordatorio') {
+          this.sound.playMeetingReminder();
+        }
 
         if (notif._desktop && this.permission() === 'granted') {
           this.showDesktopNotification(notif);
@@ -126,12 +132,18 @@ export class NotificationRealtimeService {
       params: { page: '1', limit: '50' },
     }).subscribe({
       next: (res) => {
-        const current = this.notifications();
+        const current = this.notifications().filter((n) => !this.correoVencido(n));
+        const respuestaVigente = res.data.filter((n) => !this.correoVencido(n));
+        const vencidasEnRespuesta = res.data.filter((n) => this.correoVencido(n));
         const ids = new Set(current.map((n) => n.id));
-        const incoming = res.data.filter((n) => !ids.has(n.id));
-        if (notifyMissed && this.baselineLoaded && this.permission() === 'granted') {
+        const incoming = respuestaVigente.filter((n) => !ids.has(n.id));
+        if (notifyMissed && this.baselineLoaded) {
           for (const n of incoming) {
-            if (this.preferences()?.[n.type as keyof NotificationPreferences]?.desktop) {
+            if (n.type === 'reunion_recordatorio') this.sound.playMeetingReminder();
+            if (
+              this.permission() === 'granted' &&
+              this.preferences()?.[n.type as keyof NotificationPreferences]?.desktop
+            ) {
               this.showDesktopNotification(n);
             }
           }
@@ -139,12 +151,15 @@ export class NotificationRealtimeService {
         const merged = new Map<string, AppNotification>();
         for (const n of incoming) merged.set(n.id, n);
         for (const n of current) merged.set(n.id, n);
-        for (const n of res.data) merged.set(n.id, n);
+        for (const n of respuestaVigente) merged.set(n.id, n);
         this.notifications.set([...merged.values()].sort(
           (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
         ));
-        this.total.set(res.total);
-        this.unreadCount.set(res.unreadCount);
+        this.total.set(Math.max(0, res.total - vencidasEnRespuesta.length));
+        this.unreadCount.set(Math.max(
+          0,
+          res.unreadCount - vencidasEnRespuesta.filter((n) => !n.read).length,
+        ));
       },
       error: () => { this.refreshing = false; },
       complete: () => { this.refreshing = false; },
@@ -183,6 +198,7 @@ export class NotificationRealtimeService {
         icon: ICONO_NOTIFICACION,
         badge: ICONO_NOTIFICACION,
         tag: notif.id,
+        silent: notif.type === 'reunion_recordatorio',
       } as NotificationOptions);
 
       desktopNotif.onclick = () => {
@@ -197,6 +213,14 @@ export class NotificationRealtimeService {
           // no llevaba a la bandeja, que es justo para donde se quiere ir.
           const queryParams = notif.entityId ? { correo: notif.entityId } : undefined;
           this.router.navigate(['/dashboard/correos'], { queryParams });
+        } else if (notif.entityType === 'calendario') {
+          this.navigateToCalendar(notif.meta?.fecha);
+        } else if (notif.entityType === 'meeting') {
+          const joinUrl = notif.meta?.joinUrl;
+          if (typeof joinUrl === 'string' && joinUrl) {
+            window.open(joinUrl, '_blank', 'noopener,noreferrer');
+          }
+          this.markAsRead(notif.id).subscribe({ error: () => undefined });
         }
       };
 
@@ -278,8 +302,8 @@ export class NotificationRealtimeService {
       .pipe(
         map((res) => {
           const merged = new Map<string, AppNotification>();
-          for (const n of this.notifications()) merged.set(n.id, n);
-          for (const n of res.data) if (!merged.has(n.id)) merged.set(n.id, n);
+          for (const n of this.notifications()) if (!this.correoVencido(n)) merged.set(n.id, n);
+          for (const n of res.data) if (!this.correoVencido(n) && !merged.has(n.id)) merged.set(n.id, n);
           this.notifications.set([...merged.values()]);
           this.total.set(res.total);
           this.unreadCount.set(res.unreadCount);
@@ -315,6 +339,20 @@ export class NotificationRealtimeService {
           this.unreadCount.update((c) => Math.max(0, c - 1));
         }),
       );
+  }
+
+  private navigateToCalendar(fecha?: string): void {
+    const role = this.auth.getUser()?.role;
+    const route = role === 'admin'
+      ? '/admin/calendario'
+      : role === 'desarrollador'
+        ? '/developer/calendario'
+        : role === 'interno'
+          ? '/interno/calendario'
+          : '/dashboard/calendario';
+    this.router.navigate([route], {
+      queryParams: typeof fecha === 'string' ? { fecha } : undefined,
+    });
   }
 
   /** Se invoca únicamente después de cargar el cuerpo del correo en la app. */
@@ -408,5 +446,10 @@ export class NotificationRealtimeService {
     if (section === 'tickets') return type.startsWith('ticket_');
     if (section === 'correos') return type === 'correo_nuevo';
     return !type.startsWith('ticket_') && type !== 'correo_nuevo';
+  }
+
+  private correoVencido(notif: AppNotification): boolean {
+    return notif.type === 'correo_nuevo' &&
+      Date.now() - new Date(notif.createdAt).getTime() >= 20 * 60 * 1000;
   }
 }

@@ -1,6 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In, Not } from 'typeorm';
+import { Repository, In, Not, LessThan } from 'typeorm';
 import { Notification } from './notification.entity';
 import {
   UserNotificationPreference,
@@ -33,8 +33,9 @@ const TIPOS_CORREO = ['correo_nuevo'];
 const TIPOS_PRINCIPALES = [...TIPOS_TICKETS, ...TIPOS_CORREO];
 
 @Injectable()
-export class NotificationsService {
+export class NotificationsService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(NotificationsService.name);
+  private correoCleanupInterval: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     @InjectRepository(Notification)
@@ -43,6 +44,119 @@ export class NotificationsService {
     private readonly prefRepo: Repository<UserNotificationPreference>,
     private readonly gateway: NotificationsGateway,
   ) {}
+
+  async onModuleInit(): Promise<void> {
+    await this.eliminarAvisosCorreoVencidos();
+    await this.desagruparAvisosCorreoExistentes();
+    this.correoCleanupInterval = setInterval(() => {
+      void this.eliminarAvisosCorreoVencidos();
+    }, 30_000);
+    this.correoCleanupInterval.unref?.();
+  }
+
+  onModuleDestroy(): void {
+    if (this.correoCleanupInterval) clearInterval(this.correoCleanupInterval);
+    this.correoCleanupInterval = null;
+  }
+
+  /** Elimina los avisos de correo cuando cumplen 20 minutos. */
+  private async eliminarAvisosCorreoVencidos(): Promise<void> {
+    const cutoff = new Date(Date.now() - 20 * 60 * 1000);
+    try {
+      await this.notifRepo.delete({ type: 'correo_nuevo', createdAt: LessThan(cutoff) });
+    } catch (error: any) {
+      this.logger.warn(`No se pudieron eliminar avisos de correo vencidos: ${error?.message ?? error}`);
+    }
+  }
+
+  /** Migra las tandas históricas para que también aparezcan como avisos individuales. */
+  private async desagruparAvisosCorreoExistentes(): Promise<void> {
+    try {
+      const notificaciones = await this.notifRepo.find({
+        where: { type: 'correo_nuevo', entityType: 'correo' },
+      });
+      for (const notif of notificaciones) {
+        const ids = notif.meta?.['correoIds'];
+        if (!Array.isArray(ids) || ids.length < 2) {
+          const asunto = typeof notif.meta?.['asunto'] === 'string'
+            ? notif.meta['asunto'].trim()
+            : '';
+          const title = (asunto || 'Sin asunto').slice(0, 255);
+          const remitente = this.remitenteDeMeta(notif.meta);
+          const message = remitente ? `De: ${remitente}` : notif.message;
+          if (notif.title !== title || notif.message !== message) {
+            await this.notifRepo.update({ id: notif.id }, { title, message });
+          }
+          continue;
+        }
+
+        const correoIds = [...new Set([
+          ...ids.filter((id): id is string => typeof id === 'string' && !!id),
+          notif.entityId,
+        ])];
+        if (correoIds.length < 2) continue;
+        const abiertosMeta = notif.meta?.['correoLeidos'];
+        const abiertos = new Set<string>(
+          Array.isArray(abiertosMeta) ? abiertosMeta.filter((id): id is string => typeof id === 'string') : [],
+        );
+
+        for (const correoId of correoIds) {
+          const leido = notif.read || abiertos.has(correoId);
+          const leidoAt = leido ? notif.readAt ?? notif.createdAt : null;
+          const asunto = correoId === notif.entityId && typeof notif.meta?.['asunto'] === 'string'
+            ? notif.meta['asunto'].trim()
+            : '';
+          const meta = { ...(notif.meta ?? {}), correoIds: [correoId], nuevos: 1 };
+          delete meta['correoLeidos'];
+          if (!asunto) delete meta['asunto'];
+          else meta['asunto'] = asunto;
+
+          const remitente = this.remitenteDeMeta(meta);
+
+          const datos: any = {
+            title: (asunto || (correoId === notif.entityId ? 'Sin asunto' : 'Correo recibido')).slice(0, 255),
+            entityId: correoId,
+            message: remitente ? `De: ${remitente}` : notif.message,
+            read: leido,
+            readAt: leidoAt,
+            meta,
+          };
+
+          if (correoId === notif.entityId) {
+            await this.notifRepo.update({ id: notif.id }, datos);
+            continue;
+          }
+
+          const existente = await this.notifRepo.findOne({
+            where: {
+              recipientId: notif.recipientId,
+              type: notif.type,
+              entityType: notif.entityType,
+              entityId: correoId,
+            },
+          });
+          if (existente) continue;
+
+          await this.notifRepo.save(this.notifRepo.create({
+            type: notif.type,
+            title: datos.title,
+            message: datos.message,
+            entityType: notif.entityType,
+            entityId: datos.entityId,
+            entityCodigo: notif.entityCodigo,
+            recipientId: notif.recipientId,
+            senderId: notif.senderId,
+            read: datos.read,
+            readAt: datos.readAt,
+            meta: datos.meta,
+            createdAt: notif.createdAt,
+          }));
+        }
+      }
+    } catch (error: any) {
+      this.logger.warn(`No se pudieron desagrupar avisos de correo anteriores: ${error?.message ?? error}`);
+    }
+  }
 
   async create(dto: CreateNotificationDto): Promise<Notification | null> {
     const prefs = await this.getPreferences(dto.recipientId);
@@ -54,6 +168,23 @@ export class NotificationsService {
     }
 
     if (!eventPrefs.inApp && !eventPrefs.desktop) return null;
+
+    // Los recordatorios periódicos reutilizan la fila existente y no vuelven a
+    // emitir campanita/sonido/aviso de escritorio para el mismo evento.
+    if (
+      (dto.type === 'cumpleanos_recordatorio' || dto.type === 'reunion_recordatorio') &&
+      dto.entityId
+    ) {
+      const existente = await this.notifRepo.findOne({
+        where: {
+          recipientId: dto.recipientId,
+          type: dto.type,
+          entityType: dto.entityType ?? (dto.type === 'cumpleanos_recordatorio' ? 'calendario' : 'meeting'),
+          entityId: dto.entityId,
+        },
+      });
+      if (existente) return existente;
+    }
 
     // A correo outbox may retry after the notification row was saved but before
     // its delivery checkpoint was updated. Reuse and re-emit the saved row so a
@@ -68,11 +199,21 @@ export class NotificationsService {
         },
       });
       if (existing) {
+        const datosActualizados = {
+          title: dto.title,
+          message: dto.message,
+          meta: dto.meta ?? existing.meta,
+        };
+        await this.notifRepo.update(
+          { id: existing.id, recipientId: dto.recipientId },
+          datosActualizados,
+        );
+        const actualizado = { ...existing, ...datosActualizados };
         this.gateway.sendToUser(dto.recipientId, {
-          ...existing,
+          ...actualizado,
           _desktop: eventPrefs.desktop,
         });
-        return existing;
+        return actualizado;
       }
     }
 
@@ -109,6 +250,7 @@ export class NotificationsService {
     page = 1,
     limit = 20,
   ): Promise<{ data: Notification[]; total: number; unreadCount: number }> {
+    await this.eliminarAvisosCorreoVencidos();
     const [data, total] = await this.notifRepo.findAndCount({
       where: { recipientId: userId },
       order: { createdAt: 'DESC' },
@@ -124,6 +266,7 @@ export class NotificationsService {
   }
 
   async getUnreadCount(userId: string): Promise<number> {
+    await this.eliminarAvisosCorreoVencidos();
     return this.notifRepo.count({
       where: { recipientId: userId, read: false },
     });
@@ -189,6 +332,17 @@ export class NotificationsService {
         },
       );
     }
+  }
+
+  private remitenteDeMeta(meta: Record<string, any> | null | undefined): string | null {
+    const nombre = typeof meta?.['remitenteNombre'] === 'string'
+      ? meta['remitenteNombre'].trim()
+      : '';
+    const email = typeof meta?.['remitenteEmail'] === 'string'
+      ? meta['remitenteEmail'].trim()
+      : '';
+    if (nombre && email) return `${nombre} <${email}>`;
+    return nombre || email || null;
   }
 
   /** Añade el filtro de sección a un criterio TypeORM sin perder compatibilidad con acciones globales. */

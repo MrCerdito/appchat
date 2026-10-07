@@ -26,6 +26,14 @@ export class TeamsMeeting {
   @Column({ type: 'varchar', length: 255 })
   subject: string;
 
+  @Column({
+    name: 'categories',
+    type: 'text',
+    array: true,
+    default: () => "'{}'::text[]",
+  })
+  categories: string[];
+
   @Index()
   @Column({ name: 'start_date_time', type: 'timestamptz' })
   startDateTime: Date;

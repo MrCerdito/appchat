@@ -55,7 +55,7 @@ export interface ResultadoSync {
   huboImportacionInicial: boolean;
   /** Id local del correo nuevo mas reciente, para enlazar el aviso. */
   idUltimoNuevo: string | null;
-  /** IDs locales de todos los mensajes incluidos en el aviso agrupado. */
+  /** IDs locales de cada correo nuevo detectado en esta pasada. */
   idsNuevos: string[];
   /** De los nuevos, al menos uno venia sin leer. */
   hayNoLeidos: boolean;
@@ -234,10 +234,13 @@ export class CorreosSyncService implements OnModuleInit, OnModuleDestroy {
           recipient_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
           correo_mensaje_id uuid NOT NULL REFERENCES correo_mensajes(id) ON DELETE CASCADE,
           correo_mensaje_ids uuid[] NOT NULL DEFAULT '{}'::uuid[],
-          cantidad integer NOT NULL DEFAULT 1,
-          carpeta varchar(255) NOT NULL,
-          asunto text,
-          hay_no_leidos boolean NOT NULL DEFAULT false,
+           cantidad integer NOT NULL DEFAULT 1,
+           carpeta varchar(255) NOT NULL,
+           asunto text,
+           remitente_nombre text,
+           remitente_email text,
+           vista_previa text,
+           hay_no_leidos boolean NOT NULL DEFAULT false,
           creado_at timestamptz NOT NULL DEFAULT now(),
           entregado_at timestamptz,
           UNIQUE (correo_mensaje_id)
@@ -245,6 +248,12 @@ export class CorreosSyncService implements OnModuleInit, OnModuleDestroy {
       await this.dataSource.query(
         `ALTER TABLE correo_notification_outbox
          ADD COLUMN IF NOT EXISTS correo_mensaje_ids uuid[] NOT NULL DEFAULT '{}'::uuid[]`,
+      );
+      await this.dataSource.query(
+        `ALTER TABLE correo_notification_outbox
+         ADD COLUMN IF NOT EXISTS remitente_nombre text,
+         ADD COLUMN IF NOT EXISTS remitente_email text,
+         ADD COLUMN IF NOT EXISTS vista_previa text`,
       );
       await this.dataSource.query(
         `CREATE INDEX IF NOT EXISTS idx_correo_notification_outbox_pending
@@ -558,6 +567,14 @@ export class CorreosSyncService implements OnModuleInit, OnModuleDestroy {
     // cambios que trajo el delta, no los de la importacion completa.
     let idUltimoNuevo: string | null = null;
     const idsNuevos: string[] = [];
+    const avisosNuevos: Array<{
+      id: string;
+      asunto: string | null;
+      remitenteNombre: string | null;
+      remitenteEmail: string | null;
+      vistaPrevia: string | null;
+      hayNoLeidos: boolean;
+    }> = [];
     let tsUltimoNuevo = -1;
     let hayNoLeidos = false;
     let asuntoUltimoNuevo: string | null = null;
@@ -623,6 +640,14 @@ export class CorreosSyncService implements OnModuleInit, OnModuleDestroy {
         if (r.estado === 'nuevo') {
           nuevos++;
           idsNuevos.push(r.id);
+          avisosNuevos.push({
+            id: r.id,
+            asunto: item.subject ?? null,
+            remitenteNombre: item.from?.emailAddress?.name ?? null,
+            remitenteEmail: item.from?.emailAddress?.address ?? null,
+            vistaPrevia: item.bodyPreview ?? null,
+            hayNoLeidos: !item.isRead,
+          });
           // El delta SI es la senal de "llego algo": se guardan los datos para
           // el aviso y el enlace profundo. La importacion completa no aporta
           // ninguno, por eso estos contadores arrancan aqui y no antes.
@@ -639,15 +664,13 @@ export class CorreosSyncService implements OnModuleInit, OnModuleDestroy {
       }
 
       if (page['@odata.deltaLink']) {
-        if (!huboImportacionInicial && nuevos > 0 && idUltimoNuevo) {
-          await this.encolarAvisoCorreo(asesorId, {
-            id: idUltimoNuevo,
-            ids: idsNuevos,
-            cantidad: nuevos,
-            carpeta: ctx.displayName,
-            asunto: asuntoUltimoNuevo,
-            hayNoLeidos,
-          });
+        if (!huboImportacionInicial && avisosNuevos.length > 0) {
+          for (const aviso of avisosNuevos) {
+            await this.encolarAvisoCorreo(asesorId, {
+              ...aviso,
+              carpeta: ctx.displayName,
+            });
+          }
         }
         await this.guardarEstado(buzon, folderId, page['@odata.deltaLink'], {
           parentFolderId: ctx.parentFolderId,
@@ -685,20 +708,33 @@ export class CorreosSyncService implements OnModuleInit, OnModuleDestroy {
     recipientId: string,
     aviso: {
       id: string | null;
-      ids: string[];
-      cantidad: number;
       carpeta: string;
       asunto: string | null;
+      remitenteNombre: string | null;
+      remitenteEmail: string | null;
+      vistaPrevia: string | null;
       hayNoLeidos: boolean;
     },
   ): Promise<void> {
-    if (!aviso.id || !aviso.cantidad) return;
+    if (!aviso.id) return;
     await this.dataSource.query(
       `INSERT INTO correo_notification_outbox
-         (recipient_id, correo_mensaje_id, correo_mensaje_ids, cantidad, carpeta, asunto, hay_no_leidos)
-       VALUES ($1, $2, $3::uuid[], $4, $5, $6, $7)
+         (recipient_id, correo_mensaje_id, correo_mensaje_ids, cantidad, carpeta, asunto,
+          remitente_nombre, remitente_email, vista_previa, hay_no_leidos)
+       VALUES ($1, $2, $3::uuid[], $4, $5, $6, $7, $8, $9, $10)
        ON CONFLICT (correo_mensaje_id) DO NOTHING`,
-      [recipientId, aviso.id, aviso.ids, aviso.cantidad, aviso.carpeta, aviso.asunto, aviso.hayNoLeidos],
+      [
+        recipientId,
+        aviso.id,
+        [aviso.id],
+        1,
+        aviso.carpeta,
+        aviso.asunto,
+        aviso.remitenteNombre,
+        aviso.remitenteEmail,
+        aviso.vistaPrevia,
+        aviso.hayNoLeidos,
+      ],
     );
   }
 
@@ -711,11 +747,15 @@ export class CorreosSyncService implements OnModuleInit, OnModuleDestroy {
       cantidad: number;
       carpeta: string;
       asunto: string | null;
+      remitente_nombre: string | null;
+      remitente_email: string | null;
+      vista_previa: string | null;
       hay_no_leidos: boolean;
     }>;
     try {
       pendientes = await this.dataSource.query(
-        `SELECT id, correo_mensaje_id, correo_mensaje_ids, cantidad, carpeta, asunto, hay_no_leidos
+        `SELECT id, correo_mensaje_id, correo_mensaje_ids, cantidad, carpeta, asunto,
+                remitente_nombre, remitente_email, vista_previa, hay_no_leidos
          FROM correo_notification_outbox
          WHERE recipient_id = $1 AND entregado_at IS NULL
          ORDER BY creado_at ASC
@@ -729,24 +769,39 @@ export class CorreosSyncService implements OnModuleInit, OnModuleDestroy {
 
     for (const fila of pendientes ?? []) {
       try {
-        const cantidad = Number(fila.cantidad) || 1;
-        await this.notificaciones.create({
-          recipientId: asesorId,
-          type: 'correo_nuevo',
-          title: cantidad === 1 ? 'Llegó 1 correo nuevo' : `Llegaron ${cantidad} correos nuevos`,
-          message: cantidad === 1
-            ? `Nuevo correo en ${fila.carpeta}.`
-            : `Hay ${cantidad} correos nuevos en ${fila.carpeta}.`,
-          entityType: 'correo',
-          entityId: fila.correo_mensaje_id,
-          meta: {
-            carpeta: fila.carpeta,
-            nuevos: cantidad,
-            correoIds: fila.correo_mensaje_ids ?? [fila.correo_mensaje_id],
-            hayNoLeidos: fila.hay_no_leidos,
-            asunto: fila.asunto,
-          },
-        });
+        // Las filas antiguas del outbox pueden seguir conteniendo una tanda.
+        // También se desglosan aquí para que cada correo produzca su propio aviso.
+        const idsFila = Array.isArray(fila.correo_mensaje_ids)
+          ? fila.correo_mensaje_ids.filter((id): id is string => typeof id === 'string' && !!id)
+          : [];
+        const correoIds = [...new Set(idsFila.length ? idsFila : [fila.correo_mensaje_id])];
+        for (const correoId of correoIds) {
+          const remitenteNombre = fila.remitente_nombre?.trim() || null;
+          const remitenteEmail = fila.remitente_email?.trim() || null;
+          const remitente = remitenteNombre && remitenteEmail
+            ? `${remitenteNombre} <${remitenteEmail}>`
+            : remitenteNombre || remitenteEmail;
+          const asunto = correoId === fila.correo_mensaje_id ? fila.asunto?.trim() : null;
+          const titulo = (asunto || 'Sin asunto').slice(0, 255);
+          await this.notificaciones.create({
+            recipientId: asesorId,
+            type: 'correo_nuevo',
+            title: titulo,
+            message: remitente ? `De: ${remitente}` : `Nuevo correo en ${fila.carpeta}.`,
+            entityType: 'correo',
+            entityId: correoId,
+            meta: {
+              carpeta: fila.carpeta,
+              nuevos: 1,
+              correoIds: [correoId],
+              hayNoLeidos: fila.hay_no_leidos,
+              asunto: asunto || null,
+              remitenteNombre,
+              remitenteEmail,
+              vistaPrevia: correoId === fila.correo_mensaje_id ? fila.vista_previa : null,
+            },
+          });
+        }
         await this.dataSource.query(
           `UPDATE correo_notification_outbox SET entregado_at = now() WHERE id = $1 AND entregado_at IS NULL`,
           [fila.id],
