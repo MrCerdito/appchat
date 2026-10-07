@@ -5,6 +5,7 @@ import { Subject, takeUntil } from 'rxjs';
 import { SocketService } from '../../core/services/socket.service';
 import { AuthService } from '../../core/services/auth.service';
 import { NotificationRealtimeService } from '../../core/services/notification-realtime.service';
+import { SoundService } from '../../core/services/sound.service';
 import { Notification, NotificationSection } from '../../core/models/notification.model';
 import {
   countNotificationsInSection,
@@ -84,10 +85,12 @@ const TYPE_FG: Record<string, string> = {
       </button>
 
       @if (meetingReminder; as reminder) {
-        <aside class="meeting-reminder" role="alertdialog" aria-live="assertive" aria-label="Recordatorio de reunión">
-          <span class="meeting-reminder-kicker">REUNIÓN EN 5 MINUTOS · {{ meetingReminderTime(reminder) }}</span>
+        <aside class="meeting-reminder" [class.meeting-reminder-urgent]="meetingReminderUrgent"
+          role="alertdialog" aria-live="assertive" aria-label="Recordatorio de reunión">
+          <span class="meeting-reminder-kicker">RECORDATORIO DE REUNIÓN · {{ meetingReminderTime(reminder) }}</span>
           <h2>{{ reminder.meta?.['subject'] || 'Tu reunión está por empezar' }}</h2>
-          <p>Abre el calendario o entra directamente a la videollamada.</p>
+          <p class="meeting-reminder-countdown">{{ meetingReminderCountdown(reminder) }}</p>
+          <p>El aviso sonará hasta que abras el calendario o entres a Teams.</p>
           <div class="meeting-reminder-actions">
             <button type="button" class="meeting-reminder-open" (click)="openMeetingCalendar(reminder)">Abrir calendario</button>
             @if (reminder.meta?.['joinUrl']) {
@@ -301,6 +304,9 @@ const TYPE_FG: Record<string, string> = {
     .meeting-reminder-kicker { color: #3659c9; font-size: 10px; font-weight: 800; letter-spacing: .08em; }
     .meeting-reminder h2 { margin: 0; color: #172033; font-size: 17px; line-height: 1.35; overflow-wrap: anywhere; }
     .meeting-reminder p { margin: 0; color: #667085; font-size: 13px; line-height: 1.45; }
+    .meeting-reminder .meeting-reminder-countdown { color: #253b73; font-size: 18px; font-weight: 750; font-variant-numeric: tabular-nums; }
+    .meeting-reminder.meeting-reminder-urgent { border-color: #f2c4c4; border-left-color: #dc2626; }
+    .meeting-reminder-urgent .meeting-reminder-countdown { color: #b42318; }
     .meeting-reminder-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 2px; }
     .meeting-reminder-actions button {
       min-height: 36px;
@@ -959,6 +965,10 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
   private userRole: string | null = null;
   private readonly meetingRemindersDismissed = new Set<string>();
+  private meetingReminderTimer: ReturnType<typeof setInterval> | null = null;
+  private activeMeetingReminderId: string | null = null;
+  private nextMeetingReminderSoundAt = 0;
+  private meetingReminderAlarmUrgent = false;
 
   constructor(
     public readonly svc: NotificationRealtimeService,
@@ -966,6 +976,7 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
     private readonly router: Router,
     private readonly auth: AuthService,
     private readonly cdr: ChangeDetectorRef,
+    private readonly sound: SoundService,
   ) {}
 
   ngOnInit(): void {
@@ -977,9 +988,13 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
     this.auth.user$.pipe(takeUntil(this.destroy$)).subscribe(user => {
       this.userRole = user?.role ?? null;
     });
+    this.meetingReminderTimer = setInterval(() => this.tickMeetingReminder(), 1000);
+    this.tickMeetingReminder();
   }
 
   ngOnDestroy(): void {
+    if (this.meetingReminderTimer) clearInterval(this.meetingReminderTimer);
+    this.meetingReminderTimer = null;
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -1027,6 +1042,54 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
       minute: '2-digit',
       timeZone: 'America/Bogota',
     }).format(new Date(start));
+  }
+
+  meetingReminderCountdown(notification: Notification): string {
+    const start = notification.meta?.['startDateTime'];
+    if (typeof start !== 'string') return 'La reunión está por comenzar';
+    const segundos = Math.max(0, Math.ceil((new Date(start).getTime() - Date.now()) / 1000));
+    if (segundos === 0) return 'La reunión ya debería haber comenzado';
+    const horas = Math.floor(segundos / 3600);
+    const minutos = Math.floor((segundos % 3600) / 60);
+    const resto = segundos % 60;
+    const tiempo = horas > 0
+      ? `${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')}:${String(resto).padStart(2, '0')}`
+      : `${String(minutos).padStart(2, '0')}:${String(resto).padStart(2, '0')}`;
+    return `Faltan ${tiempo}`;
+  }
+
+  get meetingReminderUrgent(): boolean {
+    const start = this.meetingReminder?.meta?.['startDateTime'];
+    return typeof start === 'string' && new Date(start).getTime() <= Date.now();
+  }
+
+  private tickMeetingReminder(): void {
+    const reminder = this.meetingReminder;
+    if (!reminder) {
+      const estabaActivo = this.activeMeetingReminderId !== null;
+      this.activeMeetingReminderId = null;
+      this.nextMeetingReminderSoundAt = 0;
+      this.meetingReminderAlarmUrgent = false;
+      if (estabaActivo) this.cdr.markForCheck();
+      return;
+    }
+
+    const now = Date.now();
+    const urgente = this.meetingReminderUrgent;
+    if (this.activeMeetingReminderId !== reminder.id) {
+      this.activeMeetingReminderId = reminder.id;
+      this.nextMeetingReminderSoundAt = 0;
+      this.meetingReminderAlarmUrgent = urgente;
+    } else if (this.meetingReminderAlarmUrgent !== urgente) {
+      this.meetingReminderAlarmUrgent = urgente;
+      this.nextMeetingReminderSoundAt = 0;
+    }
+    if (now >= this.nextMeetingReminderSoundAt) {
+      if (urgente) this.sound.playMeetingReminderUrgent();
+      else this.sound.playMeetingReminder();
+      this.nextMeetingReminderSoundAt = now + (urgente ? 2500 : 5000);
+    }
+    this.cdr.markForCheck();
   }
 
   openMeetingCalendar(notification: Notification): void {

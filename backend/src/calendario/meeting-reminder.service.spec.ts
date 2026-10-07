@@ -65,6 +65,16 @@ describe('MeetingReminderService', () => {
     expect(createNotification.mock.calls[0][0].title).toBe('Reunión de equipo en 5 minutos');
   });
 
+  it('recupera el recordatorio si el backend inicia dentro de los cinco minutos previos', async () => {
+    findMeetings.mockResolvedValueOnce([meeting()]);
+
+    await service.procesarRecordatorios(new Date('2026-10-07T15:02:00.000Z'));
+
+    expect(createNotification).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Tu reunión empieza en 3 minutos',
+    }));
+  });
+
   it('no avisa si no hay creador ni enlace para unirse', async () => {
     findMeetings.mockResolvedValueOnce([
       meeting({ createdBy: null }),

@@ -5,7 +5,6 @@ import { Observable, map, takeUntil, Subject, timer, filter, fromEvent, tap } fr
 import { environment } from '../../../environments/environment';
 import { SocketService } from './socket.service';
 import { AuthService } from './auth.service';
-import { SoundService } from './sound.service';
 import {
   Notification as AppNotification,
   NotificationListResponse,
@@ -44,7 +43,6 @@ export class NotificationRealtimeService {
     private readonly http: HttpClient,
     private readonly router: Router,
     private readonly auth: AuthService,
-    private readonly sound: SoundService,
   ) {}
 
   init(socket: SocketService): void {
@@ -77,10 +75,6 @@ export class NotificationRealtimeService {
         this.notifications.update((list) => [notif, ...list]);
         this.unreadCount.update((c) => c + 1);
         this.total.update((t) => t + 1);
-
-        if (notif.type === 'reunion_recordatorio') {
-          this.sound.playMeetingReminder();
-        }
 
         if (notif._desktop && this.permission() === 'granted') {
           this.showDesktopNotification(notif);
@@ -139,7 +133,6 @@ export class NotificationRealtimeService {
         const incoming = respuestaVigente.filter((n) => !ids.has(n.id));
         if (notifyMissed && this.baselineLoaded) {
           for (const n of incoming) {
-            if (n.type === 'reunion_recordatorio') this.sound.playMeetingReminder();
             if (
               this.permission() === 'granted' &&
               this.preferences()?.[n.type as keyof NotificationPreferences]?.desktop

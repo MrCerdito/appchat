@@ -236,6 +236,16 @@ export class SoundService {
     ]);
   }
 
+  /** Patrón más perceptible que se usa únicamente cuando la reunión ya inició. */
+  playMeetingReminderUrgent(): void {
+    if (!this.soundEnabled) return;
+    this.playToneSequence([
+      { frequency: 740, at: 0, duration: 0.16, gain: 0.13, type: 'triangle' },
+      { frequency: 880, at: 0.2, duration: 0.18, gain: 0.12, type: 'sine' },
+      { frequency: 740, at: 0.45, duration: 0.16, gain: 0.13, type: 'triangle' },
+    ]);
+  }
+
   ping(): void {
     try {
       const ctx = this.getCtx();

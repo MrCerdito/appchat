@@ -12,7 +12,6 @@ import { TeamsMeeting } from '../advisor-whatsapp/entities/teams-meeting.entity'
 
 const FIVE_MINUTES_MS = 5 * 60 * 1000;
 const POLL_INTERVAL_MS = 15 * 1000;
-const DUE_WINDOW_PADDING_MS = 10 * 1000;
 const BOGOTA_OFFSET_MS = -5 * 60 * 60 * 1000;
 
 /** Recuerda cada reunión de Teams al creador; las de equipo se anuncian a todos los asesores. */
@@ -46,6 +45,7 @@ export class MeetingReminderService implements OnModuleInit, OnModuleDestroy {
 
     this.interval = setInterval(() => void this.revisar(), POLL_INTERVAL_MS);
     this.interval.unref?.();
+    this.logger.log('Recordatorios de reuniones activos: revisión cada 15 segundos, aviso hasta 5 minutos antes.');
     void this.revisar();
   }
 
@@ -68,13 +68,20 @@ export class MeetingReminderService implements OnModuleInit, OnModuleDestroy {
 
   /** Se deja accesible para probar la ventana de cinco minutos con un reloj controlado. */
   async procesarRecordatorios(ahora = new Date()): Promise<void> {
-    const desde = new Date(ahora.getTime() + FIVE_MINUTES_MS - DUE_WINDOW_PADDING_MS);
-    const hasta = new Date(ahora.getTime() + FIVE_MINUTES_MS + DUE_WINDOW_PADDING_MS);
+    const ahoraMs = ahora.getTime();
+    const desde = new Date(ahoraMs);
+    const hasta = new Date(ahoraMs + FIVE_MINUTES_MS);
     const reuniones = await this.meetings.find({
       where: { startDateTime: Between(desde, hasta) },
       order: { startDateTime: 'ASC' },
     });
-    const candidatas = reuniones.filter((reunion) => reunion.createdBy && reunion.joinUrl?.trim());
+    this.logger.debug(
+      `Revisión de recordatorios: ${reuniones.length} reunión(es) entre ${desde.toISOString()} y ${hasta.toISOString()}.`,
+    );
+    const candidatas = reuniones.filter((reunion) => {
+      const faltanMs = reunion.startDateTime.getTime() - ahoraMs;
+      return reunion.createdBy && reunion.joinUrl?.trim() && faltanMs > 0 && faltanMs <= FIVE_MINUTES_MS;
+    });
     if (!candidatas.length) return;
 
     const asesores = await this.users.find({
@@ -86,6 +93,11 @@ export class MeetingReminderService implements OnModuleInit, OnModuleDestroy {
     for (const reunion of candidatas) {
       const esEquipo = esReunionDeEquipo(reunion.categories ?? []);
       const destinatarios = esEquipo ? idsAsesores : [reunion.createdBy as string];
+      if (!destinatarios.length) continue;
+      const minutosRestantes = Math.max(
+        1,
+        Math.ceil((reunion.startDateTime.getTime() - ahoraMs) / 60_000),
+      );
       const fecha = new Date(reunion.startDateTime.getTime() + BOGOTA_OFFSET_MS)
         .toISOString()
         .slice(0, 10);
@@ -95,11 +107,14 @@ export class MeetingReminderService implements OnModuleInit, OnModuleDestroy {
         timeZone: 'America/Bogota',
       }).format(reunion.startDateTime);
 
+      let avisosCreados = 0;
       for (const recipientId of destinatarios) {
-        await this.notifications.create({
+        const aviso = await this.notifications.create({
           recipientId,
           type: 'reunion_recordatorio',
-          title: esEquipo ? 'Reunión de equipo en 5 minutos' : 'Tu reunión empieza en 5 minutos',
+          title: esEquipo
+            ? `Reunión de equipo en ${minutosRestantes} ${minutosRestantes === 1 ? 'minuto' : 'minutos'}`
+            : `Tu reunión empieza en ${minutosRestantes} ${minutosRestantes === 1 ? 'minuto' : 'minutos'}`,
           message: `${reunion.subject} · ${hora}`,
           entityType: 'meeting',
           entityId: reunion.id,
@@ -114,6 +129,17 @@ export class MeetingReminderService implements OnModuleInit, OnModuleDestroy {
             categoria: esEquipo ? 'Reunion equipo' : null,
           },
         });
+        if (aviso) avisosCreados++;
+      }
+      if (avisosCreados) {
+        this.logger.log(
+          `Recordatorio de reunión ${reunion.id} creado para ${avisosCreados} destinatario(s), ` +
+            `faltan ${minutosRestantes} minuto(s).`,
+        );
+      } else {
+        this.logger.debug(
+          `Recordatorio de reunión ${reunion.id} omitido: canales desactivados o aviso ya existente.`,
+        );
       }
     }
   }
