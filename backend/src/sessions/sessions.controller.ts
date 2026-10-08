@@ -283,10 +283,13 @@ export class SessionsController {
   async findAdvisors() {
     const advisors = await this.sessionsService.findAllAdvisors();
     const statuses = await this.chatGateway.getAdvisorStatuses();
+    const onLunch = await this.chatGateway.getOnLunchMap();
     return advisors.map((a) => ({
       ...a,
       status: (a.status ?? statuses[a.id]) as
         'online' | 'busy' | 'meeting' | 'almuerzo' | 'offline',
+      enAlmuerzo: !!onLunch[a.id],
+      lunchFin: onLunch[a.id]?.fin ?? null,
     }));
   }
 

@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, HostBinding, OnD
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Location } from '@angular/common';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
 import { Subject, debounceTime, takeUntil } from 'rxjs';
 import {
@@ -129,7 +129,12 @@ export class PerfilDetalleComponent implements OnInit, OnDestroy {
     private ticketService: TicketService,
     private cdr: ChangeDetectorRef,
     private themeService: ThemeService,
+    private router: Router,
   ) {}
+
+  protected get esAdmin(): boolean {
+    return this.router.url.startsWith('/admin');
+  }
 
   ngOnInit(): void {
     this.themeDark = this.themeService.currentTheme === 'dark';

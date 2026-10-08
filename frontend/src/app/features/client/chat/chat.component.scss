@@ -108,32 +108,24 @@ $radius-pill: 999px;
   width: 100%;
   height: 100%;
   overflow: hidden;
-  // Degradado sutil según fondo de la marca (azul claro / lavanda / blanco).
-  background: linear-gradient(150deg,
-    var(--chat-bg, #F5F7FF) 0%,
-    color-mix(in srgb, var(--chat-bg, #F5F7FF) 52%, #FFFFFF) 45%,
-    #FFFFFF 100%);
+  // Fondo blanco: dentro del formulario lo ÚNICO con color de marca es el
+  // botón "Iniciar chat" y los bordes de los inputs (foco). Sin degradados.
+  background: #ffffff;
+  // Completa todo el widget: la tarjeta se estira a alto completo
+  // (cabecera arriba con línea divisoria, campos debajo, botón fijo abajo).
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: 0;
+  box-sizing: border-box;
+}
 
-  // Formas abstractas desenfocadas en las esquinas (profundidad).
-  &::before,
-  &::after {
-    content: '';
-    position: absolute;
-    pointer-events: none;
-    border-radius: 50%;
-    filter: blur(70px);
-    opacity: 0.55;
-  }
-  &::before {
-    width: 46%; height: 40%;
-    top: -12%; right: -12%;
-    background: color-mix(in srgb, var(--c2, #5B3FD6) 30%, transparent);
-  }
-  &::after {
-    width: 44%; height: 36%;
-    bottom: -14%; left: -14%;
-    background: color-mix(in srgb, var(--c3, #4F7DF3) 28%, transparent);
-  }
+// En pantallas anchas (ruta /chat) el formulario respira: columna de 640px
+// centrada con aire vertical, pero sigue llenando el alto disponible. En
+// ventanas BAJAS (<700px de alto) el aire se elimina para que todo quepa
+// SIN scroll (el widget manda sobre la estética).
+@media (min-width: 641px) and (min-height: 700px) {
+  .screen-form { padding: 4vh 16px; }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -184,102 +176,64 @@ $radius-pill: 999px;
 .form-card {
   position: relative;
   z-index: 1;
-  border-radius: 26px;
-  box-shadow:
-    0 24px 70px rgba(91, 63, 214, 0.16),
-    0 6px 20px rgba(23, 43, 77, 0.08);
-  border: 1px solid rgba(201, 215, 238, 0.6);
-  background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(18px);
-  max-width: min(950px, 100%);
+  // Sin tarjeta: el formulario se funde con el fondo blanco del widget
+  // (una sola superficie, sin borde, sin sombra y sin radio).
+  border-radius: 0;
+  box-shadow: none;
+  border: none;
+  background: transparent;
+  // Completa todo el widget: ancho total (máx. 640px en pantallas anchas)
+  // y ALTO COMPLETO — cabecera arriba, botón abajo, sin huecos.
+  max-width: min(640px, 100%);
+  width: 100%;
   height: 100%;
-  margin-left: auto;
-  margin-right: auto;
+  max-height: 100%;
+  margin: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 
   .card-header {
-    padding: calc(var(--sp) * 1.3) calc(var(--sp) * 1.9) calc(var(--sp) * 1);
-    border-bottom: 1px solid rgba(201, 215, 238, 0.65);
-    background: transparent;
+    // COLUMNA superior con la imagen banner headerchat.jpg (trae el título
+    // "CHAT EN LÍNEA" y el subtítulo) y una línea que la separa del formulario.
+    // padding-x = mismo gutter que el body (1.5sp) para que la imagen quede
+    // ALINEADA con los bordes de los inputs. El padding vertical AGRANDA el
+    // espacio: el body con space-between reparte menos aire y los inputs
+    // quedan más juntos. El fondo es el color muestreado de la propia imagen
+    // (#eef1f5) para que el espacio quede "lleno" sin franjas blancas.
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: calc(var(--sp) * 1);
-    position: relative;
+    justify-content: center;
+    text-align: center;
+    padding: calc(var(--sp) * 3) calc(var(--sp) * 1.5) calc(var(--sp) * 2.7);
+    // LA LÍNEA: separa la cabecera del formulario debajo.
+    border-bottom: 1px solid #e5e7eb;
+    background: #eef1f5;
+    flex-shrink: 0;
 
-    .btn-back {
-      background: rgba(255, 255, 255, 0.7);
-      border: 1px solid rgba(201, 215, 238, 0.9);
-      padding: calc(var(--sp) * 0.55);
-      cursor: pointer;
-      color: #64748B;
-      border-radius: $radius-sm;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      transition: all 0.15s;
-      svg { width: calc(var(--fz) * 1.15); height: calc(var(--fz) * 1.15); }
-      &:hover { border-color: var(--c2, #5B3FD6); color: var(--c2, #5B3FD6); background: #fff; }
-      &:active { transform: scale(0.92); }
-    }
-
-    .brand-mark {
-      width: calc(var(--fz) * 2.8); height: calc(var(--fz) * 2.8);
-      border-radius: calc(var(--fz) * 0.9);
-      background: linear-gradient(135deg, var(--c1, #4F7DF3) 0%, var(--c2, #5B3FD6) 58%, var(--c3, #8B5CF6) 100%);
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-      color: white;
-      overflow: hidden;
-      svg { width: calc(var(--fz) * 1.25); height: calc(var(--fz) * 1.25); }
-      .brand-avatar-img { width: 100%; height: 100%; object-fit: cover; }
-    }
-
-    .hd-text {
-      flex: 1;
-      min-width: 0;
-      h2 {
-        font-size: calc(var(--fz) * 1.2); font-weight: 700; color: #172B4D;
-        margin: 0; line-height: 1.15; letter-spacing: -0.01em;
-      }
-      p  { font-size: calc(var(--fz) * 0.84); color: #64748B; margin: calc(var(--sp) * 0.3) 0 0; line-height: 1.4; }
-    }
-
-    .hd-art {
-      position: relative;
-      width: 82px; height: 58px;
-      flex-shrink: 0;
-    }
-    .art-bub {
-      position: absolute;
-      border-radius: 50%;
-      &--a {
-        width: 46px; height: 46px; right: 0; top: 0;
-        background: color-mix(in srgb, var(--c2, #5B3FD6) 12%, #FFFFFF);
-        border: 1px solid color-mix(in srgb, var(--c2, #5B3FD6) 24%, #FFFFFF);
-      }
-      &--b {
-        width: 36px; height: 36px; left: 0; bottom: 0;
-        background: linear-gradient(135deg, var(--c1, #4F7DF3), var(--c3, #8B5CF6));
-        color: #fff;
-        display: flex; align-items: center; justify-content: center;
-        svg { width: 17px; height: 17px; }
-      }
+    .header-img {
+      display: block;
+      width: 100%;
+      height: auto;
+      user-select: none;
+      -webkit-user-drag: none;
     }
   }
 
   .card-body {
-    padding: calc(var(--sp) * 1.2) calc(var(--sp) * 1.9) calc(var(--sp) * 1.5 + env(safe-area-inset-bottom));
+    // Riel propio (la pantalla ya no da gutter): cabecera y botón tienen su
+    // relleno; el body scrollea SOLO si hace falta (el botón siempre abajo).
+    // space-between: los campos se distribuyen hacia abajo hasta acercarse
+    // al botón (más aire = más organizado) y, si no sobra alto, cae al gap base.
+    padding: calc(var(--sp) * 1.3) calc(var(--sp) * 1.5) calc(var(--sp) * 0.7);
     display: flex;
     flex-direction: column;
-    gap: calc(var(--sp) * 0.85);
+    justify-content: space-between;
+    gap: calc(var(--sp) * 1.5);
     flex: 1;
-    max-width: 760px;
+    min-height: 0;
     width: 100%;
-    margin-left: auto;
-    margin-right: auto;
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: rgba(107, 114, 128, 0.35) transparent;
@@ -295,59 +249,59 @@ $radius-pill: 999px;
 .field {
   display: flex;
   flex-direction: column;
-  gap: calc(var(--sp) * 0.34);
+  gap: calc(var(--sp) * 0.4);
 
   label {
-    font-size: calc(var(--fz) * 0.84);
-    font-weight: 700;
-    color: #172B4D;
-    letter-spacing: 0.01em;
+    // Micro-label en mayúsculas (peso medio, slate): lectura ordenada tipo
+    // formulario profesional.
+    font-size: calc(var(--fz) * 0.7);
+    font-weight: 600;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    line-height: 1.3;
     .req { color: #EF4444; margin-left: 3px; }
   }
 
   .input-wrap {
     position: relative;
 
-    .input-icon {
-      position: absolute; left: 1.05em; top: 50%;
-      transform: translateY(-50%);
-      color: #8FA3BF; pointer-events: none; display: flex;
-      transition: color 0.22s;
-      svg { width: calc(var(--fz) * 1.12); height: calc(var(--fz) * 1.12); }
-    }
-    &:focus-within .input-icon { color: var(--c2, #5B3FD6); }
-
     &.input-wrap--select select { padding-right: 3em; cursor: pointer; }
   }
 
   input, .input-wrap--select select {
+    // Input blanco nítido con micro-sombra sobre el fondo de marca: contraste
+    // limpio y aspecto profesional (foco en color de marca). Sin icono lateral:
+    // padding simétrico (los inputs-icon ya no existen).
     width: 100%;
-    min-height: clamp(48px, calc(var(--fz) * 3), 72px);
-    padding: 0.55em 0.9em 0.55em 3em;
-    border: 1.5px solid #C9D7EE;
-    border-radius: clamp(14px, 1.6vw, 18px);
+    min-height: clamp(44px, calc(var(--fz) * 2.7), 60px);
+    padding: 0.5em 0.85em;
+    border: 1.5px solid #e5e9ef;
+    border-radius: 12px;
     font-family: var(--font);
-    font-size: calc(var(--fz) * 0.98);
-    color: #172B4D;
-    background: #FFFFFF;
+    font-size: calc(var(--fz) * 0.95);
+    color: #334155;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
     outline: none;
     -webkit-appearance: none;
     appearance: none;
-    transition: border-color 0.22s, box-shadow 0.22s, background 0.22s;
-    &::placeholder { color: #8FA3BF; }
-    &:hover { border-color: #A8BCE0; }
+    transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+    &::placeholder { color: #94a3b8; }
+    &:hover { border-color: #cbd5e1; }
     &:focus {
       border-color: var(--c2, #5B3FD6);
-      box-shadow: 0 0 0 4px color-mix(in srgb, var(--c2, #5B3FD6) 13%, transparent);
+      background: #ffffff;
+      box-shadow: 0 0 0 3.5px color-mix(in srgb, var(--c2, #5B3FD6) 14%, transparent);
     }
     &:focus-visible { outline: none; }
   }
 
   .input-arrow {
-    position: absolute; right: 1.15em; top: 50%;
+    position: absolute; right: 1.05em; top: 50%;
     transform: translateY(-50%);
-    color: #64748B; pointer-events: none; display: flex;
-    svg { width: calc(var(--fz) * 0.95); height: calc(var(--fz) * 0.95); display: block; }
+    color: #94a3b8; pointer-events: none; display: flex;
+    svg { width: calc(var(--fz) * 0.92); height: calc(var(--fz) * 0.92); display: block; }
   }
 
   .err-msg { font-size: calc(var(--fz) * 0.74); color: $danger; display: none; margin-top: 2px; }
@@ -357,26 +311,26 @@ $radius-pill: 999px;
   }
 }
 
-.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: calc(var(--sp) * 1.1); }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: calc(var(--sp) * 1.2); }
 
 .colegio-found {
   display: flex; align-items: center; gap: calc(var(--sp) * 0.7);
-  margin-top: calc(var(--sp) * 0.15); padding: calc(var(--sp) * 0.7) calc(var(--sp) * 1);
-  border: 1px solid rgba(24, 165, 122, 0.32);
-  border-radius: 16px;
-  background: linear-gradient(135deg, #EAF9F1, #DDF4EA);
+  margin-top: calc(var(--sp) * 0.2); padding: calc(var(--sp) * 0.55) calc(var(--sp) * 0.9);
+  // Color del proyecto (Sian365 dorado / ControlAcademic azul) vía --c2.
+  border: 1px solid color-mix(in srgb, var(--c2, #5B3FD6) 28%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--c2, #5B3FD6) 7%, #ffffff);
   user-select: none;
   &__icon {
-    flex-shrink: 0; width: calc(var(--fz) * 1.8); height: calc(var(--fz) * 1.8);
+    flex-shrink: 0; width: calc(var(--fz) * 1.7); height: calc(var(--fz) * 1.7);
     display: flex; align-items: center; justify-content: center;
-    border-radius: 50%; background: #18A57A; color: #fff;
-    box-shadow: 0 6px 14px rgba(24, 165, 122, 0.35);
-    svg { width: calc(var(--fz) * 0.9); height: calc(var(--fz) * 0.9); }
+    border-radius: 50%; background: var(--c2, #5B3FD6); color: #fff;
+    svg { width: calc(var(--fz) * 0.85); height: calc(var(--fz) * 0.85); }
   }
   &__text { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
-  &__label { font-size: calc(var(--fz) * 0.66); text-transform: uppercase; letter-spacing: 0.5px; color: #15996F; font-weight: 700; }
-  &__name { font-size: calc(var(--fz) * 0.95); font-weight: 700; color: #0E4D38; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  &__lock { flex-shrink: 0; color: #18A57A; display: flex; svg { width: calc(var(--fz) * 0.95); height: calc(var(--fz) * 0.95); display: block; } }
+  &__label { font-size: calc(var(--fz) * 0.66); text-transform: uppercase; letter-spacing: 0.5px; color: color-mix(in srgb, var(--c2, #5B3FD6) 72%, #0f172a); font-weight: 700; }
+  &__name { font-size: calc(var(--fz) * 0.93); font-weight: 600; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  &__lock { flex-shrink: 0; color: var(--c2, #5B3FD6); display: flex; svg { width: calc(var(--fz) * 0.95); height: calc(var(--fz) * 0.95); display: block; } }
 }
 
 .form-error-banner {
@@ -391,7 +345,7 @@ $radius-pill: 999px;
 }
 
 .consent-field {
-  margin-top: calc(var(--sp) * 0.1);
+  margin-top: calc(var(--sp) * 0.25);
   display: flex;
   align-items: flex-start;
   gap: calc(var(--sp) * 0.6);
@@ -405,25 +359,26 @@ $radius-pill: 999px;
     .consent-box {
       flex-shrink: 0; width: calc(var(--fz) * 1.25); height: calc(var(--fz) * 1.25); margin-top: 1px;
       display: flex; align-items: center; justify-content: center;
-      border: 2px solid #C9D7EE; border-radius: 7px;
+      border: 1.5px solid #cbd5e1; border-radius: 7px;
       background: #fff; color: #fff;
       transition: border-color 0.18s, background 0.18s, box-shadow 0.18s;
       svg { width: calc(var(--fz) * 0.72); height: calc(var(--fz) * 0.72); opacity: 0; transform: scale(0.5); transition: opacity 0.15s, transform 0.15s; }
     }
     input:checked + .consent-box {
-      background: linear-gradient(135deg, var(--c1, #4F7DF3), var(--c2, #5B3FD6));
-      border-color: transparent;
-      box-shadow: 0 6px 14px color-mix(in srgb, var(--c2, #5B3FD6) 34%, transparent);
+      // Neutro (slate oscuro): el color de marca vive solo en el botón.
+      background: #0f172a;
+      border-color: #0f172a;
+      box-shadow: none;
     }
     input:checked + .consent-box svg { opacity: 1; transform: scale(1); }
-    input:focus-visible + .consent-box { box-shadow: 0 0 0 3px color-mix(in srgb, var(--c2, #5B3FD6) 18%, transparent); }
+    input:focus-visible + .consent-box { box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.16); }
   }
 
   .consent-text {
     font-size: calc(var(--fz) * 0.84); color: #64748B; line-height: 1.5;
     cursor: pointer;
-    a { color: var(--c2, #5B3FD6); text-decoration: none; font-weight: 600; cursor: pointer; }
-    a:hover { text-decoration: underline; }
+    a { color: #334155; text-decoration: underline; text-underline-offset: 2px; font-weight: 600; cursor: pointer; }
+    a:hover { color: #0f172a; }
   }
 
   .err-msg { display: none; font-size: calc(var(--fz) * 0.74); color: $danger; margin-top: 4px; flex-basis: 100%; }
@@ -480,48 +435,44 @@ $radius-pill: 999px;
 }
 
 .submit-zone {
+  // Pie fijo del formulario: el botón "Iniciar chat" queda SIEMPRE abajo
+  // del widget (hermano del body, no dentro del scroll).
   position: relative;
-  margin-top: calc(var(--sp) * 0.35);
+  flex-shrink: 0;
+  margin-top: 0;
+  padding: calc(var(--sp) * 0.7) calc(var(--sp) * 1.5) calc(var(--sp) * 1.3 + env(safe-area-inset-bottom));
 }
 
-.submit-deco {
-  position: absolute; right: 0; top: -14px;
-  display: flex; align-items: center; gap: 10px;
-  color: color-mix(in srgb, var(--c2, #5B3FD6) 62%, transparent);
-  pointer-events: none;
-  .sd { width: 14px; height: 14px; }
-  .sd--1 { animation: twinkle 2.4s ease-in-out infinite; }
-  .sd--2 { width: 10px; height: 10px; opacity: 0.7; animation: twinkle 2.4s ease-in-out 0.7s infinite; }
-  .sd-line {
-    width: 42px; height: 2px; border-radius: 2px;
-    background: linear-gradient(90deg, transparent, currentColor);
-    opacity: 0.55;
-  }
-}
-@keyframes twinkle {
-  0%, 100% { opacity: 0.35; transform: scale(0.9); }
-  50%      { opacity: 1;    transform: scale(1.1); }
-}
-
+// Botón principal sólido en color de marca (sin degradados ni destellos)
+// con sombra sutil de reposo: profundidad limpia, estilo producto profesional.
 .btn-submit {
   position: relative;
   width: 100%;
-  min-height: clamp(52px, calc(var(--fz) * 3.2), 74px);
+  min-height: clamp(46px, calc(var(--fz) * 2.8), 58px);
   padding: 0 1.3em;
-  background: linear-gradient(120deg, var(--c1, #4F7DF3) 0%, var(--c2, #5B3FD6) 55%, var(--c3, #8B5CF6) 100%);
+  background: var(--c2, #5B3FD6);
   color: white;
   border: none;
-  border-radius: 20px;
-  font-family: var(--font); font-size: calc(var(--fz) * 1.05); font-weight: 600;
+  border-radius: 12px;
+  font-family: var(--font); font-size: calc(var(--fz) * 1); font-weight: 600;
   letter-spacing: 0.01em;
   cursor: pointer; display: flex; align-items: center; justify-content: center;
-  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.25s ease;
-  &:hover {
-    transform: translateY(-2px);
-    filter: brightness(1.06);
+  gap: 9px;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--c2, #5B3FD6) 20%, transparent);
+  transition: background 0.18s, transform 0.15s, box-shadow 0.18s;
+
+  .btn-arrow {
+    width: calc(var(--fz) * 1.05); height: calc(var(--fz) * 1.05);
+    transition: transform 0.2s;
   }
-  &:active { transform: translateY(0) scale(0.98); }
-  &:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  &:hover:not(:disabled) {
+    background: var(--brand-hover, #4338CA);
+    box-shadow: 0 8px 20px color-mix(in srgb, var(--c2, #5B3FD6) 30%, transparent);
+    .btn-arrow { transform: translateX(3px); }
+  }
+  &:active:not(:disabled) { transform: translateY(0) scale(0.99); box-shadow: none; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -2681,10 +2632,6 @@ textarea {
     font-size: max(16px, calc(var(--fz) * 0.98));
   }
 
-  .form-card {
-    border-radius: 20px;
-  }
-
   .btn-submit {
     min-height: 54px;
     font-size: max(16px, calc(var(--fz) * 1.05));
@@ -2748,52 +2695,55 @@ textarea {
   // La escala adaptativa ya compacta tamaños en paneles estrechos; aquí solo se
   // recalca el texto de consentimiento para que no quede apretado.
   .consent-text { font-size: calc(var(--fz) * 0.78); }
-
-  .card-header { padding-left: calc(var(--sp) * 1.4); padding-right: calc(var(--sp) * 1.4); }
-  .card-body   { padding-left: calc(var(--sp) * 1.4); padding-right: calc(var(--sp) * 1.4); }
-
-  // El arte decorativo del header se oculta en móvil (espacio).
-  .hd-art { display: none; }
-
-  .submit-deco { display: none; }
 }
 
-// Pantallas muy estrechas: el formulario pasa a una sola columna para que los
-// campos no queden ilegibles (dos columnas se mantienen en móviles estándar
-// para conservar espacio vertical y evitar scroll).
-@media (max-width: 340px) {
-  .field-row { grid-template-columns: 1fr; gap: calc(var(--sp) * 0.95); }
+// Dos columnas desde 360 px (el widget de 360–440 px y los móviles conservan
+// las parejas para que TODO quepa sin scroll). Solo dispositivos muy estrechos
+// (<360 px) pasan a una sola columna.
+@media (max-width: 359px) {
+  .field-row { grid-template-columns: 1fr; gap: calc(var(--sp) * 1.1); }
 }
 
 // Pantallas con poca altura (widgets / móviles apaisados): modo compacto que
-// acopla el formulario para que quepa sin scroll vertical.
+// acopla el formulario para que quepa SIN scroll vertical.
 @media (max-height: 640px) {
   .form-card .card-header {
-    padding-top: calc(var(--sp) * 0.9);
-    padding-bottom: calc(var(--sp) * 0.75);
+    // En pantallas bajas la banda crece poco: el banner ya aporta alto.
+    padding-top: calc(var(--sp) * 0.3);
+    padding-bottom: calc(var(--sp) * 0.28);
+    gap: 0;
   }
-  .form-card .brand-mark {
-    width: calc(var(--fz) * 2.4);
-    height: calc(var(--fz) * 2.4);
+  .form-card .card-header .header-img {
+    // Tope de alto del banner para conservar el "SIN scroll" en widgets
+    // bajos (900x560): escala dentro del ancho sin recortar el texto.
+    // Compensa el padding de 3sp/3.3sp del card-body (bloque del usuario):
+    // el header entrega ~19px para que el formulario siga SIN scroll.
+    max-height: 66px;
+    width: auto;
+    max-width: 100%;
+    margin: 0 auto;
   }
-  .form-card .hd-text p { display: none; }
-  .form-card .hd-text h2 { font-size: calc(var(--fz) * 1.1); }
 
   .form-card .card-body {
-    padding-top: calc(var(--sp) * 0.9);
-    padding-bottom: calc(var(--sp) * 1.1);
-    gap: calc(var(--sp) * 0.7);
+    padding-top: calc(var(--sp) * 3);
+    padding-bottom: calc(var(--sp) * 3.3);
+    gap: calc(var(--sp) * 1.05);
   }
 
-  .form-card .field { gap: calc(var(--sp) * 0.28); }
+  .form-card .field { gap: calc(var(--sp) * 0.3); }
 
   .form-card .field input,
   .form-card .field .input-wrap--select select {
-    min-height: 43px;
+    // 43→39: libera ~16px en las 4 filas para el "SIN scroll" en 900x560.
+    min-height: 39px;
   }
 
-  .form-card .btn-submit { min-height: 47px; }
-  .form-card .submit-zone { margin-top: calc(var(--sp) * 0.25); }
+  .form-card .consent-field { margin-top: calc(var(--sp) * 0.15); }
+  .form-card .btn-submit { min-height: 42px; }
+  .form-card .submit-zone {
+    padding-top: calc(var(--sp) * 0.4);
+    padding-bottom: calc(var(--sp) * 1 + env(safe-area-inset-bottom));
+  }
   .form-card .colegio-found { margin-top: 0; }
 }
 

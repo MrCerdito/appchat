@@ -1,13 +1,7 @@
 <div class="page">
 
   <header class="header">
-    <div class="header-identity">
-      <div class="avatar admin">A</div>
-      <div>
-        <h1>Panel de administración</h1>
-        <span class="meta-label">Métricas globales</span>
-      </div>
-    </div>
+    <div class="header-identity"></div>
     <div class="header-actions">
       <div class="range-filter">
         <input type="date" [value]="desde" (change)="desde = $any($event.target).value; onFechasCambiadas()" />

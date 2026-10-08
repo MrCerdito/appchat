@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
@@ -104,7 +105,12 @@ export class SharePointComponent implements OnInit, OnDestroy {
     private sanitizer: DomSanitizer,
     private cdr   : ChangeDetectorRef,
     private themeService: ThemeService,
+    private router: Router,
   ) {}
+
+  protected get esAdmin(): boolean {
+    return this.router.url.startsWith('/admin');
+  }
 
   ngOnInit(): void {
     this.themeDark = this.themeService.currentTheme === 'dark';

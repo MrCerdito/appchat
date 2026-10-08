@@ -1,6 +1,8 @@
 /**
  * widget.js — Widget de chat embebible — Sian365
- * v2.5.0
+ * v2.5.1
+ * v2.5.1: en localhost y en el preview el iframe del chat apunta al build
+ * local (el chatUrl remoto de la config solo aplica en producción).
  * v2.5.0: la imagen interna del botón cambia según la marca del proyecto
  * (Sian365 → KorvixSian.png, ControlAcademic → KorvixControl.png), igual que
  * el color del anillo. Las imágenes viven en la misma carpeta que widget.js.
@@ -24,7 +26,7 @@
   /* ═══════════════════════════════════════════════════════════
      SECCIÓN 1 — CONSTANTES
   ═══════════════════════════════════════════════════════════ */
-  var VERSION = '2.5.0';
+  var VERSION = '2.5.1';
   var POLL_MS  = 60000;
   var ROOT_ID  = 'sian-widget-root';
   var API_PATH = '/widget-config';
@@ -346,6 +348,13 @@
     DEF.chatUrl = DATA_CHAT_URL;
   }
 
+  // Script servido desde localhost/127.0.0.1 = build local: el chat se sirve
+  // junto al script, así que el chatUrl remoto de la config (producción) no
+  // aplica aquí — el preview y cualquier embed local deben ver ESTE build.
+  // En producción no cambia nada (script y chat comparten origen); para
+  // apuntar a otro chat usar data-chat-url (o ?chatUrl= en el preview).
+  var IS_LOCAL_SCRIPT = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/.test(SPA_BASE || '');
+
   // ── Leer config desde URL params (preview mode) ───────────────────────────
   function getPreviewConfig() {
     if (!IS_PREVIEW) return null;
@@ -403,7 +412,9 @@
       burbujaDelaySeg    : res.burbujaDelaySeg      != null ? res.burbujaDelaySeg    : DEF.burbujaDelaySeg,
       burbujaDuracionSeg : res.burbujaDuracionSeg   != null ? res.burbujaDuracionSeg : DEF.burbujaDuracionSeg,
       ocultarEnMovil     : res.ocultarEnMovil       != null ? !!res.ocultarEnMovil   : DEF.ocultarEnMovil,
-      chatUrl            : res.chatUrl             || DEF.chatUrl,
+      // En preview o con script local manda el chat junto al script (DEF),
+      // no el chatUrl remoto de la config.
+      chatUrl            : (IS_PREVIEW || IS_LOCAL_SCRIPT) ? DEF.chatUrl : (res.chatUrl || DEF.chatUrl),
       // Textos del panel
       tituloPanelChat    : res.tituloPanelChat     || DEF.tituloPanelChat,
       subtituloPanelChat : res.subtituloPanelChat  || DEF.subtituloPanelChat,

@@ -131,6 +131,10 @@ export class WhatsappChatComponent implements OnInit, AfterViewChecked, OnDestro
     return this.theme === 'light';
   }
 
+  @HostBinding('class.theme-dark') get isDarkTheme(): boolean {
+    return this.theme === 'dark';
+  }
+
   @ViewChild('messagesContainer') messagesContainer!: ElementRef;
   @ViewChild('messageInput') messageInput!: ElementRef<HTMLTextAreaElement>;
   @ViewChild('slashMenu') slashMenu?: ElementRef<HTMLElement>;

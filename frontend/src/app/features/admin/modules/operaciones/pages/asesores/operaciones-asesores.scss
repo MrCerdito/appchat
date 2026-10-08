@@ -256,3 +256,113 @@
   .opa-filters { padding: 12px 16px; }
   .opa-grid { padding: 0 16px 16px; }
 }
+
+// ── Tema oscuro ──────────────────────────────────────────────
+:host.theme-dark {
+  .opa-page {
+    background: #151b23;
+  }
+
+  .opa-nav {
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+    background: #1a1f26;
+  }
+
+  .opa-back-btn {
+    border-color: rgba(255, 255, 255, 0.12);
+    background: #151b23;
+    color: #9aa7bd;
+
+    &:hover {
+      border-color: rgba(96, 165, 250, 0.45);
+      background: rgba(96, 165, 250, 0.14);
+      color: #93b4ff;
+    }
+  }
+
+  .opa-nav-title {
+    color: #e6edf7;
+  }
+
+  .opa-filter-btn {
+    border-color: rgba(255, 255, 255, 0.12);
+    background: #151b23;
+    color: #9aa7bd;
+
+    &:hover {
+      border-color: #10B981;
+      color: #10B981;
+    }
+
+    &.active {
+      background: #10B981;
+      border-color: #10B981;
+      color: #fff;
+    }
+  }
+
+  .opa-card {
+    border-color: rgba(255, 255, 255, 0.08);
+    background: #1a1f26;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+
+    &:hover {
+      border-color: rgba(255, 255, 255, 0.16);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+    }
+  }
+
+  .opa-info strong {
+    color: #e6edf7;
+  }
+
+  .opa-status {
+    &.online   { color: #4ade80; }
+    &.busy     { color: #60a5fa; }
+    &.meeting  { color: #a78bfa; }
+    &.almuerzo { color: #fdba74; }
+    &.away     { color: #fbbf24; }
+  }
+
+  .opa-row {
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+
+    span {
+      color: #9aa7bd;
+    }
+
+    strong {
+      color: #e6edf7;
+
+      small {
+        color: #9aa7bd;
+      }
+
+      &.danger { color: #f87171; }
+    }
+  }
+
+  .opa-cap-row {
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .opa-cap-header {
+    span {
+      color: #9aa7bd;
+    }
+
+    strong {
+      color: #e6edf7;
+
+      small {
+        color: #9aa7bd;
+      }
+
+      &.danger { color: #f87171; }
+    }
+  }
+
+  .opa-cap-bar {
+    background: rgba(255, 255, 255, 0.08);
+  }
+}

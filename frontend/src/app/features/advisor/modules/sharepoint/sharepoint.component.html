@@ -4,6 +4,7 @@
 
   <!-- ── 1. Encabezado del módulo ─────────────────────────────────────────── -->
   <header class="dm-head">
+    @if (!esAdmin) {
     <div class="head-izq">
       <div class="head-icono">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
@@ -16,6 +17,7 @@
         <p>Aquí encontrarás todas las carpetas y archivos compartidos.</p>
       </div>
     </div>
+    }
 
     <div class="head-acc">
       <!-- Nuevo (principal, con desplegable) -->

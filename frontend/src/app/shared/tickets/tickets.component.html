@@ -255,6 +255,7 @@
     @if (activeView === 'modules') {
     <div class="ts-view">
       <div class="ts-page-header">
+        @if (!esAdmin) {
         <div class="ts-page-header-text">
           <h1 class="ts-page-title">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
@@ -264,7 +265,7 @@
           </h1>
           <p class="ts-page-desc">Organiza cada division creando modulos y asignandoles desarrolladores para mantener la conexion con los tickets.</p>
         </div>
-        <div class="ts-page-actions">
+        }<div class="ts-page-actions">
           <div class="ts-modulo-stats">
             <div class="ts-modulo-stat">
               <span class="ts-modulo-stat-value">{{ modulos.length }}</span>
@@ -433,7 +434,7 @@
     @if (activeView === 'list') {
     <div class="ts-view" [class.ts-view--kanban]="viewMode === 'kanban'">
       <div class="ts-page-header">
-        @if (viewMode === 'kanban') {
+        @if (!esAdmin && viewMode === 'kanban') {
         <div class="ts-kanban-heading">
           <div class="ts-kanban-heading-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"

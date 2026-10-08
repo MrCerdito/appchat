@@ -1,11 +1,13 @@
-import { Component, ChangeDetectionStrategy, ChangeDetectorRef, HostListener, OnDestroy, OnInit, ViewChild, ElementRef } from '@angular/core';
+import { Component, ChangeDetectionStrategy, ChangeDetectorRef, HostBinding, HostListener, OnDestroy, OnInit, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Router, ActivatedRoute } from '@angular/router';
-import { Subscription, interval } from 'rxjs';
+import { Subject, Subscription, interval } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { WhatsappChatService } from '../../../../../../core/services/whatsapp-chat.service';
 import { InternalChatService } from '../../../../../../core/services/internal-chat.service';
+import { ThemeService } from '../../../../../../core/services/theme.service';
 import { WaChat, WaMessage } from '../../../../../../core/models/whatsapp.models';
 import { InternalConversation } from '../../../../../../core/models/internal-chat.models';
 import { InternalChatPanelComponent } from '../../../../../../features/advisor/modules/whatsapp/internal-chat-panel/internal-chat-panel';
@@ -71,6 +73,10 @@ interface ComposerState {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class OperacionesChatsComponent implements OnInit, OnDestroy {
+  @HostBinding('class.theme-dark') protected themeDark = false;
+
+  private readonly destroy$ = new Subject<void>();
+
   @ViewChild('messageFeed') messageFeed?: ElementRef<HTMLElement>;
   @ViewChild(InternalChatPanelComponent) internalPanel?: InternalChatPanelComponent;
   @ViewChild('imageInput') imageInput?: ElementRef<HTMLInputElement>;
@@ -163,6 +169,7 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
     private internalChat: InternalChatService,
     private cdr: ChangeDetectorRef,
     private sanitizer: DomSanitizer,
+    private themeService: ThemeService,
   ) {}
 
   @HostListener('window:click')
@@ -195,6 +202,12 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.themeDark = this.themeService.currentTheme === 'dark';
+    this.themeService.currentTheme$.pipe(takeUntil(this.destroy$)).subscribe((t) => {
+      this.themeDark = t === 'dark';
+      this.cdr.markForCheck();
+    });
+
     this.dataReady = false;
     this.startLoadingProgress();
 
@@ -1265,5 +1278,7 @@ export class OperacionesChatsComponent implements OnInit, OnDestroy {
     if (this.selectedFilePreviewUrl) {
       URL.revokeObjectURL(this.selectedFilePreviewUrl);
     }
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 }

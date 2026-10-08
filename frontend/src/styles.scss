@@ -183,13 +183,73 @@
   --sb-logout-text: #f87171;
 }
 
-/* ─── Admin shell accent override ──────────────────── */
+/* ─── Admin shell: navbar superior estilo asesores ────────────
+   Paleta clara scoped al shell del admin (misma que .advisor-shell):
+   navbar blanca, texto #172033, bordes #e8ecf2, azul Korvix #2563eb. */
 .admin-shell {
-  --sidebar-accent: #7c3aed;
-  --sidebar-accent-soft: rgba(124, 58, 237, 0.15);
-  --primary: #7c3aed;
-  --primary-hover: #8b5cf6;
-  --primary-soft: rgba(124, 58, 237, 0.15);
+  --sidebar-bg: #ffffff;
+  --sidebar-surface: #ffffff;
+  --sidebar-text: #172033;
+  --sidebar-text-muted: #64748b;
+  --sidebar-text-faint: #94a3b8;
+  --sidebar-border: #e8ecf2;
+  --sidebar-hover: #f1f5f9;
+  --sidebar-active: #eef4ff;
+  --sidebar-accent: #2563eb;
+  --sidebar-accent-soft: #eef4ff;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-soft: rgba(37, 99, 235, 0.15);
+
+  /* Admin SaaS: tokens del panel (header, fondo, tarjetas) */
+  --adm-bg: #f8fafc;
+  --adm-line: #e5eaf0;
+  --adm-card-bg: #ffffff;
+  --adm-card-border: #e2e8f0;
+  --adm-title: #172033;
+  --adm-section: #1e293b;
+  --adm-muted: #64748b;
+  --adm-faint: #94a3b8;
+  --adm-icon-bg: #eff4ff;
+  --adm-icon: #2563eb;
+  --adm-accent: #2563eb;
+  --adm-hover-border: rgba(37, 99, 235, 0.45);
+  --adm-search-bg: #f8fafc;
+  --adm-search-border: #e5eaf0;
+}
+
+/* Oscuro: redeclara TODO el set para que el bloque claro (misma
+   especificidad, posteriores en el archivo) no pise los tokens. */
+[data-theme='dark'] .admin-shell {
+  --sidebar-bg: #0a0f1a;
+  --sidebar-surface: #111827;
+  --sidebar-text: #e8eaed;
+  --sidebar-text-muted: rgba(232, 234, 237, 0.6);
+  --sidebar-text-faint: rgba(232, 234, 237, 0.35);
+  --sidebar-border: rgba(255, 255, 255, 0.06);
+  --sidebar-hover: rgba(255, 255, 255, 0.06);
+  --sidebar-active: rgba(255, 255, 255, 0.04);
+  --sidebar-accent: #4d8dff;
+  --sidebar-accent-soft: rgba(77, 141, 255, 0.16);
+  --primary: #3b82f6;
+  --primary-hover: #60a5fa;
+  --primary-soft: rgba(59, 130, 246, 0.18);
+
+  /* Admin SaaS en oscuro */
+  --adm-bg: #0a0f1a;
+  --adm-line: rgba(255, 255, 255, 0.07);
+  --adm-card-bg: #0f1729;
+  --adm-card-border: rgba(255, 255, 255, 0.08);
+  --adm-title: #e8eaed;
+  --adm-section: #e8eaed;
+  --adm-muted: rgba(232, 234, 237, 0.55);
+  --adm-faint: rgba(232, 234, 237, 0.35);
+  --adm-icon-bg: rgba(77, 141, 255, 0.14);
+  --adm-icon: #4d8dff;
+  --adm-accent: #4d8dff;
+  --adm-hover-border: rgba(77, 141, 255, 0.5);
+  --adm-search-bg: rgba(255, 255, 255, 0.04);
+  --adm-search-border: rgba(255, 255, 255, 0.08);
 }
 
 /* ─── Base reset ─────────────────────────────────────── */

@@ -113,3 +113,36 @@
   from { opacity: 0; transform: scale(0.92); }
   to { opacity: 1; transform: scale(1); }
 }
+
+// ── Tema oscuro ──────────────────────────────────────────────
+:host.theme-dark {
+  .cm-card {
+    background: #1a1f26;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+  }
+
+  .cm-icon {
+    background: rgba(96, 165, 250, 0.14);
+    color: #93b4ff;
+
+    &.danger {
+      background: rgba(239, 68, 68, 0.14);
+      color: #f87171;
+    }
+  }
+
+  .cm-title { color: #e6edf7; }
+
+  .cm-message { color: #9aa7bd; }
+
+  .cm-cancel {
+    background: #151b23;
+    color: #cbd5e1;
+    border-color: rgba(255, 255, 255, 0.12);
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(255, 255, 255, 0.16);
+    }
+  }
+}

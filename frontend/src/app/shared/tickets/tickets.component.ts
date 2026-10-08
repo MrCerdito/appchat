@@ -410,6 +410,10 @@ export class TicketsComponent implements OnInit, OnDestroy {
   private search$ = new Subject<string>();
   private destroy$ = new Subject<void>();
 
+  protected get esAdmin(): boolean {
+    return this.router.url.startsWith('/admin');
+  }
+
   constructor(
     private ticketService: TicketService,
     private moduloService: ModuloService,

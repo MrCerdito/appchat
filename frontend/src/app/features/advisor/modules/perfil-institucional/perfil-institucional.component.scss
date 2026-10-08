@@ -138,6 +138,11 @@
   flex-wrap: wrap;
 }
 
+// En el admin el banner se oculta (breadcrumb) y las acciones se alinean a la derecha.
+.pi-banner.es-admin .pi-banner-actions {
+  justify-content: flex-end;
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // 3. Buttons (shared)
 // ══════════════════════════════════════════════════════════════════════════════
@@ -2596,5 +2601,360 @@
         justify-content: center;
       }
     }
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Import: vista previa + reporte profesional (subir → previsualizar → confirmar)
+// ══════════════════════════════════════════════════════════════════════════════
+
+.pi-modal--import {
+  max-width: 880px;
+}
+
+.pi-import-hint {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 12px 0 0;
+  font-size: 12.5px;
+  color: var(--pi-text-secondary, $pi-text-secondary);
+
+  svg {
+    flex-shrink: 0;
+    color: var(--pi-primary-text, $pi-blue-600);
+  }
+
+  strong {
+    color: var(--pi-text, $pi-text);
+    font-weight: 600;
+  }
+}
+
+.pi-rpt {
+  text-align: left;
+}
+
+.pi-rpt-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.pi-rpt-head-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--pi-tint-blue, $pi-blue-50);
+  color: var(--pi-link, $pi-blue-600);
+
+  &--ok {
+    background: var(--pi-tint-green, $pi-green-50);
+    color: var(--pi-ok-text, $pi-green-600);
+  }
+}
+
+.pi-rpt-head-txt {
+  min-width: 0;
+
+  h4 {
+    margin: 0;
+    font-size: 15.5px;
+    font-weight: 700;
+    color: var(--pi-text, $pi-text);
+  }
+
+  p {
+    margin: 3px 0 0;
+    font-size: 12.5px;
+    color: var(--pi-text-secondary, $pi-text-secondary);
+    word-break: break-word;
+  }
+}
+
+.pi-rpt-cards {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+
+  @media (max-width: 760px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.pi-rpt-card {
+  border: 1px solid var(--pi-border, $pi-border);
+  border-radius: $pi-radius-md;
+  padding: 10px 6px;
+  text-align: center;
+  background: var(--pi-fill, $pi-slate-50);
+
+  .pi-rpt-num {
+    display: block;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--pi-text, $pi-text);
+  }
+
+  .pi-rpt-lab {
+    display: block;
+    margin-top: 2px;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--pi-text-secondary, $pi-text-secondary);
+  }
+
+  &--green {
+    background: var(--pi-tint-green, $pi-green-50);
+    border-color: transparent;
+
+    .pi-rpt-num,
+    .pi-rpt-lab {
+      color: var(--pi-ok-text, $pi-green-700);
+    }
+  }
+
+  &--blue {
+    background: var(--pi-tint-blue, $pi-blue-50);
+    border-color: transparent;
+
+    .pi-rpt-num,
+    .pi-rpt-lab {
+      color: var(--pi-link, $pi-blue-700);
+    }
+  }
+
+  &--gray {
+    background: var(--pi-fill-2, $pi-slate-100);
+  }
+
+  &--orange {
+    background: var(--pi-tint-amber, $pi-amber-50);
+    border-color: transparent;
+
+    .pi-rpt-num,
+    .pi-rpt-lab {
+      color: var(--pi-warn-text, $pi-amber-700);
+    }
+  }
+
+  &--violet {
+    background: var(--pi-tint-violet, $pi-violet-50);
+    border-color: transparent;
+
+    .pi-rpt-num,
+    .pi-rpt-lab {
+      color: var(--pi-violet-text, $pi-violet-700);
+    }
+  }
+
+  &--red {
+    background: var(--pi-tint-red, $pi-red-50);
+    border-color: transparent;
+
+    .pi-rpt-num,
+    .pi-rpt-lab {
+      color: var(--pi-danger-text, $pi-red-600);
+    }
+  }
+}
+
+.pi-rpt-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--pi-border, $pi-border);
+  margin-bottom: 12px;
+  overflow-x: auto;
+}
+
+.pi-rpt-tab {
+  border: none;
+  background: transparent;
+  padding: 8px 12px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--pi-text-secondary, $pi-text-secondary);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  white-space: nowrap;
+
+  &:hover {
+    color: var(--pi-text, $pi-text);
+  }
+
+  &.active {
+    color: var(--pi-primary-text, $pi-blue-600);
+    border-bottom-color: var(--pi-primary, $pi-blue-500);
+  }
+}
+
+.pi-rpt-panel {
+  min-height: 130px;
+}
+
+.pi-rpt-table-wrap {
+  max-height: 300px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--pi-border, $pi-border);
+  border-radius: $pi-radius-md;
+
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(15, 23, 42, 0.18);
+    border-radius: 8px;
+  }
+}
+
+.pi-rpt-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+
+  th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--pi-fill-2, $pi-slate-100);
+    color: var(--pi-text-secondary, $pi-text-secondary);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    text-align: left;
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--pi-border, $pi-border);
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--pi-border, $pi-border);
+    color: var(--pi-text, $pi-text);
+    vertical-align: top;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+}
+
+.pi-rpt-center {
+  text-align: center;
+}
+
+.pi-rpt-val--old {
+  color: var(--pi-danger-text, $pi-red-600);
+}
+
+.pi-rpt-val--new {
+  color: var(--pi-ok-text, $pi-green-700);
+  font-weight: 600;
+}
+
+.pi-rpt-det {
+  font-size: 12px;
+  color: var(--pi-text-secondary, $pi-slate-500);
+}
+
+.pi-rpt-empty {
+  padding: 28px 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--pi-text-secondary, $pi-text-secondary);
+  background: var(--pi-fill, $pi-slate-50);
+  border: 1px dashed var(--pi-border, $pi-border);
+  border-radius: $pi-radius-md;
+}
+
+.pi-rpt-avisos {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.pi-rpt-aviso {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  background: var(--pi-tint-amber, $pi-amber-50);
+  border: 1px solid var(--pi-border, $pi-border);
+  border-radius: $pi-radius-md;
+  font-size: 12.5px;
+
+  svg {
+    flex-shrink: 0;
+    margin-top: 1px;
+    color: var(--pi-warn-text, $pi-amber-600);
+  }
+
+  strong {
+    display: block;
+    margin-bottom: 2px;
+    font-weight: 600;
+    color: var(--pi-text, $pi-text);
+  }
+
+  span {
+    color: var(--pi-text-secondary, $pi-text-secondary);
+    word-break: break-word;
+  }
+}
+
+.pi-rpt-download {
+  display: flex;
+  justify-content: center;
+  margin-top: 14px;
+}
+
+// Badges de estado del reporte de importación
+.pi-badge {
+  &--crear,
+  &--mapeada {
+    background: var(--pi-tint-green, $pi-green-50);
+    color: var(--pi-ok-text, $pi-green-700);
+    border: 1px solid var(--pi-border, $pi-green-100);
+  }
+
+  &--actualizar {
+    background: var(--pi-tint-blue, $pi-blue-50);
+    color: var(--pi-link, $pi-blue-700);
+    border: 1px solid var(--pi-border, $pi-blue-100);
+  }
+
+  &--sin-cambios {
+    background: var(--pi-fill-2, $pi-slate-100);
+    color: var(--pi-text-secondary, $pi-slate-600);
+    border: 1px solid var(--pi-border, $pi-slate-200);
+  }
+
+  &--duplicada,
+  &--ausente {
+    background: var(--pi-tint-amber, $pi-amber-50);
+    color: var(--pi-warn-text, $pi-amber-700);
+    border: 1px solid var(--pi-border, $pi-amber-100);
+  }
+
+  &--ignorada {
+    background: var(--pi-tint-red, $pi-red-50);
+    color: var(--pi-danger-text, $pi-red-600);
+    border: 1px solid var(--pi-border, $pi-red-100);
   }
 }

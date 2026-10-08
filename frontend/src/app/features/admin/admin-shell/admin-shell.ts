@@ -16,13 +16,16 @@ import { NotificationService } from '../../../core/services/notification.service
 import { ThemeService } from '../../../core/services/theme.service';
 import { LayoutService } from '../../../core/services/layout.service';
 import { NotificationBellComponent } from '../../../shared/components/notification-bell.component';
+import { LucideAngularModule, ArrowLeft, Search, ChevronDown } from 'lucide-angular';
+import { AdminSearchService } from '../admin-search.service';
+import { tituloDeRuta } from '../modules/dashboard/dashboard';
 import { User } from '../../../core/models/user.model';
 import { trackByIndex, trackById } from '../../../shared/utils/track-by';
 
 @Component({
   selector: 'app-admin-shell',
   standalone: true,
-  imports: [CommonModule, RouterModule, ToastContainerComponent, NotificationBellComponent, ChangelogModalComponent],
+  imports: [CommonModule, RouterModule, ToastContainerComponent, NotificationBellComponent, ChangelogModalComponent, LucideAngularModule],
   templateUrl: './admin-shell.html',
   styleUrl: './admin-shell.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -30,7 +33,9 @@ import { trackByIndex, trackById } from '../../../shared/utils/track-by';
 export class AdminShellComponent implements OnInit, OnDestroy {
   protected readonly trackByIndex = trackByIndex;
   protected readonly trackById = trackById;
+  protected readonly icons = { ArrowLeft, Search, ChevronDown };
   currentAdmin: User | null = null;
+  searchQuery = '';
   menuOpen = false;
   sidebarOpen = false;
   appearanceOpen = false;
@@ -58,8 +63,15 @@ export class AdminShellComponent implements OnInit, OnDestroy {
     private layoutService: LayoutService,
     private cdr: ChangeDetectorRef,
     protected permisos: PermisosService,
+    private searchSvc: AdminSearchService,
   ) {
     this.currentUrl = router.url;
+    this.searchQuery = this.searchSvc.snapshot;
+  }
+
+  onSearchInput(value: string): void {
+    this.searchQuery = value;
+    this.searchSvc.setQuery(value);
   }
 
   ngOnInit(): void {
@@ -236,6 +248,10 @@ export class AdminShellComponent implements OnInit, OnDestroy {
 
   get enDashboard(): boolean {
     return this.currentUrl.endsWith('/admin/dashboard') || this.currentUrl === '/admin';
+  }
+
+  get paginaActual(): string {
+    return tituloDeRuta(this.currentUrl);
   }
 
   volverDashboard(): void {

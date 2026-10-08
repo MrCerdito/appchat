@@ -232,7 +232,8 @@
       </button>
     </div>
 
-    <nav class="shell-nav">
+    <div class="shell-nav-wrap" [class.nav-at-bottom]="navAtBottom">
+    <nav class="shell-nav" (scroll)="onNavScroll($event)">
 
       <!-- Atención -->
       @if (permisos.tieneAcceso('chats') || permisos.tieneAcceso('whatsapp') || permisos.tieneAcceso('chat_interno')) {
@@ -438,6 +439,7 @@
       }
 
     </nav>
+    </div>
 
 
 

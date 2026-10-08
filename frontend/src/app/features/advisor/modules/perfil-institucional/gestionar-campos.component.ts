@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, HostBinding, OnD
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Location } from '@angular/common';
+import { Router } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import {
@@ -62,7 +63,12 @@ export class GestionarCamposComponent implements OnInit, OnDestroy {
     private location: Location,
     private cdr: ChangeDetectorRef,
     private themeService: ThemeService,
+    private router: Router,
   ) {}
+
+  protected get esAdmin(): boolean {
+    return this.router.url.startsWith('/admin');
+  }
 
   ngOnInit(): void {
     this.themeDark = this.themeService.currentTheme === 'dark';

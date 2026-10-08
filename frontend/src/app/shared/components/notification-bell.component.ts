@@ -984,6 +984,128 @@ const TYPE_FG: Record<string, string> = {
       color: #fff;
     }
     :host.theme-dark .meeting-reminder-actions .meeting-reminder-join:hover { background: #3b62d4; }
+
+    /* ---------- Tema oscuro: panel de notificaciones ---------- */
+    :host.theme-dark .notif-bell:hover { background: rgba(255, 255, 255, 0.08); color: #e6edf7; }
+
+    :host.theme-dark .notif-panel {
+      background: #1a1f26;
+      border-color: rgba(255, 255, 255, 0.09);
+      color: #e6edf7;
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55), 0 4px 16px rgba(0, 0, 0, 0.35);
+    }
+
+    :host.theme-dark .notif-panel-header { border-bottom-color: rgba(255, 255, 255, 0.07); }
+    :host.theme-dark .notif-panel-header h3 { color: #e6edf7; }
+    :host.theme-dark .notif-heading-copy > span { color: #8f9bb3; }
+
+    :host.theme-dark .notif-global-switch { background: #151b23; border-color: rgba(255, 255, 255, 0.1); }
+    :host.theme-dark .notif-global-switch:hover { border-color: rgba(96, 165, 250, 0.45); background: #1c2330; }
+    :host.theme-dark .notif-global-copy strong { color: #d7e0ee; }
+    :host.theme-dark .notif-global-copy small { color: #8f9bb3; }
+    :host.theme-dark .notif-global-track { background: #39424f; }
+    :host.theme-dark .notif-global-error { color: #f87171 !important; }
+
+    :host.theme-dark .notif-mark-all { color: #818cf8; }
+    :host.theme-dark .notif-mark-all:hover { background: rgba(129, 140, 248, 0.14); }
+
+    :host.theme-dark .notif-delete-all,
+    :host.theme-dark .notif-bulk-del {
+      background: #151b23;
+      border-color: rgba(248, 113, 113, 0.4);
+      color: #f87171;
+    }
+    :host.theme-dark .notif-delete-all:hover,
+    :host.theme-dark .notif-bulk-del:hover {
+      background: rgba(248, 113, 113, 0.12);
+      border-color: rgba(251, 113, 133, 0.6);
+    }
+
+    :host.theme-dark .notif-permission-btn {
+      background: rgba(99, 102, 241, 0.16);
+      border-color: rgba(129, 140, 248, 0.45);
+      color: #a5b4fc;
+    }
+    :host.theme-dark .notif-permission-btn:hover { background: rgba(99, 102, 241, 0.26); }
+    :host.theme-dark .notif-permission-state { background: #232a34; color: #9aa7bd; }
+    :host.theme-dark .notif-permission-state.is-on { background: rgba(16, 185, 129, 0.16); color: #4ade80; }
+
+    :host.theme-dark .notif-sections { background: #1a1f26; border-bottom-color: rgba(255, 255, 255, 0.07); }
+    :host.theme-dark .notif-section-tab {
+      background: #151b23;
+      border-color: rgba(255, 255, 255, 0.1);
+      color: #9aa7bd;
+    }
+    :host.theme-dark .notif-section-tab:hover { border-color: rgba(96, 165, 250, 0.45); background: #1d2431; }
+    :host.theme-dark .notif-section-tab.active {
+      border-color: rgba(96, 165, 250, 0.5);
+      background: rgba(96, 165, 250, 0.14);
+      color: #93b4ff;
+    }
+    :host.theme-dark .notif-section-count { background: rgba(255, 255, 255, 0.09); }
+
+    :host.theme-dark .notif-email-setting { background: #151b23; border-bottom-color: rgba(255, 255, 255, 0.07); }
+    :host.theme-dark .notif-email-setting-copy strong { color: #d7e0ee; }
+    :host.theme-dark .notif-email-setting-copy small { color: #8f9bb3; }
+    :host.theme-dark .notif-email-setting-copy .notif-pref-error { color: #f87171; }
+
+    :host.theme-dark .notif-selected-count { color: #818cf8; }
+    :host.theme-dark .notif-bulk-cancel { color: #9aa7bd; }
+    :host.theme-dark .notif-bulk-cancel:hover { background: rgba(255, 255, 255, 0.08); }
+
+    :host.theme-dark .notif-desktop-row { background: #151b23; border-bottom-color: rgba(255, 255, 255, 0.07); }
+    :host.theme-dark .notif-desk-icon { background: rgba(99, 102, 241, 0.18); color: #a5b4fc; }
+    :host.theme-dark .notif-desk-title { color: #e6edf7; }
+    :host.theme-dark .notif-desk-sub { color: #8f9bb3; }
+    :host.theme-dark .notif-toggle-track { background: #39424f; box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4); }
+
+    :host.theme-dark .notif-list { background: #1a1f26; }
+    :host.theme-dark .notif-list::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.18); }
+    :host.theme-dark .notif-list::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); }
+    :host.theme-dark .notif-empty { color: #8f9bb3; }
+
+    :host.theme-dark .notif-item {
+      background: #151b23;
+      border-color: rgba(255, 255, 255, 0.07);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    }
+    :host.theme-dark .notif-item:hover {
+      background: #1a2029;
+      border-color: rgba(255, 255, 255, 0.12);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+    }
+    :host.theme-dark .notif-item.unread {
+      background: #161d2b;
+      border-color: rgba(129, 140, 248, 0.25);
+      box-shadow: inset 3px 0 0 #818cf8, 0 1px 2px rgba(0, 0, 0, 0.4);
+    }
+    :host.theme-dark .notif-item.unread:hover { background: #1a2130; }
+    :host.theme-dark .notif-item.selected {
+      background: rgba(99, 102, 241, 0.18);
+      border-color: rgba(129, 140, 248, 0.55);
+      box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.3), 0 4px 12px rgba(99, 102, 241, 0.15);
+    }
+
+    :host.theme-dark .notif-checkbox {
+      background: #10151c;
+      border-color: rgba(255, 255, 255, 0.28);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    }
+    :host.theme-dark .notif-check input:checked + .notif-checkbox { box-shadow: 0 2px 6px rgba(99, 102, 241, 0.5); }
+
+    :host.theme-dark .notif-title { color: #e6edf7; }
+    :host.theme-dark .notif-msg { color: #9aa7bd; }
+    :host.theme-dark .notif-email-subject { color: #c3cddc; }
+    :host.theme-dark .notif-email-preview { color: #9aa7bd; }
+    :host.theme-dark .notif-time { color: #8f9bb3; }
+    :host.theme-dark .notif-chevron { color: #5c6a80; }
+    :host.theme-dark .notif-item:hover .notif-chevron { color: #818cf8; }
+
+    :host.theme-dark .notif-panel-footer { background: #1a1f26; border-top-color: rgba(255, 255, 255, 0.07); }
+    :host.theme-dark .notif-footer-left { color: #8f9bb3; }
+    :host.theme-dark .notif-footer-left svg { color: #4ade80; }
+    :host.theme-dark .notif-footer-view { color: #818cf8; }
+    :host.theme-dark .notif-footer-view:hover { background: rgba(129, 140, 248, 0.14); }
   `],
 })
 export class NotificationBellComponent implements OnInit, OnDestroy {

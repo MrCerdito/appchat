@@ -109,6 +109,10 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
   private msgFormatCache = new Map<string, SafeHtml>();
 
+  protected get esAdmin(): boolean {
+    return this.router.url.startsWith('/admin');
+  }
+
   constructor(
     private sessionService: SessionService,
     private auth          : AuthService,

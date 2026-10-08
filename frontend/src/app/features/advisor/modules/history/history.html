@@ -6,6 +6,7 @@
 
     <!-- ─── HEADER ─── -->
     <header class="hv-header">
+      @if (!esAdmin) {
       <div class="hv-header-left">
         <div class="hv-header-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -17,6 +18,7 @@
           <p>Gestiona y consulta todos los chats atendidos por el sistema</p>
         </div>
       </div>
+      }
       <div class="hv-zoom-control" title="Tamaño del módulo">
         <button type="button" class="hv-zoom-btn" (click)="zoomOut()" [disabled]="zoom <= 0.7" aria-label="Reducir zoom">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
