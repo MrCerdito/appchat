@@ -421,6 +421,18 @@ get rolLabel(): string {
   carruselIdx = 0;
   private carruselTimer: any;
   private asesoresCarruselCargados = false;
+
+  // Efecto "asesor conectado" (cinematográfico ~2.5s):
+  // 'seleccion' = el asesor se centra en el carrusel con anillo + check,
+  // 'overlay'   = pantalla "¡Conectado!" a pantalla completa (sobrevive al
+  //               cambio de paso: el bloque vive FUERA del @if de waiting),
+  // 'saliendo'  = el overlay se desvanece revelando el chat ya abierto.
+  conexionFase: 'ninguna' | 'seleccion' | 'overlay' | 'saliendo' = 'ninguna';
+  conexionNombre = '';
+  conexionFoto = '';
+  conexionIniciales = '';
+  conexionSeleccionKey: string | null = null;
+  private conexTimeouts: any[] = [];
   clientTimer: {
     tipo: TimerUpdatePayload['tipo'];
     restante: number;
@@ -1180,60 +1192,23 @@ En el siguiente menú encontrarás varias opciones en las que te puedes apoyar, 
     this.socket.on<{ name: string; profilePhotoUrl?: string }>('advisor_joined')
       .pipe(takeUntil(this.socketDestroy$))
       .subscribe((data) => {
-        this.advisorName = data.name;
-        this.advisorPhotoUrl = this.normalizePhotoUrl(data.profilePhotoUrl ?? '');
-        // El asesor se conectó: garantizar input humano (clip + notas de voz)
-        // aunque la asignación llegue sin pasar por transferToAdvisor().
-        this.aiMode = false;
-        this.cancelarTimerInactividadIa();
-        this.inactividadIaAviso = false;
-        this.sound.playNotification();
-        this.clearWaitingTimer();
-        this.mostrarAsesoresOcupados = false;
-        this.queuePosition = -1;
-        this.queueTotal    = null;
-        this.fueraDeHorario = false;
-        // El asesor está de vuelta: ocultar el banner de reconexión residual
-        // (puede quedar activo tras una reasignación con session_interrupted).
-        this.reconexionActiva = false;
-        this.reconexionSegundos = 0;
-        clearInterval(this.reconexionInterval);
-        this.reconexionInterval = null;
-        this.step = 'chat';
-        this.socket.emit('set_active', { sessionId: this.session!.id, active: true });
-
-        if (this.session) {
-          const persistido = { ...this.session, aiMode: false, advisorName: data.name, advisorPhotoUrl: this.advisorPhotoUrl };
-          localStorage.setItem(SESSION_KEY, JSON.stringify(persistido));
+        const foto = this.normalizePhotoUrl(data.profilePhotoUrl ?? '');
+        // Desde la pantalla de espera: efecto de selección + "¡Conectado!"
+        // + apertura del chat. En cualquier otro paso (reconexión/reasignación
+        // estando ya en el chat) se aplica al instante, como siempre.
+        if (this.step === 'waiting' && !this.reducedMotion()) {
+          this.iniciarEfectoConexion(data.name, foto);
+          return;
         }
-
-        if (this.pendingAttachments.length > 0) {
-          const attachments = [...this.pendingAttachments];
-          const content = this.pendingTransferText ||
-            (attachments.length === 1 ? 'Adjunté un archivo' : `Adjunté ${attachments.length} archivos`);
-          this.pendingAttachments = [];
-          this.pendingTransferText = '';
-          setTimeout(() => {
-            this.socket.emit('send_message', {
-              sessionId: this.session!.id,
-              content,
-              senderName: this.clientName,
-              attachments,
-            });
-          }, 300);
-        }
-
-        if (this.session) {
-          const updated = { ...this.session, status: 'active', advisor: { name: data.name }, aiMode: false };
-          localStorage.setItem(SESSION_KEY, JSON.stringify(updated));
-          this.session = updated as Session;
-        }
-        this.cdr.detectChanges();
+        this.aplicarConexionAsesor(data.name, foto, true);
       });
 
     this.socket.on<any>('session_closed')
       .pipe(takeUntil(this.socketDestroy$))
       .subscribe(() => {
+        // Si la sesión se cierra a mitad del efecto de conexión, cancelarlo:
+        // no hay chat que abrir.
+        this.cancelarEfectoConexion();
         this.socketDestroy$.next();
         this.socket.disconnect();
         if (this.aiMode) {
@@ -2606,7 +2581,145 @@ En el siguiente menú encontrarás varias opciones en las que te puedes apoyar, 
     return (((p[0] && p[0][0]) || '') + ((p[1] && p[1][0]) || '')).toUpperCase() || 'A';
   }
 
+  // ── Efecto "asesor conectado" ──────────────────────────────────────────
+  // A · centra al asesor en el carrusel (movimiento corto), lo marca con
+  //     anillo + check y atenúa a los demás; B · overlay "¡Conectado!"
+  //     con foto/nombre; C · monta el chat detrás y el overlay se retira.
+  private iniciarEfectoConexion(nombre: string, foto: string): void {
+    this.cancelarEfectoConexion();
+    this.conexionNombre = nombre;
+    this.conexionFoto = foto;
+    this.conexionIniciales = this.inicialesDe(nombre);
+    this.sound.playNotification();
+
+    this.congelarEspera();
+    const key = this.centrarAsesorEnCarrusel(nombre);
+    this.conexionSeleccionKey = key;
+    this.conexionFase = key ? 'seleccion' : 'overlay';
+    this.cdr.detectChanges();
+
+    const tSel = key ? 650 : 150;
+    this.conexTimeouts.push(setTimeout(() => {
+      this.conexionFase = 'overlay';
+      this.cdr.detectChanges();
+    }, tSel));
+    this.conexTimeouts.push(setTimeout(() => {
+      this.aplicarConexionAsesor(nombre, foto, false);
+    }, tSel + 1300));
+    this.conexTimeouts.push(setTimeout(() => {
+      this.conexionFase = 'saliendo';
+      this.cdr.detectChanges();
+    }, tSel + 1600));
+    this.conexTimeouts.push(setTimeout(() => {
+      this.conexionFase = 'ninguna';
+      this.conexionSeleccionKey = null;
+      this.cdr.detectChanges();
+    }, tSel + 1950));
+  }
+
+  // Todo lo que implica la llegada del asesor + abrir el chat. Se usa en el
+  // salto directo (reconexiones) y al final del efecto (sin sonido, que ya
+  // sonó al inicio de la selección).
+  private aplicarConexionAsesor(nombre: string, foto: string, conSonido: boolean): void {
+    this.advisorName = nombre;
+    this.advisorPhotoUrl = foto;
+    // El asesor se conectó: garantizar input humano (clip + notas de voz)
+    // aunque la asignación llegue sin pasar por transferToAdvisor().
+    this.aiMode = false;
+    this.cancelarTimerInactividadIa();
+    this.inactividadIaAviso = false;
+    if (conSonido) this.sound.playNotification();
+    this.clearWaitingTimer();
+    this.mostrarAsesoresOcupados = false;
+    this.queuePosition = -1;
+    this.queueTotal    = null;
+    this.fueraDeHorario = false;
+    // El asesor está de vuelta: ocultar el banner de reconexión residual
+    // (puede quedar activo tras una reasignación con session_interrupted).
+    this.reconexionActiva = false;
+    this.reconexionSegundos = 0;
+    clearInterval(this.reconexionInterval);
+    this.reconexionInterval = null;
+    this.step = 'chat';
+    this.socket.emit('set_active', { sessionId: this.session!.id, active: true });
+
+    if (this.session) {
+      const persistido = { ...this.session, aiMode: false, advisorName: nombre, advisorPhotoUrl: foto };
+      localStorage.setItem(SESSION_KEY, JSON.stringify(persistido));
+    }
+
+    if (this.pendingAttachments.length > 0) {
+      const attachments = [...this.pendingAttachments];
+      const content = this.pendingTransferText ||
+        (attachments.length === 1 ? 'Adjunté un archivo' : `Adjunté ${attachments.length} archivos`);
+      this.pendingAttachments = [];
+      this.pendingTransferText = '';
+      setTimeout(() => {
+        this.socket.emit('send_message', {
+          sessionId: this.session!.id,
+          content,
+          senderName: this.clientName,
+          attachments,
+        });
+      }, 300);
+    }
+
+    if (this.session) {
+      const updated = { ...this.session, status: 'active', advisor: { name: nombre }, aiMode: false };
+      localStorage.setItem(SESSION_KEY, JSON.stringify(updated));
+      this.session = updated as Session;
+    }
+    this.cdr.detectChanges();
+  }
+
+  // Pausa los relojes de espera Y el carrusel SIN reiniciar el índice
+  // (a diferencia de detenerCarruselAsesores, que rebobina al centro inicial).
+  private congelarEspera(): void {
+    if (this.waitingTimer) { clearTimeout(this.waitingTimer); this.waitingTimer = null; }
+    if (this.waitingTickTimer) { clearInterval(this.waitingTickTimer); this.waitingTickTimer = null; }
+    if (this.carruselTimer) { clearInterval(this.carruselTimer); this.carruselTimer = null; }
+  }
+
+  // Centra al asesor (off=0) eligiendo la copia y el giro más cercanos al
+  // índice actual (deslizamiento corto). Devuelve la key del item centrado,
+  // o null si el asesor no está en el roster público.
+  private centrarAsesorEnCarrusel(nombre: string): string | null {
+    const base = this.carruselTotal;
+    const total = this.carruselAsesores.length;
+    if (!base || !total || base < 2) return null;
+    const objetivo = (nombre || '').trim().toLowerCase();
+    const i = this.carruselAsesores.findIndex(a => a.name.trim().toLowerCase() === objetivo);
+    if (i < 0) return null;
+
+    let mejorC = i;
+    let mejorIdx = this.carruselIdx;
+    let mejorDist = Infinity;
+    const copias = Math.max(1, Math.round(total / base));
+    for (let k = 0; k < copias; k++) {
+      const c = i + k * base;
+      if (c >= total) break;
+      const idxCandidato = c + Math.round((this.carruselIdx - c) / total) * total;
+      const dist = Math.abs(idxCandidato - this.carruselIdx);
+      if (dist < mejorDist) { mejorDist = dist; mejorIdx = idxCandidato; mejorC = c; }
+    }
+    this.carruselIdx = mejorIdx;
+    this.actualizarEstadosCarrusel();
+    return this.carruselAsesores[mejorC].key;
+  }
+
+  private cancelarEfectoConexion(): void {
+    this.conexTimeouts.forEach((t) => clearTimeout(t));
+    this.conexTimeouts = [];
+    this.conexionFase = 'ninguna';
+    this.conexionSeleccionKey = null;
+  }
+
+  private reducedMotion(): boolean {
+    return typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
   exitWaiting(): void {
+    this.cancelarEfectoConexion();
     this.clearWaitingTimer();
     this.mostrarAsesoresOcupados = false;
     if (this.session) this.socket.emit('client_close_session', this.session.id);
@@ -2776,6 +2889,7 @@ En el siguiente menú encontrarás varias opciones en las que te puedes apoyar, 
   // ══════════════════════════════════════════════════════════════════════════
 
   clearSession(): void {
+    this.cancelarEfectoConexion();
     if (this.timerCierreSesion) { clearTimeout(this.timerCierreSesion); this.timerCierreSesion = null; }
     this.detenerCounterLocalTimer();
     clearInterval(this.reconexionInterval);
@@ -2871,6 +2985,7 @@ En el siguiente menú encontrarás varias opciones en las que te puedes apoyar, 
   
 
   ngOnDestroy(): void {
+    this.cancelarEfectoConexion();
     this.maintenance.stop();
     clearInterval(this.horarioPollInterval);
     this.horarioPollInterval = null;

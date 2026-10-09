@@ -576,6 +576,7 @@ $radius-pill: 999px;
   }
 
   .adv-avatar {
+    position: relative;
     width: var(--adv-w);
     height: var(--adv-w);
     border-radius: 50%;
@@ -615,6 +616,69 @@ $radius-pill: 999px;
     transition: opacity 0.35s ease;
     &.visible { opacity: 1; }
   }
+
+  // ── SELECCIÓN (el asesor se unió): anillo pulsante + check en el centro,
+  //    los demás atenúados y desenfocados. La atenuación va por [style]
+  //    en el template (gana al inline del estado); aquí va el filtro.
+  .adv-item.atenuado { filter: blur(1.5px); transition: filter 0.4s ease; }
+
+  .adv-item.seleccionado::after {
+    // Anillo de marca que pulsa alrededor del avatar elegido.
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: var(--adv-w);
+    height: var(--adv-w);
+    margin-left: calc(var(--adv-w) / -2);
+    border-radius: 50%;
+    border: 2.5px solid var(--brand, #ce9b30);
+    animation: cx-ring 1.4s ease-out infinite;
+    pointer-events: none;
+  }
+
+  .adv-item.seleccionado .adv-avatar {
+    animation: cx-pop 0.5s cubic-bezier(0.2, 0.8, 0.3, 1.3);
+    box-shadow: 0 0 0 3px var(--brand, #ce9b30), 0 8px 20px rgba(15, 23, 42, 0.14);
+  }
+
+  .adv-item.seleccionado .adv-check {
+    // Check dentro del círculo, esquina inferior derecha (no lo recorta
+    // el overflow de la foto), con rebote.
+    position: absolute;
+    right: 12%;
+    bottom: 12%;
+    width: 30%;
+    height: 30%;
+    border-radius: 50%;
+    background: var(--brand, #ce9b30);
+    border: 2px solid #ffffff;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    animation: cx-badge 0.5s cubic-bezier(0.2, 0.8, 0.3, 1.35) 0.3s both;
+    svg { width: 62%; height: 62%; }
+  }
+}
+
+@keyframes cx-pop {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.07); }
+  100% { transform: scale(1); }
+}
+
+@keyframes cx-ring {
+  0% { transform: scale(1); opacity: 0.9; }
+  70% { transform: scale(1.32); opacity: 0; }
+  100% { transform: scale(1.32); opacity: 0; }
+}
+
+@keyframes cx-badge {
+  0% { transform: scale(0); }
+  70% { transform: scale(1.18); }
+  100% { transform: scale(1); }
 }
 
 .waiting-dots {
@@ -719,6 +783,131 @@ $radius-pill: 999px;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// OVERLAY "¡CONECTADO!" (efecto de conexión del asesor)
+// Aparece tras la selección en el carrusel, el chat se monta DETRÁS y el
+// overlay se desvanece revelándolo. position: fixed => cubre el área del
+// widget (iframe) o la ventana en /chat.
+// ══════════════════════════════════════════════════════════════════════════════
+.conexion-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: cx-in 0.38s cubic-bezier(0.4, 0, 0.2, 1) both;
+  &.saliendo { animation: cx-out 0.32s ease both; }
+
+  .conexion-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 24px;
+  }
+
+  .conexion-avatar {
+    position: relative;
+    width: clamp(84px, 24vw, 104px);
+    height: clamp(84px, 24vw, 104px);
+    margin-bottom: 24px;
+  }
+
+  .conexion-ripple {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 2px solid var(--brand, #ce9b30);
+    opacity: 0;
+    animation: cx-ripple 1.7s ease-out infinite;
+    &.r2 { animation-delay: 0.55s; }
+  }
+
+  .conexion-foto {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    overflow: hidden;
+    background: #eef1f5;
+    border: 3px solid #ffffff;
+    box-shadow: 0 0 0 3px var(--brand, #ce9b30), 0 14px 34px rgba(15, 23, 42, 0.18);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .conexion-ini { font-size: clamp(30px, 8vw, 38px); font-weight: 600; color: #475569; }
+  }
+
+  .conexion-check {
+    position: absolute;
+    right: -4px;
+    bottom: -4px;
+    width: clamp(30px, 8.5vw, 36px);
+    height: clamp(30px, 8.5vw, 36px);
+    border-radius: 50%;
+    background: var(--brand, #ce9b30);
+    border: 3px solid #ffffff;
+    box-shadow: 0 4px 10px rgba(15, 23, 42, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    animation: cx-badge 0.55s cubic-bezier(0.2, 0.8, 0.3, 1.35) 0.5s both;
+    svg { width: 14px; height: 14px; }
+  }
+
+  .conexion-titulo {
+    margin: 0 0 8px;
+    font-size: calc(var(--fz) * 1.35);
+    font-weight: 700;
+    color: var(--text);
+    animation: cx-up 0.45s cubic-bezier(0.4, 0, 0.2, 1) 0.3s both;
+  }
+
+  .conexion-sub {
+    margin: 0;
+    font-size: calc(var(--fz) * 0.95);
+    color: var(--text-muted);
+    strong { color: var(--text); font-weight: 600; }
+    animation: cx-up 0.45s cubic-bezier(0.4, 0, 0.2, 1) 0.45s both;
+  }
+
+  .conexion-abriendo {
+    margin-top: 22px;
+    font-size: calc(var(--fz) * 0.72);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #94a3b8;
+    animation: cx-up 0.45s cubic-bezier(0.4, 0, 0.2, 1) 0.6s both;
+  }
+}
+
+@keyframes cx-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cx-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes cx-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes cx-ripple {
+  0% { transform: scale(1); opacity: 0.85; }
+  75%, 100% { transform: scale(1.85); opacity: 0; }
+}
+
+// Accesibilidad: sin movimiento (el componente además salta el efecto).
+@media (prefers-reduced-motion: reduce) {
+  .conexion-overlay,
+  .conexion-overlay *,
+  .adv-item.seleccionado::after,
+  .adv-item.seleccionado .adv-avatar,
+  .adv-item.seleccionado .adv-check {
+    animation: none !important;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // CHAT BOX
 // ══════════════════════════════════════════════════════════════════════════════
 .chat-box {
@@ -731,6 +920,13 @@ $radius-pill: 999px;
   position: relative;
   background: $surface;
   margin: auto 0;
+  // Entrada al revelarse desde el overlay "¡Conectado!" (y al abrir chat).
+  animation: cx-chat-in 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@keyframes cx-chat-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.99); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 // ── CHAT HEADER ──────────────────────────────────────────────────────────────

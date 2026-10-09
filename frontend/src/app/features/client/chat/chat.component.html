@@ -301,17 +301,27 @@
             @let est = carruselEstados[i];
             <div class="adv-item"
                  [attr.data-off]="est?.off ?? 0"
+                 [class.seleccionado]="conexionSeleccionKey === adv.key"
+                 [class.atenuado]="conexionSeleccionKey !== null && conexionSeleccionKey !== adv.key"
                  [style.transform]="'translateX(calc(' + (est?.off ?? 0) + ' * var(--adv-step))) scale(' + (est?.escala ?? 0.5) + ')'"
-                 [style.opacity]="est?.op ?? 0"
-                 [style.z-index]="est?.z ?? 0">
+                 [style.opacity]="conexionSeleccionKey !== null ? (conexionSeleccionKey === adv.key ? 1 : 0.1) : (est?.op ?? 0)"
+                 [style.z-index]="conexionSeleccionKey === adv.key ? 20 : (est?.z ?? 0)">
               <div class="adv-avatar">
                 @if (adv.foto) {
                 <img [src]="adv.foto" [alt]="adv.name" (error)="adv.foto = ''"/>
                 } @else {
                 <span class="adv-ini">{{ adv.ini }}</span>
                 }
+                @if (conexionSeleccionKey === adv.key) {
+                <span class="adv-check">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                </span>
+                }
               </div>
-              <span class="adv-name" [class.visible]="(est?.off ?? 9) === 0">{{ adv.name }}</span>
+              <span class="adv-name"
+                    [class.visible]="(est?.off ?? 9) === 0 && (conexionSeleccionKey === null || conexionSeleccionKey === adv.key)">{{ adv.name }}</span>
             </div>
             }
           </div>
@@ -379,6 +389,35 @@
         </button>
       </div>
 
+    </div>
+  </div>
+  }
+
+  <!-- OVERLAY "¡CONECTADO!" — vive FUERA del @if de waiting para sobrevivir
+       al cambio de paso: entra tras la selección, el chat se monta detrás y
+       el overlay se desvanece revelándolo. -->
+  @if (conexionFase === 'overlay' || conexionFase === 'saliendo') {
+  <div class="conexion-overlay" [class.saliendo]="conexionFase === 'saliendo'">
+    <div class="conexion-card">
+      <div class="conexion-avatar">
+        <span class="conexion-ripple"></span>
+        <span class="conexion-ripple r2"></span>
+        <div class="conexion-foto">
+          @if (conexionFoto) {
+          <img [src]="conexionFoto" [alt]="conexionNombre"/>
+          } @else {
+          <span class="conexion-ini">{{ conexionIniciales }}</span>
+          }
+        </div>
+        <span class="conexion-check">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </span>
+      </div>
+      <h3 class="conexion-titulo">¡Conectado!</h3>
+      <p class="conexion-sub"><strong>{{ conexionNombre }}</strong> te está atendiendo</p>
+      <span class="conexion-abriendo">Abriendo el chat…</span>
     </div>
   </div>
   }
