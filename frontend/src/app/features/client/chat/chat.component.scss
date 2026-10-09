@@ -126,6 +126,7 @@ $radius-pill: 999px;
 // SIN scroll (el widget manda sobre la estética).
 @media (min-width: 641px) and (min-height: 700px) {
   .screen-form { padding: 4vh 16px; }
+  .waiting-screen { padding: 4vh 16px; }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -478,13 +479,46 @@ $radius-pill: 999px;
 // ══════════════════════════════════════════════════════════════════════════════
 // ESPERANDO ASESOR
 // ══════════════════════════════════════════════════════════════════════════════
-.waiting-card { max-width: 380px; }
+.waiting-screen {
+  // Mismo lenguaje que el formulario: superficie blanca que ocupa TODO el
+  // widget (sin tarjeta flotante), contenido centrado y pie con botón abajo.
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #ffffff;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.waiting-card {
+  // Sin tarjeta: se funde con el fondo blanco y completa el alto del widget
+  // (columna: contenido que crece · aviso de ocupados · pie fijo abajo).
+  height: 100%;
+  max-width: min(640px, 100%);
+  width: 100%;
+  border-radius: 0;
+  box-shadow: none;
+  border: none;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+}
 
 .waiting-body {
-  padding: 3rem 2rem; text-align: center;
-  display: flex; flex-direction: column; align-items: center; gap: 1rem;
-  h3 { font-size: 1rem; font-weight: 600; color: var(--text); margin: 0; }
-  p  { font-size: 0.82rem; color: var(--text-muted); margin: 0; line-height: 1.5; }
+  // Contenido centrado en el espacio que sobra; crece para empujar el pie
+  // hasta abajo (como .card-body del formulario, pero sin scroll: cabe todo).
+  flex: 1;
+  min-height: 0;
+  padding: calc(var(--sp) * 2) calc(var(--sp) * 1.5);
+  text-align: center;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: calc(var(--sp) * 1);
+  h3 { font-size: calc(var(--fz) * 1.1); font-weight: 600; color: var(--text); margin: 0; }
+  p  { font-size: calc(var(--fz) * 0.85); color: var(--text-muted); margin: 0; line-height: 1.5; max-width: 46ch; }
 }
 
 .waiting-visual {
@@ -562,28 +596,34 @@ $radius-pill: 999px;
 }
 
 .waiting-footer-actions {
-  display: flex; gap: 0.5rem;
-  padding: 0 1.25rem 1.25rem;
-
-  .btn-faq, .btn-exit-waiting {
-    flex: 1; padding: 0.55rem; border-radius: 8px;
-    font-family: var(--font); font-size: 0.78rem; font-weight: 500; cursor: pointer;
-    transition: all 0.18s; text-align: center;
-  }
-
-  .btn-faq {
-    background: transparent; border: 1px solid var(--border); color: var(--text-muted);
-    &:hover { border-color: #111; color: #111; }
-  }
+  // Pie fijo abajo del widget: mismos gutters y pad vertical que el
+  // .submit-zone del formulario. Botón completo a todo el ancho.
+  display: flex; gap: 0.5rem; flex-shrink: 0;
+  padding: calc(var(--sp) * 0.7) calc(var(--sp) * 1.5) calc(var(--sp) * 1.3 + env(safe-area-inset-bottom));
 
   .btn-exit-waiting {
-    background: transparent; border: 1px solid #fee2e2; color: #dc2626;
+    flex: 1;
+    min-height: clamp(44px, calc(var(--fz) * 2.7), 56px);
+    padding: 0 1.3em;
+    border-radius: 12px;
+    background: #ffffff;
+    border: 1.5px solid #e5e9ef;
+    font-family: var(--font);
+    font-size: calc(var(--fz) * 0.95);
+    font-weight: 600;
+    color: #dc2626;
+    cursor: pointer;
+    transition: border-color 0.18s, background 0.18s;
     &:hover { background: #fef2f2; border-color: #dc2626; }
+    &:disabled { opacity: 0.5; cursor: not-allowed; }
   }
 }
 
 .busy-notice {
-  margin: 0 1.25rem 1.25rem;
+  // Aviso de "agentes ocupados": banda entre el contenido y el pie,
+  // con los mismos laterales que los campos del formulario (1.5sp).
+  margin: 0 calc(var(--sp) * 1.5) calc(var(--sp) * 0.9);
+  flex-shrink: 0;
   background: #fffbeb; border: 1px solid #fde68a;
   border-radius: var(--radius-sm); padding: 0.85rem 1rem;
   display: flex; align-items: flex-start; gap: 0.65rem;
@@ -601,15 +641,6 @@ $radius-pill: 999px;
     strong { font-size: 0.8rem; font-weight: 600; color: var(--text); }
     span   { font-size: 0.74rem; color: var(--text-muted); line-height: 1.45; }
   }
-}
-
-.btn-exit-waiting {
-  margin-top: 4px; padding: 0.4rem 0.75rem;
-  background: transparent; border: 1px solid #d97706;
-  border-radius: 8px; font-family: var(--font); font-size: 0.75rem;
-  font-weight: 500; color: #92400e; cursor: pointer;
-  transition: background 0.18s; align-self: flex-start;
-  &:hover { background: #fef3c7; }
 }
 
 @keyframes fadeSlideUp {

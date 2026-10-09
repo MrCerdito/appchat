@@ -286,7 +286,7 @@
        PASO 2 — ESPERANDO ASESOR (MEJORADO)
   ══════════════════════════════════════════════════════════════════ -->
   @if (step === 'waiting') {
-  <div class="screen-center">
+  <div class="screen-center waiting-screen">
     <div class="card waiting-card">
 
       <div class="waiting-body">
@@ -345,12 +345,6 @@
         </div>
       </div>
 
-      <div class="waiting-footer-actions">
-        <button class="btn-exit-waiting" (click)="exitWaiting()">
-          Salir de la fila
-        </button>
-      </div>
-
       @if (mostrarAsesoresOcupados) {
       <div class="busy-notice">
         <div class="busy-icon">
@@ -366,6 +360,12 @@
         </div>
       </div>
       }
+
+      <div class="waiting-footer-actions">
+        <button class="btn-exit-waiting" (click)="exitWaiting()">
+          Salir de la fila
+        </button>
+      </div>
 
     </div>
   </div>
