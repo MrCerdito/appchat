@@ -277,6 +277,19 @@ export class SessionsController {
     return this.sessionsService.findAllPaginated(req.user.id, +page, +limit);
   }
 
+  // Roster público para el carrusel del widget (solo nombre e imagen; sin
+  // correo ni estados de disponibilidad). Sin JWT: cualquier visitante ve al
+  // equipo de atención mientras espera un asesor.
+  @Get('advisors/publico')
+  async findAdvisorsPublico() {
+    const advisors = await this.sessionsService.findAllAdvisors();
+    return advisors.map((a) => ({
+      id: a.id,
+      name: a.name,
+      profilePhotoUrl: a.profilePhotoUrl ?? null,
+    }));
+  }
+
   @Get('advisors')
   @UseGuards(JwtAuthGuard)
   @Permiso('chats')

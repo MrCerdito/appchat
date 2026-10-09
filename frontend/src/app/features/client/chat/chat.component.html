@@ -306,6 +306,31 @@
         <h3>Conectando con un agente</h3>
         <p>En breve uno de nuestros especialistas atenderá tu solicitud</p>
 
+        @if (carruselAsesores.length > 0) {
+        <div class="advisor-carousel"
+             [class.estatico]="carruselTotal < 2"
+             [class.no-anim]="carruselSnap">
+          <span class="adv-label">Equipo de asesores</span>
+          <div class="adv-viewport">
+            <div class="adv-track"
+                 [style.transform]="'translateX(calc(' + carruselIdx + ' * (var(--adv-w) + var(--adv-gap)) * -1))'">
+              @for (adv of carruselAsesores; track adv.key) {
+              <div class="adv-item">
+                <div class="adv-avatar">
+                  @if (adv.foto) {
+                  <img [src]="adv.foto" [alt]="adv.name" (error)="adv.foto = ''"/>
+                  } @else {
+                  <span class="adv-ini">{{ adv.ini }}</span>
+                  }
+                </div>
+                <span class="adv-name">{{ adv.name }}</span>
+              </div>
+              }
+            </div>
+          </div>
+        </div>
+        }
+
         @if (queuePosition > 0) {
         <div class="queue-position">
           <span class="queue-num">{{ queuePosition }}</span>

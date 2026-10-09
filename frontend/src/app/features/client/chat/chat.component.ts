@@ -411,6 +411,15 @@ get rolLabel(): string {
   estimatedWaitSecs = 0;
   private waitingTimer : any;
   private waitingTickTimer : any;
+
+  // Carrusel de asesores (pantalla de espera): avatares circulares que
+  // avanzan de izquierda a derecha asesor por asesor, SIN disponibilidad.
+  carruselAsesores: { id: string; name: string; foto: string; ini: string; key: string }[] = [];
+  carruselTotal = 0;
+  carruselIdx = 0;
+  carruselSnap = false;
+  private carruselTimer: any;
+  private asesoresCarruselCargados = false;
   clientTimer: {
     tipo: TimerUpdatePayload['tipo'];
     restante: number;
@@ -2513,13 +2522,77 @@ En el siguiente menú encontrarás varias opciones en las que te puedes apoyar, 
     this.waitingTimer = setTimeout(() => {
       if (this.step === 'waiting') { this.mostrarAsesoresOcupados = true; this.cdr.detectChanges(); }
     }, 60_000);
+
+    this.iniciarCarruselAsesores();
   }
 
   private clearWaitingTimer(): void {
     if (this.waitingTimer) { clearTimeout(this.waitingTimer); this.waitingTimer = null; }
     if (this.waitingTickTimer) { clearInterval(this.waitingTickTimer); this.waitingTickTimer = null; }
+    this.detenerCarruselAsesores();
     this.waitingElapsed = 0;
     this.estimatedWaitSecs = 0;
+  }
+
+  // ── Carrusel de asesores ────────────────────────────────────────────────
+  private iniciarCarruselAsesores(): void {
+    this.cargarAsesoresCarrusel();
+    this.detenerCarruselAsesores();
+    this.carruselTimer = setInterval(() => this.avanzarCarrusel(), 2600);
+  }
+
+  private detenerCarruselAsesores(): void {
+    if (this.carruselTimer) { clearInterval(this.carruselTimer); this.carruselTimer = null; }
+    this.carruselIdx = 0;
+    this.carruselSnap = false;
+  }
+
+  private cargarAsesoresCarrusel(): void {
+    if (this.asesoresCarruselCargados) return;
+    this.asesoresCarruselCargados = true;
+    this.sessionService.findAdvisorsPublico().subscribe({
+      next: (lista) => {
+        const base = (lista || []).slice(0, 10).map((a) => ({
+          id: a.id,
+          name: (a.name || 'Asesor').trim(),
+          foto: this.normalizePhotoUrl(a.profilePhotoUrl || ''),
+          ini: this.inicialesDe(a.name),
+        }));
+        // Copias suficientes para que la ventana visible nunca vea huecos:
+        // la pista necesita (2n para el snap + ~8 de ventana) items por delante.
+        const copias = base.length <= 1 ? 1 : Math.max(3, Math.ceil((2 * base.length + 8) / base.length));
+        const items: { id: string; name: string; foto: string; ini: string; key: string }[] = [];
+        for (let c = 0; c < copias; c++) {
+          for (const a of base) items.push({ ...a, key: a.id + '#' + c });
+        }
+        this.carruselAsesores = items;
+        this.carruselTotal = base.length;
+        this.cdr.detectChanges();
+      },
+      error: () => { this.asesoresCarruselCargados = false; },
+    });
+  }
+
+  private avanzarCarrusel(): void {
+    const n = this.carruselTotal;
+    if (n < 2) return;
+    this.carruselIdx++;
+    if (this.carruselIdx >= n * 2) {
+      // Al terminar el segundo bloque, salta sin transición al primero
+      // (bucle infinito invisible, una vez completado el deslizamiento).
+      setTimeout(() => {
+        this.carruselSnap = true;
+        this.carruselIdx -= n;
+        this.cdr.detectChanges();
+        setTimeout(() => { this.carruselSnap = false; this.cdr.detectChanges(); }, 60);
+      }, 700);
+    }
+    this.cdr.detectChanges();
+  }
+
+  private inicialesDe(nombre: string): string {
+    const p = (nombre || '').trim().split(/\s+/);
+    return (((p[0] && p[0][0]) || '') + ((p[1] && p[1][0]) || '')).toUpperCase() || 'A';
   }
 
   exitWaiting(): void {

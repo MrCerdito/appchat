@@ -510,15 +510,104 @@ $radius-pill: 999px;
 
 .waiting-body {
   // Contenido centrado en el espacio que sobra; crece para empujar el pie
-  // hasta abajo (como .card-body del formulario, pero sin scroll: cabe todo).
+  // hasta abajo (como .card-body del formulario). Overflow como fallback
+  // en alturas muy bajas (el widget manda: scrollea solo si hace falta).
   flex: 1;
   min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(107, 114, 128, 0.35) transparent;
+  &::-webkit-scrollbar { width: 6px; }
+  &::-webkit-scrollbar-thumb { background: rgba(107, 114, 128, 0.35); border-radius: 6px; }
+  &::-webkit-scrollbar-track { background: transparent; }
   padding: calc(var(--sp) * 2) calc(var(--sp) * 1.5);
   text-align: center;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: calc(var(--sp) * 1);
   h3 { font-size: calc(var(--fz) * 1.1); font-weight: 600; color: var(--text); margin: 0; }
   p  { font-size: calc(var(--fz) * 0.85); color: var(--text-muted); margin: 0; line-height: 1.5; max-width: 46ch; }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// CARRUSEL DE ASESORES (pantalla de espera)
+// Avatares en círculo (sin indicadores de disponibilidad) que avanzan solos
+// de izquierda a derecha, asesor por asesor. Responsive 100% por variables:
+// el tamaño del avatar escala con el viewport (no necesita media queries).
+// ══════════════════════════════════════════════════════════════════════════════
+.advisor-carousel {
+  --adv-w: clamp(54px, 13vw, 68px);
+  --adv-gap: clamp(10px, 3vw, 16px);
+  width: 100%;
+  margin-top: calc(var(--sp) * 0.3);
+
+  .adv-label {
+    display: block;
+    font-size: calc(var(--fz) * 0.7);
+    font-weight: 600;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: calc(var(--sp) * 0.7);
+  }
+
+  // Máscara suave a los lados: los avatares entran y salen del carrusel.
+  .adv-viewport {
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 7%, #000 93%, transparent 100%);
+    mask-image: linear-gradient(90deg, transparent 0%, #000 7%, #000 93%, transparent 100%);
+  }
+
+  .adv-track {
+    display: flex;
+    gap: var(--adv-gap);
+    width: max-content;
+    transition: transform 0.65s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform;
+  }
+  &.no-anim .adv-track { transition: none; }
+  &.estatico .adv-track { margin-inline: auto; }
+
+  .adv-item {
+    flex: 0 0 var(--adv-w);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .adv-avatar {
+    width: var(--adv-w);
+    height: var(--adv-w);
+    border-radius: 50%;
+    overflow: hidden;
+    background: #eef1f5;
+    // Contraste sobre fondo blanco: borde blanco + aro neutro definido.
+    border: 2px solid #ffffff;
+    box-shadow: 0 0 0 1.5px #cbd5e1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+    .adv-ini {
+      font-size: calc(var(--adv-w) * 0.34);
+      font-weight: 600;
+      color: #475569;
+      letter-spacing: 0.02em;
+      user-select: none;
+    }
+  }
+
+  .adv-name {
+    max-width: 100%;
+    font-size: calc(var(--fz) * 0.72);
+    color: #64748b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 }
 
 .waiting-visual {
@@ -2776,5 +2865,17 @@ textarea {
     padding-bottom: calc(var(--sp) * 1 + env(safe-area-inset-bottom));
   }
   .form-card .colegio-found { margin-top: 0; }
+
+  // Pantalla de espera compacta: carrusel + temporizador sin scroll.
+  .waiting-body {
+    padding-top: calc(var(--sp) * 0.9);
+    padding-bottom: calc(var(--sp) * 0.6);
+    gap: calc(var(--sp) * 0.6);
+  }
+  .advisor-carousel {
+    margin-top: calc(var(--sp) * 0.2);
+    .adv-label { margin-bottom: calc(var(--sp) * 0.4); }
+    .adv-item { gap: 4px; }
+  }
 }
 
