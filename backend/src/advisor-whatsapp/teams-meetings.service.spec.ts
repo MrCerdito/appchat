@@ -3,7 +3,13 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
+import axios from 'axios';
 import { TeamsMeetingsService } from './teams-meetings.service';
+
+jest.mock('axios', () => ({
+  __esModule: true,
+  default: { post: jest.fn(), get: jest.fn() },
+}));
 
 describe('TeamsMeetingsService subject creator prefix', () => {
   let service: TeamsMeetingsService;
@@ -257,5 +263,100 @@ describe('TeamsMeetingsService gestion de reuniones creadas en la app', () => {
         fila({ eventSource: null, calendarTarget: 'personal' }),
       ),
     ).toBe('personal');
+  });
+});
+
+describe('TeamsMeetingsService calendario compartido queda con un solo registro', () => {
+  const asesor = { id: 'adv-1', name: 'Jean Munoz', email: 'jean@x.com' };
+  const contacto = {
+    name: 'Ana Torres',
+    role: 'Directora',
+    institution: 'Colegio Norte',
+    phone: '3001112233',
+    email: 'ana@x.com',
+  };
+  const inicio = new Date('2026-10-10T15:00:00.000Z');
+  const fin = new Date('2026-10-10T15:30:00.000Z');
+  const mockedPost = axios.post as jest.Mock;
+
+  function servicio() {
+    const config = {
+      get: (key: string) =>
+        (
+          {
+            TEAMS_GROUP_ID: '11111111-1111-1111-1111-111111111111',
+            TEAMS_MEETINGS_ACCOUNT: 'soporte@innovacloud.co',
+          } as Record<string, string>
+        )[key],
+    };
+    return new TeamsMeetingsService(config as any, {} as any, {} as any);
+  }
+
+  beforeEach(() => {
+    mockedPost.mockReset();
+  });
+
+  it('crea el evento del grupo con el contacto pero sin invitar al asesor', async () => {
+    const service = servicio();
+    (service as any).getAccessToken = jest.fn().mockResolvedValue('token');
+    mockedPost.mockResolvedValue({
+      data: {
+        id: 'evt-grupo',
+        start: { dateTime: '2026-10-10T10:00:00' },
+        end: { dateTime: '2026-10-10T10:30:00' },
+        onlineMeeting: {
+          id: 'mtg-1',
+          joinUrl: 'https://teams.microsoft.com/l/meetup-join/x',
+        },
+      },
+    });
+
+    const result = await (service as any).createGroupMeeting(
+      asesor.id,
+      asesor,
+      '(Jean Munoz) Reunion',
+      inicio,
+      fin,
+      'shared',
+      contacto,
+    );
+
+    expect(mockedPost).toHaveBeenCalledTimes(1);
+    expect(mockedPost.mock.calls[0][1].attendees).toEqual([
+      { emailAddress: { address: 'ana@x.com' }, type: 'optional' },
+    ]);
+    expect(result.eventSource).toBe('group');
+    expect(result.joinUrl).toBe('https://teams.microsoft.com/l/meetup-join/x');
+  });
+
+  it('crea el evento en el buzon compartido sin ningun invitado', async () => {
+    const service = servicio();
+    (service as any).getAppAccessToken = jest
+      .fn()
+      .mockResolvedValue('app-token');
+    (service as any).resolveAccountId = jest
+      .fn()
+      .mockResolvedValue('soporte@innovacloud.co');
+    mockedPost.mockResolvedValue({
+      data: {
+        id: 'evt-buzon',
+        onlineMeeting: { joinUrl: 'https://teams.microsoft.com/l/meetup-join/y' },
+      },
+    });
+
+    const result = await (service as any).createSharedMailboxMeeting(
+      asesor,
+      '(Jean Munoz) Reunion',
+      inicio,
+      fin,
+      'shared',
+      contacto,
+    );
+
+    expect(mockedPost.mock.calls[0][0]).toContain(
+      '/users/soporte%40innovacloud.co/events',
+    );
+    expect(mockedPost.mock.calls[0][1].attendees).toEqual([]);
+    expect(result.eventSource).toBe('shared-mailbox');
   });
 });

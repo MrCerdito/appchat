@@ -25,6 +25,7 @@ import {
   AppWindow,
   Settings,
   School,
+  Megaphone,
   ArrowRight,
   Lock,
 } from 'lucide-angular';
@@ -49,7 +50,8 @@ export type ModuloIcono =
   | 'faq'
   | 'widget'
   | 'configuracion'
-  | 'colegios';
+  | 'colegios'
+  | 'changelog';
 
 interface ModuloTarjeta {
   codigo: string;
@@ -214,6 +216,15 @@ const MODULOS: ModuloTarjeta[] = [
     icono: 'colegios',
     deshabilitado: false,
   },
+  {
+    codigo: 'changelog',
+    categoria: 'Configuración',
+    ruta: 'cambios',
+    titulo: 'Cambios',
+    descripcion: 'Notas de actualización publicadas al equipo',
+    icono: 'changelog',
+    deshabilitado: false,
+  },
 ];
 
 const ICONOS_LUCIDE: Record<ModuloIcono, LucideIconData> = {
@@ -232,6 +243,7 @@ const ICONOS_LUCIDE: Record<ModuloIcono, LucideIconData> = {
   widget: AppWindow,
   configuracion: Settings,
   colegios: School,
+  changelog: Megaphone,
 };
 
 function normalizar(txt: string): string {

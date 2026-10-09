@@ -1016,7 +1016,7 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
           subject,
           startDateTime: new Date(this.teamsDraft.startDateTime).toISOString(),
           durationMinutes: this.teamsDraft.durationMinutes,
-          calendarTarget: this.teamsDraft.agendarCalendario ? 'shared' : 'none',
+          calendarTarget: this.teamsDraft.agendarCalendario ? 'shared' : 'personal',
         }),
       );
       this.teamsMessage = '';

@@ -120,13 +120,32 @@ describe('importar-helpers.util (importación de Perfil Institucional)', () => {
         [
           enc(1, 'Nombre'),
           enc(2, 'Académico: Jornada'),
-          enc(3, 'Académico | Jornada'), // homónimo: se resuelve por categoría
+          enc(3, 'Contacto | Correo del rector'),
+          enc(4, 'Deportes -> Jornada'),
         ],
         CAMPOS,
         { incluirAusentes: false },
       );
+      expect(m.dinamicos).toHaveLength(3);
       expect(m.dinamicos[0].campoId).toBe('c1');
-      expect(m.dinamicos[1].campoId).toBe('c1');
+      expect(m.dinamicos[1].campoId).toBe('c2');
+      expect(m.dinamicos[2].campoId).toBe('c4');
+      expect(m.columnas.filter((c) => c.estado === 'mapeada')).toHaveLength(4);
+    });
+
+    it('descarta el homónimo repetido (un campo solo se mapea una vez)', () => {
+      const m = mapearColumnas(
+        [
+          enc(1, 'Nombre'),
+          enc(2, 'Académico: Jornada'),
+          enc(3, 'Académico | Jornada'), // homónimo: ya mapeó c1
+        ],
+        CAMPOS,
+        { incluirAusentes: false },
+      );
+      expect(m.dinamicos).toHaveLength(1);
+      expect(m.dinamicos[0].campoId).toBe('c1');
+      expect(m.columnas[2].estado).toBe('ignorada');
     });
 
     it('resuelve campo homónimo por la categoría del encabezado', () => {

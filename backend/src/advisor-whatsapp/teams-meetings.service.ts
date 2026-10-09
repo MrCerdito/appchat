@@ -453,13 +453,11 @@ export class TeamsMeetingsService {
       emailAddress: { address: string; name?: string };
       type: string;
     }> = [];
-    // El asesor entra como invitado para que le llegue la invitacion.
-    if (user.email) {
-      attendees.push({
-        emailAddress: { address: user.email, name: user.name ?? undefined },
-        type: 'required',
-      });
-    }
+    // Solo el contacto: invitar tambien al asesor hacia una COPIA del evento en
+    // su calendario personal (Outlook materializa cada invitacion recibida), y
+    // al marcar "calendario compartido" el requisito es UN solo registro, en el
+    // calendario compartido. El asesor recibe el enlace por WhatsApp y la fila
+    // local (teams_meetings) le permite verlo en el modulo Calendario.
     if (
       contact?.email &&
       contact.email.toLowerCase() !== user.email?.toLowerCase()
@@ -590,17 +588,13 @@ export class TeamsMeetingsService {
       this.generalAccountEmail(),
     );
 
+    // Sin invitados: igual que en el calendario del grupo, invitar al asesor
+    // dejaria una segunda copia del evento en su calendario personal y el
+    // requisito es quedar con UN solo registro, en el calendario compartido.
     const attendees: Array<{
       emailAddress: { address: string; name?: string };
       type: string;
     }> = [];
-    // El asesor entra como invitado para que le llegue la invitacion.
-    if (user.email && user.email.toLowerCase() !== this.generalAccountEmail()) {
-      attendees.push({
-        emailAddress: { address: user.email, name: user.name ?? undefined },
-        type: 'required',
-      });
-    }
 
     const description = [
       `<b>Asesor:</b> ${this.escHtml(user.name || user.email || 'Sin nombre')}`,

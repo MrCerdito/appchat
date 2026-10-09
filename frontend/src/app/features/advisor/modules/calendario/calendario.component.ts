@@ -1020,7 +1020,7 @@ responsable(m: EventoCalendario): string {
           subject,
           startDateTime: agenda.toISOString(),
           durationMinutes: this.draft.durationMinutes,
-          calendarTarget: this.draft.agendarCalendario ? 'shared' : 'none',
+          calendarTarget: this.draft.agendarCalendario ? 'shared' : 'personal',
           categorias: categoriaElegida
             ? [categoriaElegida.alias, categoriaElegida.outlook]
             : undefined,

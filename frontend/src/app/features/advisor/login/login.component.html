@@ -3,8 +3,11 @@
   <app-toast-container />
 
   <!-- ── Panel izquierdo: imagen de marca (public/login-left.png).
-       Si aun no existe el archivo queda el gris de respaldo. -->
-  <div class="login-left" aria-hidden="true">
+       La URL va como custom property inline: el navegador la resuelve contra
+       <base href> ("/korvix/" en prod, "/" en dev), a diferencia de una ruta
+       absoluta en el SCSS que se caia con 404 al faltar el prefijo.
+       Si el archivo no existe queda el gris de respaldo. -->
+  <div class="login-left" aria-hidden="true" style="--login-left-src: url('login-left.png')">
     <div class="left-visual"></div>
   </div>
 

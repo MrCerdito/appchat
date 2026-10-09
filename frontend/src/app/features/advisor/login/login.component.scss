@@ -63,7 +63,7 @@ $danger: #dc2626;
     &::after {
       content: '';
       position: absolute;
-      background: url('/login-left.png') no-repeat center;
+      background: var(--login-left-src, none) no-repeat center;
     }
 
     &::before {
