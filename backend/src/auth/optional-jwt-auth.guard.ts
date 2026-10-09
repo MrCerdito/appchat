@@ -4,22 +4,20 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { Reflector } from '@nestjs/core';
-import { IS_PUBLIC_KEY } from './public.decorator';
 
+/**
+ * Guard de token opcional: pasa sin Authorization, pero si viene un token lo
+ * valida (y lo coloca en req.user para controles de propiedad). NO corta con
+ * `@Public()`: en rutas públicas con validación opcional (rating, subida de
+ * media) el guard global ya saltó, y aquí el token sigue interpretándose.
+ */
 @Injectable()
 export class OptionalJwtAuthGuard extends AuthGuard('jwt') {
-  constructor(private reflector: Reflector) {
+  constructor() {
     super();
   }
 
   canActivate(context: ExecutionContext) {
-    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
-    if (isPublic) return true;
-
     const req = context.switchToHttp().getRequest();
     const authHeader = req.headers?.authorization;
     if (!authHeader) return true;

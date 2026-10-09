@@ -2,6 +2,7 @@ import { Controller, ForbiddenException, Get, Param, Query, Res } from '@nestjs/
 import { Throttle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { Stream } from 'stream';
+import { Public } from '../auth/public.decorator';
 import { CorreosService } from './correos.service';
 
 /**
@@ -22,6 +23,7 @@ import { CorreosService } from './correos.service';
  * ni en la base de datos, y `no-store` evita que queden en la cache del
  * navegador.
  */
+@Public()
 @Controller('correos')
 export class CorreosInlineController {
   constructor(private readonly correosService: CorreosService) {}

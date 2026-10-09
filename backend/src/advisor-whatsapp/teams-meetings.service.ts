@@ -220,7 +220,7 @@ export class TeamsMeetingsService {
     return { ok: true };
   }
 
-  createAuthUrl(advisorId: string): { authUrl: string } {
+  createAuthUrl(advisorId: string): { authUrl: string; state: string } {
     const clientId = this.clientId();
     const state = this.randomToken();
     const codeVerifier = this.randomToken(48);
@@ -245,7 +245,7 @@ export class TeamsMeetingsService {
     url.searchParams.set('code_challenge', codeChallenge);
     url.searchParams.set('code_challenge_method', 'S256');
 
-    return { authUrl: url.toString() };
+    return { authUrl: url.toString(), state };
   }
 
   async completeAuth(code: string, state: string): Promise<string> {
@@ -839,8 +839,18 @@ export class TeamsMeetingsService {
 
   // ── Agenda (cuenta general) ────────────────────────────────────────────────
 
-  async listMeetings(from?: Date, to?: Date): Promise<TeamsMeetingDto[]> {
+  /**
+   * Agenda local. Semantica identica a assertCanManageMeeting: el asesor ve
+   * solo sus propias reuniones; admin/superadmin ven la agenda completa.
+   */
+  async listMeetings(
+    actor: TeamsMeetingUser & { role?: string },
+    from?: Date,
+    to?: Date,
+  ): Promise<TeamsMeetingDto[]> {
     const where: any = {};
+    const esAdmin = actor.role === 'admin' || actor.role === 'superadmin';
+    if (!esAdmin) where.createdBy = actor.id;
     if (from || to) {
       where.startDateTime = {};
       if (from) where.startDateTime.moreThanOrEqual = from;
@@ -1448,7 +1458,9 @@ export class TeamsMeetingsService {
         : typeof data?.code === 'string'
           ? data.code
           : JSON.stringify(data?.error ?? data?.code ?? '');
-    this.logger.warn(`Microsoft raw error: ${JSON.stringify(data)}`);
+    // Nunca se loguea el cuerpo crudo: Graph puede devolver tokens o datos
+    // sensibles. Se resume a claves (secretos ocultos) y se trunca.
+    this.logger.warn(`Microsoft raw error: ${this.resumenErrorMicrosoft(data)}`);
     const description =
       data?.error_description || data?.message || err?.message || '';
     this.logger.warn(
@@ -1496,6 +1508,30 @@ export class TeamsMeetingsService {
     throw new BadRequestException(
       'No se pudo completar la operacion con Microsoft. Intenta nuevamente o revisa la configuracion.',
     );
+  }
+
+  /** Resumen seguro del cuerpo de error de Graph (oculta tokens, trunca). */
+  private resumenErrorMicrosoft(data: unknown): string {
+    const CLAVES_SENSIBLES = [
+      'access_token',
+      'refresh_token',
+      'id_token',
+      'client_secret',
+      'password',
+      'assertion',
+      'code_verifier',
+    ];
+    try {
+      if (!data) return '[sin cuerpo]';
+      if (typeof data !== 'object') return String(data).slice(0, 400);
+      const safe: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(data as Record<string, unknown>)) {
+        safe[k] = CLAVES_SENSIBLES.includes(k.toLowerCase()) ? '[oculto]' : v;
+      }
+      return JSON.stringify(safe).slice(0, 400);
+    } catch {
+      return '[sin cuerpo]';
+    }
   }
 
   private normalizeTokenSet(data: any, fallbackRefreshToken = '') {

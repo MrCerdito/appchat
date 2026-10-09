@@ -7,6 +7,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import * as Joi from 'joi';
 import { AuditInterceptor } from './common/interceptors/audit.interceptor';
 import { HttpThrottlerGuard } from './common/guards/http-throttler.guard';
+import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { AuditLog } from './common/entities/audit-log.entity';
 import { AuthModule } from './auth/auth.module';
 import { SessionsModule } from './sessions/sessions.module';
@@ -262,6 +263,12 @@ import { AppService } from './app.service';
     {
       provide: APP_GUARD,
       useClass: HttpThrottlerGuard,
+    },
+    // Auth global fail-closed: toda ruta exige JWT salvo @Public().
+    // Orden: throttle (429) → auth (401) → permisos de módulo (403).
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
     },
     {
       provide: APP_GUARD,

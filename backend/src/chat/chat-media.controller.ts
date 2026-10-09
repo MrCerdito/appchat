@@ -11,8 +11,10 @@ import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
 import { randomUUID } from 'crypto';
+import { Throttle } from '@nestjs/throttler';
 import { Attachment } from './entities/message.entity';
 import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
+import { Public } from '../auth/public.decorator';
 
 const UPLOADS_DIR = join(process.cwd(), 'uploads', 'chat-media');
 
@@ -81,6 +83,10 @@ function isArchiveFileName(name = ''): boolean {
 
 @Controller('chat-media')
 export class ChatMediaController {
+  // Subida de medios del chat: cliente anónimo (widget) y asesor; el JWT es
+  // opcional. El rate limit evita usar el endpoint como vertedero de 64MB.
+  @Public()
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Post('upload')
   @UseGuards(OptionalJwtAuthGuard)
   @UseInterceptors(

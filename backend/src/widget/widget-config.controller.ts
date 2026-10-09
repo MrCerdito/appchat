@@ -13,6 +13,7 @@ import { WidgetConfigService } from './widget-config.service';
 import { WidgetConfig } from './entities/widget-config.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles, RolesGuard } from '../auth/roles.guard';
+import { Public } from '../auth/public.decorator';
 import { Permiso } from '../accesos/permiso-modulo.guard';
 import { SaveWidgetConfigDto } from './dto/save-widget-config.dto';
 import { SkipThrottle } from '@nestjs/throttler';
@@ -29,6 +30,7 @@ export class WidgetConfigController {
   // portales, etc.). La config es pública (solo apariencia/textos), sin
   // credenciales, por lo que abrir el origen es seguro y evita editar
   // CORS_ORIGINS por cada sitio donde se incruste.
+  @Public()
   @Header('Cache-Control', 'public, max-age=60')
   @Header('Access-Control-Allow-Origin', '*')
   @SkipThrottle()

@@ -16,7 +16,9 @@ async function bootstrap() {
     rawBody: true,
   });
 
-  app.set('trust proxy', true);
+  // Un solo hop (Azure App Service / App Gateway / nginx). `true` confiaria
+  // en X-Forwarded-For de cualquier cliente y permitiria espiar el throttle.
+  app.set('trust proxy', 1);
 
   // ── Warmup: pre-compute all encrypted column decryptions ───────────────
   // Fires immediately in background; completes ~1-2s before the 10s interval
