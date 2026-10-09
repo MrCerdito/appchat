@@ -65,6 +65,13 @@ export const CATALOGO_MODULOS: ModuloDef[] = [
     aplicaA: ['advisor', 'interno'],
   },
   {
+    codigo: 'sharepoint',
+    nombre: 'SharePoint',
+    grupo: 'Gestión',
+    descripcion: 'Archivos y carpetas del sitio SharePoint de Soporte (solo lectura)',
+    aplicaA: ['advisor', 'admin', 'interno'],
+  },
+  {
     codigo: 'perfil_institucional',
     nombre: 'Perfil institucional',
     grupo: 'Gestión',
@@ -77,6 +84,13 @@ export const CATALOGO_MODULOS: ModuloDef[] = [
     grupo: 'Gestión',
     descripcion: 'Agenda de reuniones de Teams de la cuenta general',
     aplicaA: ['advisor', 'admin', 'interno'],
+  },
+  {
+    codigo: 'correos',
+    nombre: 'Correos',
+    grupo: 'Gestión',
+    descripcion: 'Buzón compartido y bandeja de correo de los asesores',
+    aplicaA: ['advisor', 'admin'],
   },
 
   // ── Análisis ────────────────────────────────────────────────

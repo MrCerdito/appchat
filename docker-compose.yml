@@ -1,3 +1,9 @@
+# El proyecto se llama `appchat` (no `reportacasos`) para reutilizar la red
+# `appchat_chat-net` y el volumen `appchat_pgdata` que ya existen en esta
+# maquina. Sin esto, compose crea `reportacasos_chat-net` con el mismo subnet
+# 172.28.0.0/16 y falla con "Pool overlaps with other one on this address space".
+name: appchat
+
 x-logging: &default-logging
   driver: json-file
   options:
@@ -76,6 +82,32 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-https://innoovacloud.com,https://cloud.sian365.co,https://web.sian365.co,https://app.sian365.co,https://sian365.co,https://controlacademic.co,https://app.controlacademic.co,https://web.controlacademic.co,https://edu.controlacademic.co}
       APP_URL: ${APP_URL:-https://innoovacloud.com}
       WHATSAPP_PROXY_URL: ${WHATSAPP_PROXY_URL:-}
+      # Reply URL del popup OAuth de Teams. Debe coincidir exacto con el
+      # configurado en Entra (Authentication > Web > Redirect URIs).
+      MICROSOFT_REDIRECT_URI: ${MICROSOFT_REDIRECT_URI:-https://innoovacloud.com/korvix/advisors-whatsapp/teams/oauth/callback}
+      # shared = la videollamada la crea TEAMS_MEETINGS_ACCOUNT con token de
+      # aplicacion. advisor = modo legado, la crea cada asesor.
+      TEAMS_MEETING_ORGANIZER: ${TEAMS_MEETING_ORGANIZER:-shared}
+      # group (default) | shared-mailbox | advisor
+      TEAMS_MEETING_ORGANIZER_SCOPE: ${TEAMS_MEETING_ORGANIZER_SCOPE:-group}
+      TEAMS_GROUP_NAME: ${TEAMS_GROUP_NAME:-Soporte}
+      # Object ID del grupo M365 'Soporte' (Soporte5342@innovacloud.co), que es
+      # la agenda real compartida. Fijarlo evita depender del nombre, porque hay
+      # dos grupos que se llaman 'Soporte'.
+      TEAMS_GROUP_ID: ${TEAMS_GROUP_ID:-9d625868-450a-4886-8c91-84b07e6db317}
+      # Modulo calendario/: lee el calendario del grupo de arriba y refleja
+      # todos los eventos. Reusa MICROSOFT_CLIENT_ID/SECRET y el token cacheado.
+      CALENDARIO_GRUPO_ID: ${CALENDARIO_GRUPO_ID:-}
+      CALENDARIO_GRUPO_NOMBRE: ${CALENDARIO_GRUPO_NOMBRE:-Soporte}
+      CALENDARIO_CACHE_SEGUNDOS: ${CALENDARIO_CACHE_SEGUNDOS:-300}
+      CALENDARIO_MAX_PAGINAS: ${CALENDARIO_MAX_PAGINAS:-60}
+      CALENDARIO_MAX_DIAS: ${CALENDARIO_MAX_DIAS:-1825}
+      # Módulo de Correos. Reusa MICROSOFT_CLIENT_ID/SECRET de arriba; requiere
+      # el permiso Application Mail.Read en la app Korvix con admin consent.
+      CORREOS_MAILBOX_UPN: ${CORREOS_MAILBOX_UPN:-soporte@innovacloud.co}
+      CORREOS_CARPETA_PADRE: ${CORREOS_CARPETA_PADRE:-ASIGNADOS}
+      CORREOS_SYNC_MINUTOS: ${CORREOS_SYNC_MINUTOS:-5}
+      CORREOS_SYNC_ACTIVO: ${CORREOS_SYNC_ACTIVO:-true}
     volumes:
       - uploads_data:/app/uploads
       - wa_session_data:/app/.session

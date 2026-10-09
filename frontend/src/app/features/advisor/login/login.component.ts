@@ -5,7 +5,9 @@ import { Router } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { NotificationService } from '../../../core/services/notification.service';
 import { ToastContainerComponent } from '../../../shared/components/toast-container.component';
-import { trackByIndex, trackById } from '../../../shared/utils/track-by';
+
+/** Formato de correo, igual que la validacion del backend (class-validator). */
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 @Component({
   selector: 'app-login',
@@ -16,13 +18,34 @@ import { trackByIndex, trackById } from '../../../shared/utils/track-by';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LoginComponent {
-  protected readonly trackByIndex = trackByIndex;
-  protected readonly trackById = trackById;
   email = '';
   password = '';
-  error = '';
   loading = false;
   showPassword = false;
+
+  /** El campo ya perdio el foco: ahi se empieza a mostrar el error inline. */
+  emailTouched = false;
+  passwordTouched = false;
+
+  /** Estado de Bloq Mayús al escribir la contraseña (keydown/keyup). */
+  capsLockOn = false;
+
+  /** Error inline del correo: solo formato (el vacio lo cubre el boton deshabilitado). */
+  get emailError(): string | null {
+    if (!this.emailTouched) return null;
+    const valor = this.email.trim();
+    if (!valor) return null;
+    return EMAIL_REGEX.test(valor) ? null : 'Correo electrónico inválido';
+  }
+
+  /** Error inline de la contraseña: solo el minimo de 8 caracteres. */
+  get passwordError(): string | null {
+    if (!this.passwordTouched) return null;
+    if (!this.password) return null;
+    return this.password.length >= 8
+      ? null
+      : 'La contraseña debe tener mínimo 8 caracteres';
+  }
 
   constructor(
     private auth: AuthService,
@@ -31,22 +54,34 @@ export class LoginComponent {
     private notification: NotificationService,
   ) {}
 
-  login(): void {
-    this.error = '';
+  /**
+   * Refleja el estado de Bloq Mayús mientras se escribe en la contraseña.
+   * `getModifierState` no existe en todos los navegadores: si falta, simplemente
+   * no se muestra el aviso.
+   */
+  checkCapsLock(event: Event): void {
+    const e = event as KeyboardEvent;
+    this.capsLockOn =
+      typeof e.getModifierState === 'function' && e.getModifierState('CapsLock');
+  }
 
+  login(): void {
     if (!this.email.trim() || !this.password.trim()) {
-      this.error = 'Debes ingresar correo y contraseña';
+      this.notification.warning('Campos requeridos', 'Debes ingresar correo y contraseña');
       return;
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(this.email.trim())) {
-      this.error = 'Correo electrónico inválido';
+    if (!EMAIL_REGEX.test(this.email.trim())) {
+      this.emailTouched = true;
+      this.passwordTouched = true;
+      this.cdr.detectChanges();
       return;
     }
 
     if (this.password.length < 8) {
-      this.error = 'La contraseña debe tener mínimo 8 caracteres';
+      this.emailTouched = true;
+      this.passwordTouched = true;
+      this.cdr.detectChanges();
       return;
     }
 
@@ -66,6 +101,7 @@ export class LoginComponent {
         this.loading = false;  // ← sin finalize, aquí mismo
 
         const body = err.error;
+        let mensaje: string;
 
         if (Array.isArray(body?.message)) {
           const msgs: string[] = body.message;
@@ -77,27 +113,36 @@ export class LoginComponent {
           );
 
           if (tieneEmail && tienePassword) {
-            this.error = 'Ingresa un correo válido y una contraseña de al menos 8 caracteres';
+            mensaje = 'Ingresa un correo válido y una contraseña de al menos 8 caracteres';
           } else if (tieneEmail) {
-            this.error = 'El correo electrónico no es válido';
+            mensaje = 'El correo electrónico no es válido';
           } else if (tienePassword) {
-            this.error = 'La contraseña debe tener al menos 8 caracteres';
+            mensaje = 'La contraseña debe tener al menos 8 caracteres';
           } else {
-            this.error = msgs.join('. ');
+            mensaje = msgs.join('. ');
           }
 
+          // En 401 el backend ya manda mensajes amigables en español:
+          // "Cuenta bloqueada. Intenta de nuevo en X minuto(s)",
+          // "Usuario desactivado" o "Credenciales inválidas". Se muestran tal
+          // cual para que el asesor sepa por que no puede entrar.
+        } else if (err.status === 401 && typeof body?.message === 'string' && body.message.trim()) {
+          mensaje = body.message;
         } else if (err.status === 401) {
-          this.error = 'Credenciales inválidas';
+          mensaje = 'Credenciales inválidas';
         } else if (err.status === 0) {
-          this.error = 'No se pudo conectar con el servidor';
+          mensaje = 'No se pudo conectar con el servidor';
         } else {
-          this.error = typeof body?.message === 'string'
+          mensaje = typeof body?.message === 'string'
             ? body.message
             : 'Error al iniciar sesión';
         }
 
         this.cdr.detectChanges(); // ← forzar render
-        this.notification.error('Error al iniciar sesión', this.error);
+
+        // El formulario no tiene caja de error: todo se notifica arriba a la
+        // derecha (duracion 6s para dar tiempo a leer mensajes largos).
+        this.notification.show('error', 'Error al iniciar sesión', mensaje, 6000);
       }
     });
   }

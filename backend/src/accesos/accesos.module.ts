@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ModuloAcceso } from './entities/modulo-acceso.entity';
 import { AccesoRol } from './entities/acceso-rol.entity';
@@ -11,7 +11,10 @@ import { ChatModule } from '../chat/chat.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([ModuloAcceso, AccesoRol, AccesoUsuario, User]),
-    ChatModule,
+    // forwardRef obligatorio: cierra el ciclo
+    //   ChatModule -> AdvisorsWhatsappModule -> TicketsModule -> AccesosModule -> ChatModule
+    // Solo se necesita ChatGateway para `broadcastPermisosActualizados`.
+    forwardRef(() => ChatModule),
   ],
   controllers: [AccesosController],
   providers: [AccesosService],

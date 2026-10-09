@@ -1,0 +1,80 @@
+<div
+  class="tcard"
+  [class.is-vencida]="vencimiento === 'vencida'"
+  [class.is-proxima]="vencimiento === 'proxima'"
+  (click)="onClick()"
+  role="button"
+  tabindex="0"
+  (keydown.enter)="onClick()"
+  (keydown.space)="onClick(); $event.preventDefault()"
+>
+  <div class="tcard-top">
+    <span class="tcard-codigo">{{ tarea.codigo }}</span>
+    <span class="badge {{ prioridadBadge }}">{{ prioridadLabel }}</span>
+  </div>
+
+  <p class="tcard-titulo">{{ tarea.titulo }}</p>
+
+  @if (mostrarTicket && tarea.ticketCodigo) {
+  <span class="tcard-ticket" title="{{ tarea.ticketTitulo || '' }}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+      <polyline points="14 2 14 8 20 8"/>
+    </svg>
+    {{ tarea.ticketCodigo }}
+  </span>
+  }
+
+  @if (tarea.tags.length) {
+  <div class="tcard-tags">
+    @for (tag of tarea.tags.slice(0, 3); track tag) {
+    <span class="tag">#{{ tag }}</span>
+    }
+    @if (tarea.tags.length > 3) {
+    <span class="tag is-more">+{{ tarea.tags.length - 3 }}</span>
+    }
+  </div>
+  }
+
+  @if (tieneSubtareas) {
+  <div class="tcard-progress">
+    <div class="bar"><span [style.width.%]="subtareasPct"></span></div>
+    <span class="pct">{{ tarea.subtareas.completadas }}/{{ tarea.subtareas.total }}</span>
+  </div>
+  }
+
+  <div class="tcard-foot">
+    <div class="avatars">
+      @for (a of tarea.asignados.slice(0, 3); track a.userId) {
+      @if (a.avatarUrl) {
+      <img class="avatar" [src]="a.avatarUrl" [alt]="a.nombre" [title]="a.nombre" />
+      } @else {
+      <span class="avatar is-inicial" [title]="a.nombre">{{ a.nombre.charAt(0) }}</span>
+      }
+      }
+      @if (tarea.asignados.length > 3) {
+      <span class="avatar is-more" title="y {{ tarea.asignados.length - 3 }} mas">+{{ tarea.asignados.length - 3 }}</span>
+      }
+      @if (!tarea.asignados.length) {
+      <span class="sin-asignar">Sin asignar</span>
+      }
+    </div>
+
+    <div class="meta">
+      @if (vencimiento) {
+      <span class="chip {{ vencimiento }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9"/>
+          <path d="M12 7v5l3 2"/>
+        </svg>
+        {{ vencimiento === 'vencida' ? 'Vencida' : 'Vence hoy' }}
+      </span>
+      }
+      @if (tarea.timeSpentMinutes > 0) {
+      <span class="chip tiempo" title="Tiempo registrado">
+        {{ (tarea.timeSpentMinutes / 60).toFixed(1) }}h
+      </span>
+      }
+    </div>
+  </div>
+</div>

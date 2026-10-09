@@ -365,3 +365,111 @@
     }
   }
 }
+
+// ── Tema oscuro ──────────────────────────────────────────────
+:host.theme-dark {
+  .clg-editor {
+    background: #1a1f26;
+    border-color: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+
+    &__actions { border-top-color: rgba(255, 255, 255, 0.07); }
+  }
+
+  .clg-field input,
+  .clg-field select {
+    background: #151b23;
+    border-color: rgba(255, 255, 255, 0.12);
+    color: #e6edf7;
+
+    &::placeholder { color: #7f8ba0; }
+
+    &:focus {
+      background: #10151c;
+      border-color: #4a72e8;
+      box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.18);
+    }
+  }
+
+  .clg-btn {
+    &.ghost {
+      color: #9aa7bd;
+      border-color: rgba(255, 255, 255, 0.14);
+      &:hover { background: rgba(255, 255, 255, 0.06); }
+    }
+
+    &.draft {
+      background: #242b35;
+      color: #cbd5e1;
+      &:hover { background: #2d3542; }
+    }
+  }
+
+  .clg-chip {
+    background: #151b23;
+    border-color: rgba(255, 255, 255, 0.12);
+    color: #9aa7bd;
+
+    span { background: rgba(255, 255, 255, 0.08); color: #cbd5e1; }
+
+    &.active {
+      background: rgba(96, 165, 250, 0.14);
+      border-color: rgba(96, 165, 250, 0.45);
+      color: #93b4ff;
+
+      span { background: rgba(96, 165, 250, 0.22); color: #93b4ff; }
+    }
+  }
+
+  .clg-table {
+    background: #1a1f26;
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .clg-row {
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+    &:hover { background: rgba(255, 255, 255, 0.04); }
+
+    &__title-line strong { color: #e6edf7; }
+
+    &__version {
+      background: rgba(255, 255, 255, 0.08);
+      color: #9aa7bd;
+    }
+
+    &__state {
+      color: #fbbf24;
+      background: rgba(245, 158, 11, 0.16);
+
+      &.published {
+        color: #4ade80;
+        background: rgba(16, 185, 129, 0.16);
+      }
+
+      &.scheduled {
+        color: #93b4ff;
+        background: rgba(96, 165, 250, 0.16);
+      }
+    }
+
+    &__visto { color: #7f8ba0; }
+  }
+
+  .clg-icon-btn {
+    background: #151b23;
+    border-color: rgba(255, 255, 255, 0.12);
+    color: #9aa7bd;
+
+    &:hover {
+      background: rgba(96, 165, 250, 0.14);
+      color: #93b4ff;
+      border-color: rgba(96, 165, 250, 0.45);
+    }
+
+    &.danger:hover {
+      background: rgba(239, 68, 68, 0.14);
+      color: #f87171;
+      border-color: rgba(248, 113, 113, 0.45);
+    }
+  }
+}

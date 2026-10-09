@@ -26,7 +26,10 @@ import { Roles, RolesGuard } from '../auth/roles.guard';
 import { Public } from '../auth/public.decorator';
 import { Permiso } from '../accesos/permiso-modulo.guard';
 import { SkipThrottle } from '@nestjs/throttler';
-import { ConfiguracionService } from './configuracion.service';
+import {
+  ConfiguracionService,
+  enmascararSecretos,
+} from './configuracion.service';
 import { GuardarConfigGlobalDto } from './dto/guardar-config-global.dto';
 import { GuardarConfigTicketMailDto } from './dto/guardar-config-ticket-mail.dto';
 import { GuardarConfigAdvisorDto } from './dto/guardar-config-advisor.dto';
@@ -50,14 +53,14 @@ export class ConfiguracionController {
 
   @Get()
   getEfectiva(@Request() req: any) {
-    return this.svc.getEfectiva(req.user.id);
+    return this.svc.getEfectiva(req.user.id).then(enmascararSecretos);
   }
 
   @Get('global')
   @UseGuards(RolesGuard)
   @Roles('admin')
   getGlobal() {
-    return this.svc.getGlobal();
+    return this.svc.getGlobal().then(enmascararSecretos);
   }
 
   @Get('global/ticket-mail')
@@ -80,15 +83,15 @@ export class ConfiguracionController {
   @Post()
   @HttpCode(HttpStatus.OK)
   guardar(@Body() body: GuardarConfigAdvisorDto, @Request() req: any) {
-    return this.svc.guardar(body, req.user.id);
+    return this.svc.guardar(body, req.user.id).then(enmascararSecretos);
   }
 
   @Post('global')
   @HttpCode(HttpStatus.OK)
   @UseGuards(RolesGuard)
-  @Roles('admin', 'advisor', 'interno')
+  @Roles('admin')
   guardarGlobal(@Body() body: GuardarConfigGlobalDto) {
-    return this.svc.guardar(body, undefined);
+    return this.svc.guardar(body, undefined).then(enmascararSecretos);
   }
 
   @Post('global/ticket-mail')
@@ -96,7 +99,7 @@ export class ConfiguracionController {
   @UseGuards(RolesGuard)
   @Roles('admin', 'advisor', 'interno')
   guardarTicketMail(@Body() body: GuardarConfigTicketMailDto) {
-    return this.svc.guardar(body, undefined);
+    return this.svc.guardar(body, undefined).then(enmascararSecretos);
   }
 
   @Post('global/mail-test')
@@ -164,10 +167,9 @@ export class ConfiguracionController {
     if (!Array.isArray(body.whatsappQuickReplies)) {
       throw new BadRequestException('whatsappQuickReplies debe ser un arreglo');
     }
-    return this.svc.guardar(
-      { whatsappQuickReplies: body.whatsappQuickReplies },
-      undefined,
-    );
+    return this.svc
+      .guardar({ whatsappQuickReplies: body.whatsappQuickReplies }, undefined)
+      .then(enmascararSecretos);
   }
 
   @Delete()

@@ -2,14 +2,18 @@ import {
   Component,
   OnInit,
   OnDestroy,
+  HostBinding,
   ChangeDetectorRef,
   ChangeDetectionStrategy,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { environment } from '../../../../../environments/environment';
 import { NotificationService } from '../../../../core/services/notification.service';
+import { ThemeService } from '../../../../core/services/theme.service';
 import { trackByIndex } from '../../../../shared/utils/track-by';
 
 export interface WidgetConfig {
@@ -96,6 +100,10 @@ const DEFAULT_CONFIG: WidgetConfig = {
 })
 export class WidgetComponent implements OnInit, OnDestroy {
   protected readonly trackByIndex = trackByIndex;
+
+  @HostBinding('class.theme-dark') protected themeDark = false;
+
+  private readonly destroy$ = new Subject<void>();
 
   config: WidgetConfig = { ...DEFAULT_CONFIG };
   widgetVersion = '2.4.0';
@@ -305,13 +313,21 @@ export class WidgetComponent implements OnInit, OnDestroy {
     private http: HttpClient,
     private notification: NotificationService,
     private cdr: ChangeDetectorRef,
+    private readonly themeService: ThemeService,
   ) {}
 
   ngOnInit(): void {
+    this.themeDark = this.themeService.currentTheme === 'dark';
+    this.themeService.currentTheme$.pipe(takeUntil(this.destroy$)).subscribe((t) => {
+      this.themeDark = t === 'dark';
+      this.cdr.markForCheck();
+    });
     this.cargar();
   }
 
   ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
     if (this.savedTimer) clearTimeout(this.savedTimer);
     if (this.copiadoTimer) clearTimeout(this.copiadoTimer);
   }
@@ -526,7 +542,15 @@ export class WidgetComponent implements OnInit, OnDestroy {
 
   // ── Computed ───────────────────────────────────────────────────────────────
   get scriptIntegracion(): string {
-    const url = `${this.config.chatUrl}/widget.js?v=${this.widgetVersion}`;
+    // En localhost el widget se sirve del dev-server (4200) para probar el
+    // build local; en producción usa el chatUrl configurado. Mismo criterio
+    // de hostname que abrirPreview().
+    const base = (
+      window.location.hostname !== 'localhost'
+        ? this.config.chatUrl
+        : window.location.origin
+    ).replace(/\/+$/, '');
+    const url = `${base}/widget.js?v=${this.widgetVersion}`;
     return `<script src="${url}" defer></script>`;
   }
 

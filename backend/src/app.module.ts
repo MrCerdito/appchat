@@ -7,6 +7,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import * as Joi from 'joi';
 import { AuditInterceptor } from './common/interceptors/audit.interceptor';
 import { HttpThrottlerGuard } from './common/guards/http-throttler.guard';
+import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { AuditLog } from './common/entities/audit-log.entity';
 import { AuthModule } from './auth/auth.module';
 import { SessionsModule } from './sessions/sessions.module';
@@ -44,6 +45,18 @@ import { Faq } from './faq/entities/faq.entity';
 import { FaqCategory } from './faq/entities/faq-category.entity';
 import { TicketsModule } from './tickets/tickets.module';
 import { Ticket } from './tickets/ticket.entity';
+import { TicketAudit } from './tickets/entities/ticket-audit.entity';
+import { CorreoMensaje } from './correos/entities/correo-mensaje.entity';
+import { CorreoAdjunto } from './correos/entities/correo-adjunto.entity';
+import { CorreoCarpetaSync } from './correos/entities/correo-carpeta-sync.entity';
+import { CorreosModule } from './correos/correos.module';
+import { CalendarioModule } from './calendario/calendario.module';
+import { SharepointModule } from './sharepoint/sharepoint.module';
+import { TareasModule } from './tareas/tareas.module';
+import { Tarea } from './tareas/tarea.entity';
+import { TaskAssignee } from './tareas/entities/task-assignee.entity';
+import { TaskComment } from './tareas/entities/task-comment.entity';
+import { TaskTimeEntry } from './tareas/entities/task-time-entry.entity';
 import { PqrsModule } from './pqrs/pqrs.module';
 import { Pqrs } from './pqrs/entities/pqrs.entity';
 import { AdvisorActivityLog } from './advisor-activity/entities/advisor-activity.entity';
@@ -199,7 +212,15 @@ import { AppService } from './app.service';
           AccesoUsuario,
           Changelog,
           ChangelogSeen,
+          Tarea,
+          TaskAssignee,
+          TaskComment,
+          TaskTimeEntry,
           ColegioLog,
+          TicketAudit,
+          CorreoMensaje,
+          CorreoAdjunto,
+          CorreoCarpetaSync,
         ],
         synchronize: config.get<string>('NODE_ENV') === 'development',
         logging: config.get<string>('NODE_ENV') !== 'production',
@@ -218,6 +239,10 @@ import { AppService } from './app.service';
     AdvisorsWhatsappModule,
     FaqModule,
     TicketsModule,
+    CorreosModule,
+    CalendarioModule,
+    SharepointModule,
+    TareasModule,
     PqrsModule,
     InternalChatModule,
     PerfilInstitucionalModule,
@@ -238,6 +263,12 @@ import { AppService } from './app.service';
     {
       provide: APP_GUARD,
       useClass: HttpThrottlerGuard,
+    },
+    // Auth global fail-closed: toda ruta exige JWT salvo @Public().
+    // Orden: throttle (429) → auth (401) → permisos de módulo (403).
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
     },
     {
       provide: APP_GUARD,

@@ -22,7 +22,7 @@ import { FaqModule } from '../faq/faq.module';
     forwardRef(() => AiModule), // ← línea nueva
     forwardRef(() => SessionsModule), // ← línea nueva
     ConfiguracionModule,
-    AdvisorsWhatsappModule,
+    forwardRef(() => AdvisorsWhatsappModule),
     FaqModule,
   ],
   controllers: [ChatMediaController, ChatEventsController],

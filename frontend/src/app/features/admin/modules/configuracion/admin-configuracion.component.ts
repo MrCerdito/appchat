@@ -1,6 +1,7 @@
 import {
   ChangeDetectorRef,
   Component,
+  HostBinding,
   OnDestroy,
   OnInit,
   ChangeDetectionStrategy,
@@ -21,6 +22,7 @@ import { WaConnectionStatus } from '../../../../core/models/whatsapp.models';
 import { trackByIndex } from '../../../../shared/utils/track-by';
 import { Colegio, SessionService } from '../../../../core/services/session.service';
 import { LayoutService } from '../../../../core/services/layout.service';
+import { ThemeService } from '../../../../core/services/theme.service';
 import { SmtpConfigComponent } from './components/smtp-config/smtp-config.component';
 import { ColegiosConfigComponent } from './components/colegios-config/colegios-config.component';
 
@@ -288,6 +290,8 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
     { value: 6, label: 'Sabado', short: 'Sab' },
   ];
 
+  @HostBinding('class.theme-dark') protected themeDark = false;
+
   private destroy$ = new Subject<void>();
 
   constructor(
@@ -297,9 +301,16 @@ export class AdminConfiguracionComponent implements OnInit, OnDestroy {
     private readonly cdr: ChangeDetectorRef,
     private readonly sessionService: SessionService,
     private readonly layoutService: LayoutService,
+    private readonly themeService: ThemeService,
   ) {}
 
   ngOnInit(): void {
+    this.themeDark = this.themeService.currentTheme === 'dark';
+    this.themeService.currentTheme$.pipe(takeUntil(this.destroy$)).subscribe((t) => {
+      this.themeDark = t === 'dark';
+      this.cdr.markForCheck();
+    });
+
     this.sound.loadSoundConfig();
     this.svc
       .getGlobal()

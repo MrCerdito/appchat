@@ -62,6 +62,12 @@
   --radius-lg: 12px;
   --radius-xl: 16px;
 
+  /* Detail de ticket: azul de marca y tinta. Aislados a proposito para no
+     repintar el --primary global, que usa toda la aplicacion. */
+  --ts-brand: #4f6bff;
+  --ts-brand-hover: #3b5bef;
+  --ts-ink: #172033;
+
   /* Sidebar sizing */
   --sidebar-width: 260px;
   --sidebar-collapsed-width: 64px;
@@ -112,18 +118,138 @@
   --primary-hover: #60a5fa;
   --primary-soft: rgba(59, 130, 246, 0.18);
 
+  /* El azul de marca se aclara en oscuro para mantener contraste sobre #1a1f26. */
+  --ts-brand: #6b83ff;
+  --ts-brand-hover: #8098ff;
+  --ts-ink: #e8eaed;
+
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 
-/* ─── Admin shell accent override ──────────────────── */
+/* ─── Advisor shell: navbar en modo oscuro (navy #091525) ────────────
+   Vive en el stylesheet global a proposito: [data-theme] esta en <html> y,
+   con encapsulacion emulada, las reglas del componente reciben [_ngcontent]
+   en cada selector, por lo que nunca casarian con la raiz.
+   Solo re-declara tokens dentro de .advisor-shell > header.mobile-topbar
+   (marca, campana, contador, panel Equipo, dropdown de perfil); el sidebar
+   y el contenido se tocan en su propio paso. */
+[data-theme='dark'] .advisor-shell .mobile-topbar {
+  --sidebar-bg: #091525;
+  --sidebar-surface: #0d1b30;
+  --sidebar-text: #e6edf7;
+  --sidebar-text-muted: #94a7c2;
+  --sidebar-text-faint: #7d93b3;
+  --sidebar-border: rgba(255, 255, 255, 0.09);
+  --sidebar-hover: rgba(255, 255, 255, 0.06);
+  --sidebar-active: rgba(255, 255, 255, 0.05);
+  --sidebar-accent: #4d8dff;
+  --sidebar-accent-soft: rgba(77, 141, 255, 0.16);
+
+  --bg-hover: rgba(255, 255, 255, 0.08);
+  --text-muted: #94a7c2;
+
+  --nb-soft: rgba(255, 255, 255, 0.05);
+  --nb-line: rgba(255, 255, 255, 0.12);
+  --nb-ring: rgba(77, 141, 255, 0.18);
+  --nb-accent-line: rgba(77, 141, 255, 0.45);
+}
+
+[data-theme='dark'] .advisor-shell .mobile-topbar .capsule-badge:hover,
+[data-theme='dark'] .advisor-shell .mobile-topbar .capsule-badge.open {
+  background: #2563eb;
+}
+
+/* ─── Advisor shell: sidebar izquierdo en modo oscuro (navy #091525) ───
+   Mismo motivo que arriba: selector global para casar con <html data-theme>.
+   Cubre todo lo que vive dentro de <aside class="shell-sidebar"> (logo,
+   grupos de nav, badges, tooltip, botón de cerrar sesión) en TODOS los
+   módulos, ya que el sidebar es el mismo nodo en cada vista. */
+[data-theme='dark'] .advisor-shell .shell-sidebar {
+  --sidebar-bg: #091525;
+  --sidebar-surface: #0d1b30;
+  --sidebar-text: #e6edf7;
+  --sidebar-text-muted: #94a7c2;
+  --sidebar-text-faint: #7d93b3;
+  --sidebar-border: rgba(255, 255, 255, 0.09);
+  --sidebar-hover: rgba(255, 255, 255, 0.06);
+  --sidebar-active: rgba(255, 255, 255, 0.05);
+  --sidebar-accent: #4d8dff;
+  --sidebar-accent-soft: rgba(77, 141, 255, 0.16);
+
+  --sb-hover: rgba(255, 255, 255, 0.07);
+  --sb-logout-bg: rgba(239, 68, 68, 0.14);
+  --sb-logout-text: #f87171;
+}
+
+/* ─── Admin shell: navbar superior estilo asesores ────────────
+   Paleta clara scoped al shell del admin (misma que .advisor-shell):
+   navbar blanca, texto #172033, bordes #e8ecf2, azul Korvix #2563eb. */
 .admin-shell {
-  --sidebar-accent: #7c3aed;
-  --sidebar-accent-soft: rgba(124, 58, 237, 0.15);
-  --primary: #7c3aed;
-  --primary-hover: #8b5cf6;
-  --primary-soft: rgba(124, 58, 237, 0.15);
+  --sidebar-bg: #ffffff;
+  --sidebar-surface: #ffffff;
+  --sidebar-text: #172033;
+  --sidebar-text-muted: #64748b;
+  --sidebar-text-faint: #94a3b8;
+  --sidebar-border: #e8ecf2;
+  --sidebar-hover: #f1f5f9;
+  --sidebar-active: #eef4ff;
+  --sidebar-accent: #2563eb;
+  --sidebar-accent-soft: #eef4ff;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-soft: rgba(37, 99, 235, 0.15);
+
+  /* Admin SaaS: tokens del panel (header, fondo, tarjetas) */
+  --adm-bg: #f8fafc;
+  --adm-line: #e5eaf0;
+  --adm-card-bg: #ffffff;
+  --adm-card-border: #e2e8f0;
+  --adm-title: #172033;
+  --adm-section: #1e293b;
+  --adm-muted: #64748b;
+  --adm-faint: #94a3b8;
+  --adm-icon-bg: #eff4ff;
+  --adm-icon: #2563eb;
+  --adm-accent: #2563eb;
+  --adm-hover-border: rgba(37, 99, 235, 0.45);
+  --adm-search-bg: #f8fafc;
+  --adm-search-border: #e5eaf0;
+}
+
+/* Oscuro: redeclara TODO el set para que el bloque claro (misma
+   especificidad, posteriores en el archivo) no pise los tokens. */
+[data-theme='dark'] .admin-shell {
+  --sidebar-bg: #0a0f1a;
+  --sidebar-surface: #111827;
+  --sidebar-text: #e8eaed;
+  --sidebar-text-muted: rgba(232, 234, 237, 0.6);
+  --sidebar-text-faint: rgba(232, 234, 237, 0.35);
+  --sidebar-border: rgba(255, 255, 255, 0.06);
+  --sidebar-hover: rgba(255, 255, 255, 0.06);
+  --sidebar-active: rgba(255, 255, 255, 0.04);
+  --sidebar-accent: #4d8dff;
+  --sidebar-accent-soft: rgba(77, 141, 255, 0.16);
+  --primary: #3b82f6;
+  --primary-hover: #60a5fa;
+  --primary-soft: rgba(59, 130, 246, 0.18);
+
+  /* Admin SaaS en oscuro */
+  --adm-bg: #0a0f1a;
+  --adm-line: rgba(255, 255, 255, 0.07);
+  --adm-card-bg: #0f1729;
+  --adm-card-border: rgba(255, 255, 255, 0.08);
+  --adm-title: #e8eaed;
+  --adm-section: #e8eaed;
+  --adm-muted: rgba(232, 234, 237, 0.55);
+  --adm-faint: rgba(232, 234, 237, 0.35);
+  --adm-icon-bg: rgba(77, 141, 255, 0.14);
+  --adm-icon: #4d8dff;
+  --adm-accent: #4d8dff;
+  --adm-hover-border: rgba(77, 141, 255, 0.5);
+  --adm-search-bg: rgba(255, 255, 255, 0.04);
+  --adm-search-border: rgba(255, 255, 255, 0.08);
 }
 
 /* ─── Base reset ─────────────────────────────────────── */
@@ -157,6 +283,10 @@ a {
 button {
   cursor: pointer;
   font-family: inherit;
+  /* Los <button> nativos NO heredan color: el UA de Chrome pone
+     `color: initial` (negro), que en claro parece bien y en oscuro deja el
+     texto invisible. Hereda del ancestro para que siga --text en ambos temas. */
+  color: inherit;
 }
 
 img {
@@ -206,4 +336,128 @@ img {
 @keyframes it-tooltip-fade {
   from { opacity: 0; transform: translateY(2px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Cards de mensajes del chat (entran por [innerHTML]) ─────────────── */
+/* El pipeline de mensajes (message-format.ts) limpia style=/on*= pero deja
+   clases y etiquetas semánticas, así que estas cards se estilan desde el
+   CSS global y lucen igual en cliente, asesor, historial y operaciones. */
+.msg-card {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 340px;
+  margin: 4px 0;
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.08));
+  border-radius: 12px;
+  background: var(--surface, #ffffff);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+  font-family: var(--font, 'Inter', 'Segoe UI', system-ui, sans-serif);
+  color: var(--text, #181614);
+}
+
+.msg-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, #5059c9, #7b83eb);
+  color: #fff;
+}
+
+.msg-card-badge {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.msg-card-title {
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.msg-card-rows {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 14px;
+}
+
+.msg-card-row {
+  display: grid;
+  grid-template-columns: 78px 1fr;
+  gap: 10px;
+  align-items: baseline;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border, rgba(0, 0, 0, 0.08));
+
+  &:last-child { border-bottom: 0; }
+}
+
+.msg-card-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted, #6b6560);
+}
+
+.msg-card-value {
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.msg-card-btn {
+  display: block;
+  box-sizing: border-box;
+  width: calc(100% - 28px);
+  margin: 6px 14px 14px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #5059c9, #7b83eb);
+  color: #fff !important;
+  font-size: 13.5px;
+  font-weight: 700;
+  font-family: inherit;
+  text-align: center;
+  text-decoration: none !important;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+
+  &:hover {
+    filter: brightness(1.06);
+    box-shadow: 0 4px 14px rgba(80, 89, 201, 0.35);
+    transform: translateY(-1px);
+  }
+
+  &:active { transform: translateY(0) scale(0.98); }
+}
+
+/* Nota bajo el boton "Copiar link" (cards de reuniones programadas). */
+.msg-card-note {
+  margin: -4px 14px 12px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-muted, #6b6560);
+  text-align: center;
+}
+
+@media (max-width: 480px) {
+  .msg-card { max-width: 100%; }
+
+  .msg-card-row {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
 }

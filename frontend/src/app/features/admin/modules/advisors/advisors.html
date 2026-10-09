@@ -1,13 +1,7 @@
 <div class="advisors-page">
-  <!-- ═══════════ HEADER ═══════════ -->
+  <!-- ═══════════ HEADER (sin título: lo indica el breadcrumb) ═══════════ -->
   <div class="page-header">
-    <div class="page-title">
-      <span class="title-icon"><lucide-icon [img]="icons.UsersRound" [size]="22" /></span>
-      <div>
-        <h1>Agentes</h1>
-        <p>Gestiona el equipo de soporte y administradores</p>
-      </div>
-    </div>
+    <div class="page-title"></div>
     <div class="header-actions">
       <button class="btn-secondary" (click)="onExportExcel()" [disabled]="exporting" title="Descargar lista en Excel">
         <lucide-icon [img]="icons.Download" [size]="16" />

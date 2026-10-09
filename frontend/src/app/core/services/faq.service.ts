@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, ObservableInput } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { AuthService } from './auth.service';
 
 export interface DocumentInfo {
   name: string;
@@ -64,7 +65,10 @@ export interface CreateFaqCategoryDto {
 
 @Injectable({ providedIn: 'root' })
 export class FaqService {
-  constructor(private http: HttpClient) {}
+  constructor(
+    private http: HttpClient,
+    private auth: AuthService,
+  ) {}
 
   getAll(colegioId?: number, q?: string, bustCache = false, rol?: string): Observable<Faq[]> {
     let params = '';
@@ -157,9 +161,15 @@ export class FaqService {
       signal.addEventListener('abort', () => ctrl.abort());
     }
 
+    // /faq/chat exige JWT (solo personal): el interceptor de HttpClient no
+    // alcanza a los fetch, asi que el token se agrega a mano.
+    const token = this.auth.getToken();
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
     fetch(`${environment.apiUrl}/faq/chat`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ query }),
       signal: ctrl.signal,
     })

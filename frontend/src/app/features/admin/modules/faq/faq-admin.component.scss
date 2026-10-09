@@ -1117,3 +1117,29 @@
   padding-bottom: 6px;
 }
 
+// ── Tema oscuro ──
+:host.theme-dark {
+  .faq-cat-item-badge {
+    background: rgba(245, 158, 11, 0.16);
+    color: #fbbf24;
+  }
+
+  .faq-cat-item-desc {
+    color: #9aa7bd;
+  }
+
+  .faq-cat-item-btn {
+    color: #9aa7bd;
+  }
+
+  .faq-cat-edit {
+    background: #151b23;
+  }
+
+  .faq-cat-icon-opt {
+    background: #1a1f26;
+    border-color: rgba(255, 255, 255, 0.12);
+    color: #9aa7bd;
+  }
+}
+

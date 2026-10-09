@@ -5,6 +5,10 @@ import { TicketsService } from './tickets.service';
 import { Ticket } from './ticket.entity';
 import { User } from '../auth/entities/user.entity';
 import { TicketMailService } from './ticket-mail.service';
+import { TicketsGateway } from './tickets.gateway';
+import { NotificationsService } from '../notifications/notifications.service';
+import { SlaService } from '../slaprotection/sla.service';
+import { TicketAuditService } from './ticket-audit.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 
 jest.mock('sanitize-html', () => (value: string) => value);
@@ -21,7 +25,10 @@ describe('TicketsService (creacion y envio de correo)', () => {
     delete: jest.Mock<Promise<{ affected: number }>, [string]>;
     findOne: jest.Mock<Promise<Ticket | null>, [unknown]>;
   };
-  let userRepo: { findOneBy: jest.Mock<Promise<User | null>, [unknown]> };
+  let userRepo: {
+    findOneBy: jest.Mock<Promise<User | null>, [unknown]>;
+    find: jest.Mock<Promise<User[]>, [unknown]>;
+  };
   let ticketMail: {
     enviarTicket: jest.Mock<Promise<EnviarTicketResult>, [Ticket, string]>;
   };
@@ -52,6 +59,7 @@ describe('TicketsService (creacion y envio de correo)', () => {
     repo.findOne.mockResolvedValue(null);
     userRepo = {
       findOneBy: jest.fn<Promise<User | null>, [unknown]>(),
+      find: jest.fn<Promise<User[]>, [unknown]>().mockResolvedValue([]),
     };
     ticketMail = {
       enviarTicket: jest.fn<Promise<EnviarTicketResult>, [Ticket, string]>(),
@@ -63,6 +71,26 @@ describe('TicketsService (creacion y envio de correo)', () => {
         { provide: getRepositoryToken(Ticket), useValue: repo },
         { provide: getRepositoryToken(User), useValue: userRepo },
         { provide: TicketMailService, useValue: ticketMail },
+        {
+          provide: NotificationsService,
+          useValue: { create: jest.fn().mockResolvedValue(undefined) },
+        },
+        {
+          provide: SlaService,
+          useValue: {
+            calculateDeadline: jest
+              .fn()
+              .mockResolvedValue(new Date('2026-11-01T12:00:00.000Z')),
+          },
+        },
+        {
+          provide: TicketsGateway,
+          useValue: { broadcastTicketEvent: jest.fn() },
+        },
+        {
+          provide: TicketAuditService,
+          useValue: { registrar: jest.fn().mockResolvedValue(undefined) },
+        },
       ],
     }).compile();
 

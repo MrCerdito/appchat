@@ -12,6 +12,8 @@ backend/uploads/whatsapp/
 backend/uploads/chat-media/
 backend/uploads/internal/
 backend/uploads/profiles/
+backend/uploads/tickets/
+backend/uploads-private/
 BD.csv
 Backup/
 backend/.env.save

@@ -98,17 +98,60 @@ export interface PiImportLog {
   detalle: string;
 }
 
+export type PiImportEstado = 'crear' | 'actualizar' | 'sin-cambios' | 'duplicada';
+
+export interface PiImportCambio {
+  campo: string;
+  anterior: string | null;
+  nuevo: string | null;
+}
+
+export interface PiImportFila {
+  fila: number;
+  nombre: string;
+  estado: PiImportEstado;
+  cambios: PiImportCambio[];
+  avisos: string[];
+}
+
+export interface PiImportColumna {
+  origen: string;
+  destino: string;
+  estado: 'mapeada' | 'ignorada' | 'ausente';
+  detalle?: string;
+}
+
+export interface PiImportAviso {
+  fila: number | null;
+  nombre: string | null;
+  campo: string | null;
+  mensaje: string;
+}
+
+export interface PiImportResumen {
+  filasArchivo: number;
+  creadas: number;
+  actualizadas: number;
+  sinCambios: number;
+  duplicadas: number;
+  conAvisos: number;
+  columnasIgnoradas: number;
+}
+
 export interface PiImportResp {
   ok: boolean;
   preview?: boolean;
   created: number;
   updated: number;
   total: number;
+  resumen: PiImportResumen;
+  filas: PiImportFila[];
+  columnas: PiImportColumna[];
+  avisos: PiImportAviso[];
   errores: string[];
   logs: PiImportLog[];
-  logExcelBase64: string;
   cambiosAsesor?: { colegio: string; anterior: string | null; nuevo: string }[];
-  filas?: { nombre: string; estado: 'crear' | 'actualizar' | 'omito'; cambios: string[] }[];
+  logExcelBase64: string;
   backup?: string;
 }
 

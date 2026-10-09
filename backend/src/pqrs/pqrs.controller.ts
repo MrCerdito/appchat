@@ -13,15 +13,20 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard, Roles } from '../auth/roles.guard';
+import { Public } from '../auth/public.decorator';
 import { PqrsService } from './pqrs.service';
 import { CreatePqrsDto } from './dto/create-pqrs.dto';
 import { UpdatePqrsDto } from './dto/update-pqrs.dto';
 import { QueryPqrsDto } from './dto/query-pqrs.dto';
+import { Throttle } from '@nestjs/throttler';
 
 @Controller('pqrs')
 export class PqrsController {
   constructor(private readonly pqrsService: PqrsService) {}
 
+  // Envio publico desde el widget/cliente; acotado para evitar spam.
+  @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post()
   @HttpCode(HttpStatus.CREATED)
   create(@Body(new ValidationPipe({ whitelist: true })) dto: CreatePqrsDto) {

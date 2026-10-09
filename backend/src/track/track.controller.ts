@@ -1,8 +1,12 @@
 import { Controller, Get, Param, Query, Req, Res } from '@nestjs/common';
 import type { Response, Request } from 'express';
+import { Public } from '../auth/public.decorator';
 import { ComunicadosService } from '../comunicados/comunicados.service';
 import { TrackDedupService } from './track-dedup.service';
 
+// Pixel de apertura y links trackeados: los consumen clientes de correo
+// externos (Outlook/Gmail) sin JWT. Controller 100% publico.
+@Public()
 @Controller('track')
 export class TrackController {
   constructor(

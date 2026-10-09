@@ -47,6 +47,39 @@ export function metodoCorreoActivo(
   return cfg?.metodoEnvioCorreo === 'smtp' ? 'smtp' : 'mailsender';
 }
 
+/**
+ * Placeholder write-only que la API devuelve en lugar de secretos reales
+ * (password SMTP, client secret de Azure). El valor real NUNCA sale del
+ * servidor: si en un guardado llega esta mascara, se conserva el valor
+ * almacenado; un string vacio si borra el secreto de forma explicita.
+ */
+export const SECRETO_OCULTO = '••••••';
+
+const CAMPOS_SECRETOS_CREDENCIAL = ['password', 'azure_ClientSecret'];
+
+/**
+ * Devuelve una copia de la configuracion con los secretos enmascarados.
+ * SOLO se usa en la serializacion hacia el cliente (HTTP); los consumidores
+ * internos (envio de correos, tickets, IA) usan getGlobal()/getEfectiva()
+ * sin tocar y siguen recibiendo los valores reales.
+ */
+export function enmascararSecretos(config: Configuracion): Configuracion {
+  const copia: Configuracion = { ...config };
+  if (copia.smtpPass) copia.smtpPass = SECRETO_OCULTO;
+  const credencial = copia.mailsenderCredencial as
+    | Record<string, unknown>
+    | null
+    | undefined;
+  if (credencial && typeof credencial === 'object') {
+    const oculta: Record<string, unknown> = { ...credencial };
+    for (const k of CAMPOS_SECRETOS_CREDENCIAL) {
+      if (oculta[k]) oculta[k] = SECRETO_OCULTO;
+    }
+    copia.mailsenderCredencial = oculta;
+  }
+  return copia;
+}
+
 @Injectable()
 export class ConfiguracionService implements OnModuleInit {
   private readonly dias = [
@@ -951,6 +984,7 @@ export class ConfiguracionService implements OnModuleInit {
       for (const key of readOnlyKeys) {
         delete (data as any)[key];
       }
+      this.restaurarSecretosWriteOnly(data, existing);
       Object.assign(existing, data);
       saved = await this.repo.save(existing);
     } else {
@@ -960,6 +994,7 @@ export class ConfiguracionService implements OnModuleInit {
       const defaults = global ? { ...global } : {};
       delete (defaults as any).id;
       delete (defaults as any).advisorId;
+      this.restaurarSecretosWriteOnly(data, global);
       const nueva = this.repo.create({
         ...defaults,
         ...data,
@@ -975,6 +1010,36 @@ export class ConfiguracionService implements OnModuleInit {
     }
 
     return saved;
+  }
+
+  /**
+   * Write-only: si llega la mascara SECRETO_OCULTO en un secreto, se conserva
+   * el valor ya guardado (o se elimina si no existe). Un string vacio SI borra
+   * el secreto (borrado explicito del admin).
+   */
+  private restaurarSecretosWriteOnly(
+    data: Partial<Configuracion>,
+    fuente: Configuracion | null | undefined,
+  ): void {
+    if (
+      data.smtpPass !== undefined &&
+      String(data.smtpPass) === SECRETO_OCULTO
+    ) {
+      delete data.smtpPass;
+    }
+    const credencial = data.mailsenderCredencial;
+    if (credencial && typeof credencial === 'object') {
+      const oculta = credencial as Record<string, unknown>;
+      const guardada = (fuente?.mailsenderCredencial ?? null) as
+        | Record<string, unknown>
+        | null;
+      for (const k of CAMPOS_SECRETOS_CREDENCIAL) {
+        if (oculta[k] === SECRETO_OCULTO) {
+          if (guardada?.[k]) oculta[k] = guardada[k];
+          else delete oculta[k];
+        }
+      }
+    }
   }
 
   /**
@@ -1000,6 +1065,33 @@ export class ConfiguracionService implements OnModuleInit {
       throw new BadRequestException(
         'Indica un correo valido para recibir la prueba.',
       );
+    }
+
+    // Write-only: si llega la mascara SECRETO_OCULTO (el cliente no conoce el
+    // secreto real), se sustituye por el valor guardado en la fila global.
+    const global = await this.getGlobalRow().catch(() => null);
+    if (global) {
+      if (String(body.smtpPass ?? '').trim() === SECRETO_OCULTO) {
+        body = { ...body, smtpPass: global.smtpPass ?? '' };
+      }
+      const credPrueba = body.credencial as
+        | Record<string, unknown>
+        | null
+        | undefined;
+      if (credPrueba && typeof credPrueba === 'object') {
+        const guardada = (global.mailsenderCredencial ?? null) as
+          | Record<string, unknown>
+          | null;
+        const sustituida: Record<string, unknown> = { ...credPrueba };
+        let cambio = false;
+        for (const k of CAMPOS_SECRETOS_CREDENCIAL) {
+          if (sustituida[k] === SECRETO_OCULTO) {
+            sustituida[k] = guardada?.[k] ?? '';
+            cambio = true;
+          }
+        }
+        if (cambio) body = { ...body, credencial: sustituida };
+      }
     }
 
     const smtpHost = String(body.smtpHost ?? '').trim();

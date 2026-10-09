@@ -8,6 +8,7 @@ import {
   ChangeDetectionStrategy,
   ViewChild,
   ElementRef,
+  HostBinding,
 } from '@angular/core';
 
 import { FormsModule } from '@angular/forms';
@@ -17,6 +18,7 @@ import { ComunicadosService, Colegio, FiltroPerfilComunicado, SmtpCuota, SendLan
 import { Comunicado, ComunicadoTemplate, ComunicadoTemplateLog, Destinatario } from '../../../../core/models/comunicado.model';
 import { NotificationService } from '../../../../core/services/notification.service';
 import { LayoutService } from '../../../../core/services/layout.service';
+import { ThemeService } from '../../../../core/services/theme.service';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
 import { fmtDateFull, fmtDateTimeFull } from '../../../../shared/utils/date';
 import { MailEditorComponent, COMUNICADO_MAIL_VARIABLES, limpiarHTML } from '../../../../features/admin/modules/configuracion/components/mail-editor/mail-editor.component';
@@ -141,6 +143,8 @@ error = '';
   private lastCleanCuerpo = '';
   private readonly apiBase: string;
 
+  @HostBinding('class.theme-dark') protected themeDark = false;
+
   private destroy$ = new Subject<void>();
 
   constructor(
@@ -148,6 +152,7 @@ error = '';
     private notification: NotificationService,
     private cdr: ChangeDetectorRef,
     private layout: LayoutService,
+    private themeService: ThemeService,
   ) {
     try {
       this.apiBase = new URL(environment.apiUrl).origin;
@@ -158,6 +163,11 @@ error = '';
   }
 
   ngOnInit(): void {
+    this.themeDark = this.themeService.currentTheme === 'dark';
+    this.themeService.currentTheme$.pipe(takeUntil(this.destroy$)).subscribe((t) => {
+      this.themeDark = t === 'dark';
+      this.cdr.markForCheck();
+    });
     this.layout.setSidebarForcedCollapsed(true);
     this.loadAll();
     this.loadTemplates();

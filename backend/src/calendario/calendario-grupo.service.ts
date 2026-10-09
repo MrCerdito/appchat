@@ -325,10 +325,33 @@ export class CalendarioGrupoService {
     // El enlace de Graph es la fuente de verdad: al releer el calendario se
     // corrige solo el cruce que dejan las filas con join_url desactualizado.
     const joinUrl = this.joinUrl(ev) ?? fila?.joinUrl ?? null;
+    const categoriasGraph = Array.isArray(ev?.categories)
+      ? ev.categories.filter((c: unknown): c is string => typeof c === 'string')
+      : [];
+    // La fila local guarda lo que mando la app (alias + nombre de Outlook).
+    // Se fusiona con lo que devuelve Graph para que el chip de la app tenga
+    // color aunque Graph no conserve categorias desconocidas.
+    const categoriasFila = Array.isArray(fila?.categories)
+      ? fila.categories.filter((c: unknown): c is string => typeof c === 'string')
+      : [];
+    const categorias = [
+      ...categoriasGraph,
+      ...categoriasFila.filter((c) => !categoriasGraph.includes(c)),
+    ];
+    const categoriasNormalizadas = categorias.map((categoria) =>
+      categoria.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
+    );
+    const sinPrefijoCreador = categoriasNormalizadas.some((categoria) =>
+      ['cumpleanos', 'green category', 'reunion equipo', 'purple category'].includes(categoria),
+    );
+    const asuntoOriginal = ev.subject?.trim() ? ev.subject.trim() : '(sin titulo)';
+    const subject = sinPrefijoCreador
+      ? asuntoOriginal.replace(/^\([^)]{1,100}\)\s*/, '').trim() || asuntoOriginal
+      : asuntoOriginal;
 
     return {
       eventId: ev.id,
-      subject: ev.subject?.trim() ? ev.subject.trim() : '(sin titulo)',
+      subject,
       startDateTime: inicio,
       endDateTime: fin || inicio,
       durationMinutes: this.duracion(inicio, fin || inicio),
@@ -337,13 +360,15 @@ export class CalendarioGrupoService {
       isAllDay: ev.isAllDay === true,
       isCancelled: ev.isCancelled === true,
       response: ev?.responseStatus?.response ?? null,
-      categorias: Array.isArray(ev?.categories)
-        ? ev.categories.filter((c: unknown): c is string => typeof c === 'string')
-        : [],
+      categorias,
       joinUrl,
       showAs: ev.showAs ?? null,
       type: ev.type ?? null,
       creadaEnLaApp: !!fila,
+      meetingRecordId: fila?.id ?? null,
+      createdById: fila?.createdBy ?? null,
+      calendarTarget: fila?.calendarTarget ?? null,
+      eventSource: fila?.eventSource ?? null,
       origen,
     };
   }
@@ -372,6 +397,10 @@ export class CalendarioGrupoService {
       showAs: 'busy',
       type: 'singleInstance',
       creadaEnLaApp: true,
+      meetingRecordId: fila.id,
+      createdById: fila.createdBy,
+      calendarTarget: fila.calendarTarget,
+      eventSource: fila.eventSource,
       origen: 'buzon',
     };
   }

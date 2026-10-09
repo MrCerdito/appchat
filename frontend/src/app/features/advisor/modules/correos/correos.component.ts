@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
+  HostBinding,
   OnDestroy,
   OnInit,
 } from '@angular/core';
@@ -22,6 +23,7 @@ import {
   SIN_CATEGORIA,
 } from '../../../../core/services/correos.service';
 import { LayoutService } from '../../../../core/services/layout.service';
+import { ThemeService } from '../../../../core/services/theme.service';
 import {
   colorCategoria,
   normalizarCategoria,
@@ -29,6 +31,7 @@ import {
 } from '../../../../shared/utils/categoria-correo.util';
 import { SocketService } from '../../../../core/services/socket.service';
 import { NotificationService } from '../../../../core/services/notification.service';
+import { NotificationRealtimeService } from '../../../../core/services/notification-realtime.service';
 
 const TAMANO_PAGINA = 50;
 
@@ -96,6 +99,7 @@ export class CorreosComponent implements OnInit, OnDestroy {
   total = 0;
   totalCarpeta = 0;
   noLeidosTotal = 0;
+  sinCategoriaTotal = 0;
   carpetaNombre = '';
   soloNoLeidos = false;
 
@@ -164,6 +168,13 @@ export class CorreosComponent implements OnInit, OnDestroy {
    */
   cuerpoIframe: SafeResourceUrl | null = null;
 
+  /**
+   * Tema del shell: la clase viaja al host del componente y el SCSS usa
+   * `:host.theme-dark`, porque el `data-theme` vive en `<html>` y los
+   * selectores del modulo con empaquetado de Angular nunca lo alcanzan.
+   */
+  @HostBinding('class.theme-dark') protected themeDark = false;
+
   private subs = new Subscription();
 
   /** Timer del sondeo de seguridad. */
@@ -176,10 +187,19 @@ export class CorreosComponent implements OnInit, OnDestroy {
     private readonly layout: LayoutService,
     private readonly socket: SocketService,
     private readonly notifs: NotificationService,
+    private readonly notificationRealtime: NotificationRealtimeService,
     private readonly route: ActivatedRoute,
+    private readonly themeService: ThemeService,
   ) {}
 
   ngOnInit(): void {
+    this.themeDark = this.themeService.currentTheme === 'dark';
+    this.subs.add(
+      this.themeService.currentTheme$.subscribe((t) => {
+        this.themeDark = t === 'dark';
+        this.cdr.markForCheck();
+      }),
+    );
     // La bandeja ocupa toda la pantalla, igual que history y comunicados: se
     // colapsa la barra de modulos al entrar y se devuelve al salir.
     this.layout.setSidebarForcedCollapsed(true);
@@ -285,6 +305,7 @@ export class CorreosComponent implements OnInit, OnDestroy {
           this.total = b.total;
           this.totalCarpeta = b.totalCarpeta;
           this.noLeidosTotal = b.noLeidosTotal;
+          this.sinCategoriaTotal = b.sinCategoriaTotal;
           this.carpetaNombre = b.carpetaNombre;
           this.categoriasDisponibles = b.categoriasDisponibles ?? [];
           this.offset = b.mensajes.length;
@@ -472,6 +493,7 @@ export class CorreosComponent implements OnInit, OnDestroy {
             this.total = b.total;
             this.totalCarpeta = b.totalCarpeta;
             this.noLeidosTotal = b.noLeidosTotal;
+            this.sinCategoriaTotal = b.sinCategoriaTotal;
             this.carpetaNombre = b.carpetaNombre;
             this.categoriasDisponibles = b.categoriasDisponibles ?? [];
             this.offset += b.mensajes.length;
@@ -539,6 +561,7 @@ export class CorreosComponent implements OnInit, OnDestroy {
       this.correos.cuerpo(mensaje.id).subscribe({
         next: (c) => {
           this.cuerpo = c;
+          this.subs.add(this.notificationRealtime.markCorreoAbierto(mensaje.id).subscribe({ error: () => undefined }));
           this.cargandoCuerpo = false;
           this.cuerpoIframe = this.sanitizer.bypassSecurityTrustResourceUrl(
             this.envelopeHtml(c.html),
@@ -621,7 +644,7 @@ export class CorreosComponent implements OnInit, OnDestroy {
           this.recargarEnSilencio();
           this.cdr.markForCheck();
         },
-        error: (err) => {
+        error: (err: unknown) => {
           this.sincronizando = false;
           this.notifs.error(
             'No se pudieron buscar correos nuevos',
@@ -700,16 +723,6 @@ color(cat: string): string | null {
 etiqueta(categoriaCruda: string): string {
   return normalizarCategoria(categoriaCruda);
 }
-
-  /**
-   * Conteo de correos sin ninguna categoria en la carpeta. Se deriva de los
-   * totales reales que ya trae la respuesta, no de un filtro aparte: asi el
-   * numero nunca puede contradecir la lista.
-   */
-  get sinCategoriaTotal(): number {
-    const clasificados = this.categoriasDisponibles.reduce((suma, c) => suma + c.total, 0);
-    return Math.max(this.totalCarpeta - clasificados, 0);
-  }
 
   /** `2026-01-15`, para los <input type="date">. */
   get hoyIso(): string {

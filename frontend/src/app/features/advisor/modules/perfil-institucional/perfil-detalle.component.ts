@@ -1,8 +1,8 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, HostBinding, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Location } from '@angular/common';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
 import { Subject, debounceTime, takeUntil } from 'rxjs';
 import {
@@ -15,6 +15,7 @@ import { TicketService } from '../../../../core/services/ticket.service';
 import { Ticket, ConversationMessage } from '../../../../core/models/ticket.model';
 import { NotificationService } from '../../../../core/services/notification.service';
 import { SessionService } from '../../../../core/services/session.service';
+import { ThemeService } from '../../../../core/services/theme.service';
 import { PI_ICONS } from './pi-icons';
 import { fmtDateShort, fmtDateTime, sameBogotaDay } from '../../../../shared/utils/date';
 import { environment } from '../../../../../environments/environment';
@@ -37,6 +38,8 @@ type Tab = 'informacion' | 'tickets' | 'historial';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PerfilDetalleComponent implements OnInit, OnDestroy {
+  @HostBinding('class.theme-dark') protected themeDark = false;
+
   private destroy$ = new Subject<void>();
 
   readonly icons = PI_ICONS;
@@ -125,9 +128,21 @@ export class PerfilDetalleComponent implements OnInit, OnDestroy {
     private location: Location,
     private ticketService: TicketService,
     private cdr: ChangeDetectorRef,
+    private themeService: ThemeService,
+    private router: Router,
   ) {}
 
+  protected get esAdmin(): boolean {
+    return this.router.url.startsWith('/admin');
+  }
+
   ngOnInit(): void {
+    this.themeDark = this.themeService.currentTheme === 'dark';
+    this.themeService.currentTheme$.pipe(takeUntil(this.destroy$)).subscribe((t) => {
+      this.themeDark = t === 'dark';
+      this.cdr.markForCheck();
+    });
+
     const id = this.route.snapshot.paramMap.get('id');
     if (!id) {
       this.location.back();

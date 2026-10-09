@@ -411,6 +411,28 @@ get rolLabel(): string {
   estimatedWaitSecs = 0;
   private waitingTimer : any;
   private waitingTickTimer : any;
+
+  // Carrusel de asesores (pantalla de espera): círculo grande al centro y
+  // dos más pequeños a los lados; el siguiente se engrandece desde la
+  // derecha y el actual pasa a la izquierda. Sin disponibilidad.
+  carruselAsesores: { id: string; name: string; foto: string; ini: string; key: string }[] = [];
+  carruselEstados: { off: number; escala: number; op: number; z: number }[] = [];
+  carruselTotal = 0;
+  carruselIdx = 0;
+  private carruselTimer: any;
+  private asesoresCarruselCargados = false;
+
+  // Efecto "asesor conectado" (cinematográfico ~2.5s):
+  // 'seleccion' = el asesor se centra en el carrusel con anillo + check,
+  // 'overlay'   = pantalla "¡Conectado!" a pantalla completa (sobrevive al
+  //               cambio de paso: el bloque vive FUERA del @if de waiting),
+  // 'saliendo'  = el overlay se desvanece revelando el chat ya abierto.
+  conexionFase: 'ninguna' | 'seleccion' | 'overlay' | 'saliendo' = 'ninguna';
+  conexionNombre = '';
+  conexionFoto = '';
+  conexionIniciales = '';
+  conexionSeleccionKey: string | null = null;
+  private conexTimeouts: any[] = [];
   clientTimer: {
     tipo: TimerUpdatePayload['tipo'];
     restante: number;
@@ -1170,60 +1192,23 @@ En el siguiente menú encontrarás varias opciones en las que te puedes apoyar, 
     this.socket.on<{ name: string; profilePhotoUrl?: string }>('advisor_joined')
       .pipe(takeUntil(this.socketDestroy$))
       .subscribe((data) => {
-        this.advisorName = data.name;
-        this.advisorPhotoUrl = this.normalizePhotoUrl(data.profilePhotoUrl ?? '');
-        // El asesor se conectó: garantizar input humano (clip + notas de voz)
-        // aunque la asignación llegue sin pasar por transferToAdvisor().
-        this.aiMode = false;
-        this.cancelarTimerInactividadIa();
-        this.inactividadIaAviso = false;
-        this.sound.playNotification();
-        this.clearWaitingTimer();
-        this.mostrarAsesoresOcupados = false;
-        this.queuePosition = -1;
-        this.queueTotal    = null;
-        this.fueraDeHorario = false;
-        // El asesor está de vuelta: ocultar el banner de reconexión residual
-        // (puede quedar activo tras una reasignación con session_interrupted).
-        this.reconexionActiva = false;
-        this.reconexionSegundos = 0;
-        clearInterval(this.reconexionInterval);
-        this.reconexionInterval = null;
-        this.step = 'chat';
-        this.socket.emit('set_active', { sessionId: this.session!.id, active: true });
-
-        if (this.session) {
-          const persistido = { ...this.session, aiMode: false, advisorName: data.name, advisorPhotoUrl: this.advisorPhotoUrl };
-          localStorage.setItem(SESSION_KEY, JSON.stringify(persistido));
+        const foto = this.normalizePhotoUrl(data.profilePhotoUrl ?? '');
+        // Desde la pantalla de espera: efecto de selección + "¡Conectado!"
+        // + apertura del chat. En cualquier otro paso (reconexión/reasignación
+        // estando ya en el chat) se aplica al instante, como siempre.
+        if (this.step === 'waiting' && !this.reducedMotion()) {
+          this.iniciarEfectoConexion(data.name, foto);
+          return;
         }
-
-        if (this.pendingAttachments.length > 0) {
-          const attachments = [...this.pendingAttachments];
-          const content = this.pendingTransferText ||
-            (attachments.length === 1 ? 'Adjunté un archivo' : `Adjunté ${attachments.length} archivos`);
-          this.pendingAttachments = [];
-          this.pendingTransferText = '';
-          setTimeout(() => {
-            this.socket.emit('send_message', {
-              sessionId: this.session!.id,
-              content,
-              senderName: this.clientName,
-              attachments,
-            });
-          }, 300);
-        }
-
-        if (this.session) {
-          const updated = { ...this.session, status: 'active', advisor: { name: data.name }, aiMode: false };
-          localStorage.setItem(SESSION_KEY, JSON.stringify(updated));
-          this.session = updated as Session;
-        }
-        this.cdr.detectChanges();
+        this.aplicarConexionAsesor(data.name, foto, true);
       });
 
     this.socket.on<any>('session_closed')
       .pipe(takeUntil(this.socketDestroy$))
       .subscribe(() => {
+        // Si la sesión se cierra a mitad del efecto de conexión, cancelarlo:
+        // no hay chat que abrir.
+        this.cancelarEfectoConexion();
         this.socketDestroy$.next();
         this.socket.disconnect();
         if (this.aiMode) {
@@ -2434,6 +2419,26 @@ En el siguiente menú encontrarás varias opciones en las que te puedes apoyar, 
     return memoFormatMessageContent(text);
   }
 
+  /**
+   * Cards de reuniones programadas: el boton "Copiar link" viene por
+   * [innerHTML] (sin handlers), asi que se delega aqui el clic para copiar
+   * el href al portapapeles y confirmar en el propio boton.
+   */
+  @HostListener('click', ['$event'])
+  onMsgCardCopyClick(ev: Event): void {
+    const target = ev.target as HTMLElement | null;
+    const btn = target?.closest?.('.msg-card-btn--copy') as HTMLAnchorElement | null;
+    if (!btn) return;
+    ev.preventDefault();
+    const url = btn.getAttribute('href') || '';
+    if (!url) return;
+    navigator.clipboard?.writeText(url).then(() => {
+      const prev = btn.textContent;
+      btn.textContent = 'Copiado ✓';
+      setTimeout(() => { btn.textContent = prev; }, 2000);
+    }).catch(() => {});
+  }
+
   private normalizePhotoUrl(url: string): string {
   if (!url) return '';
   return /^https?:\/\//i.test(url) ? url : `${environment.apiUrl}${url}`;
@@ -2513,16 +2518,228 @@ En el siguiente menú encontrarás varias opciones en las que te puedes apoyar, 
     this.waitingTimer = setTimeout(() => {
       if (this.step === 'waiting') { this.mostrarAsesoresOcupados = true; this.cdr.detectChanges(); }
     }, 60_000);
+
+    this.iniciarCarruselAsesores();
   }
 
   private clearWaitingTimer(): void {
     if (this.waitingTimer) { clearTimeout(this.waitingTimer); this.waitingTimer = null; }
     if (this.waitingTickTimer) { clearInterval(this.waitingTickTimer); this.waitingTickTimer = null; }
+    this.detenerCarruselAsesores();
     this.waitingElapsed = 0;
     this.estimatedWaitSecs = 0;
   }
 
+  // ── Carrusel de asesores ────────────────────────────────────────────────
+  private iniciarCarruselAsesores(): void {
+    this.cargarAsesoresCarrusel();
+    this.detenerCarruselAsesores();
+    this.carruselTimer = setInterval(() => this.avanzarCarrusel(), 2600);
+  }
+
+  private detenerCarruselAsesores(): void {
+    if (this.carruselTimer) { clearInterval(this.carruselTimer); this.carruselTimer = null; }
+    this.carruselIdx = 0;
+    this.actualizarEstadosCarrusel();
+  }
+
+  private cargarAsesoresCarrusel(): void {
+    if (this.asesoresCarruselCargados) return;
+    this.asesoresCarruselCargados = true;
+    this.sessionService.findAdvisorsPublico().subscribe({
+      next: (lista) => {
+        const base = (lista || []).slice(0, 10).map((a) => ({
+          id: a.id,
+          name: (a.name || 'Asesor').trim(),
+          foto: this.normalizePhotoUrl(a.profilePhotoUrl || ''),
+          ini: this.inicialesDe(a.name),
+        }));
+        // Réplicas para que las 5 posiciones (centro + 2 a cada lado)
+        // estén siempre cubiertas aunque pocos asesores estén en línea.
+        const copias = base.length <= 1 ? 1 : Math.ceil(5 / base.length);
+        const items: { id: string; name: string; foto: string; ini: string; key: string }[] = [];
+        for (let c = 0; c < copias; c++) {
+          for (const a of base) items.push({ ...a, key: a.id + '#' + c });
+        }
+        this.carruselAsesores = items;
+        this.carruselTotal = base.length;
+        this.actualizarEstadosCarrusel();
+        this.cdr.detectChanges();
+      },
+      error: () => { this.asesoresCarruselCargados = false; },
+    });
+  }
+
+  private avanzarCarrusel(): void {
+    if (this.carruselTotal < 2) return;
+    this.carruselIdx++;
+    this.actualizarEstadosCarrusel();
+    this.cdr.detectChanges();
+  }
+
+  // Posiciones relativas al centro: 0 = círculo grande al medio, ±1 y ±2
+  // a los lados (más pequeños y translúcidos). El módulo sobre la lista
+  // renderizada produce el bucle infinito sin pistas ni saltos visibles:
+  // cada avance mueve todo UN paso hacia la izquierda.
+  private actualizarEstadosCarrusel(): void {
+    const total = this.carruselAsesores.length;
+    this.carruselEstados = this.carruselAsesores.map((_, i) => {
+      let off = total ? (((i - this.carruselIdx) % total) + total) % total : 0;
+      if (off * 2 > total) off -= total;
+      const a = Math.abs(off);
+      return {
+        off,
+        escala: a === 0 ? 1 : a === 1 ? 0.72 : 0.5,
+        op: a === 0 ? 1 : a === 1 ? 0.9 : a === 2 ? 0.28 : 0,
+        z: 10 - a,
+      };
+    });
+  }
+
+  private inicialesDe(nombre: string): string {
+    const p = (nombre || '').trim().split(/\s+/);
+    return (((p[0] && p[0][0]) || '') + ((p[1] && p[1][0]) || '')).toUpperCase() || 'A';
+  }
+
+  // ── Efecto "asesor conectado" ──────────────────────────────────────────
+  // A · centra al asesor en el carrusel (movimiento corto), lo marca con
+  //     anillo + check y atenúa a los demás; B · overlay "¡Conectado!"
+  //     con foto/nombre; C · monta el chat detrás y el overlay se retira.
+  private iniciarEfectoConexion(nombre: string, foto: string): void {
+    this.cancelarEfectoConexion();
+    this.conexionNombre = nombre;
+    this.conexionFoto = foto;
+    this.conexionIniciales = this.inicialesDe(nombre);
+    this.sound.playNotification();
+
+    this.congelarEspera();
+    const key = this.centrarAsesorEnCarrusel(nombre);
+    this.conexionSeleccionKey = key;
+    this.conexionFase = key ? 'seleccion' : 'overlay';
+    this.cdr.detectChanges();
+
+    const tSel = key ? 650 : 150;
+    this.conexTimeouts.push(setTimeout(() => {
+      this.conexionFase = 'overlay';
+      this.cdr.detectChanges();
+    }, tSel));
+    this.conexTimeouts.push(setTimeout(() => {
+      this.aplicarConexionAsesor(nombre, foto, false);
+    }, tSel + 1300));
+    this.conexTimeouts.push(setTimeout(() => {
+      this.conexionFase = 'saliendo';
+      this.cdr.detectChanges();
+    }, tSel + 1600));
+    this.conexTimeouts.push(setTimeout(() => {
+      this.conexionFase = 'ninguna';
+      this.conexionSeleccionKey = null;
+      this.cdr.detectChanges();
+    }, tSel + 1950));
+  }
+
+  // Todo lo que implica la llegada del asesor + abrir el chat. Se usa en el
+  // salto directo (reconexiones) y al final del efecto (sin sonido, que ya
+  // sonó al inicio de la selección).
+  private aplicarConexionAsesor(nombre: string, foto: string, conSonido: boolean): void {
+    this.advisorName = nombre;
+    this.advisorPhotoUrl = foto;
+    // El asesor se conectó: garantizar input humano (clip + notas de voz)
+    // aunque la asignación llegue sin pasar por transferToAdvisor().
+    this.aiMode = false;
+    this.cancelarTimerInactividadIa();
+    this.inactividadIaAviso = false;
+    if (conSonido) this.sound.playNotification();
+    this.clearWaitingTimer();
+    this.mostrarAsesoresOcupados = false;
+    this.queuePosition = -1;
+    this.queueTotal    = null;
+    this.fueraDeHorario = false;
+    // El asesor está de vuelta: ocultar el banner de reconexión residual
+    // (puede quedar activo tras una reasignación con session_interrupted).
+    this.reconexionActiva = false;
+    this.reconexionSegundos = 0;
+    clearInterval(this.reconexionInterval);
+    this.reconexionInterval = null;
+    this.step = 'chat';
+    this.socket.emit('set_active', { sessionId: this.session!.id, active: true });
+
+    if (this.session) {
+      const persistido = { ...this.session, aiMode: false, advisorName: nombre, advisorPhotoUrl: foto };
+      localStorage.setItem(SESSION_KEY, JSON.stringify(persistido));
+    }
+
+    if (this.pendingAttachments.length > 0) {
+      const attachments = [...this.pendingAttachments];
+      const content = this.pendingTransferText ||
+        (attachments.length === 1 ? 'Adjunté un archivo' : `Adjunté ${attachments.length} archivos`);
+      this.pendingAttachments = [];
+      this.pendingTransferText = '';
+      setTimeout(() => {
+        this.socket.emit('send_message', {
+          sessionId: this.session!.id,
+          content,
+          senderName: this.clientName,
+          attachments,
+        });
+      }, 300);
+    }
+
+    if (this.session) {
+      const updated = { ...this.session, status: 'active', advisor: { name: nombre }, aiMode: false };
+      localStorage.setItem(SESSION_KEY, JSON.stringify(updated));
+      this.session = updated as Session;
+    }
+    this.cdr.detectChanges();
+  }
+
+  // Pausa los relojes de espera Y el carrusel SIN reiniciar el índice
+  // (a diferencia de detenerCarruselAsesores, que rebobina al centro inicial).
+  private congelarEspera(): void {
+    if (this.waitingTimer) { clearTimeout(this.waitingTimer); this.waitingTimer = null; }
+    if (this.waitingTickTimer) { clearInterval(this.waitingTickTimer); this.waitingTickTimer = null; }
+    if (this.carruselTimer) { clearInterval(this.carruselTimer); this.carruselTimer = null; }
+  }
+
+  // Centra al asesor (off=0) eligiendo la copia y el giro más cercanos al
+  // índice actual (deslizamiento corto). Devuelve la key del item centrado,
+  // o null si el asesor no está en el roster público.
+  private centrarAsesorEnCarrusel(nombre: string): string | null {
+    const base = this.carruselTotal;
+    const total = this.carruselAsesores.length;
+    if (!base || !total || base < 2) return null;
+    const objetivo = (nombre || '').trim().toLowerCase();
+    const i = this.carruselAsesores.findIndex(a => a.name.trim().toLowerCase() === objetivo);
+    if (i < 0) return null;
+
+    let mejorC = i;
+    let mejorIdx = this.carruselIdx;
+    let mejorDist = Infinity;
+    const copias = Math.max(1, Math.round(total / base));
+    for (let k = 0; k < copias; k++) {
+      const c = i + k * base;
+      if (c >= total) break;
+      const idxCandidato = c + Math.round((this.carruselIdx - c) / total) * total;
+      const dist = Math.abs(idxCandidato - this.carruselIdx);
+      if (dist < mejorDist) { mejorDist = dist; mejorIdx = idxCandidato; mejorC = c; }
+    }
+    this.carruselIdx = mejorIdx;
+    this.actualizarEstadosCarrusel();
+    return this.carruselAsesores[mejorC].key;
+  }
+
+  private cancelarEfectoConexion(): void {
+    this.conexTimeouts.forEach((t) => clearTimeout(t));
+    this.conexTimeouts = [];
+    this.conexionFase = 'ninguna';
+    this.conexionSeleccionKey = null;
+  }
+
+  private reducedMotion(): boolean {
+    return typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
   exitWaiting(): void {
+    this.cancelarEfectoConexion();
     this.clearWaitingTimer();
     this.mostrarAsesoresOcupados = false;
     if (this.session) this.socket.emit('client_close_session', this.session.id);
@@ -2692,6 +2909,7 @@ En el siguiente menú encontrarás varias opciones en las que te puedes apoyar, 
   // ══════════════════════════════════════════════════════════════════════════
 
   clearSession(): void {
+    this.cancelarEfectoConexion();
     if (this.timerCierreSesion) { clearTimeout(this.timerCierreSesion); this.timerCierreSesion = null; }
     this.detenerCounterLocalTimer();
     clearInterval(this.reconexionInterval);
@@ -2787,6 +3005,7 @@ En el siguiente menú encontrarás varias opciones en las que te puedes apoyar, 
   
 
   ngOnDestroy(): void {
+    this.cancelarEfectoConexion();
     this.maintenance.stop();
     clearInterval(this.horarioPollInterval);
     this.horarioPollInterval = null;

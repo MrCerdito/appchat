@@ -128,6 +128,10 @@ export class ChatGateway
     return this.redisState.getAdvisorStatuses();
   }
 
+  async getOnLunchMap(): Promise<Record<string, { fin?: string }>> {
+    return this.redisState.getAllOnLunch();
+  }
+
   // ══════════════════════════════════════════════════════════════════════════
   // LIFECYCLE
   // ══════════════════════════════════════════════════════════════════════════

@@ -7,13 +7,16 @@ import {
   Output,
   ChangeDetectionStrategy,
   ChangeDetectorRef,
+  HostBinding,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, debounceTime, firstValueFrom } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { AccesosService } from '../../../../../../core/services/accesos.service';
 import { AdminService } from '../../../../../../core/services/admin.service';
 import { PermisosService } from '../../../../../../core/services/permisos.service';
+import { ThemeService } from '../../../../../../core/services/theme.service';
 import { User } from '../../../../../../core/models/user.model';
 import { ModuloAcceso } from '../../../../../../core/models/modulo-acceso.model';
 
@@ -78,6 +81,8 @@ const ROL_LABEL: Record<string, string> = {
 export class AccesosModalComponent implements OnInit, OnDestroy {
   @Output() cerrar = new EventEmitter<void>();
 
+  @HostBinding('class.theme-dark') protected themeDark = false;
+
   tab: 'perfiles' | 'usuarios' = 'perfiles';
   readonly roles = ROLES;
 
@@ -107,12 +112,14 @@ export class AccesosModalComponent implements OnInit, OnDestroy {
 
   private searchSubject = new Subject<string>();
   private catalogPromise?: Promise<ModuloAcceso[]>;
+  private readonly destroy$ = new Subject<void>();
 
   constructor(
     private accesos: AccesosService,
     private admin: AdminService,
     private permisos: PermisosService,
     private cdr: ChangeDetectorRef,
+    private readonly themeService: ThemeService,
   ) {}
 
   @HostListener('document:keydown.escape')
@@ -121,6 +128,11 @@ export class AccesosModalComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.themeDark = this.themeService.currentTheme === 'dark';
+    this.themeService.currentTheme$.pipe(takeUntil(this.destroy$)).subscribe((t) => {
+      this.themeDark = t === 'dark';
+      this.cdr.markForCheck();
+    });
     this.searchSubject
       .pipe(debounceTime(300))
       .subscribe((termino) => void this.buscarUsuarios(termino));
@@ -128,6 +140,8 @@ export class AccesosModalComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
     this.searchSubject.complete();
   }
 

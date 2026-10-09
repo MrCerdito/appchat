@@ -1,11 +1,11 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy, ElementRef, HostListener, ViewChild } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy, ElementRef, HostBinding, HostListener, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ToastContainerComponent } from '../../../shared/components/toast-container.component';
 import { ChangelogModalComponent } from '../../../shared/components/changelog-modal/changelog-modal.component';
 import { NavigationEnd, Router, RouterModule } from '@angular/router';
 import { interval, Subject } from 'rxjs';
-import { filter, takeUntil } from 'rxjs/operators';
+import { filter, skip, takeUntil } from 'rxjs/operators';
 
 import { SocketService } from '../../../core/services/socket.service';
 import { AuthService } from '../../../core/services/auth.service';
@@ -49,6 +49,13 @@ interface ConnectedAdvisor {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DashboardComponent implements OnInit, OnDestroy {
+  /**
+   * Tema oscuro: ThemeService escribe `data-theme` en <html> y aqui se
+   * replica como clase en el host para el bloque `:host.theme-dark` de la
+   * alerta flotante de almuerzo (emulacion de encapsulamiento).
+   */
+  @HostBinding('class.theme-dark') protected themeDark = false;
+
   protected readonly trackByIndex = trackByIndex;
   protected readonly trackById = trackById;
   @ViewChild('faqScroll') faqScrollRef!: ElementRef<HTMLElement>;
@@ -111,6 +118,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   advisorRingClass(adv: ConnectedAdvisor): string {
     if (this.isSelfAdvisor(adv)) return this.enAlmuerzo ? 'lunch' : this.advisorStatus;
+    if ((adv.status ?? 'offline') === 'offline') return 'offline';
     return adv.enAlmuerzo ? 'lunch' : adv.status;
   }
 
@@ -120,18 +128,31 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   advisorStatusText(adv: ConnectedAdvisor): string {
+    const status = this.advisorStatusValue(adv);
+    if (!this.isSelfAdvisor(adv) && status === 'offline') return 'Inactivo';
     const onLunch = this.isSelfAdvisor(adv) ? this.enAlmuerzo : adv.enAlmuerzo;
     if (onLunch) return 'En almuerzo';
-    const status = this.advisorStatusValue(adv);
     if (status === 'meeting') return 'En reunión';
     if (status === 'almuerzo') return 'En almuerzo';
     return status === 'online' ? 'Disponible' : status === 'busy' ? 'Ocupado' : 'Inactivo';
   }
 
   advisorDotClass(adv: ConnectedAdvisor): string {
+    if (!this.isSelfAdvisor(adv) && (adv.status ?? 'offline') === 'offline') return 'offline';
     const onLunch = this.isSelfAdvisor(adv) ? this.enAlmuerzo : adv.enAlmuerzo;
     if (onLunch) return 'lunch';
     return this.advisorStatusValue(adv);
+  }
+
+  navAtBottom = false;
+
+  onNavScroll(e: Event): void {
+    const el = e.currentTarget as HTMLElement;
+    const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 6;
+    if (atBottom !== this.navAtBottom) {
+      this.navAtBottom = atBottom;
+      this.cdr.markForCheck();
+    }
   }
 
   onCapsuleClick(adv: ConnectedAdvisor): void {
@@ -179,6 +200,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   private lunchInterval: ReturnType<typeof setInterval> | null = null;
   private lunchApproachingInterval: ReturnType<typeof setInterval> | null = null;
+  private advisorSyncInterval: ReturnType<typeof setInterval> | null = null;
   private destroy$ = new Subject<void>();
   private readonly STATUS_KEY = 'advisor_status';
   private readonly LUNCH_STATE_KEY = 'advisor_lunch_state';
@@ -221,6 +243,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
   whatsappMode: 'clients' | 'advisors' | null = null;
 
   ngOnInit(): void {
+    this.themeDark = this.themeService.currentTheme === 'dark';
+    this.themeService.currentTheme$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(tema => {
+        this.themeDark = tema === 'dark';
+        this.cdr.markForCheck();
+      });
     this.layout.sidebarForcedCollapsed$
       .pipe(takeUntil(this.destroy$))
       .subscribe((collapsed) => {
@@ -232,6 +261,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
         }
         this.cdr.detectChanges();
       });
+    // El sidebar queda oculto en TODAS las rutas del shell: se abre solo con
+    // la hamburguesa del navbar (overlay).
+    this.layout.setSidebarForcedCollapsed(true);
     this.permisos.permisosChanged$
       .pipe(takeUntil(this.destroy$))
       .subscribe(() => this.cdr.detectChanges());
@@ -286,16 +318,34 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.restoreLunchFromStorage();
     this.socket.emit('get_lunch_state');
     this.syncUnreadIndicators();
+    // Re-sincroniza la lista de estados cuando el socket se (re)conecta
+    // (recupera eventos perdidos sin recargar la página).
+    this.socket.connected$
+      .pipe(skip(1), filter(c => c), takeUntil(this.destroy$))
+      .subscribe(() => this.socket.emit('get_all_advisors'));
+    // Conciliación ligera: 1 petición cada 60s para que los estados (almuerzo,
+    // desconexión, etc.) se corrijan solos aunque se pierda algún evento.
+    this.advisorSyncInterval = setInterval(() => {
+      if (this.socket.isConnected()) this.socket.emit('get_all_advisors');
+    }, 60_000);
     this.teamBreakpoint.addEventListener('change', this.onTeamBreakpoint);
     this.smallScreenBreakpoint.addEventListener('change', this.onSmallScreenBreakpoint);
     this.sessionService.findAdvisors().subscribe({
       next: (users) => {
-        this.allAdvisors = users.map(u => ({
-          advisorId: u.id,
-          name: u.name,
-          status: (u.status || 'offline') as string,
-          profilePhotoUrl: u.profilePhotoUrl ?? null,
-        }));
+        this.allAdvisors = users.map(u => {
+          const extra = u as User & {
+            enAlmuerzo?: boolean;
+            lunchFin?: string | null;
+          };
+          return {
+            advisorId: u.id,
+            name: u.name,
+            status: (u.status || 'offline') as string,
+            profilePhotoUrl: u.profilePhotoUrl ?? null,
+            enAlmuerzo: !!extra.enAlmuerzo,
+            lunchFin: extra.lunchFin ?? null,
+          };
+        });
         this.cdr.detectChanges();
       },
       error: (err) => console.error('HTTP Error:', err),
@@ -319,7 +369,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
         }
         const idx = this.allAdvisors.findIndex(a => a.advisorId === data.advisorId);
         if (idx >= 0) {
-          this.allAdvisors[idx] = { ...this.allAdvisors[idx], status: data.status, profilePhotoUrl: data.profilePhotoUrl ?? this.allAdvisors[idx].profilePhotoUrl };
+          const prev = this.allAdvisors[idx];
+          const onLunch = data.status === 'almuerzo';
+          this.allAdvisors[idx] = {
+            ...prev,
+            status: data.status,
+            enAlmuerzo: onLunch ? prev.enAlmuerzo : false,
+            lunchFin: onLunch ? prev.lunchFin : null,
+            profilePhotoUrl: data.profilePhotoUrl ?? prev.profilePhotoUrl,
+          };
           this.cdr.detectChanges();
         }
       });
@@ -594,6 +652,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
           this.topbarTitle = 'CHAT EN LINEA';
           this.chatState.setActiveSession(null);
         }
+        // Algunos módulos devuelven el flag en su ngOnDestroy: se vuelve a
+        // forzar tras cada navegación para que el sidebar nunca reaparezca.
+        this.layout.setSidebarForcedCollapsed(true);
         this.syncShellMode(url);
         this.syncWhatsappMode(url);
         this.cdr.detectChanges();
@@ -1098,6 +1159,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       if (!this.router.url.includes('/dashboard/whatsapp')) {
         this.whatsapp.loadChats(1).subscribe();
       }
+      if (this.socket.isConnected()) this.socket.emit('get_all_advisors');
     }
   };
 
@@ -1326,9 +1388,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    // Otros shells (admin/interno/desarrollador) leen el mismo flag:
+    // se libera al salir del shell del asesor.
+    this.layout.setSidebarForcedCollapsed(false);
     this.destroy$.next();
     this.destroy$.complete();
     this.stopLunchCountdown();
+    if (this.advisorSyncInterval) {
+      clearInterval(this.advisorSyncInterval);
+      this.advisorSyncInterval = null;
+    }
     this.teamBreakpoint.removeEventListener('change', this.onTeamBreakpoint);
     this.smallScreenBreakpoint.removeEventListener('change', this.onSmallScreenBreakpoint);
     document.removeEventListener('visibilitychange', this.handleVisibilityChange);

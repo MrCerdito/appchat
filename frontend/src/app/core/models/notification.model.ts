@@ -20,6 +20,8 @@ export interface NotificationListResponse {
   unreadCount: number;
 }
 
+export type NotificationSection = 'tickets' | 'correos' | 'otros';
+
 export interface NotificationPreferenceItem {
   inApp: boolean;
   desktop: boolean;
@@ -34,9 +36,18 @@ export interface NotificationPreferences {
   ticket_priority_changed: NotificationPreferenceItem;
   ticket_closed: NotificationPreferenceItem;
   ticket_denied: NotificationPreferenceItem;
+  ticket_note: NotificationPreferenceItem;
   ticket_deleted: NotificationPreferenceItem;
   ticket_sla_warning: NotificationPreferenceItem;
   ticket_sla_expired: NotificationPreferenceItem;
+  tarea_asignada: NotificationPreferenceItem;
+  tarea_comentario: NotificationPreferenceItem;
+  tarea_actualizada: NotificationPreferenceItem;
+  tarea_completada: NotificationPreferenceItem;
+  tarea_vencimiento: NotificationPreferenceItem;
+  correo_nuevo: NotificationPreferenceItem;
+  cumpleanos_recordatorio: NotificationPreferenceItem;
+  reunion_recordatorio: NotificationPreferenceItem;
 }
 
 export const NOTIFICATION_TYPE_LABELS: Record<string, string> = {
@@ -51,6 +62,14 @@ export const NOTIFICATION_TYPE_LABELS: Record<string, string> = {
   ticket_deleted: 'Ticket eliminado',
   ticket_sla_warning: 'SLA por vencer',
   ticket_sla_expired: 'SLA vencido',
+  tarea_asignada: 'Tarea asignada',
+  tarea_comentario: 'Comentario en tarea',
+  tarea_actualizada: 'Tarea actualizada',
+  tarea_completada: 'Tarea completada',
+  tarea_vencimiento: 'Tarea por vencer',
+  correo_nuevo: 'Correo nuevo',
+  cumpleanos_recordatorio: 'Cumpleaños mañana',
+  reunion_recordatorio: 'Reunión en 5 minutos',
 };
 
 export const NOTIFICATION_TYPE_ICONS: Record<string, string> = {
@@ -65,4 +84,12 @@ export const NOTIFICATION_TYPE_ICONS: Record<string, string> = {
   ticket_deleted: 'trash-2',
   ticket_sla_warning: 'clock',
   ticket_sla_expired: 'alert-octagon',
+  tarea_asignada: 'user-plus',
+  tarea_comentario: 'message-square',
+  tarea_actualizada: 'edit',
+  tarea_completada: 'check-circle',
+  tarea_vencimiento: 'alarm-clock',
+  correo_nuevo: 'mail',
+  cumpleanos_recordatorio: 'cake',
+  reunion_recordatorio: 'clock',
 };

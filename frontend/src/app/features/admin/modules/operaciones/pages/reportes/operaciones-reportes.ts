@@ -1,8 +1,9 @@
-import { Component, ChangeDetectionStrategy, ChangeDetectorRef, OnDestroy, OnInit } from '@angular/core';
+import { Component, ChangeDetectionStrategy, ChangeDetectorRef, HostBinding, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { Subscription, interval } from 'rxjs';
 import { WhatsappChatService } from '../../../../../../core/services/whatsapp-chat.service';
+import { ThemeService } from '../../../../../../core/services/theme.service';
 import { AuthService } from '../../../../../../core/services/auth.service';
 import { WaReportData, WaReportSeries } from '../../../../../../core/models/whatsapp.models';
 import { formatDuration } from '../../../../../../shared/utils/duration';
@@ -18,6 +19,8 @@ import { formatDuration } from '../../../../../../shared/utils/duration';
 export class OperacionesReportesComponent implements OnInit, OnDestroy {
   protected readonly Math = Math;
   protected readonly Date = Date;
+
+  @HostBinding('class.theme-dark') protected themeDark = false;
 
   granularidad: 'day' | 'month' | 'year' = 'day';
   desde: string = '';
@@ -35,9 +38,18 @@ export class OperacionesReportesComponent implements OnInit, OnDestroy {
     private whatsappChat: WhatsappChatService,
     private auth: AuthService,
     private cdr: ChangeDetectorRef,
+    private themeService: ThemeService,
   ) {}
 
   ngOnInit(): void {
+    this.themeDark = this.themeService.currentTheme === 'dark';
+    this.subs.push(
+      this.themeService.currentTheme$.subscribe((t) => {
+        this.themeDark = t === 'dark';
+        this.cdr.markForCheck();
+      }),
+    );
+
     this.setGranularidad('day');
     this.subs.push(
       interval(30_000).subscribe(() => this.actualizar()),

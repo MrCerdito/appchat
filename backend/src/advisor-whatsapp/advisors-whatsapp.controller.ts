@@ -21,13 +21,16 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { randomUUID } from 'crypto';
 import { Request, Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles, RolesGuard } from '../auth/roles.guard';
+import { Public } from '../auth/public.decorator';
 import { Permiso } from '../accesos/permiso-modulo.guard';
+import { Throttle } from '@nestjs/throttler';
 import { TicketsService } from '../tickets/tickets.service';
 import {
   AdvisorsWhatsappService,
@@ -41,6 +44,10 @@ import { WhatsappMessage } from './entities/whatsapp-message.entity';
 @Permiso('whatsapp')
 export class AdvisorsWhatsappController {
   private readonly logger = new Logger(AdvisorsWhatsappController.name);
+  /** Cookie doble-submit que ata el state OAuth a este navegador. */
+  private static readonly COOKIE_ESTADO_TEAMS = 'teams_oauth_state';
+  private static readonly PATH_CALLBACK_TEAMS =
+    '/advisors-whatsapp/teams/oauth/callback';
 
   constructor(
     private readonly whatsappService: AdvisorsWhatsappService,
@@ -52,6 +59,9 @@ export class AdvisorsWhatsappController {
     private readonly waMessageRepo: Repository<WhatsappMessage>,
   ) {}
 
+  // Webhooks de Meta: verificacion y eventos llegan sin JWT (la validacion es
+  // el token WHATSAPP_VERIFY_TOKEN / la firma del proveedor).
+  @Public()
   @Get('webhook')
   verifyWebhook(
     @Query('hub.mode') mode: string,
@@ -75,6 +85,7 @@ export class AdvisorsWhatsappController {
     return 'Error validating webhook';
   }
 
+  @Public()
   @Post('webhook')
   @HttpCode(200)
   receiveWebhook(@Body() _body: any) {
@@ -539,12 +550,14 @@ export class AdvisorsWhatsappController {
   }
 
   @Get('teams/status')
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @UseGuards(JwtAuthGuard)
   getTeamsStatus(@Req() req: Request & { user: any }) {
     return this.teamsService.getStatus(req.user.id);
   }
 
   @Post('teams/disconnect')
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @UseGuards(JwtAuthGuard)
   @HttpCode(200)
   async disconnectTeams(@Req() req: Request & { user: any }) {
@@ -552,55 +565,86 @@ export class AdvisorsWhatsappController {
   }
 
   @Post('teams/auth-url')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @UseGuards(JwtAuthGuard)
   @HttpCode(200)
-  getTeamsAuthUrl(@Req() req: Request & { user: any }) {
-    return this.teamsService.createAuthUrl(req.user.id);
+  getTeamsAuthUrl(@Req() req: Request & { user: any }, @Res() res: Response) {
+    const { authUrl, state } = this.teamsService.createAuthUrl(req.user.id);
+    // Double-submit: el callback solo acepta un state que este navegador
+    // recibio aqui (SameSite=Lax permite la vuelta superior desde Microsoft).
+    res.setHeader('Set-Cookie', this.cookieEstadoTeams(state, 600));
+    return { authUrl };
   }
 
+  // Callback del OAuth de Microsoft: el navegador regresa desde Microsoft sin
+  // JWT; la proteccion es state de un solo uso + PKCE + cookie SameSite=Lax.
+  @Public()
   @Get('teams/oauth/callback')
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   async completeTeamsAuth(
     @Query('code') code: string,
     @Query('state') state: string,
     @Query('error') oauthError: string,
     @Query('error_description') oauthErrorDescription: string,
+    @Req() req: Request,
     @Res() res: any,
   ) {
+    // CSP con nonce (sin 'unsafe-inline'): el script de la pagina lleva el
+    // mismo nonce y no hay atributos inline (el click se ata desde el script).
+    const nonce = randomUUID();
+    const csp =
+      "default-src 'none'; style-src 'unsafe-inline'; " +
+      `script-src 'nonce-${nonce}'; base-uri 'none'; form-action 'none'`;
+    const cerrarCookie = () =>
+      res.setHeader('Set-Cookie', this.cookieEstadoTeams('', 0));
     try {
       if (oauthError) {
         throw new Error(oauthErrorDescription || oauthError);
       }
+      const estadoEnCookie = this.estadoEnCookie(req);
+      if (!estadoEnCookie || estadoEnCookie !== state) {
+        throw new Error(
+          'La autorizacion no coincide con esta ventana del navegador. Vuelve a conectar Teams desde el panel.',
+        );
+      }
       await this.teamsService.completeAuth(code, state);
-      res.setHeader(
-        'Content-Security-Policy',
-        "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'",
-      );
-      res.type('html').send(this.teamsCallbackHtml(true));
+      cerrarCookie();
+      res.setHeader('Content-Security-Policy', csp);
+      res.type('html').send(this.teamsCallbackHtml(true, undefined, nonce));
     } catch (err: any) {
-      res.setHeader(
-        'Content-Security-Policy',
-        "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'",
-      );
+      cerrarCookie();
+      res.setHeader('Content-Security-Policy', csp);
       res
         .type('html')
         .status(400)
-        .send(this.teamsCallbackHtml(false, err?.message));
+        .send(this.teamsCallbackHtml(false, err?.message, nonce));
     }
   }
 
   @Get('teams/meetings')
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @UseGuards(JwtAuthGuard)
   async listTeamsMeetings(
-    @Req() _req: Request & { user: any },
+    @Req() req: Request & { user: any },
     @Query('from') from?: string,
     @Query('to') to?: string,
   ) {
     const fromDate = from && !Number.isNaN(new Date(from).getTime()) ? new Date(from) : undefined;
     const toDate = to && !Number.isNaN(new Date(to).getTime()) ? new Date(to) : undefined;
-    return this.teamsService.listMeetings(fromDate, toDate);
+    return this.teamsService.listMeetings(
+      {
+        id: req.user.id,
+        name: req.user.name || req.user.email || null,
+        email: req.user.email || null,
+        role: req.user.role,
+      },
+      fromDate,
+      toDate,
+    );
   }
 
   @Post('teams/meetings')
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @UseGuards(JwtAuthGuard)
   @HttpCode(201)
   async createStandaloneTeamsMeeting(
@@ -610,12 +654,64 @@ export class AdvisorsWhatsappController {
       subject: string;
       startDateTime: string;
       durationMinutes?: number;
-      calendarTarget?: 'shared' | 'none';
+      calendarTarget?: 'personal' | 'shared' | 'none';
+      /** Alias y nombres literales de Outlook ("Blue category", ...). */
+      categorias?: string[];
     },
   ) {
     return this.teamsService.createStandaloneMeeting(
-      { id: req.user.id, name: req.user.name || req.user.email || null },
+      {
+        id: req.user.id,
+        name: req.user.name || req.user.email || null,
+        email: req.user.email || null,
+      },
       body,
+    );
+  }
+
+  @Patch('teams/meetings/:id')
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  async updateTeamsMeeting(
+    @Param('id') id: string,
+    @Req() req: Request & { user: any },
+    @Body()
+    body: {
+      subject: string;
+      startDateTime: string;
+      durationMinutes?: number;
+      categorias?: string[];
+    },
+  ) {
+    return this.teamsService.updateMeeting(
+      {
+        id: req.user.id,
+        name: req.user.name || req.user.email || null,
+        email: req.user.email || null,
+        role: req.user.role,
+      },
+      id,
+      body,
+    );
+  }
+
+  @Delete('teams/meetings/:id')
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  async deleteTeamsMeeting(
+    @Param('id') id: string,
+    @Req() req: Request & { user: any },
+  ) {
+    return this.teamsService.deleteMeeting(
+      {
+        id: req.user.id,
+        name: req.user.name || req.user.email || null,
+        email: req.user.email || null,
+        role: req.user.role,
+      },
+      id,
     );
   }
 
@@ -638,7 +734,26 @@ export class AdvisorsWhatsappController {
       req.user.id,
       req.user.role,
     );
-    const meeting = await this.teamsService.createMeeting(req.user.id, body);
+
+    // Crea la reunion y la agenda en el calendario pedido. Si Microsoft falla
+    // la excepcion sube: antes se tragaba con logger.warn y el asesor creia
+    // que estaba agendado cuando no habia quedado nada.
+    const meeting = await this.teamsService.createMeeting(
+      {
+        id: req.user.id,
+        name: req.user.name || req.user.email || null,
+        email: req.user.email || null,
+      },
+      body,
+      {
+        name: chat.name,
+        role: chat.role,
+        institution: chat.institution,
+        phone: chat.phone,
+        email: chat.email,
+      },
+    );
+
     const text = this.teamsWhatsappText(
       meeting.subject,
       meeting.startDateTime,
@@ -656,27 +771,6 @@ export class AdvisorsWhatsappController {
       message: result.message,
       assignedAdvisorId: result.chat.assignedTo,
     });
-
-    if (body.calendarTarget && body.calendarTarget !== 'none') {
-      try {
-        await this.teamsService.createCalendarEvent(
-          req.user.id,
-          body.calendarTarget,
-          meeting,
-          {
-            name: chat.name,
-            role: chat.role,
-            institution: chat.institution,
-            phone: chat.phone,
-            email: chat.email,
-          },
-        );
-      } catch (err: any) {
-        this.logger.warn(
-          `No se pudo agendar al calendario: ${err?.message ?? err}`,
-        );
-      }
-    }
 
     return { ok: true, meeting, chat: result.chat };
   }
@@ -842,8 +936,19 @@ export class AdvisorsWhatsappController {
     return { ok: true, messageId: result.message.id, chat: result.chat };
   }
 
+  /**
+   * Crea un ticket desde la conversacion de WhatsApp.
+   *
+   * La clase ya exige `@Permiso('whatsapp')`, pero esto ademas CREA un ticket:
+   * dispara notificaciones, email de confirmacion y SLA. Por eso se vuelve a
+   * exigir `@Permiso('tickets')` de forma explicita, igual que hace la ruta
+   * equivalente de sesiones. Con solo el permiso 'whatsapp' se podian generar
+   * tickets sin acceso al modulo.
+   */
   @Post(':id/ticket')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Permiso('tickets')
+  @Roles('admin', 'advisor', 'interno')
   @HttpCode(HttpStatus.CREATED)
   async createTicketFromWhatsapp(
     @Param('id') id: string,
@@ -940,19 +1045,64 @@ export class AdvisorsWhatsappController {
     return `Hola, te comparto el enlace para nuestra reunion en Microsoft Teams.\n\nReunion: ${subject}\nHora: ${formatted}\nLink: ${joinUrl}`;
   }
 
-  private teamsCallbackHtml(success: boolean, error = ''): string {
+  /** Cookie HttpOnly con el state OAuth (double-submit contra CSRF). */
+  private cookieEstadoTeams(valor: string, maxAgeSegundos: number): string {
+    const secure =
+      this.config.get<string>('NODE_ENV') === 'production' ? '; Secure' : '';
+    return (
+      `${AdvisorsWhatsappController.COOKIE_ESTADO_TEAMS}=${encodeURIComponent(valor)}` +
+      `; Path=${AdvisorsWhatsappController.PATH_CALLBACK_TEAMS}` +
+      `; HttpOnly; SameSite=Lax; Max-Age=${maxAgeSegundos}${secure}`
+    );
+  }
+
+  /** Lee el state guardado en cookie del navegador (sin cookie-parser). */
+  private estadoEnCookie(req: Request): string | undefined {
+    const raw = req.headers.cookie;
+    if (!raw) return undefined;
+    for (const parte of raw.split(';')) {
+      const [clave, ...resto] = parte.trim().split('=');
+      if (clave === AdvisorsWhatsappController.COOKIE_ESTADO_TEAMS) {
+        return decodeURIComponent(resto.join('='));
+      }
+    }
+    return undefined;
+  }
+
+  private teamsCallbackHtml(
+    success: boolean,
+    error?: string,
+    nonce = '',
+  ): string {
     const title = success ? 'Teams conectado' : 'No se pudo conectar Teams';
     const safeTitle = this.escapeHtml(title);
-    const message = success
+    const mensaje = success
       ? 'Ya puedes volver a InnovaCloud y crear la reunion.'
       : error || 'Autorizacion fallida';
-    const safeMessage = this.escapeHtml(message);
+    const safeMessage = this.escapeHtml(mensaje);
+    // El JSON se embebe DENTRO del <script>: se escapan &, < y > para que un
+    // "</script>" (el error viene de la query string, controlada por quien
+    // arme la URL) no pueda romper el bloque y ejecutar script (XSS).
     const payload = JSON.stringify({
       type: 'teams-auth',
       success,
-      error: success ? '' : error || 'Autorizacion fallida',
-    });
-    return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${safeTitle}</title><style>body{margin:0;display:grid;place-items:center;min-height:100vh;background:#0b1219;color:#edf4f7;font-family:Segoe UI,system-ui,sans-serif}main{max-width:460px;padding:28px;text-align:center}h1{font-size:22px}p{color:#93a4af;line-height:1.5}button{height:38px;padding:0 16px;border:0;border-radius:8px;background:#20c997;color:#04110d;font-weight:800;cursor:pointer}</style></head><body><main><h1>${safeTitle}</h1><p>${safeMessage}</p><button onclick="window.close()">Cerrar</button></main><script>try{window.opener&&window.opener.postMessage(${payload},'*')}catch(e){}</script></body></html>`;
+      error: success ? '' : mensaje,
+    })
+      .replace(/&/g, '\\u0026')
+      .replace(/</g, '\\u003c')
+      .replace(/>/g, '\\u003e');
+    // Origen exacto de la app para postMessage (nunca '*'): primer origen de
+    // CORS_ORIGINS, con el mismo fallback que main.ts.
+    const origenApp =
+      (process.env.CORS_ORIGINS
+        ? process.env.CORS_ORIGINS.split(',')
+            .map((o) => o.trim())
+            .filter(Boolean)
+        : [])[0] || 'http://localhost:4200';
+    const script =
+      `try{var b=document.getElementById('cerrar');b&&(b.onclick=function(){window.close()});` +
+      `window.opener&&window.opener.postMessage(${payload},${JSON.stringify(origenApp)})}catch(e){}`;
+    return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${safeTitle}</title><style>body{margin:0;display:grid;place-items:center;min-height:100vh;background:#0b1219;color:#edf4f7;font-family:Segoe UI,system-ui,sans-serif}main{max-width:460px;padding:28px;text-align:center}h1{font-size:22px}p{color:#93a4af;line-height:1.5}button{height:38px;padding:0 16px;border:0;border-radius:8px;background:#20c997;color:#04110d;font-weight:800;cursor:pointer}</style></head><body><main><h1>${safeTitle}</h1><p>${safeMessage}</p><button id="cerrar">Cerrar</button></main><script nonce="${nonce}">${script}</script></body></html>`;
   }
 
   private escapeHtml(value: string): string {

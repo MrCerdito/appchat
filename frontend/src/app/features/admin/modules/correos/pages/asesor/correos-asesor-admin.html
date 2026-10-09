@@ -3,17 +3,7 @@
   <header class="head">
     <div class="head-main">
       <a class="back" routerLink="/admin/correos" aria-label="Volver al tablero">&larr;</a>
-      <div>
-        <h1>{{ nombreAsesor() }}</h1>
-        <p class="sub">
-          @if (carpeta(); as c) {
-            {{ c }}
-          } @else {
-            Bandeja del agente
-          }
-          <span class="sep">/</span> Solo lectura
-        </p>
-      </div>
+      <div></div>
     </div>
     @if (fila(); as f) {
     <span

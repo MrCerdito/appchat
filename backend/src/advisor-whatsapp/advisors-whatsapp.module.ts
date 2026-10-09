@@ -2,7 +2,7 @@
 // Módulo independiente del resto del backend.
 // Solo requiere que ConfigModule esté registrado globalmente en app.module.ts.
 
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
 import { RolesGuard } from '../auth/roles.guard';
@@ -30,7 +30,7 @@ import { WhatsappMessage } from './entities/whatsapp-message.entity';
     ]),
     AuthModule,
     ConfiguracionModule,
-    TicketsModule,
+    forwardRef(() => TicketsModule),
   ],
   controllers: [AdvisorsWhatsappController],
   providers: [

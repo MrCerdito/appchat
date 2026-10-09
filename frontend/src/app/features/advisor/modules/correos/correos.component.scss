@@ -1,6 +1,68 @@
 :host {
+  /*
+   * Tokens del modulo.
+   *
+   * `--borde`, `--superficie` y `--primario` no estan declarados en ningun
+   * ancestro: cada `var(--borde, #e5e7eb)` caia siempre en el fallback claro,
+   * asi que en modo oscuro el lateral salia blanco y el texto (#111827,
+   * #374151, ...) quedaba casi negro sobre fondo oscuro. Declarandolos aqui el
+   * modulo entero los hereda y `.theme-dark` solo los redefinen.
+   */
+  --superficie: #fff;
+  --borde: #e5e7eb;
+  --borde-suave: #eef0f2;
+  --primario: #2563eb;
+  /* Azul solido para botones con texto blanco: en oscuro NO se aclara, porque
+     blanco sobre un azul claro no llega a contraste AA. */
+  --primario-solido: #2563eb;
+  --co-strong: #111827;
+  --co-text: #374151;
+  --co-text-2: #4b5563;
+  --co-text-3: #6b7280;
+  --co-faint: #9ca3af;
+  --co-scroll: #d1d5db;
+  --co-scroll-2: #e2e5ea;
+  --co-amber: #b45309;
+  --co-red: #991b1b;
+  --co-blue: #1d4ed8;
+  --co-aviso-bg: rgba(37, 99, 235, 0.08);
+  --co-aviso-borde: rgba(37, 99, 235, 0.22);
+  --co-cat-bg: rgba(37, 99, 235, 0.12);
+  --co-overlay: rgba(17, 24, 39, 0.45);
+  --co-sombra-cajon: 8px 0 24px rgba(15, 23, 42, 0.14);
+  /*
+   * El iframe del cuerpo se queda blanco en los dos temas: el HTML del correo
+   * se compone pensando sobre blanco y con fondo oscuro quedaria texto claro
+   * sobre claro en los mensajes que no traen fondo propio.
+   */
+  --co-iframe: #fff;
+
   display: block;
   height: 100%;
+}
+
+:host.theme-dark {
+  --superficie: #101b30;
+  --borde: rgba(255, 255, 255, 0.12);
+  --borde-suave: rgba(255, 255, 255, 0.07);
+  --primario: #60a5fa;
+  --primario-solido: #2563eb;
+  --co-strong: #e6edf7;
+  --co-text: #c9d4e5;
+  --co-text-2: #b6c2d4;
+  --co-text-3: #9fb0c9;
+  --co-faint: #9aa5b8;
+  --co-scroll: rgba(255, 255, 255, 0.25);
+  --co-scroll-2: rgba(255, 255, 255, 0.18);
+  --co-amber: #fbbf24;
+  --co-red: #fca5a5;
+  --co-blue: #93c5fd;
+  --co-aviso-bg: rgba(96, 165, 250, 0.1);
+  --co-aviso-borde: rgba(96, 165, 250, 0.3);
+  --co-cat-bg: rgba(96, 165, 250, 0.14);
+  --co-overlay: rgba(0, 0, 0, 0.55);
+  --co-sombra-cajon: 8px 0 24px rgba(0, 0, 0, 0.5);
+  --co-iframe: #fff;
 }
 
 .correos {
@@ -56,6 +118,9 @@
   font-size: 13px;
   cursor: pointer;
   font-family: inherit;
+  /* Explicito: sin esto el UA del boton pinta texto negro en modo oscuro y
+     "Solo no leidos"/"Actualizar" desaparecen sobre el fondo oscuro. */
+  color: inherit;
   transition: background 0.15s, border-color 0.15s;
 }
 
@@ -75,8 +140,8 @@
 }
 
 .btn-primario {
-  background: var(--primario, #2563eb);
-  border-color: var(--primario, #2563eb);
+  background: var(--primario-solido, #2563eb);
+  border-color: var(--primario-solido, #2563eb);
   color: #fff;
 }
 
@@ -91,9 +156,9 @@
   padding: 11px 14px;
   border-radius: 8px;
   font-size: 12px;
-  background: rgba(37, 99, 235, 0.08);
-  color: #1d4ed8;
-  border: 1px solid rgba(37, 99, 235, 0.22);
+  background: var(--co-aviso-bg, rgba(37, 99, 235, 0.08));
+  color: var(--co-blue, #1d4ed8);
+  border: 1px solid var(--co-aviso-borde, rgba(37, 99, 235, 0.22));
 }
 
 /* ── Zona lateral + paneles ───────────────────────── */
@@ -138,14 +203,14 @@
   align-items: center;
   gap: 8px;
   padding: 14px 14px 12px;
-  border-bottom: 1px solid var(--borde, #eef0f2);
+  border-bottom: 1px solid var(--borde-suave, #eef0f2);
 
   h2 {
     margin: 0;
     font-size: 14px;
     font-weight: 650;
     letter-spacing: -0.01em;
-    color: #111827;
+    color: var(--co-strong, #111827);
   }
 }
 
@@ -174,7 +239,7 @@
   border-radius: 7px;
   border: 1px solid var(--borde, #e5e7eb);
   background: transparent;
-  color: #6b7280;
+  color: var(--co-text-3, #6b7280);
   cursor: pointer;
 
   svg {
@@ -199,7 +264,7 @@
   }
 
   &::-webkit-scrollbar-thumb {
-    background: #d1d5db;
+    background: var(--co-scroll, #d1d5db);
     border-radius: 4px;
   }
 }
@@ -215,7 +280,7 @@
      nombra. Una etiqueta "Buscar" encima seria redundante. */
   & + & {
     padding-top: 16px;
-    border-top: 1px solid var(--borde, #eef0f2);
+    border-top: 1px solid var(--borde-suave, #eef0f2);
   }
 }
 
@@ -224,7 +289,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.07em;
-  color: #9ca3af;
+  color: var(--co-faint, #9ca3af);
 }
 
 .filtros-buscador {
@@ -237,7 +302,7 @@
     transform: translateY(-50%);
     width: 15px;
     height: 15px;
-    color: #9ca3af;
+    color: var(--co-faint, #9ca3af);
     pointer-events: none;
   }
 
@@ -256,7 +321,7 @@
     transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
 
     &::placeholder {
-      color: #9ca3af;
+      color: var(--co-faint, #9ca3af);
     }
 
     &:focus {
@@ -270,7 +335,7 @@
 .filtros-vacio {
   font-size: 11.5px;
   line-height: 1.45;
-  color: #9ca3af;
+  color: var(--co-faint, #9ca3af);
 }
 
 /*
@@ -295,7 +360,7 @@
   }
 
   &::-webkit-scrollbar-thumb {
-    background: #e2e5ea;
+    background: var(--co-scroll-2, #e2e5ea);
     border-radius: 4px;
   }
 }
@@ -305,7 +370,7 @@
 .filtros-divisor {
   height: 1px;
   margin: 6px 2px;
-  background: var(--borde, #eef0f2);
+  background: var(--borde-suave, #eef0f2);
 }
 
 .chip-filtro {
@@ -320,7 +385,7 @@
   background: transparent;
   font-family: inherit;
   font-size: 12.5px;
-  color: #374151;
+  color: var(--co-text, #374151);
   text-align: left;
   cursor: pointer;
   transition: background 0.14s, border-color 0.14s, color 0.14s;
@@ -365,7 +430,7 @@
 }
 
 .chip-pendiente:not(.activo) {
-  color: #b45309;
+  color: var(--co-amber, #b45309);
 }
 
 .chip-conteo {
@@ -390,7 +455,7 @@
   font-family: inherit;
   font-size: 11.5px;
   font-weight: 550;
-  color: #4b5563;
+  color: var(--co-text-2, #4b5563);
   white-space: nowrap;
   cursor: pointer;
   transition: background 0.14s, border-color 0.14s, color 0.14s;
@@ -400,8 +465,8 @@
   }
 
   &.activo {
-    background: var(--primario, #2563eb);
-    border-color: var(--primario, #2563eb);
+    background: var(--primario-solido, #2563eb);
+    border-color: var(--primario-solido, #2563eb);
     color: #fff;
     font-weight: 650;
   }
@@ -428,7 +493,7 @@
   label {
     font-size: 10.5px;
     font-weight: 600;
-    color: #6b7280;
+    color: var(--co-text-3, #6b7280);
   }
 
   input {
@@ -462,20 +527,20 @@
   justify-content: space-between;
   gap: 8px;
   padding: 10px 14px;
-  border-top: 1px solid var(--borde, #eef0f2);
+  border-top: 1px solid var(--borde-suave, #eef0f2);
   background: var(--superficie, #fff);
 }
 
 .filtros-pie-texto {
   min-width: 0;
   font-size: 11.5px;
-  color: #9ca3af;
+  color: var(--co-faint, #9ca3af);
   white-space: nowrap;
 
   strong {
     font-size: 13px;
     font-weight: 700;
-    color: #111827;
+    color: var(--co-strong, #111827);
     font-variant-numeric: tabular-nums;
   }
 }
@@ -489,14 +554,14 @@
   font-family: inherit;
   font-size: 11.5px;
   font-weight: 600;
-  color: #4b5563;
+  color: var(--co-text-2, #4b5563);
   white-space: nowrap;
   cursor: pointer;
   transition: background 0.14s, color 0.14s, border-color 0.14s;
 
   &:hover:not(:disabled) {
     background: rgba(127, 127, 127, 0.07);
-    color: #111827;
+    color: var(--co-strong, #111827);
   }
 
   /* Sin filtros aplicados no hay nada que deshacer: el boton se apaga en vez
@@ -540,7 +605,7 @@
   display: flex;
   gap: 10px;
   padding: 12px 14px;
-  border-bottom: 1px solid var(--borde, #eef0f2);
+  border-bottom: 1px solid var(--borde-suave, #eef0f2);
   cursor: pointer;
 }
 
@@ -641,7 +706,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  background: rgba(37, 99, 235, 0.12);
+  background: var(--co-cat-bg, rgba(37, 99, 235, 0.12));
   // Texto oscuro neutro y no azul: los fondos los pone el componente con el
   // color de cada categoria (pasteles) y el azul no se leia bien encima.
   color: #334155;
@@ -650,7 +715,7 @@
 /* Sin categoria en Outlook: se ve neutra, para que destaque lo que si esta clasificado. */
 .categoria-pendiente {
   background: rgba(217, 119, 6, 0.14);
-  color: #b45309;
+  color: var(--co-amber, #b45309);
 }
 
 .tag {
@@ -665,7 +730,7 @@
 
 .tag-alerta {
   background: rgba(220, 38, 38, 0.14);
-  color: #991b1b;
+  color: var(--co-red, #991b1b);
 }
 
 .cargar-mas {
@@ -757,7 +822,7 @@
   width: 100%;
   min-height: 420px;
   border: 0;
-  background: #fff;
+  background: var(--co-iframe, #fff);
 }
 
 .vacio {
@@ -800,7 +865,7 @@
     flex-basis: auto;
     z-index: 70;
     border-right: 0;
-    box-shadow: 8px 0 24px rgba(15, 23, 42, 0.14);
+    box-shadow: var(--co-sombra-cajon, 8px 0 24px rgba(15, 23, 42, 0.14));
     transform: translateX(-100%);
     transition: transform 0.22s ease;
 
@@ -818,6 +883,6 @@
     position: fixed;
     inset: 0;
     z-index: 69;
-    background: rgba(17, 24, 39, 0.45);
+    background: var(--co-overlay, rgba(17, 24, 39, 0.45));
   }
 }

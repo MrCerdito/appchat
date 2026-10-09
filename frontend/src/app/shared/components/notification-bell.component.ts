@@ -1,10 +1,18 @@
-import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef, HostBinding } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
 import { SocketService } from '../../core/services/socket.service';
 import { AuthService } from '../../core/services/auth.service';
 import { NotificationRealtimeService } from '../../core/services/notification-realtime.service';
+import { SoundService } from '../../core/services/sound.service';
+import { ThemeService } from '../../core/services/theme.service';
+import { Notification, NotificationSection } from '../../core/models/notification.model';
+import {
+  countNotificationsInSection,
+  NOTIFICATION_SECTIONS,
+  notificationsInSection,
+} from '../../core/models/notification-section.util';
 
 const TYPE_LABELS: Record<string, string> = {
   ticket_created: 'Ticket creado',
@@ -19,6 +27,9 @@ const TYPE_LABELS: Record<string, string> = {
   ticket_deleted: 'Ticket eliminado',
   ticket_sla_warning: 'SLA por vencer',
   ticket_sla_expired: 'SLA vencido',
+  correo_nuevo: 'Correo nuevo',
+  cumpleanos_recordatorio: 'Cumpleaños',
+  reunion_recordatorio: 'Reunión próxima',
 };
 
 const TYPE_BG: Record<string, string> = {
@@ -34,6 +45,9 @@ const TYPE_BG: Record<string, string> = {
   ticket_deleted: '#F3F4F6',
   ticket_sla_warning: '#FFF7ED',
   ticket_sla_expired: '#FEF2F2',
+  correo_nuevo: '#EFF4FF',
+  cumpleanos_recordatorio: '#ECFDF3',
+  reunion_recordatorio: '#EEF4FF',
 };
 
 const TYPE_FG: Record<string, string> = {
@@ -49,6 +63,9 @@ const TYPE_FG: Record<string, string> = {
   ticket_deleted: '#6B7280',
   ticket_sla_warning: '#D97706',
   ticket_sla_expired: '#DC2626',
+  correo_nuevo: '#2563EB',
+  cumpleanos_recordatorio: '#16A34A',
+  reunion_recordatorio: '#3659C9',
 };
 
 @Component({
@@ -68,20 +85,37 @@ const TYPE_FG: Record<string, string> = {
         }
       </button>
 
+      @if (meetingReminder; as reminder) {
+        <aside class="meeting-reminder" [class.meeting-reminder-urgent]="meetingReminderUrgent"
+          role="alertdialog" aria-live="assertive" aria-label="Recordatorio de reunión">
+          <span class="meeting-reminder-kicker">RECORDATORIO DE REUNIÓN · {{ meetingReminderTime(reminder) }}</span>
+          <h2>{{ reminder.meta?.['subject'] || 'Tu reunión está por empezar' }}</h2>
+          <p class="meeting-reminder-countdown">{{ meetingReminderCountdown(reminder) }}</p>
+          <p>El aviso sonará hasta que abras el calendario o entres a Teams.</p>
+          <div class="meeting-reminder-actions">
+            <button type="button" class="meeting-reminder-open" (click)="openMeetingCalendar(reminder)">Abrir calendario</button>
+            @if (reminder.meta?.['joinUrl']) {
+              <button type="button" class="meeting-reminder-join" (click)="joinMeeting(reminder)">Ir a Teams</button>
+            }
+          </div>
+        </aside>
+      }
+
       @if (panelOpen) {
       <div class="notif-panel-overlay" (click)="closePanel()"></div>
       <div class="notif-panel" (click)="$event.stopPropagation()">
 
         <div class="notif-panel-header">
           <div class="notif-head-left">
-            <div class="notif-head-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                <path d="M13.73 21a1.94 1.94 0 0 1-3.46 0"/>
-              </svg>
-            </div>
-            <h3>Notificaciones</h3>
+            <div class="notif-heading-copy"><h3>Notificaciones</h3><span>Actividad de tu cuenta</span></div>
           </div>
+          <label class="notif-global-switch" title="Activar o desactivar los avisos del dispositivo">
+            <span class="notif-global-copy"><strong>Avisos</strong><small>{{ notificacionesEstado }}</small>@if (preferencesError) { <small class="notif-global-error">{{ preferencesError }}</small> }</span>
+            <input type="checkbox" [checked]="notificacionesActivas"
+              [disabled]="preferencesLoading || savingGlobalNotifications || !svc.preferences()"
+              (change)="toggleGlobalNotifications($event)" aria-label="Activar o desactivar todas las notificaciones de escritorio">
+            <span class="notif-global-track"><span></span></span>
+          </label>
           <div class="notif-header-actions">
             @if (selectedIds.size > 0) {
               <span class="notif-selected-count">{{ selectedIds.size }} seleccionada{{ selectedIds.size > 1 ? 's' : '' }}</span>
@@ -93,48 +127,46 @@ const TYPE_FG: Record<string, string> = {
               </button>
               <button class="notif-bulk-cancel" (click)="clearSelection()">Cancelar</button>
             } @else {
-              @if (svc.hasUnread() && svc.notifications().length > 0) {
-                <button class="notif-mark-all" (click)="markAllRead()">Marcar le&iacute;dos</button>
+              @if (unreadInSection(activeSection) > 0) {
+                <button class="notif-mark-all" (click)="markAllRead()">Marcar sección leída</button>
               }
-              @if (svc.notifications().length > 0) {
+              @if (totalInSection(activeSection) > 0) {
                 <button class="notif-delete-all" (click)="deleteAll()">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
                     <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
                   </svg>
-                  Borrar todo
+                  Borrar sección
                 </button>
               }
             }
           </div>
         </div>
 
-        <div class="notif-desktop-row">
-          <div class="notif-desk-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
-              <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
-            </svg>
-          </div>
-          <div class="notif-desk-text">
-            <span class="notif-desk-title">Notificaciones de escritorio</span>
-            <span class="notif-desk-sub">Recibe alertas en tiempo real</span>
-          </div>
-          <label class="notif-toggle">
-            <input type="checkbox" [checked]="svc.permission() === 'granted'" (change)="toggleDesktop($event)">
-            <span class="notif-toggle-track"><span class="notif-toggle-thumb"></span></span>
-          </label>
-        </div>
+        <nav class="notif-sections" role="tablist" aria-label="Secciones de notificaciones">
+          @for (section of sections; track section.id) {
+          <button type="button" class="notif-section-tab" role="tab"
+            [class.active]="activeSection === section.id"
+            [attr.aria-selected]="activeSection === section.id"
+            (click)="setSection(section.id)">
+            <span class="notif-section-name">{{ section.label }}</span>
+            <span class="notif-section-count" [class.has-unread]="unreadInSection(section.id) > 0"
+              [attr.aria-label]="unreadInSection(section.id) + ' notificaciones sin leer'">{{ unreadInSection(section.id) > 99 ? '99+' : unreadInSection(section.id) }}</span>
+          </button>
+          }
+        </nav>
 
         <div class="notif-list">
-          @if (svc.notifications().length === 0) {
+          @if (filteredNotifications.length === 0) {
             <div class="notif-empty">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="44" height="44">
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
                 <path d="M13.73 21a1.94 1.94 0 0 1-3.46 0"/>
               </svg>
-              <p>Sin notificaciones</p>
+              <p>{{ emptyTitle }}</p>
+              <span>{{ emptyDescription }}</span>
             </div>
           }
-          @for (n of svc.notifications(); track n.id) {
+          @for (n of filteredNotifications; track n.id) {
           <div class="notif-item-wrap" [class.deleting]="deletingId === n.id" [class.dragging]="draggingId === n.id">
             <div class="notif-delete-bg" [style.opacity]="deleteOpacity(n.id)">
               <button class="notif-delete-btn" title="Eliminar" (click)="deleteNotif(n)">
@@ -177,6 +209,9 @@ const TYPE_FG: Record<string, string> = {
                     @case ('ticket_deleted') { <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/> }
                     @case ('ticket_sla_warning') { <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/> }
                     @case ('ticket_sla_expired') { <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/> }
+                    @case ('correo_nuevo') { <rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/> }
+                    @case ('cumpleanos_recordatorio') { <path d="M4 21h16M5 21v-8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v8"/><path d="M3 16s1.5-2 4-2 4 2 5 2 2.5-2 5-2 4 2 4 2M8 8v3M12 8v3M16 8v3"/><path d="M8 4h.01M12 4h.01M16 4h.01"/> }
+                    @case ('reunion_recordatorio') { <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/> }
                     @default { <circle cx="12" cy="12" r="10"/> }
                   }
                 </svg>
@@ -184,11 +219,17 @@ const TYPE_FG: Record<string, string> = {
               <div class="notif-content">
                 <span class="notif-title">{{ n.title }}</span>
                 <span class="notif-msg">{{ n.message }}</span>
+                @if (emailSubject(n)) {
+                  <span class="notif-email-subject">Asunto: {{ emailSubject(n) }}</span>
+                }
+                @if (emailPreview(n)) {
+                  <span class="notif-email-preview">{{ emailPreview(n) }}</span>
+                }
                 <span
                   class="notif-tag"
                   [style.background]="iconBg(n.type)"
                   [style.color]="iconFg(n.type)"
-                >{{ tagLabel(n.type) }}</span>
+                >{{ tagLabel(n.type, n) }}</span>
               </div>
               <div class="notif-meta">
                 <span class="notif-time">{{ fmtTime(n.createdAt) }}</span>
@@ -206,7 +247,7 @@ const TYPE_FG: Record<string, string> = {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="15" height="15">
               <polyline points="20 6 9 17 4 12"/>
             </svg>
-            Mostrando las &uacute;ltimas {{ svc.notifications().length }}
+            {{ totalInSection(activeSection) }} aviso{{ totalInSection(activeSection) === 1 ? '' : 's' }} · {{ unreadInSection(activeSection) }} sin leer
           </span>
           @if (!svc.loadedAll()) {
             <button class="notif-footer-view" (click)="viewAll()">Ver todas
@@ -238,6 +279,51 @@ const TYPE_FG: Record<string, string> = {
       transition: all 0.15s;
     }
     .notif-bell:hover { background: var(--bg-hover, rgba(255,255,255,0.06)); color: var(--text, #e5e7eb); }
+
+    .meeting-reminder {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      z-index: 10001;
+      width: min(410px, calc(100vw - 28px));
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 18px;
+      border: 1px solid #dbe5fb;
+      border-left: 4px solid #3659c9;
+      border-radius: 16px;
+      background: #fff;
+      color: #172033;
+      box-shadow: 0 18px 48px rgba(16, 24, 40, .2);
+      animation: reminder-in .2s ease-out;
+    }
+    @keyframes reminder-in {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .meeting-reminder-kicker { color: #3659c9; font-size: 10px; font-weight: 800; letter-spacing: .08em; }
+    .meeting-reminder h2 { margin: 0; color: #172033; font-size: 17px; line-height: 1.35; overflow-wrap: anywhere; }
+    .meeting-reminder p { margin: 0; color: #667085; font-size: 13px; line-height: 1.45; }
+    .meeting-reminder .meeting-reminder-countdown { color: #253b73; font-size: 18px; font-weight: 750; font-variant-numeric: tabular-nums; }
+    .meeting-reminder.meeting-reminder-urgent { border-color: #f2c4c4; border-left-color: #dc2626; }
+    .meeting-reminder-urgent .meeting-reminder-countdown { color: #b42318; }
+    .meeting-reminder-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 2px; }
+    .meeting-reminder-actions button {
+      min-height: 36px;
+      padding: 0 12px;
+      border: 1px solid #d0d5dd;
+      border-radius: 9px;
+      background: #fff;
+      color: #344054;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .meeting-reminder-actions button:hover { background: #f8f9fc; }
+    .meeting-reminder-actions .meeting-reminder-join { border-color: #3659c9; background: #3659c9; color: #fff; }
+    .meeting-reminder-actions .meeting-reminder-join:hover { background: #2948ae; }
 
     .notif-badge {
       position: absolute;
@@ -292,29 +378,13 @@ const TYPE_FG: Record<string, string> = {
       display: flex;
       align-items: center;
       justify-content: space-between;
+      flex-wrap: wrap;
       gap: 12px;
       padding: 20px 24px 16px;
       border-bottom: 1px solid #eef0f5;
     }
 
-    .notif-head-left {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      min-width: 0;
-    }
-
-    .notif-head-icon {
-      width: 46px;
-      height: 46px;
-      border-radius: 50%;
-      background: #eef0ff;
-      color: #6366f1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
+    .notif-head-left { display: flex; align-items: center; gap: 14px; min-width: 0; flex: 1 1 auto; }
 
     .notif-panel-header h3 {
       margin: 0;
@@ -324,6 +394,27 @@ const TYPE_FG: Record<string, string> = {
       letter-spacing: -0.01em;
       white-space: nowrap;
     }
+
+    .notif-heading-copy { min-width: 0; }
+    .notif-heading-copy > span { display: block; margin-top: 2px; color: #98a1b3; font-size: 12px; }
+
+    .notif-global-switch {
+      display: inline-flex; align-items: center; gap: 9px; flex: none; cursor: pointer;
+      padding: 7px 10px; border: 1px solid #e7eaf0; border-radius: 12px; background: #fff;
+      transition: border-color .15s, background .15s;
+    }
+    .notif-global-switch:hover { border-color: #c7d2fe; background: #fafaff; }
+    .notif-global-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .notif-global-copy strong { color: #344054; font-size: 11px; font-weight: 750; }
+    .notif-global-copy small { max-width: 150px; color: #98a1b3; font-size: 9px; line-height: 1.25; }
+    .notif-global-switch input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+    .notif-global-track { display: block; position: relative; width: 34px; height: 19px; flex: none; border-radius: 99px; background: #d0d5dd; transition: background .16s; }
+    .notif-global-track span { position: absolute; top: 2px; left: 2px; width: 15px; height: 15px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(16,24,40,.2); transition: transform .16s; }
+    .notif-global-switch input:checked + .notif-global-track { background: #4f46e5; }
+    .notif-global-switch input:checked + .notif-global-track span { transform: translateX(15px); }
+    .notif-global-switch input:focus-visible + .notif-global-track { outline: 3px solid rgba(99,102,241,.25); outline-offset: 2px; }
+    .notif-global-switch input:disabled + .notif-global-track { opacity: .55; }
+    .notif-global-error { display: block; margin-top: 2px; color: #dc2626 !important; }
 
     .notif-header-actions {
       display: flex;
@@ -361,6 +452,34 @@ const TYPE_FG: Record<string, string> = {
       white-space: nowrap;
     }
     .notif-delete-all:hover { background: #fef2f2; border-color: #fca5a5; }
+
+    .notif-permission-btn {
+      border: 1px solid #c7d2fe; border-radius: 9px; padding: 7px 11px;
+      background: #eef2ff; color: #4f46e5; font-size: 12px; font-weight: 700; cursor: pointer;
+    }
+    .notif-permission-btn:hover { background: #e0e7ff; }
+    .notif-permission-state { flex: none; padding: 5px 9px; border-radius: 999px; background: #f2f4f7; color: #667085; font-size: 11px; font-weight: 650; }
+    .notif-permission-state.is-on { background: #ecfdf3; color: #16803c; }
+
+    .notif-sections {
+      display: flex; gap: 7px; overflow-x: auto; padding: 12px 20px;
+      border-bottom: 1px solid #eef0f5; background: #fff;
+    }
+    .notif-section-tab {
+      position: relative; display: inline-flex; align-items: center; gap: 7px; flex: none;
+      border: 1px solid #e7eaf0; border-radius: 999px; padding: 8px 12px;
+      background: #fff; color: #667085; font: inherit; cursor: pointer; transition: .15s ease;
+    }
+    .notif-section-tab:hover { border-color: #c7d2fe; background: #f8f9ff; }
+    .notif-section-tab.active { border-color: #c7d2fe; background: #eef2ff; color: #4338ca; }
+    .notif-section-name { font-size: 12px; font-weight: 700; }
+    .notif-section-count { display: grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: rgba(16,24,40,.06); color: inherit; font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .notif-section-count.has-unread { background: #e5484d; color: white; }
+    .notif-email-setting { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 22px; border-bottom: 1px solid #eef0f5; background: #fbfcfe; }
+    .notif-email-setting-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .notif-email-setting-copy strong { color: #344054; font-size: 11px; font-weight: 700; }
+    .notif-email-setting-copy small { color: #98a1b3; font-size: 10px; }
+    .notif-email-setting-copy .notif-pref-error { color: #dc2626; }
 
     .notif-selected-count {
       font-size: 13px;
@@ -664,6 +783,18 @@ const TYPE_FG: Record<string, string> = {
       overflow: hidden;
     }
 
+    .notif-email-subject { color: #475467; font-size: 13px; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }
+    .notif-email-preview {
+      color: #667085;
+      font-size: 13px;
+      line-height: 1.4;
+      overflow-wrap: anywhere;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
     .notif-tag {
       align-self: flex-start;
       margin-top: 5px;
@@ -755,6 +886,16 @@ const TYPE_FG: Record<string, string> = {
         padding: 12px 14px 10px;
         h3 { font-size: 17px; }
       }
+      .notif-heading-copy > span { font-size: 10px; }
+      .notif-head-left { flex: 1 1 auto; justify-content: flex-start; gap: 7px; }
+      .notif-global-switch { gap: 6px; padding: 6px 7px; }
+      .notif-global-copy small { max-width: 112px; font-size: 8px; }
+      .meeting-reminder { right: 12px; bottom: 12px; padding: 14px; }
+      .notif-header-actions { width: 100%; justify-content: flex-end; }
+      .notif-sections { padding: 9px 11px; gap: 5px; }
+      .notif-section-tab { gap: 5px; padding: 7px 9px; }
+      .notif-section-name { font-size: 11px; }
+      .notif-email-setting { padding: 8px 13px; }
 
       .notif-list {
         max-height: none;
@@ -766,7 +907,7 @@ const TYPE_FG: Record<string, string> = {
       }
 
       .notif-header-actions { gap: 4px; }
-      .notif-delete-all, .notif-mark-all, .notif-bulk-del {
+      .notif-delete-all, .notif-mark-all, .notif-bulk-del, .notif-permission-btn {
         padding: 5px 8px;
         font-size: 11px;
       }
@@ -813,12 +954,181 @@ const TYPE_FG: Record<string, string> = {
 
       .notif-chevron { width: 14px; height: 14px; }
     }
+
+    /* ---------- Tema oscuro: recordatorio de reunion ---------- */
+    :host.theme-dark .meeting-reminder {
+      background: #1a1f26;
+      border-color: rgba(255, 255, 255, 0.1);
+      border-left-color: #60a5fa;
+      color: #e6edf7;
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
+    }
+    :host.theme-dark .meeting-reminder-kicker { color: #7ea2ff; }
+    :host.theme-dark .meeting-reminder h2 { color: #e6edf7; }
+    :host.theme-dark .meeting-reminder p { color: #9aa7bd; }
+    :host.theme-dark .meeting-reminder .meeting-reminder-countdown { color: #a9c2ff; }
+    :host.theme-dark .meeting-reminder.meeting-reminder-urgent {
+      border-color: rgba(239, 68, 68, 0.4);
+      border-left-color: #ef4444;
+    }
+    :host.theme-dark .meeting-reminder-urgent .meeting-reminder-countdown { color: #fca5a5; }
+    :host.theme-dark .meeting-reminder-actions button {
+      background: #242b35;
+      color: #cbd5e1;
+      border-color: rgba(255, 255, 255, 0.16);
+    }
+    :host.theme-dark .meeting-reminder-actions button:hover { background: #2d3542; }
+    :host.theme-dark .meeting-reminder-actions .meeting-reminder-join {
+      border-color: #4a72e8;
+      background: #4a72e8;
+      color: #fff;
+    }
+    :host.theme-dark .meeting-reminder-actions .meeting-reminder-join:hover { background: #3b62d4; }
+
+    /* ---------- Tema oscuro: panel de notificaciones ---------- */
+    :host.theme-dark .notif-bell:hover { background: rgba(255, 255, 255, 0.08); color: #e6edf7; }
+
+    :host.theme-dark .notif-panel {
+      background: #1a1f26;
+      border-color: rgba(255, 255, 255, 0.09);
+      color: #e6edf7;
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55), 0 4px 16px rgba(0, 0, 0, 0.35);
+    }
+
+    :host.theme-dark .notif-panel-header { border-bottom-color: rgba(255, 255, 255, 0.07); }
+    :host.theme-dark .notif-panel-header h3 { color: #e6edf7; }
+    :host.theme-dark .notif-heading-copy > span { color: #8f9bb3; }
+
+    :host.theme-dark .notif-global-switch { background: #151b23; border-color: rgba(255, 255, 255, 0.1); }
+    :host.theme-dark .notif-global-switch:hover { border-color: rgba(96, 165, 250, 0.45); background: #1c2330; }
+    :host.theme-dark .notif-global-copy strong { color: #d7e0ee; }
+    :host.theme-dark .notif-global-copy small { color: #8f9bb3; }
+    :host.theme-dark .notif-global-track { background: #39424f; }
+    :host.theme-dark .notif-global-error { color: #f87171 !important; }
+
+    :host.theme-dark .notif-mark-all { color: #818cf8; }
+    :host.theme-dark .notif-mark-all:hover { background: rgba(129, 140, 248, 0.14); }
+
+    :host.theme-dark .notif-delete-all,
+    :host.theme-dark .notif-bulk-del {
+      background: #151b23;
+      border-color: rgba(248, 113, 113, 0.4);
+      color: #f87171;
+    }
+    :host.theme-dark .notif-delete-all:hover,
+    :host.theme-dark .notif-bulk-del:hover {
+      background: rgba(248, 113, 113, 0.12);
+      border-color: rgba(251, 113, 133, 0.6);
+    }
+
+    :host.theme-dark .notif-permission-btn {
+      background: rgba(99, 102, 241, 0.16);
+      border-color: rgba(129, 140, 248, 0.45);
+      color: #a5b4fc;
+    }
+    :host.theme-dark .notif-permission-btn:hover { background: rgba(99, 102, 241, 0.26); }
+    :host.theme-dark .notif-permission-state { background: #232a34; color: #9aa7bd; }
+    :host.theme-dark .notif-permission-state.is-on { background: rgba(16, 185, 129, 0.16); color: #4ade80; }
+
+    :host.theme-dark .notif-sections { background: #1a1f26; border-bottom-color: rgba(255, 255, 255, 0.07); }
+    :host.theme-dark .notif-section-tab {
+      background: #151b23;
+      border-color: rgba(255, 255, 255, 0.1);
+      color: #9aa7bd;
+    }
+    :host.theme-dark .notif-section-tab:hover { border-color: rgba(96, 165, 250, 0.45); background: #1d2431; }
+    :host.theme-dark .notif-section-tab.active {
+      border-color: rgba(96, 165, 250, 0.5);
+      background: rgba(96, 165, 250, 0.14);
+      color: #93b4ff;
+    }
+    :host.theme-dark .notif-section-count { background: rgba(255, 255, 255, 0.09); }
+
+    :host.theme-dark .notif-email-setting { background: #151b23; border-bottom-color: rgba(255, 255, 255, 0.07); }
+    :host.theme-dark .notif-email-setting-copy strong { color: #d7e0ee; }
+    :host.theme-dark .notif-email-setting-copy small { color: #8f9bb3; }
+    :host.theme-dark .notif-email-setting-copy .notif-pref-error { color: #f87171; }
+
+    :host.theme-dark .notif-selected-count { color: #818cf8; }
+    :host.theme-dark .notif-bulk-cancel { color: #9aa7bd; }
+    :host.theme-dark .notif-bulk-cancel:hover { background: rgba(255, 255, 255, 0.08); }
+
+    :host.theme-dark .notif-desktop-row { background: #151b23; border-bottom-color: rgba(255, 255, 255, 0.07); }
+    :host.theme-dark .notif-desk-icon { background: rgba(99, 102, 241, 0.18); color: #a5b4fc; }
+    :host.theme-dark .notif-desk-title { color: #e6edf7; }
+    :host.theme-dark .notif-desk-sub { color: #8f9bb3; }
+    :host.theme-dark .notif-toggle-track { background: #39424f; box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4); }
+
+    :host.theme-dark .notif-list { background: #1a1f26; }
+    :host.theme-dark .notif-list::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.18); }
+    :host.theme-dark .notif-list::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); }
+    :host.theme-dark .notif-empty { color: #8f9bb3; }
+
+    :host.theme-dark .notif-item {
+      background: #151b23;
+      border-color: rgba(255, 255, 255, 0.07);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    }
+    :host.theme-dark .notif-item:hover {
+      background: #1a2029;
+      border-color: rgba(255, 255, 255, 0.12);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+    }
+    :host.theme-dark .notif-item.unread {
+      background: #161d2b;
+      border-color: rgba(129, 140, 248, 0.25);
+      box-shadow: inset 3px 0 0 #818cf8, 0 1px 2px rgba(0, 0, 0, 0.4);
+    }
+    :host.theme-dark .notif-item.unread:hover { background: #1a2130; }
+    :host.theme-dark .notif-item.selected {
+      background: rgba(99, 102, 241, 0.18);
+      border-color: rgba(129, 140, 248, 0.55);
+      box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.3), 0 4px 12px rgba(99, 102, 241, 0.15);
+    }
+
+    :host.theme-dark .notif-checkbox {
+      background: #10151c;
+      border-color: rgba(255, 255, 255, 0.28);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    }
+    :host.theme-dark .notif-check input:checked + .notif-checkbox { box-shadow: 0 2px 6px rgba(99, 102, 241, 0.5); }
+
+    :host.theme-dark .notif-title { color: #e6edf7; }
+    :host.theme-dark .notif-msg { color: #9aa7bd; }
+    :host.theme-dark .notif-email-subject { color: #c3cddc; }
+    :host.theme-dark .notif-email-preview { color: #9aa7bd; }
+    :host.theme-dark .notif-time { color: #8f9bb3; }
+    :host.theme-dark .notif-chevron { color: #5c6a80; }
+    :host.theme-dark .notif-item:hover .notif-chevron { color: #818cf8; }
+
+    :host.theme-dark .notif-panel-footer { background: #1a1f26; border-top-color: rgba(255, 255, 255, 0.07); }
+    :host.theme-dark .notif-footer-left { color: #8f9bb3; }
+    :host.theme-dark .notif-footer-left svg { color: #4ade80; }
+    :host.theme-dark .notif-footer-view { color: #818cf8; }
+    :host.theme-dark .notif-footer-view:hover { background: rgba(129, 140, 248, 0.14); }
   `],
 })
 export class NotificationBellComponent implements OnInit, OnDestroy {
+  /**
+   * Tema oscuro: ThemeService escribe `data-theme` en <html> y aqui se
+   * replica como clase en el host para `:host.theme-dark` (recordatorio
+   * de reunion y demas piezas con color fijo).
+   */
+  @HostBinding('class.theme-dark') protected themeDark = false;
+
+  readonly sections = NOTIFICATION_SECTIONS;
+  activeSection: NotificationSection = 'tickets';
   panelOpen = false;
+  preferencesLoading = true;
+  savingGlobalNotifications = false;
+  preferencesError = '';
   private destroy$ = new Subject<void>();
   private userRole: string | null = null;
+  private readonly meetingRemindersDismissed = new Set<string>();
+  private meetingReminderTimer: ReturnType<typeof setInterval> | null = null;
+  private activeMeetingReminderId: string | null = null;
+  private nextMeetingReminderSoundAt = 0;
+  private meetingReminderAlarmUrgent = false;
 
   constructor(
     public readonly svc: NotificationRealtimeService,
@@ -826,16 +1136,31 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
     private readonly router: Router,
     private readonly auth: AuthService,
     private readonly cdr: ChangeDetectorRef,
+    private readonly sound: SoundService,
+    private readonly theme: ThemeService,
   ) {}
 
   ngOnInit(): void {
+    this.themeDark = this.theme.currentTheme === 'dark';
+    this.theme.currentTheme$.pipe(takeUntil(this.destroy$)).subscribe(tema => {
+      this.themeDark = tema === 'dark';
+      this.cdr.markForCheck();
+    });
     this.svc.init(this.socket);
+    this.svc.getPreferences().subscribe({
+      next: () => { this.preferencesLoading = false; this.preferencesError = ''; this.cdr.markForCheck(); },
+      error: () => { this.preferencesLoading = false; this.preferencesError = 'No se pudo cargar esta preferencia.'; this.cdr.markForCheck(); },
+    });
     this.auth.user$.pipe(takeUntil(this.destroy$)).subscribe(user => {
       this.userRole = user?.role ?? null;
     });
+    this.meetingReminderTimer = setInterval(() => this.tickMeetingReminder(), 1000);
+    this.tickMeetingReminder();
   }
 
   ngOnDestroy(): void {
+    if (this.meetingReminderTimer) clearInterval(this.meetingReminderTimer);
+    this.meetingReminderTimer = null;
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -844,8 +1169,7 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
     e.stopPropagation();
     this.panelOpen = !this.panelOpen;
     if (this.panelOpen) {
-      this.svc.requestPermission();
-      this.svc.fetch().subscribe();
+      this.svc.refresh();
     } else {
       this.clearPanelState();
     }
@@ -862,17 +1186,190 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
-  toggleDesktop(e: Event): void {
-    e.stopPropagation();
-    if (this.svc.permission() === 'granted') {
-      this.svc.setPermission('denied');
-    } else {
-      this.svc.requestPermission();
+  get notificacionesActivas(): boolean {
+    const preferences = this.svc.preferences();
+    return this.svc.permission() === 'granted' && !!preferences &&
+      Object.values(preferences).every((preference) => preference.desktop);
+  }
+
+  get meetingReminder(): Notification | null {
+    return this.svc.notifications().find((notification) =>
+      notification.type === 'reunion_recordatorio' &&
+      !notification.read &&
+      !this.meetingRemindersDismissed.has(notification.id),
+    ) ?? null;
+  }
+
+  meetingReminderTime(notification: Notification): string {
+    const start = notification.meta?.['startDateTime'];
+    if (typeof start !== 'string') return '';
+    return new Intl.DateTimeFormat('es-CO', {
+      hour: 'numeric',
+      minute: '2-digit',
+      timeZone: 'America/Bogota',
+    }).format(new Date(start));
+  }
+
+  meetingReminderCountdown(notification: Notification): string {
+    const start = notification.meta?.['startDateTime'];
+    if (typeof start !== 'string') return 'La reunión está por comenzar';
+    const segundos = Math.max(0, Math.ceil((new Date(start).getTime() - Date.now()) / 1000));
+    if (segundos === 0) return 'La reunión ya debería haber comenzado';
+    const horas = Math.floor(segundos / 3600);
+    const minutos = Math.floor((segundos % 3600) / 60);
+    const resto = segundos % 60;
+    const tiempo = horas > 0
+      ? `${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')}:${String(resto).padStart(2, '0')}`
+      : `${String(minutos).padStart(2, '0')}:${String(resto).padStart(2, '0')}`;
+    return `Faltan ${tiempo}`;
+  }
+
+  get meetingReminderUrgent(): boolean {
+    const start = this.meetingReminder?.meta?.['startDateTime'];
+    return typeof start === 'string' && new Date(start).getTime() <= Date.now();
+  }
+
+  private tickMeetingReminder(): void {
+    const reminder = this.meetingReminder;
+    if (!reminder) {
+      const estabaActivo = this.activeMeetingReminderId !== null;
+      this.activeMeetingReminderId = null;
+      this.nextMeetingReminderSoundAt = 0;
+      this.meetingReminderAlarmUrgent = false;
+      if (estabaActivo) this.cdr.markForCheck();
+      return;
     }
+
+    const now = Date.now();
+    const urgente = this.meetingReminderUrgent;
+    if (this.activeMeetingReminderId !== reminder.id) {
+      this.activeMeetingReminderId = reminder.id;
+      this.nextMeetingReminderSoundAt = 0;
+      this.meetingReminderAlarmUrgent = urgente;
+    } else if (this.meetingReminderAlarmUrgent !== urgente) {
+      this.meetingReminderAlarmUrgent = urgente;
+      this.nextMeetingReminderSoundAt = 0;
+    }
+    if (now >= this.nextMeetingReminderSoundAt) {
+      if (urgente) this.sound.playMeetingReminderUrgent();
+      else this.sound.playMeetingReminder();
+      this.nextMeetingReminderSoundAt = now + (urgente ? 2500 : 5000);
+    }
+    this.cdr.markForCheck();
+  }
+
+  openMeetingCalendar(notification: Notification): void {
+    const fecha = notification.meta?.['fecha'];
+    this.descartarRecordatorioReunion(notification);
+    this.closePanel();
+    this.router.navigate([this.getCalendarRoute()], {
+      queryParams: typeof fecha === 'string' ? { fecha } : undefined,
+    });
+  }
+
+  joinMeeting(notification: Notification): void {
+    const joinUrl = notification.meta?.['joinUrl'];
+    if (typeof joinUrl !== 'string' || !joinUrl) return;
+    window.open(joinUrl, '_blank', 'noopener,noreferrer');
+    this.descartarRecordatorioReunion(notification);
+  }
+
+  private descartarRecordatorioReunion(notification: Notification): void {
+    this.meetingRemindersDismissed.add(notification.id);
+    this.cdr.markForCheck();
+    this.svc.markAsRead(notification.id).subscribe({
+      error: () => {
+        this.meetingRemindersDismissed.delete(notification.id);
+        this.cdr.markForCheck();
+      },
+    });
+  }
+
+  get notificacionesEstado(): string {
+    if (this.preferencesError) return this.preferencesError;
+    if (this.preferencesLoading || this.savingGlobalNotifications) return 'Actualizando…';
+    if (this.svc.permission() === 'denied') return 'Permiso bloqueado en el navegador';
+    if (this.svc.permission() !== 'granted') return 'Activa para recibir avisos en este dispositivo';
+    return this.notificacionesActivas ? 'Avisos activados en este dispositivo' : 'Avisos desactivados';
+  }
+
+  toggleGlobalNotifications(event: Event): void {
+    const enabled = (event.target as HTMLInputElement).checked;
+    const prefs = this.svc.preferences();
+    if (!prefs || this.savingGlobalNotifications) return;
+    this.preferencesError = '';
+    if (!enabled) {
+      this.guardarPreferenciaGlobal(prefs, false);
+      return;
+    }
+
+    if (this.svc.permission() === 'granted') {
+      this.guardarPreferenciaGlobal(prefs, true);
+      return;
+    }
+
+    this.svc.requestPermission().then((permission) => {
+      if (permission === 'granted') this.guardarPreferenciaGlobal(prefs, true);
+      else {
+        if (permission === 'denied') this.guardarPreferenciaGlobal(prefs, false);
+        this.preferencesError = permission === 'denied'
+          ? 'Habilita los avisos en la configuración del navegador.'
+          : 'No se activaron los avisos.';
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  private guardarPreferenciaGlobal(
+    preferences: NonNullable<ReturnType<NotificationRealtimeService['preferences']>>,
+    enabled: boolean,
+  ): void {
+    const updated = Object.fromEntries(Object.entries(preferences).map(([type, setting]) => [
+      type,
+      { ...setting, desktop: enabled },
+    ])) as typeof preferences;
+    this.savingGlobalNotifications = true;
+    this.svc.updatePreferences(updated).subscribe({
+      next: () => { this.savingGlobalNotifications = false; this.cdr.markForCheck(); },
+      error: () => {
+        this.savingGlobalNotifications = false;
+        this.preferencesError = 'No se pudo guardar la configuración.';
+        this.cdr.markForCheck();
+      },
+    });
+  }
+
+  setSection(section: NotificationSection): void {
+    if (this.activeSection === section) return;
+    this.activeSection = section;
+    this.clearPanelState();
+  }
+
+  get filteredNotifications(): Notification[] {
+    return notificationsInSection(this.svc.notifications(), this.activeSection);
+  }
+
+  totalInSection(section: NotificationSection): number {
+    return countNotificationsInSection(this.svc.notifications(), section).total;
+  }
+
+  unreadInSection(section: NotificationSection): number {
+    return countNotificationsInSection(this.svc.notifications(), section).unread;
+  }
+
+  get emptyTitle(): string {
+    if (this.activeSection === 'correos') return 'Sin notificaciones de correo';
+    if (this.activeSection === 'tickets') return 'Sin notificaciones de tickets';
+    return 'Sin otras notificaciones';
+  }
+
+  get emptyDescription(): string {
+    if (this.activeSection === 'correos') return 'Los avisos de nuevas llegadas a tu carpeta aparecerán aquí.';
+    return 'Cuando haya actividad nueva aparecerá en esta sección.';
   }
 
   markAllRead(): void {
-    this.svc.markAllAsRead().subscribe();
+    this.svc.markAllAsRead(this.activeSection).subscribe();
   }
 
   loadMore(): void {
@@ -895,7 +1392,9 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
       this.suppressClick = false;
       return;
     }
-    if (!notif.read) {
+    // El aviso de correo se conserva hasta que el cuerpo se abra en la bandeja;
+    // pulsar la campana solo navega al mensaje.
+    if (!notif.read && notif.entityType !== 'correo') {
       this.svc.markAsRead(notif.id).subscribe();
     }
     this.closePanel();
@@ -906,6 +1405,39 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
       } else {
         this.router.navigate([route]);
       }
+      return;
+    }
+    if (notif.entityType === 'tarea') {
+      // El workspace de tareas no existe para asesor ni para interno, asi que
+      // un tipo de aviso que se recibiera ahi no debe llevar a una ruta muerta.
+      const route = this.getTareasRoute();
+      if (!route) return;
+      if (notif.entityId) {
+        this.router.navigate([route], { queryParams: { tarea: notif.entityId } });
+      } else {
+        this.router.navigate([route]);
+      }
+      return;
+    }
+    if (notif.entityType === 'correo') {
+      // El aviso lleva el id local del correo mas reciente para abrirlo directo.
+      // Sin ese dato solo se entra a la bandeja, que tambien es valido.
+      const queryParams = notif.entityId ? { correo: notif.entityId } : undefined;
+      this.router.navigate(['/dashboard/correos'], { queryParams });
+      return;
+    }
+    if (notif.entityType === 'calendario') {
+      const fecha = notif.meta?.['fecha'];
+      this.router.navigate([this.getCalendarRoute()], {
+        queryParams: typeof fecha === 'string' ? { fecha } : undefined,
+      });
+      return;
+    }
+    if (notif.entityType === 'meeting') {
+      const fecha = notif.meta?.['fecha'];
+      this.router.navigate([this.getCalendarRoute()], {
+        queryParams: typeof fecha === 'string' ? { fecha } : undefined,
+      });
     }
   }
 
@@ -1002,10 +1534,11 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
   }
 
   deleteAll(): void {
-    if (!window.confirm('Borrar todas las notificaciones?')) return;
+    const label = this.sections.find((section) => section.id === this.activeSection)?.label ?? 'esta sección';
+    if (!window.confirm(`¿Borrar las ${this.totalInSection(this.activeSection)} notificaciones de ${label}?`)) return;
     this.selectedIds.clear();
     this.cdr.markForCheck();
-    this.svc.removeMany().subscribe();
+    this.svc.removeMany(undefined, this.activeSection).subscribe();
   }
 
   deleteNotif(notif: any): void {
@@ -1041,8 +1574,38 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
     }
   }
 
-  tagLabel(type: string): string {
+  /** `null` para los roles que no tienen workspace de tareas. */
+  private getTareasRoute(): string | null {
+    switch (this.userRole) {
+      case 'admin': return '/admin/tareas';
+      case 'desarrollador': return '/developer/tareas';
+      default: return null;
+    }
+  }
+
+  tagLabel(type: string, notif?: Notification): string {
+    const carpeta = notif?.meta?.['carpeta'];
+    if (type === 'correo_nuevo' && typeof carpeta === 'string' && carpeta) return `Correo · ${carpeta}`;
     return TYPE_LABELS[type] ?? 'Notificaci\u00f3n';
+  }
+
+  private getCalendarRoute(): string {
+    switch (this.userRole) {
+      case 'admin': return '/admin/calendario';
+      case 'desarrollador': return '/developer/calendario';
+      case 'interno': return '/interno/calendario';
+      default: return '/dashboard/calendario';
+    }
+  }
+
+  emailSubject(notif: Notification): string {
+    const asunto = notif.meta?.['asunto'];
+    return typeof asunto === 'string' && asunto !== notif.title ? asunto : '';
+  }
+
+  emailPreview(notif: Notification): string {
+    const preview = notif.meta?.['vistaPrevia'];
+    return typeof preview === 'string' ? preview.trim() : '';
   }
 
   iconBg(type: string): string {
