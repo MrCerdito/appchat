@@ -126,7 +126,7 @@ $radius-pill: 999px;
 // SIN scroll (el widget manda sobre la estética).
 @media (min-width: 641px) and (min-height: 700px) {
   .screen-form { padding: 4vh 16px; }
-  .waiting-screen { padding: 4vh 16px; }
+  .waiting-screen { padding: 4vh 24px; }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -520,7 +520,8 @@ $radius-pill: 999px;
   &::-webkit-scrollbar { width: 6px; }
   &::-webkit-scrollbar-thumb { background: rgba(107, 114, 128, 0.35); border-radius: 6px; }
   &::-webkit-scrollbar-track { background: transparent; }
-  padding: calc(var(--sp) * 2) calc(var(--sp) * 1.5);
+  // Padding generoso y simétrico en toda la pantalla de espera.
+  padding: calc(var(--sp) * 2.6) calc(var(--sp) * 2);
   text-align: center;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: calc(var(--sp) * 1);
@@ -530,15 +531,16 @@ $radius-pill: 999px;
 
 // ══════════════════════════════════════════════════════════════════════════════
 // CARRUSEL DE ASESORES (pantalla de espera)
-// Avatares en círculo (sin indicadores de disponibilidad) que avanzan solos
-// de izquierda a derecha, asesor por asesor. Responsive 100% por variables:
-// el tamaño del avatar escala con el viewport (no necesita media queries).
+// Efecto center-focus: un círculo grande en el centro y dos más pequeños a
+// cada lado; al avanzar, el de la derecha se engrandece hasta el centro y el
+// actual pasa a la izquierda (bucle infinito, asesor por asesor).
+// Responsive 100%: todo escala con --adv-w (sin media queries).
 // ══════════════════════════════════════════════════════════════════════════════
 .advisor-carousel {
-  --adv-w: clamp(54px, 13vw, 68px);
-  --adv-gap: clamp(10px, 3vw, 16px);
+  --adv-w: clamp(72px, 17vw, 104px);     // diámetro del círculo CENTRO
+  --adv-step: calc(var(--adv-w) * 1.16); // distancia entre centros
   width: 100%;
-  margin-top: calc(var(--sp) * 0.3);
+  margin-top: calc(var(--sp) * 0.4);
 
   .adv-label {
     display: block;
@@ -547,33 +549,30 @@ $radius-pill: 999px;
     color: #475569;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    margin-bottom: calc(var(--sp) * 0.7);
+    margin-bottom: calc(var(--sp) * 1);
   }
 
-  // Máscara suave a los lados: los avatares entran y salen del carrusel.
+  // Altura fija: círculo + nombre del asesor del centro. Recorta lo que
+  // sobresalga del ancho en pantallas muy estrechas.
   .adv-viewport {
+    position: relative;
+    width: 100%;
+    height: calc(var(--adv-w) + 40px);
     overflow: hidden;
-    -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 7%, #000 93%, transparent 100%);
-    mask-image: linear-gradient(90deg, transparent 0%, #000 7%, #000 93%, transparent 100%);
   }
-
-  .adv-track {
-    display: flex;
-    gap: var(--adv-gap);
-    width: max-content;
-    transition: transform 0.65s cubic-bezier(0.4, 0, 0.2, 1);
-    will-change: transform;
-  }
-  &.no-anim .adv-track { transition: none; }
-  &.estatico .adv-track { margin-inline: auto; }
 
   .adv-item {
-    flex: 0 0 var(--adv-w);
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    width: var(--adv-w);
+    margin-left: calc(var(--adv-w) / -2);
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 6px;
-    min-width: 0;
+    transform-origin: center center;
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.5s ease;
+    will-change: transform;
   }
 
   .adv-avatar {
@@ -582,9 +581,10 @@ $radius-pill: 999px;
     border-radius: 50%;
     overflow: hidden;
     background: #eef1f5;
-    // Contraste sobre fondo blanco: borde blanco + aro neutro definido.
-    border: 2px solid #ffffff;
-    box-shadow: 0 0 0 1.5px #cbd5e1;
+    // Contraste sobre fondo blanco: borde blanco, aro definido y sombra
+    // suave que da profundidad al círculo del centro.
+    border: 3px solid #ffffff;
+    box-shadow: 0 0 0 1.5px #cbd5e1, 0 8px 20px rgba(15, 23, 42, 0.12);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -592,7 +592,7 @@ $radius-pill: 999px;
     img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
     .adv-ini {
-      font-size: calc(var(--adv-w) * 0.34);
+      font-size: calc(var(--adv-w) * 0.3);
       font-weight: 600;
       color: #475569;
       letter-spacing: 0.02em;
@@ -600,39 +600,21 @@ $radius-pill: 999px;
     }
   }
 
+  // Nombre SOLO bajo el círculo del centro (viaja con su item y se
+  // funde al entrar/salir del medio).
   .adv-name {
-    max-width: 100%;
-    font-size: calc(var(--fz) * 0.72);
-    color: #64748b;
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size: calc(var(--fz) * 0.82);
+    font-weight: 600;
+    color: var(--text);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    &.visible { opacity: 1; }
   }
-}
-
-.waiting-visual {
-  position: relative; width: 72px; height: 72px;
-  display: flex; align-items: center; justify-content: center; margin-bottom: 0.5rem;
-}
-
-.ring {
-  position: absolute; border-radius: 50%;
-  border: 1.5px solid var(--brand, #4F46E5); opacity: 0;
-  animation: expand 2.4s ease-out infinite;
-  &.ring-1 { animation-delay: 0s; }
-  &.ring-2 { animation-delay: 0.8s; }
-  &.ring-3 { animation-delay: 1.6s; }
-}
-
-@keyframes expand {
-  0%   { width: 36px; height: 36px; opacity: 0.6; }
-  100% { width: 72px; height: 72px; opacity: 0; }
-}
-
-.waiting-icon {
-  width: 36px; height: 36px; background: var(--brand, #4F46E5); border-radius: 50%;
-  display: flex; align-items: center; justify-content: center; color: white; z-index: 1;
-  svg { width: 18px; height: 18px; }
 }
 
 .waiting-dots {
@@ -685,10 +667,9 @@ $radius-pill: 999px;
 }
 
 .waiting-footer-actions {
-  // Pie fijo abajo del widget: mismos gutters y pad vertical que el
-  // .submit-zone del formulario. Botón completo a todo el ancho.
-  display: flex; gap: 0.5rem; flex-shrink: 0;
-  padding: calc(var(--sp) * 0.7) calc(var(--sp) * 1.5) calc(var(--sp) * 1.3 + env(safe-area-inset-bottom));
+    // Pie fijo abajo del widget: mismos gutters (2sp) que el cuerpo.
+    display: flex; gap: 0.5rem; flex-shrink: 0;
+    padding: calc(var(--sp) * 0.7) calc(var(--sp) * 2) calc(var(--sp) * 1.3 + env(safe-area-inset-bottom));
 
   .btn-exit-waiting {
     flex: 1;
@@ -710,8 +691,8 @@ $radius-pill: 999px;
 
 .busy-notice {
   // Aviso de "agentes ocupados": banda entre el contenido y el pie,
-  // con los mismos laterales que los campos del formulario (1.5sp).
-  margin: 0 calc(var(--sp) * 1.5) calc(var(--sp) * 0.9);
+  // con los mismos laterales (2sp) que el cuerpo y el pie.
+  margin: 0 calc(var(--sp) * 2) calc(var(--sp) * 0.9);
   flex-shrink: 0;
   background: #fffbeb; border: 1px solid #fde68a;
   border-radius: var(--radius-sm); padding: 0.85rem 1rem;
@@ -2874,8 +2855,7 @@ textarea {
   }
   .advisor-carousel {
     margin-top: calc(var(--sp) * 0.2);
-    .adv-label { margin-bottom: calc(var(--sp) * 0.4); }
-    .adv-item { gap: 4px; }
+    .adv-label { margin-bottom: calc(var(--sp) * 0.5); }
   }
 }
 

@@ -412,12 +412,13 @@ get rolLabel(): string {
   private waitingTimer : any;
   private waitingTickTimer : any;
 
-  // Carrusel de asesores (pantalla de espera): avatares circulares que
-  // avanzan de izquierda a derecha asesor por asesor, SIN disponibilidad.
+  // Carrusel de asesores (pantalla de espera): círculo grande al centro y
+  // dos más pequeños a los lados; el siguiente se engrandece desde la
+  // derecha y el actual pasa a la izquierda. Sin disponibilidad.
   carruselAsesores: { id: string; name: string; foto: string; ini: string; key: string }[] = [];
+  carruselEstados: { off: number; escala: number; op: number; z: number }[] = [];
   carruselTotal = 0;
   carruselIdx = 0;
-  carruselSnap = false;
   private carruselTimer: any;
   private asesoresCarruselCargados = false;
   clientTimer: {
@@ -2544,7 +2545,7 @@ En el siguiente menú encontrarás varias opciones en las que te puedes apoyar, 
   private detenerCarruselAsesores(): void {
     if (this.carruselTimer) { clearInterval(this.carruselTimer); this.carruselTimer = null; }
     this.carruselIdx = 0;
-    this.carruselSnap = false;
+    this.actualizarEstadosCarrusel();
   }
 
   private cargarAsesoresCarrusel(): void {
@@ -2558,15 +2559,16 @@ En el siguiente menú encontrarás varias opciones en las que te puedes apoyar, 
           foto: this.normalizePhotoUrl(a.profilePhotoUrl || ''),
           ini: this.inicialesDe(a.name),
         }));
-        // Copias suficientes para que la ventana visible nunca vea huecos:
-        // la pista necesita (2n para el snap + ~8 de ventana) items por delante.
-        const copias = base.length <= 1 ? 1 : Math.max(3, Math.ceil((2 * base.length + 8) / base.length));
+        // Réplicas para que las 5 posiciones (centro + 2 a cada lado)
+        // estén siempre cubiertas aunque pocos asesores estén en línea.
+        const copias = base.length <= 1 ? 1 : Math.ceil(5 / base.length);
         const items: { id: string; name: string; foto: string; ini: string; key: string }[] = [];
         for (let c = 0; c < copias; c++) {
           for (const a of base) items.push({ ...a, key: a.id + '#' + c });
         }
         this.carruselAsesores = items;
         this.carruselTotal = base.length;
+        this.actualizarEstadosCarrusel();
         this.cdr.detectChanges();
       },
       error: () => { this.asesoresCarruselCargados = false; },
@@ -2574,20 +2576,29 @@ En el siguiente menú encontrarás varias opciones en las que te puedes apoyar, 
   }
 
   private avanzarCarrusel(): void {
-    const n = this.carruselTotal;
-    if (n < 2) return;
+    if (this.carruselTotal < 2) return;
     this.carruselIdx++;
-    if (this.carruselIdx >= n * 2) {
-      // Al terminar el segundo bloque, salta sin transición al primero
-      // (bucle infinito invisible, una vez completado el deslizamiento).
-      setTimeout(() => {
-        this.carruselSnap = true;
-        this.carruselIdx -= n;
-        this.cdr.detectChanges();
-        setTimeout(() => { this.carruselSnap = false; this.cdr.detectChanges(); }, 60);
-      }, 700);
-    }
+    this.actualizarEstadosCarrusel();
     this.cdr.detectChanges();
+  }
+
+  // Posiciones relativas al centro: 0 = círculo grande al medio, ±1 y ±2
+  // a los lados (más pequeños y translúcidos). El módulo sobre la lista
+  // renderizada produce el bucle infinito sin pistas ni saltos visibles:
+  // cada avance mueve todo UN paso hacia la izquierda.
+  private actualizarEstadosCarrusel(): void {
+    const total = this.carruselAsesores.length;
+    this.carruselEstados = this.carruselAsesores.map((_, i) => {
+      let off = total ? (((i - this.carruselIdx) % total) + total) % total : 0;
+      if (off * 2 > total) off -= total;
+      const a = Math.abs(off);
+      return {
+        off,
+        escala: a === 0 ? 1 : a === 1 ? 0.72 : 0.5,
+        op: a === 0 ? 1 : a === 1 ? 0.9 : a === 2 ? 0.28 : 0,
+        z: 10 - a,
+      };
+    });
   }
 
   private inicialesDe(nombre: string): string {
