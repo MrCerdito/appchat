@@ -4926,8 +4926,128 @@ a {
 // REUNION TEAMS (modal del panel de informacion)
 // ══════════════════════════════════════════════════════════════════════════════
 
+@keyframes teamsMtModalIn {
+  0%   { opacity: 0; transform: translateY(14px) scale(0.94); filter: blur(5px); }
+  60%  { opacity: 1; filter: blur(0); }
+  100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+@keyframes teamsMtCheckDraw {
+  from { stroke-dashoffset: 30; }
+  to   { stroke-dashoffset: 0; }
+}
+@keyframes teamsMtCheckPop {
+  0%   { transform: scale(0.4); opacity: 0; }
+  60%  { transform: scale(1.14); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes teamsMtRing {
+  0%   { transform: scale(0.55); opacity: 0.7; }
+  100% { transform: scale(1.9); opacity: 0; }
+}
+@keyframes teamsMtHalo {
+  0%, 100% { opacity: 0.45; transform: scale(1); }
+  50%      { opacity: 0.85; transform: scale(1.1); }
+}
+@keyframes teamsMtSentIn {
+  from { opacity: 0; transform: translateY(6px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes teamsMtSpin {
+  to { transform: rotate(360deg); }
+}
+@keyframes teamsMtGlowPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba($primary, 0.4); }
+  50%      { box-shadow: 0 0 18px 4px rgba($primary, 0.22); }
+}
+
 .teams-mt-modal {
   width: min(420px, calc(100vw - 32px));
+  animation: teamsMtModalIn 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+
+  .teams-mt-header-ico {
+    background: linear-gradient(135deg, $primary, $purple);
+    color: #fff;
+    animation: teamsMtGlowPulse 3.2s ease-in-out infinite;
+  }
+
+  .teams-mt-submit {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .teams-mt-btn-spin {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: teamsMtSpin 0.7s linear infinite;
+  }
+
+  // Botones del modal: el .modal-confirm global es ROJO (destructivo); aqui
+  // se reestilan a un CTA profesional azul Teams y un cancel sutil.
+  .tadv-actions {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 4px;
+    padding-top: 14px;
+    border-top: 1px solid $border;
+
+    .modal-cancel,
+    .modal-confirm {
+      height: 38px;
+      border-radius: $radius-md;
+      font-size: 13.5px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .modal-cancel {
+      flex: 0 0 auto;
+      padding: 0 18px;
+      border: 1px solid $border;
+      background: $surface;
+      color: $text-secondary;
+
+      &:hover {
+        background: $surface-hover;
+        color: $text;
+        border-color: $text-faint;
+      }
+
+      &:disabled { opacity: 0.5; cursor: default; }
+    }
+
+    .modal-confirm {
+      flex: 1 1 auto;
+      padding: 0 16px;
+      border: none;
+      background: linear-gradient(135deg, $primary, $purple);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba($primary, 0.25);
+
+      &:hover {
+        filter: brightness(1.06);
+        box-shadow: 0 4px 14px rgba($primary, 0.32);
+        transform: translateY(-1px);
+      }
+
+      &:active { transform: translateY(0) scale(0.98); }
+
+      &:disabled {
+        opacity: 0.45;
+        cursor: default;
+        transform: none;
+        box-shadow: none;
+        filter: none;
+      }
+    }
+  }
 
   .teams-mt-body {
     display: flex;
@@ -4954,6 +5074,27 @@ a {
       font-size: 12.5px;
       line-height: 1.45;
       color: $text-secondary;
+    }
+
+    // Botón "Ir a Configuración → Teams": queda fuera de .tadv-actions, asi que
+    // aqui se anula el .modal-confirm global rojo con un outline profesional.
+    .modal-confirm {
+      width: 100%;
+      height: 36px;
+      border: 1px solid rgba($primary, 0.45);
+      background: $surface;
+      color: $primary;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      border-radius: $radius-md;
+      cursor: pointer;
+      transition: all 0.15s ease;
+
+      &:hover {
+        background: rgba($primary, 0.08);
+        border-color: $primary;
+      }
     }
   }
 
@@ -4988,18 +5129,96 @@ a {
     }
   }
 
-  .teams-mt-check {
+  // Control segmentado "Iniciar ahora | Programar".
+  .teams-mt-seg {
     display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    padding: 9px 10px;
+    gap: 4px;
+    padding: 4px;
     border: 1px solid $border;
     border-radius: $radius-md;
     background: $surface-hover;
+  }
 
-    input { margin-top: 2px; accent-color: $primary; }
+  .teams-mt-seg-btn {
+    flex: 1;
+    padding: 7px 10px;
+    border: 0;
+    border-radius: calc(#{$radius-md} - 2px);
+    background: transparent;
+    color: $text-secondary;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s ease;
 
-    span { font-size: 12.5px; color: $text; }
+    &:hover { color: $text; }
+
+    &.on {
+      background: $surface;
+      color: $primary;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+    }
+  }
+
+  .teams-mt-switch {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid $border;
+    border-radius: $radius-md;
+    background: $surface-hover;
+    cursor: pointer;
+    transition: border-color 0.15s;
+
+    &:hover { border-color: $primary; }
+
+    input {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .teams-mt-switch-track {
+      position: relative;
+      flex-shrink: 0;
+      width: 36px;
+      height: 20px;
+      margin-top: 1px;
+      border-radius: $radius-pill;
+      background: $border;
+      transition: background 0.2s;
+    }
+
+    .teams-mt-switch-thumb {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: $shadow-sm;
+      transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    input:checked + .teams-mt-switch-track {
+      background: $primary;
+
+      .teams-mt-switch-thumb { transform: translateX(16px); }
+    }
+
+    input:focus-visible + .teams-mt-switch-track {
+      box-shadow: 0 0 0 3px rgba($primary, 0.2);
+    }
+
+    .teams-mt-switch-label {
+      font-size: 12.5px;
+      line-height: 1.45;
+      color: $text;
+    }
   }
 
   .teams-mt-msg {
@@ -5011,53 +5230,202 @@ a {
   }
 
   .teams-mt-success {
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 10px;
-    padding: 24px 18px 20px;
+    gap: 8px;
+    padding: 22px 16px 16px;
     text-align: center;
+    animation: teamsMtSentIn 0.3s ease;
 
     h3 { margin: 0; font-size: 16px; color: $text; }
 
     &-ico {
+      position: relative;
       display: grid;
       place-items: center;
-      width: 46px;
-      height: 46px;
+      width: 52px;
+      height: 52px;
       border-radius: 50%;
       background: $success-soft;
       color: $success;
+
+      &::before {
+        content: '';
+        position: absolute;
+        inset: -10px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba($success, 0.2), transparent 70%);
+        animation: teamsMtHalo 2.8s ease-in-out infinite;
+        pointer-events: none;
+      }
+    }
+  }
+
+  .teams-mt-info {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 2px 12px;
+    border: 1px solid $border;
+    border-radius: $radius-lg;
+    background: $surface-hover;
+    text-align: left;
+    animation: teamsMtSentIn 0.3s 0.08s ease both;
+  }
+
+  .teams-mt-info-row {
+    display: grid;
+    grid-template-columns: 74px 1fr;
+    gap: 10px;
+    align-items: baseline;
+    padding: 7px 0;
+    border-bottom: 1px solid $border;
+
+    &:last-child { border-bottom: 0; }
+  }
+
+  .teams-mt-info-label {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: $text-secondary;
+  }
+
+  .teams-mt-info-value {
+    min-width: 0;
+    font-size: 13px;
+    font-weight: 500;
+    color: $text;
+    overflow-wrap: anywhere;
+  }
+
+  .teams-mt-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 2px solid rgba($success, 0.5);
+    animation: teamsMtRing 1.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    pointer-events: none;
+  }
+
+  .teams-mt-check {
+    position: relative;
+    stroke-dasharray: 30;
+    animation:
+      teamsMtCheckDraw 0.45s 0.15s cubic-bezier(0.65, 0, 0.35, 1) both,
+      teamsMtCheckPop 0.4s 0.1s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .teams-mt-sent {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: $radius-pill;
+    font-size: 12px;
+    font-weight: 600;
+    animation: teamsMtSentIn 0.3s 0.15s ease both;
+
+    &--ok {
+      background: $success-soft;
+      color: $success;
+      border: 1px solid rgba($success, 0.25);
     }
 
-    &-sub {
-      margin: 0;
-      font-size: 13px;
-      color: $text-secondary;
+    &--warn {
+      background: $warning-soft;
+      color: darken($warning, 10%);
+      border: 1px solid $warning-border;
     }
   }
 
   .teams-mt-link {
     display: flex;
-    align-items: center;
-    gap: 8px;
+    flex-direction: column;
+    gap: 10px;
     width: 100%;
     box-sizing: border-box;
-    padding: 8px 10px;
+    padding: 10px 12px;
     border: 1px solid $border;
-    border-radius: $radius-md;
+    border-radius: $radius-lg;
     background: $surface-hover;
+    text-align: left;
+    animation: teamsMtSentIn 0.3s 0.2s ease both;
 
-    span {
-      flex: 1;
+    .teams-mt-link-text {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
       min-width: 0;
+    }
+
+    .teams-mt-link-host {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: $primary;
+    }
+
+    .teams-mt-link-url {
       font-size: 12px;
       color: $text;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      user-select: all;
     }
 
-    .modal-confirm { flex-shrink: 0; }
+    .teams-mt-link-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .teams-mt-link-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      flex: 1;
+      height: 32px;
+      border: 1px solid $border;
+      border-radius: $radius-md;
+      background: $surface;
+      color: $text;
+      font-size: 12.5px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.15s;
+
+      &:hover {
+        border-color: $primary;
+        color: $primary;
+        background: $primary-soft;
+      }
+
+      &:active { transform: scale(0.97); }
+
+      &--open {
+        border-color: rgba($primary, 0.35);
+        color: $primary;
+      }
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .teams-mt-modal,
+  .teams-mt-modal * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

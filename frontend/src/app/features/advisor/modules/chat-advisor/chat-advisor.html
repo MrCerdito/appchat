@@ -1278,8 +1278,8 @@
   @if (showTeamsMeeting) {
   <div class="floating-modal" (click)="closeTeamsMeeting()">
     <div class="floating-modal-inner teams-mt-modal" (click)="$event.stopPropagation()">
-      <div class="tadv-header">
-        <div class="tadv-header-icon">
+      <div class="tadv-header teams-mt-header">
+        <div class="tadv-header-icon teams-mt-header-ico">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><rect x="2" y="4" width="16" height="12" rx="2"/><path d="M22 7l-6 3 6 3V7z"/></svg>
         </div>
         <div>
@@ -1302,10 +1302,19 @@
           <span>Nombre de la reunion</span>
           <input type="text" [(ngModel)]="teamsDraft.subject" placeholder="Reunion con el cliente" />
         </label>
+        <div class="teams-mt-field">
+          <span>Inicio</span>
+          <div class="teams-mt-seg" role="radiogroup" aria-label="Inicio de la reunion">
+            <button type="button" class="teams-mt-seg-btn" [class.on]="teamsDraft.startMode === 'ahora'" (click)="teamsDraft.startMode = 'ahora'">Iniciar ahora</button>
+            <button type="button" class="teams-mt-seg-btn" [class.on]="teamsDraft.startMode === 'programada'" (click)="teamsDraft.startMode = 'programada'">Programar</button>
+          </div>
+        </div>
+        @if (teamsDraft.startMode === 'programada') {
         <label class="teams-mt-field">
-          <span>Hora</span>
+          <span>Fecha y hora</span>
           <input type="datetime-local" [(ngModel)]="teamsDraft.startDateTime" />
         </label>
+        }
         <label class="teams-mt-field">
           <span>Duracion</span>
           <select [(ngModel)]="teamsDraft.durationMinutes">
@@ -1315,9 +1324,10 @@
             <option [ngValue]="60">60 minutos</option>
           </select>
         </label>
-        <label class="teams-mt-check">
+        <label class="teams-mt-switch">
           <input type="checkbox" [(ngModel)]="teamsDraft.agendarCalendario" />
-          <span>Crear en el calendario compartido (soporte@innovacloud.co). Desmarca para crearla en tu cuenta, que requiere conectar Teams.</span>
+          <span class="teams-mt-switch-track" aria-hidden="true"><span class="teams-mt-switch-thumb"></span></span>
+          <span class="teams-mt-switch-label">Crear en el calendario compartido (soporte@innovacloud.co). Desmarca para crearla en tu cuenta, que requiere conectar Teams.</span>
         </label>
 
         @if (teamsMessage) {
@@ -1326,21 +1336,68 @@
       </div>
       <div class="tadv-actions">
         <button class="modal-cancel" type="button" (click)="closeTeamsMeeting()" [disabled]="teamsCreating">Cancelar</button>
-        <button class="modal-confirm" type="button" (click)="createTeamsMeetingForChat()" [disabled]="teamsCreating || (!teamsDraft.agendarCalendario && !isTeamsConnected)">
-          {{ teamsCreating ? 'Creando reunion...' : 'Crear reunion' }}
+        <button class="modal-confirm teams-mt-submit" type="button" (click)="createTeamsMeetingForChat()" [disabled]="teamsCreating || (!teamsDraft.agendarCalendario && !isTeamsConnected)">
+          @if (teamsCreating) {
+          <span class="teams-mt-btn-spin" aria-hidden="true"></span>
+          Creando reunion...
+          } @else {
+          Crear reunion
+          }
         </button>
       </div>
       } @else {
       <div class="teams-mt-success">
         <div class="teams-mt-success-ico">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" width="24" height="24"><polyline points="20 6 9 17 4 12"/></svg>
+          <span class="teams-mt-ring"></span>
+          <svg class="teams-mt-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" width="26" height="26"><polyline points="20 6 9 17 4 12"/></svg>
         </div>
         <h3>Reunion creada</h3>
-        <p class="teams-mt-success-sub">{{ teamsCreated.subject }} · {{ fmtMedium(teamsCreated.startDateTime) }}</p>
-        <div class="teams-mt-link">
-          <span>{{ teamsCreated.joinUrl }}</span>
-          <button class="modal-confirm" type="button" (click)="copyTeamsMeetingLink()">{{ teamsCopied ? 'Copiado' : 'Copiar enlace' }}</button>
+
+        <div class="teams-mt-info">
+          <div class="teams-mt-info-row">
+            <span class="teams-mt-info-label">Reunion</span>
+            <span class="teams-mt-info-value">{{ teamsCreated.subject }}</span>
+          </div>
+          <div class="teams-mt-info-row">
+            <span class="teams-mt-info-label">Fecha</span>
+            <span class="teams-mt-info-value">{{ teamsLastMode === 'ahora' ? 'Iniciada ahora' : fmtMedium(teamsCreated.startDateTime) }}</span>
+          </div>
+          <div class="teams-mt-info-row">
+            <span class="teams-mt-info-label">Duracion</span>
+            <span class="teams-mt-info-value">{{ teamsCreated.durationMinutes }} minutos</span>
+          </div>
         </div>
+
+        @if (teamsSentToClient === true) {
+        <div class="teams-mt-sent teams-mt-sent--ok">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg>
+          Card enviada al chat del cliente
+        </div>
+        } @else if (teamsSentToClient === false) {
+        <div class="teams-mt-sent teams-mt-sent--warn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+          No se pudo enviar — copia el enlace
+        </div>
+        }
+
+        <div class="teams-mt-link">
+          <div class="teams-mt-link-text">
+            <span class="teams-mt-link-host">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.8 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.8-1.7"/></svg>
+              teams.microsoft.com
+            </span>
+            <span class="teams-mt-link-url" [title]="teamsCreated.joinUrl">{{ teamsCreated.joinUrl }}</span>
+          </div>
+          <div class="teams-mt-link-actions">
+            <button class="teams-mt-link-btn" type="button" (click)="copyTeamsMeetingLink()">
+              {{ teamsCopied ? 'Copiado ✓' : 'Copiar' }}
+            </button>
+            <button class="teams-mt-link-btn teams-mt-link-btn--open" type="button" (click)="openTeamsCreated()">
+              Abrir
+            </button>
+          </div>
+        </div>
+
         <div class="tadv-actions">
           <button class="modal-confirm" type="button" (click)="closeTeamsMeeting()">Listo</button>
         </div>

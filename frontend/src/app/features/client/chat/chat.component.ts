@@ -2419,6 +2419,26 @@ En el siguiente menú encontrarás varias opciones en las que te puedes apoyar, 
     return memoFormatMessageContent(text);
   }
 
+  /**
+   * Cards de reuniones programadas: el boton "Copiar link" viene por
+   * [innerHTML] (sin handlers), asi que se delega aqui el clic para copiar
+   * el href al portapapeles y confirmar en el propio boton.
+   */
+  @HostListener('click', ['$event'])
+  onMsgCardCopyClick(ev: Event): void {
+    const target = ev.target as HTMLElement | null;
+    const btn = target?.closest?.('.msg-card-btn--copy') as HTMLAnchorElement | null;
+    if (!btn) return;
+    ev.preventDefault();
+    const url = btn.getAttribute('href') || '';
+    if (!url) return;
+    navigator.clipboard?.writeText(url).then(() => {
+      const prev = btn.textContent;
+      btn.textContent = 'Copiado ✓';
+      setTimeout(() => { btn.textContent = prev; }, 2000);
+    }).catch(() => {});
+  }
+
   private normalizePhotoUrl(url: string): string {
   if (!url) return '';
   return /^https?:\/\//i.test(url) ? url : `${environment.apiUrl}${url}`;
