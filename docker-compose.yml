@@ -124,9 +124,11 @@ services:
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
       interval: 15s
-      timeout: 5s
+      # /health responde en ms, pero el warmup de decrypt puede bloquear el
+      # event loop ~10-30s al arrancar o en picos; 5s generaba unhealthy falso.
+      timeout: 20s
       retries: 3
-      start_period: 30s
+      start_period: 60s
     logging: *default-logging
     networks:
       - chat-net
