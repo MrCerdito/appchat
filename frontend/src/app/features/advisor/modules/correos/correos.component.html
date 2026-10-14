@@ -310,6 +310,48 @@
               </span>
             }
           </div>
+          <div class="linea-gestion">
+            <label class="etiqueta-gestion" for="cat-gestion">Gestión</label>
+            <select
+              id="cat-gestion"
+              class="selector-gestion"
+              [value]="seleccionado.categoriaGestion ?? ''"
+              [disabled]="asignandoCategoria"
+              (change)="onCambiarCategoriaGestion($any($event.target).value)"
+            >
+              <option value="">Sin clasificar</option>
+              @for (c of categoriasGestion; track c.id) {
+                <option [value]="c.nombre">{{ c.nombre }}</option>
+              }
+              <option [value]="VALOR_NUEVA_CATEGORIA">+ Nueva categoría…</option>
+            </select>
+            @if (creandoCategoria) {
+              <span class="form-nueva">
+                <input
+                  class="input-nueva"
+                  type="text"
+                  maxlength="120"
+                  placeholder="Nombre de la categoría"
+                  [(ngModel)]="nombreNuevaCategoria"
+                  (keyup.enter)="crearYAsignarCategoria()"
+                />
+                <button
+                  class="btn btn-primario btn-chico"
+                  [disabled]="creandoCategoriaGuardando || !nombreNuevaCategoria.trim()"
+                  (click)="crearYAsignarCategoria()"
+                >
+                  {{ creandoCategoriaGuardando ? 'Guardando…' : 'Crear y asignar' }}
+                </button>
+                <button
+                  class="btn btn-fantasma btn-chico"
+                  [disabled]="creandoCategoriaGuardando"
+                  (click)="cancelarNuevaCategoria()"
+                >
+                  Cancelar
+                </button>
+              </span>
+            }
+          </div>
           @if (seleccionado.para?.length) {
             <div class="linea-detalle"><b>Para:</b> {{ seleccionado.para.join(', ') }}</div>
           }

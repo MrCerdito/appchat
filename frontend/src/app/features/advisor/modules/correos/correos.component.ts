@@ -14,6 +14,7 @@ import { Subscription } from 'rxjs';
 import {
   AdjuntoCorreo,
   BandejaCorreo,
+  CategoriaGestion,
   CorreosService,
   CuerpoCorreo,
   EstadoCorreos,
@@ -74,6 +75,9 @@ const PRESETES: { valor: PresetFechaCorreo; etiqueta: string }[] = [
 /** Etiqueta que se muestra cuando el correo no tiene ninguna categoria en Outlook. */
 const PENDIENTE = 'Pendiente';
 
+/** Valor especial del selector que abre el formulario de categoria nueva. */
+const VALOR_NUEVA_CATEGORIA = '__nueva_gestion__';
+
 @Component({
   selector: 'app-correos',
   standalone: true,
@@ -87,6 +91,9 @@ export class CorreosComponent implements OnInit, OnDestroy {
 
   /** Expuesto al template para elegir el filtro "sin categoría". */
   readonly SIN_CATEGORIA = SIN_CATEGORIA;
+
+  /** Expuesto al template como opción especial del selector de gestión. */
+  readonly VALOR_NUEVA_CATEGORIA = VALOR_NUEVA_CATEGORIA;
   cargando = true;
   cargandoCuerpo = false;
   sincronizando = false;
@@ -120,6 +127,17 @@ export class CorreosComponent implements OnInit, OnDestroy {
 
   /** Categorias reales de la carpeta con su conteo, para pintar el lateral. */
   categoriasDisponibles: CategoriaConTotal[] = [];
+
+  /* ── Categoría de gestión del lector ───────────────────── */
+
+  /** Catálogo compartido (Requerimiento, Error, Solicitud, ...). */
+  categoriasGestion: CategoriaGestion[] = [];
+  /** El selector está guardando un cambio en el backend. */
+  asignandoCategoria = false;
+  /** Muestra el formulario inline de "nueva categoría". */
+  creandoCategoria = false;
+  nombreNuevaCategoria = '';
+  creandoCategoriaGuardando = false;
 
   /** En movil el lateral se abre encima de la lista, como en History. */
   filtrosAbiertos = false;
@@ -204,6 +222,7 @@ export class CorreosComponent implements OnInit, OnDestroy {
     // colapsa la barra de modulos al entrar y se devuelve al salir.
     this.layout.setSidebarForcedCollapsed(true);
     this.cargarEstado();
+    this.cargarCatalogoCategorias();
     this.cargarMensajes(true);
     this.escucharCambios();
     this.sincronizarEnSilencio();
@@ -547,6 +566,120 @@ export class CorreosComponent implements OnInit, OnDestroy {
   abrir(mensaje: MensajeCorreo): void {
     this.seleccionado = mensaje;
     this.cargarCuerpoDe(mensaje);
+  }
+
+  /* ── Categoría de gestión (catálogo del asesor) ──────── */
+
+  /** Carga el catálogo de categorías de gestión. Silencioso: sin spinner. */
+  private cargarCatalogoCategorias(): void {
+    this.subs.add(
+      this.correos.categoriasGestion().subscribe({
+        next: (lista) => {
+          this.categoriasGestion = lista;
+          this.cdr.markForCheck();
+        },
+        error: () => undefined,
+      }),
+    );
+  }
+
+  /**
+   * Cambia la categoría de gestión del correo abierto. El valor viene del
+   * `<select>`; la opción especial de "nueva categoría" abre el formulario
+   * inline en vez de tocar el backend.
+   */
+  onCambiarCategoriaGestion(valor: string): void {
+    if (!this.seleccionado) return;
+    if (valor === VALOR_NUEVA_CATEGORIA) {
+      this.abrirNuevaCategoria();
+      return;
+    }
+    this.asignarCategoriaGestion(valor || null);
+  }
+
+  private asignarCategoriaGestion(categoria: string | null): void {
+    if (!this.seleccionado || this.asignandoCategoria) return;
+    const id = this.seleccionado.id;
+    const anterior = this.seleccionado.categoriaGestion ?? null;
+    // Optimista: el lector y la lista se pintan ya con el nuevo valor; si el
+    // backend falla se revierte y sale el aviso.
+    this.aplicarCategoriaLocal(id, categoria);
+    this.asignandoCategoria = true;
+    this.cdr.markForCheck();
+
+    this.subs.add(
+      this.correos.setCategoriaGestion(id, categoria).subscribe({
+        next: () => {
+          this.asignandoCategoria = false;
+          this.cdr.markForCheck();
+        },
+        error: (err) => {
+          this.aplicarCategoriaLocal(id, anterior);
+          this.asignandoCategoria = false;
+          this.notifs.error('No se pudo asignar la categoría', this.leerError(err));
+          this.cdr.markForCheck();
+        },
+      }),
+    );
+  }
+
+  /** Actualiza la categoría en el lector y en el renglón de la lista. */
+  private aplicarCategoriaLocal(id: string, categoria: string | null): void {
+    this.mensajes = this.mensajes.map((m) =>
+      m.id === id ? { ...m, categoriaGestion: categoria } : m,
+    );
+    if (this.seleccionado?.id === id) {
+      this.seleccionado = { ...this.seleccionado, categoriaGestion: categoria };
+    }
+  }
+
+  private abrirNuevaCategoria(): void {
+    this.creandoCategoria = true;
+    this.nombreNuevaCategoria = '';
+    this.cdr.markForCheck();
+  }
+
+  cancelarNuevaCategoria(): void {
+    this.creandoCategoria = false;
+    this.nombreNuevaCategoria = '';
+    this.cdr.markForCheck();
+  }
+
+  /**
+   * Crea la categoría (si no existía) y la asigna al correo abierto. El
+   * backend es idempotente por nombre: si ya existe devuelve la existente.
+   */
+  crearYAsignarCategoria(): void {
+    const nombre = this.nombreNuevaCategoria.trim();
+    if (!nombre || this.creandoCategoriaGuardando) return;
+    this.creandoCategoriaGuardando = true;
+    this.cdr.markForCheck();
+
+    this.subs.add(
+      this.correos.crearCategoriaGestion(nombre).subscribe({
+        next: (r) => {
+          this.creandoCategoriaGuardando = false;
+          this.creandoCategoria = false;
+          this.nombreNuevaCategoria = '';
+          // Si ya existía (sin distinguir mayusculas) se usa el nombre tal cual
+          // está en el catálogo, para no duplicar visualmente.
+          const enCatalogo = this.categoriasGestion.some(
+            (c) => c.id === r.id || c.nombre.toLowerCase() === r.nombre.toLowerCase(),
+          );
+          if (!enCatalogo) {
+            this.categoriasGestion = [...this.categoriasGestion, { id: r.id, nombre: r.nombre }].sort(
+              (a, b) => a.nombre.localeCompare(b.nombre, 'es'),
+            );
+          }
+          this.asignarCategoriaGestion(r.nombre);
+        },
+        error: (err) => {
+          this.creandoCategoriaGuardando = false;
+          this.notifs.error('No se pudo crear la categoría', this.leerError(err));
+          this.cdr.markForCheck();
+        },
+      }),
+    );
   }
 
   /** Pide el cuerpo y los adjuntos del mensaje ya marcado como seleccionado. */

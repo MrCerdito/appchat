@@ -718,6 +718,58 @@
   color: var(--co-amber, #b45309);
 }
 
+/* ── Categoría de gestión (catálogo del asesor) ──────── */
+.linea-gestion {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.etiqueta-gestion {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+}
+
+.selector-gestion {
+  font: inherit;
+  font-size: 12.5px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--borde, #e5e7eb);
+  background: var(--superficie, #fff);
+  color: inherit;
+  max-width: 220px;
+}
+
+.form-nueva {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.input-nueva {
+  font: inherit;
+  font-size: 12.5px;
+  padding: 5px 9px;
+  border-radius: 8px;
+  border: 1px solid var(--borde, #e5e7eb);
+  background: var(--superficie, #fff);
+  color: inherit;
+  min-width: 180px;
+}
+
+.btn-chico {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
 .tag {
   display: inline-flex;
   align-items: center;

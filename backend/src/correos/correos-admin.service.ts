@@ -642,6 +642,7 @@ private async calcularResumen(): Promise<ResumenCorreosAdmin> {
       para: Array.isArray(m.para) ? m.para : [],
       cc: Array.isArray(m.cc) ? m.cc : [],
       categorias: Array.isArray(m.categorias) ? m.categorias : [],
+      categoriaGestion: m.categoriaGestion ?? null,
       bodyPreview: m.bodyPreview,
       isRead: m.isRead,
       hasAttachments: m.hasAttachments,

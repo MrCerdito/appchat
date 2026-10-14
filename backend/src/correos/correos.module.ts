@@ -17,6 +17,7 @@ import { CorreosGateway } from './correos.gateway';
 import { CorreoMensaje } from './entities/correo-mensaje.entity';
 import { CorreoAdjunto } from './entities/correo-adjunto.entity';
 import { CorreoCarpetaSync } from './entities/correo-carpeta-sync.entity';
+import { CorreoCategoria } from './entities/correo-categoria.entity';
 
 /**
  * Modulo de correo del buzon compartido.
@@ -27,7 +28,7 @@ import { CorreoCarpetaSync } from './entities/correo-carpeta-sync.entity';
  */
 @Module({
   imports: [
-    TypeOrmModule.forFeature([CorreoMensaje, CorreoAdjunto, CorreoCarpetaSync, User]),
+    TypeOrmModule.forFeature([CorreoMensaje, CorreoAdjunto, CorreoCarpetaSync, CorreoCategoria, User]),
     AuthModule,
     // El gateway verifica el JWT del socket; NotificationsModule es el que
     // guarda y empuja los avisos de correo nuevo a la campana.

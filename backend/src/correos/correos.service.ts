@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -16,6 +17,7 @@ import { CorreosCarpetaService } from './correos-carpeta.service';
 import { CorreosSyncService } from './correos-sync.service';
 import { CorreoMensaje } from './entities/correo-mensaje.entity';
 import { CorreoAdjunto } from './entities/correo-adjunto.entity';
+import { CorreoCategoria } from './entities/correo-categoria.entity';
 import { GraphAttachment, GraphCollection, GraphMessage } from './graph.types';
 
 /** Tope del cuerpo: Graph admite hasta ~1 MB y algunos remitentes inflan el HTML. */
@@ -90,6 +92,8 @@ export interface MensajeListado {
   cc: string[];
   /** Categorias de Outlook. Vacio = el correo aun no esta clasificado. */
   categorias: string[];
+  /** Categoria de gestion asignada por el asesor. Null = sin clasificar. */
+  categoriaGestion: string | null;
   bodyPreview: string | null;
   isRead: boolean;
   hasAttachments: boolean;
@@ -183,6 +187,8 @@ export class CorreosService {
     private readonly mensajeRepo: Repository<CorreoMensaje>,
     @InjectRepository(CorreoAdjunto)
     private readonly adjuntoRepo: Repository<CorreoAdjunto>,
+    @InjectRepository(CorreoCategoria)
+    private readonly categoriaRepo: Repository<CorreoCategoria>,
     private readonly graph: MicrosoftGraphMailService,
     private readonly carpetas: CorreosCarpetaService,
     private readonly sync: CorreosSyncService,
@@ -471,6 +477,7 @@ const qb = this.mensajeRepo
       para: Array.isArray(e.para) ? e.para : [],
       cc: Array.isArray(e.cc) ? e.cc : [],
       categorias: Array.isArray(e.categorias) ? e.categorias : [],
+      categoriaGestion: e.categoriaGestion ?? null,
       bodyPreview: e.bodyPreview,
       isRead: e.isRead,
       hasAttachments: e.hasAttachments,
@@ -495,6 +502,79 @@ const qb = this.mensajeRepo
       throw new NotFoundException('Correo no encontrado.');
     }
     return mensaje;
+  }
+
+  // ── Categorias de gestion ────────────────────────────────────
+
+  /** Catalogo completo de categorias de gestion, ordenado alfabeticamente. */
+  async categoriasGestion(): Promise<{ id: string; nombre: string; createdAt: Date }[]> {
+    const filas = await this.categoriaRepo.find({ order: { nombre: 'ASC' } });
+    return filas.map((c) => ({ id: c.id, nombre: c.nombre, createdAt: c.createdAt }));
+  }
+
+  /**
+   * Crea una categoria nueva en el catalogo compartido. Es idempotente por
+   * nombre (comparacion sin distinguir mayusculas): si ya existe devuelve la
+   * existente en vez de fallar, para que el asesor nunca se quede sin opcion.
+   */
+  async crearCategoriaGestion(
+    nombre: string,
+    creadorId: string,
+  ): Promise<{ id: string; nombre: string; creada: boolean }> {
+    const limpio = (nombre ?? '').trim().replace(/\s+/g, ' ');
+    if (!limpio) {
+      throw new BadRequestException('El nombre de la categoria no puede estar vacio.');
+    }
+    if (limpio.length > 120) {
+      throw new BadRequestException('El nombre de la categoria supera los 120 caracteres.');
+    }
+
+    const clave = limpio.toLowerCase();
+    const existente = await this.categoriaRepo
+      .createQueryBuilder('c')
+      .where('lower(c.nombre) = :clave', { clave })
+      .getOne();
+    if (existente) return { id: existente.id, nombre: existente.nombre, creada: false };
+
+    const guardada = await this.categoriaRepo.save(
+      this.categoriaRepo.create({ nombre: limpio, createdById: creadorId }),
+    );
+    return { id: guardada.id, nombre: guardada.nombre, creada: true };
+  }
+
+  /**
+   * Asigna (o limpia con null) la categoria de gestion de un mensaje propio.
+   * La categoria debe existir en el catalogo; la sincronizacion con Graph nunca
+   * toca esta columna, a diferencia de `categorias` (etiquetas de Outlook).
+   */
+  async cambiarCategoriaGestion(
+    mensajeId: string,
+    asesorId: string,
+    categoria: string | null,
+  ): Promise<{ id: string; categoriaGestion: string | null }> {
+    const mensaje = await this.obtenerMensajePropio(mensajeId, asesorId);
+
+    let valor: string | null = null;
+    if (categoria != null && String(categoria).trim()) {
+      const limpio = String(categoria).trim().replace(/\s+/g, ' ');
+      if (limpio.length > 120) {
+        throw new BadRequestException('El nombre de la categoria supera los 120 caracteres.');
+      }
+      const clave = limpio.toLowerCase();
+      const catalogo = await this.categoriaRepo
+        .createQueryBuilder('c')
+        .where('lower(c.nombre) = :clave', { clave })
+        .getOne();
+      if (!catalogo) {
+        throw new BadRequestException(
+          'La categoria no existe en el catalogo. Crela primero desde "Nueva categoria".',
+        );
+      }
+      valor = catalogo.nombre;
+    }
+
+    await this.mensajeRepo.update(mensaje.id, { categoriaGestion: valor });
+    return { id: mensaje.id, categoriaGestion: valor };
   }
 
   // ── Cuerpo bajo demanda (s sanitizado) ───────────────────────

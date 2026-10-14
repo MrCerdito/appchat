@@ -218,6 +218,26 @@ export class CorreosSyncService implements OnModuleInit, OnModuleDestroy {
       await this.dataSource.query(
         `ALTER TABLE correo_mensajes ADD COLUMN IF NOT EXISTS categorias text`,
       );
+      // Categoria de gestion LOCAL (la asigna el asesor; el sync nunca la toca).
+      await this.dataSource.query(
+        `ALTER TABLE correo_mensajes ADD COLUMN IF NOT EXISTS categoria_gestion varchar(120)`,
+      );
+      await this.dataSource.query(
+        `CREATE INDEX IF NOT EXISTS idx_correo_mensajes_categoria_gestion
+         ON correo_mensajes(categoria_gestion)`,
+      );
+      await this.dataSource.query(
+        `CREATE TABLE IF NOT EXISTS correo_categorias (
+           id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+           nombre varchar(120) NOT NULL,
+           created_by uuid NULL REFERENCES users(id) ON DELETE SET NULL,
+           created_at timestamptz NOT NULL DEFAULT now()
+         )`,
+      );
+      await this.dataSource.query(
+        `CREATE UNIQUE INDEX IF NOT EXISTS uq_correo_categorias_nombre
+         ON correo_categorias(lower(nombre))`,
+      );
       await this.dataSource.query(
         `CREATE INDEX IF NOT EXISTS idx_correo_mensajes_asesor_received
          ON correo_mensajes(asesor_id, received_at DESC)`,

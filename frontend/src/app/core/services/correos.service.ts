@@ -13,6 +13,8 @@ export interface MensajeCorreo {
   cc: string[];
   /** Categorias de Outlook. Vacio = el correo aun no esta clasificado. */
   categorias: string[];
+  /** Categoria de gestión asignada por el asesor (catálogo compartido). */
+  categoriaGestion: string | null;
   bodyPreview: string | null;
   isRead: boolean;
   hasAttachments: boolean;
@@ -27,6 +29,13 @@ export interface MensajeCorreo {
 export interface CategoriaConTotal {
   categoria: string;
   total: number;
+}
+
+/** Entrada del catálogo de categorías de gestión de correos. */
+export interface CategoriaGestion {
+  id: string;
+  nombre: string;
+  createdAt?: string;
 }
 
 export interface BandejaCorreo {
@@ -168,6 +177,33 @@ export class CorreosService {
       `${this.url}/sincronizar`,
       {},
       { params: manual ? { manual: 'true' } : {} },
+    );
+  }
+
+  /** Catálogo compartido de categorías de gestión. */
+  categoriasGestion(): Observable<CategoriaGestion[]> {
+    return this.http.get<CategoriaGestion[]>(`${this.url}/categorias-gestion`);
+  }
+
+  /**
+   * Crea una categoría nueva. Es idempotente por nombre en el backend: si ya
+   * existe devuelve la existente (`creada: false`) en vez de fallar.
+   */
+  crearCategoriaGestion(nombre: string): Observable<{ id: string; nombre: string; creada: boolean }> {
+    return this.http.post<{ id: string; nombre: string; creada: boolean }>(
+      `${this.url}/categorias-gestion`,
+      { nombre },
+    );
+  }
+
+  /** Asigna (o limpia con null) la categoría de gestión de un mensaje propio. */
+  setCategoriaGestion(
+    mensajeId: string,
+    categoria: string | null,
+  ): Observable<{ id: string; categoriaGestion: string | null }> {
+    return this.http.patch<{ id: string; categoriaGestion: string | null }>(
+      `${this.url}/mensajes/${mensajeId}/categoria`,
+      { categoria },
     );
   }
 }
