@@ -69,7 +69,6 @@ export class MetricsComponent implements OnInit, OnDestroy {
     { id: 'colegios', label: 'Atención por colegio' },
     { id: 'asesoria', label: 'Asesoría' },
     { id: 'capacitaciones', label: 'Capacitaciones' },
-    { id: 'errores', label: 'Errores' },
     { id: 'solicitudes', label: 'Solicitudes' },
     { id: 'conexiones', label: 'Conexiones por agente' },
   ];
@@ -238,8 +237,8 @@ export class MetricsComponent implements OnInit, OnDestroy {
   get kpiRequerimientos() {
     return this.dash?.requerimientos.kpis.cierresRequerimiento ?? 0;
   }
-  get kpiErroresIa() {
-    return this.dash?.errores.kpis ?? null;
+  get kpiSolicitudes() {
+    return this.dash?.solicitudes.kpis ?? null;
   }
   get variacion() {
     return this.dash?.resumen.variacion ?? null;
@@ -261,10 +260,6 @@ export class MetricsComponent implements OnInit, OnDestroy {
   get labelStep(): number {
     const n = this.dash?.resumen.serie.length ?? 0;
     return Math.max(1, Math.ceil(n / 9));
-  }
-
-  get serieIaMax(): number {
-    return Math.max(1, ...(this.dash?.errores.serieIa ?? []).map((s) => s.count));
   }
 
   get capacitacionesDiaMax(): number {

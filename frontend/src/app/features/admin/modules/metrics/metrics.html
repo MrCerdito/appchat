@@ -115,13 +115,13 @@
       </div>
 
       <div class="mx-kpi">
-        <span class="mx-kpi-label">Errores de IA</span>
-        <span class="mx-kpi-num">{{ fmtS(kpiErroresIa?.erroresIa) }}</span>
+        <span class="mx-kpi-label">Solicitudes</span>
+        <span class="mx-kpi-num">{{ fmtS(kpiSolicitudes?.total) }}</span>
         <span class="mx-kpi-sub">
-          @if (kpiErroresIa?.tasaErrorIa != null) {
-            {{ kpiErroresIa?.tasaErrorIa }}% de {{ fmtS(kpiErroresIa?.operacionesIa) }} operaciones
+          @if (kpiSolicitudes?.topTipo) {
+            Tipo más frecuente: {{ kpiSolicitudes?.topTipo }} · {{ kpiSolicitudes?.pctClasificadas }}% de los chats
           } @else {
-            Sin errores en {{ fmtS(kpiErroresIa?.operacionesIa) }} operaciones
+            Sin solicitudes clasificadas en el rango
           }
         </span>
       </div>
@@ -262,8 +262,6 @@
             <ul class="mx-act">
               <li><span>Capacitaciones</span><strong>{{ fmtS(dash.resumen.actividad.capacitaciones) }}</strong></li>
               <li><span>Próximas reuniones</span><strong>{{ fmtS(dash.resumen.actividad.proximasReuniones) }}</strong></li>
-              <li><span>Errores de IA</span><strong>{{ fmtS(dash.resumen.actividad.erroresIa) }}</strong></li>
-              <li><span>Cierres por error</span><strong>{{ fmtS(dash.resumen.actividad.cierresError) }}</strong></li>
               <li><span>Solicitudes</span><strong>{{ fmtS(dash.resumen.actividad.solicitudes) }}</strong></li>
               <li><span>Desconexiones</span><strong>{{ fmtS(dash.resumen.actividad.desconexiones) }}</strong></li>
             </ul>
@@ -875,133 +873,6 @@
             </div>
           }
         </section>
-      }
-
-      <!-- ── Errores ───────────────────────────────────────────────────── -->
-      @case ('errores') {
-        <section class="mx-mini-kpis">
-          <div class="mx-mini">
-            <span>Errores de IA</span>
-            <strong [class.danger]="dash.errores.kpis.erroresIa > 0">{{ fmtS(dash.errores.kpis.erroresIa) }}</strong>
-          </div>
-          <div class="mx-mini">
-            <span>Operaciones IA</span>
-            <strong>{{ fmtS(dash.errores.kpis.operacionesIa) }}</strong>
-          </div>
-          <div class="mx-mini">
-            <span>Tasa de error</span>
-            <strong [class.danger]="(dash.errores.kpis.tasaErrorIa ?? 0) > 10">
-              {{ dash.errores.kpis.tasaErrorIa != null ? dash.errores.kpis.tasaErrorIa + '%' : '—' }}
-            </strong>
-          </div>
-          <div class="mx-mini">
-            <span>Cierres por error</span>
-            <strong>{{ fmtS(dash.errores.kpis.cierresError) }}</strong>
-          </div>
-          <div class="mx-mini">
-            <span>Comunicados fallidos</span>
-            <strong [class.danger]="dash.errores.kpis.comunicadosFallidos > 0">{{ fmtS(dash.errores.kpis.comunicadosFallidos) }}</strong>
-          </div>
-        </section>
-
-        <div class="mx-grid-main">
-          <section class="mx-card">
-            <div class="mx-card-head">
-              <div>
-                <span class="mx-card-title">Errores de IA por día</span>
-                <span class="mx-card-sub">Solo intentos con error en el rango</span>
-              </div>
-            </div>
-            @if (isEmpty(dash.errores.serieIa)) {
-              <div class="mx-empty">Sin errores de IA en este rango.</div>
-            } @else {
-              <div class="mx-plot">
-                @for (s of dash.errores.serieIa; track s.fecha) {
-                  <div class="mx-col">
-                    <div class="mx-bars-area" [style.height.%]="barHeightOf(s.count, serieIaMax)">
-                      <div class="mx-col-stack">
-                        <div class="mx-seg err" style="height:100%"></div>
-                      </div>
-                    </div>
-                    <span class="mx-col-x">{{ fechaCorta(s.fecha) }}</span>
-                  </div>
-                }
-              </div>
-            }
-          </section>
-
-          <section class="mx-card">
-            <div class="mx-card-head">
-              <div>
-                <span class="mx-card-title">Comunicados</span>
-                <span class="mx-card-sub">Envíos del periodo</span>
-              </div>
-            </div>
-            <ul class="mx-act">
-              <li><span>Total</span><strong>{{ fmtS(dash.errores.comunicados.total) }}</strong></li>
-              <li><span>Enviados</span><strong>{{ fmtS(dash.errores.comunicados.enviados) }}</strong></li>
-              <li><span>Fallidos</span><strong [class.danger]="dash.errores.comunicados.fallidos > 0">{{ fmtS(dash.errores.comunicados.fallidos) }}</strong></li>
-            </ul>
-          </section>
-        </div>
-
-        <div class="mx-grid-2">
-          <section class="mx-card">
-            <div class="mx-card-head">
-              <div>
-                <span class="mx-card-title">Errores por detalle</span>
-                <span class="mx-card-sub">Mensajes más frecuentes</span>
-              </div>
-            </div>
-            @if (isEmpty(dash.errores.porTipo)) {
-              <div class="mx-empty">Sin errores en este rango.</div>
-            } @else {
-              <div class="mx-hbars">
-                @for (t of dash.errores.porTipo; track t.clave) {
-                  <div class="mx-hbar">
-                    <div class="mx-hbar-head">
-                      <span class="mx-hbar-name" [title]="t.clave">{{ t.clave }}</span>
-                      <span class="mx-hbar-val">{{ fmtS(t.count) }}</span>
-                    </div>
-                    <div class="mx-hbar-track">
-                      <div class="mx-hbar-fill danger" [style.width.%]="pctOf(t.count, dash.errores.porTipo[0].count)"></div>
-                    </div>
-                  </div>
-                }
-              </div>
-            }
-          </section>
-
-          <section class="mx-card">
-            <div class="mx-card-head">
-              <div>
-                <span class="mx-card-title">Registro de errores</span>
-                <span class="mx-card-sub">IA, cierres de chat y comunicados</span>
-              </div>
-            </div>
-            @if (isEmpty(dash.errores.tabla)) {
-              <div class="mx-empty">Sin errores en este rango.</div>
-            } @else {
-              <div class="mx-table-scroll">
-                <table class="mx-table">
-                  <thead>
-                    <tr><th>Fecha</th><th>Fuente</th><th>Mensaje</th><th>Colegio</th></tr>
-                  </thead>
-                  <tbody>
-                    @for (e of dash.errores.tabla; track $index) {
-                      <tr>
-                        <td class="mono">{{ e.fecha | date:'dd/MM/yy HH:mm' }}</td>
-                        <td><span class="mx-chip-tag danger">{{ e.fuente }}</span></td>
-                        <td class="mx-cell-notes">{{ e.mensaje }}</td>
-                        <td>{{ e.colegio || '—' }}</td>
-                      </tr>
-                    }
-                  </tbody>
-                </table>
-              </div>
-            }
-          </section>
-        </div>
       }
 
       <!-- ── Solicitudes ───────────────────────────────────────────────── -->

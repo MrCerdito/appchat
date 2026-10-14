@@ -178,8 +178,6 @@ export interface MxResumen {
   actividad: {
     capacitaciones: number;
     proximasReuniones: number;
-    erroresIa: number;
-    cierresError: number;
     solicitudes: number;
     desconexiones: number;
   };
@@ -222,14 +220,6 @@ export interface MxCapacitaciones {
   proximas: number;
 }
 
-export interface MxErrores {
-  kpis: { erroresIa: number; operacionesIa: number; tasaErrorIa: number | null; cierresError: number; comunicadosFallidos: number };
-  serieIa: { fecha: string; count: number }[];
-  porTipo: MxConteo[];
-  comunicados: { total: number; fallidos: number; enviados: number };
-  tabla: { fecha: string; fuente: string; mensaje: string; colegio: string | null; asesor: string | null }[];
-}
-
 export interface MxSolicitudes {
   kpis: { total: number; topTipo: string | null; pctClasificadas: number; clasificadas: number };
   distribucion: { clave: string; count: number; pct: number; variacion: number | null }[];
@@ -252,7 +242,6 @@ export interface MetricsDashboard {
   colegios: MxColegios;
   asesoria: MxAsesoria;
   capacitaciones: MxCapacitaciones;
-  errores: MxErrores;
   solicitudes: MxSolicitudes;
   conexiones: MxConexiones;
 }

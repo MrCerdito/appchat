@@ -114,14 +114,13 @@ export class MetricsService {
       if (cached) return cached;
     } catch {}
 
-    const [resumen, requerimientos, colegios, asesoria, capacitaciones, errores, solicitudes, conexiones] =
+    const [resumen, requerimientos, colegios, asesoria, capacitaciones, solicitudes, conexiones] =
       await Promise.all([
         this.seccionResumen(filtros, rango),
         this.seccionRequerimientos(filtros, rango),
         this.seccionColegios(filtros, rango),
         this.seccionAsesoria(filtros, rango),
         this.seccionCapacitaciones(filtros, rango),
-        this.seccionErrores(filtros, rango),
         this.seccionSolicitudes(filtros, rango),
         this.seccionConexiones(filtros, rango),
       ]);
@@ -173,8 +172,6 @@ export class MetricsService {
         actividad: {
           capacitaciones: capacitaciones.kpis.capacitaciones.total,
           proximasReuniones: capacitaciones.proximas,
-          erroresIa: errores.kpis.erroresIa,
-          cierresError: errores.kpis.cierresError,
           solicitudes: solicitudes.kpis.total,
           desconexiones: conexiones.kpis.desconexiones,
         },
@@ -183,7 +180,6 @@ export class MetricsService {
       colegios: { ...colegios, kpis: kpisColegios },
       asesoria: { ...asesoria, kpis: kpisAsesoria },
       capacitaciones,
-      errores,
       solicitudes,
       conexiones,
     };
@@ -1021,194 +1017,6 @@ export class MetricsService {
     return this.n(rows[0]?.total);
   }
 
-  // ── Sección: errores ──────────────────────────────────────────────────────
-  private async seccionErrores(f: Filtros, r: Rango) {
-    const [kpiIa, serieIa, porTipo, comunicados, tabla, cierresError] =
-      await Promise.all([
-        this.queryIaKpis(f, r),
-        this.queryIaSerieErrores(f, r),
-        this.queryIaErroresPorTipo(f, r),
-        this.queryComunicados(f, r),
-        this.queryErroresTabla(f, r),
-        this.queryCierresError(f, r),
-      ]);
-    const tasa =
-      kpiIa.total > 0 ? Math.round((kpiIa.errores / kpiIa.total) * 100) : null;
-    return {
-      kpis: {
-        erroresIa: kpiIa.errores,
-        operacionesIa: kpiIa.total,
-        tasaErrorIa: tasa,
-        cierresError,
-        comunicadosFallidos: comunicados.fallidos,
-      },
-      serieIa,
-      porTipo,
-      comunicados,
-      tabla,
-    };
-  }
-
-  private async queryIaKpis(f: Filtros, r: Rango) {
-    const p = new Params();
-    const w: string[] = [];
-    if (r.start) w.push(`l."creadoEn" >= ${p.ph(r.start)}`);
-    if (r.end) w.push(`l."creadoEn" < ${p.ph(r.end)}`);
-    if (f.asesorId) w.push(`s.advisor_id = ${p.ph(f.asesorId)}`);
-    if (f.marca && f.marca !== 'all') w.push(`${MARCA_SESIONES} = ${p.ph(f.marca)}`);
-    const rows = await this.dataSource.query(
-      `SELECT COUNT(*)::int AS total,
-              COUNT(*) FILTER (WHERE l."huboError" = true)::int AS errores
-       FROM ai_logs l
-       LEFT JOIN sessions s ON s.id::text = l."sessionId"
-       LEFT JOIN colegios c ON lower(c.nombre) = lower(coalesce(s.colegio, l.colegio))
-       ${w.length ? `WHERE ${w.join(' AND ')}` : ''}`,
-      p.args,
-    );
-    const row = rows[0] ?? {};
-    return { total: this.n(row.total), errores: this.n(row.errores) };
-  }
-
-  private async queryIaSerieErrores(f: Filtros, r: Rango) {
-    const p = new Params();
-    const w: string[] = [];
-    if (r.start) w.push(`l."creadoEn" >= ${p.ph(r.start)}`);
-    if (r.end) w.push(`l."creadoEn" < ${p.ph(r.end)}`);
-    if (f.asesorId) w.push(`s.advisor_id = ${p.ph(f.asesorId)}`);
-    if (f.marca && f.marca !== 'all') w.push(`${MARCA_SESIONES} = ${p.ph(f.marca)}`);
-    w.push('l."huboError" = true');
-    const rows = await this.dataSource.query(
-      `SELECT to_char(l."creadoEn" AT TIME ZONE '${TZ}', 'YYYY-MM-DD') AS fecha,
-              COUNT(*)::int AS count
-       FROM ai_logs l
-       LEFT JOIN sessions s ON s.id::text = l."sessionId"
-       LEFT JOIN colegios c ON lower(c.nombre) = lower(coalesce(s.colegio, l.colegio))
-       WHERE ${w.join(' AND ')}
-       GROUP BY 1 ORDER BY 1`,
-      p.args,
-    );
-    return rows.map((row: any) => ({
-      fecha: row.fecha,
-      count: this.n(row.count),
-    }));
-  }
-
-  private async queryIaErroresPorTipo(f: Filtros, r: Rango) {
-    const p = new Params();
-    const w: string[] = [];
-    if (r.start) w.push(`l."creadoEn" >= ${p.ph(r.start)}`);
-    if (r.end) w.push(`l."creadoEn" < ${p.ph(r.end)}`);
-    if (f.asesorId) w.push(`s.advisor_id = ${p.ph(f.asesorId)}`);
-    if (f.marca && f.marca !== 'all') w.push(`${MARCA_SESIONES} = ${p.ph(f.marca)}`);
-    w.push('l."huboError" = true');
-    const rows = await this.dataSource.query(
-      `SELECT left(coalesce(nullif(l."errorMsg", ''), nullif(l."tipoSolicitud", ''), 'Sin detalle'), 140) AS clave,
-              COUNT(*)::int AS count
-       FROM ai_logs l
-       LEFT JOIN sessions s ON s.id::text = l."sessionId"
-       LEFT JOIN colegios c ON lower(c.nombre) = lower(coalesce(s.colegio, l.colegio))
-       WHERE ${w.join(' AND ')}
-       GROUP BY 1 ORDER BY 2 DESC
-       LIMIT 10`,
-      p.args,
-    );
-    return rows.map((row: any) => ({
-      clave: row.clave,
-      count: this.n(row.count),
-    }));
-  }
-
-  private async queryComunicados(f: Filtros, r: Rango) {
-    const p = new Params();
-    const w: string[] = [];
-    if (r.start) w.push(`m.created_at >= ${p.ph(r.start)}`);
-    if (r.end) w.push(`m.created_at < ${p.ph(r.end)}`);
-    const rows = await this.dataSource.query(
-      `SELECT COUNT(*)::int AS total,
-              COUNT(*) FILTER (WHERE m.status = 'failed')::int AS fallidos,
-              COUNT(*) FILTER (WHERE m.status = 'sent')::int AS enviados
-       FROM comunicados m
-       ${w.length ? `WHERE ${w.join(' AND ')}` : ''}`,
-      p.args,
-    );
-    const row = rows[0] ?? {};
-    return {
-      total: this.n(row.total),
-      fallidos: this.n(row.fallidos),
-      enviados: this.n(row.enviados),
-    };
-  }
-
-  private async queryCierresError(f: Filtros, r: Rango) {
-    const p = new Params();
-    const w = this.whereSesiones(p, f, r);
-    w.push(`s.cierre_tipo = ${p.ph('error')}`);
-    const rows = await this.dataSource.query(
-      `SELECT COUNT(*)::int AS total FROM sessions s
-       LEFT JOIN colegios c ON lower(c.nombre) = lower(s.colegio)
-       WHERE ${w.join(' AND ')}`,
-      p.args,
-    );
-    return this.n(rows[0]?.total);
-  }
-
-  /** Uniones de las 3 fuentes de error (IA / cierre de chat / comunicado). */
-  private async queryErroresTabla(f: Filtros, r: Rango) {
-    const p = new Params();
-    const wIa: string[] = [];
-    if (r.start) wIa.push(`l."creadoEn" >= ${p.ph(r.start)}`);
-    if (r.end) wIa.push(`l."creadoEn" < ${p.ph(r.end)}`);
-    if (f.asesorId) wIa.push(`s.advisor_id = ${p.ph(f.asesorId)}`);
-    if (f.marca && f.marca !== 'all') wIa.push(`${MARCA_SESIONES} = ${p.ph(f.marca)}`);
-    wIa.push('l."huboError" = true');
-
-    const wCierre = this.whereClasificacion(p, f, r);
-    wCierre.push(`s.cierre_tipo = ${p.ph('error')}`);
-
-    const wCom: string[] = [];
-    if (r.start) wCom.push(`m.created_at >= ${p.ph(r.start)}`);
-    if (r.end) wCom.push(`m.created_at < ${p.ph(r.end)}`);
-    wCom.push(`m.status = ${p.ph('failed')}`);
-
-    const rows = await this.dataSource.query(
-      `SELECT * FROM (
-         SELECT l."creadoEn" AS fecha, 'IA'::text AS fuente,
-                left(coalesce(nullif(l."errorMsg", ''), l."pregunta", ''), 140) AS mensaje,
-                coalesce(s.colegio, l.colegio) AS colegio,
-                u.name AS asesor
-         FROM ai_logs l
-         LEFT JOIN sessions s ON s.id::text = l."sessionId"
-         LEFT JOIN users u ON u.id = s.advisor_id
-         LEFT JOIN colegios c ON lower(c.nombre) = lower(coalesce(s.colegio, l.colegio))
-         WHERE ${wIa.join(' AND ')}
-         UNION ALL
-         SELECT coalesce(s.cierre_at, s.closed_at, s.created_at),
-                'Cierre de chat'::text,
-                left(coalesce(s.cierre_notas, 'Chat clasificado como error'), 140),
-                s.colegio, u.name
-         FROM sessions s
-         LEFT JOIN colegios c ON lower(c.nombre) = lower(s.colegio)
-         LEFT JOIN users u ON u.id = s.advisor_id
-         WHERE ${wCierre.join(' AND ')}
-         UNION ALL
-         SELECT m.created_at, 'Comunicado'::text,
-                 left(m.asunto, 140), NULL::text, m.sender_name
-         FROM comunicados m
-         WHERE ${wCom.join(' AND ')}
-       ) t
-       ORDER BY t.fecha DESC NULLS LAST
-       LIMIT 100`,
-      p.args,
-    );
-    return rows.map((row: any) => ({
-      fecha: row.fecha,
-      fuente: row.fuente,
-      mensaje: row.mensaje ?? '',
-      colegio: row.colegio ?? null,
-      asesor: row.asesor ?? null,
-    }));
-  }
-
   // ── Sección: solicitudes ──────────────────────────────────────────────────
   private async seccionSolicitudes(f: Filtros, r: Rango) {
     const [distribucion, serie, porMarca, kpiBase, previa] = await Promise.all([
@@ -1564,15 +1372,6 @@ export class MetricsService {
       ['Reunión', 'Fecha', 'Modalidad', 'Marca', 'Organizador', 'Duración (min)'],
       dash.capacitaciones.tabla.map((m: any) => [
         m.subject, fecha(m.startDateTime), m.modalidad, m.marca, m.organizador, m.duracion,
-      ]),
-    );
-
-    // Errores
-    hoja(
-      'Errores',
-      ['Fecha', 'Fuente', 'Mensaje', 'Colegio', 'Asesor'],
-      dash.errores.tabla.map((e: any) => [
-        fecha(e.fecha), e.fuente, e.mensaje, e.colegio ?? '—', e.asesor ?? '—',
       ]),
     );
 
