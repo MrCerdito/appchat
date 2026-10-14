@@ -49,6 +49,7 @@ import { TicketAudit } from './tickets/entities/ticket-audit.entity';
 import { CorreoMensaje } from './correos/entities/correo-mensaje.entity';
 import { CorreoAdjunto } from './correos/entities/correo-adjunto.entity';
 import { CorreoCarpetaSync } from './correos/entities/correo-carpeta-sync.entity';
+import { CorreoCategoria } from './correos/entities/correo-categoria.entity';
 import { CorreosModule } from './correos/correos.module';
 import { CalendarioModule } from './calendario/calendario.module';
 import { SharepointModule } from './sharepoint/sharepoint.module';
@@ -222,6 +223,7 @@ import { AppService } from './app.service';
           CorreoMensaje,
           CorreoAdjunto,
           CorreoCarpetaSync,
+          CorreoCategoria,
         ],
         synchronize: config.get<string>('NODE_ENV') === 'development',
         logging: config.get<string>('NODE_ENV') !== 'production',
