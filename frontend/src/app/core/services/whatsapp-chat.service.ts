@@ -51,14 +51,17 @@ export interface TeamsMeetingDto {
   endDateTime: string;
   durationMinutes: number;
   joinUrl: string;
-  meetingId?: string | null;
-  eventId?: string | null;
+  meetingId: string | null;
+  eventId: string | null;
   calendarTarget: 'personal' | 'shared' | 'none';
   eventSource?: 'group' | 'shared-mailbox' | 'personal' | 'none' | null;
-  /** Categorias literales de Outlook ("Yellow category"). */
   categorias?: string[];
   createdByName?: string | null;
-  createdAt: string;
+  createdAt?: string;
+  /** Modalidad de la reunión/capacitación. Default 'virtual'. */
+  modalidad?: 'virtual' | 'presencial';
+  /** Marca resuelta desde el colegio asociado; null = sin clasificar. */
+  tipoColegio?: string | null;
 }
 
 export interface CreateStandaloneMeetingRequest {

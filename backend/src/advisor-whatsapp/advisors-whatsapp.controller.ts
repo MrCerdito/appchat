@@ -657,6 +657,8 @@ export class AdvisorsWhatsappController {
       calendarTarget?: 'personal' | 'shared' | 'none';
       /** Alias y nombres literales de Outlook ("Blue category", ...). */
       categorias?: string[];
+      /** Modalidad de la reunión. Default: 'virtual'. */
+      modalidad?: 'virtual' | 'presencial';
     },
   ) {
     return this.teamsService.createStandaloneMeeting(
@@ -682,6 +684,7 @@ export class AdvisorsWhatsappController {
       startDateTime: string;
       durationMinutes?: number;
       categorias?: string[];
+      modalidad?: 'virtual' | 'presencial';
     },
   ) {
     return this.teamsService.updateMeeting(
@@ -727,6 +730,7 @@ export class AdvisorsWhatsappController {
       startDateTime: string;
       durationMinutes?: number;
       calendarTarget?: 'personal' | 'shared' | 'none';
+      modalidad?: 'virtual' | 'presencial';
     },
   ) {
     const chat = await this.whatsappService.getChatForAdvisor(

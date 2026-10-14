@@ -14,6 +14,8 @@ import axios from 'axios';
 import { createHash, randomBytes, randomUUID } from 'crypto';
 import { TeamsToken } from './entities/teams-token.entity';
 import { TeamsMeeting } from './entities/teams-meeting.entity';
+import { Colegio } from '../sessions/entities/colegio.entity';
+import { normalizarTipoColegio } from '../common/tipo-colegio.util';
 import { CalendarioGrupoService } from '../calendario/calendario-grupo.service';
 
 const BOGOTA_TZ = 'America/Bogota';
@@ -65,6 +67,8 @@ export interface TeamsMeetingInput {
    * Opcional: sin categorias, el evento se crea sin etiqueta.
    */
   categorias?: string[];
+  /** Modalidad de la reunión/capacitación. Default: 'virtual'. */
+  modalidad?: 'virtual' | 'presencial';
 }
 
 /**
@@ -133,6 +137,10 @@ export interface TeamsMeetingDto {
   categorias: string[];
   createdByName: string | null;
   createdAt: string;
+  /** 'virtual' (default) | 'presencial'. */
+  modalidad: 'virtual' | 'presencial';
+  /** Marca resuelta desde el colegio asociado; null = sin clasificar. */
+  tipoColegio: string | null;
 }
 
 @Injectable()
@@ -173,6 +181,8 @@ export class TeamsMeetingsService {
     private readonly tokenRepo: Repository<TeamsToken>,
     @InjectRepository(TeamsMeeting)
     private readonly meetingRepo: Repository<TeamsMeeting>,
+    @InjectRepository(Colegio)
+    private readonly colegioRepo: Repository<Colegio>,
     /**
      * Solo se usa para `invalidar()`: la lectura del calendario cachea 5
      * minutos, asi que sin esto la reunion recien creada no apareceria hasta
@@ -299,9 +309,35 @@ export class TeamsMeetingsService {
         eventId: meeting.eventId,
         calendarTarget: meeting.calendarTarget,
         eventSource: meeting.eventSource,
+        modalidad: input.modalidad === 'presencial' ? 'presencial' : 'virtual',
+        // Marca resuelta desde el colegio del contacto; null si no hay
+        // correspondencia (nunca se infiere).
+        tipoColegio: await this.resolverTipoColegio(contact?.institution),
       }),
     );
     return meeting;
+  }
+
+  /**
+   * Resuelve la marca (Sian365/ControlAcademic) a partir del nombre de un
+   * colegio. Devuelve null cuando no existe correspondencia en `colegios`.
+   */
+  private async resolverTipoColegio(
+    institution?: string | null,
+  ): Promise<string | null> {
+    const nombre = String(institution ?? '').trim().toLowerCase();
+    if (!nombre) return null;
+    try {
+      const row = await this.colegioRepo
+        .createQueryBuilder('c')
+        .select('c.tipo_colegio', 'tipoColegio')
+        .where('lower(trim(c.nombre)) = :nombre', { nombre })
+        .getRawOne<{ tipoColegio: string | null }>();
+      if (!row?.tipoColegio) return null;
+      return normalizarTipoColegio(row.tipoColegio) ?? null;
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -901,6 +937,9 @@ export class TeamsMeetingsService {
     reunion.endDateTime = end;
     reunion.durationMinutes = duration;
     reunion.categories = categories;
+    if (input.modalidad === 'virtual' || input.modalidad === 'presencial') {
+      reunion.modalidad = input.modalidad;
+    }
     const saved = await this.meetingRepo.save(reunion);
     this.invalidarCacheCalendario();
     return this.toDto(saved);
@@ -1142,6 +1181,9 @@ export class TeamsMeetingsService {
       eventId: meeting.eventId,
       calendarTarget: meeting.calendarTarget,
       eventSource: meeting.eventSource,
+      modalidad: input.modalidad === 'presencial' ? 'presencial' : 'virtual',
+      // Sin contexto de colegio en la creación independiente: sin inferir.
+      tipoColegio: null,
     });
     const saved = await this.meetingRepo.save(row);
     // La reunion ya quedo en el grupo o en el buzon: la lectura del calendario
@@ -1165,6 +1207,8 @@ export class TeamsMeetingsService {
       categorias: row.categories ?? [],
       createdByName: row.createdByName,
       createdAt: row.createdAt.toISOString(),
+      modalidad: row.modalidad === 'presencial' ? 'presencial' : 'virtual',
+      tipoColegio: row.tipoColegio ?? null,
     };
   }
 

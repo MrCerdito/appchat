@@ -1,321 +1,1245 @@
-<div class="page">
+<div class="mx-wrap">
 
-  <header class="header">
-    <div class="header-identity"></div>
-    <div class="header-actions">
-      <div class="range-filter">
-        <input type="date" [value]="desde" (change)="desde = $any($event.target).value; onFechasCambiadas()" />
-        <span class="range-sep">→</span>
-        <input type="date" [value]="hasta" (change)="hasta = $any($event.target).value; onFechasCambiadas()" />
+  <!-- ── Encabezado ─────────────────────────────────────────────────────── -->
+  <header class="mx-head">
+    <div class="mx-head-left">
+      <h1>Métricas</h1>
+      <p>Panel de gestión · Korvix, SIAN365 y ControlAcademic</p>
+    </div>
+
+    <div class="mx-head-right">
+      <div class="mx-seg" role="tablist" aria-label="Marca">
+        <button type="button" class="mx-seg-btn"
+          [class.active]="filtros.marca === 'all'"
+          (click)="setMarca('all')">General</button>
+        <button type="button" class="mx-seg-btn sian"
+          [class.active]="filtros.marca === 'Sian365'"
+          (click)="setMarca('Sian365')">SIAN365</button>
+        <button type="button" class="mx-seg-btn ctrl"
+          [class.active]="filtros.marca === 'ControlAcademic'"
+          (click)="setMarca('ControlAcademic')">Control Académico</button>
       </div>
-      <button class="btn-export" [disabled]="exporting" (click)="exportarExcel()">
-        {{ exporting ? 'Generando…' : 'Descargar Excel' }}
+
+      <div class="mx-presets">
+        <button type="button" class="mx-preset" [class.active]="filtros.preset === 'hoy'" (click)="setPreset('hoy')">Hoy</button>
+        <button type="button" class="mx-preset" [class.active]="filtros.preset === '7d'" (click)="setPreset('7d')">7 días</button>
+        <button type="button" class="mx-preset" [class.active]="filtros.preset === '30d'" (click)="setPreset('30d')">30 días</button>
+      </div>
+
+      <div class="mx-dates">
+        <input type="date" [(ngModel)]="desde" (ngModelChange)="onFechasCambiadas()" aria-label="Desde" />
+        <span>—</span>
+        <input type="date" [(ngModel)]="hasta" (ngModelChange)="onFechasCambiadas()" aria-label="Hasta" />
+      </div>
+
+      <button type="button" class="mx-export" (click)="exportarExcel()"
+        [disabled]="exporting || !dash">
+        @if (exporting) {
+          <span class="mx-spin"></span> Generando…
+        } @else {
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Descargar Excel
+        }
       </button>
     </div>
   </header>
 
-  @if (loading) {
-  <div class="state">Cargando…</div>
-  }
-  @if (error) {
-  <div class="state err">Error al cargar.</div>
-  }
-
-  @if (!loading && !error && metrics) {
-  <div class="dashboard">
-
-    <!-- ── Columna izquierda ── -->
-    <div class="left-col">
-
-      <!-- KPIs globales -->
-      <section class="kpi-row">
-        <div class="kpi">
-          <span class="kpi-num">{{ metrics.total }}</span>
-          <span class="kpi-label">Total</span>
-        </div>
-        <div class="kpi-divider"></div>
-        <div class="kpi">
-          <span class="kpi-num accent">{{ metrics.active }}</span>
-          <span class="kpi-label">Activas</span>
-        </div>
-        <div class="kpi-divider"></div>
-        <div class="kpi">
-          <span class="kpi-num gold">{{ metrics.waiting }}</span>
-          <span class="kpi-label">En espera</span>
-        </div>
-        <div class="kpi-divider"></div>
-        <div class="kpi">
-          <span class="kpi-num">{{ metrics.closed }}</span>
-          <span class="kpi-label">Cerradas</span>
-        </div>
-        <div class="kpi-divider"></div>
-        <div class="kpi">
-          <span class="kpi-num blue">{{ metrics.avgMinutes }}</span>
-          <span class="kpi-label">Promedio min</span>
-        </div>
-        <div class="kpi-divider"></div>
-        <div class="kpi">
-          <span class="kpi-num teal">{{ metrics.medianaMinutos }}</span>
-          <span class="kpi-label">Mediana min</span>
-        </div>
-        <div class="kpi-divider"></div>
-        <div class="kpi">
-          <span class="kpi-num purple">{{ metrics.p95Minutos }}</span>
-          <span class="kpi-label">P95 min</span>
-        </div>
-      </section>
-
-      <!-- Tabla asesores -->
-      <section class="comments-card">
-        <div class="comments-header">
-          <span class="section-title">Agentes</span>
-          <span class="comments-total">{{ metrics.advisors.length }} en total</span>
-        </div>
-        <table class="comments-table">
-          <thead>
-            <tr>
-              <th>Nombre</th>
-              <th>Email</th>
-              <th>Estado</th>
-              <th>Chats activos</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (a of metrics.advisors; track trackById($index, metrics.advisors)) {
-            <tr>
-              <td class="td-client">
-                <div class="advisor-name">
-                  <div class="rank-avatar">{{ a.name.charAt(0) }}</div>
-                  {{ a.name }}
-                </div>
-              </td>
-              <td class="td-text">{{ a.email }}</td>
-              <td>
-                <span class="status-badge" [class]="getStatusClass(a.status)">
-                  {{ getStatusLabel(a.status) }}
-                </span>
-              </td>
-              <td class="td-date">{{ a.activeChats }} / 9</td>
-            </tr>
-            }
-          </tbody>
-        </table>
-      </section>
-
-      <!-- Rendimiento IA -->
-      <section class="comments-card">
-        <div class="comments-header">
-          <span class="section-title">Rendimiento de la IA</span>
-          @if (aiStats) {
-          <span class="comments-total">{{ fmtS(aiStats.total) }} interacciones</span>
-          }
-        </div>
-
-        @if (!aiStats) {
-        <div class="empty-state">Cargando datos de la IA…</div>
+  <!-- ── Barra de filtros ───────────────────────────────────────────────── -->
+  <div class="mx-toolbar">
+    <label class="mx-field">
+      <span>Asesor</span>
+      <select [ngModel]="filtros.asesorId" (ngModelChange)="setAsesor($event)">
+        <option value="">Todos los asesores</option>
+        @for (a of advisors; track a.id) {
+          <option [value]="a.id">{{ a.name }}</option>
         }
+      </select>
+    </label>
 
-        @if (aiStats) {
-        <div class="ai-kpis">
-          <div class="ai-kpi">
-            <span class="ai-kpi-num">{{ fmtS(aiStats.total) }}</span>
-            <span class="ai-kpi-label">Interacciones</span>
-          </div>
-          <div class="ai-kpi">
-            <span class="ai-kpi-num blue">{{ fmtS(aiStats.conContexto) }}</span>
-            <span class="ai-kpi-label">Con contexto ({{ fmtPct(aiStats.tasas.contexto) }})</span>
-          </div>
-          <div class="ai-kpi">
-            <span class="ai-kpi-num gold">{{ fmtS(aiStats.transfers) }}</span>
-            <span class="ai-kpi-label">Transfers ({{ fmtPct(aiStats.tasas.transfer) }})</span>
-          </div>
-          <div class="ai-kpi">
-            <span class="ai-kpi-num red">{{ fmtS(aiStats.errores) }}</span>
-            <span class="ai-kpi-label">Errores ({{ fmtPct(aiStats.tasas.error) }})</span>
-          </div>
-          <div class="ai-kpi">
-            <span class="ai-kpi-num purple">{{ fmtS(aiStats.ofensas) }}</span>
-            <span class="ai-kpi-label">Ofensas ({{ fmtPct(aiStats.tasas.ofensas) }})</span>
-          </div>
-          <div class="ai-kpi">
-            <span class="ai-kpi-num teal">{{ fmtS(aiStats.feedbackPositivo) }}</span>
-            <span class="ai-kpi-label">Feedback útil ({{ fmtPct(aiStats.tasas.feedbackUtil) }})</span>
-          </div>
-        </div>
+    <button type="button" class="mx-reset" (click)="resetFiltros()">Limpiar filtros</button>
 
-        <div class="ai-stats-row">
-          <div class="ai-stat">
-            <span class="ai-stat-val">{{ (aiStats.tiempoPromedioMs / 1000).toFixed(2) }}s</span>
-            <span class="ai-stat-label">Tiempo prom. respuesta</span>
-          </div>
-          <div class="ai-stat">
-            <span class="ai-stat-val">{{ (aiStats.medianaMs / 1000).toFixed(2) }}s</span>
-            <span class="ai-stat-label">Mediana</span>
-          </div>
-          <div class="ai-stat">
-            <span class="ai-stat-val">{{ (aiStats.p95Ms / 1000).toFixed(2) }}s</span>
-            <span class="ai-stat-label">P95</span>
-          </div>
-          <div class="ai-stat">
-            <span class="ai-stat-val">{{ fmtS(aiStats.tokensPromedio) }}</span>
-            <span class="ai-stat-label">Tokens prom.</span>
-          </div>
-          <div class="ai-stat">
-            <span class="ai-stat-val">{{ fmtS(aiStats.tokensTotales) }}</span>
-            <span class="ai-stat-label">Tokens totales</span>
-          </div>
-          <div class="ai-stat">
-            <span class="ai-stat-val">{{ fmtS(aiStats.esRestringido) }}</span>
-            <span class="ai-stat-label">Temas restringidos</span>
-          </div>
-        </div>
+    @if (dash) {
+      <span class="mx-updated">Actualizado {{ horaActualizacion }} · rango {{ desde || '…' }} a {{ hasta || '…' }}</span>
+    }
+  </div>
 
-        @if (aiStats.porRol && aiStats.porRol.length) {
-        <div class="ai-breakdown">
-          <span class="section-micro">Por rol</span>
-          <div class="chip-row">
-            @for (p of aiStats.porRol; track $index) {
-            <span class="chip-tag">{{ p.valor }}</span>
-            }
-          </div>
-        </div>
-        }
-
-        @if (aiStats.porAsesor && aiStats.porAsesor.length) {
-        <div class="ai-asesores">
-          <span class="section-micro">Interacciones IA por asesor</span>
-          <table class="comments-table mini">
-            <thead>
-              <tr>
-                <th>Asesor</th>
-                <th>Interacciones</th>
-                <th>Transfers</th>
-                <th>Errores</th>
-                <th>Feedback útil</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (a of aiStats.porAsesor; track trackById($index, a)) {
-              <tr>
-                <td class="td-client">{{ a.nombre }}</td>
-                <td class="td-date">{{ fmtS(a.total) }}</td>
-                <td class="td-date">{{ fmtS(a.transfers) }} ({{ fmtPct(a.tasaTransfer) }})</td>
-                <td class="td-date">{{ fmtS(a.errores) }} ({{ fmtPct(a.tasaError) }})</td>
-                <td class="td-date">{{ fmtS(a.feedbackUtil) }}</td>
-              </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-        }
-        }
-      </section>
-
-      <!-- Tabla comentarios -->
-      <section class="comments-card">
-        <div class="comments-header">
-          <span class="section-title">Comentarios de clientes</span>
-          <div class="header-actions">
-            <select class="advisor-filter" [(ngModel)]="selectedAdvisor" (change)="onAdvisorFilter()">
-              <option value="">Todos los agentes</option>
-              @for (a of metrics.advisors; track trackById($index, metrics.advisors)) {
-              <option [value]="a.id">{{ a.name }}</option>
-              }
-            </select>
-            @if (comentTotal > 0) {
-            <span class="comments-total">{{ comentTotal }} en total</span>
-            }
-          </div>
-        </div>
-
-        @if (comentarios.length === 0) {
-        <div class="empty-state">
-          Sin comentarios aún
-        </div>
-        }
-
-        @if (comentarios.length > 0) {
-        <table class="comments-table">
-          <thead>
-            <tr>
-              <th>Cliente</th>
-              <th>Agente</th>
-              <th>Comentario</th>
-              <th>Etiquetas</th>
-              <th>Estrellas</th>
-              <th>Fecha</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (c of comentarios; track trackById($index, c)) {
-            <tr>
-              <td class="td-client">{{ c.clientName }}</td>
-              <td class="td-client">{{ c.advisorName }}</td>
-              <td class="td-text">{{ c.comentario }}</td>
-              <td class="td-chips">
-                <div class="chip-row">
-                  @for (e of c.etiquetas; track $index) {
-                  <span class="chip-tag">{{ e }}</span>
-                  }
-                </div>
-              </td>
-              <td class="td-stars">
-                <div class="inline-stars">
-                  @for (s of getStars(c.estrellas); track $index) {
-                  <span class="star" [class]="s">★</span>
-                  }
-                </div>
-              </td>
-              <td class="td-date">{{ fmtDateMedium(c.createdAt) }}</td>
-            </tr>
-            }
-          </tbody>
-        </table>
-        }
-
-        @if (comentPages > 1) {
-        <div class="pagination">
-          <span class="page-info">{{ comentTotal }} comentarios</span>
-          <button class="page-btn" [disabled]="comentPage === 1" (click)="loadComentarios(comentPage - 1)">‹</button>
-          @for (p of paginas(); track p) {
-          <button class="page-btn" [class.active]="p === comentPage" (click)="loadComentarios(p)">{{ p }}</button>
-          }
-          <button class="page-btn" [disabled]="comentPage === comentPages" (click)="loadComentarios(comentPage + 1)">›</button>
-        </div>
-        }
-      </section>
-
-    </div>
-
-    <!-- ── Columna derecha ── -->
-    <aside class="right-col">
-
-      <div class="ranking-col">
-        <div class="ranking-header">
-          <span class="ranking-title">Top agentes</span>
-          <span class="ranking-sub">Por calificación</span>
-        </div>
-        <div class="ranking-list">
-          @for (a of ranking; track trackById($index, a)) {
-          <div class="ranking-item">
-            <span class="pos">{{ $index + 1 }}</span>
-            <div class="rank-avatar">{{ a.name.charAt(0) }}</div>
-            <div class="rank-info">
-              <span class="rank-name">{{ a.name }}</span>
-              <span class="rank-detail">{{ a.total }} sesiones</span>
-            </div>
-            <div class="rank-right">
-              <span class="rank-score">{{ a.avgEstrellas > 0 ? a.avgEstrellas : '—' }}</span>
-              <span class="rank-reviews">{{ a.totalRatings > 0 ? a.totalRatings + ' reseñas' : 'sin reseñas' }}</span>
-            </div>
-          </div>
-          }
-        </div>
+  <!-- ── 7 KPIs ─────────────────────────────────────────────────────────── -->
+  <section class="mx-kpis">
+    @if (loading && !dash) {
+      @for (i of [0, 1, 2, 3, 4, 5, 6]; track i) {
+        <div class="mx-kpi mx-skel-kpi"></div>
+      }
+    } @else if (dash) {
+      <div class="mx-kpi">
+        <span class="mx-kpi-label">Sesiones</span>
+        <span class="mx-kpi-num">{{ fmtS(kpiSesiones?.total) }}</span>
+        <span class="mx-kpi-trend" [ngClass]="varClass(variacion?.sesiones)">{{ fmtVar(variacion?.sesiones) }} vs. periodo anterior</span>
+        <span class="mx-kpi-sub">{{ fmtS(kpiSesiones?.cerrados) }} cerradas · {{ kpiSesiones?.pctIa ?? 0 }}% por IA</span>
       </div>
 
-    </aside>
+      <div class="mx-kpi">
+        <span class="mx-kpi-label">Calificación</span>
+        <span class="mx-kpi-num">
+          {{ kpiRatings?.promedio != null ? kpiRatings?.promedio : '—' }}
+          <small>★</small>
+        </span>
+        <span class="mx-kpi-trend" [ngClass]="varClass(variacion?.ratings)">{{ fmtVar(variacion?.ratings) }} vs. periodo anterior</span>
+        <span class="mx-kpi-sub">{{ fmtS(kpiRatings?.total) }} valoraciones</span>
+      </div>
 
-  </div>
+      <div class="mx-kpi">
+        <span class="mx-kpi-label">Tickets</span>
+        <span class="mx-kpi-num">{{ fmtS(kpiTickets?.total) }}</span>
+        <span class="mx-kpi-trend" [ngClass]="varClass(variacion?.tickets)">{{ fmtVar(variacion?.tickets) }} vs. periodo anterior</span>
+        <span class="mx-kpi-sub">{{ fmtS(kpiTickets?.abiertos) }} abiertos · {{ fmtS(kpiTickets?.resueltos) }} resueltos</span>
+      </div>
+
+      <div class="mx-kpi">
+        <span class="mx-kpi-label">Correos</span>
+        <span class="mx-kpi-num">{{ fmtS(kpiCorreos?.total) }}</span>
+        <span class="mx-kpi-trend" [ngClass]="varClass(variacion?.correos)">{{ fmtVar(variacion?.correos) }} vs. periodo anterior</span>
+        <span class="mx-kpi-sub">{{ fmtS(kpiCorreos?.noLeidos) }} sin leer</span>
+      </div>
+
+      <div class="mx-kpi">
+        <span class="mx-kpi-label">Capacitaciones</span>
+        <span class="mx-kpi-num">{{ fmtS(kpiCapacitaciones?.total) }}</span>
+        <span class="mx-kpi-trend" [ngClass]="varClass(variacion?.capacitaciones)">{{ fmtVar(variacion?.capacitaciones) }} vs. periodo anterior</span>
+        <span class="mx-kpi-sub">{{ fmtS(kpiCapacitaciones?.virtuales) }} virtuales · {{ fmtS(kpiCapacitaciones?.presenciales) }} presenciales</span>
+      </div>
+
+      <div class="mx-kpi">
+        <span class="mx-kpi-label">Requerimientos cerrados</span>
+        <span class="mx-kpi-num">{{ fmtS(kpiRequerimientos) }}</span>
+        <span class="mx-kpi-sub mx-kpi-sub-spacer">Cierres de chat clasificados como requerimiento</span>
+      </div>
+
+      <div class="mx-kpi">
+        <span class="mx-kpi-label">Errores de IA</span>
+        <span class="mx-kpi-num">{{ fmtS(kpiErroresIa?.erroresIa) }}</span>
+        <span class="mx-kpi-sub">
+          @if (kpiErroresIa?.tasaErrorIa != null) {
+            {{ kpiErroresIa?.tasaErrorIa }}% de {{ fmtS(kpiErroresIa?.operacionesIa) }} operaciones
+          } @else {
+            Sin errores en {{ fmtS(kpiErroresIa?.operacionesIa) }} operaciones
+          }
+        </span>
+      </div>
+    }
+  </section>
+
+  <!-- ── Pestañas ───────────────────────────────────────────────────────── -->
+  <nav class="mx-tabs" role="tablist">
+    @for (t of tabs; track t.id) {
+      <button type="button" class="mx-tab" [class.active]="tab === t.id" (click)="setTab(t.id)">
+        {{ t.label }}
+      </button>
+    }
+  </nav>
+
+  <!-- ── Estados de carga / error ───────────────────────────────────────── -->
+  @if (loading && !dash) {
+    <div class="mx-skel-grid">
+      <div class="mx-card mx-skel"></div>
+      <div class="mx-card mx-skel"></div>
+      <div class="mx-card mx-skel"></div>
+      <div class="mx-card mx-skel"></div>
+    </div>
+  } @else if (error) {
+    <div class="mx-error">
+      <strong>No se pudieron cargar las métricas</strong>
+      <p>Verifica tu conexión e inténtalo de nuevo.</p>
+      <button type="button" class="mx-export" (click)="retry()">Reintentar</button>
+    </div>
+  } @else if (dash) {
+    @switch (tab) {
+
+      <!-- ── General ───────────────────────────────────────────────────── -->
+      @case ('general') {
+        <div class="mx-grid-main">
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Sesiones por día</span>
+                <span class="mx-card-sub">Atención humana vs. IA en el rango seleccionado</span>
+              </div>
+              <div class="mx-legend-inline">
+                <span class="mx-dot" style="--c:#1a3fa8"></span> Con asesor
+                <span class="mx-dot" style="--c:#ce9b30"></span> IA
+              </div>
+            </div>
+            @if (isEmpty(dash.resumen.serie)) {
+              <div class="mx-empty">Sin sesiones en este rango.</div>
+            } @else {
+              <div class="mx-plot">
+                @for (s of dash.resumen.serie; track s.fecha) {
+                  <div class="mx-col">
+                    <div class="mx-bars-area" [style.height.%]="barHeight(s.total)">
+                      <div class="mx-col-stack">
+                        <div class="mx-seg asesor" [style.height.%]="pctOf(s.conAsesor, s.total)"></div>
+                        <div class="mx-seg ia" [style.height.%]="pctOf(s.ia, s.total)"></div>
+                      </div>
+                    </div>
+                    @if ($index % labelStep === 0) {
+                      <span class="mx-col-x">{{ fechaCorta(s.fecha) }}</span>
+                    }
+                  </div>
+                }
+              </div>
+            }
+          </section>
+
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Sesiones por marca</span>
+                <span class="mx-card-sub">Distribución del total del periodo</span>
+              </div>
+            </div>
+            @if (isEmpty(dash.resumen.proyectos)) {
+              <div class="mx-empty">Sin datos de marca.</div>
+            } @else {
+              <div class="mx-donut-wrap">
+                <div class="mx-donut" [style.background]="donutProyectoStyle()">
+                  <div class="mx-donut-hole">
+                    <strong>{{ fmtS(dash.resumen.kpis.sesiones.total) }}</strong>
+                    <span>sesiones</span>
+                  </div>
+                </div>
+                <ul class="mx-legend">
+                  @for (p of dash.resumen.proyectos; track p.proyecto) {
+                    <li>
+                      <span class="mx-dot" [style.--c]="proyectoColor(p.proyecto)"></span>
+                      <span class="mx-legend-label">{{ p.proyecto }}</span>
+                      <strong>{{ fmtS(p.total) }}</strong>
+                      <em>{{ pctOf(p.total, dash.resumen.kpis.sesiones.total) }}%</em>
+                    </li>
+                  }
+                </ul>
+              </div>
+            }
+          </section>
+        </div>
+
+        <div class="mx-grid-3">
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Tickets por estado</span>
+                <span class="mx-card-sub">Total {{ fmtS(kpiTickets?.total) }}</span>
+              </div>
+            </div>
+            @if (isEmpty(ticketStatusEntries())) {
+              <div class="mx-empty">Sin tickets en este rango.</div>
+            } @else {
+              <div class="mx-donut-wrap sm">
+                <div class="mx-donut" [style.background]="donutTicketsStyle()">
+                  <div class="mx-donut-hole">
+                    <strong>{{ fmtS(kpiTickets?.total) }}</strong>
+                    <span>tickets</span>
+                  </div>
+                </div>
+                <ul class="mx-legend">
+                  @for (e of ticketStatusEntries(); track e.key) {
+                    <li>
+                      <span class="mx-dot" [style.--c]="e.color"></span>
+                      <span class="mx-legend-label">{{ e.label }}</span>
+                      <strong>{{ fmtS(e.value) }}</strong>
+                    </li>
+                  }
+                </ul>
+              </div>
+            }
+          </section>
+
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Actividad del periodo</span>
+                <span class="mx-card-sub">Eventos operativos</span>
+              </div>
+            </div>
+            <ul class="mx-act">
+              <li><span>Capacitaciones</span><strong>{{ fmtS(dash.resumen.actividad.capacitaciones) }}</strong></li>
+              <li><span>Próximas reuniones</span><strong>{{ fmtS(dash.resumen.actividad.proximasReuniones) }}</strong></li>
+              <li><span>Errores de IA</span><strong>{{ fmtS(dash.resumen.actividad.erroresIa) }}</strong></li>
+              <li><span>Cierres por error</span><strong>{{ fmtS(dash.resumen.actividad.cierresError) }}</strong></li>
+              <li><span>Solicitudes</span><strong>{{ fmtS(dash.resumen.actividad.solicitudes) }}</strong></li>
+              <li><span>Desconexiones</span><strong>{{ fmtS(dash.resumen.actividad.desconexiones) }}</strong></li>
+            </ul>
+          </section>
+
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Comentarios recientes</span>
+                <span class="mx-card-sub">Mejores calificaciones del rango</span>
+              </div>
+            </div>
+            @if (isEmpty(dash.resumen.comentarios)) {
+              <div class="mx-empty">Sin comentarios en este rango.</div>
+            } @else {
+              <ul class="mx-comments">
+                @for (c of dash.resumen.comentarios; track $index) {
+                  <li>
+                    <div class="mx-comment-top">
+                      <span class="mx-stars">
+                        @for (st of getStars(c.estrellas); track $index) {
+                          <i [class]="'star ' + st"></i>
+                        }
+                      </span>
+                      <em>{{ c.colegio ?? 'Colegio sin registrar' }}</em>
+                    </div>
+                    <p>{{ c.comentario || 'Sin texto' }}</p>
+                    <span class="mx-comment-meta">
+                      {{ c.asesor ?? 'Sin asesor' }} · {{ fmtHora(c.fecha) }}
+                    </span>
+                  </li>
+                }
+              </ul>
+            }
+          </section>
+        </div>
+
+        <div class="mx-grid-2">
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Colegios con más sesiones</span>
+                <span class="mx-card-sub">Top 10 del periodo</span>
+              </div>
+            </div>
+            @if (isEmpty(dash.resumen.colegios)) {
+              <div class="mx-empty">Sin colegios en este rango.</div>
+            } @else {
+              <div class="mx-hbars">
+                @for (c of dash.resumen.colegios; track c.colegio) {
+                  <div class="mx-hbar">
+                    <div class="mx-hbar-head">
+                      <span class="mx-hbar-name" [title]="c.colegio">{{ c.colegio }}</span>
+                      <span class="mx-hbar-val">{{ fmtS(c.sesiones) }}</span>
+                    </div>
+                    <div class="mx-hbar-track">
+                      <div class="mx-hbar-fill" [style.width.%]="pctOf(c.sesiones, dash.resumen.colegios[0].sesiones)"
+                        [style.background]="proyectoColor(c.marca)"></div>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          </section>
+
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Asesores con más atención</span>
+                <span class="mx-card-sub">Sesiones atendidas en el periodo</span>
+              </div>
+            </div>
+            @if (isEmpty(dash.resumen.asesores)) {
+              <div class="mx-empty">Sin asesores con sesiones en este rango.</div>
+            } @else {
+              <div class="mx-hbars">
+                @for (a of dash.resumen.asesores; track a.id) {
+                  <div class="mx-hbar">
+                    <div class="mx-hbar-head">
+                      <span class="mx-hbar-name" [title]="a.nombre">{{ a.nombre }}</span>
+                      <span class="mx-hbar-val">{{ fmtS(a.atendidas) }}</span>
+                    </div>
+                    <div class="mx-hbar-track">
+                      <div class="mx-hbar-fill" [style.width.%]="pctOf(a.atendidas, dash.resumen.asesores[0].atendidas)"></div>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          </section>
+        </div>
+      }
+
+      <!-- ── Requerimientos ────────────────────────────────────────────── -->
+      @case ('requerimientos') {
+        <section class="mx-mini-kpis">
+          <div class="mx-mini">
+            <span>Cierres de requerimiento</span>
+            <strong>{{ fmtS(dash.requerimientos.kpis.cierresRequerimiento) }}</strong>
+          </div>
+          <div class="mx-mini">
+            <span>Tickets abiertos</span>
+            <strong>{{ fmtS(dash.requerimientos.kpis.tickets.abiertos) }}</strong>
+          </div>
+          <div class="mx-mini">
+            <span>Tickets resueltos</span>
+            <strong>{{ fmtS(dash.requerimientos.kpis.tickets.resueltos) }}</strong>
+          </div>
+          <div class="mx-mini">
+            <span>Chats clasificados</span>
+            <strong>{{ fmtS(dash.requerimientos.kpis.clasificadasSesion) }}</strong>
+          </div>
+          <div class="mx-mini">
+            <span>Resolución promedio</span>
+            <strong>{{ fmtMin(dash.requerimientos.sla.promResolucionMin) }}</strong>
+          </div>
+          <div class="mx-mini">
+            <span>SLA vencidos</span>
+            <strong [class.danger]="dash.requerimientos.sla.vencidos > 0">{{ fmtS(dash.requerimientos.sla.vencidos) }}</strong>
+          </div>
+        </section>
+
+        <div class="mx-grid-2">
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Cierres de chat por tipo</span>
+                <span class="mx-card-sub">Clasificación registrada al cerrar</span>
+              </div>
+            </div>
+            @if (isEmpty(dash.requerimientos.cierresPorTipo)) {
+              <div class="mx-empty">Sin cierres clasificados en este rango.</div>
+            } @else {
+              <div class="mx-hbars">
+                @for (c of dash.requerimientos.cierresPorTipo; track c.tipo) {
+                  <div class="mx-hbar">
+                    <div class="mx-hbar-head">
+                      <span class="mx-hbar-name">{{ c.tipo }}</span>
+                      <span class="mx-hbar-val">{{ fmtS(c.count) }}</span>
+                    </div>
+                    <div class="mx-hbar-track">
+                      <div class="mx-hbar-fill" [style.width.%]="pctOf(c.count, dash.requerimientos.cierresPorTipo[0].count)"></div>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          </section>
+
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Tickets por estado</span>
+                <span class="mx-card-sub">Ciclo de vida de los tickets</span>
+              </div>
+            </div>
+            @if (isEmpty(ticketStatusEntries())) {
+              <div class="mx-empty">Sin tickets en este rango.</div>
+            } @else {
+              <div class="mx-donut-wrap sm">
+                <div class="mx-donut" [style.background]="donutTicketsStyle()">
+                  <div class="mx-donut-hole">
+                    <strong>{{ fmtS(dash.requerimientos.kpis.tickets.total) }}</strong>
+                    <span>tickets</span>
+                  </div>
+                </div>
+                <ul class="mx-legend">
+                  @for (e of ticketStatusEntries(); track e.key) {
+                    <li>
+                      <span class="mx-dot" [style.--c]="e.color"></span>
+                      <span class="mx-legend-label">{{ e.label }}</span>
+                      <strong>{{ fmtS(e.value) }}</strong>
+                      <em>{{ pctOf(e.value, dash.requerimientos.kpis.tickets.total) }}%</em>
+                    </li>
+                  }
+                </ul>
+              </div>
+            }
+          </section>
+        </div>
+
+        <div class="mx-grid-2">
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Por prioridad</span>
+                <span class="mx-card-sub">Distribución de tickets</span>
+              </div>
+            </div>
+            @if (isEmpty(dash.requerimientos.ticketsPorPrioridad)) {
+              <div class="mx-empty">Sin datos.</div>
+            } @else {
+              <div class="mx-chip-row">
+                @for (p of dash.requerimientos.ticketsPorPrioridad; track p.clave) {
+                  <span class="mx-chip-tag" [style.--c]="colorPrioridad(p.clave)">{{ p.clave }} · {{ fmtS(p.count) }}</span>
+                }
+              </div>
+            }
+          </section>
+
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Por categoría</span>
+                <span class="mx-card-sub">Top 12 categorías</span>
+              </div>
+            </div>
+            @if (isEmpty(dash.requerimientos.ticketsPorCategoria)) {
+              <div class="mx-empty">Sin datos.</div>
+            } @else {
+              <div class="mx-chip-row">
+                @for (c of dash.requerimientos.ticketsPorCategoria; track c.clave) {
+                  <span class="mx-chip-tag neutral">{{ c.clave }} · {{ fmtS(c.count) }}</span>
+                }
+              </div>
+            }
+          </section>
+        </div>
+
+        <section class="mx-card">
+          <div class="mx-card-head">
+            <div>
+              <span class="mx-card-title">Últimos tickets</span>
+              <span class="mx-card-sub">Hasta 50 en el rango</span>
+            </div>
+          </div>
+          @if (isEmpty(dash.requerimientos.detalleTickets)) {
+            <div class="mx-empty">Sin tickets en este rango.</div>
+          } @else {
+            <div class="mx-table-scroll">
+              <table class="mx-table">
+                <thead>
+                  <tr>
+                    <th>Fecha</th><th>Colegio</th><th>Asesor</th><th>Categoría</th>
+                    <th>Prioridad</th><th>Estado</th><th class="num">Resolución</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (t of dash.requerimientos.detalleTickets; track $index) {
+                    <tr>
+                      <td class="mono">{{ t.fecha | date:'dd/MM/yy HH:mm' }}</td>
+                      <td>{{ t.colegio || '—' }}</td>
+                      <td>{{ t.asesor }}</td>
+                      <td>{{ t.categoria }}</td>
+                      <td>
+                        <span class="mx-prio" [style.--c]="colorPrioridad(t.prioridad)">{{ t.prioridad || '—' }}</span>
+                      </td>
+                      <td><span class="mx-status" [ngClass]="chipEstado(t.estado)">{{ estadoLabel(t.estado) }}</span></td>
+                      <td class="num">{{ fmtMin(t.resolucionMin) }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </section>
+
+        <section class="mx-card">
+          <div class="mx-card-head">
+            <div>
+              <span class="mx-card-title">Requerimientos cerrados</span>
+              <span class="mx-card-sub">Sesiones clasificadas como «requerimiento»</span>
+            </div>
+          </div>
+          @if (isEmpty(dash.requerimientos.detalleRequerimientos)) {
+            <div class="mx-empty">Sin requerimientos en este rango.</div>
+          } @else {
+            <div class="mx-table-scroll">
+              <table class="mx-table">
+                <thead>
+                  <tr><th>Fecha</th><th>Colegio</th><th>Asesor</th><th>Notas</th><th>Seguimiento</th></tr>
+                </thead>
+                <tbody>
+                  @for (r of dash.requerimientos.detalleRequerimientos; track $index) {
+                    <tr>
+                      <td class="mono">{{ r.fecha | date:'dd/MM/yy HH:mm' }}</td>
+                      <td>{{ r.colegio || '—' }}</td>
+                      <td>{{ r.asesor }}</td>
+                      <td class="mx-cell-notes">{{ r.notas || '—' }}</td>
+                      <td>
+                        @if (r.seguimiento) {
+                          <span class="mx-status st-resolved">Sí</span>
+                        } @else {
+                          <span class="mx-status st-closed">No</span>
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </section>
+      }
+
+      <!-- ── Atención por colegio ──────────────────────────────────────── -->
+      @case ('colegios') {
+        <section class="mx-mini-kpis">
+          <div class="mx-mini">
+            <span>Colegios activos</span>
+            <strong>{{ fmtS(dash.colegios.kpis.colegiosActivos) }}</strong>
+          </div>
+          <div class="mx-mini">
+            <span>Sesiones</span>
+            <strong>{{ fmtS(dash.colegios.kpis.sesiones) }}</strong>
+          </div>
+          <div class="mx-mini">
+            <span>Tickets asociados</span>
+            <strong>{{ fmtS(dash.colegios.kpis.ticketsAsociados) }}</strong>
+          </div>
+          <div class="mx-mini">
+            <span>Calificación promedio</span>
+            <strong>{{ dash.colegios.kpis.avgEstrellas != null ? dash.colegios.kpis.avgEstrellas + ' ★' : '—' }}</strong>
+          </div>
+        </section>
+
+        <section class="mx-card">
+          <div class="mx-card-head">
+            <div>
+              <span class="mx-card-title">Detalle por colegio</span>
+              <span class="mx-card-sub">Sesiones, estado y valoraciones en el rango</span>
+            </div>
+          </div>
+          @if (isEmpty(dash.colegios.tabla)) {
+            <div class="mx-empty">Sin colegios con sesiones en este rango.</div>
+          } @else {
+            <div class="mx-table-scroll">
+              <table class="mx-table">
+                <thead>
+                  <tr>
+                    <th>Colegio</th><th>Marca</th>
+                    <th class="num">Sesiones</th><th class="num">Cerradas</th>
+                    <th class="num">Activas</th><th class="num">IA</th>
+                    <th class="num">Tickets</th><th class="num">★ Prom.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (c of dash.colegios.tabla; track c.colegio) {
+                    <tr>
+                      <td>{{ c.colegio }}</td>
+                      <td><span class="mx-chip" [ngClass]="c.marca === 'Sian365' ? 'sian' : (c.marca === 'ControlAcademic' ? 'ctrl' : 'none')">{{ c.marca }}</span></td>
+                      <td class="num">{{ fmtS(c.sesiones) }}</td>
+                      <td class="num">{{ fmtS(c.cerradas) }}</td>
+                      <td class="num">{{ fmtS(c.activas) }}</td>
+                      <td class="num">{{ fmtS(c.ia) }}</td>
+                      <td class="num">{{ fmtS(c.tickets) }}</td>
+                      <td class="num">
+                        @if (c.avgEstrellas != null) {
+                          <span class="mx-stars sm">
+                            @for (st of getStars(c.avgEstrellas); track $index) {
+                              <i [class]="'star ' + st"></i>
+                            }
+                          </span>
+                        } @else {
+                          —
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </section>
+      }
+
+      <!-- ── Asesoría ──────────────────────────────────────────────────── -->
+      @case ('asesoria') {
+        <section class="mx-mini-kpis">
+          <div class="mx-mini">
+            <span>Asesores con sesiones</span>
+            <strong>{{ fmtS(dash.asesoria.kpis.asesoresActivos) }}</strong>
+          </div>
+          <div class="mx-mini">
+            <span>Sesiones cerradas</span>
+            <strong>{{ fmtS(dash.asesoria.kpis.cerrados) }}</strong>
+          </div>
+          <div class="mx-mini">
+            <span>Sesiones activas</span>
+            <strong>{{ fmtS(dash.asesoria.kpis.activos) }}</strong>
+          </div>
+          <div class="mx-mini">
+            <span>Calificación promedio</span>
+            <strong>{{ dash.asesoria.kpis.avgEstrellas != null ? dash.asesoria.kpis.avgEstrellas + ' ★' : '—' }}</strong>
+          </div>
+        </section>
+
+        <div class="mx-grid-main">
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Desempeño por asesor</span>
+                <span class="mx-card-sub">Sesiones, tiempos y calificaciones del rango</span>
+              </div>
+            </div>
+            @if (isEmpty(dash.asesoria.tabla)) {
+              <div class="mx-empty">Sin asesores con sesiones en este rango.</div>
+            } @else {
+              <div class="mx-table-scroll">
+                <table class="mx-table">
+                  <thead>
+                    <tr>
+                      <th>Asesor</th>
+                      <th class="num">Atendidas</th><th class="num">Cerradas</th>
+                      <th class="num">Activas</th><th class="num">Promedio</th>
+                      <th class="num">Tickets</th><th class="num">★</th><th class="num">% del total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (a of dash.asesoria.tabla; track a.id) {
+                      <tr>
+                        <td>{{ a.nombre }}</td>
+                        <td class="num">{{ fmtS(a.atendidas) }}</td>
+                        <td class="num">{{ fmtS(a.cerrados) }}</td>
+                        <td class="num">{{ fmtS(a.activos) }}</td>
+                        <td class="num">{{ fmtMin(a.avgMinutes) }}</td>
+                        <td class="num">{{ fmtS(a.tickets) }}</td>
+                        <td class="num">
+                          @if (a.avgEstrellas != null) {
+                            <span class="mx-stars sm">
+                              @for (st of getStars(a.avgEstrellas); track $index) {
+                                <i [class]="'star ' + st"></i>
+                              }
+                            </span>
+                          } @else {
+                            —
+                          }
+                        </td>
+                        <td class="num">{{ a.pctDelTotal }}%</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          </section>
+
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Top cerrados</span>
+                <span class="mx-card-sub">Los 5 con más chats cerrados</span>
+              </div>
+            </div>
+            @if (isEmpty(dash.asesoria.topCerrados)) {
+              <div class="mx-empty">Sin datos.</div>
+            } @else {
+              <div class="mx-hbars">
+                @for (t of dash.asesoria.topCerrados; track t.nombre) {
+                  <div class="mx-hbar">
+                    <div class="mx-hbar-head">
+                      <span class="mx-hbar-name">{{ t.nombre }}</span>
+                      <span class="mx-hbar-val">{{ fmtS(t.cerrados) }}</span>
+                    </div>
+                    <div class="mx-hbar-track">
+                      <div class="mx-hbar-fill" [style.width.%]="pctOf(t.cerrados, dash.asesoria.topCerrados[0].cerrados)"></div>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          </section>
+        </div>
+      }
+
+      <!-- ── Capacitaciones ────────────────────────────────────────────── -->
+      @case ('capacitaciones') {
+        <section class="mx-mini-kpis">
+          <div class="mx-mini">
+            <span>Capacitaciones</span>
+            <strong>{{ fmtS(dash.capacitaciones.kpis.capacitaciones.total) }}</strong>
+          </div>
+          <div class="mx-mini">
+            <span>Virtuales</span>
+            <strong>{{ fmtS(dash.capacitaciones.kpis.capacitaciones.virtuales) }}</strong>
+          </div>
+          <div class="mx-mini">
+            <span>Presenciales</span>
+            <strong>{{ fmtS(dash.capacitaciones.kpis.capacitaciones.presenciales) }}</strong>
+          </div>
+          <div class="mx-mini">
+            <span>Próximas (30 días)</span>
+            <strong>{{ fmtS(dash.capacitaciones.proximas) }}</strong>
+          </div>
+        </section>
+
+        <div class="mx-grid-3">
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Por modalidad</span>
+                <span class="mx-card-sub">Virtual vs. presencial</span>
+              </div>
+            </div>
+            @if (isEmpty(dash.capacitaciones.porModalidad)) {
+              <div class="mx-empty">Sin capacitaciones en este rango.</div>
+            } @else {
+              <div class="mx-donut-wrap sm">
+                <div class="mx-donut" [style.background]="donutModalidadStyle()">
+                  <div class="mx-donut-hole">
+                    <strong>{{ fmtS(dash.capacitaciones.kpis.capacitaciones.total) }}</strong>
+                    <span>sesiones</span>
+                  </div>
+                </div>
+                <ul class="mx-legend">
+                  @for (m of dash.capacitaciones.porModalidad; track m.clave) {
+                    <li>
+                      <span class="mx-dot" [style.--c]="m.clave === 'presencial' ? '#ce9b30' : '#1a3fa8'"></span>
+                      <span class="mx-legend-label">{{ m.clave }}</span>
+                      <strong>{{ fmtS(m.count) }}</strong>
+                    </li>
+                  }
+                </ul>
+              </div>
+            }
+          </section>
+
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Por marca</span>
+                <span class="mx-card-sub">Marca del colegio asociado</span>
+              </div>
+            </div>
+            @if (isEmpty(dash.capacitaciones.porMarca)) {
+              <div class="mx-empty">Sin datos.</div>
+            } @else {
+              <div class="mx-hbars">
+                @for (m of dash.capacitaciones.porMarca; track m.clave) {
+                  <div class="mx-hbar">
+                    <div class="mx-hbar-head">
+                      <span class="mx-hbar-name">{{ m.clave }}</span>
+                      <span class="mx-hbar-val">{{ fmtS(m.count) }}</span>
+                    </div>
+                    <div class="mx-hbar-track">
+                      <div class="mx-hbar-fill" [style.width.%]="pctOf(m.count, dash.capacitaciones.porMarca[0].count)"
+                        [style.background]="proyectoColor(m.clave)"></div>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          </section>
+
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Por día</span>
+                <span class="mx-card-sub">Frecuencia en el rango</span>
+              </div>
+            </div>
+            @if (isEmpty(dash.capacitaciones.porDia)) {
+              <div class="mx-empty">Sin capacitaciones en este rango.</div>
+            } @else {
+              <div class="mx-plot short">
+                @for (d of dash.capacitaciones.porDia; track d.fecha) {
+                  <div class="mx-col">
+                    <div class="mx-bars-area" [style.height.%]="barHeightOf(d.count, capacitacionesDiaMax)">
+                      <div class="mx-col-stack">
+                        <div class="mx-seg ia" style="height:100%"></div>
+                      </div>
+                    </div>
+                    <span class="mx-col-x">{{ fechaCorta(d.fecha) }}</span>
+                  </div>
+                }
+              </div>
+            }
+          </section>
+        </div>
+
+        <section class="mx-card">
+          <div class="mx-card-head">
+            <div>
+              <span class="mx-card-title">Capacitaciones en el rango</span>
+              <span class="mx-card-sub">Agenda, modalidad y enlace de unión</span>
+            </div>
+          </div>
+          @if (isEmpty(dash.capacitaciones.tabla)) {
+            <div class="mx-empty">Sin capacitaciones en este rango.</div>
+          } @else {
+            <div class="mx-table-scroll">
+              <table class="mx-table">
+                <thead>
+                  <tr>
+                    <th>Asunto</th><th>Inicio</th><th>Modalidad</th>
+                    <th>Marca</th><th>Organizador</th><th class="num">Duración</th><th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (m of dash.capacitaciones.tabla; track m.id) {
+                    <tr>
+                      <td>{{ m.subject }}</td>
+                      <td class="mono">{{ m.startDateTime | date:'dd/MM/yy HH:mm' }}</td>
+                      <td>
+                        <span class="mx-chip" [ngClass]="m.modalidad === 'presencial' ? 'sian' : 'ctrl'">{{ m.modalidad }}</span>
+                      </td>
+                      <td>{{ m.marca }}</td>
+                      <td>{{ m.organizador }}</td>
+                      <td class="num">{{ fmtMin(m.duracion) }}</td>
+                      <td class="num">
+                        @if (m.joinUrl) {
+                          <a class="mx-link" [href]="m.joinUrl" target="_blank" rel="noopener">Unirse</a>
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </section>
+      }
+
+      <!-- ── Errores ───────────────────────────────────────────────────── -->
+      @case ('errores') {
+        <section class="mx-mini-kpis">
+          <div class="mx-mini">
+            <span>Errores de IA</span>
+            <strong [class.danger]="dash.errores.kpis.erroresIa > 0">{{ fmtS(dash.errores.kpis.erroresIa) }}</strong>
+          </div>
+          <div class="mx-mini">
+            <span>Operaciones IA</span>
+            <strong>{{ fmtS(dash.errores.kpis.operacionesIa) }}</strong>
+          </div>
+          <div class="mx-mini">
+            <span>Tasa de error</span>
+            <strong [class.danger]="(dash.errores.kpis.tasaErrorIa ?? 0) > 10">
+              {{ dash.errores.kpis.tasaErrorIa != null ? dash.errores.kpis.tasaErrorIa + '%' : '—' }}
+            </strong>
+          </div>
+          <div class="mx-mini">
+            <span>Cierres por error</span>
+            <strong>{{ fmtS(dash.errores.kpis.cierresError) }}</strong>
+          </div>
+          <div class="mx-mini">
+            <span>Comunicados fallidos</span>
+            <strong [class.danger]="dash.errores.kpis.comunicadosFallidos > 0">{{ fmtS(dash.errores.kpis.comunicadosFallidos) }}</strong>
+          </div>
+        </section>
+
+        <div class="mx-grid-main">
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Errores de IA por día</span>
+                <span class="mx-card-sub">Solo intentos con error en el rango</span>
+              </div>
+            </div>
+            @if (isEmpty(dash.errores.serieIa)) {
+              <div class="mx-empty">Sin errores de IA en este rango.</div>
+            } @else {
+              <div class="mx-plot">
+                @for (s of dash.errores.serieIa; track s.fecha) {
+                  <div class="mx-col">
+                    <div class="mx-bars-area" [style.height.%]="barHeightOf(s.count, serieIaMax)">
+                      <div class="mx-col-stack">
+                        <div class="mx-seg err" style="height:100%"></div>
+                      </div>
+                    </div>
+                    <span class="mx-col-x">{{ fechaCorta(s.fecha) }}</span>
+                  </div>
+                }
+              </div>
+            }
+          </section>
+
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Comunicados</span>
+                <span class="mx-card-sub">Envíos del periodo</span>
+              </div>
+            </div>
+            <ul class="mx-act">
+              <li><span>Total</span><strong>{{ fmtS(dash.errores.comunicados.total) }}</strong></li>
+              <li><span>Enviados</span><strong>{{ fmtS(dash.errores.comunicados.enviados) }}</strong></li>
+              <li><span>Fallidos</span><strong [class.danger]="dash.errores.comunicados.fallidos > 0">{{ fmtS(dash.errores.comunicados.fallidos) }}</strong></li>
+            </ul>
+          </section>
+        </div>
+
+        <div class="mx-grid-2">
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Errores por detalle</span>
+                <span class="mx-card-sub">Mensajes más frecuentes</span>
+              </div>
+            </div>
+            @if (isEmpty(dash.errores.porTipo)) {
+              <div class="mx-empty">Sin errores en este rango.</div>
+            } @else {
+              <div class="mx-hbars">
+                @for (t of dash.errores.porTipo; track t.clave) {
+                  <div class="mx-hbar">
+                    <div class="mx-hbar-head">
+                      <span class="mx-hbar-name" [title]="t.clave">{{ t.clave }}</span>
+                      <span class="mx-hbar-val">{{ fmtS(t.count) }}</span>
+                    </div>
+                    <div class="mx-hbar-track">
+                      <div class="mx-hbar-fill danger" [style.width.%]="pctOf(t.count, dash.errores.porTipo[0].count)"></div>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          </section>
+
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Registro de errores</span>
+                <span class="mx-card-sub">IA, cierres de chat y comunicados</span>
+              </div>
+            </div>
+            @if (isEmpty(dash.errores.tabla)) {
+              <div class="mx-empty">Sin errores en este rango.</div>
+            } @else {
+              <div class="mx-table-scroll">
+                <table class="mx-table">
+                  <thead>
+                    <tr><th>Fecha</th><th>Fuente</th><th>Mensaje</th><th>Colegio</th></tr>
+                  </thead>
+                  <tbody>
+                    @for (e of dash.errores.tabla; track $index) {
+                      <tr>
+                        <td class="mono">{{ e.fecha | date:'dd/MM/yy HH:mm' }}</td>
+                        <td><span class="mx-chip-tag danger">{{ e.fuente }}</span></td>
+                        <td class="mx-cell-notes">{{ e.mensaje }}</td>
+                        <td>{{ e.colegio || '—' }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          </section>
+        </div>
+      }
+
+      <!-- ── Solicitudes ───────────────────────────────────────────────── -->
+      @case ('solicitudes') {
+        <section class="mx-mini-kpis">
+          <div class="mx-mini">
+            <span>Solicitudes clasificadas</span>
+            <strong>{{ fmtS(dash.solicitudes.kpis.total) }}</strong>
+          </div>
+          <div class="mx-mini">
+            <span>Chats con clasificación</span>
+            <strong>{{ fmtS(dash.solicitudes.kpis.clasificadas) }}</strong>
+          </div>
+          <div class="mx-mini">
+            <span>% del total de chats</span>
+            <strong>{{ dash.solicitudes.kpis.pctClasificadas }}%</strong>
+          </div>
+          <div class="mx-mini">
+            <span>Tipo más frecuente</span>
+            <strong>{{ dash.solicitudes.kpis.topTipo ?? '—' }}</strong>
+          </div>
+        </section>
+
+        <div class="mx-grid-main">
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Distribución por tipo</span>
+                <span class="mx-card-sub">Participación y variación vs. periodo anterior</span>
+              </div>
+            </div>
+            @if (isEmpty(dash.solicitudes.distribucion)) {
+              <div class="mx-empty">Sin solicitudes clasificadas en este rango.</div>
+            } @else {
+              <div class="mx-hbars">
+                @for (d of dash.solicitudes.distribucion; track d.clave) {
+                  <div class="mx-hbar">
+                    <div class="mx-hbar-head">
+                      <span class="mx-hbar-name">{{ d.clave }}</span>
+                      <span class="mx-hbar-val">
+                        {{ fmtS(d.count) }} · {{ d.pct }}%
+                        <em class="mx-var" [ngClass]="varClass(d.variacion)">{{ fmtVar(d.variacion) }}</em>
+                      </span>
+                    </div>
+                    <div class="mx-hbar-track">
+                      <div class="mx-hbar-fill" [style.width.%]="d.pct"></div>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          </section>
+
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Por marca</span>
+                <span class="mx-card-sub">Marca del colegio asociado</span>
+              </div>
+            </div>
+            @if (isEmpty(dash.solicitudes.porMarca)) {
+              <div class="mx-empty">Sin datos.</div>
+            } @else {
+              <div class="mx-hbars">
+                @for (m of dash.solicitudes.porMarca; track m.clave) {
+                  <div class="mx-hbar">
+                    <div class="mx-hbar-head">
+                      <span class="mx-hbar-name">{{ m.clave }}</span>
+                      <span class="mx-hbar-val">{{ fmtS(m.count) }}</span>
+                    </div>
+                    <div class="mx-hbar-track">
+                      <div class="mx-hbar-fill" [style.width.%]="pctOf(m.count, dash.solicitudes.porMarca[0].count)"
+                        [style.background]="proyectoColor(m.clave)"></div>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          </section>
+        </div>
+
+        <section class="mx-card">
+          <div class="mx-card-head">
+            <div>
+              <span class="mx-card-title">Solicitudes por día</span>
+              <span class="mx-card-sub">Sesiones con tipo de solicitud en el rango</span>
+            </div>
+          </div>
+          @if (isEmpty(dash.solicitudes.serie)) {
+            <div class="mx-empty">Sin solicitudes en este rango.</div>
+          } @else {
+            <div class="mx-plot">
+              @for (s of dash.solicitudes.serie; track s.fecha) {
+                <div class="mx-col">
+                  <div class="mx-bars-area" [style.height.%]="barHeightOf(s.count, solicitudesSerieMax)">
+                    <div class="mx-col-stack">
+                      <div class="mx-seg asesor" style="height:100%"></div>
+                    </div>
+                  </div>
+                  <span class="mx-col-x">{{ fechaCorta(s.fecha) }}</span>
+                </div>
+              }
+            </div>
+          }
+        </section>
+      }
+
+      <!-- ── Conexiones por agente ─────────────────────────────────────── -->
+      @case ('conexiones') {
+        <section class="mx-mini-kpis">
+          <div class="mx-mini">
+            <span>Disponible</span>
+            <strong>{{ fmtMin(dash.conexiones.kpis.disponibleMin) }}</strong>
+          </div>
+          <div class="mx-mini">
+            <span>Ocupado</span>
+            <strong>{{ fmtMin(dash.conexiones.kpis.ocupadoMin) }}</strong>
+          </div>
+          <div class="mx-mini">
+            <span>Reuniones</span>
+            <strong>{{ fmtMin(dash.conexiones.kpis.reunionMin) }}</strong>
+          </div>
+          <div class="mx-mini">
+            <span>Almuerzo</span>
+            <strong>{{ fmtMin(dash.conexiones.kpis.almuerzoMin) }}</strong>
+          </div>
+          <div class="mx-mini">
+            <span>Inactivo</span>
+            <strong>{{ fmtMin(dash.conexiones.kpis.inactivoMin) }}</strong>
+          </div>
+          <div class="mx-mini">
+            <span>Desconexiones</span>
+            <strong [class.danger]="dash.conexiones.kpis.desconexiones > 0">{{ fmtS(dash.conexiones.kpis.desconexiones) }}</strong>
+          </div>
+        </section>
+
+        <div class="mx-grid-3">
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Distribución de tiempo</span>
+                <span class="mx-card-sub">Minutos por estado (todos los agentes)</span>
+              </div>
+            </div>
+            @if (isEmpty(dash.conexiones.distribucion)) {
+              <div class="mx-empty">Sin actividad en este rango.</div>
+            } @else {
+              <div class="mx-donut-wrap sm">
+                <div class="mx-donut" [style.background]="donutConexionesStyle()">
+                  <div class="mx-donut-hole">
+                    <strong>{{ fmtMin(dash.conexiones.kpis.disponibleMin + dash.conexiones.kpis.ocupadoMin + dash.conexiones.kpis.reunionMin + dash.conexiones.kpis.almuerzoMin + dash.conexiones.kpis.inactivoMin) }}</strong>
+                    <span>total</span>
+                  </div>
+                </div>
+                <ul class="mx-legend">
+                  @for (d of dash.conexiones.distribucion; track d.estado) {
+                    <li>
+                      <span class="mx-dot" [style.--c]="
+                        d.estado === 'Disponible' ? '#16a34a' :
+                        d.estado === 'Ocupado' ? '#3b82f6' :
+                        d.estado === 'Reuniones' ? '#8b5cf6' :
+                        d.estado === 'Almuerzo' ? '#f59e0b' : '#94a3b8'"></span>
+                      <span class="mx-legend-label">{{ d.estado }}</span>
+                      <strong>{{ fmtMin(d.minutos) }}</strong>
+                    </li>
+                  }
+                </ul>
+              </div>
+            }
+          </section>
+
+          <section class="mx-card mx-span2">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Desconexiones por día</span>
+                <span class="mx-card-sub">Eventos de corte de sesión en el rango</span>
+              </div>
+            </div>
+            @if (isEmpty(dash.conexiones.porDia)) {
+              <div class="mx-empty">Sin desconexiones en este rango.</div>
+            } @else {
+              <div class="mx-plot">
+                @for (d of dash.conexiones.porDia; track d.fecha) {
+                  <div class="mx-col">
+                    <div class="mx-bars-area" [style.height.%]="barHeightOf(d.count, desconexionesDiaMax)">
+                      <div class="mx-col-stack">
+                        <div class="mx-seg err" style="height:100%"></div>
+                      </div>
+                    </div>
+                    <span class="mx-col-x">{{ fechaCorta(d.fecha) }}</span>
+                  </div>
+                }
+              </div>
+            }
+          </section>
+        </div>
+
+        <section class="mx-card">
+          <div class="mx-card-head">
+            <div>
+              <span class="mx-card-title">Detalle por agente</span>
+              <span class="mx-card-sub">Minutos registrados y ventanas de conexión</span>
+            </div>
+          </div>
+          @if (isEmpty(dash.conexiones.tabla)) {
+            <div class="mx-empty">Sin agentes con actividad en este rango.</div>
+          } @else {
+            <div class="mx-table-scroll">
+              <table class="mx-table">
+                <thead>
+                  <tr>
+                    <th>Asesor</th>
+                    <th class="num">Disponible</th><th class="num">Ocupado</th>
+                    <th class="num">Reuniones</th><th class="num">Almuerzo</th>
+                    <th class="num">Inactivo</th><th class="num">Desconexiones</th>
+                    <th>Primera</th><th>Última</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (c of dash.conexiones.tabla; track c.id) {
+                    <tr>
+                      <td>{{ c.nombre }}</td>
+                      <td class="num">{{ fmtMin(c.disponibleMin) }}</td>
+                      <td class="num">{{ fmtMin(c.ocupadoMin) }}</td>
+                      <td class="num">{{ fmtMin(c.reunionMin) }}</td>
+                      <td class="num">{{ fmtMin(c.almuerzoMin) }}</td>
+                      <td class="num">{{ fmtMin(c.inactivoMin) }}</td>
+                      <td class="num" [class.danger]="c.desconexiones > 0">{{ fmtS(c.desconexiones) }}</td>
+                      <td class="mono">{{ c.primeraConexion ? (c.primeraConexion | date:'dd/MM HH:mm') : '—' }}</td>
+                      <td class="mono">{{ c.ultimaConexion ? (c.ultimaConexion | date:'dd/MM HH:mm') : '—' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </section>
+      }
+    }
   }
-
 </div>

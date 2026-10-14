@@ -4,12 +4,33 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
-import { AdminService, Metrics } from '../../../../core/services/admin.service';
-import { SessionService, RankingAsesor, AiStats } from '../../../../core/services/session.service';
+import { debounceTime, takeUntil } from 'rxjs/operators';
+import {
+  AdminService, MetricsDashboard, MxMarca,
+} from '../../../../core/services/admin.service';
+import { SessionService } from '../../../../core/services/session.service';
+import { User } from '../../../../core/models/user.model';
 import { SocketService } from '../../../../core/services/socket.service';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
-import { fmtDateMedium } from '../../../../shared/utils/date';
+
+type FechaPreset = 'hoy' | '7d' | '30d' | 'custom';
+
+export type MxTab =
+  | 'general'
+  | 'requerimientos'
+  | 'colegios'
+  | 'asesoria'
+  | 'capacitaciones'
+  | 'errores'
+  | 'solicitudes'
+  | 'conexiones';
+
+interface TicketStatusEntry {
+  key: string;
+  label: string;
+  color: string;
+  value: number;
+}
 
 @Component({
   selector: 'app-metrics',
@@ -22,58 +43,65 @@ import { fmtDateMedium } from '../../../../shared/utils/date';
 export class MetricsComponent implements OnInit, OnDestroy {
   protected readonly trackByIndex = trackByIndex;
   protected readonly trackById = trackById;
-  protected readonly fmtDateMedium = fmtDateMedium;
-  metrics : Metrics | null   = null;
-  aiStats : AiStats  | null  = null;
-  ranking : RankingAsesor[]  = [];
-  loading = true;
-  error   = false;
-  Math    = Math;
+  Math = Math;
 
-  comentarios     : any[] = [];
-  comentPage      = 1;
-  comentPages     = 1;
-  comentTotal     = 0;
-  selectedAdvisor = '';
-
-  // ── Filtros de fecha ──
+  // ── Filtros ──
+  filtros = {
+    asesorId: '',
+    marca: 'all' as MxMarca,
+    preset: '30d' as FechaPreset,
+  };
   desde = '';
   hasta = '';
+  advisors: User[] = [];
+
+  // ── Datos (una sola llamada por cambio de filtro) ──
+  dash: MetricsDashboard | null = null;
+  tab: MxTab = 'general';
+
+  loading = true;
+  error = false;
   exporting = false;
 
+  readonly tabs: { id: MxTab; label: string }[] = [
+    { id: 'general', label: 'General' },
+    { id: 'requerimientos', label: 'Requerimientos' },
+    { id: 'colegios', label: 'Atención por colegio' },
+    { id: 'asesoria', label: 'Asesoría' },
+    { id: 'capacitaciones', label: 'Capacitaciones' },
+    { id: 'errores', label: 'Errores' },
+    { id: 'solicitudes', label: 'Solicitudes' },
+    { id: 'conexiones', label: 'Conexiones por agente' },
+  ];
+
+  private refresh$ = new Subject<void>();
   private destroy$ = new Subject<void>();
 
   constructor(
-    private adminService  : AdminService,
+    private adminService: AdminService,
     private sessionService: SessionService,
-    private socket        : SocketService,
-    private cdr           : ChangeDetectorRef,
+    private socket: SocketService,
+    private cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit(): void {
-    this.fetchMetrics();
-    this.loadComentarios();
-    this.fetchAiStats();
+    this.setPreset('30d', false);
 
-    // Escucha eventos del socket para refrescar métricas en tiempo real
-    // sin necesidad de polling
-    this.socket.on('metrics_updated')
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(() => {
-        this.fetchMetrics();
-      });
+    this.sessionService.findAdvisors().subscribe({
+      next: (list) => {
+        this.advisors = list;
+        this.cdr.detectChanges();
+      },
+      error: () => {},
+    });
 
-    this.socket.on('session_updated')
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(() => {
-        this.fetchMetrics();
-      });
+    // Carga inicial + refresco en tiempo real (con debounce para no saturar).
+    this.refresh$.pipe(debounceTime(600), takeUntil(this.destroy$)).subscribe(() => this.fetch());
+    this.refresh$.next();
 
-    this.socket.on('advisor_status_changed')
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(() => {
-        this.fetchMetrics();
-      });
+    this.socket.on('metrics_updated').pipe(takeUntil(this.destroy$)).subscribe(() => this.refresh$.next());
+    this.socket.on('session_updated').pipe(takeUntil(this.destroy$)).subscribe(() => this.refresh$.next());
+    this.socket.on('advisor_status_changed').pipe(takeUntil(this.destroy$)).subscribe(() => this.refresh$.next());
   }
 
   ngOnDestroy(): void {
@@ -81,137 +109,351 @@ export class MetricsComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
+  // ── Filtros ────────────────────────────────────────────────────────────────
+  setTab(tab: MxTab): void {
+    this.tab = tab;
+  }
+
+  setAsesor(id: string): void {
+    this.filtros.asesorId = id;
+    this.refresh$.next();
+  }
+
+  setMarca(m: MxMarca): void {
+    this.filtros.marca = m;
+    this.refresh$.next();
+  }
+
+  setPreset(preset: FechaPreset, refetch = true): void {
+    this.filtros.preset = preset;
+    const now = new Date();
+    const p = (n: number) => String(n).padStart(2, '0');
+    const iso = (d: Date) => `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+    if (preset === 'hoy') {
+      this.desde = iso(now);
+      this.hasta = iso(now);
+    } else if (preset === '7d' || preset === '30d') {
+      const back = preset === '7d' ? 6 : 29;
+      const d = new Date(now);
+      d.setDate(d.getDate() - back);
+      this.desde = iso(d);
+      this.hasta = iso(now);
+    }
+    if (refetch) this.refresh$.next();
+  }
+
   onFechasCambiadas(): void {
-    if (this.desde && this.hasta && this.desde > this.hasta) {
-      this.hasta = this.desde;
-    }
-    if (this.hasta && this.desde && this.hasta < this.desde) {
-      this.desde = this.hasta;
-    }
-    this.fetchAiStats();
+    this.filtros.preset = 'custom';
+    if (this.desde && this.hasta && this.desde > this.hasta) this.hasta = this.desde;
+    if (this.desde && this.hasta && this.hasta < this.desde) this.desde = this.hasta;
+    this.refresh$.next();
+  }
+
+  resetFiltros(): void {
+    this.filtros.asesorId = '';
+    this.filtros.marca = 'all';
+    this.setPreset('30d', false);
+    this.refresh$.next();
+  }
+
+  // ── Carga ──────────────────────────────────────────────────────────────────
+  private fetch(): void {
+    this.loading = !this.dash;
+    this.adminService
+      .getMetricsDashboard({
+        marca: this.filtros.marca,
+        desde: this.desde || undefined,
+        hasta: this.hasta || undefined,
+        asesorId: this.filtros.asesorId || undefined,
+      })
+      .subscribe({
+        next: (d) => {
+          this.dash = d;
+          this.loading = false;
+          this.error = false;
+          this.cdr.detectChanges();
+        },
+        error: () => {
+          this.loading = false;
+          if (!this.dash) this.error = true;
+          this.cdr.detectChanges();
+        },
+      });
+  }
+
+  retry(): void {
+    this.error = false;
+    this.loading = true;
+    this.cdr.detectChanges();
+    this.fetch();
   }
 
   exportarExcel(): void {
-    if (this.exporting) return;
+    if (this.exporting || !this.dash) return;
     this.exporting = true;
-    this.sessionService.exportReport(this.desde || undefined, this.hasta || undefined).subscribe({
-      next: (blob) => {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `reporte-metricas_${this.desde || 'todo'}_a_${this.hasta || 'hoy'}.xlsx`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-        this.exporting = false;
-        this.cdr.detectChanges();
-      },
-      error: (err) => {
-        console.error('HTTP Error:', err);
-        this.exporting = false;
-        this.cdr.detectChanges();
-      },
-    });
-  }
-
-  private fetchMetrics(): void {
-    this.adminService.getMetrics().subscribe({
-      next: (m) => {
-        this.metrics = m;
-        this.loading = false;
-        this.error   = false;
-        this.cdr.detectChanges();
-      },
-      error: () => {
-        if (this.loading) {
-          this.error   = true;
-          this.loading = false;
+    this.cdr.detectChanges();
+    this.adminService
+      .exportMetricsDashboard({
+        marca: this.filtros.marca,
+        desde: this.desde || undefined,
+        hasta: this.hasta || undefined,
+        asesorId: this.filtros.asesorId || undefined,
+      })
+      .subscribe({
+        next: (blob) => {
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `metricas_${this.desde || 'todo'}_a_${this.hasta || 'hoy'}.xlsx`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+          this.exporting = false;
           this.cdr.detectChanges();
-        }
-      },
-    });
+        },
+        error: () => {
+          this.exporting = false;
+          this.cdr.detectChanges();
+        },
+      });
+  }
 
-    this.sessionService.getRankingAsesores().subscribe({
-      next: (r) => {
-        this.ranking = r;
-        this.cdr.detectChanges();
-      },
-      error: (err) => console.error('HTTP Error:', err),
+  // ── Getters de KPIs (7 tarjetas) ───────────────────────────────────────────
+  get kpiSesiones() {
+    return this.dash?.resumen.kpis.sesiones ?? null;
+  }
+  get kpiRatings() {
+    return this.dash?.resumen.kpis.ratings ?? null;
+  }
+  get kpiTickets() {
+    return this.dash?.requerimientos.kpis.tickets ?? null;
+  }
+  get kpiCorreos() {
+    return this.dash?.resumen.kpis.correos ?? null;
+  }
+  get kpiCapacitaciones() {
+    return this.dash?.capacitaciones.kpis.capacitaciones ?? null;
+  }
+  get kpiRequerimientos() {
+    return this.dash?.requerimientos.kpis.cierresRequerimiento ?? 0;
+  }
+  get kpiErroresIa() {
+    return this.dash?.errores.kpis ?? null;
+  }
+  get variacion() {
+    return this.dash?.resumen.variacion ?? null;
+  }
+
+  get horaActualizacion(): string {
+    if (!this.dash) return '';
+    return new Date(this.dash.generadoEn).toLocaleTimeString('es-CO', {
+      hour: '2-digit',
+      minute: '2-digit',
     });
   }
 
-  private fetchAiStats(): void {
-    this.sessionService.getAiStats(this.desde || undefined, this.hasta || undefined).subscribe({
-      next: (s) => {
-        this.aiStats = s;
-        this.cdr.detectChanges();
-      },
-      error: (err) => console.error('HTTP Error:', err),
-    });
+  // ── Gráficas (CSS puro) ────────────────────────────────────────────────────
+  get serieMax(): number {
+    return Math.max(1, ...(this.dash?.resumen.serie ?? []).map((s) => s.total));
   }
 
-  loadComentarios(page = 1): void {
-    this.comentPage = page;
-    this.adminService.getAllComentarios(page, 8, this.selectedAdvisor || undefined).subscribe({
-      next: (res) => {
-        this.comentarios = res.data;
-        this.comentPage  = res.page;
-        this.comentPages = res.pages;
-        this.comentTotal = res.total;
-        this.cdr.detectChanges();
-      },
-      error: (err) => console.error('HTTP Error:', err),
-    });
+  get labelStep(): number {
+    const n = this.dash?.resumen.serie.length ?? 0;
+    return Math.max(1, Math.ceil(n / 9));
   }
 
-  onAdvisorFilter(): void {
-    this.loadComentarios(1);
+  get serieIaMax(): number {
+    return Math.max(1, ...(this.dash?.errores.serieIa ?? []).map((s) => s.count));
   }
 
-  getStatusLabel(status?: string): string {
-    const map: Record<string, string> = {
-      online : 'Disponible',
-      busy   : 'Ocupado',
-      meeting: 'En reunión',
-      almuerzo: 'En almuerzo',
-      offline: 'Inactivo',
+  get capacitacionesDiaMax(): number {
+    return Math.max(1, ...(this.dash?.capacitaciones.porDia ?? []).map((s) => s.count));
+  }
+
+  get solicitudesSerieMax(): number {
+    return Math.max(1, ...(this.dash?.solicitudes.serie ?? []).map((s) => s.count));
+  }
+
+  get desconexionesDiaMax(): number {
+    return Math.max(1, ...(this.dash?.conexiones.porDia ?? []).map((s) => s.count));
+  }
+
+  barHeight(total: number): number {
+    return (total / this.serieMax) * 100;
+  }
+
+  barHeightOf(total: number, max: number): number {
+    return (total / max) * 100;
+  }
+
+  segPct(part: number, total: number): number {
+    return total > 0 ? (part / total) * 100 : 0;
+  }
+
+  pctOf(value: number, total: number): number {
+    return total > 0 ? Math.round((value / total) * 100) : 0;
+  }
+
+  fechaCorta(fecha: string): string {
+    return fecha.slice(5).replace('-', '/');
+  }
+
+  proyectoColor(p: string): string {
+    if (p === 'Sian365') return '#ce9b30';
+    if (p === 'ControlAcademic') return '#1a3fa8';
+    return '#94a3b8';
+  }
+
+  donutProyectoStyle(): string {
+    return this.donutStyle(
+      (this.dash?.resumen.proyectos ?? []).map((p) => ({
+        color: this.proyectoColor(p.proyecto),
+        value: p.total,
+      })),
+    );
+  }
+
+  donutTicketsStyle(): string {
+    return this.donutStyle(
+      this.ticketStatusEntries().map((e) => ({ color: e.color, value: e.value })),
+    );
+  }
+
+  donutModalidadStyle(): string {
+    const modal = this.dash?.capacitaciones.porModalidad ?? [];
+    return this.donutStyle(
+      modal.map((m) => ({
+        color: m.clave === 'presencial' ? '#ce9b30' : '#1a3fa8',
+        value: m.count,
+      })),
+    );
+  }
+
+  donutConexionesStyle(): string {
+    const colores: Record<string, string> = {
+      Disponible: '#16a34a',
+      Ocupado: '#3b82f6',
+      Reuniones: '#8b5cf6',
+      Almuerzo: '#f59e0b',
+      Inactivo: '#94a3b8',
     };
-    return map[status ?? 'offline'] ?? 'Inactivo';
+    return this.donutStyle(
+      (this.dash?.conexiones.distribucion ?? []).map((d) => ({
+        color: colores[d.estado] ?? '#94a3b8',
+        value: d.minutos,
+      })),
+    );
   }
 
-  getStatusClass(status?: string): string {
-    return status ?? 'offline';
+  private donutStyle(segs: { color: string; value: number }[]): string {
+    const total = segs.reduce((s, x) => s + x.value, 0);
+    if (!total) return 'conic-gradient(#e2e8f0 0 100%)';
+    let acc = 0;
+    const stops = segs.map((x) => {
+      const pct = (x.value / total) * 100;
+      const seg = `${x.color} ${acc}% ${acc + pct}%`;
+      acc += pct;
+      return seg;
+    });
+    return `conic-gradient(${stops.join(', ')})`;
   }
 
-  getStars(avg: number): string[] {
-    return [1, 2, 3, 4, 5].map(i => {
-      if (i <= Math.floor(avg)) return 'full';
-      if (i === Math.ceil(avg) && avg % 1 >= 0.5) return 'half';
+  ticketStatusEntries(): TicketStatusEntry[] {
+    const map: Record<string, { label: string; color: string }> = {
+      open: { label: 'Abierto', color: '#3b82f6' },
+      in_progress: { label: 'En proceso', color: '#8b5cf6' },
+      on_hold: { label: 'En espera', color: '#f59e0b' },
+      denied: { label: 'Denegado', color: '#ef4444' },
+      resolved: { label: 'Resuelto', color: '#16a34a' },
+      closed: { label: 'Cerrado', color: '#64748b' },
+    };
+    return (this.dash?.requerimientos.ticketsPorEstado ?? []).map((t) => ({
+      key: t.clave,
+      label: map[t.clave]?.label ?? t.clave,
+      color: map[t.clave]?.color ?? '#94a3b8',
+      value: t.count,
+    }));
+  }
+
+  // ── Formato ────────────────────────────────────────────────────────────────
+  fmtS(num: number | null | undefined): string {
+    return new Intl.NumberFormat('es-CO').format(num ?? 0);
+  }
+
+  fmtMin(min: number | null | undefined): string {
+    if (min == null) return '—';
+    if (min >= 60) {
+      const h = Math.floor(min / 60);
+      const m = min % 60;
+      return m ? `${h}h ${m}m` : `${h}h`;
+    }
+    return `${min}m`;
+  }
+
+  fmtVar(v: number | null | undefined): string {
+    if (v == null) return '—';
+    if (v > 0) return `▲ ${v}%`;
+    if (v < 0) return `▼ ${Math.abs(v)}%`;
+    return '• 0%';
+  }
+
+  varClass(v: number | null | undefined): string {
+    if (v == null || v === 0) return 'flat';
+    return v > 0 ? 'up' : 'down';
+  }
+
+  fmtHora(iso: string): string {
+    return new Date(iso).toLocaleTimeString('es-CO', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }
+
+  getStars(avg: number | null): string[] {
+    const a = avg ?? 0;
+    return [1, 2, 3, 4, 5].map((i) => {
+      if (i <= Math.floor(a)) return 'full';
+      if (i === Math.ceil(a) && a % 1 >= 0.5) return 'half';
       return 'empty';
     });
   }
 
-  getResolucionColor(tasa: number): string {
-    if (tasa >= 75) return '#16a34a';
-    if (tasa >= 50) return '#b45309';
-    return '#dc2626';
+  isEmpty(list: unknown[] | null | undefined): boolean {
+    return !list || list.length === 0;
   }
 
-  fmtPct(valor: number | undefined): string {
-    return `${valor ?? 0}%`;
+  colorPrioridad(p: string | null): string {
+    switch (p) {
+      case 'urgent': return '#ef4444';
+      case 'high': return '#f59e0b';
+      case 'medium': return '#3b82f6';
+      case 'low': return '#16a34a';
+      default: return '#94a3b8';
+    }
   }
 
-  fmtS(num: number | undefined): string {
-    return new Intl.NumberFormat('es-CO').format(num ?? 0);
+  chipEstado(e: string): string {
+    switch (e) {
+      case 'open': return 'st-open';
+      case 'in_progress': return 'st-progress';
+      case 'on_hold': return 'st-hold';
+      case 'resolved': return 'st-resolved';
+      case 'closed': return 'st-closed';
+      case 'denied': return 'st-denied';
+      default: return '';
+    }
   }
 
-  paginas(): number[] {
-    const max = 10;
-    const start = Math.max(1, this.comentPage - Math.floor(max / 2));
-    const end = Math.min(this.comentPages, start + max - 1);
-    const out: number[] = [];
-    for (let p = start; p <= end; p++) out.push(p);
-    return out;
+  estadoLabel(e: string): string {
+    const map: Record<string, string> = {
+      open: 'Abierto',
+      in_progress: 'En proceso',
+      on_hold: 'En espera',
+      resolved: 'Resuelto',
+      closed: 'Cerrado',
+      denied: 'Denegado',
+    };
+    return map[e] ?? e;
   }
 }

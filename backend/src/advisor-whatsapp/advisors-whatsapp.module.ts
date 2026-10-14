@@ -18,6 +18,7 @@ import { TeamsToken } from './entities/teams-token.entity';
 import { TeamsMeeting } from './entities/teams-meeting.entity';
 import { WhatsappChat } from './entities/whatsapp-chat.entity';
 import { WhatsappMessage } from './entities/whatsapp-message.entity';
+import { Colegio } from '../sessions/entities/colegio.entity';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { WhatsappMessage } from './entities/whatsapp-message.entity';
       TeamsToken,
       TeamsMeeting,
       User,
+      Colegio,
     ]),
     AuthModule,
     ConfiguracionModule,

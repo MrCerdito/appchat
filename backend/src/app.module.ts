@@ -84,6 +84,7 @@ import { AccesoUsuario } from './accesos/entities/acceso-usuario.entity';
 import { Changelog } from './changelogs/changelog.entity';
 import { ChangelogSeen } from './changelogs/changelog-seen.entity';
 import { ChangelogsModule } from './changelogs/changelogs.module';
+import { MetricsModule } from './metrics/metrics.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -252,6 +253,7 @@ import { AppService } from './app.service';
     SlaModule,
     AccesosModule,
     ChangelogsModule,
+    MetricsModule,
   ],
   controllers: [AppController],
   providers: [

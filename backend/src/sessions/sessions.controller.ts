@@ -16,6 +16,7 @@ import {
   forwardRef,
   ForbiddenException,
   BadRequestException,
+  NotFoundException,
   ValidationPipe,
   Res,
   StreamableFile,
@@ -45,6 +46,7 @@ import {
   IsDateString,
   IsArray,
   ArrayMaxSize,
+  IsBoolean,
 } from 'class-validator';
 import { SkipThrottle } from '@nestjs/throttler';
 import { ChatGateway } from '../chat/chat.gateway';
@@ -89,6 +91,29 @@ export class ExportHistorialRowDto {
   @IsString()
   @IsOptional()
   tratamiento?: string;
+}
+
+export const CIERRE_TIPOS = [
+  'requerimiento',
+  'solucion',
+  'error',
+  'capacitacion',
+  'otro',
+] as const;
+export type CierreTipo = (typeof CIERRE_TIPOS)[number];
+
+export class ClasificarCierreDto {
+  @IsIn(CIERRE_TIPOS)
+  cierreTipo: CierreTipo;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  cierreNotas?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  cierreSeguimiento?: boolean;
 }
 
 export class CreateSessionDto {
@@ -323,6 +348,24 @@ export class SessionsController {
     return this.sessionsService.getMetrics();
   }
 
+  /** Dashboard del admin: KPIs + series filtrados por asesor, proyecto y fechas. */
+  @Get('metrics/dashboard')
+  @UseGuards(JwtAuthGuard)
+  @Permiso('metrics')
+  getDashboard(
+    @Query('asesorId') asesorId?: string,
+    @Query('proyecto') proyecto?: string,
+    @Query('desde') desde?: string,
+    @Query('hasta') hasta?: string,
+  ) {
+    return this.sessionsService.getDashboard({
+      asesorId: asesorId || undefined,
+      proyecto: proyecto || undefined,
+      desde,
+      hasta,
+    });
+  }
+
   @Get('metrics/asesor/:id')
   @UseGuards(JwtAuthGuard)
   @Permiso('metrics')
@@ -494,8 +537,16 @@ export class SessionsController {
     @Query('page') page = '1',
     @Query('limit') limit = '10',
     @Query('advisorId') advisorId?: string,
+    @Query('desde') desde?: string,
+    @Query('hasta') hasta?: string,
   ) {
-    return this.sessionsService.getAllComentarios(+page, +limit, advisorId);
+    return this.sessionsService.getAllComentarios(
+      +page,
+      +limit,
+      advisorId,
+      desde,
+      hasta,
+    );
   }
 
   // ★ NUEVO — actualiza el estado del asesor directamente en BD por HTTP
@@ -616,6 +667,28 @@ export class SessionsController {
     throw new ForbiddenException(
       'Solo el agente asignado o un administrador puede cerrar la sesión',
     );
+  }
+
+  /** Clasifica el cierre de una sesión (requerimiento/solucion/error/...).
+   *  Autorización: administrador o asesor propietario de la sesión. */
+  @Patch(':id/cierre')
+  @UseGuards(JwtAuthGuard)
+  @Permiso('chats')
+  async clasificarCierre(
+    @Param('id') id: string,
+    @Body() dto: ClasificarCierreDto,
+    @Request() req: any,
+  ) {
+    const session = await this.sessionsService.findOne(id);
+    if (!session) {
+      throw new NotFoundException('Sesión no encontrada');
+    }
+    if (req.user.role !== 'admin' && session.advisor?.id !== req.user.id) {
+      throw new ForbiddenException(
+        'Solo el agente asignado o un administrador puede clasificar el cierre',
+      );
+    }
+    return this.sessionsService.clasificarCierre(id, dto);
   }
 
   // Cierre del cliente anonimo del widget (flujo IA): mismo modelo de confianza
