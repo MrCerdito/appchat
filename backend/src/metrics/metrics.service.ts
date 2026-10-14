@@ -1192,7 +1192,7 @@ export class MetricsService {
          WHERE ${wCierre.join(' AND ')}
          UNION ALL
          SELECT m.created_at, 'Comunicado'::text,
-                left(m.subject, 140), NULL::text, m.sender_name
+                 left(m.asunto, 140), NULL::text, m.sender_name
          FROM comunicados m
          WHERE ${wCom.join(' AND ')}
        ) t
