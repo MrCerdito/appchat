@@ -2,7 +2,6 @@ import {
   Column,
   CreateDateColumn,
   Entity,
-  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -12,10 +11,11 @@ import { User } from '../../auth/entities/user.entity';
 /**
  * Catalogo de categorias de gestion de correos (Requerimiento, Error,
  * Solicitud, Cambios, ...). Las puede crear cualquier asesor con permiso de
- * correos; el nombre es unico sin distinguir mayusculas.
+ * correos; el nombre es unico sin distinguir mayusculas via el indice
+ * `uq_correo_categorias_nombre` sobre `lower(nombre)` (migracion 023 /
+ * sync service), NO via decorador para que synchronize no lo recree distinto.
  */
 @Entity('correo_categorias')
-@Index('uq_correo_categorias_nombre', ['nombre'], { unique: true })
 export class CorreoCategoria {
   @PrimaryGeneratedColumn('uuid')
   id: string;
