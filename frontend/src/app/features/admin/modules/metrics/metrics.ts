@@ -218,30 +218,9 @@ export class MetricsComponent implements OnInit, OnDestroy {
       });
   }
 
-  // ── Getters de KPIs (7 tarjetas) ───────────────────────────────────────────
-  get kpiSesiones() {
-    return this.dash?.resumen.kpis.sesiones ?? null;
-  }
-  get kpiRatings() {
-    return this.dash?.resumen.kpis.ratings ?? null;
-  }
+  // ── Getters ─────────────────────────────────────────────────────────────────
   get kpiTickets() {
     return this.dash?.requerimientos.kpis.tickets ?? null;
-  }
-  get kpiCorreos() {
-    return this.dash?.resumen.kpis.correos ?? null;
-  }
-  get kpiCapacitaciones() {
-    return this.dash?.capacitaciones.kpis.capacitaciones ?? null;
-  }
-  get kpiRequerimientos() {
-    return this.dash?.requerimientos.kpis.cierresRequerimiento ?? 0;
-  }
-  get kpiSolicitudes() {
-    return this.dash?.solicitudes.kpis ?? null;
-  }
-  get variacion() {
-    return this.dash?.resumen.variacion ?? null;
   }
 
   get horaActualizacion(): string {

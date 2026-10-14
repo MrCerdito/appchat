@@ -152,54 +152,6 @@
   font-family: 'DM Mono', monospace;
 }
 
-// ── 7 KPIs ────────────────────────────────────────────────
-.mx-kpis {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 0.7rem;
-  @media (max-width: 1440px) { grid-template-columns: repeat(4, 1fr); }
-  @media (max-width: 900px) { grid-template-columns: repeat(2, 1fr); }
-}
-.mx-kpi {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 0.8rem 0.85rem;
-  display: flex; flex-direction: column; gap: 3px;
-  min-width: 0;
-}
-.mx-kpi-label {
-  font-size: 0.68rem; font-weight: 700;
-  letter-spacing: 0.04em; text-transform: uppercase;
-  color: var(--text-muted);
-}
-.mx-kpi-num {
-  font-size: 1.4rem; font-weight: 700;
-  color: var(--text);
-  letter-spacing: -0.02em;
-  line-height: 1.1;
-  white-space: nowrap;
-  small { font-size: 0.85rem; color: #eab308; }
-}
-.mx-kpi-trend {
-  font-size: 0.64rem; font-weight: 700;
-  &.up { color: #16a34a; }
-  &.down { color: #ef4444; }
-  &.flat { color: var(--text-muted); }
-}
-.mx-kpi-sub {
-  font-size: 0.63rem; color: var(--text-muted);
-  line-height: 1.35;
-}
-.mx-kpi-sub-spacer { margin-top: auto; }
-
-.mx-skel-kpi {
-  height: 96px;
-  background: linear-gradient(90deg, var(--surface) 25%, var(--bg) 50%, var(--surface) 75%);
-  background-size: 200% 100%;
-  animation: mx-shimmer 1.2s infinite;
-  border-color: var(--border);
-}
 @keyframes mx-shimmer { to { background-position: -200% 0; } }
 
 // ── Pestañas ──────────────────────────────────────────────
