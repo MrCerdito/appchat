@@ -21,7 +21,6 @@ export type MxTab =
   | 'colegios'
   | 'asesoria'
   | 'capacitaciones'
-  | 'errores'
   | 'solicitudes'
   | 'conexiones';
 
@@ -318,6 +317,99 @@ export class MetricsComponent implements OnInit, OnDestroy {
         value: d.minutos,
       })),
     );
+  }
+
+  // ── Helpers del rediseño del tab General ───────────────────────────────────
+  get gestionCorreos() {
+    return this.dash?.resumen.gestionCorreos ?? null;
+  }
+
+  /** La card "Conexión del asesor" solo aplica cuando el rango es "Hoy". */
+  get esHoy(): boolean {
+    return this.filtros.preset === 'hoy';
+  }
+
+  /** Máximo individual (asesor / IA) para escalar las barras pareadas. */
+  get pareadasMax(): number {
+    const serie = this.dash?.resumen.serie ?? [];
+    return Math.max(1, ...serie.map((s) => Math.max(s.conAsesor ?? 0, s.ia ?? 0)));
+  }
+
+  /** Paleta fija para los ítems de "Tipo de solicitud". */
+  solicitudColor(i: number): string {
+    const paleta = ['#1a3fa8', '#ce9b30', '#16a34a', '#8b5cf6', '#ef4444', '#3b82f6', '#f59e0b', '#64748b'];
+    return paleta[i % paleta.length];
+  }
+
+  donutSolicitudesStyle(): string {
+    return this.donutStyle(
+      (this.dash?.solicitudes.distribucion ?? []).map((d, i) => ({
+        color: this.solicitudColor(i),
+        value: d.count,
+      })),
+    );
+  }
+
+  /** Paleta para las categorías de gestión de correos. */
+  gestionColor(i: number): string {
+    const paleta = ['#8b5cf6', '#ef4444', '#3b82f6', '#f59e0b', '#16a34a', '#ce9b30', '#1a3fa8', '#64748b'];
+    return paleta[i % paleta.length];
+  }
+
+  donutGestionCorreosStyle(): string {
+    return this.donutStyle(
+      (this.gestionCorreos?.porCategoria ?? []).map((c, i) => ({
+        color: this.gestionColor(i),
+        value: c.count,
+      })),
+    );
+  }
+
+  /** Color de segmento de la barra de conexión por estado (backend en inglés). */
+  estadoConexionColor(estado: string): string {
+    const colores: Record<string, string> = {
+      online: '#16a34a',
+      busy: '#3b82f6',
+      meeting: '#8b5cf6',
+      almuerzo: '#f59e0b',
+      offline: '#94a3b8',
+    };
+    return colores[estado] ?? '#94a3b8';
+  }
+
+  estadoConexionLabel(estado: string): string {
+    const map: Record<string, string> = {
+      online: 'Disponible',
+      busy: 'Ocupado',
+      meeting: 'Reuniones',
+      almuerzo: 'Almuerzo',
+      offline: 'Inactivo',
+    };
+    return map[estado] ?? estado;
+  }
+
+  /** % (0–100) que ocupa un instante dentro del día (00:00–24:00), para posicionar segmentos. */
+  pctDelDia(iso: string | null): number {
+    if (!iso) return 0;
+    const d = new Date(iso);
+    const min = d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60;
+    return (min / 1440) * 100;
+  }
+
+  /** Desplazamiento horizontal (left %) de un periodo dentro de la barra del día. */
+  periodoLeft(p: { desde: string }): number {
+    return this.pctDelDia(p.desde);
+  }
+
+  /** Ancho (width %) de un periodo dentro de la barra del día. */
+  periodoWidth(p: { desde: string; hasta: string | null }): number {
+    if (!p.hasta) return Math.max(0, 100 - this.pctDelDia(p.desde));
+    return Math.max(0, this.pctDelDia(p.hasta) - this.pctDelDia(p.desde));
+  }
+
+  horaCorta(iso: string | null): string {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
   }
 
   private donutStyle(segs: { color: string; value: number }[]): string {

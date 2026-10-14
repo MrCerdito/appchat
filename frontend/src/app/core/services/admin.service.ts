@@ -181,6 +181,12 @@ export interface MxResumen {
     solicitudes: number;
     desconexiones: number;
   };
+  gestionCorreos: {
+    porCategoria: { clave: string; count: number; carpeta: string | null }[];
+    resueltos: number;
+    pendientes: number;
+    total: number;
+  };
 }
 
 export interface MxRequerimientos {
@@ -227,11 +233,26 @@ export interface MxSolicitudes {
   porMarca: MxConteo[];
 }
 
+export interface MxConexionPeriodo {
+  desde: string;
+  hasta: string | null;
+  estado: string;
+}
+
+export interface MxConexionBarra {
+  id: string;
+  nombre: string;
+  periodos: MxConexionPeriodo[];
+  primera: string | null;
+  ultima: string | null;
+}
+
 export interface MxConexiones {
   kpis: { disponibleMin: number; ocupadoMin: number; reunionMin: number; almuerzoMin: number; inactivoMin: number; desconexiones: number };
   distribucion: { estado: string; minutos: number }[];
   porDia: { fecha: string; count: number }[];
   tabla: { id: string; nombre: string; disponibleMin: number; ocupadoMin: number; reunionMin: number; almuerzoMin: number; inactivoMin: number; desconexiones: number; primeraConexion: string | null; ultimaConexion: string | null }[];
+  barras: { fecha: string; asesores: MxConexionBarra[] } | null;
 }
 
 export interface MetricsDashboard {

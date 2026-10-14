@@ -1,13 +1,8 @@
 <div class="mx-wrap">
 
-  <!-- ── Encabezado ─────────────────────────────────────────────────────── -->
+  <!-- ── Encabezado / barra de filtros (2 filas) ──────────────────────────── -->
   <header class="mx-head">
-    <div class="mx-head-left">
-      <h1>Métricas</h1>
-      <p>Panel de gestión · Korvix, SIAN365 y ControlAcademic</p>
-    </div>
-
-    <div class="mx-head-right">
+    <div class="mx-head-row">
       <div class="mx-seg" role="tablist" aria-label="Marca">
         <button type="button" class="mx-seg-btn"
           [class.active]="filtros.marca === 'all'"
@@ -42,26 +37,25 @@
         }
       </button>
     </div>
+
+    <div class="mx-head-row secondary">
+      <label class="mx-field">
+        <span>Asesor</span>
+        <select [ngModel]="filtros.asesorId" (ngModelChange)="setAsesor($event)">
+          <option value="">Todos los asesores</option>
+          @for (a of advisors; track a.id) {
+            <option [value]="a.id">{{ a.name }}</option>
+          }
+        </select>
+      </label>
+
+      <button type="button" class="mx-reset" (click)="resetFiltros()">Limpiar filtros</button>
+
+      @if (dash) {
+        <span class="mx-updated">Actualizado {{ horaActualizacion }} · rango {{ desde || '…' }} a {{ hasta || '…' }}</span>
+      }
+    </div>
   </header>
-
-  <!-- ── Barra de filtros ───────────────────────────────────────────────── -->
-  <div class="mx-toolbar">
-    <label class="mx-field">
-      <span>Asesor</span>
-      <select [ngModel]="filtros.asesorId" (ngModelChange)="setAsesor($event)">
-        <option value="">Todos los asesores</option>
-        @for (a of advisors; track a.id) {
-          <option [value]="a.id">{{ a.name }}</option>
-        }
-      </select>
-    </label>
-
-    <button type="button" class="mx-reset" (click)="resetFiltros()">Limpiar filtros</button>
-
-    @if (dash) {
-      <span class="mx-updated">Actualizado {{ horaActualizacion }} · rango {{ desde || '…' }} a {{ hasta || '…' }}</span>
-    }
-  </div>
 
   <!-- ── Pestañas ───────────────────────────────────────────────────────── -->
   <nav class="mx-tabs" role="tablist">
@@ -91,39 +85,236 @@
 
       <!-- ── General ───────────────────────────────────────────────────── -->
       @case ('general') {
-        <div class="mx-grid-main">
+        <!-- Fila 1: tres donuts -->
+        <div class="mx-grid-3">
           <section class="mx-card">
             <div class="mx-card-head">
               <div>
-                <span class="mx-card-title">Sesiones por día</span>
-                <span class="mx-card-sub">Atención humana vs. IA en el rango seleccionado</span>
-              </div>
-              <div class="mx-legend-inline">
-                <span class="mx-dot" style="--c:#1a3fa8"></span> Con asesor
-                <span class="mx-dot" style="--c:#ce9b30"></span> IA
+                <span class="mx-card-title">Estado de tickets</span>
+                <span class="mx-card-sub">Total {{ fmtS(kpiTickets?.total) }}</span>
               </div>
             </div>
-            @if (isEmpty(dash.resumen.serie)) {
-              <div class="mx-empty">Sin sesiones en este rango.</div>
+            @if (isEmpty(ticketStatusEntries())) {
+              <div class="mx-empty">Sin tickets en este rango.</div>
             } @else {
-              <div class="mx-plot">
-                @for (s of dash.resumen.serie; track s.fecha) {
-                  <div class="mx-col">
-                    <div class="mx-bars-area" [style.height.%]="barHeight(s.total)">
-                      <div class="mx-col-stack">
-                        <div class="mx-seg asesor" [style.height.%]="pctOf(s.conAsesor, s.total)"></div>
-                        <div class="mx-seg ia" [style.height.%]="pctOf(s.ia, s.total)"></div>
-                      </div>
+              <div class="mx-donut-wrap sm">
+                <div class="mx-donut" [style.background]="donutTicketsStyle()">
+                  <div class="mx-donut-hole">
+                    <strong>{{ fmtS(kpiTickets?.total) }}</strong>
+                    <span>tickets</span>
+                  </div>
+                </div>
+                <ul class="mx-legend">
+                  @for (e of ticketStatusEntries(); track e.key) {
+                    <li>
+                      <span class="mx-dot" [style.--c]="e.color"></span>
+                      <span class="mx-legend-label">{{ e.label }}</span>
+                      <strong>{{ fmtS(e.value) }}</strong>
+                    </li>
+                  }
+                </ul>
+              </div>
+            }
+          </section>
+
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Tipo de solicitud</span>
+                <span class="mx-card-sub">Clasificación de chats</span>
+              </div>
+            </div>
+            @if (isEmpty(dash.solicitudes.distribucion)) {
+              <div class="mx-empty">Sin solicitudes en este rango.</div>
+            } @else {
+              <div class="mx-donut-wrap sm">
+                <div class="mx-donut" [style.background]="donutSolicitudesStyle()">
+                  <div class="mx-donut-hole">
+                    <strong>{{ fmtS(dash.solicitudes.kpis.total) }}</strong>
+                    <span>solicitudes</span>
+                  </div>
+                </div>
+                <ul class="mx-legend">
+                  @for (d of dash.solicitudes.distribucion; track d.clave) {
+                    <li>
+                      <span class="mx-dot" [style.--c]="solicitudColor($index)"></span>
+                      <span class="mx-legend-label">{{ d.clave }}</span>
+                      <strong>{{ fmtS(d.count) }}</strong>
+                    </li>
+                  }
+                </ul>
+              </div>
+            }
+          </section>
+
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Gestión en correos</span>
+                <span class="mx-card-sub">Clasificación de gestión</span>
+              </div>
+            </div>
+            @if (isEmpty(gestionCorreos?.porCategoria)) {
+              <div class="mx-empty">Sin correos clasificados en este rango.</div>
+            } @else {
+              <div class="mx-donut-wrap sm">
+                <div class="mx-donut" [style.background]="donutGestionCorreosStyle()">
+                  <div class="mx-donut-hole">
+                    <strong>{{ fmtS(gestionCorreos?.total) }}</strong>
+                    <span>correos</span>
+                  </div>
+                </div>
+                <ul class="mx-legend">
+                  @for (c of gestionCorreos?.porCategoria; track c.clave) {
+                    <li>
+                      <span class="mx-dot" [style.--c]="gestionColor($index)"></span>
+                      <span class="mx-legend-label">
+                        {{ c.clave }}
+                        @if (c.carpeta) {
+                          <em class="mx-carpeta">{{ c.carpeta }}</em>
+                        }
+                      </span>
+                      <strong>{{ fmtS(c.count) }}</strong>
+                    </li>
+                  }
+                </ul>
+              </div>
+              <div class="mx-gc-counters">
+                <span class="mx-gc-count ok">✓ Resueltos <strong>{{ fmtS(gestionCorreos?.resueltos) }}</strong></span>
+                <span class="mx-gc-count pend">⧗ Pendientes <strong>{{ fmtS(gestionCorreos?.pendientes) }}</strong></span>
+              </div>
+            }
+          </section>
+        </div>
+
+        <!-- Fila 2: Reuniones · Chats por asesor · Conexión del asesor -->
+        <div class="mx-grid-3">
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Reuniones</span>
+                <span class="mx-card-sub">Virtuales y presenciales del periodo</span>
+              </div>
+            </div>
+            <ul class="mx-act">
+              <li><span>Total</span><strong>{{ fmtS(dash.resumen.kpis.capacitaciones.total) }}</strong></li>
+              <li><span>Virtuales</span><strong>{{ fmtS(dash.resumen.kpis.capacitaciones.virtuales) }}</strong></li>
+              <li><span>Presenciales</span><strong>{{ fmtS(dash.resumen.kpis.capacitaciones.presenciales) }}</strong></li>
+              <li><span>Próximas</span><strong>{{ fmtS(dash.resumen.actividad.proximasReuniones) }}</strong></li>
+            </ul>
+          </section>
+
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Chats atendidos por asesor</span>
+                <span class="mx-card-sub">Sesiones y calificación en el periodo</span>
+              </div>
+            </div>
+            @if (isEmpty(dash.resumen.asesores)) {
+              <div class="mx-empty">Sin asesores con sesiones en este rango.</div>
+            } @else {
+              <ul class="mx-asesores">
+                @for (a of dash.resumen.asesores; track a.id) {
+                  <li>
+                    <span class="mx-asesor-nombre" [title]="a.nombre">{{ a.nombre }}</span>
+                    <span class="mx-asesor-chats">{{ fmtS(a.atendidas) }} chats</span>
+                    <span class="mx-stars sm">
+                      @for (st of getStars(a.avgEstrellas); track $index) {
+                        <i [class]="'star ' + st"></i>
+                      }
+                    </span>
+                  </li>
+                }
+              </ul>
+            }
+          </section>
+
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Conexión del asesor</span>
+                <span class="mx-card-sub">Jornada del día por agente</span>
+              </div>
+            </div>
+            @if (!esHoy) {
+              <div class="mx-placeholder">
+                <p>Selecciona el preset «Hoy» para ver la conexión del día.</p>
+                <a class="mx-link" href="#" (click)="setPreset('hoy'); $event.preventDefault()">Ver información independiente</a>
+              </div>
+            } @else if (isEmpty(dash.conexiones.barras?.asesores)) {
+              <div class="mx-empty">Sin actividad de conexión en el día.</div>
+            } @else {
+              <div class="mx-legend-inline mx-conn-legend">
+                <span class="mx-dot" style="--c:#16a34a"></span> Disponible
+                <span class="mx-dot" style="--c:#3b82f6"></span> Ocupado
+                <span class="mx-dot" style="--c:#8b5cf6"></span> Reuniones
+                <span class="mx-dot" style="--c:#f59e0b"></span> Almuerzo
+                <span class="mx-dot" style="--c:#94a3b8"></span> Inactivo
+              </div>
+              <div class="mx-conn">
+                <div class="mx-conn-axis">
+                  <span>00</span><span>06</span><span>12</span><span>18</span><span>24</span>
+                </div>
+                @for (a of dash.conexiones.barras?.asesores; track a.id) {
+                  <div class="mx-conn-row">
+                    <span class="mx-conn-name" [title]="a.nombre">{{ a.nombre }}</span>
+                    <div class="mx-conn-track">
+                      @if (a.periodos.length === 0) {
+                        <span class="mx-conn-sin">Sin actividad</span>
+                      } @else {
+                        @for (p of a.periodos; track $index) {
+                          <span class="mx-conn-seg"
+                            [style.left.%]="periodoLeft(p)"
+                            [style.width.%]="periodoWidth(p)"
+                            [style.background]="estadoConexionColor(p.estado)"
+                            [title]="estadoConexionLabel(p.estado) + ' · ' + horaCorta(p.desde) + ' – ' + horaCorta(p.hasta)"></span>
+                        }
+                      }
                     </div>
-                    @if ($index % labelStep === 0) {
-                      <span class="mx-col-x">{{ fechaCorta(s.fecha) }}</span>
-                    }
+                    <span class="mx-conn-range mono">{{ horaCorta(a.primera) }} — {{ horaCorta(a.ultima) }}</span>
                   </div>
                 }
               </div>
             }
           </section>
+        </div>
 
+        <!-- Chats por día: barras pareadas asesor (azul) vs. IA (amarillo) -->
+        <section class="mx-card">
+          <div class="mx-card-head">
+            <div>
+              <span class="mx-card-title">Chats por día</span>
+              <span class="mx-card-sub">Atención con asesor vs. IA en el rango seleccionado</span>
+            </div>
+            <div class="mx-legend-inline">
+              <span class="mx-dot" style="--c:#1a3fa8"></span> Con asesor
+              <span class="mx-dot" style="--c:#eab308"></span> IA
+            </div>
+          </div>
+          @if (isEmpty(dash.resumen.serie)) {
+            <div class="mx-empty">Sin sesiones en este rango.</div>
+          } @else {
+            <div class="mx-pairs">
+              @for (s of dash.resumen.serie; track s.fecha) {
+                <div class="mx-pair-col">
+                  <div class="mx-pair-bars">
+                    <div class="mx-pair-bar asesor" [style.height.%]="barHeightOf(s.conAsesor, pareadasMax)"
+                      [title]="fmtS(s.conAsesor) + ' con asesor'"></div>
+                    <div class="mx-pair-bar ia" [style.height.%]="barHeightOf(s.ia, pareadasMax)"
+                      [title]="fmtS(s.ia) + ' IA'"></div>
+                  </div>
+                  @if ($index % labelStep === 0) {
+                    <span class="mx-col-x">{{ fechaCorta(s.fecha) }}</span>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </section>
+
+        <!-- Cards de apoyo -->
+        <div class="mx-grid-2">
           <section class="mx-card">
             <div class="mx-card-head">
               <div>
@@ -154,38 +345,6 @@
               </div>
             }
           </section>
-        </div>
-
-        <div class="mx-grid-3">
-          <section class="mx-card">
-            <div class="mx-card-head">
-              <div>
-                <span class="mx-card-title">Tickets por estado</span>
-                <span class="mx-card-sub">Total {{ fmtS(kpiTickets?.total) }}</span>
-              </div>
-            </div>
-            @if (isEmpty(ticketStatusEntries())) {
-              <div class="mx-empty">Sin tickets en este rango.</div>
-            } @else {
-              <div class="mx-donut-wrap sm">
-                <div class="mx-donut" [style.background]="donutTicketsStyle()">
-                  <div class="mx-donut-hole">
-                    <strong>{{ fmtS(kpiTickets?.total) }}</strong>
-                    <span>tickets</span>
-                  </div>
-                </div>
-                <ul class="mx-legend">
-                  @for (e of ticketStatusEntries(); track e.key) {
-                    <li>
-                      <span class="mx-dot" [style.--c]="e.color"></span>
-                      <span class="mx-legend-label">{{ e.label }}</span>
-                      <strong>{{ fmtS(e.value) }}</strong>
-                    </li>
-                  }
-                </ul>
-              </div>
-            }
-          </section>
 
           <section class="mx-card">
             <div class="mx-card-head">
@@ -201,7 +360,9 @@
               <li><span>Desconexiones</span><strong>{{ fmtS(dash.resumen.actividad.desconexiones) }}</strong></li>
             </ul>
           </section>
+        </div>
 
+        <div class="mx-grid-2">
           <section class="mx-card">
             <div class="mx-card-head">
               <div>
@@ -232,14 +393,12 @@
               </ul>
             }
           </section>
-        </div>
 
-        <div class="mx-grid-2">
           <section class="mx-card">
             <div class="mx-card-head">
               <div>
                 <span class="mx-card-title">Colegios con más sesiones</span>
-                <span class="mx-card-sub">Top 10 del periodo</span>
+                <span class="mx-card-sub">Top del periodo</span>
               </div>
             </div>
             @if (isEmpty(dash.resumen.colegios)) {
@@ -255,32 +414,6 @@
                     <div class="mx-hbar-track">
                       <div class="mx-hbar-fill" [style.width.%]="pctOf(c.sesiones, dash.resumen.colegios[0].sesiones)"
                         [style.background]="proyectoColor(c.marca)"></div>
-                    </div>
-                  </div>
-                }
-              </div>
-            }
-          </section>
-
-          <section class="mx-card">
-            <div class="mx-card-head">
-              <div>
-                <span class="mx-card-title">Asesores con más atención</span>
-                <span class="mx-card-sub">Sesiones atendidas en el periodo</span>
-              </div>
-            </div>
-            @if (isEmpty(dash.resumen.asesores)) {
-              <div class="mx-empty">Sin asesores con sesiones en este rango.</div>
-            } @else {
-              <div class="mx-hbars">
-                @for (a of dash.resumen.asesores; track a.id) {
-                  <div class="mx-hbar">
-                    <div class="mx-hbar-head">
-                      <span class="mx-hbar-name" [title]="a.nombre">{{ a.nombre }}</span>
-                      <span class="mx-hbar-val">{{ fmtS(a.atendidas) }}</span>
-                    </div>
-                    <div class="mx-hbar-track">
-                      <div class="mx-hbar-fill" [style.width.%]="pctOf(a.atendidas, dash.resumen.asesores[0].atendidas)"></div>
                     </div>
                   </div>
                 }

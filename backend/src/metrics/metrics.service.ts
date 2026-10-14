@@ -167,6 +167,7 @@ export class MetricsService {
         serie: resumen.serie,
         proyectos: resumen.proyectos,
         comentarios: resumen.comentarios,
+        gestionCorreos: resumen.gestionCorreos,
         colegios: colegios.tabla.slice(0, 12),
         asesores: asesoria.tabla.slice(0, 12),
         actividad: {
@@ -192,7 +193,7 @@ export class MetricsService {
 
   // ── Sección: resumen ──────────────────────────────────────────────────────
   private async seccionResumen(f: Filtros, r: Rango) {
-    const [sesiones, ratings, correos, serie, proyectos, comentarios, previa] =
+    const [sesiones, ratings, correos, serie, proyectos, comentarios, previa, gestionCorreos] =
       await Promise.all([
         this.querySesionesKpis(f, r),
         this.queryRatingsKpis(f, r),
@@ -201,6 +202,7 @@ export class MetricsService {
         this.queryProyectos(f, r),
         this.queryComentarios(f, r),
         this.queryVariacionPrevia(f, r),
+        this.queryGestionCorreos(f, r),
       ]);
     return {
       kpis: { sesiones, ratings, correos },
@@ -208,6 +210,7 @@ export class MetricsService {
       proyectos,
       comentarios,
       previa,
+      gestionCorreos,
     };
   }
 
@@ -279,6 +282,81 @@ export class MetricsService {
     );
     const row = rows[0] ?? {};
     return { total: this.n(row.total), noLeidos: this.n(row.noLeidos) };
+  }
+
+  /**
+   * Gestión de correos para el donut del dashboard General.
+   *
+   * - `porCategoria`: conteo por `categoria_gestion` (catálogo local; vacío =>
+   *   "Sin clasificar") y, para cada una, la carpeta del asesor de la que más
+   *   correos provienen (`folder_display_name`), como contexto para la leyenda.
+   * - `resueltos` / `pendientes`: normaliza las etiquetas de Outlook de la
+   *   columna `categorias` (jsonb) quitando los símbolos decorativos y
+   *   comparando en mayúsculas, igual que `categoria-correo.util.ts` del
+   *   frontend. "RESUELTO" cuenta como resuelto; el resto (incluido sin
+   *   etiqueta) queda como pendiente.
+   */
+  private async queryGestionCorreos(f: Filtros, r: Rango) {
+    const p = new Params();
+    const w: string[] = [];
+    if (r.start) w.push(`m.created_at >= ${p.ph(r.start)}`);
+    if (r.end) w.push(`m.created_at < ${p.ph(r.end)}`);
+    if (f.asesorId) w.push(`m.asesor_id = ${p.ph(f.asesorId)}`);
+    const where = w.length ? `WHERE ${w.join(' AND ')}` : '';
+
+    // Expresión que replica la normalización del frontend: quita los símbolos
+    // iniciales con los que Outlook decora las categorías y deja el texto en
+    // mayúsculas para comparar de forma estable.
+    const normCat = `upper(regexp_replace(trim(x.cat), '^[\\s\\-=+*_•·✓✔☑✅❗!|#>»›.:;,]+', '', 'g'))`;
+
+    const [porCategoria, estado] = await Promise.all([
+      this.dataSource.query(
+        `SELECT clave, cnt AS count, folder_display_name AS carpeta
+         FROM (
+           SELECT DISTINCT ON (clave) clave, cnt, folder_display_name
+           FROM (
+             SELECT coalesce(nullif(trim(m.categoria_gestion), ''), 'Sin clasificar') AS clave,
+                    coalesce(m.folder_display_name, '(sin carpeta)') AS folder_display_name,
+                    COUNT(*)::int AS cnt
+             FROM correo_mensajes m
+             ${where}
+             GROUP BY 1, 2
+           ) t
+           ORDER BY clave, cnt DESC
+         ) x
+         ORDER BY cnt DESC`,
+        p.args,
+      ),
+      this.dataSource.query(
+        `SELECT COUNT(*)::int AS total,
+                COUNT(*) FILTER (WHERE resuelto)::int AS resueltos
+         FROM (
+           SELECT EXISTS (
+             SELECT 1 FROM jsonb_array_elements_text(
+               CASE WHEN m.categorias IS NULL OR m.categorias = '' THEN '[]'::jsonb
+                    ELSE m.categorias::jsonb END
+             ) x(cat)
+             WHERE ${normCat} = 'RESUELTO'
+           ) AS resuelto
+           FROM correo_mensajes m
+           ${where}
+         ) t`,
+        p.args,
+      ),
+    ]);
+
+    const total = this.n(estado[0]?.total);
+    const resueltos = this.n(estado[0]?.resueltos);
+    return {
+      porCategoria: porCategoria.map((row: any) => ({
+        clave: row.clave,
+        count: this.n(row.count),
+        carpeta: row.carpeta ?? null,
+      })),
+      resueltos,
+      pendientes: total - resueltos,
+      total,
+    };
   }
 
   private async querySerie(f: Filtros, r: Rango) {
@@ -1134,9 +1212,11 @@ export class MetricsService {
 
   // ── Sección: conexiones por agente ────────────────────────────────────────
   private async seccionConexiones(f: Filtros, r: Rango) {
-    const [tabla, porDia] = await Promise.all([
+    const esUnDia = r.desdeStr === r.hastaStr;
+    const [tabla, porDia, barras] = await Promise.all([
       this.queryConexionesTabla(f, r),
       this.queryDesconexionesPorDia(f, r),
+      esUnDia ? this.queryConexionesBarras(f, r) : Promise.resolve(null),
     ]);
     const sum = (campo: string) =>
       tabla.reduce((s: number, x: any) => s + this.n(x[campo]), 0);
@@ -1159,6 +1239,97 @@ export class MetricsService {
       ].filter((x) => x.minutos > 0),
       porDia,
       tabla,
+      barras,
+    };
+  }
+
+  /**
+   * Barras de conexión del asesor (estilo historial Advisors) para el dashboard.
+   * Solo tiene sentido con un rango de UN día; si el rango es mayor se devuelve
+   * `null` y el frontend muestra el placeholder "Ver información independiente".
+   *
+   * Devuelve por asesor los periodos del día (con `desde`, `hasta`, `estado` y
+   * `almuerzo`), más la primera y última marca de actividad, para que el
+   * frontend pinte la barra inicio–fin segmentada por estado. Los asesores sin
+   * actividad en el día aparecen con `periodos: []`.
+   */
+  private async queryConexionesBarras(f: Filtros, r: Rango) {
+    const p = new Params();
+    const desde = p.ph(r.desdeStr);
+    const hasta = p.ph(r.hastaStr);
+    const clipIni = p.ph(r.start ?? new Date(0));
+    const clipFin = p.ph(r.end ?? new Date());
+    const userPh = f.asesorId ? p.ph(f.asesorId) : null;
+    const rows = await this.dataSource.query(
+      `WITH ev AS (
+         SELECT user_id, estado, almuerzo, tipo, desde,
+                LEAD(desde) OVER (PARTITION BY user_id ORDER BY desde) AS sig
+         FROM advisor_activity_log
+         WHERE fecha >= ${desde} AND fecha <= ${hasta}
+       ),
+       seg AS (
+         SELECT user_id,
+                CASE WHEN almuerzo THEN 'almuerzo'
+                     ELSE coalesce(estado, 'offline') END AS bucket,
+                GREATEST(desde, ${clipIni}) AS ini,
+                LEAST(COALESCE(sig, now()), ${clipFin}) AS fin,
+                desde AS marca
+         FROM ev
+         WHERE (sig IS NULL OR sig > ${clipIni})
+       )
+       SELECT s.user_id AS id, u.name AS nombre,
+              s.bucket, s.ini, s.fin, s.marca
+       FROM seg s
+       LEFT JOIN users u ON u.id = s.user_id
+       WHERE s.fin > s.ini ${userPh ? `AND s.user_id = ${userPh}` : ''}
+       ORDER BY u.name ASC, s.ini ASC`,
+      p.args,
+    );
+
+    // Lista completa de asesores activos para que los sin actividad también se
+    // dibujen (con 0 periodos), igual que en la tabla de conexiones.
+    const asesores = await this.dataSource.query(
+      `SELECT u.id, u.name AS nombre
+       FROM users u
+       WHERE u.active = true AND u.role IN ('advisor', 'admin', 'desarrollador')
+         ${userPh ? `AND u.id = ${userPh}` : ''}
+       ORDER BY u.name ASC`,
+      p.args,
+    );
+
+    const porId = new Map<string, any>();
+    for (const a of asesores) {
+      porId.set(String(a.id), {
+        id: a.id,
+        nombre: a.nombre,
+        periodos: [],
+        primera: null,
+        ultima: null,
+      });
+    }
+    for (const row of rows) {
+      const key = String(row.id);
+      const asesor = porId.get(key) ?? {
+        id: row.id,
+        nombre: row.nombre,
+        periodos: [],
+        primera: null,
+        ultima: null,
+      };
+      asesor.periodos.push({
+        desde: row.ini,
+        hasta: row.fin,
+        estado: row.bucket,
+      });
+      const marca = row.marca;
+      if (!asesor.primera || marca < asesor.primera) asesor.primera = marca;
+      if (!asesor.ultima || marca > asesor.ultima) asesor.ultima = marca;
+      porId.set(key, asesor);
+    }
+
+    return {
+      fecha: r.desdeStr,
+      asesores: [...porId.values()].filter((a) => a.periodos.length > 0 || !f.asesorId),
     };
   }
 
@@ -1167,6 +1338,10 @@ export class MetricsService {
    * (el evento mantiene su estado hasta el siguiente; LEAD lo calcula en SQL).
    * Duración "registrada" entre eventos, recortada al rango; el último
    * periodo abierto se corta en `now()` o en el fin del rango.
+   *
+   * Se parten de `users` (asesores activos) con LEFT JOIN a los segmentos: un
+   * asesor sin actividad en el rango aparece con 0s en todas las columnas, en
+   * vez de no aparecer. Así el admin siempre ve la lista completa de agentes.
    */
   private async queryConexionesTabla(f: Filtros, r: Rango) {
     const p = new Params();
@@ -1191,30 +1366,40 @@ export class MetricsService {
          FROM ev
          WHERE (sig IS NULL OR sig > ${clipIni})
        ),
+       mins AS (
+         SELECT user_id,
+                ROUND(COALESCE(SUM(EXTRACT(EPOCH FROM (fin - ini)) / 60)
+                  FILTER (WHERE fin > ini AND bucket = 'online'), 0))::int AS "disponibleMin",
+                ROUND(COALESCE(SUM(EXTRACT(EPOCH FROM (fin - ini)) / 60)
+                  FILTER (WHERE fin > ini AND bucket = 'busy'), 0))::int AS "ocupadoMin",
+                ROUND(COALESCE(SUM(EXTRACT(EPOCH FROM (fin - ini)) / 60)
+                  FILTER (WHERE fin > ini AND bucket = 'meeting'), 0))::int AS "reunionMin",
+                ROUND(COALESCE(SUM(EXTRACT(EPOCH FROM (fin - ini)) / 60)
+                  FILTER (WHERE fin > ini AND bucket = 'almuerzo'), 0))::int AS "almuerzoMin",
+                ROUND(COALESCE(SUM(EXTRACT(EPOCH FROM (fin - ini)) / 60)
+                  FILTER (WHERE fin > ini AND bucket NOT IN ('online', 'busy', 'meeting', 'almuerzo')), 0))::int AS "inactivoMin"
+         FROM seg
+         GROUP BY user_id
+       ),
        des AS (
          SELECT user_id, COUNT(*)::int AS n
          FROM advisor_activity_log
          WHERE fecha >= ${desde} AND fecha <= ${hasta} AND tipo = 'desconexion'
          GROUP BY user_id
        )
-       SELECT s.user_id AS id, u.name AS nombre,
-              ROUND(COALESCE(SUM(EXTRACT(EPOCH FROM (s.fin - s.ini)) / 60)
-                FILTER (WHERE s.fin > s.ini AND s.bucket = 'online'), 0))::int AS "disponibleMin",
-              ROUND(COALESCE(SUM(EXTRACT(EPOCH FROM (s.fin - s.ini)) / 60)
-                FILTER (WHERE s.fin > s.ini AND s.bucket = 'busy'), 0))::int AS "ocupadoMin",
-              ROUND(COALESCE(SUM(EXTRACT(EPOCH FROM (s.fin - s.ini)) / 60)
-                FILTER (WHERE s.fin > s.ini AND s.bucket = 'meeting'), 0))::int AS "reunionMin",
-              ROUND(COALESCE(SUM(EXTRACT(EPOCH FROM (s.fin - s.ini)) / 60)
-                FILTER (WHERE s.fin > s.ini AND s.bucket = 'almuerzo'), 0))::int AS "almuerzoMin",
-              ROUND(COALESCE(SUM(EXTRACT(EPOCH FROM (s.fin - s.ini)) / 60)
-                FILTER (WHERE s.fin > s.ini AND s.bucket NOT IN ('online', 'busy', 'meeting', 'almuerzo')), 0))::int AS "inactivoMin",
-              coalesce(MAX(d.n), 0)::int AS desconexiones
-       FROM seg s
-       LEFT JOIN users u ON u.id = s.user_id
-       LEFT JOIN des d ON d.user_id = s.user_id
-       WHERE 1 = 1 ${userPh ? `AND s.user_id = ${userPh}` : ''}
-       GROUP BY s.user_id, u.name, d.n
-       ORDER BY 4 DESC`,
+       SELECT u.id, u.name AS nombre,
+              COALESCE(m."disponibleMin", 0) AS "disponibleMin",
+              COALESCE(m."ocupadoMin", 0) AS "ocupadoMin",
+              COALESCE(m."reunionMin", 0) AS "reunionMin",
+              COALESCE(m."almuerzoMin", 0) AS "almuerzoMin",
+              COALESCE(m."inactivoMin", 0) AS "inactivoMin",
+              COALESCE(d.n, 0)::int AS desconexiones
+       FROM users u
+       LEFT JOIN mins m ON m.user_id = u.id
+       LEFT JOIN des d ON d.user_id = u.id
+       WHERE u.active = true AND u.role IN ('advisor', 'admin', 'desarrollador')
+         ${userPh ? `AND u.id = ${userPh}` : ''}
+       ORDER BY 4 DESC, 5 DESC, u.name ASC`,
       p.args,
     );
     const p2 = new Params();
@@ -1298,6 +1483,7 @@ export class MetricsService {
 
     // Resumen
     const k = dash.resumen.kpis;
+    const gc = dash.resumen.gestionCorreos;
     hoja(
       'Resumen',
       ['Métrica', 'Valor'],
@@ -1317,7 +1503,17 @@ export class MetricsService {
         ['Tickets', k.tickets.total],
         ['Correos', k.correos.total],
         ['Capacitaciones', k.capacitaciones.total],
+        ['Correos gestión - resueltos', gc?.resueltos ?? 0],
+        ['Correos gestión - pendientes', gc?.pendientes ?? 0],
+        ['Correos gestión - total', gc?.total ?? 0],
       ],
+    );
+
+    // Gestión de correos (donut del dashboard): categoría + carpeta top
+    hoja(
+      'Gestión correos',
+      ['Categoría', 'Correos', 'Carpeta con más correos'],
+      (gc?.porCategoria ?? []).map((c: any) => [c.clave, c.count, c.carpeta ?? '—']),
     );
 
     // Asesores

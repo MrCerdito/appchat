@@ -12,22 +12,20 @@
   min-width: 0;
 }
 
-// ── Encabezado ────────────────────────────────────────────
+// ── Encabezado / barra de filtros (2 filas) ────────────────
 .mx-head {
-  display: flex; align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem; flex-wrap: wrap;
+  display: flex; flex-direction: column;
+  gap: 0.7rem;
   padding-bottom: 1.1rem;
   border-bottom: 1px solid var(--border);
 }
-.mx-head-left {
-  display: flex; flex-direction: column; gap: 2px;
-  h1 { font-size: 1.15rem; font-weight: 700; color: var(--text); margin: 0; letter-spacing: -0.02em; }
-  p { font-size: 0.78rem; color: var(--text-muted); margin: 0; }
-}
-.mx-head-right {
+.mx-head-row {
   display: flex; align-items: center;
   gap: 0.6rem; flex-wrap: wrap;
+}
+.mx-head-row.secondary {
+  align-items: flex-end;
+  .mx-updated { margin-left: auto; }
 }
 
 // Segmento de marca (colores de marca)
@@ -110,11 +108,7 @@
 }
 @keyframes mx-rot { to { transform: rotate(360deg); } }
 
-// ── Barra de filtros ──────────────────────────────────────
-.mx-toolbar {
-  display: flex; align-items: flex-end;
-  gap: 0.75rem; flex-wrap: wrap;
-}
+// ── Campo de filtro (asesor) ──────────────────────────────
 .mx-field {
   display: flex; flex-direction: column; gap: 3px;
   span {
@@ -575,6 +569,143 @@
 // ── Responsive ────────────────────────────────────────────
 @media (max-width: 760px) {
   .mx-wrap { padding: 1rem; }
-  .mx-head-right { width: 100%; }
+  .mx-head-row { width: 100%; }
   .mx-plot { height: 150px; }
+}
+
+// ── Gestión de correos: contadores resuelto/pendiente ─────
+.mx-gc-counters {
+  display: flex; gap: 0.5rem; flex-wrap: wrap;
+  margin-top: 0.7rem;
+}
+.mx-gc-count {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 0.7rem; font-weight: 600;
+  padding: 4px 9px;
+  border-radius: 99px;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  strong { color: var(--text); font-weight: 700; }
+  &.ok { border-color: rgba(22, 163, 74, 0.35); background: rgba(22, 163, 74, 0.08); color: #15803d; strong { color: #15803d; } }
+  &.pend { border-color: rgba(245, 158, 11, 0.35); background: rgba(245, 158, 11, 0.1); color: #b45309; strong { color: #b45309; } }
+}
+.mx-carpeta {
+  display: block;
+  font-style: normal;
+  font-size: 0.6rem; color: var(--text-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+// ── Chats atendidos por asesor (lista) ────────────────────
+.mx-asesores {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: 2px;
+  max-height: 260px; overflow: auto;
+  li {
+    display: flex; align-items: center; gap: 0.5rem;
+    padding: 0.45rem 0.55rem;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    &:hover { background: var(--bg); }
+  }
+}
+.mx-asesor-nombre {
+  flex: 1; min-width: 0;
+  font-weight: 600; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.mx-asesor-chats {
+  flex-shrink: 0;
+  font-size: 0.7rem; color: var(--text-muted);
+  white-space: nowrap;
+}
+
+// ── Conexión del asesor (barra por agente) ────────────────
+.mx-conn-legend {
+  flex-wrap: wrap;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
+}
+.mx-conn {
+  display: flex; flex-direction: column; gap: 4px;
+  padding-top: 0.4rem;
+}
+.mx-conn-axis {
+  display: flex; justify-content: space-between;
+  font-size: 0.56rem; color: var(--text-muted);
+  padding-left: 120px; padding-right: 96px;
+  font-family: 'DM Mono', monospace;
+}
+.mx-conn-row {
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.mx-conn-name {
+  width: 115px; flex-shrink: 0;
+  font-size: 0.7rem; font-weight: 600; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  text-align: right;
+}
+.mx-conn-track {
+  position: relative;
+  flex: 1; min-width: 0;
+  height: 14px;
+  border-radius: 99px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.mx-conn-seg {
+  position: absolute; top: 0; bottom: 0;
+  min-width: 2px;
+}
+.mx-conn-sin {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.58rem; color: var(--text-muted);
+}
+.mx-conn-range {
+  width: 92px; flex-shrink: 0;
+  font-size: 0.62rem; color: var(--text-muted);
+  font-family: 'DM Mono', monospace;
+  white-space: nowrap;
+}
+.mono { font-family: 'DM Mono', monospace; }
+
+// ── Chats por día: barras pareadas asesor / IA ────────────
+.mx-pairs {
+  display: flex; align-items: stretch;
+  gap: 4px;
+  height: 190px;
+  padding-top: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.mx-pair-col {
+  flex: 1; min-width: 0;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  align-items: end;
+}
+.mx-pair-bars {
+  height: 100%;
+  display: flex; align-items: flex-end; justify-content: center;
+  gap: 3px;
+}
+.mx-pair-bar {
+  width: 40%; max-width: 18px;
+  border-radius: 4px 4px 0 0;
+  min-height: 2px;
+  &.asesor { background: #1a3fa8; }
+  &.ia { background: #eab308; }
+}
+
+// ── Placeholder de Conexión del asesor (rango ≠ "Hoy") ────
+.mx-placeholder {
+  padding: 1.4rem 1rem;
+  text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
+  background: var(--bg);
+  border: 1px dashed var(--border);
+  border-radius: 9px;
+  p { margin: 0; font-size: 0.78rem; color: var(--text-muted); }
 }
