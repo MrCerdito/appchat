@@ -222,9 +222,9 @@
 .mx-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 1rem 1.1rem;
-  display: flex; flex-direction: column; gap: 0.8rem;
+  border-radius: 10px;
+  padding: 0.85rem 0.95rem;
+  display: flex; flex-direction: column; gap: 0.65rem;
   min-width: 0;
 }
 .mx-card-head {
@@ -368,46 +368,72 @@
 }
 
 // ── Donuts ────────────────────────────────────────────────
+// Donut arriba centrado; leyenda como grid responsivo centrado debajo.
 .mx-donut-wrap {
-  display: flex; align-items: center;
-  gap: 1.25rem;
-  flex-wrap: wrap;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: flex-start;
+  gap: 0.9rem;
+  flex: 1 1 auto;
 }
 .mx-donut {
   position: relative;
-  width: 132px; height: 132px;
+  width: 108px; height: 108px;
   border-radius: 50%;
   flex-shrink: 0;
-  .sm & { width: 108px; height: 108px; }
+  .sm & { width: 100px; height: 100px; }
 }
 .mx-donut-hole {
-  position: absolute; inset: 22px;
+  position: absolute; inset: 18px;
   border-radius: 50%;
   background: var(--surface);
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
   text-align: center;
-  strong { font-size: 1rem; font-weight: 700; color: var(--text); line-height: 1.1; }
-  span { font-size: 0.58rem; color: var(--text-muted); }
+  strong {
+    font-size: 0.98rem; font-weight: 700; color: var(--text);
+    line-height: 1.05; letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  span { font-size: 0.52rem; color: var(--text-muted); letter-spacing: 0.02em; }
 }
+// Leyenda apilada y centrada: descripción arriba (punto + texto), valor debajo.
 .mx-legend {
   list-style: none; margin: 0; padding: 0;
-  display: flex; flex-direction: column; gap: 6px;
-  flex: 1; min-width: 150px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, max-content));
+  justify-content: center;
+  align-items: start;
+  gap: 10px 16px;
+  width: 100%;
+  flex: 0 0 auto;
   li {
-    display: flex; align-items: center; gap: 7px;
-    font-size: 0.74rem; color: var(--text);
-    strong { font-weight: 700; }
-    em {
-      font-style: normal; color: var(--text-muted);
-      font-size: 0.68rem;
-      min-width: 30px; text-align: right;
-      margin-left: auto;
-    }
+    display: flex; flex-direction: column; align-items: center; gap: 1px;
+    min-width: 0; max-width: 150px;
+  }
+  .mx-legend-top {
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+    min-width: 0; max-width: 100%;
+  }
+  .mx-legend-val {
+    display: flex; align-items: baseline; justify-content: center; gap: 5px;
+  }
+  strong {
+    font-size: 0.98rem; font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+    color: var(--text);
+    letter-spacing: -0.01em;
+    text-align: center;
+  }
+  em {
+    font-style: normal; color: var(--text-muted);
+    font-size: 0.64rem;
+    font-variant-numeric: tabular-nums;
   }
 }
 .mx-legend-label {
-  flex: 1; min-width: 0;
+  min-width: 0;
+  font-size: 0.68rem; color: var(--text-muted);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
@@ -531,6 +557,10 @@
   overflow-x: auto;
   margin: 0 -0.35rem;
   padding: 0 0.35rem;
+  &.capped {
+    overflow-y: auto;
+    max-height: 240px;
+  }
 }
 .mx-table {
   width: 100%;
@@ -573,83 +603,127 @@
   .mx-plot { height: 150px; }
 }
 
-// ── Gestión de correos: contadores resuelto/pendiente ─────
-.mx-gc-counters {
-  display: flex; gap: 0.5rem; flex-wrap: wrap;
-  margin-top: 0.7rem;
-}
-.mx-gc-count {
-  display: inline-flex; align-items: center; gap: 5px;
-  font-size: 0.7rem; font-weight: 600;
-  padding: 4px 9px;
-  border-radius: 99px;
-  color: var(--text-muted);
-  border: 1px solid var(--border);
-  background: var(--bg);
-  strong { color: var(--text); font-weight: 700; }
-  &.ok { border-color: rgba(22, 163, 74, 0.35); background: rgba(22, 163, 74, 0.08); color: #15803d; strong { color: #15803d; } }
-  &.pend { border-color: rgba(245, 158, 11, 0.35); background: rgba(245, 158, 11, 0.1); color: #b45309; strong { color: #b45309; } }
-}
+// ── Gestión de correos: carpeta bajo el valor ────────────
 .mx-carpeta {
   display: block;
   font-style: normal;
-  font-size: 0.6rem; color: var(--text-muted);
+  font-size: 0.57rem; color: var(--text-muted);
+  line-height: 1.15;
+  max-width: 100%;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  letter-spacing: 0.01em;
+  text-align: center;
 }
 
-// ── Chats atendidos por asesor (lista) ────────────────────
-.mx-asesores {
+// ── Card Reuniones: 3 columnas + historial de próximas ────
+.mx-reuniones-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+.mx-reunion-kpi {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: 0.55rem 0.3rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  strong {
+    font-size: 1.3rem; font-weight: 700; color: var(--text);
+    font-variant-numeric: tabular-nums; line-height: 1.05;
+    letter-spacing: -0.02em;
+  }
+  span {
+    font-size: 0.58rem; font-weight: 700;
+    letter-spacing: 0.04em; text-transform: uppercase;
+    color: var(--text-muted);
+  }
+}
+.mx-reuniones-prox {
+  display: flex; flex-direction: column; gap: 0.4rem;
+}
+.mx-reuniones-prox-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--border);
+  span {
+    font-size: 0.66rem; font-weight: 700;
+    letter-spacing: 0.04em; text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  strong {
+    font-size: 0.88rem; font-weight: 700; color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+}
+.mx-reuniones-list {
   list-style: none; margin: 0; padding: 0;
-  display: flex; flex-direction: column; gap: 2px;
-  max-height: 260px; overflow: auto;
+  display: flex; flex-direction: column; gap: 3px;
+  max-height: 148px; overflow: auto;
   li {
-    display: flex; align-items: center; gap: 0.5rem;
-    padding: 0.45rem 0.55rem;
-    border-radius: 8px;
-    font-size: 0.75rem;
+    display: flex; align-items: center; gap: 0.45rem;
+    padding: 0.34rem 0.4rem;
+    border-radius: 6px;
+    min-width: 0;
     &:hover { background: var(--bg); }
   }
 }
-.mx-asesor-nombre {
-  flex: 1; min-width: 0;
-  font-weight: 600; color: var(--text);
+.mx-reunion-modalidad {
+  flex-shrink: 0;
+  font-size: 0.52rem; font-weight: 700;
+  padding: 1px 5px; border-radius: 99px;
+  text-transform: uppercase; letter-spacing: 0.02em;
+  line-height: 1.4;
+  &.virtual { background: rgba(26, 63, 168, 0.1); color: #1a3fa8; }
+  &.presencial { background: rgba(206, 155, 48, 0.14); color: #a4761d; }
+}
+.mx-reunion-subject {
+  flex: 1 1 auto; min-width: 0;
+  font-size: 0.7rem; color: var(--text);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.mx-asesor-chats {
+.mx-reunion-fecha {
   flex-shrink: 0;
-  font-size: 0.7rem; color: var(--text-muted);
+  font-size: 0.62rem; color: var(--text-muted);
+  font-family: 'DM Mono', monospace;
   white-space: nowrap;
 }
 
-// ── Conexión del asesor (barra por agente) ────────────────
-.mx-conn-legend {
-  flex-wrap: wrap;
-  padding-bottom: 0.4rem;
-  border-bottom: 1px solid var(--border);
+// ── Conexión del asesor (barra por asesor) ────────────────
+.mx-conn-jornada {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  span {
+    font-size: 0.6rem; font-weight: 700;
+    letter-spacing: 0.05em; text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  strong {
+    font-size: 0.8rem; font-weight: 700; color: var(--text);
+    font-family: 'DM Mono', monospace;
+    white-space: nowrap;
+  }
 }
 .mx-conn {
-  display: flex; flex-direction: column; gap: 4px;
-  padding-top: 0.4rem;
-}
-.mx-conn-axis {
-  display: flex; justify-content: space-between;
-  font-size: 0.56rem; color: var(--text-muted);
-  padding-left: 120px; padding-right: 96px;
-  font-family: 'DM Mono', monospace;
+  display: flex; flex-direction: column; gap: 5px;
+  min-width: 0;
 }
 .mx-conn-row {
-  display: flex; align-items: center; gap: 0.5rem;
+  display: flex; align-items: center; gap: 0.4rem;
+  min-width: 0;
 }
 .mx-conn-name {
-  width: 115px; flex-shrink: 0;
-  font-size: 0.7rem; font-weight: 600; color: var(--text);
+  width: 72px; flex-shrink: 0;
+  font-size: 0.66rem; font-weight: 600; color: var(--text);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  text-align: right;
 }
 .mx-conn-track {
   position: relative;
-  flex: 1; min-width: 0;
-  height: 14px;
+  flex: 1 1 auto; min-width: 40px;
+  height: 13px;
   border-radius: 99px;
   background: var(--bg);
   border: 1px solid var(--border);
@@ -662,15 +736,13 @@
 .mx-conn-sin {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
-  font-size: 0.58rem; color: var(--text-muted);
-}
-.mx-conn-range {
-  width: 92px; flex-shrink: 0;
-  font-size: 0.62rem; color: var(--text-muted);
-  font-family: 'DM Mono', monospace;
-  white-space: nowrap;
+  font-size: 0.55rem; color: var(--text-muted);
 }
 .mono { font-family: 'DM Mono', monospace; }
+.mx-conn-legend {
+  flex-wrap: wrap;
+  padding-top: 0.15rem;
+}
 
 // ── Chats por día: barras pareadas asesor / IA ────────────
 .mx-pairs {

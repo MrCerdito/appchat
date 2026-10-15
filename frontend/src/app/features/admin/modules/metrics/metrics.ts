@@ -252,6 +252,15 @@ export class MetricsComponent implements OnInit, OnDestroy {
     return Math.max(1, ...(this.dash?.conexiones.porDia ?? []).map((s) => s.count));
   }
 
+  /** Próximas reuniones (a partir de hoy) para el historial de la card Reuniones. */
+  get proximasReunionesList() {
+    const ahora = Date.now();
+    return (this.dash?.capacitaciones.tabla ?? [])
+      .filter((m) => new Date(m.startDateTime).getTime() > ahora)
+      .sort((a, b) => new Date(a.startDateTime).getTime() - new Date(b.startDateTime).getTime())
+      .slice(0, 8);
+  }
+
   barHeight(total: number): number {
     return (total / this.serieMax) * 100;
   }
@@ -335,10 +344,20 @@ export class MetricsComponent implements OnInit, OnDestroy {
     return Math.max(1, ...serie.map((s) => Math.max(s.conAsesor ?? 0, s.ia ?? 0)));
   }
 
-  /** Paleta fija para los ítems de "Tipo de solicitud". */
+  /** Paleta minimalista compartida por los donuts (marca, acentos sobrios). */
+  private readonly donutPalette = [
+    '#1a3fa8', // azul marca
+    '#ce9b30', // dorado marca
+    '#16a34a', // verde
+    '#8b5cf6', // violeta
+    '#64748b', // gris
+    '#ef4444', // rojo
+    '#3b82f6', // azul claro
+    '#f59e0b', // ámbar
+  ];
+
   solicitudColor(i: number): string {
-    const paleta = ['#1a3fa8', '#ce9b30', '#16a34a', '#8b5cf6', '#ef4444', '#3b82f6', '#f59e0b', '#64748b'];
-    return paleta[i % paleta.length];
+    return this.donutPalette[i % this.donutPalette.length];
   }
 
   donutSolicitudesStyle(): string {
@@ -350,10 +369,9 @@ export class MetricsComponent implements OnInit, OnDestroy {
     );
   }
 
-  /** Paleta para las categorías de gestión de correos. */
+  /** Color para las categorías de gestión de correos (misma paleta minimalista). */
   gestionColor(i: number): string {
-    const paleta = ['#8b5cf6', '#ef4444', '#3b82f6', '#f59e0b', '#16a34a', '#ce9b30', '#1a3fa8', '#64748b'];
-    return paleta[i % paleta.length];
+    return this.donutPalette[i % this.donutPalette.length];
   }
 
   donutGestionCorreosStyle(): string {
@@ -388,28 +406,63 @@ export class MetricsComponent implements OnInit, OnDestroy {
     return map[estado] ?? estado;
   }
 
-  /** % (0–100) que ocupa un instante dentro del día (00:00–24:00), para posicionar segmentos. */
-  pctDelDia(iso: string | null): number {
-    if (!iso) return 0;
-    const d = new Date(iso);
-    const min = d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60;
-    return (min / 1440) * 100;
+  /** Offset de Bogotá (UTC-5) en minutos y minutos por día (mismos de Advisors). */
+  private static readonly OFFSET_BOGOTA_MIN = -5 * 60;
+  private static readonly MINUTOS_DIA = 1440;
+
+  /** Epoch ms del inicio (00:00 Bogotá) de una fecha YYYY-MM-DD. */
+  private inicioDiaUtc(fecha: string): number {
+    const [y, m, d] = fecha.split('-').map(Number);
+    return Date.UTC(y, m - 1, d) - MetricsComponent.OFFSET_BOGOTA_MIN * 60000;
   }
 
-  /** Desplazamiento horizontal (left %) de un periodo dentro de la barra del día. */
+  /** Minutos desde 00:00 Bogotá para un instante ISO, dentro del día de la tarjeta. */
+  private minutosEnDia(iso: string, dayStartMs: number): number {
+    return (new Date(iso).getTime() - dayStartMs) / 60000;
+  }
+
+  /** Desplazamiento horizontal (left %) de un periodo en la barra del día (00:00–24:00 Bogotá). */
   periodoLeft(p: { desde: string }): number {
-    return this.pctDelDia(p.desde);
+    const fecha = this.dash?.conexiones.barras?.fecha;
+    if (!fecha) return 0;
+    const ini = this.minutosEnDia(p.desde, this.inicioDiaUtc(fecha));
+    return Math.min(100, Math.max(0, (ini / MetricsComponent.MINUTOS_DIA) * 100));
   }
 
-  /** Ancho (width %) de un periodo dentro de la barra del día. */
+  /** Ancho (width %) de un periodo en la barra del día (00:00–24:00 Bogotá). */
   periodoWidth(p: { desde: string; hasta: string | null }): number {
-    if (!p.hasta) return Math.max(0, 100 - this.pctDelDia(p.desde));
-    return Math.max(0, this.pctDelDia(p.hasta) - this.pctDelDia(p.desde));
+    const fecha = this.dash?.conexiones.barras?.fecha;
+    if (!fecha) return 0;
+    const dayStartMs = this.inicioDiaUtc(fecha);
+    const ini = this.minutosEnDia(p.desde, dayStartMs);
+    const fin = p.hasta
+      ? this.minutosEnDia(p.hasta, dayStartMs)
+      : Math.max(0, Math.min((Date.now() - dayStartMs) / 60000, MetricsComponent.MINUTOS_DIA));
+    const width = ((fin - ini) / MetricsComponent.MINUTOS_DIA) * 100;
+    return Math.min(100, Math.max(0, width));
   }
 
+  /** Hora en hora Bogotá (HH:MM) para un instante ISO. */
   horaCorta(iso: string | null): string {
     if (!iso) return '—';
-    return new Date(iso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+    const bog = new Date(new Date(iso).getTime() + MetricsComponent.OFFSET_BOGOTA_MIN * 60000);
+    const p = (n: number) => String(n).padStart(2, '0');
+    return `${p(bog.getUTCHours())}:${p(bog.getUTCMinutes())}`;
+  }
+
+  /** Jornada del día: primera actividad de inicio y última de fin entre los asesores. */
+  get jornadaRango(): { inicio: string; fin: string } | null {
+    const asesores = this.dash?.conexiones.barras?.asesores ?? [];
+    let inicioIso: string | null = null;
+    let finIso: string | null = null;
+    for (const a of asesores) {
+      for (const p of a.periodos) {
+        if (p.desde && (!inicioIso || p.desde < inicioIso)) inicioIso = p.desde;
+        if (p.hasta && (!finIso || p.hasta > finIso)) finIso = p.hasta;
+      }
+    }
+    if (!inicioIso) return null;
+    return { inicio: this.horaCorta(inicioIso), fin: this.horaCorta(finIso ?? inicioIso) };
   }
 
   private donutStyle(segs: { color: string; value: number }[]): string {

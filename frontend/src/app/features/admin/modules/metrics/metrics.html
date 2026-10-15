@@ -107,9 +107,13 @@
                 <ul class="mx-legend">
                   @for (e of ticketStatusEntries(); track e.key) {
                     <li>
-                      <span class="mx-dot" [style.--c]="e.color"></span>
-                      <span class="mx-legend-label">{{ e.label }}</span>
-                      <strong>{{ fmtS(e.value) }}</strong>
+                      <span class="mx-legend-top">
+                        <span class="mx-dot" [style.--c]="e.color"></span>
+                        <span class="mx-legend-label">{{ e.label }}</span>
+                      </span>
+                      <span class="mx-legend-val">
+                        <strong>{{ fmtS(e.value) }}</strong>
+                      </span>
                     </li>
                   }
                 </ul>
@@ -137,9 +141,13 @@
                 <ul class="mx-legend">
                   @for (d of dash.solicitudes.distribucion; track d.clave) {
                     <li>
-                      <span class="mx-dot" [style.--c]="solicitudColor($index)"></span>
-                      <span class="mx-legend-label">{{ d.clave }}</span>
-                      <strong>{{ fmtS(d.count) }}</strong>
+                      <span class="mx-legend-top">
+                        <span class="mx-dot" [style.--c]="solicitudColor($index)"></span>
+                        <span class="mx-legend-label">{{ d.clave }}</span>
+                      </span>
+                      <span class="mx-legend-val">
+                        <strong>{{ fmtS(d.count) }}</strong>
+                      </span>
                     </li>
                   }
                 </ul>
@@ -167,21 +175,19 @@
                 <ul class="mx-legend">
                   @for (c of gestionCorreos?.porCategoria; track c.clave) {
                     <li>
-                      <span class="mx-dot" [style.--c]="gestionColor($index)"></span>
-                      <span class="mx-legend-label">
-                        {{ c.clave }}
-                        @if (c.carpeta) {
-                          <em class="mx-carpeta">{{ c.carpeta }}</em>
-                        }
+                      <span class="mx-legend-top">
+                        <span class="mx-dot" [style.--c]="gestionColor($index)"></span>
+                        <span class="mx-legend-label">{{ c.clave }}</span>
                       </span>
-                      <strong>{{ fmtS(c.count) }}</strong>
+                      <span class="mx-legend-val">
+                        <strong>{{ fmtS(c.count) }}</strong>
+                      </span>
+                      @if (c.carpeta) {
+                        <em class="mx-carpeta">{{ c.carpeta }}</em>
+                      }
                     </li>
                   }
                 </ul>
-              </div>
-              <div class="mx-gc-counters">
-                <span class="mx-gc-count ok">✓ Resueltos <strong>{{ fmtS(gestionCorreos?.resueltos) }}</strong></span>
-                <span class="mx-gc-count pend">⧗ Pendientes <strong>{{ fmtS(gestionCorreos?.pendientes) }}</strong></span>
               </div>
             }
           </section>
@@ -196,12 +202,39 @@
                 <span class="mx-card-sub">Virtuales y presenciales del periodo</span>
               </div>
             </div>
-            <ul class="mx-act">
-              <li><span>Total</span><strong>{{ fmtS(dash.resumen.kpis.capacitaciones.total) }}</strong></li>
-              <li><span>Virtuales</span><strong>{{ fmtS(dash.resumen.kpis.capacitaciones.virtuales) }}</strong></li>
-              <li><span>Presenciales</span><strong>{{ fmtS(dash.resumen.kpis.capacitaciones.presenciales) }}</strong></li>
-              <li><span>Próximas</span><strong>{{ fmtS(dash.resumen.actividad.proximasReuniones) }}</strong></li>
-            </ul>
+            <div class="mx-reuniones-kpis">
+              <div class="mx-reunion-kpi">
+                <strong>{{ fmtS(dash.resumen.kpis.capacitaciones.total) }}</strong>
+                <span>Total</span>
+              </div>
+              <div class="mx-reunion-kpi">
+                <strong>{{ fmtS(dash.resumen.kpis.capacitaciones.virtuales) }}</strong>
+                <span>Virtuales</span>
+              </div>
+              <div class="mx-reunion-kpi">
+                <strong>{{ fmtS(dash.resumen.kpis.capacitaciones.presenciales) }}</strong>
+                <span>Presenciales</span>
+              </div>
+            </div>
+            <div class="mx-reuniones-prox">
+              <div class="mx-reuniones-prox-head">
+                <span>Próximas</span>
+                <strong>{{ fmtS(dash.resumen.actividad.proximasReuniones) }}</strong>
+              </div>
+              @if (isEmpty(proximasReunionesList)) {
+                <div class="mx-empty">Sin próximas reuniones programadas.</div>
+              } @else {
+                <ul class="mx-reuniones-list">
+                  @for (m of proximasReunionesList; track m.id) {
+                    <li>
+                      <span class="mx-reunion-modalidad" [ngClass]="m.modalidad === 'presencial' ? 'presencial' : 'virtual'">{{ m.modalidad }}</span>
+                      <span class="mx-reunion-subject" [title]="m.subject">{{ m.subject }}</span>
+                      <span class="mx-reunion-fecha">{{ m.startDateTime | date:'dd/MM HH:mm' }}</span>
+                    </li>
+                  }
+                </ul>
+              }
+            </div>
           </section>
 
           <section class="mx-card">
@@ -214,19 +247,36 @@
             @if (isEmpty(dash.resumen.asesores)) {
               <div class="mx-empty">Sin asesores con sesiones en este rango.</div>
             } @else {
-              <ul class="mx-asesores">
-                @for (a of dash.resumen.asesores; track a.id) {
-                  <li>
-                    <span class="mx-asesor-nombre" [title]="a.nombre">{{ a.nombre }}</span>
-                    <span class="mx-asesor-chats">{{ fmtS(a.atendidas) }} chats</span>
-                    <span class="mx-stars sm">
-                      @for (st of getStars(a.avgEstrellas); track $index) {
-                        <i [class]="'star ' + st"></i>
-                      }
-                    </span>
-                  </li>
-                }
-              </ul>
+              <div class="mx-table-scroll capped">
+                <table class="mx-table">
+                  <thead>
+                    <tr>
+                      <th>Asesor</th>
+                      <th class="num">Chats</th>
+                      <th class="num">Rating</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (a of dash.resumen.asesores; track a.id) {
+                      <tr>
+                        <td>{{ a.nombre }}</td>
+                        <td class="num">{{ fmtS(a.atendidas) }}</td>
+                        <td class="num">
+                          @if (a.avgEstrellas != null) {
+                            <span class="mx-stars sm">
+                              @for (st of getStars(a.avgEstrellas); track $index) {
+                                <i [class]="'star ' + st"></i>
+                              }
+                            </span>
+                          } @else {
+                            —
+                          }
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
             }
           </section>
 
@@ -234,7 +284,7 @@
             <div class="mx-card-head">
               <div>
                 <span class="mx-card-title">Conexión del asesor</span>
-                <span class="mx-card-sub">Jornada del día por agente</span>
+                <span class="mx-card-sub">Jornada del día por asesor</span>
               </div>
             </div>
             @if (!esHoy) {
@@ -245,17 +295,13 @@
             } @else if (isEmpty(dash.conexiones.barras?.asesores)) {
               <div class="mx-empty">Sin actividad de conexión en el día.</div>
             } @else {
-              <div class="mx-legend-inline mx-conn-legend">
-                <span class="mx-dot" style="--c:#16a34a"></span> Disponible
-                <span class="mx-dot" style="--c:#3b82f6"></span> Ocupado
-                <span class="mx-dot" style="--c:#8b5cf6"></span> Reuniones
-                <span class="mx-dot" style="--c:#f59e0b"></span> Almuerzo
-                <span class="mx-dot" style="--c:#94a3b8"></span> Inactivo
-              </div>
-              <div class="mx-conn">
-                <div class="mx-conn-axis">
-                  <span>00</span><span>06</span><span>12</span><span>18</span><span>24</span>
+              @if (jornadaRango) {
+                <div class="mx-conn-jornada">
+                  <span>Jornada</span>
+                  <strong>{{ jornadaRango.inicio }} — {{ jornadaRango.fin }}</strong>
                 </div>
+              }
+              <div class="mx-conn">
                 @for (a of dash.conexiones.barras?.asesores; track a.id) {
                   <div class="mx-conn-row">
                     <span class="mx-conn-name" [title]="a.nombre">{{ a.nombre }}</span>
@@ -272,9 +318,15 @@
                         }
                       }
                     </div>
-                    <span class="mx-conn-range mono">{{ horaCorta(a.primera) }} — {{ horaCorta(a.ultima) }}</span>
                   </div>
                 }
+              </div>
+              <div class="mx-legend-inline mx-conn-legend">
+                <span class="mx-dot" style="--c:#16a34a"></span> Disponible
+                <span class="mx-dot" style="--c:#3b82f6"></span> Ocupado
+                <span class="mx-dot" style="--c:#8b5cf6"></span> Reuniones
+                <span class="mx-dot" style="--c:#f59e0b"></span> Almuerzo
+                <span class="mx-dot" style="--c:#94a3b8"></span> Inactivo
               </div>
             }
           </section>
@@ -335,10 +387,14 @@
                 <ul class="mx-legend">
                   @for (p of dash.resumen.proyectos; track p.proyecto) {
                     <li>
-                      <span class="mx-dot" [style.--c]="proyectoColor(p.proyecto)"></span>
-                      <span class="mx-legend-label">{{ p.proyecto }}</span>
-                      <strong>{{ fmtS(p.total) }}</strong>
-                      <em>{{ pctOf(p.total, dash.resumen.kpis.sesiones.total) }}%</em>
+                      <span class="mx-legend-top">
+                        <span class="mx-dot" [style.--c]="proyectoColor(p.proyecto)"></span>
+                        <span class="mx-legend-label">{{ p.proyecto }}</span>
+                      </span>
+                      <span class="mx-legend-val">
+                        <strong>{{ fmtS(p.total) }}</strong>
+                        <em>{{ pctOf(p.total, dash.resumen.kpis.sesiones.total) }}%</em>
+                      </span>
                     </li>
                   }
                 </ul>
@@ -499,10 +555,14 @@
                 <ul class="mx-legend">
                   @for (e of ticketStatusEntries(); track e.key) {
                     <li>
-                      <span class="mx-dot" [style.--c]="e.color"></span>
-                      <span class="mx-legend-label">{{ e.label }}</span>
-                      <strong>{{ fmtS(e.value) }}</strong>
-                      <em>{{ pctOf(e.value, dash.requerimientos.kpis.tickets.total) }}%</em>
+                      <span class="mx-legend-top">
+                        <span class="mx-dot" [style.--c]="e.color"></span>
+                        <span class="mx-legend-label">{{ e.label }}</span>
+                      </span>
+                      <span class="mx-legend-val">
+                        <strong>{{ fmtS(e.value) }}</strong>
+                        <em>{{ pctOf(e.value, dash.requerimientos.kpis.tickets.total) }}%</em>
+                      </span>
                     </li>
                   }
                 </ul>
@@ -837,9 +897,13 @@
                 <ul class="mx-legend">
                   @for (m of dash.capacitaciones.porModalidad; track m.clave) {
                     <li>
-                      <span class="mx-dot" [style.--c]="m.clave === 'presencial' ? '#ce9b30' : '#1a3fa8'"></span>
-                      <span class="mx-legend-label">{{ m.clave }}</span>
-                      <strong>{{ fmtS(m.count) }}</strong>
+                      <span class="mx-legend-top">
+                        <span class="mx-dot" [style.--c]="m.clave === 'presencial' ? '#ce9b30' : '#1a3fa8'"></span>
+                        <span class="mx-legend-label">{{ m.clave }}</span>
+                      </span>
+                      <span class="mx-legend-val">
+                        <strong>{{ fmtS(m.count) }}</strong>
+                      </span>
                     </li>
                   }
                 </ul>
@@ -1098,13 +1162,17 @@
                 <ul class="mx-legend">
                   @for (d of dash.conexiones.distribucion; track d.estado) {
                     <li>
-                      <span class="mx-dot" [style.--c]="
-                        d.estado === 'Disponible' ? '#16a34a' :
-                        d.estado === 'Ocupado' ? '#3b82f6' :
-                        d.estado === 'Reuniones' ? '#8b5cf6' :
-                        d.estado === 'Almuerzo' ? '#f59e0b' : '#94a3b8'"></span>
-                      <span class="mx-legend-label">{{ d.estado }}</span>
-                      <strong>{{ fmtMin(d.minutos) }}</strong>
+                      <span class="mx-legend-top">
+                        <span class="mx-dot" [style.--c]="
+                          d.estado === 'Disponible' ? '#16a34a' :
+                          d.estado === 'Ocupado' ? '#3b82f6' :
+                          d.estado === 'Reuniones' ? '#8b5cf6' :
+                          d.estado === 'Almuerzo' ? '#f59e0b' : '#94a3b8'"></span>
+                        <span class="mx-legend-label">{{ d.estado }}</span>
+                      </span>
+                      <span class="mx-legend-val">
+                        <strong>{{ fmtMin(d.minutos) }}</strong>
+                      </span>
                     </li>
                   }
                 </ul>

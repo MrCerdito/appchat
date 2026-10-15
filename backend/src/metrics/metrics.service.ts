@@ -169,7 +169,7 @@ export class MetricsService {
         comentarios: resumen.comentarios,
         gestionCorreos: resumen.gestionCorreos,
         colegios: colegios.tabla.slice(0, 12),
-        asesores: asesoria.tabla.slice(0, 12),
+        asesores: asesoria.tabla,
         actividad: {
           capacitaciones: capacitaciones.kpis.capacitaciones.total,
           proximasReuniones: capacitaciones.proximas,
@@ -882,7 +882,7 @@ export class MetricsService {
 
     return {
       kpis: {
-        asesoresActivos: tablaEnriquecida.length,
+        asesoresActivos: tablaEnriquecida.filter((x: any) => x.atendidas > 0).length,
         cerrados: tablaEnriquecida.reduce((s: number, x: any) => s + x.cerrados, 0),
         activos: tablaEnriquecida.reduce((s: number, x: any) => s + x.activos, 0),
       },
@@ -894,24 +894,33 @@ export class MetricsService {
     };
   }
 
+  /**
+   * Tabla de asesores para el dashboard y la pestaña Asesoría.
+   *
+   * Se parte de `users` (solo rol `advisor`, activos) con LEFT JOIN a las
+   * sesiones del rango: así listan TODOS los asesores, incluso los que no
+   * atendieron chats en el periodo (aparecen con 0 en todas las columnas).
+   * Orden: primero quienes tienen más atención, y al final los sin actividad.
+   */
   private async queryAsesoresTabla(f: Filtros, r: Rango) {
     const p = new Params();
-    const w = this.whereSesiones(p, f, r);
-    w.push('s.advisor_id IS NOT NULL');
+    const sesiones = this.whereSesiones(p, f, r);
+    // whereSesiones ya agregó los parámetros de marca/fechas/asesor a `p`.
     const rows = await this.dataSource.query(
-      `SELECT s.advisor_id AS id, u.name AS nombre,
-              COUNT(*)::int AS atendidas,
-              COUNT(*) FILTER (WHERE s.status = 'closed')::int AS cerrados,
-              COUNT(*) FILTER (WHERE s.status = 'active')::int AS activos,
+      `SELECT u.id, u.name AS nombre,
+              COUNT(s.id)::int AS atendidas,
+              COUNT(s.id) FILTER (WHERE s.status = 'closed')::int AS cerrados,
+              COUNT(s.id) FILTER (WHERE s.status = 'active')::int AS activos,
               ROUND(AVG(EXTRACT(EPOCH FROM (s.closed_at - s.created_at)) / 60)
                 FILTER (WHERE s.status = 'closed' AND s.closed_at IS NOT NULL))::int AS "avgMinutes"
-       FROM sessions s
-       JOIN users u ON u.id = s.advisor_id
-       LEFT JOIN colegios c ON lower(c.nombre) = lower(s.colegio)
-       WHERE ${w.join(' AND ')}
-       GROUP BY s.advisor_id, u.name
-       ORDER BY 4 DESC, 3 DESC
-       LIMIT 50`,
+       FROM users u
+       LEFT JOIN sessions s
+         ON s.advisor_id = u.id
+        ${sesiones.length ? `AND ${sesiones.join(' AND ')}` : ''}
+       WHERE u.role = 'advisor' AND u.active = true
+         ${f.asesorId ? `AND u.id = ${p.ph(f.asesorId)}` : ''}
+       GROUP BY u.id, u.name
+       ORDER BY COUNT(s.id) DESC, u.name ASC`,
       p.args,
     );
     return rows.map((row: any) => ({
@@ -1287,14 +1296,17 @@ export class MetricsService {
     );
 
     // Lista completa de asesores activos para que los sin actividad también se
-    // dibujen (con 0 periodos), igual que en la tabla de conexiones.
+    // dibujen (con 0 periodos), igual que en la tabla de conexiones. Se usa un
+    // Params aparte para no reutilizar los placeholders de la query anterior.
+    const pu = new Params();
+    const userPhU = f.asesorId ? pu.ph(f.asesorId) : null;
     const asesores = await this.dataSource.query(
       `SELECT u.id, u.name AS nombre
        FROM users u
-       WHERE u.active = true AND u.role IN ('advisor', 'admin', 'desarrollador')
-         ${userPh ? `AND u.id = ${userPh}` : ''}
+       WHERE u.active = true AND u.role = 'advisor'
+         ${userPhU ? `AND u.id = ${userPhU}` : ''}
        ORDER BY u.name ASC`,
-      p.args,
+      pu.args,
     );
 
     const porId = new Map<string, any>();
@@ -1397,7 +1409,7 @@ export class MetricsService {
        FROM users u
        LEFT JOIN mins m ON m.user_id = u.id
        LEFT JOIN des d ON d.user_id = u.id
-       WHERE u.active = true AND u.role IN ('advisor', 'admin', 'desarrollador')
+       WHERE u.active = true AND u.role = 'advisor'
          ${userPh ? `AND u.id = ${userPh}` : ''}
        ORDER BY 4 DESC, 5 DESC, u.name ASC`,
       p.args,
