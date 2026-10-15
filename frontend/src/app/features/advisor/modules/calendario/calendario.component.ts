@@ -29,6 +29,7 @@ import {
   EventoCalendario,
   GrupoCalendario,
 } from '../../../../core/services/calendario.service';
+import { SessionService, Colegio } from '../../../../core/services/session.service';
 import {
   fmtDateMedium,
   fmtMedium,
@@ -172,6 +173,14 @@ function utcDesdeNaive(naive: string): Date {
   );
 }
 
+/** 'YYYY-MM-DD' del dia siguiente a una fecha 'YYYY-MM-DD' (cuenta dias). */
+function diaSiguiente(fecha: string): string {
+  const [y, m, d] = (fecha ?? '').split('-').map(Number);
+  if (!y || !m || !d) return '';
+  const t = new Date(Date.UTC(y, m - 1, d + 1));
+  return `${t.getUTCFullYear()}-${pad2(t.getUTCMonth() + 1)}-${pad2(t.getUTCDate())}`;
+}
+
 @Component({
   selector: 'app-calendario',
   standalone: true,
@@ -208,6 +217,20 @@ export class CalendarioComponent implements OnInit, AfterViewInit, OnDestroy {
 
   protected readonly categoriasReunion = CATEGORIAS_REUNION;
 
+  /**
+   * Catalogo de colegios, para etiquetar la reunion con su marca (proyecto),
+   * que es lo que permite filtrarla en Metricas. Se carga una sola vez.
+   */
+  colegios: Colegio[] = [];
+  colegiosCargados = false;
+
+  /**
+   * Buscador del colegio: el catalogo es largo, asi que en el formulario se
+   * filtra por texto en vez de desplegar todos los colegios de golpe.
+   */
+  colegioQuery = '';
+  colegiosAbierto = false;
+
   showCreate = false;
   draft = {
     subject: '',
@@ -216,6 +239,11 @@ export class CalendarioComponent implements OnInit, AfterViewInit, OnDestroy {
     agendarCalendario: true,
     /** Alias de la categoria elegida ("Reunion virtual", ...). */
     categoria: CATEGORIA_POR_DEFECTO.alias,
+    /** Rango (YYYY-MM-DD) de las marcas por ausencia/vacaciones/incapacidad. */
+    fechaDesde: '',
+    fechaHasta: '',
+    /** Colegio escogido (id): solo sirve para guardar la marca/proyecto. */
+    colegioId: '',
   };
   creating = false;
   createError = '';
@@ -286,6 +314,7 @@ export class CalendarioComponent implements OnInit, AfterViewInit, OnDestroy {
     private readonly router: Router,
     private readonly cdr: ChangeDetectorRef,
     private readonly theme: ThemeService,
+    private readonly session: SessionService,
   ) {
     // El mes visible se deriva de la hora de Bogota, no de `getMonth()` del
     // navegador: si el equipo no esta en Colombia, el titulo del mes se
@@ -316,7 +345,30 @@ export class CalendarioComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     this.buildGrid();
     this.loadCalendar();
+    this.cargarColegios();
     this.iniciarRefresco();
+  }
+
+  /**
+   * Carga el catalogo de colegios para el selector del modal. No es bloqueante:
+   * si falla, el formulario sigue sirviendo, solo que sin poder etiquetar la
+   * reunion con su marca.
+   */
+  private cargarColegios(): void {
+    if (this.colegiosCargados) return;
+    this.colegiosCargados = true;
+    this.session.getColegios().subscribe({
+      next: (lista) => {
+        this.colegios = (lista ?? []).slice().sort((a, b) =>
+          a.nombre.localeCompare(b.nombre, 'es'),
+        );
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.colegios = [];
+        this.cdr.markForCheck();
+      },
+    });
   }
 
   ngAfterViewInit(): void {
@@ -710,10 +762,11 @@ responsable(m: EventoCalendario): string {
     );
     const byKey = new Map<string, EventoCalendario[]>();
     for (const m of this.eventosVisibles) {
-      const k = keyDeInstante(m.startDateTime);
-      const arr = byKey.get(k);
-      if (arr) arr.push(m);
-      else byKey.set(k, [m]);
+      for (const k of this.clavesDeEvento(m)) {
+        const arr = byKey.get(k);
+        if (arr) arr.push(m);
+        else byKey.set(k, [m]);
+      }
     }
     const cells: CalendarCell[] = [];
     for (let i = 0; i < 42; i++) {
@@ -734,6 +787,31 @@ responsable(m: EventoCalendario): string {
       });
     }
     this.cells = cells;
+  }
+
+  /**
+   * Dias de la grilla que cubre un evento, para pintarlo en todos ellos.
+   *
+   *  - Una reunion normal solo cae en su dia.
+   *  - Una que cruza la medianoche abarca dos.
+   *  - Un rango (ausencia, vacaciones, incapacidad) marca TODOS los dias del
+   *    tramo, que es como se "reserva" el espacio.
+   *
+   * Se recorre de izquierda a derecha mientras el dia de arranque sea anterior
+   * al fin: el fin de un evento es exclusive (00:00 del dia siguiente al
+   * ultimo), asi que ese dia no se pinta de mas.
+   */
+  private clavesDeEvento(m: EventoCalendario): string[] {
+    const inicio = aDate(m.startDateTime).getTime();
+    const finConocido = m.endDateTime ? aDate(m.endDateTime).getTime() : inicio;
+    const fin = Math.max(finConocido, inicio + 1);
+    const DIA = 86400000;
+    const claves: string[] = [];
+    for (let t = inicio; t < fin; t += DIA) {
+      const k = keyDeInstante(new Date(t));
+      if (!claves.includes(k)) claves.push(k);
+    }
+    return claves.length ? claves : [keyDeInstante(m.startDateTime)];
   }
 
   get monthLabel(): string {
@@ -951,6 +1029,120 @@ responsable(m: EventoCalendario): string {
     this.moverDia(1);
   }
 
+  /** Categoria elegida en el formulario; null si no se reconoce. */
+  get categoriaDraft(): CategoriaReunion | null {
+    return buscarCategoria(this.draft.categoria);
+  }
+
+  /**
+   * true = la categoria elegida se marca por un RANGO de fechas (ausencia,
+   * vacaciones, incapacidad): el formulario pide "Desde" y "Hasta" en lugar
+   * de hora de inicio y duracion.
+   */
+  get draftEsRango(): boolean {
+    return !!this.categoriaDraft?.esRango;
+  }
+
+  /** Colegio escogido en el formulario, o null si no hay ninguno. */
+  get colegioDraft(): Colegio | null {
+    return this.colegios.find((c) => c.id === this.draft.colegioId) ?? null;
+  }
+
+  /**
+   * true = la categoria elegida es una reunion CON colegio (presencial o
+   * virtual), que es la unica que se etiqueta y por tanto la unica que puede
+   * filtrarse por proyecto en Metricas. El resto (equipo, cumpleanos y las
+   * marcas por rango) no piden colegio.
+   */
+  get colegioAplica(): boolean {
+    return !!this.categoriaDraft?.esReunion;
+  }
+
+  /** Colegios que quedan tras el filtro del buscador. */
+  get colegiosFiltrados(): Colegio[] {
+    const q = this.colegioQuery.trim().toLowerCase();
+    if (!q) return this.colegios;
+    return this.colegios.filter((c) => c.nombre.toLowerCase().includes(q));
+  }
+
+  /** Cambia la categoria; si el colegio no aplica en la nueva, lo limpia. */
+  elegirCategoria(alias: string): void {
+    this.draft.categoria = alias;
+    if (!buscarCategoria(alias)?.esReunion) this.limpiarColegio();
+    this.cdr.markForCheck();
+  }
+
+  elegirColegio(c: Colegio): void {
+    this.draft.colegioId = c.id;
+    this.colegioQuery = c.nombre;
+    this.colegiosAbierto = false;
+    this.cdr.markForCheck();
+  }
+
+  limpiarColegio(): void {
+    this.draft.colegioId = '';
+    this.colegioQuery = '';
+    this.colegiosAbierto = false;
+    this.cdr.markForCheck();
+  }
+
+  /** Cierra el desplegable; con retardo para que el click llegue primero. */
+  cerrarColegios(): void {
+    window.setTimeout(() => {
+      this.colegiosAbierto = false;
+      // Si escribio algo pero no eligio ninguna opcion, se queda el texto
+      // suelto: se descarta para no dar a entender que hay un colegio.
+      if (this.draft.colegioId && this.colegioQuery !== this.colegioDraft?.nombre) {
+        this.colegioQuery = this.colegioDraft?.nombre ?? '';
+      }
+      this.cdr.markForCheck();
+    }, 150);
+  }
+
+  /**
+   * Asunto que se arma SOLO, sin nombre escrito: colegio + categoria.
+   *
+   * Solo entra el colegio en las reuniones con colegio (presencial/virtual):
+   * una ausencia o una reunion de equipo no es "de" un colegio. Se usa como
+   * placeholder del campo y como valor final cuando el nombre esta vacio.
+   */
+  get subjectAuto(): string {
+    const categoria = this.categoriaDraft?.alias ?? '';
+    const colegio = this.colegioAplica ? (this.colegioDraft?.nombre ?? '') : '';
+    if (colegio && categoria) return `${colegio} - ${categoria}`;
+    return colegio || categoria;
+  }
+
+  /**
+   * Asunto final que se va a crear. El nombre escrito manda: si hay texto, se
+   * usa SOLO ese; si esta vacio se arma solo.
+   *
+   * OJO: el prefijo "(Nombre Asesor)" lo agrega el backend, y solo en
+   * presencial/virtual, asi que no va en esta vista previa.
+   */
+  get subjectPreview(): string {
+    return this.draft.subject.trim() || this.subjectAuto;
+  }
+
+  /**
+   * Inicio y fin (UTC) que describe el formulario.
+   *
+   *  - Rango: el evento arranca a 00:00 del "Desde" y termina a 00:00 del dia
+   *    siguiente al "Hasta" (fin exclusive, como un evento de todo el dia en
+   *    Outlook), de modo que pinta todos los dias elegidos.
+   *  - Reunion normal: la hora de inicio escrita; `fin` queda en null para que
+   *    el backend calcule inicio + duracion como siempre.
+   */
+  private rangoDraft(): { agenda: Date; fin: Date | null } {
+    if (this.draftEsRango) {
+      return {
+        agenda: utcDesdeNaive(`${this.draft.fechaDesde}T00:00`),
+        fin: utcDesdeNaive(`${diaSiguiente(this.draft.fechaHasta)}T00:00`),
+      };
+    }
+    return { agenda: utcDesdeNaive(this.draft.startDateTime), fin: null };
+  }
+
   openCreate(): void {
     // Proxima hora en clave de Bogota, no de la zona del navegador.
     const base = new Date();
@@ -966,7 +1158,13 @@ responsable(m: EventoCalendario): string {
       durationMinutes: 30,
       agendarCalendario: true,
       categoria: CATEGORIA_POR_DEFECTO.alias,
+      // Por defecto el rango es hoy → hoy; el usuario lo ensancha si hace falta.
+      fechaDesde: keyDeInstante(new Date()),
+      fechaHasta: keyDeInstante(new Date()),
+      colegioId: '',
     };
+    this.colegioQuery = '';
+    this.colegiosAbierto = false;
     this.createError = '';
     this.createdMeeting = null;
     this.editingId = null;
@@ -990,9 +1188,20 @@ responsable(m: EventoCalendario): string {
 
   async createMeeting(): Promise<void> {
     if (this.creating) return;
-    const subject = this.draft.subject.trim();
-    if (!subject || !this.draft.startDateTime) {
-      this.createError = 'Escribe un nombre y una fecha valida.';
+    const esRango = this.draftEsRango;
+    if (esRango && (!this.draft.fechaDesde || !this.draft.fechaHasta)) {
+      this.createError = 'Elige las fechas Desde y Hasta.';
+      return;
+    }
+    if (!esRango && !this.draft.startDateTime) {
+      this.createError = 'Elige una fecha y hora validas.';
+      return;
+    }
+    // El nombre ya no es obligatorio: si se deja vacio se arma solo con el
+    // colegio y la categoria. Solo falla si no hay ninguna de las dos.
+    const subject = this.subjectPreview;
+    if (!subject) {
+      this.createError = 'Elige un colegio o escribe un nombre para la reunion.';
       return;
     }
     this.creating = true;
@@ -1000,10 +1209,16 @@ responsable(m: EventoCalendario): string {
     this.cdr.detectChanges();
     // El input no lleva zona: se interpreta como hora de Bogota, no como la del
     // navegador.
-    const agenda = utcDesdeNaive(this.draft.startDateTime);
-    if (Number.isNaN(agenda.getTime())) {
+    const { agenda, fin } = this.rangoDraft();
+    if (Number.isNaN(agenda.getTime()) || (fin && Number.isNaN(fin.getTime()))) {
       this.creating = false;
       this.createError = 'La fecha y hora no son validas.';
+      this.cdr.detectChanges();
+      return;
+    }
+    if (fin && fin.getTime() <= agenda.getTime()) {
+      this.creating = false;
+      this.createError = 'El Hasta debe ser igual o posterior al Desde.';
       this.cdr.detectChanges();
       return;
     }
@@ -1019,8 +1234,19 @@ responsable(m: EventoCalendario): string {
         this.waService.createStandaloneMeeting({
           subject,
           startDateTime: agenda.toISOString(),
-          durationMinutes: this.draft.durationMinutes,
+          // En un rango manda el fin explicito (varios dias); en una reunion
+          // normal manda la duracion, como siempre.
+          endDateTime: fin ? fin.toISOString() : undefined,
+          durationMinutes: fin ? undefined : this.draft.durationMinutes,
           calendarTarget: this.draft.agendarCalendario ? 'shared' : 'personal',
+          // Solo se manda si hay colegio: asi el backend guarda la marca y la
+          // reunion entra al filtro de proyecto de Metricas.
+          // Solo se manda en las reuniones con colegio (presencial/virtual):
+          // asi el backend guarda la marca y la reunion entra al filtro de
+          // proyecto de Metricas. En las demas categorias no se etiqueta.
+          colegioId: this.colegioAplica
+            ? (this.draft.colegioId || undefined)
+            : undefined,
           categorias: categoriaElegida
             ? [categoriaElegida.alias, categoriaElegida.outlook]
             : undefined,
@@ -1086,21 +1312,46 @@ responsable(m: EventoCalendario): string {
       agendarCalendario: true,
       categoria:
         categoriaDeEvento(m.categorias)?.alias ?? CATEGORIA_POR_DEFECTO.alias,
+      fechaDesde: keyDeInstante(m.startDateTime),
+      // El fin es exclusive (00:00 del dia siguiente al ultimo): se resta un
+      // instante para recuperar el ultimo dia realmente cubierto.
+      fechaHasta: m.endDateTime
+        ? keyDeInstante(new Date(aDate(m.endDateTime).getTime() - 1))
+        : keyDeInstante(m.startDateTime),
+      // No se puede preseleccionar: en la fila solo queda la marca
+      // (tipo_colegio), no el colegio exacto. Si no se elige uno nuevo, la
+      // marca actual se conserva (el backend no la toca).
+      colegioId: '',
     };
+    this.colegioQuery = '';
+    this.colegiosAbierto = false;
     this.showCreate = true;
     this.cdr.detectChanges();
   }
 
   async saveEdit(): Promise<void> {
     if (this.creating || !this.editingId) return;
-    const subject = this.draft.subject.trim();
-    if (!subject || !this.draft.startDateTime) {
-      this.editError = 'Escribe un nombre y una fecha valida.';
+    const esRango = this.draftEsRango;
+    if (esRango && (!this.draft.fechaDesde || !this.draft.fechaHasta)) {
+      this.editError = 'Elige las fechas Desde y Hasta.';
       return;
     }
-    const agenda = utcDesdeNaive(this.draft.startDateTime);
-    if (Number.isNaN(agenda.getTime())) {
+    if (!esRango && !this.draft.startDateTime) {
+      this.editError = 'Elige una fecha y hora validas.';
+      return;
+    }
+    const subject = this.subjectPreview;
+    if (!subject) {
+      this.editError = 'Elige un colegio o escribe un nombre para la reunion.';
+      return;
+    }
+    const { agenda, fin } = this.rangoDraft();
+    if (Number.isNaN(agenda.getTime()) || (fin && Number.isNaN(fin.getTime()))) {
       this.editError = 'La fecha y hora no son validas.';
+      return;
+    }
+    if (fin && fin.getTime() <= agenda.getTime()) {
+      this.editError = 'El Hasta debe ser igual o posterior al Desde.';
       return;
     }
 
@@ -1114,7 +1365,14 @@ responsable(m: EventoCalendario): string {
         this.waService.updateStandaloneMeeting(this.editingId, {
           subject,
           startDateTime: agenda.toISOString(),
-          durationMinutes: this.draft.durationMinutes,
+          endDateTime: fin ? fin.toISOString() : undefined,
+          durationMinutes: fin ? undefined : this.draft.durationMinutes,
+          // Solo se manda en las reuniones con colegio (presencial/virtual):
+          // asi el backend guarda la marca y la reunion entra al filtro de
+          // proyecto de Metricas. En las demas categorias no se etiqueta.
+          colegioId: this.colegioAplica
+            ? (this.draft.colegioId || undefined)
+            : undefined,
           categorias: categoriaElegida
             ? [categoriaElegida.alias, categoriaElegida.outlook]
             : undefined,

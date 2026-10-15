@@ -659,6 +659,10 @@ export class AdvisorsWhatsappController {
       categorias?: string[];
       /** Modalidad de la reunión. Default: 'virtual'. */
       modalidad?: 'virtual' | 'presencial';
+      /** Fin explicito (ISO UTC) para marcas por rango de varias dias. */
+      endDateTime?: string;
+      /** Colegio escogido: solo se usa para guardar la marca (proyecto). */
+      colegioId?: string;
     },
   ) {
     return this.teamsService.createStandaloneMeeting(
@@ -685,6 +689,10 @@ export class AdvisorsWhatsappController {
       durationMinutes?: number;
       categorias?: string[];
       modalidad?: 'virtual' | 'presencial';
+      /** Fin explicito (ISO UTC) para marcas por rango de varias dias. */
+      endDateTime?: string;
+      /** Colegio escogido: solo se usa para guardar la marca (proyecto). */
+      colegioId?: string;
     },
   ) {
     return this.teamsService.updateMeeting(

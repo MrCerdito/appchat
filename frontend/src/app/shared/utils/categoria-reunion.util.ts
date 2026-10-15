@@ -6,11 +6,14 @@
  *    resuelve primero para pintar el chip con `color`.
  *  - `outlook`: nombre literal de la categoria de Outlook cuyo color por
  *    defecto coincide con `color`, para que Teams/Outlook pinten el evento
- *    igual que la app (presencial=azul, virtual=naranja).
+ *    igual que la app (presencial=azul, virtual=amarillo).
  *
  * `outlookLegado` guarda el nombre que usaban los eventos antiguos
- * (presencial era "Yellow category" y virtual "Blue category"): solo lectura,
- * para que el historial siga mostrando el mismo color de siempre.
+ * (presencial era "Yellow category" y virtual "Blue category"). Solo sirve
+ * como ultimo recurso: el color lo decide `outlook`, porque el nombre literal
+ * de Outlook ES su color y asi la app pinta igual que Teams. Si se resolviera
+ * primero el legado, "Yellow category" (amarilla en Teams) caeria en
+ * presencial y se pintaria AZUL.
  */
 export interface CategoriaReunion {
   alias: string;
@@ -19,13 +22,40 @@ export interface CategoriaReunion {
   outlookLegado: string;
   /** Color visual del calendario en la app. */
   color: string;
+  /**
+   * true = ocasion puntual marcada por un RANGO de fechas (ausencia,
+   * vacaciones, incapacidad): el formulario pide "Desde" y "Hasta" en lugar
+   * de hora de inicio y duracion, y el evento pinta todos los dias del tramo.
+   * false = reunion con hora de inicio y duracion (comportamiento normal).
+   */
+  esRango: boolean;
+  /**
+   * true = es una reunion con el colegio (solo presencial y virtual): ahi SI se
+   * etiqueta el colegio, que es lo que permite filtrarla en Metricas por
+   * proyecto. El resto (equipo, cumpleanos y las marcas por rango) no es con
+   * un colegio concreto, asi que no piden colegio.
+   */
+  esReunion: boolean;
 }
 
+/**
+ * Colores fijados con el usuario:
+ *   AMARILLO  → virtual        AZUL       → presencial
+ *   MORADO    → reunion equipo VERDE      → cumpleanos
+ *   NARANJA   → ausencia/permisos          PURPURA → vacaciones
+ *   ROJO      → incapacidad
+ *
+ * El `outlook` es la categoria literal de Outlook que mas se le acerca, para
+ * que Teams/Outlook pinten el evento con un color parecido al de la app.
+ */
 export const CATEGORIAS_REUNION: CategoriaReunion[] = [
-  { alias: 'Reunion presencial', outlook: 'Blue category', outlookLegado: 'Yellow category', color: '#3b82f6' },
-  { alias: 'Reunion virtual', outlook: 'Orange category', outlookLegado: 'Blue category', color: '#f97316' },
-  { alias: 'Reunion equipo', outlook: 'Purple category', outlookLegado: 'Purple category', color: '#a855f7' },
-  { alias: 'Cumpleanos', outlook: 'Green category', outlookLegado: 'Green category', color: '#22c55e' },
+  { alias: 'Reunion presencial', outlook: 'Blue category', outlookLegado: 'Yellow category', color: '#3b82f6', esRango: false, esReunion: true },
+  { alias: 'Reunion virtual', outlook: 'Yellow category', outlookLegado: 'Blue category', color: '#eab308', esRango: false, esReunion: true },
+  { alias: 'Reunion equipo', outlook: 'Purple category', outlookLegado: 'Purple category', color: '#a855f7', esRango: false, esReunion: false },
+  { alias: 'Cumpleanos', outlook: 'Green category', outlookLegado: 'Green category', color: '#22c55e', esRango: false, esReunion: false },
+  { alias: 'Ausencia/permisos', outlook: 'Orange category', outlookLegado: 'Orange category', color: '#f97316', esRango: true, esReunion: false },
+  { alias: 'Vacaciones', outlook: 'Purple category', outlookLegado: 'Purple category', color: '#7e22ce', esRango: true, esReunion: false },
+  { alias: 'Incapacidad', outlook: 'Red category', outlookLegado: 'Red category', color: '#ef4444', esRango: true, esReunion: false },
 ];
 
 /** Default: presencial es la categoria mayoritaria del calendario. */
@@ -41,9 +71,17 @@ export function buscarCategoria(alias: string | null | undefined): CategoriaReun
  * Traduce la categoria de un evento a la nuestra, para pintar el chip del
  * mismo color que el de la lista.
  *
- * Orden: primero el alias (los eventos creados por la app lo traen), luego el
- * nombre de Outlook viejo y por ultimo el actual, para que un evento antiguo
- * ("Yellow category") y uno nuevo ("Blue category") no se confundan.
+ * Orden:
+ *  1. El alias, que solo traen los eventos creados por la app: da la categoria
+ *     SEMANTICA correcta ("Reunion virtual" sigue siendo virtual aunque su
+ *     color haya cambiado).
+ *  2. El nombre literal de Outlook. Este paso es el que garantiza que la app
+ *     pinte IGUAL que Teams/Outlook: el nombre de la categoria ES su color
+ *     ("Yellow category" = amarilla, "Blue category" = azul), y `outlook` de
+ *     cada categoria ya esta elegido para coincidir con su `color`.
+ *  3. El nombre legado, solo como ultimo recurso: no pinta distinto a lo que
+ *     ya resolvio el paso 2, porque todos los legados siguen siendo nombres de
+ *     color actuales.
  */
 export function categoriaDeEvento(
   categorias: string[] | null | undefined,
@@ -59,17 +97,17 @@ export function categoriaDeEvento(
 
   const normalizar = (valor: string) => valor.toLowerCase();
   for (const c of lista) {
-    const porLegado = CATEGORIAS_REUNION.find(
-      (x) => normalizar(x.outlookLegado) === normalizar(c),
-    );
-    if (porLegado) return porLegado;
-  }
-
-  for (const c of lista) {
     const porOutlook = CATEGORIAS_REUNION.find(
       (x) => normalizar(x.outlook) === normalizar(c),
     );
     if (porOutlook) return porOutlook;
+  }
+
+  for (const c of lista) {
+    const porLegado = CATEGORIAS_REUNION.find(
+      (x) => normalizar(x.outlookLegado) === normalizar(c),
+    );
+    if (porLegado) return porLegado;
   }
 
   return null;

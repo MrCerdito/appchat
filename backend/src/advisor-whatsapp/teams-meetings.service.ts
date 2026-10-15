@@ -22,7 +22,8 @@ const BOGOTA_TZ = 'America/Bogota';
 
 /**
  * Nombres con que la app identifica cada categoria dentro de Korvix
- * ("Reunion presencial", "Reunion virtual", "Reunion equipo", "Cumpleanos").
+ * ("Reunion presencial", "Reunion virtual", "Reunion equipo", "Cumpleanos",
+ * y las marcadas por rango: "Ausencia/permisos", "Vacaciones", "Incapacidad").
  *
  * NO se escriben en el evento de Graph: Outlook no tiene esas categorias en el
  * buzón y las conserva como etiqueta gris sin color, de modo que en Teams y en
@@ -36,6 +37,9 @@ const ALIAS_CATEGORIAS_APP: ReadonlySet<string> = new Set([
   'reunion virtual',
   'reunion equipo',
   'cumpleanos',
+  'ausencia/permisos',
+  'vacaciones',
+  'incapacidad',
 ]);
 
 /**
@@ -69,6 +73,23 @@ export interface TeamsMeetingInput {
   categorias?: string[];
   /** Modalidad de la reunión/capacitación. Default: 'virtual'. */
   modalidad?: 'virtual' | 'presencial';
+  /**
+   * Fin explicito (ISO UTC) para las marcas por RANGO (ausencia, vacaciones,
+   * incapacidad): abarca varios dias y se respeta tal cual, sin acotarse a la
+   * duracion 15–240 min de una reunion normal.
+   *
+   * Si no viene, el fin sigue calculandose como inicio + durationMinutes.
+   */
+  endDateTime?: string;
+  /**
+   * Colegio elegido en el calendario. Se usa UNICAMENTE para resolver y
+   * guardar la marca (`tipo_colegio`), que es con lo que Metricas filtra por
+   * proyecto. No se guarda el colegio en si: solo su marca.
+   *
+   * Sin el, `tipo_colegio` queda null y la reunion no entra al filtro de
+   * proyecto (como pasaba antes de elegir colegio).
+   */
+  colegioId?: string;
 }
 
 /**
@@ -341,10 +362,72 @@ export class TeamsMeetingsService {
   }
 
   /**
+   * Resuelve la marca (Sian365/ControlAcademic) de un colegio por su id.
+   *
+   * Es el camino del calendario: ahi el usuario SI escoge colegio, a diferencia
+   * del flujo de chat (que infiere por nombre). Devuelve null si no existe o si
+   * el colegio no tiene marca cargada.
+   */
+  private async resolverTipoColegioPorId(
+    colegioId?: string | null,
+  ): Promise<string | null> {
+    const id = String(colegioId ?? '').trim();
+    if (!id) return null;
+    try {
+      const row = await this.colegioRepo
+        .createQueryBuilder('c')
+        .select('c.tipo_colegio', 'tipoColegio')
+        .where('c.id = :id', { id })
+        .getRawOne<{ tipoColegio: string | null }>();
+      if (!row?.tipoColegio) return null;
+      return normalizarTipoColegio(row.tipoColegio) ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Nucleo de creacion: decide quien organiza la videollamada y deja el evento
    * en el calendario pedido. Propaga el error si Microsoft falla, para que el
    * frontend no muestre un agendado que en realidad no ocurrio.
    */
+  /**
+   * Resuelve el par inicio/fin de una creacion o edicion.
+   *
+   *  - Con `endDateTime` explicito (marcas por rango: ausencia, vacaciones,
+   *    incapacidad) se respeta ese fin aunque abarque varios dias y la
+   *    duracion resultante supere el tope de una reunion.
+   *  - Sin `endDateTime`, el fin es inicio + duracion acotada a 15–240 min,
+   *    que es como siempre se agendaron las reuniones.
+   */
+  private resolverInicioFin(input: TeamsMeetingInput): {
+    start: Date;
+    end: Date;
+    durationMinutes: number;
+  } {
+    const start = new Date(input.startDateTime);
+    if (Number.isNaN(start.getTime())) {
+      throw new BadRequestException('Hora de reunion invalida');
+    }
+
+    const finExplicito = input.endDateTime ? new Date(input.endDateTime) : null;
+    if (
+      finExplicito &&
+      !Number.isNaN(finExplicito.getTime()) &&
+      finExplicito.getTime() > start.getTime()
+    ) {
+      const minutos = Math.max(1, Math.round((finExplicito.getTime() - start.getTime()) / 60000));
+      return { start, end: finExplicito, durationMinutes: minutos };
+    }
+
+    const durationMinutes = this.clampDuration(input.durationMinutes);
+    return {
+      start,
+      end: new Date(start.getTime() + durationMinutes * 60000),
+      durationMinutes,
+    };
+  }
+
   private async provisionMeeting(
     user: TeamsMeetingUser,
     input: TeamsMeetingInput,
@@ -356,13 +439,7 @@ export class TeamsMeetingsService {
       user,
       input.categorias,
     );
-    const start = new Date(input.startDateTime);
-    if (Number.isNaN(start.getTime())) {
-      throw new BadRequestException('Hora de reunion invalida');
-    }
-
-    const duration = this.clampDuration(input.durationMinutes);
-    const end = new Date(start.getTime() + duration * 60_000);
+    const { start, end } = this.resolverInicioFin(input);
 
     // Orden de preferencia al agendar:
     //
@@ -913,10 +990,7 @@ export class TeamsMeetingsService {
       { id: reunion.createdBy ?? actor.id, name: reunion.createdByName },
       input.categorias ?? reunion.categories ?? [],
     );
-    const start = new Date(input.startDateTime);
-    if (Number.isNaN(start.getTime())) throw new BadRequestException('Hora de reunión inválida.');
-    const duration = this.clampDuration(input.durationMinutes);
-    const end = new Date(start.getTime() + duration * 60_000);
+    const { start, end, durationMinutes: duration } = this.resolverInicioFin(input);
     const categories = (input.categorias ?? reunion.categories ?? [])
       .map((category) => String(category ?? '').trim())
       .filter(Boolean)
@@ -939,6 +1013,12 @@ export class TeamsMeetingsService {
     reunion.categories = categories;
     if (input.modalidad === 'virtual' || input.modalidad === 'presencial') {
       reunion.modalidad = input.modalidad;
+    }
+    // La marca solo se toca cuando el formulario manda colegio. Si no viene
+    // (el formulario de edicion no puede preseleccionarlo: no se guarda el
+    // colegio en la fila) se conserva la marca que ya tenia la reunion.
+    if (input.colegioId) {
+      reunion.tipoColegio = await this.resolverTipoColegioPorId(input.colegioId);
     }
     const saved = await this.meetingRepo.save(reunion);
     this.invalidarCacheCalendario();
@@ -1161,10 +1241,13 @@ export class TeamsMeetingsService {
       throw new UnauthorizedException('Debes iniciar sesion en Teams');
     }
 
-    const duration = this.clampDuration(input.durationMinutes);
+    // Para un rango (ausencia, vacaciones, incapacidad) la duracion sale del
+    // par inicio/fin y puede abarcar varios dias; para una reunion normal es
+    // la duracion acotada de siempre.
+    const { durationMinutes } = this.resolverInicioFin(input);
     const meeting = await this.provisionMeeting(
       user,
-      { ...input, durationMinutes: duration },
+      input,
       input.calendarTarget ?? 'shared',
     );
 
@@ -1175,15 +1258,17 @@ export class TeamsMeetingsService {
       categories: input.categorias ?? [],
       startDateTime: new Date(meeting.startDateTime),
       endDateTime: new Date(meeting.endDateTime),
-      durationMinutes: duration,
+      durationMinutes,
       joinUrl: meeting.joinUrl,
       meetingId: meeting.meetingId,
       eventId: meeting.eventId,
       calendarTarget: meeting.calendarTarget,
       eventSource: meeting.eventSource,
       modalidad: input.modalidad === 'presencial' ? 'presencial' : 'virtual',
-      // Sin contexto de colegio en la creación independiente: sin inferir.
-      tipoColegio: null,
+      // Marca resuelta desde el colegio que escogio el usuario en el
+      // calendario: es lo que permite filtrar la reunion por proyecto en
+      // Metricas. Null si no escogio colegio o si el colegio no tiene marca.
+      tipoColegio: await this.resolverTipoColegioPorId(input.colegioId),
     });
     const saved = await this.meetingRepo.save(row);
     // La reunion ya quedo en el grupo o en el buzon: la lectura del calendario
@@ -1620,7 +1705,14 @@ export class TeamsMeetingsService {
     return subject;
   }
 
-  /** Solo presencial/virtual muestran el nombre del creador en el asunto. */
+  /**
+   * Solo presencial/virtual muestran el nombre del creador en el asunto.
+   *
+   * Se empareja tambien con el nombre literal de Outlook por si el evento no
+   * trae el alias. OJO: 'Orange category' NO entra aqui porque hoy es el color
+   * de "Ausencia/permisos" (antes lo usaba virtual, que ya es amarilla): una
+   * ausencia no lleva el nombre del creador delante.
+   */
   private subjectConAsesor(
     subject: string,
     user: TeamsMeetingUser,
@@ -1633,12 +1725,12 @@ export class TeamsMeetingsService {
       categoria === 'reunion presencial' ||
       categoria === 'yellow category' ||
       categoria === 'blue category' ||
-      categoria === 'reunion virtual' ||
-      categoria === 'orange category',
+      categoria === 'reunion virtual',
     );
 
     if (!requierePrefijo) {
-      // Cumpleaños y reuniones de equipo no llevan el nombre del creador.
+      // Cumpleanos, reuniones de equipo y ausencias/vacaciones/incapacidades
+      // no llevan el nombre del creador.
       return subject.replace(/^\([^)]{1,100}\)\s*/, '').trim() || subject;
     }
 

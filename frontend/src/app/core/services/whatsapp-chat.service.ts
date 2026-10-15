@@ -71,6 +71,18 @@ export interface CreateStandaloneMeetingRequest {
   calendarTarget?: 'personal' | 'shared' | 'none';
   /** Alias y nombres literales de categoria en Outlook ("Blue category"). */
   categorias?: string[];
+  /**
+   * Fin explicito (ISO UTC) para las marcas por rango (ausencia, vacaciones,
+   * incapacidad): abarca varios dias. Sin el, el fin es inicio + duracion.
+   */
+  endDateTime?: string;
+  /**
+   * Colegio escogido en el calendario. El backend lo usa UNO para guardar la
+   * marca (proyecto) de la reunion, que es con lo que Metricas filtra. No se
+   * guarda el colegio en si, por eso el formulario de edicion no lo puede
+   * preseleccionar.
+   */
+  colegioId?: string;
 }
 
 @Injectable({ providedIn: 'root' })

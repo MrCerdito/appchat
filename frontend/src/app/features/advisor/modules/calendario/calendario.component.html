@@ -354,34 +354,15 @@
         </button>
       </div>
       }
-      <label class="cal-field">
-        <span>Nombre de la reunion</span>
-        <input type="text" [(ngModel)]="draft.subject" placeholder="Reunion con el cliente" />
-      </label>
-
-      <div class="cal-field-row">
-        <label class="cal-field">
-          <span>Hora de inicio</span>
-          <input type="datetime-local" [(ngModel)]="draft.startDateTime" />
-        </label>
-        <label class="cal-field">
-          <span>Duracion</span>
-          <select [(ngModel)]="draft.durationMinutes">
-            @for (d of duracionesVisibles; track d) {
-            <option [ngValue]="d">{{ d }} minutos</option>
-            }
-          </select>
-        </label>
-      </div>
-
-      <div class="cal-field">
-        <span class="cal-field-lbl">Categoria</span>
+      <!-- ── 1 · Tipo ─────────────────────────────────────────────────── -->
+      <section class="cal-section">
+        <span class="cal-section-lbl">1 · Tipo</span>
         <div class="cal-cats">
           @for (c of categoriasReunion; track c.alias) {
           <button type="button" class="cal-cat"
             [class.on]="draft.categoria === c.alias"
             [style.--cat-color]="c.color"
-            (click)="draft.categoria = c.alias">
+            (click)="elegirCategoria(c.alias)">
             <span class="cal-cat-dot"></span>
             {{ c.alias }}
           </button>
@@ -390,21 +371,122 @@
         <small class="cal-field-note">
           En Outlook y Teams la reunion queda marcada con la categoria de su color.
         </small>
-      </div>
+      </section>
 
+      <!-- ── 2 · Cuando ───────────────────────────────────────────────── -->
+      <section class="cal-section">
+        <span class="cal-section-lbl">2 · Cuando</span>
+        @if (draftEsRango) {
+        <div class="cal-field-row">
+          <label class="cal-field">
+            <span>Desde</span>
+            <input type="date" [(ngModel)]="draft.fechaDesde" />
+          </label>
+          <label class="cal-field">
+            <span>Hasta</span>
+            <input type="date" [(ngModel)]="draft.fechaHasta" />
+          </label>
+        </div>
+        <small class="cal-field-note">
+          Se marca todo el dia del rango, del primero al ultimo, incluidos.
+        </small>
+        } @else {
+        <div class="cal-field-row">
+          <label class="cal-field">
+            <span>Hora de inicio</span>
+            <input type="datetime-local" [(ngModel)]="draft.startDateTime" />
+          </label>
+          <label class="cal-field">
+            <span>Duracion</span>
+            <select [(ngModel)]="draft.durationMinutes">
+              @for (d of duracionesVisibles; track d) {
+              <option [ngValue]="d">{{ d }} minutos</option>
+              }
+            </select>
+          </label>
+        </div>
+        }
+      </section>
+
+      <!-- ── 3 · Detalles ─────────────────────────────────────────────── -->
+      <section class="cal-section">
+        <span class="cal-section-lbl">3 · Detalles</span>
+        @if (colegioAplica) {
+        <div class="cal-field cal-combo">
+          <span>Colegio <em>(opcional)</em></span>
+          <div class="cal-combo-box">
+            <input
+              type="text"
+              autocomplete="off"
+              role="combobox"
+              [attr.aria-expanded]="colegiosAbierto"
+              aria-controls="cal-colegios-list"
+              placeholder="Escribe para buscar…"
+              [disabled]="colegios.length === 0"
+              [(ngModel)]="colegioQuery"
+              (focus)="colegios.length && (colegiosAbierto = true)"
+              (input)="colegiosAbierto = true"
+              (keydown.escape)="colegiosAbierto = false"
+              (blur)="cerrarColegios()"
+            />
+            @if (colegioQuery) {
+            <button type="button" class="cal-combo-act" (mousedown)="$event.preventDefault()"
+              (click)="limpiarColegio()" title="Quitar colegio" aria-label="Quitar colegio">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+            } @else {
+            <svg class="cal-combo-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+            }
+          </div>
+          @if (colegiosAbierto) {
+          <ul class="cal-combo-list" id="cal-colegios-list" role="listbox">
+            @for (col of colegiosFiltrados; track col.id) {
+            <li role="option" [attr.aria-selected]="col.id === draft.colegioId" [class.on]="col.id === draft.colegioId"
+              (mousedown)="$event.preventDefault()" (click)="elegirColegio(col)">
+              {{ col.nombre }}
+            </li>
+            } @empty {
+            <li class="cal-combo-empty">Ningún colegio que contenga “{{ colegioQuery.trim() }}”.</li>
+            }
+          </ul>
+          }
+        </div>
+        <small class="cal-field-note">
+          El colegio define el proyecto con el que Metricas podra filtrar esta reunion.
+        </small>
+        }
+        <label class="cal-field">
+          <span>Nombre <em>(opcional)</em></span>
+          <input type="text" [(ngModel)]="draft.subject" [placeholder]="subjectAuto" />
+        </label>
+        <div class="cal-preview">
+          <span class="cal-preview-lbl">Se creara</span>
+          <span class="cal-preview-val">{{ subjectPreview || '—' }}</span>
+        </div>
+      </section>
+
+      <!-- ── 4 · Calendario ───────────────────────────────────────────── -->
       @if (editingId) {
       <p class="cal-field-note">
         El evento sigue en el mismo calendario de Microsoft: aqui solo cambian
-        nombre, hora, duracion y categoria.
+        nombre, {{ draftEsRango ? 'rango de fechas' : 'hora y duracion' }}, {{ colegioAplica ? 'colegio, ' : '' }}y categoria.
       </p>
       } @else {
-      <label class="cal-check">
-        <input type="checkbox" [(ngModel)]="draft.agendarCalendario" />
-        <span>
-          <strong>Agendar en el calendario compartido</strong>
-          <small>{{ draft.agendarCalendario ? 'La cuenta empresarial crea la reunión y el evento en el calendario compartido.' : 'Se guardará en tu calendario personal; conecta Teams desde Configuración para crear la videollamada.' }}</small>
-        </span>
-      </label>
+      <section class="cal-section">
+        <span class="cal-section-lbl">4 · Calendario</span>
+        <label class="cal-check">
+          <input type="checkbox" [(ngModel)]="draft.agendarCalendario" />
+          <span>
+            <strong>Agendar en el calendario compartido</strong>
+            <small>{{ draft.agendarCalendario ? 'La cuenta empresarial crea la reunión y el evento en el calendario compartido.' : 'Se guardará en tu calendario personal; conecta Teams desde Configuración para crear la videollamada.' }}</small>
+          </span>
+        </label>
+      </section>
       }
 
       @if (editingId ? editError : createError) {

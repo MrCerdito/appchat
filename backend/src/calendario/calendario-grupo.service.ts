@@ -301,9 +301,13 @@ export class CalendarioGrupoService {
     ini: Date,
     fin: Date,
   ): Promise<Map<string, TeamsMeeting>> {
+    // Se busca por SOLAPE, no solo por inicio: un rango (ausencia, vacaciones,
+    // incapacidad) puede empezar antes de la ventana y seguirla ocupando, y
+    // calendarView si lo devuelve. Sin esto el evento se veria pero no seria
+    // editable en la vista donde aparece.
     const filas = await this.meetings
       .createQueryBuilder('m')
-      .where('m.startDateTime >= :ini AND m.startDateTime <= :fin', { ini, fin })
+      .where('m.startDateTime <= :fin AND m.endDateTime >= :ini', { ini, fin })
       .getMany();
 
     const mapa = new Map<string, TeamsMeeting>();

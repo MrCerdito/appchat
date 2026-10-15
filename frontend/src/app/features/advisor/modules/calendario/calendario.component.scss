@@ -1224,6 +1224,169 @@ $sombra-lg: var(--cal-shadow-lg);
   color: var(--text-faint);
 }
 
+// "Nombre (opcional)": el "(opcional)" va mas suave que la etiqueta.
+.cal-field > span em {
+  font-style: normal;
+  font-weight: 500;
+  color: var(--text-faint);
+}
+
+// ── Bloques del modal: secciones con encabezado numerado ─────────────
+// Separan el formulario en "Tipo / Cuando / Detalles / Calendario" para que
+// se lea de arriba a abajo sin adivinar que va con que.
+.cal-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 13px;
+  border-top: 1px solid $borde;
+
+  // La primera seccion no lleva linea arriba: el cuerpo ya tiene su borde.
+  &:first-of-type {
+    padding-top: 0;
+    border-top: 0;
+  }
+}
+
+.cal-section-lbl {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+// ── Vista previa del asunto que va a quedar guardado ─────────────────
+.cal-preview {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  padding: 9px 11px;
+  border: 1px dashed $borde;
+  border-radius: 10px;
+  background: var(--bg-subtle);
+}
+
+.cal-preview-lbl {
+  flex: none;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.cal-preview-val {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.82rem;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// ── Buscador de colegio ────────────────────────────────────────────────
+// El catalogo es largo, asi que en vez de un desplegable nativo se filtra por
+// texto y se elige de la lista que aparece debajo.
+.cal-combo {
+  position: relative;
+}
+
+.cal-combo-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+
+  input {
+    // Deja sitio a la lupita/lupa de la derecha para que el texto no la tape.
+    padding-right: 34px;
+  }
+
+  // El foco debe verse en el borde del input, no del contenedor.
+  &:focus-within input {
+    background: var(--surface-hover);
+    border-color: rgba(99, 102, 241, 0.5);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.13);
+  }
+}
+
+.cal-combo-caret {
+  position: absolute;
+  right: 11px;
+  width: 15px;
+  height: 15px;
+  pointer-events: none;
+  color: var(--text-faint);
+}
+
+.cal-combo-act {
+  position: absolute;
+  right: 6px;
+  display: grid;
+  width: 23px;
+  height: 23px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+
+  &:hover {
+    background: var(--surface-hover);
+    color: var(--text);
+  }
+
+  svg {
+    width: 13px;
+    height: 13px;
+  }
+}
+
+.cal-combo-list {
+  position: absolute;
+  top: calc(100% + 5px);
+  right: 0;
+  left: 0;
+  z-index: 10;
+  max-height: 194px;
+  margin: 0;
+  padding: 5px;
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid $borde;
+  border-radius: 11px;
+  background: var(--surface);
+  box-shadow: $sombra-md;
+
+  li {
+    padding: 8px 10px;
+    border-radius: 7px;
+    font-size: 0.83rem;
+    color: var(--text);
+    cursor: pointer;
+
+    // Se resalta con mousedown, no con hover: el click llega despues del
+    // blur del input y el hover ya se habria perdido.
+    &.on,
+    &.on:hover {
+      background: rgba(99, 102, 241, 0.14);
+      color: var(--text);
+      font-weight: 600;
+    }
+  }
+}
+
+.cal-combo-empty {
+  padding: 9px 10px !important;
+  font-size: 0.78rem !important;
+  color: var(--text-faint) !important;
+  cursor: default !important;
+}
+
 .cal-cats {
   display: flex;
   flex-wrap: wrap;
