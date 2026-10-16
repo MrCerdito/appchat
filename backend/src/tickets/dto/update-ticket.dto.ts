@@ -26,6 +26,15 @@ export class UpdateTicketDto {
   @Length(1, 100)
   category?: string;
 
+  /**
+   * Categoría de gestión del catálogo compartido con correos. `''` limpia la
+   * clasificación (sin clasificar).
+   */
+  @IsString()
+  @IsOptional()
+  @MaxLength(120)
+  categoriaGestion?: string;
+
   @IsString()
   @IsOptional()
   assignedToId?: string;

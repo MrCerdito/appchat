@@ -86,6 +86,8 @@ import { Changelog } from './changelogs/changelog.entity';
 import { ChangelogSeen } from './changelogs/changelog-seen.entity';
 import { ChangelogsModule } from './changelogs/changelogs.module';
 import { MetricsModule } from './metrics/metrics.module';
+import { ConectividadModule } from './conectividad/conectividad.module';
+import { ConnectivityIncident } from './conectividad/entities/connectivity-incident.entity';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -209,6 +211,7 @@ import { AppService } from './app.service';
           Notification,
           UserNotificationPreference,
           AdvisorActivityLog,
+  ConnectivityIncident,
           ModuloAcceso,
           AccesoRol,
           AccesoUsuario,
@@ -256,6 +259,7 @@ import { AppService } from './app.service';
     AccesosModule,
     ChangelogsModule,
     MetricsModule,
+  ConectividadModule,
   ],
   controllers: [AppController],
   providers: [

@@ -48,6 +48,30 @@ export interface EventoCalendarioDto {
   calendarTarget: 'personal' | 'shared' | 'none' | null;
   eventSource: 'group' | 'shared-mailbox' | 'personal' | 'none' | null;
   /**
+   * Marca/proyecto del colegio al que va la reunion, solo si se creo desde la
+   * app (ahi el usuario si escoge colegio). Los eventos creados directamente en
+   * Teams/Outlook no tienen colegio y llegan en null, que Metricas clasifica
+   * como "Sin clasificar".
+   */
+  tipoColegio: string | null;
+  /**
+   * virtual | presencial. En los eventos de la app sale de la columna propia;
+   * en los creados en Teams se deduce de la categoria de Outlook, que es la
+   * unica pista que Graph expone.
+   */
+  modalidad: 'virtual' | 'presencial';
+  /**
+   * Categoria semantica completa del evento: 'Reunion presencial',
+   * 'Reunion virtual', 'Reunion equipo', 'Cumpleanos', 'Ausencia/permisos',
+   * 'Vacaciones' o 'Incapacidad'.
+   *
+   * `modalidad` solo distingue online/presencial, pero el calendario pinta
+   * siete tipos con colores distintos y Metricas debe pintarlos igual. Se
+   * resuelve con las mismas reglas que el front, asi el color que se ve aqui es
+   * el mismo que se ve en la pestaña de Calendario.
+   */
+  categoria: string;
+  /**
    * De que calendario salio el evento.
    *
    * Se leen dos porque Microsoft no deja crear eventos en el calendario de un
@@ -76,4 +100,13 @@ export interface CalendarioGrupoDto {
   cacheado: boolean;
   /** true si se alcanzo CALENDARIO_MAX_PAGINAS y se corto la lectura. */
   truncado: boolean;
+  /**
+   * ISO 8601 UTC de la ultima lectura REAL a Graph para este rango.
+   *
+   * Se conserva dentro de la cache, asi que un hit cacheado o una respuesta
+   * de respaldo (Graph fallo y se sirvio lo vencido) siguen mostrando cuando
+   * se leyo por ultima vez. El front lo usa para el indicador discreto de
+   * "sincronizado hace N s".
+   */
+  actualizadoEn: string;
 }

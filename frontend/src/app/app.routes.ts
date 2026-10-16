@@ -134,6 +134,12 @@ export const routes: Routes = [
           import('./features/admin/modules/metrics/metrics').then(m => m.MetricsComponent),
       },
       {
+        path: 'conectividad',
+        canActivate: [permisoGuard('metrics')],
+        loadComponent: () =>
+          import('./features/admin/modules/conectividad/conectividad').then(m => m.ConectividadComponent),
+      },
+      {
         path: 'history',
         canActivate: [permisoGuard('history')],
         loadComponent: () =>

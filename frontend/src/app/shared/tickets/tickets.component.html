@@ -958,6 +958,10 @@
                     <span class="ts-info-val">{{ selectedTicket.category || '—' }}</span>
                   </div>
                   <div class="ts-info-field">
+                    <span class="ts-info-lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><rect x="4" y="4" width="16" height="16"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="13" y2="13"/></svg> Gestión</span>
+                    <span class="ts-info-val">{{ selectedTicket.categoriaGestion || 'Sin clasificar' }}</span>
+                  </div>
+                  <div class="ts-info-field">
                     <span class="ts-info-lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Creado por</span>
                     <span class="ts-info-val">{{ selectedTicket.createdBy?.name || 'Sistema' }}</span>
                   </div>
@@ -1201,6 +1205,24 @@
               </div>
               }
             </div>
+
+            <div class="ts-action-entry ts-action-entry--gestion" [class.is-open]="detailMenu === 'gestion'">
+              <button class="ts-action-row" type="button" (click)="toggleDetailMenu('gestion')" [attr.aria-expanded]="detailMenu === 'gestion'">
+                <span class="ts-action-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M4 4h16v16H4z"/><path d="M8 9h8"/><path d="M8 13h5"/></svg></span>
+                <span class="ts-action-label">Cambiar gestión</span>
+                <span class="ts-action-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="9 18 15 12 9 6"/></svg></span>
+              </button>
+              @if (detailMenu === 'gestion') {
+              <div class="ts-action-options">
+                <div class="ts-action-options-inner">
+                  <button class="ts-action-option" type="button" [class.is-selected]="(selectedTicket.categoriaGestion || '') === ''" [attr.aria-current]="(selectedTicket.categoriaGestion || '') === '' ? 'true' : null" (click)="changeDetailGestion('')">Sin clasificar</button>
+                  @for (c of categoriasGestion; track c.id) {
+                  <button class="ts-action-option" type="button" [class.is-selected]="c.nombre === (selectedTicket.categoriaGestion || '')" [attr.aria-current]="c.nombre === (selectedTicket.categoriaGestion || '') ? 'true' : null" (click)="changeDetailGestion(c.nombre)">{{ c.nombre }}</button>
+                  }
+                </div>
+              </div>
+              }
+            </div>
 </div>
           </section>
         </aside>
@@ -1309,6 +1331,15 @@
             <option value="">Sin categoría</option>
             @for (c of categories; track $index) {
             <option [value]="c">{{ c }}</option>
+            }
+          </select>
+        </label>
+        <label class="ts-edit-field">
+          <span>Gestión</span>
+          <select [(ngModel)]="editModalDto.gestion">
+            <option value="">Sin clasificar</option>
+            @for (c of categoriasGestion; track c.id) {
+            <option [value]="c.nombre">{{ c.nombre }}</option>
             }
           </select>
         </label>

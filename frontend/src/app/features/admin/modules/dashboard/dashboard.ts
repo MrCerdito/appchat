@@ -28,6 +28,7 @@ import {
   Megaphone,
   ArrowRight,
   Lock,
+  Activity,
 } from 'lucide-angular';
 import { Subject, takeUntil } from 'rxjs';
 import { AuthService } from '../../../../core/services/auth.service';
@@ -51,6 +52,7 @@ export type ModuloIcono =
   | 'widget'
   | 'configuracion'
   | 'colegios'
+  | 'conectividad'
   | 'changelog';
 
 interface ModuloTarjeta {
@@ -120,6 +122,15 @@ const MODULOS: ModuloTarjeta[] = [
     titulo: 'Métricas',
     descripcion: 'Indicadores, rankings y actividad de la IA',
     icono: 'metrics',
+    deshabilitado: false,
+  },
+  {
+    codigo: 'conectividad',
+    categoria: 'Comunicación',
+    ruta: 'conectividad',
+    titulo: 'Conectividad',
+    descripcion: 'Historial de conexión, incidentes y auditoría de asesores',
+    icono: 'conectividad',
     deshabilitado: false,
   },
   {
@@ -243,6 +254,7 @@ const ICONOS_LUCIDE: Record<ModuloIcono, LucideIconData> = {
   widget: AppWindow,
   configuracion: Settings,
   colegios: School,
+  conectividad: Activity,
   changelog: Megaphone,
 };
 

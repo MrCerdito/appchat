@@ -226,11 +226,22 @@ export class ChatGateway
           `[Presence] ${result.count} asesor(es) fantasma(s) limpiados (sin heartbeat).`,
         );
         // Registra en el historial la caída por timeout (solo si el estado en
-        // BD aún no era 'offline', el registro interno ya lo filtra).
+        // BD aún no era 'offline', el registro interno ya lo filtra). Si el
+        // asesor estaba en almuerzo se conserva 'almuerzo' (una desconexión
+        // no significa fin de pausa: el administrador debe seguir viendo
+        // "En almuerzo" hasta que venza o termine la pausa).
         for (const advisorId of result.advisorIds) {
+          const enAlmuerzo = await this.estaEnAlmuerzo(advisorId).catch(
+            () => false,
+          );
+          const estado = enAlmuerzo ? 'almuerzo' : 'offline';
           await this.sessionsService
-            .setAdvisorStatus(advisorId, 'offline', { causa: 'timeout' })
+            .setAdvisorStatus(advisorId, estado, { causa: 'timeout' })
             .catch(() => null);
+          this.server.emit('advisor_status_changed', {
+            advisorId,
+            status: estado,
+          });
         }
       }
     } catch (err) {
@@ -438,13 +449,20 @@ export class ChatGateway
           .getConnectedAdvisorIds()
           .catch(() => []);
         if (connected.includes(advisorId)) return;
-        await this.sessionsService.setAdvisorStatus(advisorId, 'offline', {
+        // Si el asesor estaba en almuerzo al desconectarse, se conserva
+        // 'almuerzo' en BD para que el panel siga marcando la pausa aunque
+        // el socket se haya caído (el fin real lo da terminarAlmuerzo).
+        const enAlmuerzo = await this.estaEnAlmuerzo(advisorId).catch(
+          () => false,
+        );
+        const estado = enAlmuerzo ? 'almuerzo' : 'offline';
+        await this.sessionsService.setAdvisorStatus(advisorId, estado, {
           causa: 'disconnect',
         });
         this.server.emit('advisor_status_changed', {
           advisorId,
           name: ctx.nombre ?? null,
-          status: 'offline',
+          status: estado,
           profilePhotoUrl: ctx.foto ?? null,
         });
       } catch (err) {
@@ -3189,21 +3207,24 @@ export class ChatGateway
 
     // Barrido: limpiar almuerzos de asesores que se desconectaron y cuyo fin
     // ajustado ya pasó (el estado on-lunch se conserva para reanudar, pero no
-    // puede quedar huérfano para siempre).
+    // puede quedar huérfano para siempre). El cierre es COMPLETO: registra el
+    // fin en el historial, limpia la preferencia Redis y emite los eventos
+    // para que el panel no quede "pegado en almuerzo" tras cerrar la pestaña.
     try {
       const allOnLunch = await this.redisState.getAllOnLunch();
       const connectedSet = new Set(advisorIds);
       await Promise.all(
         Object.entries(allOnLunch).map(async ([id, rec]) => {
           if (connectedSet.has(id)) return;
-          if (!rec?.fin) {
-            await this.redisState.removeOnLunch(id);
-            return;
+          const fin = rec?.fin;
+          let vencido = !fin;
+          if (fin) {
+            const [h, m] = fin.split(':').map(Number);
+            const finMs = new Date(ahora).setHours(h, m, 0, 0);
+            vencido = ahora.getTime() >= finMs;
           }
-          const [h, m] = rec.fin.split(':').map(Number);
-          const finMs = new Date(ahora).setHours(h, m, 0, 0);
-          if (ahora.getTime() >= finMs) {
-            await this.redisState.removeOnLunch(id);
+          if (vencido) {
+            await this.cerrarAlmuerzoDesconectado(id);
           }
         }),
       );
@@ -3501,6 +3522,31 @@ export class ChatGateway
     );
     await this.assignPendingSessions();
     await this.assignWaitingWhatsappChats();
+  }
+
+  // Cierra el almuerzo de un asesor DESCONECTADO (barrido de huérfanos):
+  // a diferencia de terminarAlmuerzo (asesor conectado → vuelve 'online'),
+  // aquí el asesor no tiene socket, así que el estado queda 'offline' pero
+  // el historial registra el fin de almuerzo y la preferencia Redis se
+  // limpia para que al reconectar no herede 'almuerzo' como estado.
+  private async cerrarAlmuerzoDesconectado(advisorId: string): Promise<void> {
+    await this.redisState.removeOnLunch(advisorId).catch(() => null);
+    await this.redisState.removeAdvisorStatus(advisorId).catch(() => null);
+    await this.sessionsService
+      .setAdvisorStatus(advisorId, 'offline', { causa: 'almuerzo_fin' })
+      .catch(() => null);
+    this.server.emit('advisor_status_changed', {
+      advisorId,
+      status: 'offline',
+    });
+    this.server.emit('lunch_status_changed', {
+      advisorId,
+      enAlmuerzo: false,
+      fin: null,
+    });
+    this.logger.log(
+      `[Almuerzo] 🧹 ${advisorId} desconectado: almuerzo huérfano cerrado (PID: ${process.pid})`,
+    );
   }
 
   private async countChatsActivosAlmuerzo(

@@ -17,11 +17,27 @@ import {
   GrupoCalendarioDto,
   BuzonCalendarioDto,
 } from './dto/calendario-grupo.dto';
+import { aliasDeModalidad, categoriaDesdeCategorias, Modalidad, modalidadDesdeCategorias } from './modalidad.util';
 
 const GUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
 /** Techo de entradas en la cache, para no crecer sin limite al navegar meses. */
 const MAX_ENTRADAS_CACHE = 40;
+
+/**
+ * Tolerancia para tratar una fila de `teams_meetings` como "todavia fresca".
+ *
+ * Graph no es instantaneo: justo despues de crear una reunion desde la app
+ * puede tardar unos segundos en devolverla en `calendarView`. Durante ese lapso
+ * la fila local se usa de respaldo para que el evento no parpadezca ni
+ * desaparezca de la vista.
+ *
+ * Pasada esa ventana, la fila deja de ser un respaldo y manda Graph unica y
+ * exclusivamente. Sin esto, si el usuario borraba la reunion en Teams, Graph
+ * dejaba de devolverla pero la fila seguia agregandose igual y el evento se
+ * quedaba de fantasma en el calendario para siempre.
+ */
+const TOLERANCIA_FILA_MS = 10 * 60_000;
 
 /**
  * Lectura del calendario REAL del grupo M365 de Soporte.
@@ -131,7 +147,23 @@ export class CalendarioGrupoService {
     });
     this.enVuelo.set(clave, tarea);
 
-    const datos = await tarea;
+    let datos: CalendarioGrupoDto;
+    try {
+      datos = await tarea;
+    } catch (err: any) {
+      // Stale-while-error: Graph puede fallar un rato (429, token vencido,
+      // tenant caido). Si ya se habia servido este mismo rango, se devuelve lo
+      // que se tenga aunque este vencido, en lugar de mostrarle un error al
+      // asesor. El refresco periodico reintenta igual y la cache se purga sola
+      // al vencer, asi que el dato viejo no se eterna.
+      const vencido = this.cache.get(clave);
+      if (!vencido) throw err;
+      this.log.warn(
+        `Graph fallo para ${clave} y se sirve la lectura vencida: ` +
+          `${err?.message ?? err}`,
+      );
+      return { ...vencido.datos, cacheado: true };
+    }
     // Alguien invalido mientras esperabamos: esta respuesta ya no vale.
     if (generacion !== this.generacion && intento < MAX_REINTENTOS) {
       return this.obtenerInterno(desde, hasta, intento + 1, refrescar);
@@ -211,9 +243,15 @@ export class CalendarioGrupoService {
 
     // Si un rango pidio eventos que aun no aparecen en Graph y si estan en la
     // tabla, se agregan para que no desaparezcan de la vista justo despues de
-    // crearlos.
+    // crearlos. Solo mientras la fila sea fresca: Graph puede tardar unos
+    // segundos en reflejar lo creado desde la app, pero pasada la tolerancia si
+    // ya no lo devuelve es porque el evento dejo de existir (lo borraron en
+    // Teams/Outlook) y hay que dejar de pintarlo. Antes cualquier fila que
+    // Graph no devolviera se agregaba igual y el evento borrado en Teams se
+    // quedaba de fantasma en el calendario para siempre.
     for (const fila of locales.values()) {
       if (!fila.eventId || vistos.has(fila.eventId)) continue;
+      if (!this.filaFresca(fila)) continue;
       eventos.push(this.desdeFila(fila));
     }
     eventos.sort((a, b) => a.startDateTime.localeCompare(b.startDateTime));
@@ -225,6 +263,10 @@ export class CalendarioGrupoService {
       total: eventos.length,
       cacheado: false,
       truncado,
+      // Marca cuando se hizo la ultima lectura real a Graph. Viaja dentro de la
+      // cache, asi que el front puede mostrar "sincronizado hace N s" sin volver
+      // a preguntar.
+      actualizadoEn: new Date().toISOString(),
     };
 
     const ttl = this.numero('CALENDARIO_CACHE_SEGUNDOS', 300) * 1000;
@@ -317,6 +359,20 @@ export class CalendarioGrupoService {
     return mapa;
   }
 
+  /**
+   * true si la fila se creo hace tan poco que Graph todavia puede no haberla
+   * reflejado en `calendarView`.
+   *
+   * Mientras eso sea cierto, la fila sirve de respaldo (ver el bucle de
+   * respaldo en `leer()` y el cruce de `joinUrl`/categorias en `mapear()`).
+   * Pasada esa ventana manda Graph: lo que Graph no trae, ya no se pinta.
+   */
+  private filaFresca(fila: TeamsMeeting): boolean {
+    const creado = fila.createdAt ? new Date(fila.createdAt).getTime() : 0;
+    if (!creado) return false;
+    return Date.now() - creado < TOLERANCIA_FILA_MS;
+  }
+
   private mapear(
     ev: any,
     fila: TeamsMeeting | undefined,
@@ -326,17 +382,27 @@ export class CalendarioGrupoService {
     const fin = this.aIsoUtc(ev?.end?.dateTime);
     if (!inicio) return null;
 
+    // Graph manda. La fila local solo aporta mientras sea fresca, que es el
+    // lapso en el que Graph todavia puede no haberla reflejado.
+    const filaOk: TeamsMeeting | null = fila && this.filaFresca(fila) ? fila : null;
+
     // El enlace de Graph es la fuente de verdad: al releer el calendario se
     // corrige solo el cruce que dejan las filas con join_url desactualizado.
-    const joinUrl = this.joinUrl(ev) ?? fila?.joinUrl ?? null;
+    // Si Graph ya no trae enlace y la fila no es fresca, no se hereda el viejo:
+    // quedaria un boton que abre una videollamada que ya no existe.
+    const joinUrl = this.joinUrl(ev) ?? filaOk?.joinUrl ?? null;
+
     const categoriasGraph = Array.isArray(ev?.categories)
       ? ev.categories.filter((c: unknown): c is string => typeof c === 'string')
       : [];
     // La fila local guarda lo que mando la app (alias + nombre de Outlook).
-    // Se fusiona con lo que devuelve Graph para que el chip de la app tenga
-    // color aunque Graph no conserve categorias desconocidas.
-    const categoriasFila = Array.isArray(fila?.categories)
-      ? fila.categories.filter((c: unknown): c is string => typeof c === 'string')
+    // Se fusiona SOLO si la fila es fresca, para que el chip de la app tenga
+    // color aunque Graph no conserve categorias desconocidas. Si no, manda
+    // Graph unica y exclusivamente: asi, cambiar la categoria en Teams o
+    // Outlook se refleja en la app sin que el alias viejo de la fila local lo
+    // pise (el orden de la lista ya garantiza que Graph va primero).
+    const categoriasFila = Array.isArray(filaOk?.categories)
+      ? filaOk.categories.filter((c: unknown): c is string => typeof c === 'string')
       : [];
     const categorias = [
       ...categoriasGraph,
@@ -352,6 +418,11 @@ export class CalendarioGrupoService {
     const subject = sinPrefijoCreador
       ? asuntoOriginal.replace(/^\([^)]{1,100}\)\s*/, '').trim() || asuntoOriginal
       : asuntoOriginal;
+
+    // En la app la modalidad ya esta guardada en la fila; en un evento creado
+    // directamente en Teams/Outlook no existe fila, y la unica pista que Graph
+    // expone es la categoria de Outlook (Blue=presencial, Yellow=virtual).
+    const modalidad = modalidadDesdeCategorias(categorias, fila?.modalidad ?? 'virtual');
 
     return {
       eventId: ev.id,
@@ -373,6 +444,9 @@ export class CalendarioGrupoService {
       createdById: fila?.createdBy ?? null,
       calendarTarget: fila?.calendarTarget ?? null,
       eventSource: fila?.eventSource ?? null,
+      tipoColegio: fila?.tipoColegio ?? null,
+      modalidad,
+      categoria: categoriaDesdeCategorias(categorias, modalidad),
       origen,
     };
   }
@@ -385,6 +459,7 @@ export class CalendarioGrupoService {
   private desdeFila(fila: TeamsMeeting): EventoCalendarioDto {
     const inicio = new Date(fila.startDateTime).toISOString();
     const fin = new Date(fila.endDateTime).toISOString();
+    const modalidad: Modalidad = fila.modalidad === 'presencial' ? 'presencial' : 'virtual';
     return {
       eventId: fila.eventId as string,
       subject: fila.subject,
@@ -405,6 +480,11 @@ export class CalendarioGrupoService {
       createdById: fila.createdBy,
       calendarTarget: fila.calendarTarget,
       eventSource: fila.eventSource,
+      tipoColegio: fila.tipoColegio ?? null,
+      modalidad,
+      // La fila no guarda las categorias, pero si su modalidad: con eso se
+      // reconstruye el alias correcto ('Reunion presencial' / 'Reunion virtual').
+      categoria: aliasDeModalidad(modalidad),
       origen: 'buzon',
     };
   }

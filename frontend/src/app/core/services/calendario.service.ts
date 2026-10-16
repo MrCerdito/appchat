@@ -38,6 +38,13 @@ export interface EventoCalendario {
   calendarTarget: 'personal' | 'shared' | 'none' | null;
   eventSource: 'group' | 'shared-mailbox' | 'personal' | 'none' | null;
   /**
+   * Marca/proyecto del colegio, solo si la reunion se creo desde la app (ahi el
+   * usuario si escoge colegio). Creadas directo en Teams llegan en null.
+   */
+  tipoColegio: string | null;
+  /** 'virtual' | 'presencial'. En eventos de Teams se deduce de la categoria. */
+  modalidad: 'virtual' | 'presencial';
+  /**
    * De que calendario vino. 'buzon' es lo que creo la app: Microsoft no deja
    * escribir en el calendario del grupo con permisos de aplicacion, asi que el
    * backend lee los dos y los fusiona.
@@ -66,6 +73,13 @@ export interface CalendarioGrupo {
   total: number;
   cacheado: boolean;
   truncado: boolean;
+  /**
+   * ISO 8601 UTC de la ultima lectura real a Graph. Se conserva dentro de la
+   * cache del backend, asi que un cacheado o una respuesta de respaldo (Graph
+   * fallo y se sirvio lo vencido) la traen igual: es lo que permite mostrar
+   * "sincronizado hace N s" sin volver a preguntar.
+   */
+  actualizadoEn: string;
 }
 
 @Injectable({ providedIn: 'root' })

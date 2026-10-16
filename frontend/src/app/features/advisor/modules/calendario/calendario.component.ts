@@ -215,6 +215,23 @@ export class CalendarioComponent implements OnInit, AfterViewInit, OnDestroy {
   loading = true;
   error = '';
 
+  /**
+   * ISO 8601 UTC de la ultima lectura REAL a Graph (CalendarioGrupo.actualizadoEn).
+   *
+   * La conserva la cache del backend, asi que tambien llega en una respuesta
+   * cacheada o de respaldo. Alimenta el indicador discreto de sincronizacion.
+   */
+  sincronizadoEn: string | null = null;
+
+  /**
+   * Evita que una lectura vieja pinte encima de una mas reciente.
+   *
+   * El asesor puede navegar de mes mientras la lectura anterior sigue viajando;
+   * sin este token las dos respuestas se pisaban y el calendario podia quedar
+   * mostrando el rango equivocado.
+   */
+  private cargaToken = 0;
+
   protected readonly categoriasReunion = CATEGORIAS_REUNION;
 
   /**
@@ -430,6 +447,11 @@ export class CalendarioComponent implements OnInit, AfterViewInit, OnDestroy {
    * El backend pagina Graph completo y lo cachea, asi que ir y volver es barato.
    */
   async loadCalendar(refrescar = false): Promise<boolean> {
+    // Token de carga: si el asesor navega de mes mientras esta lectura sigue
+    // viajando, la respuesta vieja no debe pintarse encima del rango que ya se
+    // esta viendo. Un refresco en segundo plano tambien lo usa, y se descarta
+    // si mientras tanto el usuario cambio de rango.
+    const token = ++this.cargaToken;
     // Un refresco en segundo plano no levanta el spinner: si lo levantara, la
     // agenda parpadearia cada 30 s mientras el asesor esta leyendo o escribiendo.
     if (!refrescar) {
@@ -440,8 +462,12 @@ export class CalendarioComponent implements OnInit, AfterViewInit, OnDestroy {
     try {
       const { desde, hasta } = this.rangoGrilla();
       const res = await this.calendario.grupo(desde, hasta, refrescar);
+      // Supero por una carga mas reciente: se descarta sin tocar la vista y sin
+      // reportarla como fallo (no lo fue, simplemente ya no sirve).
+      if (token !== this.cargaToken) return true;
       this.grupo = res.grupo;
       this.truncado = res.truncado;
+      this.sincronizadoEn = res.actualizadoEn ?? null;
       // Sin filtrar del backend: llegan cumpleanos, recordatorios, series,
       // cancelados y eventos sin videollamada. Todo lo que hay en el calendario
       // se ve, salvo lo que el usuario acaba de borrar o editar: Graph puede
@@ -453,6 +479,7 @@ export class CalendarioComponent implements OnInit, AfterViewInit, OnDestroy {
       this.rebuildDerived();
       return true;
     } catch (err: any) {
+      if (token !== this.cargaToken) return true;
       // Un refresco fallido no debe tapar la agenda que ya se está viendo: solo
       // se muestra el error si no habia datos de antes.
       if (!refrescar || this.events.length === 0) {
@@ -460,13 +487,13 @@ export class CalendarioComponent implements OnInit, AfterViewInit, OnDestroy {
       }
       return false;
     } finally {
-      if (!refrescar) this.loading = false;
+      if (!refrescar && token === this.cargaToken) this.loading = false;
       this.cdr.detectChanges();
       // Primera lectura de la sesion: los eventos de la manana ya crecieron
       // las franjas anteriores a la de ahora, asi que el scroll inicial se
       // re-ancla una vez que la agenda tiene su altura real. Un refresco en
       // segundo plano no toca el scroll: el asesor puede estar leyendo.
-      if (!refrescar && !this.agendaYaCentrada) {
+      if (!refrescar && !this.agendaYaCentrada && token === this.cargaToken) {
         this.agendaYaCentrada = true;
         this.centrarEnAhora();
       }
@@ -818,6 +845,26 @@ responsable(m: EventoCalendario): string {
     return `${MONTH_NAMES[this.viewMonth]} ${this.viewYear}`;
   }
 
+  /**
+   * "ahora" / "hace 40 s" / "hace 3 min" de la ultima lectura real a Graph.
+   *
+   * Le da contexto al color y a la categoria del chip: si el asesor acaba de
+   * cambiar algo en Teams y aqui todavia no cambio, el indicador explica por
+   * que (aun no ha pasado la proxima sincronizacion). Se actualiza con cada
+   * refresco periodico, sin timers propios.
+   */
+  get sincronizadoHace(): string {
+    const t = Date.parse(this.sincronizadoEn ?? '');
+    if (!Number.isFinite(t)) return '';
+    const seg = Math.max(0, Math.round((Date.now() - t) / 1000));
+    if (seg < 45) return 'ahora';
+    if (seg < 100) return 'hace 1 min';
+    const min = Math.round(seg / 60);
+    if (min < 60) return `hace ${min} min`;
+    const h = Math.round(min / 60);
+    return h < 24 ? `hace ${h} h` : `hace ${Math.round(h / 24)} d`;
+  }
+
   get selectedLabel(): string {
     const [y, m, d] = this.selectedKey.split('-').map(Number);
     return `${d} de ${MONTH_NAMES[m - 1]} de ${y}`;
@@ -1144,17 +1191,12 @@ responsable(m: EventoCalendario): string {
   }
 
   openCreate(): void {
-    // Proxima hora en clave de Bogota, no de la zona del navegador.
-    const base = new Date();
-    const p = partesBogota(base);
-    const desajusteMin = p.min;
-    const desfase = (60 - desajusteMin) % 60;
-    const inicio = new Date(
-      base.getTime() + BOG_OFFSET_MS + desfase * 60000,
-    );
+    // La hora de inicio arranca en "ahora", ya en hora de Bogota (no en la del
+    // navegador): `naiveBogota` es quien aplica el offset, por eso NO se le
+    // suma aqui tambien (sumarlo dos veces dejaba el campo ~10h corrido).
     this.draft = {
       subject: '',
-      startDateTime: naiveBogota(inicio),
+      startDateTime: naiveBogota(new Date()),
       durationMinutes: 30,
       agendarCalendario: true,
       categoria: CATEGORIA_POR_DEFECTO.alias,

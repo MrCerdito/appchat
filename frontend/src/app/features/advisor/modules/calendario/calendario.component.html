@@ -93,9 +93,22 @@
           </button>
           }
         </div>
+
+        <!-- Ultima lectura real a Microsoft Graph. Contexto del color y de la
+             categoria: si cambio algo en Teams y aqui aun no cambio, se ve por
+             que. Se actualiza con el refresco periodico, sin timers propios. -->
+        @if (sincronizadoHace) {
+        <div class="cal-sync" role="status" title="Ultima sincronizacion con Microsoft 365">
+          <span class="cal-sync-dot"></span>
+          Sincronizado {{ sincronizadoHace }}
+        </div>
+        }
       </div>
 
-      @if (loading) {
+      <!-- El spinner solo aparece cuando todavia no hay nada que mostrar: con
+           datos ya cargados, navegar de mes atenua la agenda en vez de
+           reemplazarla, para que no parpadee. -->
+      @if (loading && events.length === 0) {
       <div class="cal-loading">
         <span class="spin"></span> Cargando calendario...
       </div>
@@ -103,7 +116,7 @@
 
       <!-- Franjas de una hora. Las 24 se dibujan siempre para que la columna no
            "baille" al agregar o quitar una reunion. -->
-      <div class="agenda" #agendaScroll>
+      <div class="agenda" #agendaScroll [class.is-loading]="loading && events.length > 0">
         @for (slot of horasDelDia; track slot.hora) {
         <div class="agenda-slot"
           [class.has-events]="slot.eventos.length > 0"

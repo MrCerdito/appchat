@@ -318,9 +318,20 @@ export class SessionsController {
     }));
   }
 
+  /**
+   * Roster completo de asesores (nombre, correo, estados) para los selectores
+   * de la app: Métricas, Colegios, Configuración y los módulos de asesor.
+   *
+   * NO lleva `@Permiso('chats')`: ese módulo solo aplica al rol `advisor`
+   * (`catalogo.ts` → `aplicaA: ['advisor']`), así que el guard devolvía 403 a
+   * cualquier admin y las listas de asesores salían vacías. El nombre y la foto
+   * además ya son públicos vía `advisors/publico`, así que aquí alcanza con
+   * restringir por ROL (correo y contadores no se exponen a perfiles que no
+   * los necesitan).
+   */
   @Get('advisors')
-  @UseGuards(JwtAuthGuard)
-  @Permiso('chats')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin', 'advisor', 'desarrollador')
   async findAdvisors() {
     const advisors = await this.sessionsService.findAllAdvisors();
     const statuses = await this.chatGateway.getAdvisorStatuses();
@@ -567,8 +578,10 @@ export class SessionsController {
       );
     }
     const advisorId = req.user.id;
+    // El cambio por HTTP siempre lo hace el propio asesor: se registra como
+    // 'manual' para no confundirlo con un cambio automático del sistema.
     return this.sessionsService
-      .setAdvisorStatus(advisorId, status)
+      .setAdvisorStatus(advisorId, status, { causa: 'manual' })
       .then(() => ({ ok: true }));
   }
 

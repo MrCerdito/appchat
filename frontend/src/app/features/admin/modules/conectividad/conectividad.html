@@ -1,0 +1,523 @@
+<section class="hc">
+  <header class="hc-head">
+    <div>
+      <h2>Historial de Conectividad</h2>
+      <p class="hc-sub">
+        Monitoreo, análisis y auditoría de las conexiones de los asesores ·
+        Jornada elegible {{ resumen?.jornada?.ini }}:00–{{ resumen?.jornada?.fin }}:00 (Bogotá)
+      </p>
+    </div>
+    @if (resumen?.conectadosAhora) {
+      <div class="hc-ahora">
+        <span class="hc-ahora-dot"></span>
+        <strong>{{ resumen!.conectadosAhora.total }}</strong> conectados ahora
+        @if (resumen!.conectadosAhora.nombres.length) {
+          <span class="hc-ahora-nombres">{{ resumen!.conectadosAhora.nombres.join(' · ') }}</span>
+        }
+      </div>
+    }
+  </header>
+
+  <!-- Filtros globales -->
+  <div class="hc-filtros">
+    <label>
+      Desde
+      <input type="date" [(ngModel)]="desde" (change)="aplicarFiltros()" />
+    </label>
+    <label>
+      Hasta
+      <input type="date" [(ngModel)]="hasta" (change)="aplicarFiltros()" />
+    </label>
+    <label>
+      Asesor
+      <select [(ngModel)]="asesorId" (change)="aplicarFiltros()">
+        <option value="">Todos</option>
+        @for (a of asesores; track a.id) {
+          <option [value]="a.id">{{ a.name }}</option>
+        }
+      </select>
+    </label>
+    @if (asesoresError) {
+      <span class="hc-warn">No se pudo cargar la lista de asesores</span>
+    }
+  </div>
+
+  <!-- Pestañas -->
+  <nav class="hc-tabs">
+    <button [class.active]="pestana === 'resumen'" (click)="cambiarPestana('resumen')">Resumen</button>
+    <button [class.active]="pestana === 'asesores'" (click)="cambiarPestana('asesores')">Asesores</button>
+    <button [class.active]="pestana === 'periodo'" (click)="cambiarPestana('periodo')">Análisis por periodo</button>
+    <button [class.active]="pestana === 'incidentes'" (click)="cambiarPestana('incidentes')">Desconexiones e incidentes</button>
+    <button [class.active]="pestana === 'historial'" (click)="cambiarPestana('historial')">Historial y auditoría</button>
+  </nav>
+
+  @if (cargando) {
+    <p class="hc-cargando">Cargando…</p>
+  }
+  @if (error) {
+    <p class="hc-error">{{ error }}</p>
+  }
+
+  <!-- ══════════════════ 1. Resumen ══════════════════ -->
+  @if (pestana === 'resumen' && resumen; as r) {
+    <div class="hc-kpis">
+      <div class="hc-kpi">
+        <span class="hc-kpi-lab">Disponibilidad</span>
+        <strong class="hc-kpi-val">{{ fmtPct(r.kpis.disponibilidadPct) }}</strong>
+        <span class="hc-kpi-sub">
+          vs periodo anterior:
+          <span [ngClass]="deltaClase((r.kpis.disponibilidadPct ?? 0) - (r.comparacion.disponibilidadPct ?? 0))">
+            {{ fmtDelta((r.kpis.disponibilidadPct ?? 0) - (r.comparacion.disponibilidadPct ?? 0)) }}
+          </span>
+        </span>
+      </div>
+      <div class="hc-kpi">
+        <span class="hc-kpi-lab">Estabilidad</span>
+        <strong class="hc-kpi-val">{{ fmtPct(r.kpis.estabilidadPct) }}</strong>
+        <span class="hc-kpi-sub">100 = sin interrupciones significativas</span>
+      </div>
+      <div class="hc-kpi">
+        <span class="hc-kpi-lab">Desconexiones</span>
+        <strong class="hc-kpi-val">{{ r.kpis.desconexiones }}</strong>
+        <span class="hc-kpi-sub">
+          vs anterior: {{ r.comparacion.desconexiones }}
+          <span [ngClass]="deltaClase(r.comparacion.desconexiones - r.kpis.desconexiones)">
+            {{ fmtDelta(r.comparacion.desconexiones - r.kpis.desconexiones) }}
+          </span>
+        </span>
+      </div>
+      <div class="hc-kpi">
+        <span class="hc-kpi-lab">Interrupción total</span>
+        <strong class="hc-kpi-val">{{ fmtMin(r.kpis.interrupcionMin) }}</strong>
+        <span class="hc-kpi-sub">
+          corte prom {{ fmtMin(r.kpis.cortePromMin) }} · mediana {{ fmtMin(r.kpis.corteMedMin) }}
+        </span>
+      </div>
+      <div class="hc-kpi">
+        <span class="hc-kpi-lab">Recuperación</span>
+        <strong class="hc-kpi-val">{{ fmtMin(r.kpis.recuperacionPromMin) }}</strong>
+        <span class="hc-kpi-sub">
+          mediana {{ fmtMin(r.kpis.recuperacionMedMin) }} · sin reconexión: {{ r.kpis.sinRecuperacion }}
+        </span>
+      </div>
+      <div class="hc-kpi">
+        <span class="hc-kpi-lab">Sesiones conectado</span>
+        <strong class="hc-kpi-val">{{ fmtMin(r.kpis.sesionPromMin) }}</strong>
+        <span class="hc-kpi-sub">
+          mediana {{ fmtMin(r.kpis.sesionMedMin) }} · {{ r.kpis.sesionesTramos }} tramos
+        </span>
+      </div>
+      <div class="hc-kpi">
+        <span class="hc-kpi-lab">Sin conexión</span>
+        <strong class="hc-kpi-val">{{ fmtMin(r.kpis.sinConexionMin) }}</strong>
+        <span class="hc-kpi-sub">de {{ fmtMin(r.kpis.totalMin) }} registrados</span>
+      </div>
+      <div class="hc-kpi">
+        <span class="hc-kpi-lab">Conexión por causa</span>
+        <span class="hc-kpi-canvas">
+          <span>timeout {{ r.kpis.desconexionesTimeout }}</span>
+          <span>socket {{ r.kpis.desconexionesDisconnect }}</span>
+          <span>manual {{ r.kpis.desconexionesManual }}</span>
+          <span>otro {{ r.kpis.desconexionesOtro }}</span>
+        </span>
+      </div>
+    </div>
+
+    <div class="hc-grid2">
+      <article class="hc-card">
+        <h3>Tendencia diaria</h3>
+        <table class="hc-table">
+          <thead>
+            <tr>
+              <th>Día</th>
+              <th>Disponible</th>
+              <th>Sin conexión</th>
+              <th>Desconex.</th>
+              <th>Disponibilidad</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (d of r.tendencia; track d.fecha) {
+              <tr>
+                <td>{{ d.fecha }}</td>
+                <td>{{ fmtMin(d.disponibleMin) }}</td>
+                <td>{{ fmtMin(d.sinConexionMin) }}</td>
+                <td>{{ d.desconexiones }}</td>
+                <td>{{ fmtPct(d.disponibilidadPct) }}</td>
+              </tr>
+            }
+            @empty {
+              <tr><td colspan="5" class="hc-vacio">Sin actividad en el periodo.</td></tr>
+            }
+          </tbody>
+        </table>
+      </article>
+
+      <article class="hc-card">
+        <h3>Distribución por hora (Bogotá)</h3>
+        <table class="hc-table">
+          <thead>
+            <tr>
+              <th>Hora</th>
+              <th>Desconexiones</th>
+              <th>Disponible</th>
+              <th>Sin conexión</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (h of r.porHora; track h.hora) {
+              <tr>
+                <td>{{ h.hora }}:00</td>
+                <td>{{ h.desconexiones }}</td>
+                <td>{{ fmtMin(h.disponibleMin) }}</td>
+                <td>{{ fmtMin(h.inactivoMin) }}</td>
+              </tr>
+            }
+            @empty {
+              <tr><td colspan="4" class="hc-vacio">Sin actividad en el periodo.</td></tr>
+            }
+          </tbody>
+        </table>
+      </article>
+    </div>
+  }
+
+  <!-- ══════════════════ 2. Asesores ══════════════════ -->
+  @if (pestana === 'asesores' && resumen; as r) {
+    <article class="hc-card">
+      <h3>
+        Ranking de asesores
+        @if (rankingTop) {
+          <span class="hc-chip">Mejor: {{ rankingTop.nombre }} · {{ fmtPct(rankingTop.disponibilidadPct) }}</span>
+        }
+      </h3>
+      <div class="hc-scroll">
+        <table class="hc-table">
+          <thead>
+            <tr>
+              <th>Asesor</th>
+              <th>Estado</th>
+              <th>Disponible</th>
+              <th>Ocupado</th>
+              <th>Almuerzo</th>
+              <th>Sin conexión</th>
+              <th>Desconex.</th>
+              <th>Disponibilidad</th>
+              <th>Estabilidad</th>
+              <th>Tendencia</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (a of r.ranking; track a.id) {
+              <tr>
+                <td>{{ a.nombre }}</td>
+                <td><span class="hc-badges" [attr.data-estado]="a.estado">{{ bucketEtiqueta(a.estado) }}</span></td>
+                <td>{{ fmtMin(a.disponibleMin) }}</td>
+                <td>{{ fmtMin(a.ocupadoMin) }}</td>
+                <td>{{ fmtMin(a.almuerzoMin) }}</td>
+                <td>{{ fmtMin(a.sinConexionMin) }}</td>
+                <td>{{ a.desconexiones }}</td>
+                <td [class.hc-sindatos]="a.disponibilidadPct === null">{{ fmtPct(a.disponibilidadPct) }}</td>
+                <td [class.hc-sindatos]="a.estabilidadPct === null">{{ fmtPct(a.estabilidadPct) }}</td>
+                <td [ngClass]="deltaClase(a.tendenciaPct)">{{ fmtDelta(a.tendenciaPct) }}</td>
+              </tr>
+            }
+            @empty {
+              <tr><td colspan="10" class="hc-vacio">Sin asesores en el periodo.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <p class="hc-nota">
+        «Sin datos» = menos de 1 hora de actividad registrada en el periodo; no se
+        muestran porcentajes engañosos. La estabilidad combina interrupción total y
+        número de desconexiones (100 = estable).
+      </p>
+    </article>
+  }
+
+  <!-- ══════════════════ 3. Análisis por periodo ══════════════════ -->
+  @if (pestana === 'periodo' && mapa; as m) {
+    <article class="hc-card">
+      <div class="hc-card-head">
+        <h3>Mapa de calor · {{ metricaMapaLabel }}</h3>
+        <label class="hc-inline">
+          Métrica
+          <select [(ngModel)]="metricaMapa" (change)="cambiarMetrica()">
+            <option value="desconexiones">Desconexiones</option>
+            <option value="minutos">Minutos caídos</option>
+            <option value="afectados">Asesores afectados</option>
+            <option value="disponibilidad">Disponibilidad %</option>
+          </select>
+        </label>
+      </div>
+      <div class="hc-scroll">
+        <table class="hc-heatmap">
+          <thead>
+            <tr>
+              <th></th>
+              @for (h of HORAS; track h) {
+                <th [class.hc-hora-act]="h % 3 === 0">{{ h }}</th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (d of DIAS; track d; let dia = $index) {
+              <tr>
+                <th>{{ d }}</th>
+                @for (h of HORAS; track h) {
+                  @let cel = celdaMapa(dia, h);
+                  <td
+                    [attr.title]="cel
+                      ? d + ' ' + h + ':00 — ' + (cel.valor ?? 0) + (metricaMapa === 'disponibilidad' ? '%' : '')
+                      : d + ' ' + h + ':00 — sin datos'"
+                    [class]="'hc-celda hc-e' + escalaMapa(cel?.valor, maxMapa)"
+                  >
+                    @if (cel && cel.valor) {
+                      <span>{{ metricaMapa === 'disponibilidad' ? cel.valor : cel.valor }}</span>
+                    }
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="hc-leyenda">
+        <span>Menos</span>
+        <span class="hc-celda hc-e0"></span>
+        <span class="hc-celda hc-e1"></span>
+        <span class="hc-celda hc-e2"></span>
+        <span class="hc-celda hc-e3"></span>
+        <span class="hc-celda hc-e4"></span>
+        <span>Más</span>
+        <span class="hc-leyenda-nota">
+          Máximo del periodo: {{ maxMapa }}{{ metricaMapa === 'disponibilidad' ? '%' : '' }} ·
+          jornada elegible {{ m.rango.desde }} a {{ m.rango.hasta }}
+        </span>
+      </div>
+      <p class="hc-nota">
+        La disponibilidad se calcula como Disponible ÷ (Total − Almuerzo) dentro de la
+        jornada laboral; las celdas vacías no tienen actividad registrada.
+      </p>
+    </article>
+  }
+
+  <!-- ══════════════════ 4. Desconexiones e incidentes ══════════════════ -->
+  @if (pestana === 'incidentes' && incidentes; as inc) {
+    <div class="hc-kpis hc-kpis-compactos">
+      <div class="hc-kpi">
+        <span class="hc-kpi-lab">Incidentes</span>
+        <strong class="hc-kpi-val">{{ inc.resumen.total }}</strong>
+        <span class="hc-kpi-sub">abiertos: {{ inc.resumen.abiertos }}</span>
+      </div>
+      <div class="hc-kpi">
+        <span class="hc-kpi-lab">Cortes</span>
+        <strong class="hc-kpi-val">{{ inc.resumen.cortes }}</strong>
+        <span class="hc-kpi-sub">≥ {{ inc.reglas.corteMin }} min</span>
+      </div>
+      <div class="hc-kpi">
+        <span class="hc-kpi-lab">Ráfagas</span>
+        <strong class="hc-kpi-val">{{ inc.resumen.rafagas }}</strong>
+        <span class="hc-kpi-sub">≥ {{ inc.reglas.rafagaHora }} por hora</span>
+      </div>
+      <div class="hc-kpi">
+        <span class="hc-kpi-lab">Días inestables</span>
+        <strong class="hc-kpi-val">{{ inc.resumen.diasInestables }}</strong>
+        <span class="hc-kpi-sub">≥ {{ inc.reglas.desconexionesDia }} por día</span>
+      </div>
+    </div>
+
+    <article class="hc-card">
+      <h3>Incidentes detectados</h3>
+      <p class="hc-nota">
+        Detección automática sobre el registro de actividad (no es una atribución de
+        causa). Cada incidente puede revisarse: confirmarlo, descartarlo o dejar un
+        comentario. Crítico ≥ {{ inc.reglas.criticoMin }} min.
+      </p>
+      <div class="hc-scroll">
+        <table class="hc-table">
+          <thead>
+            <tr>
+              <th>Tipo</th>
+              <th>Asesor</th>
+              <th>Desde</th>
+              <th>Hasta</th>
+              <th>Duración</th>
+              <th>Reglas</th>
+              <th>Estado</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (i of inc.items; track i.clave) {
+              <tr>
+                <td>
+                  <span class="hc-tipo" [attr.data-tipo]="i.tipo">{{ tipoEtiqueta(i.tipo) }}</span>
+                </td>
+                <td>{{ i.nombre }}</td>
+                <td>{{ fecha(i.desde) }} {{ hora(i.desde) }}</td>
+                <td>{{ i.hasta ? fecha(i.hasta) + ' ' + hora(i.hasta) : 'sin reconexión' }}</td>
+                <td>{{ i.duracionMin !== null ? fmtMin(i.duracionMin) : (i.nEventos ? i.nEventos + ' eventos' : '—') }}</td>
+                <td class="hc-reglas">
+                  @for (rg of i.reglas; track rg) {
+                    <span class="hc-chip">{{ rg }}</span>
+                  }
+                </td>
+                <td>
+                  <span class="hc-estado" [attr.data-estado]="i.estado">{{ estadoEtiqueta(i.estado) }}</span>
+                  @if (i.comentario) {
+                    <span class="hc-coment">{{ i.comentario }}</span>
+                  }
+                </td>
+                <td>
+                  <button class="hc-btn" (click)="abrirRevision(i)">
+                    {{ revAbierta === i.clave ? 'Cerrar' : 'Revisar' }}
+                  </button>
+                </td>
+              </tr>
+              @if (revAbierta === i.clave) {
+                <tr class="hc-rev-fila">
+                  <td colspan="8">
+                    <div class="hc-rev">
+                      <label>
+                        Estado
+                        <select [(ngModel)]="revEstado">
+                          <option value="en_revision">En revisión</option>
+                          <option value="confirmado">Confirmado</option>
+                          <option value="descartado">Descartado</option>
+                        </select>
+                      </label>
+                      <label class="hc-rev-coment">
+                        Comentario
+                        <input
+                          type="text"
+                          [(ngModel)]="revComentario"
+                          placeholder="Contexto, acción tomada o motivo del descarte…"
+                        />
+                      </label>
+                      <button class="hc-btn hc-btn-prim" [disabled]="revGuardando" (click)="guardarRevision(i)">
+                        {{ revGuardando ? 'Guardando…' : 'Guardar revisión' }}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              }
+            }
+            @empty {
+              <tr><td colspan="8" class="hc-vacio">Sin incidentes en el periodo.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </article>
+  }
+
+  <!-- ══════════════════ 5. Historial y auditoría ══════════════════ -->
+  @if (pestana === 'historial' && eventos; as ev) {
+    <article class="hc-card">
+      <div class="hc-card-head">
+        <h3>Historial de eventos <span class="hc-total">{{ ev.total }} en total</span></h3>
+        <button class="hc-btn" [disabled]="evExportando" (click)="exportarCsv()">
+          {{ evExportando ? 'Generando…' : 'Exportar CSV' }}
+        </button>
+      </div>
+
+      <div class="hc-evfiltros">
+        <label>
+          Tipo
+          <select [(ngModel)]="evFiltroTipo" (change)="evFiltrar()">
+            <option value="">Todos</option>
+            <option value="desconexion">Desconexión</option>
+            <option value="conexion">Conexión</option>
+            <option value="status">Cambio de estado</option>
+            <option value="almuerzo_inicio">Inicio almuerzo</option>
+            <option value="almuerzo_fin">Fin almuerzo</option>
+          </select>
+        </label>
+        <label>
+          Causa
+          <select [(ngModel)]="evFiltroCausa" (change)="evFiltrar()">
+            <option value="">Todas</option>
+            <option value="manual">Manual</option>
+            <option value="timeout">Heartbeat</option>
+            <option value="disconnect">Socket</option>
+            <option value="sistema">Sistema</option>
+          </select>
+        </label>
+        <label>
+          Estado
+          <select [(ngModel)]="evFiltroEstado" (change)="evFiltrar()">
+            <option value="">Todos</option>
+            <option value="online">Disponible</option>
+            <option value="busy">Ocupado</option>
+            <option value="meeting">Reunión</option>
+            <option value="almuerzo">Almuerzo</option>
+            <option value="offline">Sin conexión</option>
+          </select>
+        </label>
+        <label>
+          Duración mín. (min)
+          <input type="number" min="0" [(ngModel)]="evFiltroDurMin" (change)="evFiltrar()" />
+        </label>
+        <button class="hc-btn" (click)="evCambiarOrden()">
+          Orden: {{ evOrden === 'desc' ? 'más reciente' : 'más antiguo' }}
+        </button>
+      </div>
+
+      <div class="hc-scroll">
+        <table class="hc-table">
+          <thead>
+            <tr>
+              <th>Asesor</th>
+              <th>Día</th>
+              <th>Desde</th>
+              <th>Hasta</th>
+              <th>Duración</th>
+              <th>Tipo</th>
+              <th>Estado</th>
+              <th>Causa (evidencia)</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (e of ev.items; track e.id) {
+              <tr>
+                <td>{{ e.nombre }}</td>
+                <td>{{ e.fecha }}</td>
+                <td>{{ hora(e.desde) }}</td>
+                <td>{{ hora(e.hasta) }}</td>
+                <td>{{ duracion(e.duracionMs) }}</td>
+                <td>{{ tipoEtiqueta(e.tipo) }}</td>
+                <td>{{ bucketEtiqueta(e.estado) }}</td>
+                <td>
+                  @if (causaInfo(e.causa); as c) {
+                    <span class="hc-causa" [attr.data-certeza]="c.certeza" [title]="'Certeza: ' + c.certeza">
+                      {{ c.etiqueta }}
+                    </span>
+                  } @else {
+                    <span class="hc-vacio">—</span>
+                  }
+                </td>
+              </tr>
+            }
+            @empty {
+              <tr><td colspan="8" class="hc-vacio">Sin eventos con los filtros aplicados.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="hc-pager">
+        <button class="hc-btn" [disabled]="evPagina <= 1" (click)="evPaginaAnt()">← Anterior</button>
+        <span>Página {{ ev.page }} de {{ ev.pages }}</span>
+        <button class="hc-btn" [disabled]="evPagina >= ev.pages" (click)="evPaginaSig()">Siguiente →</button>
+      </div>
+      <p class="hc-nota">
+        La causa describe la evidencia registrada, no una conclusión técnica:
+        «comunicación interrumpida» = heartbeat vencido; «cliente desconectado» =
+        socket cerrado sin logout explícito. No se atribuye «perdió internet» sin
+        evidencia.
+      </p>
+    </article>
+  }
+</section>

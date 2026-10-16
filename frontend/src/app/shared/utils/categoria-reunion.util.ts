@@ -71,7 +71,8 @@ export function buscarCategoria(alias: string | null | undefined): CategoriaReun
  * Traduce la categoria de un evento a la nuestra, para pintar el chip del
  * mismo color que el de la lista.
  *
- * Orden:
+ * Se resuelve ITEM POR ITEM en el orden de la lista, y dentro de cada item en
+ * este orden:
  *  1. El alias, que solo traen los eventos creados por la app: da la categoria
  *     SEMANTICA correcta ("Reunion virtual" sigue siendo virtual aunque su
  *     color haya cambiado).
@@ -82,6 +83,16 @@ export function buscarCategoria(alias: string | null | undefined): CategoriaReun
  *  3. El nombre legado, solo como ultimo recurso: no pinta distinto a lo que
  *     ya resolvio el paso 2, porque todos los legados siguen siendo nombres de
  *     color actuales.
+ *
+ * Por que por item y no en tres pasadas sobre la lista entera:
+ * `mapear()` del backend arma la lista como [categorias de Graph, ...las de la
+ * fila local]. Antes la pasada de alias recorria toda la lista, asi que un
+ * alias VIEJO de la fila local ("Reunion virtual") le ganaba a la categoria
+ * que el usuario acababa de poner en Teams ("Blue category") y el chip se
+ * quedaba con el color anterior. Con resolucion por item manda el primero que
+ * resuelva; como Graph va primero, manda Teams/Outlook. Si Graph trae algo que
+ * no reconocemos, se cae al alias de la fila local, que era el motivo de
+ * fusionar las dos listas.
  */
 export function categoriaDeEvento(
   categorias: string[] | null | undefined,
@@ -90,20 +101,17 @@ export function categoriaDeEvento(
     .map((c) => String(c ?? '').trim())
     .filter((c) => c.length > 0);
 
+  const normalizar = (valor: string) => valor.toLowerCase();
+
   for (const c of lista) {
     const porAlias = buscarCategoria(c);
     if (porAlias) return porAlias;
-  }
 
-  const normalizar = (valor: string) => valor.toLowerCase();
-  for (const c of lista) {
     const porOutlook = CATEGORIAS_REUNION.find(
       (x) => normalizar(x.outlook) === normalizar(c),
     );
     if (porOutlook) return porOutlook;
-  }
 
-  for (const c of lista) {
     const porLegado = CATEGORIAS_REUNION.find(
       (x) => normalizar(x.outlookLegado) === normalizar(c),
     );

@@ -6,6 +6,7 @@ import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 import { Subject, interval } from 'rxjs';
 import { debounceTime, distinctUntilChanged, takeUntil, finalize } from 'rxjs/operators';
 import { TicketService } from '../../core/services/ticket.service';
+import { CorreosService, CategoriaGestion } from '../../core/services/correos.service';
 import { ModuloService } from '../../core/services/modulo.service';
 import { AuthService } from '../../core/services/auth.service';
 import { SessionService, Colegio } from '../../core/services/session.service';
@@ -169,8 +170,12 @@ export class TicketsComponent implements OnInit, OnDestroy {
   private imagenesCargando = new Set<string>();
 
   showEditModal = false;
-  editModalDto = { titulo: '', descripcion: '', category: '' };
-  detailMenu: 'status' | 'priority' | 'category' | null = null;
+  editModalDto = { titulo: '', descripcion: '', category: '', gestion: '' };
+  detailMenu: 'status' | 'priority' | 'category' | 'gestion' | null = null;
+
+  /** Catálogo compartido de Gestión (Requerimiento, Error, ...): el mismo
+   *  que usa el selector de Gestión de correos. */
+  categoriasGestion: CategoriaGestion[] = [];
 
   modulos: Modulo[] = [];
   moduloForm = { nombre: '', descripcion: '' };
@@ -416,6 +421,7 @@ export class TicketsComponent implements OnInit, OnDestroy {
 
   constructor(
     private ticketService: TicketService,
+    private correosService: CorreosService,
     private moduloService: ModuloService,
     private auth: AuthService,
     private sessionService: SessionService,
@@ -448,6 +454,7 @@ export class TicketsComponent implements OnInit, OnDestroy {
     this.load();
     this.loadCounts();
     this.loadCategories();
+    this.loadGestionCatalog();
     this.loadAdvisors();
     this.loadModulos();
     this.loadColegios();
@@ -738,6 +745,18 @@ export class TicketsComponent implements OnInit, OnDestroy {
     this.ticketService.getCategories().subscribe({
       next: (cats) => { this.categories = cats; this.cdr.detectChanges(); },
       error: (err) => console.error('HTTP Error:', err),
+    });
+  }
+
+  /**
+   * Catálogo de Gestión compartido con correos. Si el perfil no tiene el
+   * módulo `correos` (interno/desarrollador) el backend responde 403: aquí no
+   * se rompe nada, el selector queda solo con «Sin clasificar».
+   */
+  loadGestionCatalog(): void {
+    this.correosService.categoriasGestion().subscribe({
+      next: (cats) => { this.categoriasGestion = cats; this.cdr.detectChanges(); },
+      error: () => { this.categoriasGestion = []; },
     });
   }
 
@@ -1408,6 +1427,7 @@ export class TicketsComponent implements OnInit, OnDestroy {
       titulo: this.selectedTicket.titulo,
       descripcion: this.selectedTicket.descripcion || '',
       category: this.selectedTicket.category || '',
+      gestion: this.selectedTicket.categoriaGestion || '',
     };
     this.showEditModal = true;
     this.detailMenu = null;
@@ -1429,6 +1449,10 @@ export class TicketsComponent implements OnInit, OnDestroy {
     if ((this.editModalDto.category || '') !== (this.selectedTicket.category || '')) {
       dto.category = this.editModalDto.category || undefined;
     }
+    if ((this.editModalDto.gestion || '') !== (this.selectedTicket.categoriaGestion || '')) {
+      // '' explícito = limpiar la gestión (queda «Sin clasificar»).
+      dto.categoriaGestion = this.editModalDto.gestion || '';
+    }
     if (Object.keys(dto).length === 0) { this.closeEditModal(); return; }
 
     this.ticketService.update(this.selectedTicket.id, dto).subscribe({
@@ -1447,7 +1471,7 @@ export class TicketsComponent implements OnInit, OnDestroy {
   }
 
   // ── Detail sidebar actions ─────────────────────────────
-  toggleDetailMenu(menu: 'status' | 'priority' | 'category'): void {
+  toggleDetailMenu(menu: 'status' | 'priority' | 'category' | 'gestion'): void {
     this.detailMenu = this.detailMenu === menu ? null : menu;
     this.cdr.detectChanges();
   }
@@ -1658,6 +1682,24 @@ export class TicketsComponent implements OnInit, OnDestroy {
         this.cdr.detectChanges();
       },
       error: () => this.notification.error('Error', 'No se pudo cambiar la categoria.'),
+    });
+  }
+
+  /** Asigna (o limpia con '') la categoría de Gestión del ticket. */
+  changeDetailGestion(nueva: string): void {
+    if (!this.selectedTicket) return;
+    if ((nueva || '') === (this.selectedTicket.categoriaGestion || '')) {
+      this.detailMenu = null;
+      return;
+    }
+    this.ticketService.update(this.selectedTicket.id, { categoriaGestion: nueva }).subscribe({
+      next: (t) => {
+        this.selectedTicket = t;
+        this.detailMenu = null;
+        this.load(); this.loadCounts();
+        this.cdr.detectChanges();
+      },
+      error: () => this.notification.error('Error', 'No se pudo guardar la gestión del ticket.'),
     });
   }
 

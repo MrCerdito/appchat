@@ -9,6 +9,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { TeamsMeeting } from '../advisor-whatsapp/entities/teams-meeting.entity';
 import { CalendarioController } from './calendario.controller';
 import { CalendarioGrupoService } from './calendario-grupo.service';
+import { CalendarWarmService } from './calendar-warm.service';
 import { CumpleanosNotificationsService } from './cumpleanos-notifications.service';
 import { MeetingReminderService } from './meeting-reminder.service';
 
@@ -34,9 +35,13 @@ import { MeetingReminderService } from './meeting-reminder.service';
   controllers: [CalendarioController],
   providers: [
     CalendarioGrupoService,
+    CalendarWarmService,
     CumpleanosNotificationsService,
     MeetingReminderService,
   ],
-  exports: [CalendarioGrupoService],
+  // CalendarioGrupoService es un singleton: Metricas importa este modulo para
+  // reusar la MISMA instancia (y por tanto la misma cache en memoria y el mismo
+  // cliente de Graph) en vez de abrir un segundo viaje a Microsoft.
+  exports: [CalendarioGrupoService, CalendarWarmService],
 })
 export class CalendarioModule {}

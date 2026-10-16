@@ -479,6 +479,34 @@ $sombra-lg: var(--cal-shadow-lg);
   margin-bottom: 11px;
 }
 
+/*
+ * Indicador discreto de sincronizacion con Microsoft Graph.
+ *
+ * No avisa ni interrumpe: solo dice cuando se leyo por ultima vez el calendario
+ * real. Le da contexto al color y a la categoria del chip, sobre todo cuando el
+ * asesor acaba de cambiar algo en Teams y aqui todavia no cambio.
+ */
+.cal-sync {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--bg-subtle);
+  border: 1px solid $borde;
+  color: var(--text-faint);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.cal-sync-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22c55e;
+}
+
 // Buscador
 .cal-searchbar {
   flex: 1;
@@ -577,6 +605,20 @@ $sombra-lg: var(--cal-shadow-lg);
   overscroll-behavior: contain;
   border-top: 1px solid $borde;
   padding-top: 4px;
+  transition: opacity 0.18s ease;
+}
+
+/*
+ * Agenda atenuada mientras se relee otro rango.
+ *
+ * Al navegar de mes NO se reemplaza la agenda por un spinner: eso la haria
+ * parpadear y perder el contexto. Se mantiene visible y tenue hasta que llegue
+ * la respuesta, y recien ahi se repinta. El spinner solo aparece cuando todavia
+ * no hay nada que mostrar.
+ */
+.agenda.is-loading {
+  opacity: 0.4;
+  pointer-events: none;
 }
 
 .agenda-slot {

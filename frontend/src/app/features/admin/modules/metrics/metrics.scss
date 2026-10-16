@@ -12,23 +12,185 @@
   min-width: 0;
 }
 
-// ── Encabezado / barra de filtros (2 filas) ────────────────
-.mx-head {
+// ── Encabezado / barra de filtros (una sola fila, en grupos) ─
+// ── Panel de filtros (estilo Perfil Institucional · siempre expuesto) ────────
+// Réplica del panel del Perfil Institucional: tarjeta con cabecera, cuerpo en
+// columnas con títulos de sección y pie con la acción. Aquí NO se pliega: el
+// cuerpo queda fijo y siempre visible.
+.mx-fpanel {
+  position: relative;
+  // El overlay de carga es `fixed` (z-index 700) y lo tapa mientras carga:
+  // así nadie toca un filtro a medio aplicar.
+  z-index: 7;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  // Sin `overflow: hidden`: la lista del combo de asesor se desborda hacia
+  // abajo y recortarla dejaría el desplegable a medias.
+}
+.mx-fpanel-body {
+  // TODO horizontal: Proyecto │ Asesor │ Rango en UNA sola fila, con una
+  // línea vertical entre bloque y bloque para que cada filtro se lea solo.
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  padding: 18px;
+
+  // En pantallas angostas los bloques se apilan y la línea vertical pasa a
+  // ser horizontal, para que el separador siga leyéndose como separador.
+  @media (max-width: 1100px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+.mx-fpanel-col {
   display: flex; flex-direction: column;
-  gap: 0.7rem;
-  padding-bottom: 1.1rem;
-  border-bottom: 1px solid var(--border);
+  gap: 8px;
+  min-width: 0;
+  flex: 1 1 220px;
+  padding: 0 16px;
+  &:first-child { padding-left: 0; }
+  &:last-child { padding-right: 0; }
+
+  @media (max-width: 1100px) {
+    flex: 0 0 auto;
+    width: 100%;
+    padding: 14px 0;
+    &:first-child { padding-top: 0; }
+    &:last-child { padding-bottom: 0; }
+  }
 }
-.mx-head-row {
-  display: flex; align-items: center;
-  gap: 0.6rem; flex-wrap: wrap;
+// La línea que separa un bloque del siguiente (vertical en fila horizontal).
+.mx-fpanel-col + .mx-fpanel-col {
+  border-left: 1px solid var(--border);
+  @media (max-width: 1100px) {
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
 }
-.mx-head-row.secondary {
-  align-items: flex-end;
-  .mx-updated { margin-left: auto; }
+.mx-fpanel-col--rango {
+  // Preset + navegador de mes + fechas: el bloque que más ancho necesita.
+  flex: 2 1 560px;
+}
+.mx-fpanel-section-title {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 0.72rem; font-weight: 700;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--text-muted);
+  svg { flex-shrink: 0; }
+}
+// Selector de proyecto: lista desplegable con el color de cada proyecto.
+.mx-procombo { position: relative; min-width: 0; }
+.mx-procombo-toggle {
+  width: 100%; height: 44px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.84rem; font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.15s;
+  svg { flex: 0 0 auto; color: var(--text-muted); transition: transform 0.15s; }
+  &:hover { border-color: var(--text-faint); }
+  &.open {
+    border-color: var(--primary, #2563eb);
+    svg { transform: rotate(180deg); }
+  }
+}
+.mx-procombo-value {
+  display: inline-flex; align-items: center; gap: 8px;
+  min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.mx-procombo-pop {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0; right: 0;
+  z-index: 30;
+  padding: 4px;
+  display: flex; flex-direction: column; gap: 1px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.16);
+  overflow: hidden;
+}
+.mx-procombo-opt {
+  display: flex; align-items: center; gap: 8px;
+  padding: 0.55rem 0.6rem;
+  border: 0; border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.8rem; font-family: 'Inter', sans-serif;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+  .mx-procombo-check { margin-left: auto; color: var(--primary, #2563eb); }
+  &:hover { background: var(--bg); }
+  &.selected { font-weight: 700; color: var(--primary, #2563eb); }
+}
+// Fila del rango: preset (Hoy/Mes) + navegador de mes + fechas, todo en un
+// solo renglón horizontal con wrap como red de seguridad.
+.mx-fpanel-rango {
+  display: flex; align-items: center; gap: 10px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+// La regla global de `.mx-seg` (barras) lo estira al 100%: dentro del panel
+// el segmento se queda a su ancho y la fila no se descompone.
+.mx-fpanel .mx-seg { width: auto; flex-shrink: 1; }
+.mx-fpanel .mx-seg-btn { height: 36px; padding: 0 0.9rem; }
+.mx-fpanel .mx-month { height: 36px; }
+.mx-fpanel .mx-month-btn { height: 100%; width: 32px; }
+.mx-fpanel .mx-combo { width: 100%; min-width: 0; }
+.mx-fpanel .mx-combo-toggle {
+  height: 44px; padding: 0 14px;
+  border-radius: 10px;
+  font-size: 0.84rem;
+}
+// Fechas dentro de la fila horizontal: ancho fijo por input (no se estiran
+// a todo el panel) y misma altura de 36px que el preset y el navegador.
+.mx-fpanel-dates {
+  width: auto;
+  input { flex: 0 1 auto; width: 152px; min-width: 128px; height: 36px; }
+}
+// Pie fijo: estado del filtro a la izquierda, «Aplicar filtro» a la derecha.
+.mx-fpanel-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px 12px; flex-wrap: wrap;
+  padding: 13px 18px;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  // El panel no recorta (ver `.mx-fpanel`), así que el pie lleva su radio
+  // para no asomar por fuera de la tarjeta.
+  border-radius: 0 0 11px 11px;
+}
+.mx-fpanel-info {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-width: 0;
+  font-size: 0.78rem; font-weight: 600;
+  font-family: 'DM Mono', monospace;
+  color: var(--text-muted);
+  svg { flex-shrink: 0; color: var(--primary, #2563eb); }
+  // Aviso de que los controles tienen cambios que todavía no se cargaron.
+  .mx-dirty-note {
+    font-style: normal;
+    color: var(--primary, #2563eb);
+    font-weight: 700;
+  }
+}
+// Acciones del pie: limpiar · descargar · aplicar, alineadas a la derecha.
+.mx-fpanel-actions {
+  display: inline-flex; align-items: center; gap: 8px;
+  flex-wrap: wrap;
+  margin-left: auto;
 }
 
-// Segmento de marca (colores de marca)
+// Segmento de proyecto (Sian365 / ControlAcademic)
 .mx-seg {
   display: flex; gap: 3px; padding: 3px;
   background: var(--bg);
@@ -54,21 +216,43 @@
   &.sian.active { background: #ce9b30; color: #fff; }
   &.ctrl.active { background: #1a3fa8; color: #fff; }
 }
+// El segmento de preset (Hoy / Mes) se marca en el azul de la app para no
+// confundirse con el segmento de proyecto, que se pinta con su propio color.
+.mx-seg.preset .mx-seg-btn.active {
+  background: var(--primary, #2563eb);
+  color: #fff;
+}
 
-.mx-presets { display: flex; gap: 4px; }
-.mx-preset {
-  padding: 0.45rem 0.65rem;
+// Navegador de mes (‹ Octubre 2026 ›): en vez de una lista desplegable, un
+// control compacto de un solo renglón con flechas, propio de tableros.
+.mx-month {
+  display: inline-flex; align-items: center;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 9px;
   background: var(--surface);
+  overflow: hidden;
+}
+.mx-month-btn {
+  width: 26px; height: 30px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 0; background: transparent;
   color: var(--text-muted);
-  font-size: 0.72rem; font-weight: 600;
+  font-size: 0.95rem; line-height: 1;
   font-family: 'Inter', sans-serif;
   cursor: pointer;
-  white-space: nowrap;
   transition: all 0.15s;
-  &:hover { border-color: var(--text-faint); color: var(--text); }
-  &.active { background: var(--primary, #2563eb); border-color: var(--primary, #2563eb); color: #fff; }
+  &:hover:not(:disabled) { background: var(--bg); color: var(--text); }
+  &:disabled { opacity: 0.4; cursor: default; }
+}
+.mx-month-label {
+  min-width: 8.6rem;
+  padding: 0 0.35rem;
+  text-align: center;
+  font-size: 0.72rem; font-weight: 700;
+  font-family: 'Inter', sans-serif;
+  color: var(--text);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .mx-dates {
@@ -87,12 +271,13 @@
 
 .mx-export {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 0.5rem 0.9rem;
+  height: 36px;
+  padding: 0 12px;
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: 8px;
   background: var(--surface);
   color: var(--text);
-  font-size: 0.76rem; font-weight: 600;
+  font-size: 0.78rem; font-weight: 600;
   font-family: 'Inter', sans-serif;
   cursor: pointer;
   transition: all 0.15s;
@@ -108,83 +293,248 @@
 }
 @keyframes mx-rot { to { transform: rotate(360deg); } }
 
-// ── Campo de filtro (asesor) ──────────────────────────────
-.mx-field {
-  display: flex; flex-direction: column; gap: 3px;
-  span {
-    font-size: 0.63rem; font-weight: 700;
-    letter-spacing: 0.07em; text-transform: uppercase;
-    color: var(--text-muted);
-  }
-  select {
-    min-width: 220px;
-    padding: 0.5rem 0.6rem;
-    border: 1px solid var(--border);
-    border-radius: 8px;
+// ── Aplicar filtro / limpiar ────────────────────────────────
+.mx-apply {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 36px;
+  padding: 0 18px;
+  border: 1px solid var(--primary, #2563eb);
+  border-radius: 10px;
+  background: var(--primary, #2563eb);
+  color: #fff;
+  font-size: 0.8rem; font-weight: 700;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.15s;
+  .mx-spin { border-color: rgba(255, 255, 255, 0.35); border-top-color: #fff; }
+  &:disabled {
     background: var(--surface);
-    color: var(--text);
-    font-size: 0.78rem; font-family: 'Inter', sans-serif;
-    outline: none;
-    &:focus { border-color: var(--primary, #2563eb); }
+    border-color: var(--border);
+    color: var(--text-muted);
+    opacity: 0.75;
+    cursor: default;
+    .mx-spin { border-color: var(--border); border-top-color: var(--text-muted); }
+  }
+  // Hay cambios en los controles que todavía no se aplicaron: el botón se
+  // enciende para que se note que falta dar click.
+  &.dirty:not(:disabled) {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary, #2563eb) 22%, transparent);
   }
 }
+
+// ── Combobox de asesor (lista buscable) ─────────────────────
+.mx-combo {
+  position: relative;
+  min-width: 240px;
+}
+.mx-combo-toggle {
+  width: 100%;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 0.78rem; font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.15s;
+  svg { flex: 0 0 auto; transition: transform 0.15s; }
+  &:hover { border-color: var(--text-faint); }
+  &.selected { color: var(--text); font-weight: 600; }
+  &.open {
+    border-color: var(--primary, #2563eb);
+    svg { transform: rotate(180deg); }
+  }
+}
+.mx-combo-value {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  min-width: 0;
+}
+.mx-combo-pop {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0; right: 0;
+  z-index: 20;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.16);
+  overflow: hidden;
+}
+.mx-combo-search {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  input {
+    flex: 1; min-width: 0;
+    border: 0; outline: none; background: transparent;
+    color: var(--text);
+    font-size: 0.78rem; font-family: 'Inter', sans-serif;
+    padding: 0.25rem 0;
+  }
+}
+.mx-combo-list {
+  max-height: 260px;
+  overflow: auto;
+  padding: 4px;
+  display: flex; flex-direction: column; gap: 1px;
+}
+.mx-combo-opt {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.45rem 0.55rem;
+  border: 0; border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.78rem; font-family: 'Inter', sans-serif;
+  text-align: left;
+  cursor: pointer;
+  &:hover { background: var(--bg); }
+  &.active { background: var(--bg); }
+  &.selected {
+    font-weight: 700;
+    color: var(--primary, #2563eb);
+    &::after { content: '✓'; font-size: 0.72rem; }
+  }
+}
+.mx-combo-empty {
+  padding: 0.7rem 0.6rem;
+  font-size: 0.74rem; color: var(--text-muted);
+}
+// Limpiar: botón de texto (misma familia que «Limpiar filtros» del Perfil
+// Institucional), rojo suave al pasar el mouse.
 .mx-reset {
-  padding: 0.5rem 0.75rem;
-  border: 1px dashed var(--border);
+  height: 36px;
+  padding: 0 10px;
+  border: 0;
   border-radius: 8px;
   background: transparent;
   color: var(--text-muted);
-  font-size: 0.75rem; font-weight: 600;
+  font-size: 0.78rem; font-weight: 600;
   font-family: 'Inter', sans-serif;
   cursor: pointer;
   transition: all 0.15s;
-  &:hover { color: var(--text); border-color: var(--text-faint); }
+  &:hover { color: #dc2626; background: rgba(239, 68, 68, 0.08); }
 }
-.mx-updated {
-  margin-left: auto;
-  font-size: 0.68rem; color: var(--text-muted);
-  font-family: 'DM Mono', monospace;
-}
-
-@keyframes mx-shimmer { to { background-position: -200% 0; } }
-
-// ── Pestañas ──────────────────────────────────────────────
+// ── Pestañas: riel definido + indicador deslizante ──
+// Riel con superficie BLANCA (no el gris del fondo) y borde sólido para que la
+// barra se distinga de la página. La activa se marca con una card azul que se
+// DESLIZA de una a otra vía el indicador absoluto `.mx-tab-ind`.
 .mx-tabs {
-  display: flex; gap: 6px;
-  flex-wrap: wrap;
-  padding-top: 0.25rem;
+  position: relative;
+  display: flex; gap: 4px;
+  // El nav es un item flex de `.mx-wrap` (columna): sin esto el navegador
+  // puede comprimirlo y "encoger" la barra de pestañas.
+  flex: 0 0 auto;
+  // `nowrap` + scroll: si las pestañas hicieran wrap, el indicador absoluto
+  // (calculado con offsetLeft) quedaría mal ubicado en la segunda fila.
+  flex-wrap: nowrap;
+  align-items: center;
+  overflow-x: auto;
+  min-height: 48px;
+  padding: 5px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border-strong, rgba(0, 0, 0, 0.14));
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+}
+// Card azul que se desliza bajo la pestaña activa.
+.mx-tab-ind {
+  position: absolute;
+  top: 5px; left: 0;
+  height: calc(100% - 10px);
+  border-radius: 9px;
+  background: var(--primary, #2563eb);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+  // El deslizamiento solo al CAMBIAR de pestaña. Sin `.anim` (primer
+  // posicionamiento al cargar) no hay transición, para que el indicador
+  // aparezca ya en su sitio y la pestaña activa nunca "parpadee" invisible.
+  transition: none;
+  pointer-events: none;
+}
+.mx-tabs.anim .mx-tab-ind {
+  transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+              width 0.32s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .mx-tab {
-  padding: 0.5rem 0.85rem;
-  border: 1px solid var(--border);
-  border-radius: 99px;
-  background: var(--surface);
-  color: var(--text-muted);
-  font-size: 0.75rem; font-weight: 600;
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  // Botones altos y generosos: target de clic grande y texto bien visible.
+  min-height: 38px;
+  padding: 0.7rem 1.15rem;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  // Texto inactivo con color sólido (no el apagado `--text-muted`) para que
+  // las pestañas se lean con claridad sobre el riel blanco.
+  color: var(--text, #181614);
+  font-size: 0.82rem; font-weight: 600;
   font-family: 'Inter', sans-serif;
+  white-space: nowrap;
   cursor: pointer;
-  transition: all 0.15s;
-  &:hover { border-color: var(--text-faint); color: var(--text); }
+  // El texto transiciona junto con el indicador para que el paso a blanco
+  // no "parpadee": acompaña el mismo tiempo del slide.
+  transition: color 0.32s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s;
+  &:hover { background: rgba(0, 0, 0, 0.04); }
   &.active {
-    background: var(--primary, #2563eb);
-    border-color: var(--primary, #2563eb);
+    // SIN fondo propio: el azul lo pinta SOLO el indicador `.mx-tab-ind`,
+    // que se desliza de una pestaña a otra. Así el usuario ve la card azul
+    // moverse de verdad (si la activa tuviera su propio fondo azul instantáneo,
+    // taparía el indicador y no se percibiría el desplazamiento).
+    background: transparent;
     color: #fff;
+    font-weight: 700;
+    &:hover { background: transparent; }
   }
 }
 
 // ── Estados ───────────────────────────────────────────────
-.mx-skel-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-  @media (max-width: 1050px) { grid-template-columns: 1fr; }
+// Carga: anillo circular centrado. Se muestra en el centro tanto al abrir
+// (sin datos) como al refrescar (encima del tablero), para que nunca se vea
+// una pantalla muda que parezca que no cargó.
+.mx-loading {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 0.9rem;
+  padding: 5rem 1rem;
+  min-height: 320px;
 }
-.mx-card.mx-skel {
-  height: 240px;
-  background: linear-gradient(90deg, var(--surface) 25%, var(--bg) 50%, var(--surface) 75%);
-  background-size: 200% 100%;
-  animation: mx-shimmer 1.2s infinite;
-  border-color: var(--border);
+.mx-loading-text {
+  font-size: 0.78rem; font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+.mx-spinner-lg {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  border: 4px solid var(--border);
+  border-top-color: var(--primary, #2563eb);
+  border-right-color: color-mix(in srgb, var(--primary, #2563eb) 35%, transparent);
+  animation: mx-rot 0.75s linear infinite;
+}
+// Overlay de carga a pantalla completa: `fixed` al viewport, así cubre todo
+// aunque el contenido de la página no llene la ventana (con `absolute` sobre
+// .mx-wrap el velo "quedaba corto"). Por encima del header de métricas y del
+// shell de admin, por debajo de los modales (1000+).
+.mx-loading-overlay {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 0.9rem;
+  background: color-mix(in srgb, var(--bg) 80%, transparent);
+  backdrop-filter: blur(2px);
+  z-index: 700;
+  .mx-loading-text {
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    font-size: 0.8rem; font-weight: 700;
+    color: var(--text);
+  }
 }
 .mx-error {
   padding: 3rem 1rem; text-align: center;
@@ -216,7 +566,6 @@
   @media (max-width: 1200px) { grid-template-columns: 1fr 1fr; }
   @media (max-width: 780px) { grid-template-columns: 1fr; }
 }
-.mx-span2 { grid-column: span 2; @media (max-width: 780px) { grid-column: auto; } }
 
 // ── Cards ─────────────────────────────────────────────────
 .mx-card {
@@ -230,8 +579,35 @@
 .mx-card-head {
   display: flex; align-items: flex-start;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 0.6rem;
   > div { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+
+  // Detalle de Atención: "volver" a la IZQUIERDA y al lado el título
+  // "COLEGIOS ATENDIDOS POR <asesor>".
+  .mx-back-row {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.6rem;
+    .mx-back-titles {
+      display: flex; flex-direction: column; gap: 1px;
+      min-width: 0;
+      strong { font-weight: 700; color: var(--primary, #2563eb); }
+    }
+    // "COLEGIOS ATENDIDOS POR" y el nombre, con aire de más entre ambos.
+    .mx-back-title {
+      display: inline-flex; align-items: baseline; flex-wrap: wrap;
+      gap: 0.45rem;
+      min-width: 0;
+    }
+  }
+  // Buscador siempre al extremo derecho (también cuando no hay título).
+  .mx-tools {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    margin-left: auto;
+  }
 }
 .mx-card-title { font-size: 0.82rem; font-weight: 700; color: var(--text); }
 .mx-card-sub { font-size: 0.67rem; color: var(--text-muted); }
@@ -437,52 +813,49 @@
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
-// ── Actividad (lista de números) ──────────────────────────
-.mx-act {
+// ── Próximas reuniones (lista lateral) ────────────────────
+.mx-prox-list {
   list-style: none; margin: 0; padding: 0;
   display: flex; flex-direction: column; gap: 2px;
   li {
-    display: flex; align-items: center;
-    justify-content: space-between;
-    gap: 0.6rem;
+    display: flex; align-items: center; gap: 0.55rem;
     padding: 0.5rem 0.55rem;
     border-radius: 8px;
-    font-size: 0.75rem;
-    &:hover { background: var(--bg); }
-    span { color: var(--text-muted); }
-    strong { color: var(--text); font-weight: 700; &.danger { color: #ef4444; } }
+    &:hover { background: var(--surface-2, rgba(148, 163, 184, 0.12)); }
   }
 }
-
-// ── Comentarios ───────────────────────────────────────────
-.mx-comments {
-  list-style: none; margin: 0; padding: 0;
-  display: flex; flex-direction: column; gap: 4px;
-  max-height: 320px; overflow: auto;
-  li {
-    padding: 0.55rem 0.6rem;
-    border: 1px solid var(--border);
-    border-radius: 9px;
-    display: flex; flex-direction: column; gap: 3px;
-  }
+.mx-prox-dot {
+  flex: 0 0 auto;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  align-self: flex-start;
+  margin-top: 0.32em;
 }
-.mx-comment-top {
-  display: flex; align-items: center;
-  justify-content: space-between; gap: 0.5rem;
-  em {
-    font-style: normal;
-    font-size: 0.64rem; color: var(--text-muted);
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    min-width: 0;
-  }
+.mx-prox-main {
+  flex: 1 1 auto;
+  display: flex; flex-direction: column; gap: 1px;
+  min-width: 0;
 }
-.mx-comments p {
-  margin: 0;
-  font-size: 0.74rem; color: var(--text);
-  line-height: 1.4;
+.mx-prox-subject {
+  font-size: 0.78rem; font-weight: 600; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.mx-comment-meta {
-  font-size: 0.63rem; color: var(--text-muted);
+.mx-prox-meta {
+  font-size: 0.66rem; color: var(--text-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+// Tipo del evento dentro de "Próximas": va tintado con el MISMO color que el
+// punto y que el chip de la tabla (`--cat` desde `categoriaColor()`), para que
+// un cumpleaños o una vacación se reconozca sin tener que leer el texto.
+.mx-prox-cat {
+  font-weight: 700;
+  color: color-mix(in srgb, var(--cat, #94a3b8) 88%, #000);
+}
+.mx-prox-fecha {
+  flex: 0 0 auto;
+  font-size: 0.68rem; color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 // ── Estrellas ─────────────────────────────────────────────
@@ -510,6 +883,21 @@
   &.sian { background: rgba(206, 155, 48, 0.14); color: #a4761d; border: 1px solid rgba(206, 155, 48, 0.35); }
   &.ctrl { background: rgba(26, 63, 168, 0.1); color: #1a3fa8; border: 1px solid rgba(26, 63, 168, 0.3); }
   &.none { background: var(--bg); color: var(--text-muted); border: 1px solid var(--border); }
+  // Tipo de evento, con los MISMOS colores del Calendario: amarillo=virtual,
+  // azul=presencial, morado=equipo, verde=cumpleaños, naranja=ausencia,
+  // púrpura=vacaciones, rojo=incapacidad. El hex viene en `--cat` desde
+  // `categoriaColor()`, y se mezcla igual que en el Calendario para que el
+  // tinte sea reconocible a simple vista en ambas pantallas.
+  &.modalidad {
+    background: color-mix(in srgb, var(--cat, #94a3b8) 15%, transparent);
+    color: color-mix(in srgb, var(--cat, #94a3b8) 84%, #000);
+    border: 1px solid color-mix(in srgb, var(--cat, #94a3b8) 38%, transparent);
+  }
+  // Origen de la reunión: creada en la app (Korvix) o directo en Teams/Outlook.
+  &.origen {
+    &.korvix { background: rgba(26, 63, 168, 0.09); color: #1a3fa8; border: 1px solid rgba(26, 63, 168, 0.25); }
+    &.teams { background: rgba(100, 116, 139, 0.12); color: #475569; border: 1px solid rgba(100, 116, 139, 0.3); }
+  }
 }
 .mx-chip-row { display: flex; flex-wrap: wrap; gap: 5px; }
 .mx-chip-tag {
@@ -523,20 +911,46 @@
   &.neutral { background: rgba(37, 99, 235, 0.07); border-color: rgba(37, 99, 235, 0.25); color: #1a3fa8; }
   &.danger { background: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.3); color: #b91c1c; }
 }
+// Chips CLICABLES de Tickets/Correos: al hacer click filtran la tabla a ese
+// grupo (etiqueta resaltada); otro click sobre el mismo chip quita el filtro.
+.mx-chip-tag.pick {
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.15s;
+  &:hover { border-color: var(--text-faint); color: var(--text); }
+  &.chip-on {
+    background: var(--primary, #2563eb);
+    border-color: var(--primary, #2563eb);
+    color: #fff;
+    box-shadow: 0 1px 3px rgba(37, 99, 235, 0.35);
+    &:hover { color: #fff; }
+  }
+  // Chip de "quitar filtro": en rojo, siempre visible con el conteo actual.
+  &.clear {
+    color: #b91c1c;
+    background: rgba(239, 68, 68, 0.08);
+    border-color: rgba(239, 68, 68, 0.3);
+    font-weight: 700;
+    &:hover { background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.5); color: #b91c1c; }
+  }
+}
 .mx-prio {
-  font-size: 0.64rem; font-weight: 700;
-  padding: 2px 7px;
+  display: inline-flex; align-items: center;
+  font-size: 0.63rem; font-weight: 700;
+  padding: 3px 9px;
   border-radius: 99px;
+  line-height: 1.35;
   color: var(--c, #94a3b8);
   background: color-mix(in srgb, var(--c, #94a3b8) 12%, transparent);
   border: 1px solid color-mix(in srgb, var(--c, #94a3b8) 40%, transparent);
   white-space: nowrap;
 }
 .mx-status {
-  display: inline-block;
+  display: inline-flex; align-items: center;
   font-size: 0.63rem; font-weight: 700;
-  padding: 2px 7px;
+  padding: 3px 9px;
   border-radius: 99px;
+  line-height: 1.35;
   white-space: nowrap;
   &.st-open { background: rgba(59, 130, 246, 0.12); color: #1d4ed8; }
   &.st-progress { background: rgba(139, 92, 246, 0.12); color: #6d28d9; }
@@ -552,41 +966,99 @@
   &:hover { text-decoration: underline; }
 }
 
-// ── Tablas ────────────────────────────────────────────────
+// ── Tablas (diseño unificado y profesional) ──────────────────────────────────
+// Cabecera en banda pegajosa con tipografía mayúscula, filas con zebra tenue,
+// hover con tinte de acento, números tabulares y scroll fino en ambos ejes.
+// Mismo pie visual para TODAS las tablas de Métricas (Tickets/Correos,
+// Atención, Reuniones, Conexiones, Chats).
 .mx-table-scroll {
-  overflow-x: auto;
-  margin: 0 -0.35rem;
-  padding: 0 0.35rem;
-  &.capped {
-    overflow-y: auto;
-    max-height: 240px;
+  position: relative;
+  // Auto en los dos ejes: `.fill` solo aporta el alto de la card y en
+  // pantallas angostas la tabla hace scroll en vez de aplastar columnas.
+  // SIN `overscroll-behavior: contain`: con él el ruedo del ratón se "tragaba"
+  // sobre las tablas y la página dejaba de hacer scroll al pasar el mouse
+  // encima; ahora el scroll se encadena a la página cuando la tabla llega a
+  // su tope (o si no tiene desbordamiento).
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--text-muted) 45%, transparent) transparent;
+
+  &::-webkit-scrollbar { width: 8px; height: 8px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--text-muted) 45%, transparent);
+    border: 2px solid transparent;
+    border-radius: 99px;
+    background-clip: content-box;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--text-muted) 75%, transparent);
+    background-clip: content-box;
+  }
+
+  // Card a altura completa: la tabla crece con ella y el scroll es interno.
+  &.fill {
+    flex: 1 1 auto;
+    min-height: 0;
+    .mx-table { height: 100%; }
   }
 }
 .mx-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.75rem;
+
   th {
     text-align: left;
-    padding: 0.5rem 0.55rem;
-    font-size: 0.63rem; font-weight: 700;
-    letter-spacing: 0.05em; text-transform: uppercase;
+    padding: 0.65rem 0.7rem;
+    font-size: 0.62rem; font-weight: 700;
+    letter-spacing: 0.06em; text-transform: uppercase;
     color: var(--text-muted);
-    border-bottom: 1px solid var(--border);
     white-space: nowrap;
+    border-bottom: 1px solid var(--border);
     &.num { text-align: right; }
   }
   td {
-    padding: 0.55rem 0.55rem;
-    border-bottom: 1px solid var(--border);
+    padding: 0.65rem 0.7rem;
     color: var(--text);
-    vertical-align: top;
-    &.num { text-align: right; white-space: nowrap; }
-    &.mono { font-family: 'DM Mono', monospace; font-size: 0.68rem; white-space: nowrap; }
+    vertical-align: middle;
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+    &.num {
+      text-align: right;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+    &.mono {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.68rem; white-space: nowrap;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+    // La primera columna nombra la fila (asesor, colegio, origen…): se lee
+    // primero. Las fechas monoespaciadas se quedan neutras.
+    &:first-child:not(.mono) { font-weight: 600; }
+  }
+  // Zebra sutil: el ojo separa filas sin líneas de más.
+  tbody tr:nth-child(even) td {
+    background: color-mix(in srgb, var(--bg) 55%, transparent);
+  }
+  // Hover con tinte de acento: la fila activa se "enciende".
+  tbody tr:hover td {
+    background: color-mix(in srgb, var(--primary, #2563eb) 7%, transparent);
   }
   tr:last-child td { border-bottom: 0; }
-  tr:hover td { background: var(--bg); }
+
+  // Encabezado pegajoso en TODOS los scroll (no solo en `.fill`): siempre
+  // encima de las filas, en banda de fondo con esquinas redondeadas.
+  thead th {
+    position: sticky; top: 0;
+    z-index: 2;
+    background: var(--bg);
+    &:first-child { border-top-left-radius: 8px; }
+    &:last-child { border-top-right-radius: 8px; }
+  }
 }
+// Celda de asunto/notas larga: dos líneas con corte y color secundario.
 .mx-cell-notes {
   max-width: 340px;
   color: var(--text-muted);
@@ -596,11 +1068,142 @@
   overflow: hidden;
 }
 
+// ── Atención: buscador y pie de totales ─────────────────────────────────────
+// El head de la card pone `flex-direction: column` a todos sus hijos; aquí se
+// recuperan la fila y el centrado para que el buscador quede a la derecha.
+.mx-tools {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.mx-search {
+  display: flex; align-items: center; gap: 5px;
+  padding: 0.36rem 0.55rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  transition: border-color 0.15s;
+  &:focus-within { border-color: var(--primary, #2563eb); }
+  svg {
+    width: 14px; height: 14px;
+    fill: none;
+    stroke: var(--text-muted);
+    stroke-width: 2;
+    stroke-linecap: round;
+    flex-shrink: 0;
+  }
+  input {
+    border: 0; background: transparent; outline: none;
+    color: var(--text);
+    font-size: 0.72rem; font-family: 'Inter', sans-serif;
+    width: 14.5rem; max-width: 42vw;
+    &::placeholder { color: var(--text-faint); }
+    &::-webkit-search-cancel-button { -webkit-appearance: none; }
+  }
+}
+// Barra del nivel 2 de Tickets/Correos: vuelta a la lista + nombre del asesor
+// y sus conteos, encima de las dos cards (tickets | correos).
+.mx-subbar {
+  display: flex; align-items: center;
+  flex-wrap: wrap;
+  gap: 0.55rem 0.8rem;
+}
+.mx-subbar-title {
+  // "TICKETS Y CORREOS DE" + nombre, con aire entre ambos (mismo patrón que
+  // el encabezado "COLEGIOS ATENDIDOS POR" de Atención).
+  display: inline-flex; align-items: baseline; flex-wrap: wrap;
+  gap: 0.45rem;
+  font-size: 0.85rem; font-weight: 700;
+  color: var(--text);
+  strong { font-weight: 700; color: var(--primary, #2563eb); }
+}
+.mx-subbar-sub {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+// Vuelta del detalle de un asesor a la lista de asesores.
+.mx-back {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 0.36rem 0.6rem;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  &:hover { color: var(--text); border-color: var(--text-faint); }
+}
+// Fila clicable (lista de asesores): tinte más fuerte + barra de acento a la
+// izquierda que indica "esta fila abre un detalle".
+.mx-row-link {
+  cursor: pointer;
+  transition: background 0.12s;
+  td:first-child {
+    box-shadow: inset 3px 0 0 transparent;
+    transition: box-shadow 0.12s;
+  }
+  &:hover td {
+    background: color-mix(in srgb, var(--primary, #2563eb) 10%, transparent);
+    &.mono { color: var(--text); }
+  }
+  &:hover td:first-child { box-shadow: inset 3px 0 0 var(--primary, #2563eb); }
+  &:focus-visible { outline: 2px solid var(--primary, #2563eb); outline-offset: -2px; }
+}
+// Indicación discreta de que la fila abre el detalle: se enciende al hover.
+.mx-go {
+  font-size: 0.6rem;
+  color: var(--text-faint);
+  margin-left: 6px;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.mx-row-link:hover .mx-go,
+.mx-row-link:focus-visible .mx-go { opacity: 1; }
+// Aviso de lista recortada por el `LIMIT` del backend.
+.mx-note {
+  font-size: 0.67rem;
+  color: var(--text-muted);
+  background: var(--bg);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 0.4rem 0.6rem;
+}
+// Pie de totales: banda separada, números tabulares alineados a su columna.
+.mx-totals th {
+  position: static;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  border-bottom: 0;
+  padding: 0.7rem 0.7rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: var(--text);
+  &.num {
+    text-align: right;
+    font-size: 0.78rem;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
 // ── Responsive ────────────────────────────────────────────
 @media (max-width: 760px) {
   .mx-wrap { padding: 1rem; }
-  .mx-head-row { width: 100%; }
   .mx-plot { height: 150px; }
+
+  // Tablas más compactas: en móvil se prefiere scroll horizontal antes que
+  // filas de tres renglones.
+  .mx-table {
+    font-size: 0.72rem;
+    th, td { padding: 0.55rem 0.55rem; }
+    th { font-size: 0.6rem; }
+  }
+  .mx-cell-notes { max-width: 220px; }
+  .mx-search input { width: 100%; max-width: 100%; }
 }
 
 // ── Gestión de correos: carpeta bajo el valor ────────────
@@ -633,10 +1236,17 @@
     letter-spacing: -0.02em;
   }
   span {
+    display: inline-flex; align-items: center; gap: 3px;
     font-size: 0.58rem; font-weight: 700;
     letter-spacing: 0.04em; text-transform: uppercase;
     color: var(--text-muted);
   }
+}
+// Punto de modalidad en los KPIs: mismo amarillo/azul que el Calendario.
+.mx-reunion-punto {
+  width: 7px; height: 7px;
+  border-radius: 2px;
+  flex-shrink: 0;
 }
 .mx-reuniones-prox {
   display: flex; flex-direction: column; gap: 0.4rem;
@@ -655,36 +1265,29 @@
     font-variant-numeric: tabular-nums;
   }
 }
-.mx-reuniones-list {
-  list-style: none; margin: 0; padding: 0;
-  display: flex; flex-direction: column; gap: 3px;
-  max-height: 148px; overflow: auto;
-  li {
-    display: flex; align-items: center; gap: 0.45rem;
-    padding: 0.34rem 0.4rem;
-    border-radius: 6px;
-    min-width: 0;
-    &:hover { background: var(--bg); }
-  }
+// Paginador de la tabla de Reuniones.
+.mx-pager {
+  display: flex; align-items: center; justify-content: flex-end; gap: 6px;
+  margin-top: 0.55rem;
 }
-.mx-reunion-modalidad {
-  flex-shrink: 0;
-  font-size: 0.52rem; font-weight: 700;
-  padding: 1px 5px; border-radius: 99px;
-  text-transform: uppercase; letter-spacing: 0.02em;
-  line-height: 1.4;
-  &.virtual { background: rgba(26, 63, 168, 0.1); color: #1a3fa8; }
-  &.presencial { background: rgba(206, 155, 48, 0.14); color: #a4761d; }
+.mx-pager-btn {
+  min-width: 28px;
+  padding: 0.3rem 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.78rem; line-height: 1;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.15s;
+  &:hover:not(:disabled) { border-color: var(--text-faint); background: var(--bg); }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
 }
-.mx-reunion-subject {
-  flex: 1 1 auto; min-width: 0;
-  font-size: 0.7rem; color: var(--text);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.mx-reunion-fecha {
-  flex-shrink: 0;
-  font-size: 0.62rem; color: var(--text-muted);
-  font-family: 'DM Mono', monospace;
+.mx-pager-info {
+  font-size: 0.7rem; color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  padding: 0 0.25rem;
   white-space: nowrap;
 }
 
@@ -738,37 +1341,49 @@
   display: flex; align-items: center; justify-content: center;
   font-size: 0.55rem; color: var(--text-muted);
 }
+// Eje de la pista: la barra va de la primera a la última actividad del día, así
+// que hay que decir de qué hora a qué hora se está midiendo. El primer span es
+// el hueco del nombre del asesor, para que quede alineado con la pista.
+.mx-conn-eje {
+  display: flex; align-items: center; gap: 0.4rem;
+  > span { width: 72px; flex-shrink: 0; }
+}
+.mx-conn-eje-valores {
+  flex: 1 1 auto; min-width: 40px;
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 0.56rem; color: var(--text-muted);
+  font-family: 'DM Mono', monospace;
+}
 .mono { font-family: 'DM Mono', monospace; }
 .mx-conn-legend {
   flex-wrap: wrap;
   padding-top: 0.15rem;
 }
+// Separación fina entre tramos contiguos de la misma pista.
+.mx-conn-seg {
+  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.6);
+}
 
-// ── Chats por día: barras pareadas asesor / IA ────────────
-.mx-pairs {
-  display: flex; align-items: stretch;
-  gap: 4px;
-  height: 190px;
-  padding-top: 0.5rem;
-  border-bottom: 1px solid var(--border);
+// ── Celda "Disponibilidad": barrita apilada + porcentaje ─────
+.mx-pct {
+  display: flex; align-items: center; gap: 8px;
+  min-width: 150px;
+  strong {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem; font-weight: 700;
+    min-width: 34px; text-align: right;
+    color: var(--text);
+  }
 }
-.mx-pair-col {
-  flex: 1; min-width: 0;
-  display: grid;
-  grid-template-rows: 1fr auto;
-  align-items: end;
-}
-.mx-pair-bars {
-  height: 100%;
-  display: flex; align-items: flex-end; justify-content: center;
-  gap: 3px;
-}
-.mx-pair-bar {
-  width: 40%; max-width: 18px;
-  border-radius: 4px 4px 0 0;
-  min-height: 2px;
-  &.asesor { background: #1a3fa8; }
-  &.ia { background: #eab308; }
+.mx-pct-bar {
+  flex: 1 1 auto; min-width: 70px;
+  height: 8px;
+  display: flex;
+  border-radius: 99px;
+  overflow: hidden;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  > span { height: 100%; }
 }
 
 // ── Placeholder de Conexión del asesor (rango ≠ "Hoy") ────

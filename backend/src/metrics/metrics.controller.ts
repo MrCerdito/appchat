@@ -11,6 +11,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard, Roles } from '../auth/roles.guard';
 import { Permiso } from '../accesos/permiso-modulo.guard';
 import { MetricsDashboardQueryDto } from './dto/metrics-dashboard-query.dto';
+import { MetricsConexionQueryDto } from './dto/metrics-conexion-query.dto';
 import { MetricsService } from './metrics.service';
 
 @Controller('metrics')
@@ -18,7 +19,7 @@ export class MetricsController {
   constructor(private readonly metricsService: MetricsService) {}
 
   /**
-   * Dashboard por secciones (resumen, requerimientos, colegios, asesoría,
+   * Dashboard por secciones (resumen, tickets/correos, colegios, asesoría,
    * capacitaciones, errores, solicitudes, conexiones).
    * Filtros: marca (all|Sian365|ControlAcademic), desde/hasta (día Bogotá,
    * inclusivos) y asesorId opcional.
@@ -28,6 +29,28 @@ export class MetricsController {
   @Permiso('metrics')
   getDashboard(@Query() query: MetricsDashboardQueryDto) {
     return this.metricsService.getDashboard(query);
+  }
+
+  /**
+   * Línea de tiempo de UN día (barras por asesor) de la pestaña Conexiones.
+   * `fecha=YYYY-MM-DD` obligatoria; `asesorId` opcional.
+   */
+  @Get('conexiones/dia')
+  @UseGuards(JwtAuthGuard)
+  @Permiso('metrics')
+  getConexionesDia(@Query() query: MetricsConexionQueryDto) {
+    return this.metricsService.conexionesDia(query);
+  }
+
+  /**
+   * Ficha de seguimiento de un asesor: historial de eventos (hora, duración y
+   * causa), resumen por día y KPIs. Requiere `asesorId`.
+   */
+  @Get('conexiones/historial')
+  @UseGuards(JwtAuthGuard)
+  @Permiso('metrics')
+  getConexionesHistorial(@Query() query: MetricsConexionQueryDto) {
+    return this.metricsService.conexionesHistorial(query);
   }
 
   /** Exportación multi-hoja del mismo dashboard, en Excel. */
