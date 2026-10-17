@@ -687,6 +687,29 @@ export class SessionsService {
     return session;
   }
 
+  // ── Clasificación de cierre (opcional, posterior al close) ────────────────
+  // cierreTipo: requerimiento | solucion | error | capacitacion | otro
+  // La validación estricta del enum y de longitudes ocurre en el DTO del
+  // controller; aquí solo persistimos y sellamos cierre_at.
+  async clasificarCierre(
+    sessionId: string,
+    dto: {
+      cierreTipo: string;
+      cierreNotas?: string;
+      cierreSeguimiento?: boolean;
+    },
+  ): Promise<Session> {
+    const session = await this.findOne(sessionId);
+    session.cierreTipo = dto.cierreTipo;
+    session.cierreNotas = dto.cierreNotas?.slice(0, 300) ?? null;
+    session.cierreSeguimiento = dto.cierreSeguimiento ?? false;
+    session.cierreAt = new Date();
+    const saved = await this.sessionRepo.save(session);
+    // Caché de métricas del dashboard (clave compuesta por filtros): al
+    // cambiar una clasificación, el TTL de 30s se encarga de refrescar.
+    return saved;
+  }
+
   async updateStatus(sessionId: string, status: string): Promise<void> {
     await this.sessionRepo
       .createQueryBuilder()
@@ -1066,6 +1089,250 @@ export class SessionsService {
       medianaMinutos: Math.round(Number(timingRow?.medianMinutes) || 0),
       p95Minutos: Math.round(Number(timingRow?.p95Minutes) || 0),
       advisors,
+    };
+
+    try {
+      await this.cache.set(cacheKey, result, 30_000);
+    } catch {}
+    return result;
+  }
+
+  /**
+   * Dashboard del admin (módulo de métricas): KPIs + series con filtros por
+   * asesor, proyecto (marca del colegio) y rango de fechas [desde, hasta].
+   * La marca se resuelve con un LEFT JOIN al catálogo de colegios por nombre
+   * (sessions.colegio es string, sin FK); sin coincidencia = 'Sin clasificar'.
+   */
+  async getDashboard(filtros: {
+    asesorId?: string;
+    proyecto?: string;
+    desde?: string;
+    hasta?: string;
+  }) {
+    const cacheKey = `${this.CACHE_PREFIX}dashboard:${filtros.asesorId ?? ''}:${filtros.proyecto ?? ''}:${filtros.desde ?? ''}:${filtros.hasta ?? ''}`;
+    try {
+      const cached = await this.cache.get(cacheKey);
+      if (cached) return cached;
+    } catch {}
+
+    // Misma semántica de fechas que getAiStats: desde inclusive (00:00),
+    // hasta inclusive en su día (se suma 1 día y queda exclusive).
+    let hastaDate: Date | null = null;
+    if (filtros.hasta) {
+      hastaDate = new Date(filtros.hasta);
+      hastaDate.setDate(hastaDate.getDate() + 1);
+    }
+
+    const marcaExpr = `CASE
+      WHEN lower(coalesce(c.tipo_colegio, '')) ~ 'control|academic' THEN 'ControlAcademic'
+      WHEN lower(coalesce(c.tipo_colegio, '')) ~ 'sian|365' THEN 'Sian365'
+      ELSE 'Sin clasificar' END`;
+
+    const aplicaFiltros = <T extends { andWhere: any }>(qb: T): T => {
+      if (filtros.asesorId) {
+        qb.andWhere('s.advisor_id = :asesorId', { asesorId: filtros.asesorId });
+      }
+      if (filtros.desde) {
+        qb.andWhere('s.created_at >= :desde', { desde: new Date(filtros.desde) });
+      }
+      if (hastaDate) {
+        qb.andWhere('s.created_at < :hasta', { hasta: hastaDate });
+      }
+      if (filtros.proyecto) {
+        qb.andWhere(`${marcaExpr} = :proyecto`, { proyecto: filtros.proyecto });
+      }
+      return qb;
+    };
+
+    const base = () =>
+      aplicaFiltros(
+        this.sessionRepo
+          .createQueryBuilder('s')
+          .leftJoin(Colegio, 'c', 'lower(c.nombre) = lower(s.colegio)')
+          .leftJoin('s.advisor', 'a'),
+      );
+
+    const [statusRows, timingRow, ratingRow, serie, porAsesor, porColegio, porProyecto, estrellasPorAsesor] =
+      await Promise.all([
+        // KPIs por estado
+        base()
+          .select('s.status', 'status')
+          .addSelect('COUNT(s.id)', 'count')
+          .groupBy('s.status')
+          .getRawMany<{ status: string; count: string }>(),
+
+        // Duración de sesiones cerradas en el rango
+        base()
+          .select(
+            'AVG(EXTRACT(EPOCH FROM (s.closed_at - s.created_at)) / 60)',
+            'avgMinutes',
+          )
+          .andWhere('s.status = :st', { st: 'closed' })
+          .andWhere('s.closed_at IS NOT NULL')
+          .getRawOne<{ avgMinutes: string | null }>(),
+
+        // Calificaciones en el rango
+        aplicaFiltros(
+          this.ratingRepo
+            .createQueryBuilder('r')
+            .innerJoin('r.session', 's')
+            .leftJoin(Colegio, 'c', 'lower(c.nombre) = lower(s.colegio)'),
+        )
+          .select('COUNT(r.id)', 'totalRatings')
+          .addSelect('AVG(r.estrellas)', 'avgEstrellas')
+          .getRawOne<{ totalRatings: string; avgEstrellas: string | null }>(),
+
+        // Serie de sesiones por día (America/Bogota) → barras
+        base()
+          .select(
+            `to_char(s.created_at AT TIME ZONE 'America/Bogota', 'YYYY-MM-DD')`,
+            'fecha',
+          )
+          .addSelect('COUNT(s.id)', 'total')
+          .addSelect(
+            'SUM(CASE WHEN s.advisor_id IS NOT NULL THEN 1 ELSE 0 END)',
+            'conAsesor',
+          )
+          .addSelect(
+            'SUM(CASE WHEN s.advisor_id IS NULL THEN 1 ELSE 0 END)',
+            'ia',
+          )
+          .groupBy(
+            `to_char(s.created_at AT TIME ZONE 'America/Bogota', 'YYYY-MM-DD')`,
+          )
+          .orderBy(
+            `to_char(s.created_at AT TIME ZONE 'America/Bogota', 'YYYY-MM-DD')`,
+            'ASC',
+          )
+          .getRawMany<{ fecha: string; total: string; conAsesor: string; ia: string }>(),
+
+        // Chats atendidos por asesor (solo sesiones con asesor) → barras
+        base()
+          .select('s.advisor_id', 'asesorId')
+          .addSelect('COALESCE(a.name, ' + "'—'" + ')', 'nombre')
+          .addSelect('COUNT(s.id)', 'total')
+          .addSelect(
+            `SUM(CASE WHEN s.status = 'closed' THEN 1 ELSE 0 END)`,
+            'cerrados',
+          )
+          .andWhere('s.advisor_id IS NOT NULL')
+          .groupBy('s.advisor_id')
+          .addGroupBy('a.name')
+          .orderBy('COUNT(s.id)', 'DESC')
+          .limit(12)
+          .getRawMany<{
+            asesorId: string;
+            nombre: string;
+            total: string;
+            cerrados: string;
+          }>(),
+
+        // Top colegios → barras horizontales con chip de proyecto
+        base()
+          .select('s.colegio', 'colegio')
+          .addSelect(marcaExpr, 'proyecto')
+          .addSelect('COUNT(s.id)', 'total')
+          .addSelect(
+            'SUM(CASE WHEN s.advisor_id IS NOT NULL THEN 1 ELSE 0 END)',
+            'conAsesor',
+          )
+          .addSelect(
+            'SUM(CASE WHEN s.advisor_id IS NULL THEN 1 ELSE 0 END)',
+            'ia',
+          )
+          .andWhere('s.colegio IS NOT NULL')
+          .andWhere(`s.colegio <> ''`)
+          .groupBy('s.colegio')
+          .addGroupBy(marcaExpr)
+          .orderBy('COUNT(s.id)', 'DESC')
+          .limit(12)
+          .getRawMany<{
+            colegio: string;
+            proyecto: string;
+            total: string;
+            conAsesor: string;
+            ia: string;
+          }>(),
+
+        // Distribución por proyecto → donut
+        base()
+          .select(marcaExpr, 'proyecto')
+          .addSelect('COUNT(s.id)', 'total')
+          .groupBy(marcaExpr)
+          .getRawMany<{ proyecto: string; total: string }>(),
+
+        // Estrellas promedio por asesor en el rango (merge en JS)
+        aplicaFiltros(
+          this.ratingRepo
+            .createQueryBuilder('r')
+            .innerJoin('r.session', 's')
+            .leftJoin(Colegio, 'c', 'lower(c.nombre) = lower(s.colegio)'),
+        )
+          .select('s.advisor_id', 'asesorId')
+          .addSelect('COUNT(r.id)', 'totalRatings')
+          .addSelect('AVG(r.estrellas)', 'avgEstrellas')
+          .andWhere('s.advisor_id IS NOT NULL')
+          .groupBy('s.advisor_id')
+          .getRawMany<{
+            asesorId: string;
+            totalRatings: string;
+            avgEstrellas: string;
+          }>(),
+      ]);
+
+    const statusMap = new Map(
+      statusRows.map((r) => [r.status, Number(r.count)]),
+    );
+    const estrellasMap = new Map(
+      estrellasPorAsesor.map((r) => [
+        r.asesorId,
+        {
+          totalRatings: Number(r.totalRatings),
+          avgEstrellas: Math.round((Number(r.avgEstrellas) || 0) * 10) / 10,
+        },
+      ]),
+    );
+
+    const result = {
+      kpis: {
+        chatsAtendidos: statusRows.reduce(
+          (sum, r) => sum + Number(r.count),
+          0,
+        ),
+        cerrados: statusMap.get('closed') ?? 0,
+        activos: statusMap.get('active') ?? 0,
+        espera: statusMap.get('waiting') ?? 0,
+        ia: statusMap.get('ai') ?? 0,
+        avgMinutes: Math.round(Number(timingRow?.avgMinutes) || 0),
+        totalRatings: Number(ratingRow?.totalRatings ?? 0),
+        promedioEstrellas:
+          Math.round((Number(ratingRow?.avgEstrellas) || 0) * 10) / 10,
+      },
+      serie: serie.map((r) => ({
+        fecha: r.fecha,
+        total: Number(r.total),
+        conAsesor: Number(r.conAsesor),
+        ia: Number(r.ia),
+      })),
+      porAsesor: porAsesor.map((r) => ({
+        asesorId: r.asesorId,
+        nombre: r.nombre,
+        total: Number(r.total),
+        cerrados: Number(r.cerrados),
+        totalRatings: estrellasMap.get(r.asesorId)?.totalRatings ?? 0,
+        avgEstrellas: estrellasMap.get(r.asesorId)?.avgEstrellas ?? 0,
+      })),
+      porColegio: porColegio.map((r) => ({
+        colegio: r.colegio,
+        proyecto: r.proyecto,
+        total: Number(r.total),
+        conAsesor: Number(r.conAsesor),
+        ia: Number(r.ia),
+      })),
+      porProyecto: porProyecto.map((r) => ({
+        proyecto: r.proyecto,
+        total: Number(r.total),
+      })),
     };
 
     try {
@@ -2174,6 +2441,8 @@ export class SessionsService {
     page: number = 1,
     limit: number = 10,
     advisorId?: string,
+    desde?: string,
+    hasta?: string,
   ): Promise<{ data: any[]; total: number; page: number; pages: number }> {
     const skip = (page - 1) * limit;
 
@@ -2184,8 +2453,17 @@ export class SessionsService {
       .andWhere('r.comentario IS NOT NULL')
       .andWhere("r.comentario != ''");
 
+    // andWhere (nunca where: .where() posterior pisaría los filtros previos)
     if (advisorId) {
-      qb.where('s.advisor_id = :advisorId', { advisorId });
+      qb.andWhere('s.advisor_id = :advisorId', { advisorId });
+    }
+    if (desde) {
+      qb.andWhere('r.createdAt >= :desde', { desde: new Date(desde) });
+    }
+    if (hasta) {
+      const hastaDate = new Date(hasta);
+      hastaDate.setDate(hastaDate.getDate() + 1);
+      qb.andWhere('r.createdAt < :hasta', { hasta: hastaDate });
     }
 
     const total = await qb.getCount();

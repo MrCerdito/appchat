@@ -13,8 +13,8 @@ import { User } from '../auth/entities/user.entity';
 
 /**
  * Estos tests cubren la parte del sincronizador que decide si hay que avisar:
- * que la importacion inicial no llene la campana, que el delta si avise, y que
- * el aviso salga una vez por tanda y no uno por correo.
+ * que la importacion inicial no llene la campana, y que cada correo nuevo del
+ * delta genere su propio aviso persistente.
  */
 describe('CorreosSyncService (avisos de correo nuevo)', () => {
   let service: CorreosSyncService;
@@ -33,10 +33,57 @@ describe('CorreosSyncService (avisos de correo nuevo)', () => {
   const save = jest.fn();
   const update = jest.fn();
   const deleteMensaje = jest.fn();
+  const outbox = new Map<string, any>();
+  const query = jest.fn(async (sql: string, params: any[] = []) => {
+    if (sql.includes('INSERT INTO correo_notification_outbox')) {
+      const [
+        recipientId,
+        messageId,
+        correoIds,
+        cantidad,
+        carpeta,
+        asunto,
+        remitenteNombre,
+        remitenteEmail,
+        vistaPrevia,
+        hayNoLeidos,
+      ] = params;
+      if (!outbox.has(messageId)) {
+        outbox.set(messageId, {
+          id: `outbox-${messageId}`,
+          correo_mensaje_id: messageId,
+          correo_mensaje_ids: correoIds,
+          recipient_id: recipientId,
+          cantidad,
+          carpeta,
+          asunto,
+          remitente_nombre: remitenteNombre,
+          remitente_email: remitenteEmail,
+          vista_previa: vistaPrevia,
+          hay_no_leidos: hayNoLeidos,
+          entregado_at: null,
+        });
+      }
+      return [];
+    }
+    if (sql.includes('SELECT id, correo_mensaje_id, correo_mensaje_ids')) {
+      return [...outbox.values()].filter((row) => row.recipient_id === params[0] && !row.entregado_at);
+    }
+    if (sql.includes('UPDATE correo_notification_outbox')) {
+      const row = [...outbox.values()].find((x) => x.id === params[0]);
+      if (row) row.entregado_at = new Date();
+      return [];
+    }
+    return [];
+  });
 
   beforeEach(async () => {
     jest.clearAllMocks();
-    save.mockImplementation(async (x: any) => ({ ...x, id: x.id ?? 'uuid-local-1' }));
+    outbox.clear();
+    save.mockImplementation(async (x: any) => ({
+      ...x,
+      id: x.id ?? `uuid-${x.graphMessageId ?? 'local-1'}`,
+    }));
     update.mockResolvedValue({ affected: 1 });
     crearNotificacion.mockResolvedValue({ id: 'n1' });
 
@@ -81,7 +128,7 @@ describe('CorreosSyncService (avisos de correo nuevo)', () => {
         { provide: ConfigService, useValue: { get: () => undefined } },
         {
           provide: DataSource,
-          useValue: { query: jest.fn().mockResolvedValue(undefined) },
+          useValue: { query },
         },
       ],
     }).compile();
@@ -94,7 +141,8 @@ describe('CorreosSyncService (avisos de correo nuevo)', () => {
     subject: `Asunto ${id}`,
     isRead,
     receivedDateTime: recibido,
-    from: { emailAddress: { name: 'Ana', address: 'ana@x.com' } },
+    bodyPreview: `Vista previa ${id}`,
+    from: { emailAddress: { name: 'Ana Pérez', address: 'ana@x.com' } },
     categories: [],
   });
 
@@ -121,7 +169,7 @@ describe('CorreosSyncService (avisos de correo nuevo)', () => {
     expect(crearNotificacion).not.toHaveBeenCalled();
   });
 
-  it('avisa una sola vez cuando el delta trae correo nuevo', async () => {
+  it('crea un aviso separado por cada correo nuevo del delta', async () => {
     carpetaYaImportada();
     mensajeFindOne.mockResolvedValue(null);
     get.mockResolvedValueOnce({
@@ -133,17 +181,22 @@ describe('CorreosSyncService (avisos de correo nuevo)', () => {
 
     expect(r.nuevos).toBe(2);
     expect(r.huboImportacionInicial).toBe(false);
-    expect(crearNotificacion).toHaveBeenCalledTimes(1);
+    expect(crearNotificacion).toHaveBeenCalledTimes(2);
 
-    const dto = crearNotificacion.mock.calls[0][0];
-    expect(dto.type).toBe('correo_nuevo');
-    expect(dto.recipientId).toBe('asesor-1');
-    expect(dto.entityType).toBe('correo');
-    // El aviso lleva el id local, no el de Graph: el de Graph es base64 y no
-    // cabe en la columna varchar(36) de la notificacion.
-    expect(dto.entityId).toBe('uuid-local-1');
-    expect(dto.meta.nuevos).toBe(2);
-    expect(dto.title).toContain('2 correos nuevos');
+    const avisos = crearNotificacion.mock.calls.map(([dto]) => dto);
+    expect(avisos.map((dto) => dto.entityId)).toEqual(['uuid-g1', 'uuid-g2']);
+    for (const dto of avisos) {
+      expect(dto.type).toBe('correo_nuevo');
+      expect(dto.recipientId).toBe('asesor-1');
+      expect(dto.entityType).toBe('correo');
+      expect(dto.title).toBe(`Asunto ${dto.entityId.slice('uuid-'.length)}`);
+      expect(dto.message).toBe('De: Ana Pérez <ana@x.com>');
+      expect(dto.meta.nuevos).toBe(1);
+      expect(dto.meta.correoIds).toEqual([dto.entityId]);
+      expect(dto.meta.remitenteNombre).toBe('Ana Pérez');
+      expect(dto.meta.remitenteEmail).toBe('ana@x.com');
+      expect(dto.meta.vistaPrevia).toContain('Vista previa');
+    }
   });
 
   it('el aviso engrana el correo mas reciente y detecta si hay no leidos', async () => {
@@ -165,7 +218,7 @@ describe('CorreosSyncService (avisos de correo nuevo)', () => {
     expect(r.hayNoLeidos).toBe(true);
   });
 
-  it('el boton de buscar nuevos sincroniza pero no genera aviso', async () => {
+  it('el boton de buscar nuevos también deja un aviso persistente', async () => {
     carpetaYaImportada();
     mensajeFindOne.mockResolvedValue(null);
     get.mockResolvedValueOnce({
@@ -176,7 +229,7 @@ describe('CorreosSyncService (avisos de correo nuevo)', () => {
     const r = await service.sincronizarAsesor('asesor-1', 'Jean', false);
 
     expect(r.nuevos).toBe(1);
-    expect(crearNotificacion).not.toHaveBeenCalled();
+    expect(crearNotificacion).toHaveBeenCalledTimes(1);
   });
 
   it('avisa por socket tambien cuando solo cambia el estado de lectura', async () => {
@@ -226,6 +279,23 @@ describe('CorreosSyncService (avisos de correo nuevo)', () => {
     expect(crearNotificacion).toHaveBeenCalledTimes(1);
   });
 
+  it('un tick que se une a una búsqueda manual en curso conserva el aviso nuevo', async () => {
+    carpetaYaImportada();
+    mensajeFindOne.mockResolvedValue(null);
+    let liberar: (v: any) => void = () => undefined;
+    get.mockReturnValueOnce(new Promise((res) => { liberar = res; }));
+
+    const manual = service.sincronizarAsesor('asesor-1', 'Jean', false);
+    const tick = service.sincronizarAsesor('asesor-1', 'Jean', true);
+    liberar({ value: [mensaje('g1', '2026-10-05T10:00:00Z')], '@odata.deltaLink': 'dl-1' });
+    const [manualResult, tickResult] = await Promise.all([manual, tick]);
+
+    expect(manualResult.nuevos).toBe(1);
+    expect(tickResult.nuevos).toBe(1);
+    expect(crearNotificacion).toHaveBeenCalledTimes(1);
+    expect([...outbox.values()].filter((x) => !x.entregado_at)).toHaveLength(0);
+  });
+
   it('un aviso fallido no tumba la sincronizacion', async () => {
     carpetaYaImportada();
     mensajeFindOne.mockResolvedValue(null);
@@ -239,6 +309,56 @@ describe('CorreosSyncService (avisos de correo nuevo)', () => {
 
     expect(r.nuevos).toBe(1);
     expect(enviarCambio).toHaveBeenCalled();
+    expect([...outbox.values()].some((x) => !x.entregado_at)).toBe(true);
+  });
+
+  it('reintenta el aviso pendiente en la siguiente pasada sin duplicar el correo', async () => {
+    carpetaYaImportada();
+    mensajeFindOne.mockResolvedValue(null);
+    get.mockResolvedValueOnce({
+      value: [mensaje('g1', '2026-10-05T10:00:00Z')],
+      '@odata.deltaLink': 'dl-1',
+    });
+    crearNotificacion.mockRejectedValueOnce(new Error('fallo temporal'));
+
+    await service.sincronizarAsesor('asesor-1', 'Jean', true);
+    expect([...outbox.values()].filter((x) => !x.entregado_at)).toHaveLength(1);
+
+    await (service as any).entregarAvisosPendientes('asesor-1');
+    expect(crearNotificacion).toHaveBeenCalledTimes(2);
+    expect([...outbox.values()].filter((x) => !x.entregado_at)).toHaveLength(0);
+  });
+
+  it('desglosa una fila antigua del outbox en avisos individuales', async () => {
+    outbox.set('legacy-batch', {
+      id: 'legacy-batch',
+      recipient_id: 'asesor-1',
+      correo_mensaje_id: 'mail-2',
+      correo_mensaje_ids: ['mail-1', 'mail-2'],
+      cantidad: 2,
+      carpeta: '10.Jean M.',
+      asunto: 'Asunto de mail-2',
+      remitente_nombre: 'Ana Pérez',
+      remitente_email: 'ana@x.com',
+      vista_previa: 'Contenido de prueba',
+      hay_no_leidos: true,
+      entregado_at: null,
+    });
+
+    await (service as any).entregarAvisosPendientes('asesor-1');
+
+    expect(crearNotificacion).toHaveBeenCalledTimes(2);
+    expect(crearNotificacion.mock.calls.map(([dto]) => dto.entityId)).toEqual(['mail-1', 'mail-2']);
+    expect(crearNotificacion.mock.calls.map(([dto]) => dto.meta.correoIds)).toEqual([
+      ['mail-1'],
+      ['mail-2'],
+    ]);
+    expect(crearNotificacion.mock.calls[1][0]).toMatchObject({
+      title: 'Asunto de mail-2',
+      message: 'De: Ana Pérez <ana@x.com>',
+      meta: { vistaPrevia: 'Contenido de prueba' },
+    });
+    expect([...outbox.values()][0].entregado_at).toBeTruthy();
   });
 
   it('mientras dura el cooldown por permisos no vuelve a preguntar a Graph', async () => {

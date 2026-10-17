@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef, HostListener, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef, HostListener, HostBinding, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -9,6 +9,7 @@ import { SocketService } from '../../../../core/services/socket.service';
 import { SessionService } from '../../../../core/services/session.service';
 import { LayoutService } from '../../../../core/services/layout.service';
 import { AuthService } from '../../../../core/services/auth.service';
+import { ThemeService } from '../../../../core/services/theme.service';
 import { Message, TimelineItem, TimelineEvento } from '../../../../core/models/message.model';
 import { Session, SessionAssignmentEvent, LastMessagePreview } from '../../../../core/models/session.model';
 import { trackByIndex, trackById } from '../../../../shared/utils/track-by';
@@ -40,6 +41,7 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
   };
 
   @ViewChild('messagesContainer') messagesContainer!: ElementRef;
+  @HostBinding('class.theme-dark') protected themeDark = false;
 
   sessions     : Session[] = [];
   activeSession: Session | null = null;
@@ -107,6 +109,10 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
   private msgFormatCache = new Map<string, SafeHtml>();
 
+  protected get esAdmin(): boolean {
+    return this.router.url.startsWith('/admin');
+  }
+
   constructor(
     private sessionService: SessionService,
     private auth          : AuthService,
@@ -115,6 +121,7 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
     private cdr           : ChangeDetectorRef,
     private sanitizer     : DomSanitizer,
     private layout        : LayoutService,
+    private themeService  : ThemeService,
   ) {}
 
   // ── Filtro de sesiones ────────────────────────────────────────────────────
@@ -599,6 +606,11 @@ export class HistoryGlobalComponent implements OnInit, OnDestroy {
 
   // ── Init ──────────────────────────────────────────────────────────────────
   ngOnInit(): void {
+    this.themeDark = this.themeService.currentTheme === 'dark';
+    this.themeService.currentTheme$.pipe(takeUntil(this.destroy$)).subscribe((t) => {
+      this.themeDark = t === 'dark';
+      this.cdr.markForCheck();
+    });
     this.layout.setSidebarForcedCollapsed(true);
     this.currentUserId = this.auth.getUser()?.id ?? null;
     this.applyDatePreset('today');

@@ -7,6 +7,7 @@ import {
   ViewChild,
   ElementRef,
   HostListener,
+  HostBinding,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -15,6 +16,7 @@ import { AdminService, PaginatedResponse, ConectividadResult, ConectividadAsesor
 import { SocketService } from '../../../../core/services/socket.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { NotificationService } from '../../../../core/services/notification.service';
+import { ThemeService } from '../../../../core/services/theme.service';
 import { User } from '../../../../core/models/user.model';
 import { Subject, debounceTime, distinctUntilChanged, of, Observable, switchMap, tap, firstValueFrom, interval } from 'rxjs';
 import { takeUntil, finalize } from 'rxjs/operators';
@@ -78,6 +80,8 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
   protected readonly trackByIndex = trackByIndex;
   protected readonly trackById = trackById;
   readonly icons = ADVISORS_ICONS;
+
+  @HostBinding('class.theme-dark') protected themeDark = false;
 
   advisors: User[] = [];
   total = 0;
@@ -173,9 +177,16 @@ export class AdvisorsComponent implements OnInit, OnDestroy {
     private auth: AuthService,
     private notification: NotificationService,
     private cdr: ChangeDetectorRef,
+    private readonly themeService: ThemeService,
   ) {}
 
   ngOnInit(): void {
+    this.themeDark = this.themeService.currentTheme === 'dark';
+    this.themeService.currentTheme$.pipe(takeUntil(this.destroy$)).subscribe((t) => {
+      this.themeDark = t === 'dark';
+      this.cdr.markForCheck();
+    });
+
     this.currentUserId = this.auth.getUser()?.id ?? null;
     this.loadAdvisors();
     this.refreshConectividad();

@@ -1,0 +1,327 @@
+:host {
+  display: block;
+}
+
+.tt-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 0.9rem;
+}
+
+/* ── Cabecera ─────────────────────────────────────────── */
+.tt-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.tt-title {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.tt-count {
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  border-radius: 999px;
+  padding: 0.02rem 0.38rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.tt-add {
+  border: 0;
+  background: transparent;
+  color: var(--ts-brand);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+}
+
+.tt-add:hover {
+  background: var(--primary-soft);
+}
+
+/* ── Progreso ─────────────────────────────────────────── */
+.tt-prog {
+  margin-bottom: 0.7rem;
+}
+
+.tt-prog-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+}
+
+.tt-prog-lbl {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.tt-prog-val {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.tt-prog-bar {
+  height: 5px;
+  background: var(--bg-subtle);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.tt-prog-bar span {
+  display: block;
+  height: 100%;
+  background: var(--success);
+  border-radius: 3px;
+  transition: width 0.25s ease;
+}
+
+/* ── Herramientas ─────────────────────────────────────── */
+.tt-tools {
+  margin-bottom: 0.5rem;
+}
+
+.tt-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.71rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.tt-switch input {
+  accent-color: var(--ts-brand);
+  cursor: pointer;
+}
+
+/* ── Estados ──────────────────────────────────────────── */
+.tt-loading {
+  display: flex;
+  justify-content: center;
+  padding: 1.2rem;
+}
+
+.tt-spin {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--ts-brand);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.tt-msg {
+  margin: 0;
+  font-size: 0.76rem;
+  text-align: center;
+  padding: 0.6rem 0;
+}
+
+.tt-msg.is-error {
+  color: var(--danger);
+}
+
+.tt-empty {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 0.9rem 0;
+}
+
+.tt-link {
+  display: block;
+  margin: 0.35rem auto 0;
+  border: 0;
+  background: transparent;
+  color: var(--ts-brand);
+  font-size: 0.76rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* ── Lista ────────────────────────────────────────────── */
+.tt-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.tt-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.45rem 0.3rem;
+  border-radius: var(--radius-sm);
+  transition: background 0.12s ease;
+}
+
+.tt-item:hover {
+  background: var(--surface-hover);
+}
+
+.tt-check {
+  width: 17px;
+  height: 17px;
+  border-radius: 5px;
+  border: 1.5px solid var(--border-strong);
+  background: transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+  padding: 0;
+  color: transparent;
+  transition: all 0.14s ease;
+}
+
+.tt-check:hover {
+  border-color: var(--success);
+}
+
+.tt-check.is-done {
+  background: var(--success);
+  border-color: var(--success);
+  color: #fff;
+}
+
+.tt-main {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.tt-text {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.tt-item.done .tt-text {
+  text-decoration: line-through;
+  color: var(--text-faint);
+}
+
+.tt-code {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  color: var(--text-faint);
+  margin-right: 0.3rem;
+}
+
+.tt-sub {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-top: 0.25rem;
+}
+
+.tt-meta {
+  font-size: 0.67rem;
+  color: var(--text-faint);
+}
+
+.badge {
+  display: inline-block;
+  font-size: 0.64rem;
+  font-weight: 600;
+  padding: 0.12rem 0.36rem;
+  border-radius: 4px;
+}
+
+.badge.is-pendiente {
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+}
+
+.badge.is-progreso {
+  background: var(--info-soft);
+  color: var(--info);
+}
+
+.badge.is-bloqueada {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.badge.is-revision {
+  background: rgba(168, 85, 247, 0.12);
+  color: #a855f7;
+}
+
+.badge.is-completada {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.badge.is-cancelada {
+  background: var(--bg-subtle);
+  color: var(--text-faint);
+}
+
+/* ── Acciones ─────────────────────────────────────────── */
+.tt-actions {
+  display: flex;
+  gap: 0.1rem;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.14s ease;
+}
+
+.tt-item:hover .tt-actions {
+  opacity: 1;
+}
+
+.tt-ic {
+  border: 0;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+}
+
+.tt-ic:hover {
+  background: var(--bg-subtle);
+  color: var(--ts-brand);
+}

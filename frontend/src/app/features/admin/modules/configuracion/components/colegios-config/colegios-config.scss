@@ -5,6 +5,17 @@
   min-width: 0;
 }
 
+/* Tema oscuro: los valores claros viven en los fallbacks de cada uso (light pixel-idéntico) */
+:host.theme-dark {
+  --tmc-gold: #fbbf24;
+  --tmc-blue: #60a5fa;
+  --tmc-violet: #a78bfa;
+  --tmc-cyan: #22d3ee;
+  --tmc-green: #34d399;
+  --tmc-slate: #9aa5b8;
+  --tmc-hover: #151b23;
+}
+
 /* ═══════════════════════════════════════════════════════════
    ROOT VARIABLES (scoped)
    ═══════════════════════════════════════════════════════════ */
@@ -206,14 +217,14 @@ $tmc-font-mono: var(--font-mono, 'Cascadia Code', 'Fira Code', monospace);
 .tmc-stat--sian {
   .tmc-stat__icon {
     background: color-mix(in srgb, #ce9b30 16%, transparent);
-    color: #b58518;
+    color: var(--tmc-gold, #b58518);
   }
 }
 
 .tmc-stat--control {
   .tmc-stat__icon {
     background: color-mix(in srgb, #1a3fa8 12%, transparent);
-    color: #1a3fa8;
+    color: var(--tmc-blue, #1a3fa8);
   }
 }
 
@@ -277,7 +288,7 @@ $tmc-font-mono: var(--font-mono, 'Cascadia Code', 'Fira Code', monospace);
   box-shadow: $tmc-shadow-sm;
 
   &:hover:not(:disabled) {
-    background: #f8f8f8;
+    background: var(--tmc-hover, #f8f8f8);
     color: $tmc-text;
     border-color: $tmc-border-strong;
   }
@@ -756,7 +767,7 @@ $tmc-font-mono: var(--font-mono, 'Cascadia Code', 'Fira Code', monospace);
       background: rgba(37, 99, 235, 0.08);
       border-color: rgba(37, 99, 235, 0.35);
 
-      svg { color: #2563eb; }
+      svg { color: var(--tmc-blue, #2563eb); }
     }
   }
 
@@ -878,24 +889,24 @@ $tmc-font-mono: var(--font-mono, 'Cascadia Code', 'Fira Code', monospace);
 
   &--tipo {
     background: color-mix(in srgb, #8b5cf6 10%, transparent);
-    color: #7c3aed;
+    color: var(--tmc-violet, #7c3aed);
   }
 
   &--sian {
     background: color-mix(in srgb, #ce9b30 16%, transparent);
-    color: #a8781a;
+    color: var(--tmc-gold, #a8781a);
     border: 1px solid color-mix(in srgb, #ce9b30 30%, transparent);
   }
 
   &--control {
     background: color-mix(in srgb, #1a3fa8 12%, transparent);
-    color: #1a3fa8;
+    color: var(--tmc-blue, #1a3fa8);
     border: 1px solid color-mix(in srgb, #1a3fa8 26%, transparent);
   }
 
   &--links {
     background: color-mix(in srgb, #06b6d4 12%, transparent);
-    color: #0891b2;
+    color: var(--tmc-cyan, #0891b2);
     margin-left: 6px;
     vertical-align: middle;
     cursor: help;
@@ -1278,7 +1289,7 @@ $tmc-font-mono: var(--font-mono, 'Cascadia Code', 'Fira Code', monospace);
   height: 64px;
   border-radius: 50%;
   background: color-mix(in srgb, #10b981 14%, transparent);
-  color: #059669;
+  color: var(--tmc-green, #059669);
 
   svg {
     width: 30px;
@@ -1313,12 +1324,12 @@ $tmc-font-mono: var(--font-mono, 'Cascadia Code', 'Fira Code', monospace);
 
   &--success {
     background: color-mix(in srgb, #10b981 12%, transparent);
-    color: #059669;
+    color: var(--tmc-green, #059669);
   }
 
   &--muted {
     background: color-mix(in srgb, #64748b 12%, transparent);
-    color: #64748b;
+    color: var(--tmc-slate, #64748b);
   }
 }
 
@@ -1336,7 +1347,7 @@ $tmc-font-mono: var(--font-mono, 'Cascadia Code', 'Fira Code', monospace);
     margin: 0 0 6px;
     font-size: 12px;
     font-weight: 700;
-    color: #b45309;
+    color: var(--tmc-gold, #b45309);
   }
 
   ul {
@@ -1545,7 +1556,7 @@ $tmc-font-mono: var(--font-mono, 'Cascadia Code', 'Fira Code', monospace);
 
   &--crear {
     background: color-mix(in srgb, #10b981 14%, transparent);
-    color: #059669;
+    color: var(--tmc-green, #059669);
   }
 
   &--actualizar {
@@ -1555,7 +1566,7 @@ $tmc-font-mono: var(--font-mono, 'Cascadia Code', 'Fira Code', monospace);
 
   &--omito {
     background: color-mix(in srgb, #64748b 12%, transparent);
-    color: #64748b;
+    color: var(--tmc-slate, #64748b);
   }
 }
 
@@ -1593,7 +1604,7 @@ $tmc-font-mono: var(--font-mono, 'Cascadia Code', 'Fira Code', monospace);
   &__msg {
     margin: 10px 0 0;
     font-size: 12px;
-    color: #059669;
+    color: var(--tmc-green, #059669);
     word-break: break-all;
   }
 

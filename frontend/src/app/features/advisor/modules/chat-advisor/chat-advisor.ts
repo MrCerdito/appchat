@@ -1,6 +1,6 @@
 import {
   Component, OnInit, OnDestroy, ViewChild,
-  ElementRef, ChangeDetectorRef, ChangeDetectionStrategy, HostListener
+  ElementRef, ChangeDetectorRef, ChangeDetectionStrategy, HostListener, HostBinding
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -46,6 +46,7 @@ import {
   VoiceRecordingResult,
 } from '../../../../shared/components/voice-recorder/voice-recorder.component';
 import { VoicePlayerComponent } from '../../../../shared/components/voice-player/voice-player.component';
+import { ThemeService } from '../../../../core/services/theme.service';
 
 // ── Payload exacto que emite el backend ──────────────────────────────────────
 export interface TimerUpdatePayload {
@@ -103,6 +104,11 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
   @ViewChild('slashMenu') slashMenu?: ElementRef<HTMLElement>;
   @ViewChild('improveInputField') improveInputField!: ElementRef<HTMLTextAreaElement>;
 
+  // ── Tema ──────────────────────────────────────────────────────────────────
+  // La clase en el host invierte los tokens del módulo (bloque :host.theme-dark
+  // del SCSS); se sincroniza con ThemeService en ngOnInit.
+  @HostBinding('class.theme-dark') protected themeDark = false;
+
   // ── Estado UI ─────────────────────────────────────────────────────────────
   currentAdvisor   : User | null    = null;
   advisors         : User[]         = [];
@@ -135,11 +141,17 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     startDateTime : '',
     durationMinutes: 30,
     agendarCalendario: true,
+    /** 'ahora' = la reunion inicia de inmediato; 'programada' = fecha y hora elegidas. */
+    startMode: 'programada' as 'ahora' | 'programada',
   };
+  /** Modo usado en la ultima creacion: define la card enviada al cliente. */
+  teamsLastMode: 'ahora' | 'programada' = 'programada';
   teamsCreating   = false;
   teamsMessage    = '';
   teamsCreated    : TeamsMeetingDto | null = null;
   teamsCopied     = false;
+  /** true = enlace enviado al cliente en el chat; false = fallo; null = sin intento. */
+  teamsSentToClient: boolean | null = null;
 
   // ── Mejorar mensaje con IA ────────────────────────────────────────────────
   showImprovePanel = false;
@@ -249,9 +261,10 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     private route       : ActivatedRoute,
     private router      : Router,
     private cdr         : ChangeDetectorRef,
-    private chatMedia   : ChatMediaService,
-    private waTeamService: WhatsappChatService,
-  ) {}
+      private chatMedia   : ChatMediaService,
+      private waTeamService: WhatsappChatService,
+      private themeService: ThemeService,
+    ) {}
 
   // ── Getters ───────────────────────────────────────────────────────────────
 
@@ -424,6 +437,13 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
       this.currentAdvisor = u;
       this.cdr.detectChanges();
     });
+
+    // Tema claro/oscuro → clase .theme-dark en el host
+    this.themeService.currentTheme$.pipe(takeUntil(this.destroy$)).subscribe((t) => {
+      this.themeDark = t === 'dark';
+      this.cdr.markForCheck();
+    });
+
     this.loadSessions();
     this.loadAdvisors();
 
@@ -458,8 +478,6 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     this.socket.emit('advisor_ready');
 
     this.registerSocketEvents();
-
-    window.addEventListener('message', this.handleTeamsAuthMessage);
 
     // ── Compact mode (barra de avatares) ───────────────────────────────────
     this.checkCompact();
@@ -947,10 +965,12 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
       startDateTime : `${start.getFullYear()}-${p(start.getMonth() + 1)}-${p(start.getDate())}T${p(start.getHours())}:${p(start.getMinutes())}`,
       durationMinutes: 30,
       agendarCalendario: true,
+      startMode: 'programada',
     };
     this.teamsMessage = '';
     this.teamsCreated = null;
     this.teamsCopied  = false;
+    this.teamsSentToClient = null;
     this.showTeamsMeeting = true;
     this.loadTeamsStatus();
     this.cdr.detectChanges();
@@ -962,30 +982,13 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     this.teamsMessage = '';
     this.teamsCreated = null;
     this.teamsCopied  = false;
+    this.teamsSentToClient = null;
     this.cdr.detectChanges();
   }
 
-  connectTeams(): void {
-    if (this.isLoadingTeams) return;
-    const popup = window.open('', 'innovaTeamsAuth', 'width=520,height=720');
-    this.isLoadingTeams = true;
-    this.teamsMessage = 'Abriendo inicio de sesion de Microsoft...';
-    this.waTeamService.getTeamsAuthUrl().subscribe({
-      next: res => {
-        this.isLoadingTeams = false;
-        if (popup) {
-          popup.location.href = res.authUrl;
-        } else {
-          window.location.href = res.authUrl;
-        }
-        this.cdr.detectChanges();
-      },
-      error: err => {
-        popup?.close();
-        this.isLoadingTeams = false;
-        this.teamsMessage = err?.error?.message || err?.message || 'No se pudo iniciar sesion en Teams.';
-        this.cdr.detectChanges();
-      },
+  openTeamsSettings(): void {
+    this.router.navigate(['/dashboard/configuracion'], {
+      queryParams: { tab: 'teams' },
     });
   }
 
@@ -1006,39 +1009,35 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
     });
   }
 
-  private handleTeamsAuthMessage = (event: MessageEvent): void => {
-    if (event.data?.type !== 'teams-auth') return;
-    if (event.data.success) {
-      this.teamsMessage = 'Teams conectado. Ya puedes crear la reunion.';
-      this.loadTeamsStatus();
-    } else {
-      this.isLoadingTeams = false;
-      this.isTeamsConnected = false;
-      this.teamsMessage = event.data.error || 'No se pudo conectar Teams.';
-    }
-    this.cdr.detectChanges();
-  };
-
   async createTeamsMeetingForChat(): Promise<void> {
     if (this.teamsCreating) return;
     const subject = this.teamsDraft.subject.trim();
-    if (!subject || !this.teamsDraft.startDateTime) {
-      this.teamsMessage = 'Escribe un nombre y una fecha valida.';
+    const programada = this.teamsDraft.startMode === 'programada';
+    if (!subject || (programada && !this.teamsDraft.startDateTime)) {
+      this.teamsMessage = programada
+        ? 'Escribe un nombre y una fecha valida.'
+        : 'Escribe un nombre para la reunion.';
       return;
     }
     this.teamsCreating = true;
     this.teamsMessage  = 'Creando reunion de Teams...';
     this.cdr.detectChanges();
     try {
+      // 'ahora': arranca en 1 minuto para que Graph no rechace un inicio pasado.
+      const startIso = programada
+        ? new Date(this.teamsDraft.startDateTime).toISOString()
+        : new Date(Date.now() + 60_000).toISOString();
+      this.teamsLastMode = this.teamsDraft.startMode;
       this.teamsCreated = await firstValueFrom(
         this.waTeamService.createStandaloneMeeting({
           subject,
-          startDateTime: new Date(this.teamsDraft.startDateTime).toISOString(),
+          startDateTime: startIso,
           durationMinutes: this.teamsDraft.durationMinutes,
-          calendarTarget: this.teamsDraft.agendarCalendario ? 'shared' : 'none',
+          calendarTarget: this.teamsDraft.agendarCalendario ? 'shared' : 'personal',
         }),
       );
       this.teamsMessage = '';
+      this.shareTeamsMeetingInChat();
     } catch (err: any) {
       const msg = err?.error?.message || err?.message || '';
       this.teamsMessage = msg || 'No se pudo crear la reunion.';
@@ -1062,6 +1061,79 @@ export class ChatAdvisorComponent implements OnInit, OnDestroy {
       this.teamsMessage = 'No se pudo copiar el enlace.';
       this.cdr.detectChanges();
     }
+  }
+
+  openTeamsCreated(): void {
+    if (!this.teamsCreated?.joinUrl) return;
+    window.open(this.teamsCreated.joinUrl, '_blank', 'noopener,noreferrer');
+  }
+
+  /**
+   * Envia el enlace de la reunion al cliente en el chat activo (mismo patron
+   * del auto-mensaje de tickets). Si falla, el asesor siempre puede copiarlo
+   * a mano desde el modal.
+   */
+  private shareTeamsMeetingInChat(): void {
+    const meeting = this.teamsCreated;
+    const session = this.activeSession;
+    if (!meeting || !session) {
+      this.teamsSentToClient = false;
+      return;
+    }
+    try {
+      this.socket.emit('send_message', {
+        sessionId: session.id,
+        content: this.buildTeamsMeetingClientMessage(meeting, this.teamsLastMode),
+      });
+      this.teamsSentToClient = true;
+    } catch {
+      this.teamsSentToClient = false;
+    }
+  }
+
+  /**
+   * Card HTML para el cliente (pipeline la deja pasar con clases; los estilos
+   * viven en styles.scss). Dos variantes:
+   * - Inmediata: boton "Unirse" que abre la reunion directo.
+   * - Programada: boton "Copiar link" (el widget lo copia al portapapeles) con
+   *   nota explicativa debajo.
+   */
+  private buildTeamsMeetingClientMessage(
+    meeting: TeamsMeetingDto,
+    mode: 'ahora' | 'programada',
+  ): string {
+    const esc = (v: string) =>
+      (v ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    const inmediato = mode === 'ahora';
+    const filas = [
+      `<div class="msg-card-row"><span class="msg-card-label">Reunión</span><span class="msg-card-value">${esc(meeting.subject)}</span></div>`,
+      inmediato
+        ? '<div class="msg-card-row"><span class="msg-card-label">Inicio</span><span class="msg-card-value">Iniciada ahora</span></div>'
+        : `<div class="msg-card-row"><span class="msg-card-label">Fecha</span><span class="msg-card-value">${esc(this.fmtMedium(meeting.startDateTime))}</span></div>`,
+    ];
+    if (meeting.durationMinutes) {
+      filas.push(
+        `<div class="msg-card-row"><span class="msg-card-label">Duración</span><span class="msg-card-value">${meeting.durationMinutes} minutos</span></div>`,
+      );
+    }
+    const cta = inmediato
+      ? `<a class="msg-card-btn" href="${esc(meeting.joinUrl)}" target="_blank" rel="noopener noreferrer">Unirse</a>`
+      : `<a class="msg-card-btn msg-card-btn--copy" href="${esc(meeting.joinUrl)}" target="_blank" rel="noopener noreferrer">Copiar link</a>` +
+        '<div class="msg-card-note">Al copiar este link podrás unirse a la reunión en la fecha acordada.</div>';
+    return (
+      '<div class="msg-card msg-card--teams">' +
+      '<div class="msg-card-head">' +
+      '<span class="msg-card-badge">Teams</span>' +
+      '<span class="msg-card-title">Reunión de Microsoft Teams</span>' +
+      '</div>' +
+      `<div class="msg-card-rows">${filas.join('')}</div>` +
+      cta +
+      '</div>'
+    );
   }
 
   // ── Colaborador ───────────────────────────────────────────────────────────
@@ -2330,14 +2402,6 @@ leaveCollabChat(): void {
     return `${session.clientName || ''} ${session.apellido || ''}`.trim() || 'Cliente';
   }
 
-  statusLabel(session?: Session | null): string {
-    if (!session) return '';
-    if (session.status === 'waiting') return 'En espera';
-    if (session.status === 'active') return 'Activo';
-    if (session.status === 'closed') return 'Cerrado';
-    return session.status || 'Sin estado';
-  }
-
   get panelAdvisorId(): string | null {
     return this.activeSession?.colegioAdvisorId
       ?? this.activeSession?.advisor?.id
@@ -2555,7 +2619,6 @@ leaveCollabChat(): void {
 
   // ── Destroy ───────────────────────────────────────────────────────────────
   ngOnDestroy(): void {
-    window.removeEventListener('message', this.handleTeamsAuthMessage);
     this.state.setActiveSession(null);
     this.destroy$.next();
     this.destroy$.complete();

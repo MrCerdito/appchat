@@ -36,7 +36,11 @@ export class ThemeService implements OnDestroy {
   setMode(mode: ThemeMode): void {
     this.mode = mode;
     this.mode$.next(mode);
-    localStorage.setItem('theme', mode);
+    try {
+      localStorage.setItem('theme', mode);
+    } catch {
+      // Algunos navegadores bloquean el storage: el tema igual debe aplicarse.
+    }
     this.detachSystemListener();
     if (mode === 'system') {
       this.applyTheme(this.systemMedia.matches ? 'dark' : 'light');

@@ -11,6 +11,7 @@ import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { IsEmail, IsString, MinLength } from 'class-validator';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { Public } from './public.decorator';
 
 export class LoginDto {
   @IsEmail({}, { message: 'Correo electrónico inválido' })
@@ -30,6 +31,9 @@ export class RefreshDto {
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  // @Public() SOLO a nivel metodo (nunca de clase): un @Public de clase
+  // desactivaria el guard de logout.
+  @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
@@ -37,6 +41,7 @@ export class AuthController {
     return this.authService.login(body.email, body.password);
   }
 
+  @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 5, ttl: 60_000 } })

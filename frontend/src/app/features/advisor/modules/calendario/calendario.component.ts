@@ -1,15 +1,22 @@
 import {
   Component,
   OnInit,
+  AfterViewInit,
   OnDestroy,
   ChangeDetectorRef,
   ChangeDetectionStrategy,
+  ElementRef,
+  HostBinding,
+  ViewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { firstValueFrom } from 'rxjs';
-import { WhatsappChatService } from '../../../../core/services/whatsapp-chat.service';
+import { Router } from '@angular/router';
+import { firstValueFrom, Subscription } from 'rxjs';
+import { WhatsappChatService, TeamsMeetingDto } from '../../../../core/services/whatsapp-chat.service';
+import { AuthService } from '../../../../core/services/auth.service';
 import { LayoutService } from '../../../../core/services/layout.service';
+import { ThemeService } from '../../../../core/services/theme.service';
 import {
   CATEGORIAS_REUNION,
   CATEGORIA_POR_DEFECTO,
@@ -22,7 +29,9 @@ import {
   EventoCalendario,
   GrupoCalendario,
 } from '../../../../core/services/calendario.service';
+import { SessionService, Colegio } from '../../../../core/services/session.service';
 import {
+  fmtDateMedium,
   fmtMedium,
   fmtTime,
 } from '../../../../shared/utils/date';
@@ -94,11 +103,6 @@ function aDate(v: Date | string): Date {
   return typeof v === 'string' ? new Date(v) : v;
 }
 
-/** Alias de la categoria que agrupa las reuniones en linea. */
-const ALIAS_VIRTUAL = 'reunion virtual';
-/** Alias de la categoria que agrupa las reuniones presenciales. */
-const ALIAS_PRESENCIAL = 'reunion presencial';
-
 /**
  * Sin acentos ni mayusculas, para que "reunion nazire" encuentre
  * "Reunión Nazire" y "jose" encuentre "José".
@@ -169,6 +173,14 @@ function utcDesdeNaive(naive: string): Date {
   );
 }
 
+/** 'YYYY-MM-DD' del dia siguiente a una fecha 'YYYY-MM-DD' (cuenta dias). */
+function diaSiguiente(fecha: string): string {
+  const [y, m, d] = (fecha ?? '').split('-').map(Number);
+  if (!y || !m || !d) return '';
+  const t = new Date(Date.UTC(y, m - 1, d + 1));
+  return `${t.getUTCFullYear()}-${pad2(t.getUTCMonth() + 1)}-${pad2(t.getUTCDate())}`;
+}
+
 @Component({
   selector: 'app-calendario',
   standalone: true,
@@ -177,10 +189,18 @@ function utcDesdeNaive(naive: string): Date {
   styleUrl: './calendario.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class CalendarioComponent implements OnInit, OnDestroy {
+export class CalendarioComponent implements OnInit, AfterViewInit, OnDestroy {
   protected readonly fmtMedium = fmtMedium;
   protected readonly fmtTime = fmtTime;
   protected readonly weekdayLabels = WEEKDAYS_CORTOS;
+
+  /**
+   * Tema oscuro del modulo: ThemeService escribe `data-theme` en <html>, que
+   * con encapsulacion emulada nunca casaria dentro del componente, asi que el
+   * estado se replica como clase en el host para el bloque `:host.theme-dark`
+   * del SCSS (mismo patron que chat-advisor).
+   */
+  @HostBinding('class.theme-dark') protected themeDark = false;
 
   viewYear: number;
   viewMonth: number;
@@ -195,7 +215,38 @@ export class CalendarioComponent implements OnInit, OnDestroy {
   loading = true;
   error = '';
 
+  /**
+   * ISO 8601 UTC de la ultima lectura REAL a Graph (CalendarioGrupo.actualizadoEn).
+   *
+   * La conserva la cache del backend, asi que tambien llega en una respuesta
+   * cacheada o de respaldo. Alimenta el indicador discreto de sincronizacion.
+   */
+  sincronizadoEn: string | null = null;
+
+  /**
+   * Evita que una lectura vieja pinte encima de una mas reciente.
+   *
+   * El asesor puede navegar de mes mientras la lectura anterior sigue viajando;
+   * sin este token las dos respuestas se pisaban y el calendario podia quedar
+   * mostrando el rango equivocado.
+   */
+  private cargaToken = 0;
+
   protected readonly categoriasReunion = CATEGORIAS_REUNION;
+
+  /**
+   * Catalogo de colegios, para etiquetar la reunion con su marca (proyecto),
+   * que es lo que permite filtrarla en Metricas. Se carga una sola vez.
+   */
+  colegios: Colegio[] = [];
+  colegiosCargados = false;
+
+  /**
+   * Buscador del colegio: el catalogo es largo, asi que en el formulario se
+   * filtra por texto en vez de desplegar todos los colegios de golpe.
+   */
+  colegioQuery = '';
+  colegiosAbierto = false;
 
   showCreate = false;
   draft = {
@@ -205,11 +256,50 @@ export class CalendarioComponent implements OnInit, OnDestroy {
     agendarCalendario: true,
     /** Alias de la categoria elegida ("Reunion virtual", ...). */
     categoria: CATEGORIA_POR_DEFECTO.alias,
+    /** Rango (YYYY-MM-DD) de las marcas por ausencia/vacaciones/incapacidad. */
+    fechaDesde: '',
+    fechaHasta: '',
+    /** Colegio escogido (id): solo sirve para guardar la marca/proyecto. */
+    colegioId: '',
   };
   creating = false;
   createError = '';
   createdMeeting: ReunionCreada | null = null;
   copiedId: string | null = null;
+
+  /** teams_meetings.id de la reunion que se esta editando (null = creando). */
+  editingId: string | null = null;
+  /** eventId del evento en el calendario, para ocultarlo si desaparece. */
+  editingEventId: string | null = null;
+  editError = '';
+  /** Aviso transitorio tras editar o eliminar ("Reunion actualizada"). */
+  aviso = '';
+  /** Reunion marcada para eliminar: todavia pide confirmacion. */
+  deleteTarget: EventoCalendario | null = null;
+  deleteError = '';
+  deleting = false;
+  private timerAviso: ReturnType<typeof setTimeout> | null = null;
+
+  protected readonly duraciones = [15, 30, 45, 60];
+
+  /**
+   * EventIds que el usuario acaba de eliminar en esta sesion.
+   *
+   * Graph no es instantaneo: puede seguir devolviendo el evento un rato
+   * despues del DELETE y, si se pintara de nuevo, el usuario veria la reunion
+   * "borrada" otra vez y al darle eliminar le diria que no existe.
+   */
+  private readonly ocultos = new Set<string>();
+
+  /**
+   * Parches locales de una edicion, para que la pantalla refleje el cambio sin
+   * esperar a que Graph confirme. Vencen en 2 minutos: si a esa altura Graph
+   * sigue devolviendo lo viejo, manda lo de Graph.
+   */
+  private readonly ajustes = new Map<
+    string,
+    { datos: Partial<EventoCalendario>; expira: number }
+  >();
 
   isTeamsConnected = false;
   isLoadingTeams = false;
@@ -221,6 +311,12 @@ export class CalendarioComponent implements OnInit, OnDestroy {
   /** Refresco automatico: evita que el `setInterval` sobreviva al salir. */
   private timerRefresco: ReturnType<typeof setInterval> | null = null;
   private onVisibilidad: (() => void) | null = null;
+  /** Suscripcion al tema; se cierra en ngOnDestroy. */
+  private themeSub?: Subscription;
+  /** Columna de franjas de la izquierda, para centrarla en "Ahora". */
+  @ViewChild('agendaScroll') private agendaScroll?: ElementRef<HTMLDivElement>;
+  /** La primera anclada en "Ahora" ocurre al abrir; despues solo a demanda. */
+  private agendaYaCentrada = false;
   /** Evita peticiones encimadas si Graph tarda mas que el intervalo. */
   private refrescando = false;
   private reintentosFallidos = 0;
@@ -230,8 +326,12 @@ export class CalendarioComponent implements OnInit, OnDestroy {
   constructor(
     private readonly waService: WhatsappChatService,
     private readonly calendario: CalendarioService,
+    private readonly auth: AuthService,
     private readonly layout: LayoutService,
+    private readonly router: Router,
     private readonly cdr: ChangeDetectorRef,
+    private readonly theme: ThemeService,
+    private readonly session: SessionService,
   ) {
     // El mes visible se deriva de la hora de Bogota, no de `getMonth()` del
     // navegador: si el equipo no esta en Colombia, el titulo del mes se
@@ -246,16 +346,61 @@ export class CalendarioComponent implements OnInit, OnDestroy {
     // El sidebar del shell y su header NO se tocan: se siguen colapsando igual
     // que antes. Este modulo solo rediseña su propio contenido.
     this.layout.setSidebarForcedCollapsed(true);
+
+    this.themeDark = this.theme.currentTheme === 'dark';
+    this.themeSub = this.theme.currentTheme$.subscribe(tema => {
+      this.themeDark = tema === 'dark';
+      this.cdr.markForCheck();
+    });
+
+    const fechaAviso = this.router.parseUrl(this.router.url).queryParams['fecha'];
+    if (typeof fechaAviso === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(fechaAviso)) {
+      const [year, month] = fechaAviso.split('-').map(Number);
+      this.selectedKey = fechaAviso;
+      this.viewYear = year;
+      this.viewMonth = month - 1;
+    }
     this.buildGrid();
     this.loadCalendar();
+    this.cargarColegios();
     this.iniciarRefresco();
-    window.addEventListener('message', this.handleTeamsAuthMessage);
+  }
+
+  /**
+   * Carga el catalogo de colegios para el selector del modal. No es bloqueante:
+   * si falla, el formulario sigue sirviendo, solo que sin poder etiquetar la
+   * reunion con su marca.
+   */
+  private cargarColegios(): void {
+    if (this.colegiosCargados) return;
+    this.colegiosCargados = true;
+    this.session.getColegios().subscribe({
+      next: (lista) => {
+        this.colegios = (lista ?? []).slice().sort((a, b) =>
+          a.nombre.localeCompare(b.nombre, 'es'),
+        );
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.colegios = [];
+        this.cdr.markForCheck();
+      },
+    });
+  }
+
+  ngAfterViewInit(): void {
+    // El calendario abre en "Hoy": la columna de la izquierda arrancaba en
+    // 00:00 y la unica senal del momento actual era un fondo tenue a media
+    // pantalla de distancia. Se lleva la franja de "Ahora" a la vista de una
+    // vez, para que el asesor se ubique apenas carga.
+    this.centrarEnAhora();
   }
 
   ngOnDestroy(): void {
+    this.themeSub?.unsubscribe();
     this.layout.setSidebarForcedCollapsed(false);
     this.stopRefresco();
-    window.removeEventListener('message', this.handleTeamsAuthMessage);
+    if (this.timerAviso) clearTimeout(this.timerAviso);
   }
 
   /** Aplica el texto del buscador y repinta la grilla. */
@@ -270,27 +415,9 @@ export class CalendarioComponent implements OnInit, OnDestroy {
     this.cdr.detectChanges();
   }
 
-  connectTeams(): void {
-    if (this.isLoadingTeams) return;
-    const popup = window.open('', 'innovaTeamsAuth', 'width=520,height=720');
-    this.isLoadingTeams = true;
-    this.createError = 'Abriendo inicio de sesion de Microsoft...';
-    this.waService.getTeamsAuthUrl().subscribe({
-      next: res => {
-        this.isLoadingTeams = false;
-        if (popup) {
-          popup.location.href = res.authUrl;
-        } else {
-          window.location.href = res.authUrl;
-        }
-        this.cdr.detectChanges();
-      },
-      error: err => {
-        popup?.close();
-        this.isLoadingTeams = false;
-        this.createError = this.errText(err, 'No se pudo iniciar sesion en Teams.');
-        this.cdr.detectChanges();
-      },
+  openTeamsSettings(): void {
+    this.router.navigate(['/dashboard/configuracion'], {
+      queryParams: { tab: 'teams' },
     });
   }
 
@@ -311,19 +438,6 @@ export class CalendarioComponent implements OnInit, OnDestroy {
     });
   }
 
-  private handleTeamsAuthMessage = (event: MessageEvent): void => {
-    if (event.data?.type !== 'teams-auth') return;
-    if (event.data.success) {
-      this.createError = '';
-      this.loadTeamsStatus();
-    } else {
-      this.isLoadingTeams = false;
-      this.isTeamsConnected = false;
-      this.createError = event.data.error || 'No se pudo conectar Teams.';
-    }
-    this.cdr.detectChanges();
-  };
-
   /**
    * Pide al backend el calendario real del grupo para las 6 semanas que
    * muestra la grilla.
@@ -333,6 +447,11 @@ export class CalendarioComponent implements OnInit, OnDestroy {
    * El backend pagina Graph completo y lo cachea, asi que ir y volver es barato.
    */
   async loadCalendar(refrescar = false): Promise<boolean> {
+    // Token de carga: si el asesor navega de mes mientras esta lectura sigue
+    // viajando, la respuesta vieja no debe pintarse encima del rango que ya se
+    // esta viendo. Un refresco en segundo plano tambien lo usa, y se descarta
+    // si mientras tanto el usuario cambio de rango.
+    const token = ++this.cargaToken;
     // Un refresco en segundo plano no levanta el spinner: si lo levantara, la
     // agenda parpadearia cada 30 s mientras el asesor esta leyendo o escribiendo.
     if (!refrescar) {
@@ -343,16 +462,24 @@ export class CalendarioComponent implements OnInit, OnDestroy {
     try {
       const { desde, hasta } = this.rangoGrilla();
       const res = await this.calendario.grupo(desde, hasta, refrescar);
+      // Supero por una carga mas reciente: se descarta sin tocar la vista y sin
+      // reportarla como fallo (no lo fue, simplemente ya no sirve).
+      if (token !== this.cargaToken) return true;
       this.grupo = res.grupo;
       this.truncado = res.truncado;
-      // Sin filtrar: llegan cumpleaños, recordatorios, series, cancelados y
-      // eventos sin videollamada. Todo lo que hay en el calendario se ve.
-      this.events = res.eventos.slice().sort(
+      this.sincronizadoEn = res.actualizadoEn ?? null;
+      // Sin filtrar del backend: llegan cumpleanos, recordatorios, series,
+      // cancelados y eventos sin videollamada. Todo lo que hay en el calendario
+      // se ve, salvo lo que el usuario acaba de borrar o editar: Graph puede
+      // seguir devolviendo el evento viejo unos segundos despues del cambio y
+      // eso dejaria fantasmas en pantalla.
+      this.events = this.sanear(res.eventos).sort(
         (a, b) => a.startDateTime.localeCompare(b.startDateTime),
       );
       this.rebuildDerived();
       return true;
     } catch (err: any) {
+      if (token !== this.cargaToken) return true;
       // Un refresco fallido no debe tapar la agenda que ya se está viendo: solo
       // se muestra el error si no habia datos de antes.
       if (!refrescar || this.events.length === 0) {
@@ -360,9 +487,51 @@ export class CalendarioComponent implements OnInit, OnDestroy {
       }
       return false;
     } finally {
-      if (!refrescar) this.loading = false;
+      if (!refrescar && token === this.cargaToken) this.loading = false;
       this.cdr.detectChanges();
+      // Primera lectura de la sesion: los eventos de la manana ya crecieron
+      // las franjas anteriores a la de ahora, asi que el scroll inicial se
+      // re-ancla una vez que la agenda tiene su altura real. Un refresco en
+      // segundo plano no toca el scroll: el asesor puede estar leyendo.
+      if (!refrescar && !this.agendaYaCentrada && token === this.cargaToken) {
+        this.agendaYaCentrada = true;
+        this.centrarEnAhora();
+      }
     }
+  }
+
+  /**
+   * Quita de la lista lo que ya se borro y aplica los cambios que el usuario
+   * acaba de hacer.
+   *
+   * Graph no es instantaneo: puede seguir devolviendo el evento viejo un rato
+   * despues del DELETE o del PATCH. Sin este filtro la reunion recien borrada
+   * reaparecia (y al volver a darle "Eliminar" el backend respondia que no
+   * existe), y la editada se volvia a pintar con la hora anterior.
+   */
+  private sanear(eventos: EventoCalendario[]): EventoCalendario[] {
+    const ahora = Date.now();
+    for (const [id, ajuste] of this.ajustes) {
+      if (ajuste.expira <= ahora) this.ajustes.delete(id);
+    }
+    return eventos
+      .filter((evento) => !this.ocultos.has(evento.eventId))
+      .map((evento) => {
+        const ajuste = this.ajustes.get(evento.eventId);
+        return ajuste ? { ...evento, ...ajuste.datos } : evento;
+      });
+  }
+
+  /**
+   * Repinta la lista actual ya saneada, sin esperar a la siguiente lectura:
+   * es lo que hace que un borrado desaparezca de la pantalla al instante.
+   */
+  private reflejarLocalmente(): void {
+    this.events = this.sanear(this.events).sort((a, b) =>
+      a.startDateTime.localeCompare(b.startDateTime),
+    );
+    this.rebuildDerived();
+    this.cdr.detectChanges();
   }
 
   /**
@@ -493,38 +662,31 @@ export class CalendarioComponent implements OnInit, OnDestroy {
     });
   }
 
-  get hayBusqueda(): boolean {
-    return normalizar(this.busqueda).length > 0;
+  /** Próximos cumpleaños y reuniones de equipo; excluye reuniones virtuales y presenciales. */
+  get proximosEventos(): EventoCalendario[] {
+    const ahora = Date.now();
+    return this.eventosVisibles
+      .filter((evento) => {
+        if (evento.isCancelled || aDate(evento.startDateTime).getTime() < ahora) return false;
+        const alias = normalizar(categoriaDeEvento(evento.categorias)?.alias);
+        return alias === normalizar('Cumpleanos') || alias === normalizar('Reunion equipo');
+      })
+      .sort((a, b) => a.startDateTime.localeCompare(b.startDateTime))
+      .slice(0, 3);
   }
 
-  /**
-   * Indicadores del modulo. Todos salen de los eventos ya cargados: no hay
-   * ninguna cifra fija en el template.
-   *
-   * "Eventos especiales" es el resto que no es presencial ni en linea (reunion
-   * de equipo, cumpleaños y eventos sin categoria), por eso se define como
-   * total - presencial - virtual en vez de inventar una quinta categoria.
-   */
-  get metricas(): {
-    total: number;
-    presencial: number;
-    virtual: number;
-    especiales: number;
-  } {
-    const lista = this.eventosVisibles;
-    let presencial = 0;
-    let virtual = 0;
-    for (const e of lista) {
-      const alias = normalizar(categoriaDeEvento(e.categorias)?.alias);
-      if (alias === ALIAS_PRESENCIAL) presencial++;
-      else if (alias === ALIAS_VIRTUAL) virtual++;
-    }
-    return {
-      total: lista.length,
-      presencial,
-      virtual,
-      especiales: lista.length - presencial - virtual,
-    };
+  /** Fecha legible del evento, sin mostrar medianoche como hora para eventos de día completo. */
+  fechaProximoEvento(evento: EventoCalendario): string {
+    const fecha = fmtDateMedium(evento.startDateTime);
+    return evento.isAllDay ? `${fecha} · Todo el día` : `${fecha} · ${fmtTime(evento.startDateTime)}`;
+  }
+
+  organizadorEvento(evento: EventoCalendario): string | null {
+    return evento.organizerName?.trim() || null;
+  }
+
+  get hayBusqueda(): boolean {
+    return normalizar(this.busqueda).length > 0;
   }
 
   /**
@@ -627,10 +789,11 @@ responsable(m: EventoCalendario): string {
     );
     const byKey = new Map<string, EventoCalendario[]>();
     for (const m of this.eventosVisibles) {
-      const k = keyDeInstante(m.startDateTime);
-      const arr = byKey.get(k);
-      if (arr) arr.push(m);
-      else byKey.set(k, [m]);
+      for (const k of this.clavesDeEvento(m)) {
+        const arr = byKey.get(k);
+        if (arr) arr.push(m);
+        else byKey.set(k, [m]);
+      }
     }
     const cells: CalendarCell[] = [];
     for (let i = 0; i < 42; i++) {
@@ -653,8 +816,53 @@ responsable(m: EventoCalendario): string {
     this.cells = cells;
   }
 
+  /**
+   * Dias de la grilla que cubre un evento, para pintarlo en todos ellos.
+   *
+   *  - Una reunion normal solo cae en su dia.
+   *  - Una que cruza la medianoche abarca dos.
+   *  - Un rango (ausencia, vacaciones, incapacidad) marca TODOS los dias del
+   *    tramo, que es como se "reserva" el espacio.
+   *
+   * Se recorre de izquierda a derecha mientras el dia de arranque sea anterior
+   * al fin: el fin de un evento es exclusive (00:00 del dia siguiente al
+   * ultimo), asi que ese dia no se pinta de mas.
+   */
+  private clavesDeEvento(m: EventoCalendario): string[] {
+    const inicio = aDate(m.startDateTime).getTime();
+    const finConocido = m.endDateTime ? aDate(m.endDateTime).getTime() : inicio;
+    const fin = Math.max(finConocido, inicio + 1);
+    const DIA = 86400000;
+    const claves: string[] = [];
+    for (let t = inicio; t < fin; t += DIA) {
+      const k = keyDeInstante(new Date(t));
+      if (!claves.includes(k)) claves.push(k);
+    }
+    return claves.length ? claves : [keyDeInstante(m.startDateTime)];
+  }
+
   get monthLabel(): string {
     return `${MONTH_NAMES[this.viewMonth]} ${this.viewYear}`;
+  }
+
+  /**
+   * "ahora" / "hace 40 s" / "hace 3 min" de la ultima lectura real a Graph.
+   *
+   * Le da contexto al color y a la categoria del chip: si el asesor acaba de
+   * cambiar algo en Teams y aqui todavia no cambio, el indicador explica por
+   * que (aun no ha pasado la proxima sincronizacion). Se actualiza con cada
+   * refresco periodico, sin timers propios.
+   */
+  get sincronizadoHace(): string {
+    const t = Date.parse(this.sincronizadoEn ?? '');
+    if (!Number.isFinite(t)) return '';
+    const seg = Math.max(0, Math.round((Date.now() - t) / 1000));
+    if (seg < 45) return 'ahora';
+    if (seg < 100) return 'hace 1 min';
+    const min = Math.round(seg / 60);
+    if (min < 60) return `hace ${min} min`;
+    const h = Math.round(min / 60);
+    return h < 24 ? `hace ${h} h` : `hace ${Math.round(h / 24)} d`;
   }
 
   get selectedLabel(): string {
@@ -715,6 +923,29 @@ responsable(m: EventoCalendario): string {
     if (this.selectedKey < this.todayKey) return true;
     if (this.selectedKey !== this.todayKey) return false;
     return slot.hora < this.horaActual;
+  }
+
+  /**
+   * Centra la franja vigente (".agenda-slot.now") en la agenda de la izquierda.
+   *
+   * La franja queda un tercio desde arriba: se ven las horas previas como
+   * contexto y tambien las que siguen. Solo aplica cuando el dia seleccionado
+   * es hoy (los demas dias no tienen "Ahora"), y el refresco automatico nunca
+   * lo dispara para no robarle el scroll al que esta leyendo.
+   */
+  private centrarEnAhora(smooth = false): void {
+    if (this.selectedKey !== this.todayKey) return;
+    const cont = this.agendaScroll?.nativeElement;
+    if (!cont) return;
+    const fila = cont.querySelector<HTMLElement>('.agenda-slot.now');
+    if (!fila) return;
+    const delta =
+      fila.getBoundingClientRect().top - cont.getBoundingClientRect().top;
+    const objetivo = cont.scrollTop + delta - cont.clientHeight / 3;
+    cont.scrollTo({
+      top: Math.max(0, objetivo),
+      behavior: smooth ? 'smooth' : 'auto',
+    });
   }
 
   /**
@@ -789,13 +1020,29 @@ responsable(m: EventoCalendario): string {
     this.viewMonth = hoy.mes;
     this.selectedKey = this.todayKey;
     this.buildGrid();
-    this.loadCalendar();
+    this.loadCalendar().then(() => this.centrarEnAhora(true));
   }
 
   selectDay(key: string): void {
     this.selectedKey = key;
     this.buildGrid();
     this.cdr.detectChanges();
+    this.centrarEnAhora(true);
+  }
+
+  /** Abre la agenda diaria en la fecha de un evento próximo. */
+  selectEvent(event: EventoCalendario): void {
+    const key = keyDeInstante(event.startDateTime);
+    const [year, month] = key.split('-').map(Number);
+    const cambioMes = year !== this.viewYear || month - 1 !== this.viewMonth;
+    this.selectedKey = key;
+    if (cambioMes) {
+      this.viewYear = year;
+      this.viewMonth = month - 1;
+    }
+    this.buildGrid();
+    if (cambioMes) void this.loadCalendar();
+    else this.cdr.detectChanges();
   }
 
   /**
@@ -813,11 +1060,12 @@ responsable(m: EventoCalendario): string {
       this.viewYear = d.getUTCFullYear();
       this.viewMonth = d.getUTCMonth();
       this.buildGrid();
-      this.loadCalendar();
+      this.loadCalendar().then(() => this.centrarEnAhora(true));
       return;
     }
     this.buildGrid();
     this.cdr.detectChanges();
+    this.centrarEnAhora(true);
   }
 
   prevDay(): void {
@@ -828,24 +1076,142 @@ responsable(m: EventoCalendario): string {
     this.moverDia(1);
   }
 
+  /** Categoria elegida en el formulario; null si no se reconoce. */
+  get categoriaDraft(): CategoriaReunion | null {
+    return buscarCategoria(this.draft.categoria);
+  }
+
+  /**
+   * true = la categoria elegida se marca por un RANGO de fechas (ausencia,
+   * vacaciones, incapacidad): el formulario pide "Desde" y "Hasta" en lugar
+   * de hora de inicio y duracion.
+   */
+  get draftEsRango(): boolean {
+    return !!this.categoriaDraft?.esRango;
+  }
+
+  /** Colegio escogido en el formulario, o null si no hay ninguno. */
+  get colegioDraft(): Colegio | null {
+    return this.colegios.find((c) => c.id === this.draft.colegioId) ?? null;
+  }
+
+  /**
+   * true = la categoria elegida es una reunion CON colegio (presencial o
+   * virtual), que es la unica que se etiqueta y por tanto la unica que puede
+   * filtrarse por proyecto en Metricas. El resto (equipo, cumpleanos y las
+   * marcas por rango) no piden colegio.
+   */
+  get colegioAplica(): boolean {
+    return !!this.categoriaDraft?.esReunion;
+  }
+
+  /** Colegios que quedan tras el filtro del buscador. */
+  get colegiosFiltrados(): Colegio[] {
+    const q = this.colegioQuery.trim().toLowerCase();
+    if (!q) return this.colegios;
+    return this.colegios.filter((c) => c.nombre.toLowerCase().includes(q));
+  }
+
+  /** Cambia la categoria; si el colegio no aplica en la nueva, lo limpia. */
+  elegirCategoria(alias: string): void {
+    this.draft.categoria = alias;
+    if (!buscarCategoria(alias)?.esReunion) this.limpiarColegio();
+    this.cdr.markForCheck();
+  }
+
+  elegirColegio(c: Colegio): void {
+    this.draft.colegioId = c.id;
+    this.colegioQuery = c.nombre;
+    this.colegiosAbierto = false;
+    this.cdr.markForCheck();
+  }
+
+  limpiarColegio(): void {
+    this.draft.colegioId = '';
+    this.colegioQuery = '';
+    this.colegiosAbierto = false;
+    this.cdr.markForCheck();
+  }
+
+  /** Cierra el desplegable; con retardo para que el click llegue primero. */
+  cerrarColegios(): void {
+    window.setTimeout(() => {
+      this.colegiosAbierto = false;
+      // Si escribio algo pero no eligio ninguna opcion, se queda el texto
+      // suelto: se descarta para no dar a entender que hay un colegio.
+      if (this.draft.colegioId && this.colegioQuery !== this.colegioDraft?.nombre) {
+        this.colegioQuery = this.colegioDraft?.nombre ?? '';
+      }
+      this.cdr.markForCheck();
+    }, 150);
+  }
+
+  /**
+   * Asunto que se arma SOLO, sin nombre escrito: colegio + categoria.
+   *
+   * Solo entra el colegio en las reuniones con colegio (presencial/virtual):
+   * una ausencia o una reunion de equipo no es "de" un colegio. Se usa como
+   * placeholder del campo y como valor final cuando el nombre esta vacio.
+   */
+  get subjectAuto(): string {
+    const categoria = this.categoriaDraft?.alias ?? '';
+    const colegio = this.colegioAplica ? (this.colegioDraft?.nombre ?? '') : '';
+    if (colegio && categoria) return `${colegio} - ${categoria}`;
+    return colegio || categoria;
+  }
+
+  /**
+   * Asunto final que se va a crear. El nombre escrito manda: si hay texto, se
+   * usa SOLO ese; si esta vacio se arma solo.
+   *
+   * OJO: el prefijo "(Nombre Asesor)" lo agrega el backend, y solo en
+   * presencial/virtual, asi que no va en esta vista previa.
+   */
+  get subjectPreview(): string {
+    return this.draft.subject.trim() || this.subjectAuto;
+  }
+
+  /**
+   * Inicio y fin (UTC) que describe el formulario.
+   *
+   *  - Rango: el evento arranca a 00:00 del "Desde" y termina a 00:00 del dia
+   *    siguiente al "Hasta" (fin exclusive, como un evento de todo el dia en
+   *    Outlook), de modo que pinta todos los dias elegidos.
+   *  - Reunion normal: la hora de inicio escrita; `fin` queda en null para que
+   *    el backend calcule inicio + duracion como siempre.
+   */
+  private rangoDraft(): { agenda: Date; fin: Date | null } {
+    if (this.draftEsRango) {
+      return {
+        agenda: utcDesdeNaive(`${this.draft.fechaDesde}T00:00`),
+        fin: utcDesdeNaive(`${diaSiguiente(this.draft.fechaHasta)}T00:00`),
+      };
+    }
+    return { agenda: utcDesdeNaive(this.draft.startDateTime), fin: null };
+  }
+
   openCreate(): void {
-    // Proxima hora en clave de Bogota, no de la zona del navegador.
-    const base = new Date();
-    const p = partesBogota(base);
-    const desajusteMin = p.min;
-    const desfase = (60 - desajusteMin) % 60;
-    const inicio = new Date(
-      base.getTime() + BOG_OFFSET_MS + desfase * 60000,
-    );
+    // La hora de inicio arranca en "ahora", ya en hora de Bogota (no en la del
+    // navegador): `naiveBogota` es quien aplica el offset, por eso NO se le
+    // suma aqui tambien (sumarlo dos veces dejaba el campo ~10h corrido).
     this.draft = {
       subject: '',
-      startDateTime: naiveBogota(inicio),
+      startDateTime: naiveBogota(new Date()),
       durationMinutes: 30,
       agendarCalendario: true,
       categoria: CATEGORIA_POR_DEFECTO.alias,
+      // Por defecto el rango es hoy → hoy; el usuario lo ensancha si hace falta.
+      fechaDesde: keyDeInstante(new Date()),
+      fechaHasta: keyDeInstante(new Date()),
+      colegioId: '',
     };
+    this.colegioQuery = '';
+    this.colegiosAbierto = false;
     this.createError = '';
     this.createdMeeting = null;
+    this.editingId = null;
+    this.editingEventId = null;
+    this.editError = '';
     this.showCreate = true;
     this.loadTeamsStatus();
     this.cdr.detectChanges();
@@ -856,14 +1222,28 @@ responsable(m: EventoCalendario): string {
     this.showCreate = false;
     this.createError = '';
     this.createdMeeting = null;
+    this.editingId = null;
+    this.editingEventId = null;
+    this.editError = '';
     this.cdr.detectChanges();
   }
 
   async createMeeting(): Promise<void> {
     if (this.creating) return;
-    const subject = this.draft.subject.trim();
-    if (!subject || !this.draft.startDateTime) {
-      this.createError = 'Escribe un nombre y una fecha valida.';
+    const esRango = this.draftEsRango;
+    if (esRango && (!this.draft.fechaDesde || !this.draft.fechaHasta)) {
+      this.createError = 'Elige las fechas Desde y Hasta.';
+      return;
+    }
+    if (!esRango && !this.draft.startDateTime) {
+      this.createError = 'Elige una fecha y hora validas.';
+      return;
+    }
+    // El nombre ya no es obligatorio: si se deja vacio se arma solo con el
+    // colegio y la categoria. Solo falla si no hay ninguna de las dos.
+    const subject = this.subjectPreview;
+    if (!subject) {
+      this.createError = 'Elige un colegio o escribe un nombre para la reunion.';
       return;
     }
     this.creating = true;
@@ -871,15 +1251,22 @@ responsable(m: EventoCalendario): string {
     this.cdr.detectChanges();
     // El input no lleva zona: se interpreta como hora de Bogota, no como la del
     // navegador.
-    const agenda = utcDesdeNaive(this.draft.startDateTime);
-    if (Number.isNaN(agenda.getTime())) {
+    const { agenda, fin } = this.rangoDraft();
+    if (Number.isNaN(agenda.getTime()) || (fin && Number.isNaN(fin.getTime()))) {
       this.creating = false;
       this.createError = 'La fecha y hora no son validas.';
       this.cdr.detectChanges();
       return;
     }
-    // A Graph hay que mandarle el nombre literal de Outlook ("Yellow category"),
-    // no el alias que ve el usuario.
+    if (fin && fin.getTime() <= agenda.getTime()) {
+      this.creating = false;
+      this.createError = 'El Hasta debe ser igual o posterior al Desde.';
+      this.cdr.detectChanges();
+      return;
+    }
+    // Se manda el alias (para que la app pinte el chip con su color) y el
+    // nombre literal de Outlook ("Blue category"...), cuyo color por defecto
+    // coincide con el de la app, para que Teams pinte el evento igual.
     const categoriaElegida = buscarCategoria(this.draft.categoria);
     try {
       // La creacion sigue pasando por teams-meetings.service.ts: este modulo
@@ -889,9 +1276,22 @@ responsable(m: EventoCalendario): string {
         this.waService.createStandaloneMeeting({
           subject,
           startDateTime: agenda.toISOString(),
-          durationMinutes: this.draft.durationMinutes,
-          calendarTarget: this.draft.agendarCalendario ? 'shared' : 'none',
-          categorias: categoriaElegida ? [categoriaElegida.outlook] : undefined,
+          // En un rango manda el fin explicito (varios dias); en una reunion
+          // normal manda la duracion, como siempre.
+          endDateTime: fin ? fin.toISOString() : undefined,
+          durationMinutes: fin ? undefined : this.draft.durationMinutes,
+          calendarTarget: this.draft.agendarCalendario ? 'shared' : 'personal',
+          // Solo se manda si hay colegio: asi el backend guarda la marca y la
+          // reunion entra al filtro de proyecto de Metricas.
+          // Solo se manda en las reuniones con colegio (presencial/virtual):
+          // asi el backend guarda la marca y la reunion entra al filtro de
+          // proyecto de Metricas. En las demas categorias no se etiqueta.
+          colegioId: this.colegioAplica
+            ? (this.draft.colegioId || undefined)
+            : undefined,
+          categorias: categoriaElegida
+            ? [categoriaElegida.alias, categoriaElegida.outlook]
+            : undefined,
         }),
       );
       this.createdMeeting = {
@@ -904,14 +1304,242 @@ responsable(m: EventoCalendario): string {
       this.viewMonth = Number(this.selectedKey.slice(5, 7)) - 1;
       this.buildGrid();
       // Se relee del grupo en vez de insertar a mano: asi lo que se ve es
-      // exactamente lo que quedo en el calendario real.
-      await this.loadCalendar();
+      // exactamente lo que quedo en el calendario real. Con refrescar=true se
+      // salta la cache, que podria estar a punto de rellenarse con lo anterior.
+      await this.loadCalendar(true);
     } catch (err: any) {
       this.createError = this.errText(err, 'No se pudo crear la reunion.');
     } finally {
       this.creating = false;
       this.cdr.detectChanges();
     }
+  }
+
+  /**
+   * Solo las reuniones creadas desde Korvix se gestionan desde aqui: las que
+   * nacieron directo en Teams/Outlook las administra Microsoft y el backend ni
+   * siquiera tiene su registro local.
+   */
+  esEditable(m: EventoCalendario): boolean {
+    if (!m.meetingRecordId) return false;
+    const user = this.auth.getUser();
+    if (!user) return false;
+    if (user.role === 'admin' || user.role === 'superadmin') return true;
+    return !!m.createdById && m.createdById === user.id;
+  }
+
+  /** Duraciones del select, incluyendo la actual si no esta en la lista. */
+  get duracionesVisibles(): number[] {
+    return this.duraciones.includes(this.draft.durationMinutes)
+      ? this.duraciones
+      : [...this.duraciones, this.draft.durationMinutes];
+  }
+
+  /**
+   * Abre el mismo modal de creacion en modo edicion, precargado con los datos
+   * del evento. El calendario de destino no se puede cambiar: el evento ya vive
+   * en un calendario concreto de Microsoft.
+   */
+  openEdit(m: EventoCalendario): void {
+    if (!this.esEditable(m)) return;
+    this.editingId = m.meetingRecordId;
+    this.editingEventId = m.eventId;
+    this.createdMeeting = null;
+    this.createError = '';
+    this.editError = '';
+    this.draft = {
+      subject: m.subject,
+      startDateTime: naiveBogota(aDate(m.startDateTime)),
+      durationMinutes: m.durationMinutes || 30,
+      agendarCalendario: true,
+      categoria:
+        categoriaDeEvento(m.categorias)?.alias ?? CATEGORIA_POR_DEFECTO.alias,
+      fechaDesde: keyDeInstante(m.startDateTime),
+      // El fin es exclusive (00:00 del dia siguiente al ultimo): se resta un
+      // instante para recuperar el ultimo dia realmente cubierto.
+      fechaHasta: m.endDateTime
+        ? keyDeInstante(new Date(aDate(m.endDateTime).getTime() - 1))
+        : keyDeInstante(m.startDateTime),
+      // No se puede preseleccionar: en la fila solo queda la marca
+      // (tipo_colegio), no el colegio exacto. Si no se elige uno nuevo, la
+      // marca actual se conserva (el backend no la toca).
+      colegioId: '',
+    };
+    this.colegioQuery = '';
+    this.colegiosAbierto = false;
+    this.showCreate = true;
+    this.cdr.detectChanges();
+  }
+
+  async saveEdit(): Promise<void> {
+    if (this.creating || !this.editingId) return;
+    const esRango = this.draftEsRango;
+    if (esRango && (!this.draft.fechaDesde || !this.draft.fechaHasta)) {
+      this.editError = 'Elige las fechas Desde y Hasta.';
+      return;
+    }
+    if (!esRango && !this.draft.startDateTime) {
+      this.editError = 'Elige una fecha y hora validas.';
+      return;
+    }
+    const subject = this.subjectPreview;
+    if (!subject) {
+      this.editError = 'Elige un colegio o escribe un nombre para la reunion.';
+      return;
+    }
+    const { agenda, fin } = this.rangoDraft();
+    if (Number.isNaN(agenda.getTime()) || (fin && Number.isNaN(fin.getTime()))) {
+      this.editError = 'La fecha y hora no son validas.';
+      return;
+    }
+    if (fin && fin.getTime() <= agenda.getTime()) {
+      this.editError = 'El Hasta debe ser igual o posterior al Desde.';
+      return;
+    }
+
+    this.creating = true;
+    this.editError = '';
+    this.cdr.detectChanges();
+
+    const categoriaElegida = buscarCategoria(this.draft.categoria);
+    try {
+      const guardada = await firstValueFrom(
+        this.waService.updateStandaloneMeeting(this.editingId, {
+          subject,
+          startDateTime: agenda.toISOString(),
+          endDateTime: fin ? fin.toISOString() : undefined,
+          durationMinutes: fin ? undefined : this.draft.durationMinutes,
+          // Solo se manda en las reuniones con colegio (presencial/virtual):
+          // asi el backend guarda la marca y la reunion entra al filtro de
+          // proyecto de Metricas. En las demas categorias no se etiqueta.
+          colegioId: this.colegioAplica
+            ? (this.draft.colegioId || undefined)
+            : undefined,
+          categorias: categoriaElegida
+            ? [categoriaElegida.alias, categoriaElegida.outlook]
+            : undefined,
+        }),
+      );
+      this.aplicarEdicionLocal(guardada);
+      this.showCreate = false;
+      this.editingId = null;
+      this.editingEventId = null;
+      this.mostrarAviso('Reunion actualizada.');
+      await this.loadCalendar(true);
+    } catch (err: any) {
+      const eventoEditado = this.editingEventId;
+      if (this.yaNoExiste(err)) {
+        // Entre que se abrio el modal y se guardo, alguien la borro: no es un
+        // error que haya que arreglar, solo hay que sacarla de la pantalla.
+        this.ocultar(eventoEditado);
+        this.showCreate = false;
+        this.editingId = null;
+        this.editingEventId = null;
+        this.mostrarAviso('La reunion ya no existe.');
+      } else {
+        this.editError = this.errText(err, 'No se pudo actualizar la reunion.');
+      }
+    } finally {
+      this.creating = false;
+      this.cdr.detectChanges();
+    }
+  }
+
+  askDelete(m: EventoCalendario): void {
+    if (!this.esEditable(m)) return;
+    this.deleteTarget = m;
+    this.deleteError = '';
+    this.cdr.detectChanges();
+  }
+
+  cancelDelete(): void {
+    if (this.deleting) return;
+    this.deleteTarget = null;
+    this.deleteError = '';
+    this.cdr.detectChanges();
+  }
+
+  async confirmDelete(): Promise<void> {
+    const target = this.deleteTarget;
+    if (this.deleting || !target?.meetingRecordId) return;
+    this.deleting = true;
+    this.deleteError = '';
+    this.cdr.detectChanges();
+
+    let fallo = '';
+    try {
+      await firstValueFrom(
+        this.waService.deleteStandaloneMeeting(target.meetingRecordId),
+      );
+    } catch (err: any) {
+      // 404 = ya no existia (otra pestana, otro usuario, un borrado anterior
+      // que quedo pintado). No es un error: lo que falta es ocultarla.
+      if (!this.yaNoExiste(err)) {
+        fallo = this.errText(err, 'No se pudo eliminar la reunion.');
+      }
+    }
+
+    this.deleting = false;
+    if (fallo) {
+      this.deleteError = fallo;
+      this.cdr.detectChanges();
+      return;
+    }
+
+    this.deleteTarget = null;
+    this.deleteError = '';
+    this.ocultar(target.eventId);
+    this.mostrarAviso('Reunion eliminada.');
+    await this.loadCalendar(true);
+    this.cdr.detectChanges();
+  }
+
+  /**
+   * Deja un evento fuera de la pantalla y de las proximas lecturas, para que no
+   * vuelva a aparecer mientras Graph lo sigue devolviendo.
+   */
+  private ocultar(eventId: string | null | undefined): void {
+    if (eventId) this.ocultos.add(eventId);
+    this.reflejarLocalmente();
+  }
+
+  /** La reunion ya no esta en Microsoft ni en la base local. */
+  private yaNoExiste(err: any): boolean {
+    if (err?.status === 404) return true;
+    const msg = String(err?.error?.message ?? err?.message ?? '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+    return msg.includes('no se encontro la reunion') || msg.includes('ya no existe');
+  }
+
+  /**
+   * Pinta la edicion en el acto y la deja fija 2 minutos: si Graph tarda en
+   * reflejar el cambio, la siguiente lectura no vuelve a pintar lo viejo.
+   */
+  private aplicarEdicionLocal(guardada: TeamsMeetingDto): void {
+    if (!guardada.eventId) return;
+    this.ajustes.set(guardada.eventId, {
+      datos: {
+        subject: guardada.subject,
+        startDateTime: guardada.startDateTime,
+        endDateTime: guardada.endDateTime,
+        durationMinutes: guardada.durationMinutes,
+        categorias: guardada.categorias ?? [],
+      },
+      expira: Date.now() + 120_000,
+    });
+    this.reflejarLocalmente();
+  }
+
+  private mostrarAviso(texto: string): void {
+    this.aviso = texto;
+    if (this.timerAviso) clearTimeout(this.timerAviso);
+    this.timerAviso = setTimeout(() => {
+      this.aviso = '';
+      this.cdr.detectChanges();
+    }, 3500);
+    this.cdr.detectChanges();
   }
 
   async copyLink(m: EventoCalendario): Promise<void> {

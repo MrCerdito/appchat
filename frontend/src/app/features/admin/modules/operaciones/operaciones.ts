@@ -1,11 +1,13 @@
-import { Component, ChangeDetectionStrategy, ChangeDetectorRef, OnDestroy, OnInit } from '@angular/core';
+import { Component, ChangeDetectionStrategy, ChangeDetectorRef, HostBinding, OnDestroy, OnInit } from '@angular/core';
 import { DecimalPipe, TitleCasePipe } from '@angular/common';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { Subscription, interval, switchMap, firstValueFrom } from 'rxjs';
+import { Subject, Subscription, interval, switchMap, firstValueFrom } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { WhatsappChatService } from '../../../../core/services/whatsapp-chat.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { LayoutService } from '../../../../core/services/layout.service';
+import { ThemeService } from '../../../../core/services/theme.service';
 import { WaChat, WaAdvisorStats, WaConnectionStatus, WaAdminAlert, WaAdminDashboard } from '../../../../core/models/whatsapp.models';
 import { getInitials, getAvatarColor } from '../../../../shared/utils/avatar';
 import { formatDuration, minutesSince, timeAgo } from '../../../../shared/utils/duration';
@@ -23,6 +25,10 @@ import { ConfirmModalComponent } from './components/confirm-modal/confirm-modal.
 })
 export class OperacionesComponent implements OnInit, OnDestroy {
   protected readonly Math = Math;
+
+  @HostBinding('class.theme-dark') protected themeDark = false;
+
+  private readonly destroy$ = new Subject<void>();
 
   summary: {
     totalChats: number; activeChats: number; queuedChats: number;
@@ -95,9 +101,16 @@ export class OperacionesComponent implements OnInit, OnDestroy {
     private auth: AuthService,
     private cdr: ChangeDetectorRef,
     private layoutService: LayoutService,
+    private themeService: ThemeService,
   ) {}
 
   ngOnInit(): void {
+    this.themeDark = this.themeService.currentTheme === 'dark';
+    this.themeService.currentTheme$.pipe(takeUntil(this.destroy$)).subscribe((t) => {
+      this.themeDark = t === 'dark';
+      this.cdr.markForCheck();
+    });
+
     // ── 1. Load dashboard data independently ──────────────────
     this.whatsappChat.loadAdminDashboard().subscribe({
       next: (dashboard) => this.applyDashboard(dashboard),
@@ -1068,5 +1081,7 @@ export class OperacionesComponent implements OnInit, OnDestroy {
     this.stopProgressTimer();
     this.subs.forEach(s => s.unsubscribe());
     this.layoutService.setSidebarForcedVisible(false);
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 }

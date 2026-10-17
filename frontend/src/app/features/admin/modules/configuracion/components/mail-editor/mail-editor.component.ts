@@ -3,6 +3,7 @@ import {
   ChangeDetectorRef,
   Component,
   EventEmitter,
+  HostBinding,
   Input,
   OnChanges,
   OnDestroy,
@@ -12,9 +13,11 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subscription } from 'rxjs';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { environment } from '../../../../../../../environments/environment';
 import { ConfiguracionFrontendService } from '../../../../../../core/services/configuracion.service';
+import { ThemeService } from '../../../../../../core/services/theme.service';
 
 export type MailAlign = 'left' | 'center' | 'right' | 'justify';
 
@@ -744,6 +747,9 @@ export class MailEditorComponent implements OnChanges, OnInit, OnDestroy {
   @Output() cuerpoChange = new EventEmitter<string>();
   @Output() designChange = new EventEmitter<unknown[] | null>();
 
+  @HostBinding('class.theme-dark') protected themeDark = false;
+  private themeSub: Subscription | null = null;
+
   readonly aligns: Array<{ value: MailAlign; label: string }> = [
     { value: 'left', label: 'Izquierda' },
     { value: 'center', label: 'Centro' },
@@ -780,6 +786,7 @@ export class MailEditorComponent implements OnChanges, OnInit, OnDestroy {
   constructor(
     private readonly svc: ConfiguracionFrontendService,
     private readonly cdr: ChangeDetectorRef,
+    private readonly themeService: ThemeService,
   ) {
     try {
       this.apiBase = new URL(environment.apiUrl).origin;
@@ -812,6 +819,12 @@ export class MailEditorComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.themeDark = this.themeService.currentTheme === 'dark';
+    this.themeSub = this.themeService.currentTheme$.subscribe((t) => {
+      this.themeDark = t === 'dark';
+      this.cdr.markForCheck();
+    });
+
     document.addEventListener('scroll', this.onDocScroll, true);
     window.addEventListener('resize', this.onWinResize);
     document.addEventListener('mousedown', this.onDocMouseDown, true);
@@ -819,6 +832,7 @@ export class MailEditorComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.themeSub?.unsubscribe();
     document.removeEventListener('mousemove', this.onResizeMove);
     document.removeEventListener('mouseup', this.onResizeEnd);
     document.removeEventListener('scroll', this.onDocScroll, true);

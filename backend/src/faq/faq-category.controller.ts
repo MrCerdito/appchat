@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles, RolesGuard } from '../auth/roles.guard';
+import { Public } from '../auth/public.decorator';
 import { Permiso } from '../accesos/permiso-modulo.guard';
 import { FaqCategoryService } from './faq-category.service';
 import { CreateFaqCategoryDto } from './dto/create-faq-category.dto';
@@ -24,6 +25,8 @@ import { SkipThrottle } from '@nestjs/throttler';
 export class FaqCategoryController {
   constructor(private readonly categoryService: FaqCategoryService) {}
 
+  // Listado publico: lo consume el widget/cliente.
+  @Public()
   @SkipThrottle()
   @Get()
   findAll(@Query('rol') rol?: string) {

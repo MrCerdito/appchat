@@ -1,95 +1,148 @@
 .dash {
-  padding: 1.5rem 1.75rem 2rem;
+  width: 100%;
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 36px 32px 56px;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 32px;
   font-family: var(--font);
 }
 
-// ── Hero ─────────────────────────────────────────────
-.dash-hero {
+// ── Cabecera del panel ────────────────────────────────
+.dash-head {
   display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1.4rem 1.6rem;
-  border-radius: var(--radius-xl);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-md);
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
 
-  .dash-hero-icon {
-    width: 56px;
-    height: 56px;
-    border-radius: 14px;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--primary-soft);
-    color: var(--primary);
-
-    svg { width: 28px; height: 28px; }
+  .dash-head-txt {
+    min-width: 0;
   }
 
-  .dash-hero-txt {
-    h1 {
-      font-size: 1.35rem;
-      font-weight: 800;
-      color: var(--text);
-      letter-spacing: -0.01em;
-    }
+  .dash-eyebrow {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--adm-faint);
+  }
 
-    p {
-      margin-top: 2px;
-      font-size: 0.84rem;
-      color: var(--text-muted);
+  h1 {
+    margin-top: 8px;
+    font-size: 30px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    color: var(--adm-title);
+  }
+
+  p {
+    margin-top: 7px;
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--adm-muted);
+  }
+
+  .dash-date {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--adm-muted);
+    white-space: nowrap;
+    padding-bottom: 3px;
+
+    lucide-icon {
+      color: var(--adm-faint);
+      display: inline-flex;
     }
   }
 }
 
-// ── Grid de módulos ──────────────────────────────────
+// ── Sección ───────────────────────────────────────────
+.dash-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dash-section-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+
+  h2 {
+    font-size: 15.5px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--adm-section);
+    white-space: nowrap;
+  }
+
+  .dash-section-sub {
+    font-size: 12.5px;
+    font-weight: 400;
+    color: var(--adm-faint);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .dash-section-line {
+    flex: 1;
+    height: 1px;
+    min-width: 40px;
+    background: var(--adm-line);
+  }
+}
+
+// ── Grid de tarjetas (3 columnas) ─────────────────────
 .dash-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1.15rem;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
 }
 
 .dash-card {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 1.35rem 1.3rem;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  gap: 14px;
+  height: 92px;
+  padding: 0 20px;
+  background: var(--adm-card-bg);
+  border: 1px solid var(--adm-card-border);
+  border-radius: 13px;
   text-decoration: none;
-  color: var(--text);
+  color: var(--adm-title);
   cursor: pointer;
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
   overflow: hidden;
 
   &:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--shadow-lg);
-    border-color: var(--card-color, var(--border-strong));
+    transform: translateY(-2px);
+    border-color: var(--adm-hover-border);
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
   }
 
   .dash-card-icon {
-    position: relative;
-    width: 54px;
-    height: 54px;
-    border-radius: 14px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--card-color);
-    background: color-mix(in srgb, var(--card-color) 12%, transparent);
+    color: var(--adm-icon);
+    background: var(--adm-icon-bg);
 
-    svg {
-      width: 25px;
-      height: 25px;
+    lucide-icon {
+      display: inline-flex;
     }
   }
 
@@ -98,26 +151,29 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
+    justify-content: center;
+  }
 
-    .dash-card-title {
-      font-size: 1.05rem;
-      font-weight: 700;
-      color: var(--text);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
+  .dash-card-title {
+    font-size: 14.5px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--adm-title);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 
-    .dash-card-desc {
-      margin-top: 3px;
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      line-height: 1.35;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
+  .dash-card-desc {
+    margin-top: 3px;
+    font-size: 12.5px;
+    font-weight: 400;
+    color: var(--adm-muted);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
   .dash-card-arrow {
@@ -125,33 +181,42 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    color: var(--text-faint);
-    transition: color 0.18s ease, transform 0.18s ease;
+    margin-left: auto;
+    color: var(--adm-faint);
+    transition: color 0.16s ease, transform 0.16s ease;
 
-    svg { width: 18px; height: 18px; }
+    lucide-icon {
+      display: inline-flex;
+    }
   }
 
   &:hover .dash-card-arrow {
-    color: var(--card-color);
+    color: var(--adm-accent);
     transform: translateX(2px);
   }
 
-  // ── Estado deshabilitado ─────────────────────────
+  // ── Estado deshabilitado ───────────────────────────
   &.is-disabled {
     cursor: default;
-    opacity: 0.62;
-    filter: grayscale(0.4);
-    background: var(--surface-muted, var(--surface));
+    opacity: 0.6;
+    background: var(--adm-card-bg);
     border-style: dashed;
+    box-shadow: none;
     pointer-events: none;
 
     .dash-card-icon {
-      background: color-mix(in srgb, var(--text-muted) 12%, transparent);
-      color: var(--text-muted);
+      background: transparent;
+      color: var(--adm-faint);
+      border: 1px dashed var(--adm-line);
     }
 
-    .dash-card-title { color: var(--text-muted); }
-    .dash-card-desc { color: var(--text-faint); }
+    .dash-card-title {
+      color: var(--adm-muted);
+    }
+
+    .dash-card-desc {
+      color: var(--adm-faint);
+    }
 
     .dash-card-lock {
       display: flex;
@@ -159,9 +224,12 @@
       align-items: center;
       gap: 3px;
       flex-shrink: 0;
-      color: var(--text-faint);
+      margin-left: auto;
+      color: var(--adm-faint);
 
-      svg { width: 20px; height: 20px; }
+      lucide-icon {
+        display: inline-flex;
+      }
 
       .dash-card-lock-txt {
         font-size: 0.62rem;
@@ -173,7 +241,41 @@
   }
 }
 
-@media (max-width: 640px) {
-  .dash { padding: 1rem 0.9rem 1.5rem; }
-  .dash-grid { grid-template-columns: 1fr; }
+// ── Sin resultados ────────────────────────────────────
+.dash-empty {
+  font-size: 13.5px;
+  color: var(--adm-muted);
+  padding: 8px 2px;
+}
+
+// ── Responsivo ────────────────────────────────────────
+@media (max-width: 1180px) {
+  .dash-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .dash {
+    padding: 24px 16px 40px;
+    gap: 28px;
+  }
+
+  .dash-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .dash-head h1 {
+    font-size: 25px;
+  }
+
+  .dash-section-sub {
+    display: none;
+  }
+
+  .dash-grid {
+    grid-template-columns: 1fr;
+  }
 }

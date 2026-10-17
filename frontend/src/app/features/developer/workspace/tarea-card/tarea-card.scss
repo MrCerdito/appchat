@@ -1,0 +1,266 @@
+:host {
+  display: block;
+}
+
+.tcard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid transparent;
+  border-radius: var(--radius-md);
+  padding: 0.75rem 0.85rem;
+  cursor: pointer;
+  transition:
+    box-shadow 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.1s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.tcard:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-strong);
+}
+
+.tcard:active {
+  transform: scale(0.995);
+}
+
+.tcard:focus-visible {
+  outline: 2px solid var(--ts-brand);
+  outline-offset: 2px;
+}
+
+.tcard.is-vencida {
+  border-left-color: var(--danger);
+}
+
+.tcard.is-proxima {
+  border-left-color: var(--warning);
+}
+
+/* ── Cabecera ─────────────────────────────────────────── */
+.tcard-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.tcard-codigo {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-faint);
+  letter-spacing: 0.02em;
+}
+
+/* ── Prioridades ──────────────────────────────────────── */
+.badge {
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.p-low {
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+}
+
+.p-medium {
+  background: var(--info-soft);
+  color: var(--info);
+}
+
+.p-high {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.p-critical {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+/* ── Titulo ───────────────────────────────────────────── */
+.tcard-titulo {
+  margin: 0 0 0.5rem;
+  font-size: 0.86rem;
+  line-height: 1.4;
+  color: var(--text);
+  font-weight: 500;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ── Ticket ───────────────────────────────────────────── */
+.tcard-ticket {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  background: var(--bg-subtle);
+  border-radius: 4px;
+  padding: 0.1rem 0.35rem;
+  margin-bottom: 0.45rem;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tcard-ticket svg {
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
+}
+
+/* ── Etiquetas ────────────────────────────────────────── */
+.tcard-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-bottom: 0.45rem;
+}
+
+.tag {
+  font-size: 0.66rem;
+  color: var(--ts-brand);
+  background: var(--primary-soft);
+  border-radius: 4px;
+  padding: 0.1rem 0.35rem;
+  max-width: 9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tag.is-more {
+  color: var(--text-muted);
+  background: var(--bg-subtle);
+}
+
+/* ── Progreso de subtareas ────────────────────────────── */
+.tcard-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.tcard-progress .bar {
+  flex: 1;
+  height: 3px;
+  background: var(--bg-subtle);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.tcard-progress .bar span {
+  display: block;
+  height: 100%;
+  background: var(--success);
+  transition: width 0.25s ease;
+}
+
+.tcard-progress .pct {
+  font-size: 0.64rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* ── Pie ──────────────────────────────────────────────── */
+.tcard-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.avatars {
+  display: flex;
+  align-items: center;
+}
+
+.avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid var(--surface);
+  margin-left: -5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6rem;
+  font-weight: 600;
+}
+
+.avatar:first-child {
+  margin-left: 0;
+}
+
+.avatar.is-inicial {
+  background: var(--sidebar-accent-soft);
+  color: var(--sidebar-accent);
+}
+
+.avatar.is-more {
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+}
+
+.sin-asignar {
+  font-size: 0.66rem;
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.64rem;
+  font-weight: 500;
+  padding: 0.12rem 0.35rem;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.chip svg {
+  width: 10px;
+  height: 10px;
+}
+
+.chip.vencida {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.chip.proxima {
+  color: var(--warning);
+  background: var(--warning-soft);
+}
+
+.chip.tiempo {
+  color: var(--text-muted);
+  background: var(--bg-subtle);
+  font-family: var(--font-mono);
+}

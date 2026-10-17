@@ -34,6 +34,8 @@ export interface Ticket {
   status: 'open' | 'in_progress' | 'on_hold' | 'denied' | 'resolved' | 'closed';
   priority: 'low' | 'medium' | 'high' | 'critical';
   category: string | null;
+  /** Categoría de Gestión del catálogo compartido con correos (o null). */
+  categoriaGestion: string | null;
   conversation: ConversationMessage[] | null;
   sourceType: 'web' | 'whatsapp' | 'internal' | 'email';
   sourceId: string | null;
@@ -60,6 +62,8 @@ export interface TicketCreateDto {
   descripcion?: string;
   priority?: 'low' | 'medium' | 'high' | 'critical';
   category?: string;
+  /** Categoría de Gestión del catálogo compartido con correos. */
+  categoriaGestion?: string;
   sourceType: 'web' | 'whatsapp' | 'internal' | 'email';
   sourceId?: string;
   clientName: string;
@@ -75,6 +79,8 @@ export interface TicketUpdateDto {
   status?: 'open' | 'in_progress' | 'on_hold' | 'denied' | 'resolved' | 'closed';
   priority?: 'low' | 'medium' | 'high' | 'critical';
   category?: string;
+  /** '' limpia la gestión (queda «Sin clasificar»). */
+  categoriaGestion?: string;
   assignedToId?: string;
 }
 

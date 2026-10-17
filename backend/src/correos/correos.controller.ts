@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   Req,
@@ -82,6 +83,42 @@ export class CorreosController {
       desde: desde || undefined,
       hasta: hasta || undefined,
     });
+  }
+
+  /** Catalogo de categorias de gestion (compartido entre asesores). */
+  @Get('categorias-gestion')
+  async categoriasGestion() {
+    return this.correosService.categoriasGestion();
+  }
+
+  /**
+   * Crea una categoria de gestion nueva. Cualquier asesor con permiso de
+   * correos puede ampliar el catalogo; si el nombre ya existe (sin distinguir
+   * mayusculas) devuelve la existente en vez de fallar.
+   */
+  @Post('categorias-gestion')
+  async crearCategoriaGestion(
+    @Req() req: ReqConUsuario,
+    @Body() body: { nombre?: string },
+  ) {
+    return this.correosService.crearCategoriaGestion(body?.nombre ?? '', req.user.id);
+  }
+
+  /**
+   * Asigna o limpia (null) la categoria de gestion de un mensaje propio. La
+   * categoria debe existir en el catalogo; el asesor siempre sale del token.
+   */
+  @Patch('mensajes/:id/categoria')
+  async cambiarCategoria(
+    @Req() req: ReqConUsuario,
+    @Param('id') id: string,
+    @Body() body: { categoria?: string | null },
+  ) {
+    const categoria = body?.categoria ?? null;
+    if (categoria != null && typeof categoria !== 'string') {
+      throw new BadRequestException('Formato de categoria no valido.');
+    }
+    return this.correosService.cambiarCategoriaGestion(id, req.user.id, categoria);
   }
 
   /** Cuerpo del correo, ya sanitizado. Nunca se devuelve HTML crudo. */

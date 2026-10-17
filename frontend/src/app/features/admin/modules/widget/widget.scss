@@ -1876,3 +1876,169 @@
     max-width: 306px;
   }
 }
+
+// ── Tema oscuro ──
+:host.theme-dark {
+  .page {
+    --acc: #3b82f6;
+    --acc-hover: #60a5fa;
+    --acc-soft: rgba(96, 165, 250, 0.14);
+    --acc-border: rgba(96, 165, 250, 0.45);
+    --pg-bg: #10151c;
+    --card: #1a1f26;
+    --border: rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.16);
+    --txt: #e6edf7;
+    --muted: #9aa7bd;
+    --faint: #7f8ba0;
+    --card-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 20px rgba(0, 0, 0, 0.5);
+  }
+
+  .skeleton-overlay {
+    background: rgba(16, 21, 28, 0.72);
+  }
+
+  .error-msg {
+    color: #f87171;
+  }
+
+  .mode-toggle {
+    background: #151b23;
+
+    button {
+      &.active {
+        color: #60a5fa;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+      }
+    }
+  }
+
+  .nav-item.active {
+    color: #93b4ff;
+  }
+
+  .btn-outline:hover {
+    border-color: rgba(96, 165, 250, 0.45);
+    color: #93b4ff;
+  }
+
+  .style-card {
+    background: #151b23;
+
+    &.active {
+      box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.18);
+    }
+  }
+
+  .swatch.active {
+    box-shadow:
+      0 0 0 2px var(--card),
+      0 0 0 4px rgba(255, 255, 255, 0.25);
+  }
+
+  .seg-group {
+    background: #151b23;
+  }
+
+  .seg-btn.active {
+    color: #60a5fa;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  }
+
+  .icon-card {
+    background: #151b23;
+
+    &.active {
+      color: #93b4ff;
+    }
+  }
+
+  .icon-bubble {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .pos-card {
+    background: #151b23;
+
+    &.active {
+      color: #93b4ff;
+    }
+  }
+
+  .pos-screen {
+    background: #10151c;
+  }
+
+  .text-field {
+    background: #151b23;
+
+    &:focus {
+      background: #10151c;
+      box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.18);
+    }
+  }
+
+  .avatar-thumb {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .bubble-live {
+    background: #1a1f26;
+  }
+
+  .slider-val {
+    color: #60a5fa;
+  }
+
+  .url-wrap {
+    background: #151b23;
+
+    &:focus-within {
+      box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.18);
+    }
+  }
+
+  .code-header {
+    background: #151b23;
+  }
+
+  .btn-copy:hover {
+    color: #60a5fa;
+  }
+
+  .tip-card {
+    background: #1a1f26;
+  }
+
+  .tip-icon {
+    background: rgba(245, 158, 11, 0.16);
+    color: #fbbf24;
+  }
+
+  .install-cta {
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+  }
+
+  .install-cta-icon {
+    color: #93b4ff;
+  }
+
+  .device-toggle {
+    background: #151b23;
+
+    button {
+      &.active {
+        color: #60a5fa;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+      }
+    }
+  }
+
+  .preview-stage {
+    --txt: #0f172a;
+    --muted: #64748b;
+    --faint: #94a3b8;
+    --border: #e6eaf2;
+    --border-strong: #d4dae6;
+  }
+}

@@ -51,18 +51,38 @@ export interface TeamsMeetingDto {
   endDateTime: string;
   durationMinutes: number;
   joinUrl: string;
-  meetingId?: string | null;
-  eventId?: string | null;
-  calendarTarget: 'shared' | 'none';
+  meetingId: string | null;
+  eventId: string | null;
+  calendarTarget: 'personal' | 'shared' | 'none';
+  eventSource?: 'group' | 'shared-mailbox' | 'personal' | 'none' | null;
+  categorias?: string[];
   createdByName?: string | null;
-  createdAt: string;
+  createdAt?: string;
+  /** Modalidad de la reunión/capacitación. Default 'virtual'. */
+  modalidad?: 'virtual' | 'presencial';
+  /** Marca resuelta desde el colegio asociado; null = sin clasificar. */
+  tipoColegio?: string | null;
 }
 
 export interface CreateStandaloneMeetingRequest {
   subject: string;
   startDateTime: string;
   durationMinutes?: number;
-  calendarTarget?: 'shared' | 'none';
+  calendarTarget?: 'personal' | 'shared' | 'none';
+  /** Alias y nombres literales de categoria en Outlook ("Blue category"). */
+  categorias?: string[];
+  /**
+   * Fin explicito (ISO UTC) para las marcas por rango (ausencia, vacaciones,
+   * incapacidad): abarca varios dias. Sin el, el fin es inicio + duracion.
+   */
+  endDateTime?: string;
+  /**
+   * Colegio escogido en el calendario. El backend lo usa UNO para guardar la
+   * marca (proyecto) de la reunion, que es con lo que Metricas filtra. No se
+   * guarda el colegio en si, por eso el formulario de edicion no lo puede
+   * preseleccionar.
+   */
+  colegioId?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -744,6 +764,29 @@ export class WhatsappChatService implements OnDestroy {
     return this.http.post<TeamsMeetingDto>(
       `${this.apiUrl}/teams/meetings`,
       payload,
+      { headers: this.headers() },
+    );
+  }
+
+  /**
+   * Edita una reunion creada desde la app: el backend mueve primero el evento en
+   * Microsoft y despues guarda la fila local, asi que si falla no queda rastro
+   * a medias en el calendario.
+   */
+  updateStandaloneMeeting(
+    id: string,
+    payload: CreateStandaloneMeetingRequest,
+  ): Observable<TeamsMeetingDto> {
+    return this.http.patch<TeamsMeetingDto>(
+      `${this.apiUrl}/teams/meetings/${encodeURIComponent(id)}`,
+      payload,
+      { headers: this.headers() },
+    );
+  }
+
+  deleteStandaloneMeeting(id: string): Observable<{ ok: true }> {
+    return this.http.delete<{ ok: true }>(
+      `${this.apiUrl}/teams/meetings/${encodeURIComponent(id)}`,
       { headers: this.headers() },
     );
   }

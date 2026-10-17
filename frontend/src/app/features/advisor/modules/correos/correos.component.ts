@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
+  HostBinding,
   OnDestroy,
   OnInit,
 } from '@angular/core';
@@ -13,6 +14,7 @@ import { Subscription } from 'rxjs';
 import {
   AdjuntoCorreo,
   BandejaCorreo,
+  CategoriaGestion,
   CorreosService,
   CuerpoCorreo,
   EstadoCorreos,
@@ -22,6 +24,7 @@ import {
   SIN_CATEGORIA,
 } from '../../../../core/services/correos.service';
 import { LayoutService } from '../../../../core/services/layout.service';
+import { ThemeService } from '../../../../core/services/theme.service';
 import {
   colorCategoria,
   normalizarCategoria,
@@ -29,6 +32,7 @@ import {
 } from '../../../../shared/utils/categoria-correo.util';
 import { SocketService } from '../../../../core/services/socket.service';
 import { NotificationService } from '../../../../core/services/notification.service';
+import { NotificationRealtimeService } from '../../../../core/services/notification-realtime.service';
 
 const TAMANO_PAGINA = 50;
 
@@ -71,6 +75,9 @@ const PRESETES: { valor: PresetFechaCorreo; etiqueta: string }[] = [
 /** Etiqueta que se muestra cuando el correo no tiene ninguna categoria en Outlook. */
 const PENDIENTE = 'Pendiente';
 
+/** Valor especial del selector que abre el formulario de categoria nueva. */
+const VALOR_NUEVA_CATEGORIA = '__nueva_gestion__';
+
 @Component({
   selector: 'app-correos',
   standalone: true,
@@ -84,6 +91,9 @@ export class CorreosComponent implements OnInit, OnDestroy {
 
   /** Expuesto al template para elegir el filtro "sin categoría". */
   readonly SIN_CATEGORIA = SIN_CATEGORIA;
+
+  /** Expuesto al template como opción especial del selector de gestión. */
+  readonly VALOR_NUEVA_CATEGORIA = VALOR_NUEVA_CATEGORIA;
   cargando = true;
   cargandoCuerpo = false;
   sincronizando = false;
@@ -96,6 +106,7 @@ export class CorreosComponent implements OnInit, OnDestroy {
   total = 0;
   totalCarpeta = 0;
   noLeidosTotal = 0;
+  sinCategoriaTotal = 0;
   carpetaNombre = '';
   soloNoLeidos = false;
 
@@ -116,6 +127,17 @@ export class CorreosComponent implements OnInit, OnDestroy {
 
   /** Categorias reales de la carpeta con su conteo, para pintar el lateral. */
   categoriasDisponibles: CategoriaConTotal[] = [];
+
+  /* ── Categoría de gestión del lector ───────────────────── */
+
+  /** Catálogo compartido (Requerimiento, Error, Solicitud, ...). */
+  categoriasGestion: CategoriaGestion[] = [];
+  /** El selector está guardando un cambio en el backend. */
+  asignandoCategoria = false;
+  /** Muestra el formulario inline de "nueva categoría". */
+  creandoCategoria = false;
+  nombreNuevaCategoria = '';
+  creandoCategoriaGuardando = false;
 
   /** En movil el lateral se abre encima de la lista, como en History. */
   filtrosAbiertos = false;
@@ -164,6 +186,13 @@ export class CorreosComponent implements OnInit, OnDestroy {
    */
   cuerpoIframe: SafeResourceUrl | null = null;
 
+  /**
+   * Tema del shell: la clase viaja al host del componente y el SCSS usa
+   * `:host.theme-dark`, porque el `data-theme` vive en `<html>` y los
+   * selectores del modulo con empaquetado de Angular nunca lo alcanzan.
+   */
+  @HostBinding('class.theme-dark') protected themeDark = false;
+
   private subs = new Subscription();
 
   /** Timer del sondeo de seguridad. */
@@ -176,14 +205,24 @@ export class CorreosComponent implements OnInit, OnDestroy {
     private readonly layout: LayoutService,
     private readonly socket: SocketService,
     private readonly notifs: NotificationService,
+    private readonly notificationRealtime: NotificationRealtimeService,
     private readonly route: ActivatedRoute,
+    private readonly themeService: ThemeService,
   ) {}
 
   ngOnInit(): void {
+    this.themeDark = this.themeService.currentTheme === 'dark';
+    this.subs.add(
+      this.themeService.currentTheme$.subscribe((t) => {
+        this.themeDark = t === 'dark';
+        this.cdr.markForCheck();
+      }),
+    );
     // La bandeja ocupa toda la pantalla, igual que history y comunicados: se
     // colapsa la barra de modulos al entrar y se devuelve al salir.
     this.layout.setSidebarForcedCollapsed(true);
     this.cargarEstado();
+    this.cargarCatalogoCategorias();
     this.cargarMensajes(true);
     this.escucharCambios();
     this.sincronizarEnSilencio();
@@ -285,6 +324,7 @@ export class CorreosComponent implements OnInit, OnDestroy {
           this.total = b.total;
           this.totalCarpeta = b.totalCarpeta;
           this.noLeidosTotal = b.noLeidosTotal;
+          this.sinCategoriaTotal = b.sinCategoriaTotal;
           this.carpetaNombre = b.carpetaNombre;
           this.categoriasDisponibles = b.categoriasDisponibles ?? [];
           this.offset = b.mensajes.length;
@@ -472,6 +512,7 @@ export class CorreosComponent implements OnInit, OnDestroy {
             this.total = b.total;
             this.totalCarpeta = b.totalCarpeta;
             this.noLeidosTotal = b.noLeidosTotal;
+            this.sinCategoriaTotal = b.sinCategoriaTotal;
             this.carpetaNombre = b.carpetaNombre;
             this.categoriasDisponibles = b.categoriasDisponibles ?? [];
             this.offset += b.mensajes.length;
@@ -527,6 +568,120 @@ export class CorreosComponent implements OnInit, OnDestroy {
     this.cargarCuerpoDe(mensaje);
   }
 
+  /* ── Categoría de gestión (catálogo del asesor) ──────── */
+
+  /** Carga el catálogo de categorías de gestión. Silencioso: sin spinner. */
+  private cargarCatalogoCategorias(): void {
+    this.subs.add(
+      this.correos.categoriasGestion().subscribe({
+        next: (lista) => {
+          this.categoriasGestion = lista;
+          this.cdr.markForCheck();
+        },
+        error: () => undefined,
+      }),
+    );
+  }
+
+  /**
+   * Cambia la categoría de gestión del correo abierto. El valor viene del
+   * `<select>`; la opción especial de "nueva categoría" abre el formulario
+   * inline en vez de tocar el backend.
+   */
+  onCambiarCategoriaGestion(valor: string): void {
+    if (!this.seleccionado) return;
+    if (valor === VALOR_NUEVA_CATEGORIA) {
+      this.abrirNuevaCategoria();
+      return;
+    }
+    this.asignarCategoriaGestion(valor || null);
+  }
+
+  private asignarCategoriaGestion(categoria: string | null): void {
+    if (!this.seleccionado || this.asignandoCategoria) return;
+    const id = this.seleccionado.id;
+    const anterior = this.seleccionado.categoriaGestion ?? null;
+    // Optimista: el lector y la lista se pintan ya con el nuevo valor; si el
+    // backend falla se revierte y sale el aviso.
+    this.aplicarCategoriaLocal(id, categoria);
+    this.asignandoCategoria = true;
+    this.cdr.markForCheck();
+
+    this.subs.add(
+      this.correos.setCategoriaGestion(id, categoria).subscribe({
+        next: () => {
+          this.asignandoCategoria = false;
+          this.cdr.markForCheck();
+        },
+        error: (err) => {
+          this.aplicarCategoriaLocal(id, anterior);
+          this.asignandoCategoria = false;
+          this.notifs.error('No se pudo asignar la categoría', this.leerError(err));
+          this.cdr.markForCheck();
+        },
+      }),
+    );
+  }
+
+  /** Actualiza la categoría en el lector y en el renglón de la lista. */
+  private aplicarCategoriaLocal(id: string, categoria: string | null): void {
+    this.mensajes = this.mensajes.map((m) =>
+      m.id === id ? { ...m, categoriaGestion: categoria } : m,
+    );
+    if (this.seleccionado?.id === id) {
+      this.seleccionado = { ...this.seleccionado, categoriaGestion: categoria };
+    }
+  }
+
+  private abrirNuevaCategoria(): void {
+    this.creandoCategoria = true;
+    this.nombreNuevaCategoria = '';
+    this.cdr.markForCheck();
+  }
+
+  cancelarNuevaCategoria(): void {
+    this.creandoCategoria = false;
+    this.nombreNuevaCategoria = '';
+    this.cdr.markForCheck();
+  }
+
+  /**
+   * Crea la categoría (si no existía) y la asigna al correo abierto. El
+   * backend es idempotente por nombre: si ya existe devuelve la existente.
+   */
+  crearYAsignarCategoria(): void {
+    const nombre = this.nombreNuevaCategoria.trim();
+    if (!nombre || this.creandoCategoriaGuardando) return;
+    this.creandoCategoriaGuardando = true;
+    this.cdr.markForCheck();
+
+    this.subs.add(
+      this.correos.crearCategoriaGestion(nombre).subscribe({
+        next: (r) => {
+          this.creandoCategoriaGuardando = false;
+          this.creandoCategoria = false;
+          this.nombreNuevaCategoria = '';
+          // Si ya existía (sin distinguir mayusculas) se usa el nombre tal cual
+          // está en el catálogo, para no duplicar visualmente.
+          const enCatalogo = this.categoriasGestion.some(
+            (c) => c.id === r.id || c.nombre.toLowerCase() === r.nombre.toLowerCase(),
+          );
+          if (!enCatalogo) {
+            this.categoriasGestion = [...this.categoriasGestion, { id: r.id, nombre: r.nombre }].sort(
+              (a, b) => a.nombre.localeCompare(b.nombre, 'es'),
+            );
+          }
+          this.asignarCategoriaGestion(r.nombre);
+        },
+        error: (err) => {
+          this.creandoCategoriaGuardando = false;
+          this.notifs.error('No se pudo crear la categoría', this.leerError(err));
+          this.cdr.markForCheck();
+        },
+      }),
+    );
+  }
+
   /** Pide el cuerpo y los adjuntos del mensaje ya marcado como seleccionado. */
   private cargarCuerpoDe(mensaje: MensajeCorreo): void {
     this.cuerpo = null;
@@ -539,6 +694,7 @@ export class CorreosComponent implements OnInit, OnDestroy {
       this.correos.cuerpo(mensaje.id).subscribe({
         next: (c) => {
           this.cuerpo = c;
+          this.subs.add(this.notificationRealtime.markCorreoAbierto(mensaje.id).subscribe({ error: () => undefined }));
           this.cargandoCuerpo = false;
           this.cuerpoIframe = this.sanitizer.bypassSecurityTrustResourceUrl(
             this.envelopeHtml(c.html),
@@ -621,7 +777,7 @@ export class CorreosComponent implements OnInit, OnDestroy {
           this.recargarEnSilencio();
           this.cdr.markForCheck();
         },
-        error: (err) => {
+        error: (err: unknown) => {
           this.sincronizando = false;
           this.notifs.error(
             'No se pudieron buscar correos nuevos',
@@ -700,16 +856,6 @@ color(cat: string): string | null {
 etiqueta(categoriaCruda: string): string {
   return normalizarCategoria(categoriaCruda);
 }
-
-  /**
-   * Conteo de correos sin ninguna categoria en la carpeta. Se deriva de los
-   * totales reales que ya trae la respuesta, no de un filtro aparte: asi el
-   * numero nunca puede contradecir la lista.
-   */
-  get sinCategoriaTotal(): number {
-    const clasificados = this.categoriasDisponibles.reduce((suma, c) => suma + c.total, 0);
-    return Math.max(this.totalCarpeta - clasificados, 0);
-  }
 
   /** `2026-01-15`, para los <input type="date">. */
   get hoyIso(): string {

@@ -90,6 +90,18 @@ import { NotificationService } from '../../core/services/notification.service';
       line-height: 1;
     }
     .toast-close:hover { color: var(--text, #181614); }
+    .toast-accion {
+      margin-top: 8px;
+      background: none;
+      border: 1px solid currentColor;
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text, #181614);
+      cursor: pointer;
+    }
+    .toast-accion:hover { background: var(--surface-alt, #f4f2ef); }
     @keyframes toast-in {
       from { opacity: 0; transform: translateX(40px); }
       to   { opacity: 1; transform: translateX(0); }
@@ -132,6 +144,12 @@ import { NotificationService } from '../../core/services/notification.service';
             <div class="toast-title">{{ toast.title }}</div>
             @if (toast.message) {
               <div class="toast-message">{{ toast.message }}</div>
+            }
+            @if (toast.accion; as accion) {
+              <button class="toast-accion"
+                (click)="accion.onClick(); notification.remove(toast.id); $event.stopPropagation()">
+                {{ accion.label }}
+              </button>
             }
           </div>
           <button class="toast-close" (click)="notification.remove(toast.id); $event.stopPropagation()">&times;</button>

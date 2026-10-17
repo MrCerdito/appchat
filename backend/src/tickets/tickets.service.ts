@@ -1,5 +1,6 @@
 import {
   Injectable,
+  OnModuleInit,
   NotFoundException,
   ConflictException,
   BadRequestException,
@@ -40,7 +41,7 @@ const PRIORITY_LABELS: Record<string, string> = {
 };
 
 @Injectable()
-export class TicketsService {
+export class TicketsService implements OnModuleInit {
   private readonly logger = new Logger(TicketsService.name);
 
   /**
@@ -63,6 +64,21 @@ export class TicketsService {
     private readonly gateway: TicketsGateway,
     private readonly audit: TicketAuditService,
   ) {}
+
+  /**
+   * Prod corre con `synchronize: false` (ver `app.module.ts`), así que la
+   * columna de gestión se crea aquí de forma idempotente al arrancar.
+   */
+  async onModuleInit(): Promise<void> {
+    await this.repo.query(`
+      ALTER TABLE IF EXISTS public.tickets
+      ADD COLUMN IF NOT EXISTS categoria_gestion varchar(120)
+    `);
+    await this.repo.query(`
+      CREATE INDEX IF NOT EXISTS idx_tickets_categoria_gestion
+      ON public.tickets(categoria_gestion)
+    `);
+  }
 
   private async generarCodigo(): Promise<string> {
     const year = new Date().getFullYear();
@@ -133,6 +149,7 @@ export class TicketsService {
     ticket.descripcion = dto.descripcion ?? null;
     ticket.priority = dto.priority ?? 'medium';
     ticket.category = dto.category ?? null;
+    ticket.categoriaGestion = dto.categoriaGestion?.trim() || null;
     ticket.sourceType = dto.sourceType;
     ticket.sourceId = dto.sourceId ?? null;
     ticket.clientName = dto.clientName;
@@ -446,6 +463,14 @@ export class TicketsService {
     if (dto.category !== undefined && dto.category !== ticket.category) {
       ticket.category = dto.category;
       baseChanges.push('la categoria');
+    }
+    if (dto.categoriaGestion !== undefined) {
+      // '' o espacios = limpiar la clasificación (mismo criterio que correos).
+      const gestion = dto.categoriaGestion?.trim() || null;
+      if (gestion !== (ticket.categoriaGestion ?? null)) {
+        ticket.categoriaGestion = gestion;
+        baseChanges.push('la gestion');
+      }
     }
 
     if (dto.priority !== undefined && dto.priority !== oldPriority) {

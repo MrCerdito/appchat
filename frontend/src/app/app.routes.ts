@@ -55,6 +55,12 @@ export const routes: Routes = [
           import('./features/advisor/modules/documentos/documentos.component').then(m => m.DocumentosComponent),
       },
       {
+        path: 'sharepoint',
+        canActivate: [permisoGuard('sharepoint')],
+        loadComponent: () =>
+          import('./features/advisor/modules/sharepoint/sharepoint.component').then(m => m.SharePointComponent),
+      },
+      {
         path: 'perfil-institucional',
         canActivate: [permisoGuard('perfil_institucional')],
         loadComponent: () =>
@@ -95,6 +101,12 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/advisor/modules/calendario/calendario.component').then(m => m.CalendarioComponent),
       },
+      {
+        path: 'correos',
+        canActivate: [permisoGuard('correos')],
+        loadComponent: () =>
+          import('./features/advisor/modules/correos/correos.component').then(m => m.CorreosComponent),
+      },
     ],
   },
   {
@@ -122,10 +134,36 @@ export const routes: Routes = [
           import('./features/admin/modules/metrics/metrics').then(m => m.MetricsComponent),
       },
       {
+        path: 'conectividad',
+        canActivate: [permisoGuard('metrics')],
+        loadComponent: () =>
+          import('./features/admin/modules/conectividad/conectividad').then(m => m.ConectividadComponent),
+      },
+      {
         path: 'history',
         canActivate: [permisoGuard('history')],
         loadComponent: () =>
           import('./features/advisor/modules/history/history').then(m => m.HistoryGlobalComponent),
+      },
+      {
+        path: 'correos',
+        canActivate: [permisoGuard('correos')],
+        loadComponent: () =>
+          import('./features/admin/modules/correos/correos-admin').then(m => m.CorreosAdmin),
+      },
+      {
+        path: 'correos/asesor/:id',
+        canActivate: [permisoGuard('correos')],
+        loadComponent: () =>
+          import('./features/admin/modules/correos/pages/asesor/correos-asesor-admin').then(
+            m => m.CorreosAsesorAdmin,
+          ),
+      },
+      {
+        path: 'sharepoint',
+        canActivate: [permisoGuard('sharepoint')],
+        loadComponent: () =>
+          import('./features/advisor/modules/sharepoint/sharepoint.component').then(m => m.SharePointComponent),
       },
       {
         path: 'operaciones',
@@ -203,10 +241,30 @@ export const routes: Routes = [
           import('./shared/tickets/tickets.component').then(m => m.TicketsComponent),
       },
       {
+        path: 'tareas',
+        canActivate: [permisoGuard('tareas')],
+        loadComponent: () =>
+          import('./features/developer/workspace/tareas-workspace.component').then(m => m.TareasWorkspaceComponent),
+      },
+      {
         path: 'calendario',
         canActivate: [permisoGuard('calendario')],
         loadComponent: () =>
           import('./features/advisor/modules/calendario/calendario.component').then(m => m.CalendarioComponent),
+      },
+      {
+        path: 'correos',
+        canActivate: [permisoGuard('correos')],
+        loadComponent: () =>
+          import('./features/admin/modules/correos/correos-admin').then(m => m.CorreosAdmin),
+      },
+      {
+        path: 'correos/asesores',
+        canActivate: [permisoGuard('correos')],
+        loadComponent: () =>
+          import('./features/admin/modules/correos/pages/asesor/correos-asesor-admin').then(
+            m => m.CorreosAsesorAdmin,
+          ),
       },
       {
         path: 'perfil-institucional',
@@ -240,6 +298,12 @@ export const routes: Routes = [
         canActivate: [permisoGuard('tickets')],
         loadComponent: () =>
           import('./shared/tickets/tickets.component').then(m => m.TicketsComponent),
+      },
+      {
+        path: 'tareas',
+        canActivate: [permisoGuard('tareas')],
+        loadComponent: () =>
+          import('./features/developer/workspace/tareas-workspace.component').then(m => m.TareasWorkspaceComponent),
       },
     ],
   },
@@ -279,6 +343,12 @@ export const routes: Routes = [
         canActivate: [permisoGuard('documentos')],
         loadComponent: () =>
           import('./features/advisor/modules/documentos/documentos.component').then(m => m.DocumentosComponent),
+      },
+      {
+        path: 'sharepoint',
+        canActivate: [permisoGuard('sharepoint')],
+        loadComponent: () =>
+          import('./features/advisor/modules/sharepoint/sharepoint.component').then(m => m.SharePointComponent),
       },
       {
         path: 'perfil-institucional',

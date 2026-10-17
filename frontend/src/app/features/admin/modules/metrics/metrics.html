@@ -1,327 +1,1525 @@
-<div class="page">
+<div class="mx-wrap">
 
-  <header class="header">
-    <div class="header-identity">
-      <div class="avatar admin">A</div>
-      <div>
-        <h1>Panel de administración</h1>
-        <span class="meta-label">Métricas globales</span>
+  <!-- ── Panel de filtros (estilo Perfil Institucional · siempre visible) ─── -->
+  <section class="mx-fpanel">
+    <div class="mx-fpanel-body">
+
+      <!-- 1 · Proyecto -->
+      <div class="mx-fpanel-col">
+        <div class="mx-fpanel-section-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+          Proyecto
+        </div>
+        <div class="mx-procombo">
+          <button type="button" class="mx-procombo-toggle" [class.open]="proyectoAbierto"
+            [attr.aria-expanded]="proyectoAbierto" aria-haspopup="listbox"
+            aria-label="Proyecto" (click)="toggleProyectoLista()">
+            <span class="mx-procombo-value">
+              <i class="mx-dot" [style.--c]="proyectoColor(filtros.proyecto)"></i>
+              <span>{{ proyectoLabel(filtros.proyecto) }}</span>
+            </span>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+
+          @if (proyectoAbierto) {
+            <div class="mx-procombo-pop" role="listbox" aria-label="Proyectos">
+              @for (p of proyectos; track p.id) {
+                <button type="button" class="mx-procombo-opt" role="option"
+                  [class.selected]="filtros.proyecto === p.id"
+                  [attr.aria-selected]="filtros.proyecto === p.id"
+                  (click)="setProyecto(p.id)">
+                  <i class="mx-dot" [style.--c]="proyectoColor(p.id)"></i>
+                  <span>{{ p.label }}</span>
+                  @if (filtros.proyecto === p.id) {
+                    <svg class="mx-procombo-check" viewBox="0 0 24 24" width="14" height="14"
+                      fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                      stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  }
+                </button>
+              }
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- 2 · Asesor: desplegable con buscador y TODOS los asesores -->
+      <div class="mx-fpanel-col">
+        <div class="mx-fpanel-section-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Asesor
+        </div>
+        <div class="mx-combo">
+          <button type="button" class="mx-combo-toggle" [class.open]="asesorAbierto"
+            [class.selected]="!!filtros.asesorId" [attr.aria-expanded]="asesorAbierto"
+            aria-haspopup="listbox" (click)="toggleAsesorLista()">
+            <span class="mx-combo-value">{{ asesorSeleccionado }}</span>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+
+          @if (asesorAbierto) {
+            <div class="mx-combo-pop" role="listbox" aria-label="Asesores">
+              <div class="mx-combo-search">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                  <circle cx="11" cy="11" r="7"></circle>
+                  <path d="m20 20-3.6-3.6"></path>
+                </svg>
+                <input #asesorInput type="text" autocomplete="off" placeholder="Buscar asesor…"
+                  [ngModel]="asesorBusqueda" (ngModelChange)="filtrarAsesorBusqueda($event)"
+                  (keydown)="onAsesorTecla($event)" aria-label="Buscar asesor" />
+              </div>
+              <div class="mx-combo-list">
+                @if (!advisors.length) {
+                  <div class="mx-combo-empty">
+                    @if (asesoresError) {
+                      No se pudieron cargar los asesores. Recarga la página e inténtalo de nuevo.
+                    } @else {
+                      Aún no hay asesores registrados.
+                    }
+                  </div>
+                } @else {
+                  @for (o of opcionesAsesor; track o.id; let i = $index) {
+                    <button type="button" class="mx-combo-opt" role="option"
+                      [class.active]="i === asesorIndice"
+                      [class.selected]="o.id === filtros.asesorId"
+                      [attr.aria-selected]="o.id === filtros.asesorId"
+                      (mouseenter)="asesorIndice = i"
+                      (click)="elegirAsesor(o.id)">{{ o.label }}</button>
+                  } @empty {
+                    <div class="mx-combo-empty">Ningún asesor coincide con «{{ asesorBusqueda }}».</div>
+                  }
+                }
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- 3 · Rango: bloque alineado con Proyecto y Asesor, con sus controles
+           (Hoy/Mes + navegador + fechas) en una sola fila horizontal. -->
+      <div class="mx-fpanel-col mx-fpanel-col--rango">
+        <div class="mx-fpanel-section-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Rango
+        </div>
+        <div class="mx-fpanel-rango">
+          <div class="mx-seg preset" role="group" aria-label="Preset de rango">
+            <button type="button" class="mx-seg-btn"
+              [class.active]="filtros.preset === 'hoy'"
+              (click)="setPreset('hoy')">Hoy</button>
+            <button type="button" class="mx-seg-btn"
+              [class.active]="filtros.preset === 'mes'"
+              (click)="setPreset('mes')">Mes</button>
+          </div>
+
+          <div class="mx-month">
+            <button type="button" class="mx-month-btn" (click)="mesAnterior()"
+              aria-label="Mes anterior">‹</button>
+            <span class="mx-month-label" aria-live="polite">{{ mesLabel }}</span>
+            <button type="button" class="mx-month-btn" (click)="mesSiguiente()"
+              aria-label="Mes siguiente">›</button>
+          </div>
+
+          <div class="mx-dates mx-fpanel-dates">
+            <input type="date" [(ngModel)]="desde" (ngModelChange)="onFechasCambiadas()"
+              aria-label="Desde" />
+            <span>—</span>
+            <input type="date" [(ngModel)]="hasta" (ngModelChange)="onFechasCambiadas()"
+              aria-label="Hasta" />
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Pie fijo: estado del filtro + acciones (limpiar · descargar · aplicar) -->
+    <div class="mx-fpanel-footer">
+      <span class="mx-fpanel-info">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="11"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        @if (dash) {
+          Actualizado {{ horaActualizacion }} · rango {{ aplicados.desde || '…' }} a {{ aplicados.hasta || '…' }}
+        } @else {
+          Elige los filtros y aplica para cargar el rango.
+        }
+        @if (filtrosActivos > 0) {
+          <em class="mx-dirty-note">{{ filtrosActivos }} filtro{{ filtrosActivos === 1 ? '' : 's' }} activo{{ filtrosActivos === 1 ? '' : 's' }}</em>
+        }
+        @if (filtrosPendientes) {
+          <em class="mx-dirty-note">· cambios sin aplicar</em>
+        }
+      </span>
+
+      <div class="mx-fpanel-actions">
+        <button type="button" class="mx-reset" (click)="resetFiltros()">Limpiar filtros</button>
+
+        <button type="button" class="mx-export" (click)="exportarExcel()"
+          [disabled]="exporting || !dash">
+          @if (exporting) {
+            <span class="mx-spin"></span> Generando…
+          } @else {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Descargar Excel
+          }
+        </button>
+
+        <button type="button" class="mx-apply" [class.dirty]="filtrosPendientes"
+          [disabled]="!filtrosPendientes || loading" (click)="aplicarFiltros()">
+          @if (loading) {
+            <span class="mx-spin"></span> Aplicando…
+          } @else {
+            Aplicar filtro
+          }
+        </button>
       </div>
     </div>
-    <div class="header-actions">
-      <div class="range-filter">
-        <input type="date" [value]="desde" (change)="desde = $any($event.target).value; onFechasCambiadas()" />
-        <span class="range-sep">→</span>
-        <input type="date" [value]="hasta" (change)="hasta = $any($event.target).value; onFechasCambiadas()" />
-      </div>
-      <button class="btn-export" [disabled]="exporting" (click)="exportarExcel()">
-        {{ exporting ? 'Generando…' : 'Descargar Excel' }}
+  </section>
+
+  <!-- ── Pestañas (cards pequeñas con indicador deslizante) ───────────────── -->
+  <nav class="mx-tabs" [class.anim]="tabsAnim" role="tablist">
+    <span class="mx-tab-ind" aria-hidden="true"
+      [style.width.px]="tabIndW"
+      [style.transform]="'translateX(' + tabIndX + 'px)'"></span>
+    @for (t of tabs; track t.id) {
+      <button type="button" #tabBtn class="mx-tab" [class.active]="tab === t.id"
+        [attr.aria-selected]="tab === t.id" (click)="setTab(t.id)">
+        {{ t.label }}
       </button>
+    }
+  </nav>
+
+  <!-- ── Estados de carga / error ───────────────────────────────────────── -->
+  @if (loading && !dash) {
+    <div class="mx-loading">
+      <span class="mx-spinner-lg" aria-hidden="true"></span>
+      <span class="mx-loading-text">Cargando métricas…</span>
     </div>
-  </header>
+  } @else if (error) {
+    <div class="mx-error">
+      <strong>No se pudieron cargar las métricas</strong>
+      <p>Verifica tu conexión e inténtalo de nuevo.</p>
+      <button type="button" class="mx-export" (click)="retry()">Reintentar</button>
+    </div>
+  } @else if (dash) {
+    <!-- Ya hay datos y se está recargando: el tablero se queda en su sitio y
+         el spinner se centra encima, para que se vea que el cambio de filtro
+         SÍ se está procesando sin dejar la pantalla en blanco. -->
+    @switch (tab) {
 
-  @if (loading) {
-  <div class="state">Cargando…</div>
-  }
-  @if (error) {
-  <div class="state err">Error al cargar.</div>
-  }
-
-  @if (!loading && !error && metrics) {
-  <div class="dashboard">
-
-    <!-- ── Columna izquierda ── -->
-    <div class="left-col">
-
-      <!-- KPIs globales -->
-      <section class="kpi-row">
-        <div class="kpi">
-          <span class="kpi-num">{{ metrics.total }}</span>
-          <span class="kpi-label">Total</span>
-        </div>
-        <div class="kpi-divider"></div>
-        <div class="kpi">
-          <span class="kpi-num accent">{{ metrics.active }}</span>
-          <span class="kpi-label">Activas</span>
-        </div>
-        <div class="kpi-divider"></div>
-        <div class="kpi">
-          <span class="kpi-num gold">{{ metrics.waiting }}</span>
-          <span class="kpi-label">En espera</span>
-        </div>
-        <div class="kpi-divider"></div>
-        <div class="kpi">
-          <span class="kpi-num">{{ metrics.closed }}</span>
-          <span class="kpi-label">Cerradas</span>
-        </div>
-        <div class="kpi-divider"></div>
-        <div class="kpi">
-          <span class="kpi-num blue">{{ metrics.avgMinutes }}</span>
-          <span class="kpi-label">Promedio min</span>
-        </div>
-        <div class="kpi-divider"></div>
-        <div class="kpi">
-          <span class="kpi-num teal">{{ metrics.medianaMinutos }}</span>
-          <span class="kpi-label">Mediana min</span>
-        </div>
-        <div class="kpi-divider"></div>
-        <div class="kpi">
-          <span class="kpi-num purple">{{ metrics.p95Minutos }}</span>
-          <span class="kpi-label">P95 min</span>
-        </div>
-      </section>
-
-      <!-- Tabla asesores -->
-      <section class="comments-card">
-        <div class="comments-header">
-          <span class="section-title">Agentes</span>
-          <span class="comments-total">{{ metrics.advisors.length }} en total</span>
-        </div>
-        <table class="comments-table">
-          <thead>
-            <tr>
-              <th>Nombre</th>
-              <th>Email</th>
-              <th>Estado</th>
-              <th>Chats activos</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (a of metrics.advisors; track trackById($index, metrics.advisors)) {
-            <tr>
-              <td class="td-client">
-                <div class="advisor-name">
-                  <div class="rank-avatar">{{ a.name.charAt(0) }}</div>
-                  {{ a.name }}
+      <!-- ── General ───────────────────────────────────────────────────── -->
+      @case ('general') {
+        <!-- Fila 1: tres donuts -->
+        <div class="mx-grid-3">
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Estado de tickets</span>
+                <span class="mx-card-sub">Total {{ fmtS(kpiTickets?.total) }}</span>
+              </div>
+            </div>
+            @if (isEmpty(ticketStatusEntries())) {
+              <div class="mx-empty">Sin tickets en este rango.</div>
+            } @else {
+              <div class="mx-donut-wrap sm">
+                <div class="mx-donut" [style.background]="donutTicketsStyle()">
+                  <div class="mx-donut-hole">
+                    <strong>{{ fmtS(kpiTickets?.total) }}</strong>
+                    <span>tickets</span>
+                  </div>
                 </div>
-              </td>
-              <td class="td-text">{{ a.email }}</td>
-              <td>
-                <span class="status-badge" [class]="getStatusClass(a.status)">
-                  {{ getStatusLabel(a.status) }}
+                <ul class="mx-legend">
+                  @for (e of ticketStatusEntries(); track e.key) {
+                    <li>
+                      <span class="mx-legend-top">
+                        <span class="mx-dot" [style.--c]="e.color"></span>
+                        <span class="mx-legend-label">{{ e.label }}</span>
+                      </span>
+                      <span class="mx-legend-val">
+                        <strong>{{ fmtS(e.value) }}</strong>
+                      </span>
+                    </li>
+                  }
+                </ul>
+              </div>
+            }
+          </section>
+
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Tipo de solicitud</span>
+                <span class="mx-card-sub">Clasificación de chats</span>
+              </div>
+            </div>
+            @if (isEmpty(dash.solicitudes.distribucion)) {
+              <div class="mx-empty">Sin solicitudes en este rango.</div>
+            } @else {
+              <div class="mx-donut-wrap sm">
+                <div class="mx-donut" [style.background]="donutSolicitudesStyle()">
+                  <div class="mx-donut-hole">
+                    <strong>{{ fmtS(dash.solicitudes.kpis.total) }}</strong>
+                    <span>solicitudes</span>
+                  </div>
+                </div>
+                <ul class="mx-legend">
+                  @for (d of dash.solicitudes.distribucion; track d.clave) {
+                    <li>
+                      <span class="mx-legend-top">
+                        <span class="mx-dot" [style.--c]="solicitudColor($index)"></span>
+                        <span class="mx-legend-label">{{ d.clave }}</span>
+                      </span>
+                      <span class="mx-legend-val">
+                        <strong>{{ fmtS(d.count) }}</strong>
+                      </span>
+                    </li>
+                  }
+                </ul>
+              </div>
+            }
+          </section>
+
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Gestión en correos</span>
+                <span class="mx-card-sub">Clasificación de gestión</span>
+              </div>
+            </div>
+            @if (isEmpty(gestionCorreos?.porCategoria)) {
+              <div class="mx-empty">Sin correos clasificados en este rango.</div>
+            } @else {
+              <div class="mx-donut-wrap sm">
+                <div class="mx-donut" [style.background]="donutGestionCorreosStyle()">
+                  <div class="mx-donut-hole">
+                    <strong>{{ fmtS(gestionCorreosTotal) }}</strong>
+                    <span>correos</span>
+                  </div>
+                </div>
+                <ul class="mx-legend">
+                  @for (c of gestionCorreos?.porCategoria; track c.clave) {
+                    <li>
+                      <span class="mx-legend-top">
+                        <span class="mx-dot" [style.--c]="gestionColor($index)"></span>
+                        <span class="mx-legend-label">{{ c.clave }}</span>
+                      </span>
+                      <span class="mx-legend-val">
+                        <strong>{{ fmtS(c.count) }}</strong>
+                      </span>
+                      @if (c.carpeta) {
+                        <em class="mx-carpeta">{{ c.carpeta }}</em>
+                      }
+                    </li>
+                  }
+                </ul>
+              </div>
+            }
+          </section>
+        </div>
+
+        <!-- Fila 2: Reuniones · Chats por asesor · Conexión del asesor -->
+        <div class="mx-grid-3">
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Reuniones</span>
+                <span class="mx-card-sub">Virtuales y presenciales del periodo</span>
+              </div>
+            </div>
+            <div class="mx-reuniones-kpis">
+              <div class="mx-reunion-kpi">
+                <strong>{{ fmtS(dash.resumen.kpis.reuniones.total) }}</strong>
+                <span>Total</span>
+              </div>
+              <div class="mx-reunion-kpi">
+                <strong>{{ fmtS(dash.resumen.kpis.reuniones.virtuales) }}</strong>
+                <span>
+                  <i class="mx-reunion-punto" [style.background]="categoriaColor('virtual')"></i>
+                  Virtuales
                 </span>
-              </td>
-              <td class="td-date">{{ a.activeChats }} / 9</td>
-            </tr>
+              </div>
+              <div class="mx-reunion-kpi">
+                <strong>{{ fmtS(dash.resumen.kpis.reuniones.presenciales) }}</strong>
+                <span>
+                  <i class="mx-reunion-punto" [style.background]="categoriaColor('presencial')"></i>
+                  Presenciales
+                </span>
+              </div>
+            </div>
+            <!-- Próximas reuniones: las 5 más cercanas por empezar (las mismas
+                 que lista la pestaña Reuniones) + el conteo exacto del rango. -->
+            <div class="mx-reuniones-prox">
+              <div class="mx-reuniones-prox-head">
+                <span>Próximas reuniones</span>
+                <strong>{{ fmtS(dash.resumen.actividad.proximasReuniones) }}</strong>
+              </div>
+            </div>
+            @if (isEmpty(proximasReunionesLista)) {
+              <div class="mx-empty">Sin próximas reuniones programadas.</div>
+            } @else {
+              <ul class="mx-prox-list">
+                @for (m of proximasReunionesLista; track m.id) {
+                  <li>
+                    <span class="mx-prox-dot" [style.background]="categoriaColor(m.categoria)"></span>
+                    <span class="mx-prox-main">
+                      <span class="mx-prox-subject" [title]="m.subject">{{ m.subject }}</span>
+                      <span class="mx-prox-meta">
+                        <span class="mx-prox-cat"
+                          [style.--cat]="categoriaColor(m.categoria)">{{ m.categoria }}</span>
+                        · {{ m.organizador }}
+                      </span>
+                    </span>
+                    <span class="mx-prox-fecha">{{ m.startDateTime | date:'dd/MM HH:mm' }}</span>
+                  </li>
+                }
+              </ul>
             }
-          </tbody>
-        </table>
-      </section>
+          </section>
 
-      <!-- Rendimiento IA -->
-      <section class="comments-card">
-        <div class="comments-header">
-          <span class="section-title">Rendimiento de la IA</span>
-          @if (aiStats) {
-          <span class="comments-total">{{ fmtS(aiStats.total) }} interacciones</span>
-          }
-        </div>
-
-        @if (!aiStats) {
-        <div class="empty-state">Cargando datos de la IA…</div>
-        }
-
-        @if (aiStats) {
-        <div class="ai-kpis">
-          <div class="ai-kpi">
-            <span class="ai-kpi-num">{{ fmtS(aiStats.total) }}</span>
-            <span class="ai-kpi-label">Interacciones</span>
-          </div>
-          <div class="ai-kpi">
-            <span class="ai-kpi-num blue">{{ fmtS(aiStats.conContexto) }}</span>
-            <span class="ai-kpi-label">Con contexto ({{ fmtPct(aiStats.tasas.contexto) }})</span>
-          </div>
-          <div class="ai-kpi">
-            <span class="ai-kpi-num gold">{{ fmtS(aiStats.transfers) }}</span>
-            <span class="ai-kpi-label">Transfers ({{ fmtPct(aiStats.tasas.transfer) }})</span>
-          </div>
-          <div class="ai-kpi">
-            <span class="ai-kpi-num red">{{ fmtS(aiStats.errores) }}</span>
-            <span class="ai-kpi-label">Errores ({{ fmtPct(aiStats.tasas.error) }})</span>
-          </div>
-          <div class="ai-kpi">
-            <span class="ai-kpi-num purple">{{ fmtS(aiStats.ofensas) }}</span>
-            <span class="ai-kpi-label">Ofensas ({{ fmtPct(aiStats.tasas.ofensas) }})</span>
-          </div>
-          <div class="ai-kpi">
-            <span class="ai-kpi-num teal">{{ fmtS(aiStats.feedbackPositivo) }}</span>
-            <span class="ai-kpi-label">Feedback útil ({{ fmtPct(aiStats.tasas.feedbackUtil) }})</span>
-          </div>
-        </div>
-
-        <div class="ai-stats-row">
-          <div class="ai-stat">
-            <span class="ai-stat-val">{{ (aiStats.tiempoPromedioMs / 1000).toFixed(2) }}s</span>
-            <span class="ai-stat-label">Tiempo prom. respuesta</span>
-          </div>
-          <div class="ai-stat">
-            <span class="ai-stat-val">{{ (aiStats.medianaMs / 1000).toFixed(2) }}s</span>
-            <span class="ai-stat-label">Mediana</span>
-          </div>
-          <div class="ai-stat">
-            <span class="ai-stat-val">{{ (aiStats.p95Ms / 1000).toFixed(2) }}s</span>
-            <span class="ai-stat-label">P95</span>
-          </div>
-          <div class="ai-stat">
-            <span class="ai-stat-val">{{ fmtS(aiStats.tokensPromedio) }}</span>
-            <span class="ai-stat-label">Tokens prom.</span>
-          </div>
-          <div class="ai-stat">
-            <span class="ai-stat-val">{{ fmtS(aiStats.tokensTotales) }}</span>
-            <span class="ai-stat-label">Tokens totales</span>
-          </div>
-          <div class="ai-stat">
-            <span class="ai-stat-val">{{ fmtS(aiStats.esRestringido) }}</span>
-            <span class="ai-stat-label">Temas restringidos</span>
-          </div>
-        </div>
-
-        @if (aiStats.porRol && aiStats.porRol.length) {
-        <div class="ai-breakdown">
-          <span class="section-micro">Por rol</span>
-          <div class="chip-row">
-            @for (p of aiStats.porRol; track $index) {
-            <span class="chip-tag">{{ p.valor }}</span>
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Chats atendidos por asesor</span>
+                <span class="mx-card-sub">Sesiones y calificación en el periodo</span>
+              </div>
+            </div>
+            @if (isEmpty(dash.resumen.asesores)) {
+              <div class="mx-empty">Sin asesores con sesiones en este rango.</div>
+            } @else {
+              <div class="mx-table-scroll fill">
+                <table class="mx-table">
+                  <thead>
+                    <tr>
+                      <th>Asesor</th>
+                      <th class="num">Chats</th>
+                      <th class="num">Rating</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (a of tablaFilas('chats', dash.resumen.asesores); track a.id) {
+                      <tr>
+                        <td>{{ a.nombre }}</td>
+                        <td class="num">{{ fmtS(a.atendidas) }}</td>
+                        <td class="num">
+                          @if (a.avgEstrellas != null) {
+                            <span class="mx-stars sm">
+                              @for (st of getStars(a.avgEstrellas); track $index) {
+                                <i [class]="'star ' + st"></i>
+                              }
+                            </span>
+                          } @else {
+                            —
+                          }
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+              <nav class="mx-pager" aria-label="Páginas de chats atendidos">
+                <button type="button" class="mx-pager-btn"
+                  [disabled]="tablaPagina('chats') <= 1"
+                  (click)="setTablaPagina('chats', dash.resumen.asesores.length, 1)">«</button>
+                <button type="button" class="mx-pager-btn"
+                  [disabled]="tablaPagina('chats') <= 1"
+                  (click)="setTablaPagina('chats', dash.resumen.asesores.length, tablaPagina('chats') - 1)">‹</button>
+                <span class="mx-pager-info">
+                  Página {{ tablaPagina('chats') }} de {{ paginasDe(dash.resumen.asesores.length) }}
+                </span>
+                <button type="button" class="mx-pager-btn"
+                  [disabled]="tablaPagina('chats') >= paginasDe(dash.resumen.asesores.length)"
+                  (click)="setTablaPagina('chats', dash.resumen.asesores.length, tablaPagina('chats') + 1)">›</button>
+                <button type="button" class="mx-pager-btn"
+                  [disabled]="tablaPagina('chats') >= paginasDe(dash.resumen.asesores.length)"
+                  (click)="setTablaPagina('chats', dash.resumen.asesores.length, paginasDe(dash.resumen.asesores.length))">»</button>
+              </nav>
             }
-          </div>
-        </div>
-        }
+          </section>
 
-        @if (aiStats.porAsesor && aiStats.porAsesor.length) {
-        <div class="ai-asesores">
-          <span class="section-micro">Interacciones IA por asesor</span>
-          <table class="comments-table mini">
-            <thead>
-              <tr>
-                <th>Asesor</th>
-                <th>Interacciones</th>
-                <th>Transfers</th>
-                <th>Errores</th>
-                <th>Feedback útil</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (a of aiStats.porAsesor; track trackById($index, a)) {
-              <tr>
-                <td class="td-client">{{ a.nombre }}</td>
-                <td class="td-date">{{ fmtS(a.total) }}</td>
-                <td class="td-date">{{ fmtS(a.transfers) }} ({{ fmtPct(a.tasaTransfer) }})</td>
-                <td class="td-date">{{ fmtS(a.errores) }} ({{ fmtPct(a.tasaError) }})</td>
-                <td class="td-date">{{ fmtS(a.feedbackUtil) }}</td>
-              </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-        }
-        }
-      </section>
-
-      <!-- Tabla comentarios -->
-      <section class="comments-card">
-        <div class="comments-header">
-          <span class="section-title">Comentarios de clientes</span>
-          <div class="header-actions">
-            <select class="advisor-filter" [(ngModel)]="selectedAdvisor" (change)="onAdvisorFilter()">
-              <option value="">Todos los agentes</option>
-              @for (a of metrics.advisors; track trackById($index, metrics.advisors)) {
-              <option [value]="a.id">{{ a.name }}</option>
-              }
-            </select>
-            @if (comentTotal > 0) {
-            <span class="comments-total">{{ comentTotal }} en total</span>
-            }
-          </div>
-        </div>
-
-        @if (comentarios.length === 0) {
-        <div class="empty-state">
-          Sin comentarios aún
-        </div>
-        }
-
-        @if (comentarios.length > 0) {
-        <table class="comments-table">
-          <thead>
-            <tr>
-              <th>Cliente</th>
-              <th>Agente</th>
-              <th>Comentario</th>
-              <th>Etiquetas</th>
-              <th>Estrellas</th>
-              <th>Fecha</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (c of comentarios; track trackById($index, c)) {
-            <tr>
-              <td class="td-client">{{ c.clientName }}</td>
-              <td class="td-client">{{ c.advisorName }}</td>
-              <td class="td-text">{{ c.comentario }}</td>
-              <td class="td-chips">
-                <div class="chip-row">
-                  @for (e of c.etiquetas; track $index) {
-                  <span class="chip-tag">{{ e }}</span>
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Conexión del asesor</span>
+                <span class="mx-card-sub">Actividad real del día por asesor (hora Bogotá)</span>
+              </div>
+            </div>
+            @if (!esHoy) {
+              <div class="mx-placeholder">
+                <p>Selecciona el preset «Hoy» para ver la conexión del día.</p>
+                <a class="mx-link" href="#" (click)="setPreset('hoy'); aplicarFiltros(); $event.preventDefault()">Ver información independiente</a>
+              </div>
+            } @else if (isEmpty(dash.conexiones.barras?.asesores)) {
+              <div class="mx-empty">Sin actividad de conexión en el día.</div>
+            } @else {
+              @if (jornadaRango) {
+                <div class="mx-conn-jornada">
+                  <span>Actividad</span>
+                  <strong>{{ jornadaRango.inicio }} — {{ jornadaRango.fin }}</strong>
+                  @if (dash.conexiones.jornada) {
+                    <span>Jornada {{ hh(dash.conexiones.jornada.ini) }} — {{ hh(dash.conexiones.jornada.fin) }}</span>
                   }
                 </div>
-              </td>
-              <td class="td-stars">
-                <div class="inline-stars">
-                  @for (s of getStars(c.estrellas); track $index) {
-                  <span class="star" [class]="s">★</span>
+              }
+              <div class="mx-conn">
+                @for (a of dash.conexiones.barras?.asesores; track a.id) {
+                  <div class="mx-conn-row">
+                    <span class="mx-conn-name" [title]="a.nombre">{{ a.nombre }}</span>
+                    <div class="mx-conn-track">
+                      @if (a.periodos.length === 0) {
+                        <span class="mx-conn-sin">Sin actividad</span>
+                      } @else {
+                        @for (p of a.periodos; track $index) {
+                          <span class="mx-conn-seg"
+                            [style.left.%]="periodoLeft(p)"
+                            [style.width.%]="periodoWidth(p)"
+                            [style.background]="estadoConexionColor(p.estado)"
+                            [title]="estadoConexionLabel(p.estado) + ' · ' + horaCorta(p.desde) + ' – ' + horaCorta(p.hasta)"></span>
+                        }
+                      }
+                    </div>
+                  </div>
+                }
+                <!-- La pista va de la primera a la última actividad del día, no de
+                     00:00 a 24:00: sin este eje no se sabe qué hora es cada borde. -->
+                <div class="mx-conn-eje">
+                  <span></span>
+                  <div class="mx-conn-eje-valores">
+                    <span>{{ jornadaRango?.inicio }}</span>
+                    <span>{{ jornadaRango?.fin }}</span>
+                  </div>
+                </div>
+              </div>
+              <div class="mx-legend-inline mx-conn-legend">
+                <span class="mx-dot" style="--c:#16a34a"></span> Disponible
+                <span class="mx-dot" style="--c:#3b82f6"></span> Ocupado
+                <span class="mx-dot" style="--c:#8b5cf6"></span> Reuniones
+                <span class="mx-dot" style="--c:#f59e0b"></span> Almuerzo
+                <span class="mx-dot" style="--c:#94a3b8"></span> Inactivo
+              </div>
+            }
+          </section>
+        </div>
+
+        <!-- Cards de apoyo -->
+        <div class="mx-grid-2">
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Sesiones por proyecto</span>
+                <span class="mx-card-sub">Distribución del total del periodo</span>
+              </div>
+            </div>
+            @if (isEmpty(dash.resumen.proyectos)) {
+              <div class="mx-empty">Sin datos de proyecto.</div>
+            } @else {
+              <div class="mx-donut-wrap">
+                <div class="mx-donut" [style.background]="donutProyectoStyle()">
+                  <div class="mx-donut-hole">
+                    <strong>{{ fmtS(dash.resumen.kpis.sesiones.total) }}</strong>
+                    <span>sesiones</span>
+                  </div>
+                </div>
+                <ul class="mx-legend">
+                  @for (p of dash.resumen.proyectos; track p.proyecto) {
+                    <li>
+                      <span class="mx-legend-top">
+                        <span class="mx-dot" [style.--c]="proyectoColor(p.proyecto)"></span>
+                        <span class="mx-legend-label">{{ p.proyecto }}</span>
+                      </span>
+                      <span class="mx-legend-val">
+                        <strong>{{ fmtS(p.total) }}</strong>
+                        <em>{{ pctOf(p.total, dash.resumen.kpis.sesiones.total) }}%</em>
+                      </span>
+                    </li>
+                  }
+                </ul>
+              </div>
+            }
+          </section>
+
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Colegios con más sesiones</span>
+                <span class="mx-card-sub">Top 5 del periodo</span>
+              </div>
+            </div>
+            @if (isEmpty(dash.resumen.colegios)) {
+              <div class="mx-empty">Sin colegios en este rango.</div>
+            } @else {
+              <div class="mx-hbars">
+                @for (c of dash.resumen.colegios; track c.colegio) {
+                  <div class="mx-hbar">
+                    <div class="mx-hbar-head">
+                      <span class="mx-hbar-name" [title]="c.colegio">{{ c.colegio }}</span>
+                      <span class="mx-hbar-val">{{ fmtS(c.sesiones) }}</span>
+                    </div>
+                    <div class="mx-hbar-track">
+                      <div class="mx-hbar-fill" [style.width.%]="pctOf(c.sesiones, dash.resumen.colegios[0].sesiones)"
+                        [style.background]="proyectoColor(c.proyecto)"></div>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          </section>
+        </div>
+      }
+
+      <!-- ── Tickets / Correos (lista de asesores → tickets | correos) ────── -->
+      @case ('ticketsCorreos') {
+        @if (tcEnDetalle) {
+          <!-- Nivel 2: de un lado los TICKETS y del otro los CORREOS -->
+          <div class="mx-subbar">
+            <button type="button" class="mx-back" (click)="cerrarTcAsesor()">Volver</button>
+            <span class="mx-subbar-title">
+              TICKETS Y CORREOS DE <strong>{{ tcAsesorNombre }}</strong>
+            </span>
+            <span class="mx-subbar-sub">
+              {{ fmtS(tcFilaAsesor?.tickets ?? 0) }} tickets · {{ fmtS(tcFilaAsesor?.correos ?? 0) }} correos en el rango
+            </span>
+          </div>
+
+          <div class="mx-grid-2">
+            <section class="mx-card">
+              <div class="mx-card-head">
+                <div>
+                  <span class="mx-card-title">Tickets</span>
+                  <span class="mx-card-sub">Prioridad y estado de cada ticket · últimos 50</span>
+                </div>
+              </div>
+              <div class="mx-chip-row">
+                <button type="button" class="mx-chip-tag pick"
+                  [class.chip-on]="estaTicketsFiltro('estado', 'abierto')"
+                  [attr.aria-pressed]="estaTicketsFiltro('estado', 'abierto')"
+                  (click)="alternaFiltroTickets('estado', 'abierto')">
+                  Abiertos · {{ fmtS(tcFilaAsesor?.ticketsAbiertos ?? 0) }}
+                </button>
+                <button type="button" class="mx-chip-tag pick"
+                  [class.chip-on]="estaTicketsFiltro('estado', 'resuelto')"
+                  [attr.aria-pressed]="estaTicketsFiltro('estado', 'resuelto')"
+                  (click)="alternaFiltroTickets('estado', 'resuelto')">
+                  Resueltos · {{ fmtS(tcFilaAsesor?.ticketsResueltos ?? 0) }}
+                </button>
+                @for (g of tcGestionTickets; track g.clave) {
+                  <button type="button" class="mx-chip-tag neutral pick"
+                    [class.chip-on]="estaTicketsFiltro('gestion', g.clave)"
+                    [attr.aria-pressed]="estaTicketsFiltro('gestion', g.clave)"
+                    (click)="alternaFiltroTickets('gestion', g.clave)">
+                    {{ g.clave }} · {{ fmtS(g.count) }}
+                  </button>
+                }
+                @if (tcTicketsFiltro) {
+                  <button type="button" class="mx-chip-tag pick clear"
+                    (click)="limpiarFiltroTickets()">
+                    ✕ Quitar filtro · {{ fmtS(tcTicketsVisibles.length) }} de {{ fmtS(tcTickets.length) }}
+                  </button>
+                }
+              </div>
+              @if (isEmpty(tcTicketsVisibles)) {
+                <div class="mx-empty">
+                  @if (tcTicketsFiltro) {
+                    Ningún ticket coincide con «{{ tcTicketsFiltroLabel }}».
+                  } @else {
+                    Sin tickets en este rango.
                   }
                 </div>
-              </td>
-              <td class="td-date">{{ fmtDateMedium(c.createdAt) }}</td>
-            </tr>
+              } @else {
+                <div class="mx-table-scroll fill">
+                  <table class="mx-table">
+                    <thead>
+                      <tr>
+                        <th>Fecha</th><th>Colegio</th>
+                        <th>Prioridad</th><th>Estado</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (t of tablaFilas('tcTickets', tcTicketsVisibles); track $index) {
+                        <tr>
+                          <td class="mono">{{ t.fecha | date:'dd/MM/yy HH:mm' }}</td>
+                          <td>{{ t.colegio || '—' }}</td>
+                          <td>
+                            <span class="mx-prio" [style.--c]="colorPrioridad(t.prioridad)">{{ prioridadLabel(t.prioridad) }}</span>
+                          </td>
+                          <td><span class="mx-status" [ngClass]="chipEstado(t.estado)">{{ estadoLabel(t.estado) }}</span></td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+                <nav class="mx-pager" aria-label="Páginas de tickets">
+                  <button type="button" class="mx-pager-btn"
+                    [disabled]="tablaPagina('tcTickets') <= 1"
+                    (click)="setTablaPagina('tcTickets', tcTicketsVisibles.length, 1)">«</button>
+                  <button type="button" class="mx-pager-btn"
+                    [disabled]="tablaPagina('tcTickets') <= 1"
+                    (click)="setTablaPagina('tcTickets', tcTicketsVisibles.length, tablaPagina('tcTickets') - 1)">‹</button>
+                  <span class="mx-pager-info">
+                    Página {{ tablaPagina('tcTickets') }} de {{ paginasDe(tcTicketsVisibles.length) }}
+                  </span>
+                  <button type="button" class="mx-pager-btn"
+                    [disabled]="tablaPagina('tcTickets') >= paginasDe(tcTicketsVisibles.length)"
+                    (click)="setTablaPagina('tcTickets', tcTicketsVisibles.length, tablaPagina('tcTickets') + 1)">›</button>
+                  <button type="button" class="mx-pager-btn"
+                    [disabled]="tablaPagina('tcTickets') >= paginasDe(tcTicketsVisibles.length)"
+                    (click)="setTablaPagina('tcTickets', tcTicketsVisibles.length, paginasDe(tcTicketsVisibles.length))">»</button>
+                </nav>
+              }
+            </section>
+
+            <section class="mx-card">
+              <div class="mx-card-head">
+                <div>
+                  <span class="mx-card-title">Correos</span>
+                  <span class="mx-card-sub">Carpeta de Outlook y su Gestión · últimos 50</span>
+                </div>
+              </div>
+              <div class="mx-chip-row">
+                @for (g of tcGestionCorreos; track g.clave) {
+                  <button type="button" class="mx-chip-tag neutral pick"
+                    [class.chip-on]="estaCorreosFiltro(g.clave)"
+                    [attr.aria-pressed]="estaCorreosFiltro(g.clave)"
+                    (click)="alternaFiltroCorreos(g.clave)">
+                    {{ g.clave }} · {{ fmtS(g.count) }}
+                  </button>
+                } @empty {
+                  <button type="button" class="mx-chip-tag neutral pick"
+                    [class.chip-on]="estaCorreosFiltro('Sin clasificar')"
+                    [attr.aria-pressed]="estaCorreosFiltro('Sin clasificar')"
+                    (click)="alternaFiltroCorreos('Sin clasificar')">
+                    Sin clasificar · {{ fmtS(tcFilaAsesor?.correos ?? 0) }}
+                  </button>
+                }
+                @if (tcCorreosFiltro) {
+                  <button type="button" class="mx-chip-tag pick clear"
+                    (click)="limpiarFiltroCorreos()">
+                    ✕ Quitar filtro · {{ fmtS(tcCorreosVisibles.length) }} de {{ fmtS(tcCorreos.length) }}
+                  </button>
+                }
+              </div>
+              @if (isEmpty(tcCorreosVisibles)) {
+                <div class="mx-empty">
+                  @if (tcCorreosFiltro) {
+                    Ningún correo coincide con «{{ tcCorreosFiltro }}».
+                  } @else {
+                    Sin correos en este rango.
+                  }
+                </div>
+              } @else {
+                <div class="mx-table-scroll fill">
+                  <table class="mx-table">
+                    <thead>
+                      <tr>
+                        <th>Fecha</th><th>Asunto</th><th>Carpeta</th><th>Gestión</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (c of tablaFilas('tcCorreos', tcCorreosVisibles); track $index) {
+                        <tr>
+                          <td class="mono">{{ c.fecha | date:'dd/MM/yy HH:mm' }}</td>
+                          <td class="mx-cell-notes" [title]="c.asunto">{{ c.asunto }}</td>
+                          <td>{{ c.carpeta }}</td>
+                          <td>
+                            <span class="mx-prio" [style.--c]="tcGestionColor(c.gestion)">{{ c.gestion }}</span>
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+                <nav class="mx-pager" aria-label="Páginas de correos">
+                  <button type="button" class="mx-pager-btn"
+                    [disabled]="tablaPagina('tcCorreos') <= 1"
+                    (click)="setTablaPagina('tcCorreos', tcCorreosVisibles.length, 1)">«</button>
+                  <button type="button" class="mx-pager-btn"
+                    [disabled]="tablaPagina('tcCorreos') <= 1"
+                    (click)="setTablaPagina('tcCorreos', tcCorreosVisibles.length, tablaPagina('tcCorreos') - 1)">‹</button>
+                  <span class="mx-pager-info">
+                    Página {{ tablaPagina('tcCorreos') }} de {{ paginasDe(tcCorreosVisibles.length) }}
+                  </span>
+                  <button type="button" class="mx-pager-btn"
+                    [disabled]="tablaPagina('tcCorreos') >= paginasDe(tcCorreosVisibles.length)"
+                    (click)="setTablaPagina('tcCorreos', tcCorreosVisibles.length, tablaPagina('tcCorreos') + 1)">›</button>
+                  <button type="button" class="mx-pager-btn"
+                    [disabled]="tablaPagina('tcCorreos') >= paginasDe(tcCorreosVisibles.length)"
+                    (click)="setTablaPagina('tcCorreos', tcCorreosVisibles.length, paginasDe(tcCorreosVisibles.length))">»</button>
+                </nav>
+              }
+            </section>
+          </div>
+        } @else {
+          <!-- Nivel 1: los asesores con sus tickets y correos del rango -->
+          <section class="mx-card">
+            @if (isEmpty(tcAsesores)) {
+              <div class="mx-empty">Sin asesores en este filtro.</div>
+            } @else {
+              <div class="mx-table-scroll fill">
+                <table class="mx-table">
+                  <thead>
+                    <tr>
+                      <th>Asesor</th>
+                      <th class="num">Tickets</th>
+                      <th class="num">Correos</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (a of tablaFilas('tcAsesores', tcAsesores); track a.id) {
+                      <tr class="mx-row-link" role="button" tabindex="0"
+                        (click)="abrirTcAsesor(a.id)"
+                        (keydown.enter)="abrirTcAsesor(a.id)">
+                        <td>
+                          {{ a.asesor }}
+                          <span class="mx-go">ver tickets y correos ›</span>
+                        </td>
+                        <td class="num">{{ fmtS(a.tickets) }}</td>
+                        <td class="num"><strong>{{ fmtS(a.correos) }}</strong></td>
+                      </tr>
+                    }
+                  </tbody>
+                  <tfoot class="mx-totals">
+                    <tr>
+                      <th>Total</th>
+                      <th class="num">{{ fmtS(tcTotales.tickets) }}</th>
+                      <th class="num">{{ fmtS(tcTotales.correos) }}</th>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+              <nav class="mx-pager" aria-label="Páginas de asesores de tickets y correos">
+                <button type="button" class="mx-pager-btn"
+                  [disabled]="tablaPagina('tcAsesores') <= 1"
+                  (click)="setTablaPagina('tcAsesores', tcAsesores.length, 1)">«</button>
+                <button type="button" class="mx-pager-btn"
+                  [disabled]="tablaPagina('tcAsesores') <= 1"
+                  (click)="setTablaPagina('tcAsesores', tcAsesores.length, tablaPagina('tcAsesores') - 1)">‹</button>
+                <span class="mx-pager-info">
+                  Página {{ tablaPagina('tcAsesores') }} de {{ paginasDe(tcAsesores.length) }}
+                </span>
+                <button type="button" class="mx-pager-btn"
+                  [disabled]="tablaPagina('tcAsesores') >= paginasDe(tcAsesores.length)"
+                  (click)="setTablaPagina('tcAsesores', tcAsesores.length, tablaPagina('tcAsesores') + 1)">›</button>
+                <button type="button" class="mx-pager-btn"
+                  [disabled]="tablaPagina('tcAsesores') >= paginasDe(tcAsesores.length)"
+                  (click)="setTablaPagina('tcAsesores', tcAsesores.length, paginasDe(tcAsesores.length))">»</button>
+              </nav>
             }
-          </tbody>
-        </table>
+          </section>
         }
+      }
 
-        @if (comentPages > 1) {
-        <div class="pagination">
-          <span class="page-info">{{ comentTotal }} comentarios</span>
-          <button class="page-btn" [disabled]="comentPage === 1" (click)="loadComentarios(comentPage - 1)">‹</button>
-          @for (p of paginas(); track p) {
-          <button class="page-btn" [class.active]="p === comentPage" (click)="loadComentarios(p)">{{ p }}</button>
-          }
-          <button class="page-btn" [disabled]="comentPage === comentPages" (click)="loadComentarios(comentPage + 1)">›</button>
-        </div>
-        }
-      </section>
-
-    </div>
-
-    <!-- ── Columna derecha ── -->
-    <aside class="right-col">
-
-      <div class="ranking-col">
-        <div class="ranking-header">
-          <span class="ranking-title">Top agentes</span>
-          <span class="ranking-sub">Por calificación</span>
-        </div>
-        <div class="ranking-list">
-          @for (a of ranking; track trackById($index, a)) {
-          <div class="ranking-item">
-            <span class="pos">{{ $index + 1 }}</span>
-            <div class="rank-avatar">{{ a.name.charAt(0) }}</div>
-            <div class="rank-info">
-              <span class="rank-name">{{ a.name }}</span>
-              <span class="rank-detail">{{ a.total }} sesiones</span>
-            </div>
-            <div class="rank-right">
-              <span class="rank-score">{{ a.avgEstrellas > 0 ? a.avgEstrellas : '—' }}</span>
-              <span class="rank-reviews">{{ a.totalRatings > 0 ? a.totalRatings + ' reseñas' : 'sin reseñas' }}</span>
+      <!-- ── Atención (lista de asesores → colegios atendidos) ──────────────── -->
+      @case ('atencion') {
+        <section class="mx-card">
+          <div class="mx-card-head">
+            @if (atencionEnDetalle) {
+              <div class="mx-back-row">
+                <button type="button" class="mx-back" (click)="cerrarAtencionAsesor()">
+                  Volver
+                </button>
+                <div class="mx-back-titles">
+                  <span class="mx-card-title mx-back-title">
+                    COLEGIOS ATENDIDOS POR <strong>{{ atencionAsesorNombre }}</strong>
+                  </span>
+                </div>
+              </div>
+            }
+            <div class="mx-tools">
+              <label class="mx-search">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="11" cy="11" r="7"></circle>
+                  <path d="m20 20-3.6-3.6"></path>
+                </svg>
+                <input type="search" [ngModel]="atencionBusca"
+                  (ngModelChange)="setAtencionBusca($event)"
+                  [placeholder]="atencionEnDetalle ? 'Buscar colegio o proyecto' : 'Buscar asesor'"
+                  [attr.aria-label]="atencionEnDetalle ? 'Buscar colegio o proyecto' : 'Buscar asesor'" />
+              </label>
             </div>
           </div>
+
+          @if (atencionEnDetalle) {
+            <!-- Nivel 2: los colegios ATENDIDOS por el asesor entrado -->
+            @if (isEmpty(atencionDetalleFilas)) {
+              <div class="mx-empty">
+                @if (atencionBusca) {
+                  Ningún colegio o proyecto coincide con «{{ atencionBusca }}».
+                } @else {
+                  Este asesor no cerró sesiones en este rango.
+                }
+              </div>
+            } @else {
+              @if (atencionRecortada) {
+                <div class="mx-note">
+                  Mostrando {{ fmtS(atencionFilasBase) }} de {{ fmtS(atencionTotalPares) }}
+                  combinaciones asesor × colegio (límite de la consulta).
+                </div>
+              }
+
+              <div class="mx-table-scroll">
+                <table class="mx-table">
+                  <thead>
+                    <tr>
+                      <th>Colegio</th>
+                      <th>Proyecto</th>
+                      <th class="num">Sesiones atendidas</th>
+                      <th class="num">★</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (f of atencionDetallePaginado; track f.colegio) {
+                      <tr>
+                        <td>{{ f.colegio }}</td>
+                        <td>
+                          <span class="mx-chip"
+                            [ngClass]="f.proyecto === 'Sian365' ? 'sian' : (f.proyecto === 'ControlAcademic' ? 'ctrl' : 'none')">
+                            {{ f.proyecto }}
+                          </span>
+                        </td>
+                        <td class="num"><strong>{{ fmtS(f.atendidas) }}</strong></td>
+                        <td class="num">
+                          @if (f.avgEstrellas != null) {
+                            <span class="mx-stars sm">
+                              @for (st of getStars(f.avgEstrellas); track $index) {
+                                <i [class]="'star ' + st"></i>
+                              }
+                            </span>
+                          } @else {
+                            —
+                          }
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                  <tfoot class="mx-totals">
+                    <tr>
+                      <th>Total</th>
+                      <th>{{ fmtS(atencionResumen.colegios) }} colegios</th>
+                      <th class="num">{{ fmtS(atencionResumen.sesiones) }}</th>
+                      <th class="num">—</th>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            }
+          } @else {
+            <!-- Nivel 1: todos los asesores del filtro -->
+            @if (isEmpty(dash.atencion.asesores)) {
+              <div class="mx-empty">Sin asesores en este filtro.</div>
+            } @else if (isEmpty(atencionAsesores)) {
+              <div class="mx-empty">Ningún asesor coincide con «{{ atencionBusca }}».</div>
+            } @else {
+              <div class="mx-table-scroll">
+                <table class="mx-table">
+                  <thead>
+                    <tr>
+                      <th>Asesor</th>
+                      <th class="num">Colegios atendidos</th>
+                      <th class="num">Sesiones atendidas</th>
+                      <th class="num">★</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (a of atencionAsesoresPaginados; track a.id) {
+                      <tr class="mx-row-link" role="button" tabindex="0"
+                        (click)="abrirAtencionAsesor(a.id)"
+                        (keydown.enter)="abrirAtencionAsesor(a.id)">
+                        <td>
+                          {{ a.asesor }}
+                          <span class="mx-go">ver colegios ›</span>
+                        </td>
+                        <td class="num">{{ fmtS(a.colegios) }}</td>
+                        <td class="num"><strong>{{ fmtS(a.sesiones) }}</strong></td>
+                        <td class="num">
+                          @if (a.avgEstrellas != null) {
+                            <span class="mx-stars sm">
+                              @for (st of getStars(a.avgEstrellas); track $index) {
+                                <i [class]="'star ' + st"></i>
+                              }
+                            </span>
+                          } @else {
+                            —
+                          }
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                  <tfoot class="mx-totals">
+                    <tr>
+                      <th>Total</th>
+                      <th>{{ fmtS(atencionResumen.asesores) }} asesores</th>
+                      <th class="num">{{ fmtS(atencionResumen.sesiones) }}</th>
+                      <th class="num">—</th>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            }
           }
+
+          @if (atencionVisibles() > 0) {
+            <nav class="mx-pager" aria-label="Páginas de la tabla de atención">
+              <button type="button" class="mx-pager-btn"
+                [disabled]="atencionPagina <= 1" (click)="setAtencionPagina(1)">«</button>
+              <button type="button" class="mx-pager-btn"
+                [disabled]="atencionPagina <= 1" (click)="setAtencionPagina(atencionPagina - 1)">‹</button>
+              <span class="mx-pager-info">
+                Página {{ atencionPagina }} de {{ atencionPaginas }}
+              </span>
+              <button type="button" class="mx-pager-btn"
+                [disabled]="atencionPagina >= atencionPaginas"
+                (click)="setAtencionPagina(atencionPagina + 1)">›</button>
+              <button type="button" class="mx-pager-btn"
+                [disabled]="atencionPagina >= atencionPaginas"
+                (click)="setAtencionPagina(atencionPaginas)">»</button>
+            </nav>
+          }
+        </section>
+      }
+
+      <!-- ── Reuniones ────────────────────────────────────────────── -->
+      @case ('reuniones') {
+        <!-- Dos tarjetas arriba: izquierda el diagrama circular de modalidad,
+             derecha las que aún no empezaron. Debajo, la tabla completa. -->
+        <div class="mx-grid-2">
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Por tipo</span>
+              </div>
+            </div>
+            @if (isEmpty(dash.reuniones.porCategoria)) {
+              <div class="mx-empty">Sin reuniones en este rango.</div>
+            } @else {
+              <div class="mx-donut-wrap sm">
+                <div class="mx-donut" [style.background]="donutReunionesStyle()">
+                  <div class="mx-donut-hole">
+                    <strong>{{ fmtS(dash.reuniones.kpis.total) }}</strong>
+                    <span>reuniones</span>
+                  </div>
+                </div>
+                <ul class="mx-legend">
+                  @for (m of dash.reuniones.porCategoria; track m.clave) {
+                    <li>
+                      <span class="mx-legend-top">
+                        <span class="mx-dot" [style.--c]="categoriaColor(m.clave)"></span>
+                        <span class="mx-legend-label">{{ m.clave }}</span>
+                      </span>
+                      <span class="mx-legend-val">
+                        <strong>{{ fmtS(m.count) }}</strong>
+                      </span>
+                    </li>
+                  }
+                </ul>
+              </div>
+            }
+          </section>
+
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Próximas reuniones</span>
+              </div>
+            </div>
+            @if (isEmpty(dash.reuniones.proximasLista)) {
+              <div class="mx-empty">Sin próximas reuniones programadas.</div>
+            } @else {
+              <ul class="mx-prox-list">
+                @for (m of dash.reuniones.proximasLista; track m.id) {
+                  <li>
+                    <span class="mx-prox-dot" [style.background]="categoriaColor(m.categoria)"></span>
+                    <span class="mx-prox-main">
+                      <span class="mx-prox-subject" [title]="m.subject">{{ m.subject }}</span>
+                      <span class="mx-prox-meta">
+                        <span class="mx-prox-cat"
+                          [style.--cat]="categoriaColor(m.categoria)">{{ m.categoria }}</span>
+                        · {{ m.organizador }} · {{ fmtMin(m.duracion) }}
+                      </span>
+                    </span>
+                    <span class="mx-prox-fecha">{{ m.startDateTime | date:'dd/MM HH:mm' }}</span>
+                  </li>
+                }
+              </ul>
+            }
+          </section>
         </div>
-      </div>
 
-    </aside>
+        <section class="mx-card">
+          @if (isEmpty(dash.reuniones.tabla)) {
+            <div class="mx-empty">Sin reuniones en este rango.</div>
+          } @else {
+            <div class="mx-table-scroll">
+              <table class="mx-table">
+                <thead>
+                  <tr>
+                    <th>Origen</th><th>Asunto</th><th>Inicio</th><th>Tipo</th>
+                    <th>Proyecto</th><th>Organizador</th><th class="num">Duración</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (m of dash.reuniones.tabla; track m.id) {
+                    <tr>
+                      <td>
+                        <span class="mx-chip origen" [ngClass]="m.origen === 'Teams' ? 'teams' : 'korvix'">
+                          {{ m.origen }}
+                        </span>
+                      </td>
+                      <td>{{ m.subject }}</td>
+                      <td class="mono">{{ m.startDateTime | date:'dd/MM/yy HH:mm' }}</td>
+                      <td>
+                        <span class="mx-chip modalidad"
+                          [style.--cat]="categoriaColor(m.categoria)">{{ m.categoria }}</span>
+                      </td>
+                      <td>{{ m.proyecto }}</td>
+                      <td>{{ m.organizador }}</td>
+                      <td class="num">{{ fmtMin(m.duracion) }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
 
-  </div>
+            <nav class="mx-pager" aria-label="Páginas de reuniones">
+              <button type="button" class="mx-pager-btn"
+                [disabled]="capPagina <= 1" (click)="setCapPagina(1)">«</button>
+              <button type="button" class="mx-pager-btn"
+                [disabled]="capPagina <= 1" (click)="setCapPagina(capPagina - 1)">‹</button>
+              <span class="mx-pager-info">
+                Página {{ dash.reuniones.tablaPagina }} de {{ dash.reuniones.tablaPaginas }}
+              </span>
+              <button type="button" class="mx-pager-btn"
+                [disabled]="capPagina >= dash.reuniones.tablaPaginas"
+                (click)="setCapPagina(capPagina + 1)">›</button>
+              <button type="button" class="mx-pager-btn"
+                [disabled]="capPagina >= dash.reuniones.tablaPaginas"
+                (click)="setCapPagina(dash.reuniones.tablaPaginas)">»</button>
+            </nav>
+          }
+        </section>
+      }
+
+      <!-- ── Solicitudes ───────────────────────────────────────────────── -->
+      @case ('solicitudes') {
+        <section class="mx-mini-kpis">
+          <div class="mx-mini">
+            <span>Solicitudes clasificadas</span>
+            <strong>{{ fmtS(dash.solicitudes.kpis.total) }}</strong>
+          </div>
+          <div class="mx-mini">
+            <span>Tipo más frecuente</span>
+            <strong>{{ dash.solicitudes.kpis.topTipo ?? '—' }}</strong>
+          </div>
+          <div class="mx-mini">
+            <span>Vs. mes anterior</span>
+            <strong class="mx-var" [ngClass]="varClass(dash.solicitudes.kpis.vsMesAnterior)">
+              {{ fmtVar(dash.solicitudes.kpis.vsMesAnterior) }}
+            </strong>
+          </div>
+          <div class="mx-mini">
+            <span>% del total de chats</span>
+            <strong>{{ dash.solicitudes.kpis.pctClasificadas }}%</strong>
+          </div>
+        </section>
+
+        <div class="mx-grid-main">
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Distribución por tipo de solicitud</span>
+                <span class="mx-card-sub">Participación y variación vs. mes anterior</span>
+              </div>
+            </div>
+            @if (isEmpty(dash.solicitudes.distribucion)) {
+              <div class="mx-empty">Sin solicitudes clasificadas en este rango.</div>
+            } @else {
+              <div class="mx-hbars">
+                @for (d of dash.solicitudes.distribucion; track d.clave) {
+                  <div class="mx-hbar">
+                    <div class="mx-hbar-head">
+                      <span class="mx-hbar-name">{{ d.clave }}</span>
+                      <span class="mx-hbar-val">
+                        {{ fmtS(d.count) }} · {{ d.pct }}%
+                        <em class="mx-var" [ngClass]="varClass(d.variacion)">{{ fmtVar(d.variacion) }}</em>
+                      </span>
+                    </div>
+                    <div class="mx-hbar-track">
+                      <div class="mx-hbar-fill" [style.width.%]="d.pct"></div>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          </section>
+
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Solicitudes por colegio</span>
+                <span class="mx-card-sub">Quiénes han solicitado más y de qué tipo</span>
+              </div>
+            </div>
+            @if (isEmpty(dash.solicitudes.porColegio)) {
+              <div class="mx-empty">Sin datos de colegios.</div>
+            } @else {
+              <div class="mx-table-scroll">
+                <table class="mx-table">
+                  <thead>
+                    <tr>
+                      <th>Colegio</th>
+                      <th>Tipo más frecuente</th>
+                      <th class="num">Solicitudes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (c of tablaFilas('solColegios', dash.solicitudes.porColegio); track c.colegio) {
+                      <tr>
+                        <td>{{ c.colegio }}</td>
+                        <td>
+                          @if (c.topTipo) {
+                            <span class="mx-chip-tag neutral">{{ c.topTipo }}</span>
+                          } @else {
+                            —
+                          }
+                        </td>
+                        <td class="num"><strong>{{ fmtS(c.count) }}</strong></td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+              <nav class="mx-pager" aria-label="Páginas de colegios con solicitudes">
+                <button type="button" class="mx-pager-btn"
+                  [disabled]="tablaPagina('solColegios') <= 1"
+                  (click)="setTablaPagina('solColegios', dash.solicitudes.porColegio.length, 1)">«</button>
+                <button type="button" class="mx-pager-btn"
+                  [disabled]="tablaPagina('solColegios') <= 1"
+                  (click)="setTablaPagina('solColegios', dash.solicitudes.porColegio.length, tablaPagina('solColegios') - 1)">‹</button>
+                <span class="mx-pager-info">
+                  Página {{ tablaPagina('solColegios') }} de {{ paginasDe(dash.solicitudes.porColegio.length) }}
+                </span>
+                <button type="button" class="mx-pager-btn"
+                  [disabled]="tablaPagina('solColegios') >= paginasDe(dash.solicitudes.porColegio.length)"
+                  (click)="setTablaPagina('solColegios', dash.solicitudes.porColegio.length, tablaPagina('solColegios') + 1)">›</button>
+                <button type="button" class="mx-pager-btn"
+                  [disabled]="tablaPagina('solColegios') >= paginasDe(dash.solicitudes.porColegio.length)"
+                  (click)="setTablaPagina('solColegios', dash.solicitudes.porColegio.length, paginasDe(dash.solicitudes.porColegio.length))">»</button>
+              </nav>
+            }
+          </section>
+        </div>
+
+        <section class="mx-card">
+          <div class="mx-card-head">
+            <div>
+              <span class="mx-card-title">Solicitudes por día</span>
+              <span class="mx-card-sub">Sesiones con tipo de solicitud en el rango</span>
+            </div>
+          </div>
+          @if (isEmpty(dash.solicitudes.serie)) {
+            <div class="mx-empty">Sin solicitudes en este rango.</div>
+          } @else {
+            <div class="mx-plot">
+              @for (s of dash.solicitudes.serie; track s.fecha) {
+                <div class="mx-col">
+                  <div class="mx-bars-area" [style.height.%]="barHeightOf(s.count, solicitudesSerieMax)">
+                    <div class="mx-col-stack">
+                      <div class="mx-seg asesor" style="height:100%"></div>
+                    </div>
+                  </div>
+                  <span class="mx-col-x">{{ fechaCorta(s.fecha) }}</span>
+                </div>
+              }
+            </div>
+          }
+        </section>
+      }
+
+      <!-- ── Conexiones por agente ─────────────────────────────────────── -->
+      @case ('conexiones') {
+        @if (connEnDetalle) {
+          <!-- ── Nivel 2: ficha de seguimiento de un asesor ──────────────── -->
+          <div class="mx-subbar">
+            <button type="button" class="mx-back" (click)="cerrarConnAsesor()">Volver</button>
+            <span class="mx-subbar-title">
+              CONECTIVIDAD DE <strong>{{ connAsesorNombre }}</strong>
+            </span>
+            <span class="mx-subbar-sub">
+              Primera conexión {{ connFilaAsesor?.primeraConexion ? (connFilaAsesor?.primeraConexion | date:'dd/MM HH:mm') : '—' }}
+              · Última {{ connFilaAsesor?.ultimaConexion ? (connFilaAsesor?.ultimaConexion | date:'dd/MM HH:mm') : '—' }}
+            </span>
+          </div>
+
+          <section class="mx-mini-kpis">
+            <div class="mx-mini">
+              <span>Disponibilidad</span>
+              <strong>{{ pctStr(connKpis?.disponibilidadPct) }}</strong>
+            </div>
+            <div class="mx-mini">
+              <span>Conectado</span>
+              <strong>{{ fmtMin(connKpis?.conectadoMin ?? 0) }}</strong>
+            </div>
+            <div class="mx-mini">
+              <span>Sin conexión</span>
+              <strong [class.danger]="(connKpis?.desconectadoMin ?? 0) > 0">{{ fmtMin(connKpis?.desconectadoMin ?? 0) }}</strong>
+            </div>
+            <div class="mx-mini">
+              <span>Desconexiones</span>
+              <strong [class.danger]="(connKpis?.desconexiones ?? 0) > 0">{{ fmtS(connKpis?.desconexiones ?? 0) }}</strong>
+            </div>
+            <div class="mx-mini">
+              <span>Promedio por corte</span>
+              <strong>{{ connKpis?.cortePromMin != null ? fmtMin(connKpis!.cortePromMin) : '—' }}</strong>
+            </div>
+            <div class="mx-mini">
+              <span>Disponible</span>
+              <strong>{{ fmtMin(connKpis?.disponibleMin ?? 0) }}</strong>
+            </div>
+            <div class="mx-mini">
+              <span>Ocupado</span>
+              <strong>{{ fmtMin(connKpis?.ocupadoMin ?? 0) }}</strong>
+            </div>
+            <div class="mx-mini">
+              <span>Reuniones</span>
+              <strong>{{ fmtMin(connKpis?.reunionMin ?? 0) }}</strong>
+            </div>
+          </section>
+        }
+
+        @if (connEnDetalle) {
+          <!-- ── Ficha: historial de eventos (hora, duración y causa) ────── -->
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Historial de eventos</span>
+                <span class="mx-card-sub">
+                  Hora de conexión y desconexión, duración y causa · lo más reciente primero
+                </span>
+              </div>
+              @if (connHistCargando) {
+                <span class="mx-chip-tag">Actualizando…</span>
+              }
+            </div>
+
+            <div class="mx-chip-row">
+              @for (c of connFiltroChips; track c.label) {
+                <button type="button" class="mx-chip-tag pick"
+                  [class.chip-on]="estaConnFiltro(c.filtro)"
+                  [attr.aria-pressed]="estaConnFiltro(c.filtro)"
+                  (click)="alternaConnFiltro(c.filtro)">
+                  {{ c.label }} · {{ fmtS(c.count) }}
+                </button>
+              }
+              @if (connHistFiltro) {
+                <button type="button" class="mx-chip-tag pick clear"
+                  (click)="alternaConnFiltro(null)">
+                  ✕ Quitar filtro · {{ fmtS(connEventosVisibles.length) }} de {{ fmtS(connEventosTotal) }}
+                </button>
+              }
+            </div>
+
+            @if (!connHist && connHistCargando) {
+              <div class="mx-empty">Cargando historial…</div>
+            } @else if (isEmpty(connEventosVisibles)) {
+              <div class="mx-empty">
+                @if (connHistFiltro) {
+                  Ningún evento coincide con «{{ connFiltroLabel }}».
+                } @else {
+                  Sin eventos de conexión en este rango.
+                }
+              </div>
+            } @else {
+              <div class="mx-table-scroll">
+                <table class="mx-table">
+                  <thead>
+                    <tr>
+                      <th>Desde</th><th>Hasta</th>
+                      <th class="num">Duración</th>
+                      <th>Tipo</th><th>Estado</th><th>Causa</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (e of tablaFilas('connHist', connEventosVisibles); track $index) {
+                      <tr>
+                        <td class="mono">{{ e.desde | date:'dd/MM HH:mm' }}</td>
+                        <td class="mono">{{ e.hasta ? (e.hasta | date:'dd/MM HH:mm') : '—' }}</td>
+                        <td class="num">{{ fmtDur(e.duracionMs) }}</td>
+                        <td>{{ tipoLabel(e.tipo) }}</td>
+                        <td>
+                          <span class="mx-prio" [style.--c]="estadoConexionColor(e.estado)">{{ estadoConexionLabel(e.estado) }}</span>
+                        </td>
+                        <td>
+                          <span class="mx-prio" [style.--c]="causaColor(e.causa)">{{ causaLabel(e.causa) }}</span>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+              <nav class="mx-pager" aria-label="Páginas del historial">
+                <button type="button" class="mx-pager-btn"
+                  [disabled]="tablaPagina('connHist') <= 1"
+                  (click)="setTablaPagina('connHist', connEventosVisibles.length, 1)">«</button>
+                <button type="button" class="mx-pager-btn"
+                  [disabled]="tablaPagina('connHist') <= 1"
+                  (click)="setTablaPagina('connHist', connEventosVisibles.length, tablaPagina('connHist') - 1)">‹</button>
+                <span class="mx-pager-info">
+                  Página {{ tablaPagina('connHist') }} de {{ paginasDe(connEventosVisibles.length) }}
+                </span>
+                <button type="button" class="mx-pager-btn"
+                  [disabled]="tablaPagina('connHist') >= paginasDe(connEventosVisibles.length)"
+                  (click)="setTablaPagina('connHist', connEventosVisibles.length, tablaPagina('connHist') + 1)">›</button>
+                <button type="button" class="mx-pager-btn"
+                  [disabled]="tablaPagina('connHist') >= paginasDe(connEventosVisibles.length)"
+                  (click)="setTablaPagina('connHist', connEventosVisibles.length, paginasDe(connEventosVisibles.length))">»</button>
+              </nav>
+            }
+          </section>
+
+          <!-- ── Ficha: resumen por día ──────────────────────────────────── -->
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Resumen por día</span>
+                <span class="mx-card-sub">Minutos por estado y caídas de cada jornada</span>
+              </div>
+            </div>
+            @if (isEmpty(connDiasResumen)) {
+              <div class="mx-empty">Sin días con actividad en este rango.</div>
+            } @else {
+              <div class="mx-table-scroll">
+                <table class="mx-table">
+                  <thead>
+                    <tr>
+                      <th>Día</th>
+                      <th class="num">Disponible</th><th class="num">Ocupado</th>
+                      <th class="num">Reuniones</th><th class="num">Almuerzo</th>
+                      <th class="num">Sin conexión</th><th class="num">Desconexiones</th>
+                      <th>Disponibilidad</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (d of tablaFilas('connDias', connDiasResumen); track d.fecha) {
+                      <tr>
+                        <td>{{ diaLabel(d.fecha) }}</td>
+                        <td class="num">{{ fmtMin(d.disponibleMin) }}</td>
+                        <td class="num">{{ fmtMin(d.ocupadoMin) }}</td>
+                        <td class="num">{{ fmtMin(d.reunionMin) }}</td>
+                        <td class="num">{{ fmtMin(d.almuerzoMin) }}</td>
+                        <td class="num" [class.danger]="d.inactivoMin > 0">{{ fmtMin(d.inactivoMin) }}</td>
+                        <td class="num" [class.danger]="d.desconexiones > 0">{{ fmtS(d.desconexiones) }}</td>
+                        <td>{{ pctStr(pctDisponible(d)) }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+              <nav class="mx-pager" aria-label="Páginas del resumen por día">
+                <button type="button" class="mx-pager-btn"
+                  [disabled]="tablaPagina('connDias') <= 1"
+                  (click)="setTablaPagina('connDias', connDiasResumen.length, 1)">«</button>
+                <button type="button" class="mx-pager-btn"
+                  [disabled]="tablaPagina('connDias') <= 1"
+                  (click)="setTablaPagina('connDias', connDiasResumen.length, tablaPagina('connDias') - 1)">‹</button>
+                <span class="mx-pager-info">
+                  Página {{ tablaPagina('connDias') }} de {{ paginasDe(connDiasResumen.length) }}
+                </span>
+                <button type="button" class="mx-pager-btn"
+                  [disabled]="tablaPagina('connDias') >= paginasDe(connDiasResumen.length)"
+                  (click)="setTablaPagina('connDias', connDiasResumen.length, tablaPagina('connDias') + 1)">›</button>
+                <button type="button" class="mx-pager-btn"
+                  [disabled]="tablaPagina('connDias') >= paginasDe(connDiasResumen.length)"
+                  (click)="setTablaPagina('connDias', connDiasResumen.length, paginasDe(connDiasResumen.length))">»</button>
+              </nav>
+            }
+          </section>
+        } @else {
+          <!-- ── Detalle por agente (clic → ficha de seguimiento) ────────── -->
+          <section class="mx-card">
+            <div class="mx-card-head">
+              <div>
+                <span class="mx-card-title">Detalle por agente</span>
+                <span class="mx-card-sub">Minutos, disponibilidad y ventanas de conexión · clic en un asesor para ver su historial</span>
+              </div>
+            </div>
+            @if (isEmpty(dash.conexiones.tabla)) {
+              <div class="mx-empty">Sin agentes con actividad en este rango.</div>
+            } @else {
+              <div class="mx-table-scroll">
+                <table class="mx-table">
+                  <thead>
+                    <tr>
+                      <th>Asesor</th>
+                      <th>Disponibilidad</th>
+                      <th class="num">Disponible</th><th class="num">Ocupado</th>
+                      <th class="num">Reuniones</th><th class="num">Almuerzo</th>
+                      <th class="num">Inactivo</th><th class="num">Desconexiones</th>
+                      <th>Primera</th><th>Última</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (c of tablaFilas('conexiones', dash.conexiones.tabla); track c.id) {
+                      <tr class="mx-row-link" role="button" tabindex="0"
+                        (click)="abrirConnAsesor(c.id)"
+                        (keydown.enter)="abrirConnAsesor(c.id)">
+                        <td>{{ c.nombre }}</td>
+                        <td>
+                          <div class="mx-pct">
+                            <div class="mx-pct-bar">
+                              @for (s of estadoBarraSegs(c); track s.label) {
+                                <span [style.width.%]="s.pct" [style.background]="s.color"
+                                  [title]="s.label + ' · ' + Math.round(s.pct) + '%'"></span>
+                              }
+                            </div>
+                            <strong>{{ pctStr(pctDisponible(c)) }}</strong>
+                          </div>
+                        </td>
+                        <td class="num">{{ fmtMin(c.disponibleMin) }}</td>
+                        <td class="num">{{ fmtMin(c.ocupadoMin) }}</td>
+                        <td class="num">{{ fmtMin(c.reunionMin) }}</td>
+                        <td class="num">{{ fmtMin(c.almuerzoMin) }}</td>
+                        <td class="num">{{ fmtMin(c.inactivoMin) }}</td>
+                        <td class="num" [class.danger]="c.desconexiones > 0">{{ fmtS(c.desconexiones) }}</td>
+                        <td class="mono">{{ c.primeraConexion ? (c.primeraConexion | date:'dd/MM HH:mm') : '—' }}</td>
+                        <td class="mono">{{ c.ultimaConexion ? (c.ultimaConexion | date:'dd/MM HH:mm') : '—' }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+              <nav class="mx-pager" aria-label="Páginas de detalle por agente">
+                <button type="button" class="mx-pager-btn"
+                  [disabled]="tablaPagina('conexiones') <= 1"
+                  (click)="setTablaPagina('conexiones', dash.conexiones.tabla.length, 1)">«</button>
+                <button type="button" class="mx-pager-btn"
+                  [disabled]="tablaPagina('conexiones') <= 1"
+                  (click)="setTablaPagina('conexiones', dash.conexiones.tabla.length, tablaPagina('conexiones') - 1)">‹</button>
+                <span class="mx-pager-info">
+                  Página {{ tablaPagina('conexiones') }} de {{ paginasDe(dash.conexiones.tabla.length) }}
+                </span>
+                <button type="button" class="mx-pager-btn"
+                  [disabled]="tablaPagina('conexiones') >= paginasDe(dash.conexiones.tabla.length)"
+                  (click)="setTablaPagina('conexiones', dash.conexiones.tabla.length, tablaPagina('conexiones') + 1)">›</button>
+                <button type="button" class="mx-pager-btn"
+                  [disabled]="tablaPagina('conexiones') >= paginasDe(dash.conexiones.tabla.length)"
+                  (click)="setTablaPagina('conexiones', dash.conexiones.tabla.length, paginasDe(dash.conexiones.tabla.length))">»</button>
+              </nav>
+            }
+          </section>
+        }
+      }
+    }
   }
 
+  <!-- Overlay de carga a PANTALLA COMPLETA (fixed): cubre todo el viewport,
+       barra de filtros y shell incluidos, para que un «Aplicar filtro» se note
+       de inmediato y no se pueda tocar nada mientras se carga. -->
+  @if (loading && (dash || error)) {
+    <div class="mx-loading-overlay" role="status" aria-live="polite">
+      <span class="mx-spinner-lg" aria-hidden="true"></span>
+      <span class="mx-loading-text">{{ aplicando ? 'Cargando…' : 'Actualizando…' }}</span>
+    </div>
+  }
 </div>

@@ -590,8 +590,10 @@ export class AdvisorsService {
             });
             await transactionalEntityManager.save(User, user);
             createdCount++;
+            // La contraseña NUNCA se registra en logs; el administrador la
+            // asigna despues con la accion "actualizar contraseña".
             this.logger.warn(
-              `Contraseña generada para ${importUserDto.email}: ${password}`,
+              `Usuario creado en importacion: ${importUserDto.email} (contraseña temporal no registrada en logs)`,
             );
           }
         }

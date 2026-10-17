@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostBinding, ChangeDetectorRef, ChangeDetectionStrategy, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -6,6 +6,7 @@ import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { FaqService, Faq, CreateFaqDto, FaqCategory, CreateFaqCategoryDto } from '../../../../core/services/faq.service';
 import { NotificationService } from '../../../../core/services/notification.service';
+import { ThemeService } from '../../../../core/services/theme.service';
 import { trackByIndex } from '../../../../shared/utils/track-by';
 import { formatFaqText } from '../../../../shared/utils/faq-format';
 
@@ -19,6 +20,8 @@ import { formatFaqText } from '../../../../shared/utils/faq-format';
 })
 export class FaqAdminComponent implements OnInit, OnDestroy {
   protected readonly trackByIndex = trackByIndex;
+
+  @HostBinding('class.theme-dark') protected themeDark = false;
 
   @ViewChild('respuestaTextarea') respuestaTextarea!: ElementRef<HTMLTextAreaElement>;
 
@@ -79,6 +82,7 @@ export class FaqAdminComponent implements OnInit, OnDestroy {
     private cdr: ChangeDetectorRef,
     private notification: NotificationService,
     private sanitizer: DomSanitizer,
+    private themeService: ThemeService,
   ) {}
 
   exportarExcel(): void {
@@ -121,6 +125,11 @@ export class FaqAdminComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.themeDark = this.themeService.currentTheme === 'dark';
+    this.themeService.currentTheme$.pipe(takeUntil(this.destroy$)).subscribe((t) => {
+      this.themeDark = t === 'dark';
+      this.cdr.markForCheck();
+    });
     this.cargar();
   }
 

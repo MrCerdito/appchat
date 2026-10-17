@@ -523,3 +523,220 @@
     width: 95vw;
   }
 }
+
+// ── Tema oscuro ──────────────────────────────────────────────
+:host.theme-dark {
+  .opf-page {
+    background: #151b23;
+  }
+
+  .opf-nav {
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+    background: #1a1f26;
+  }
+
+  .opf-back-btn {
+    border-color: rgba(255, 255, 255, 0.12);
+    background: #151b23;
+    color: #9aa7bd;
+
+    &:hover {
+      border-color: rgba(96, 165, 250, 0.45);
+      background: rgba(96, 165, 250, 0.14);
+      color: #93b4ff;
+    }
+  }
+
+  .opf-nav-title {
+    color: #e6edf7;
+  }
+
+  .opf-nav-badge {
+    background: rgba(16, 185, 129, 0.16);
+    color: #4ade80;
+  }
+
+  .opf-search-icon {
+    color: #7f8ba0;
+  }
+
+  .opf-search {
+    border-color: rgba(255, 255, 255, 0.12);
+    background: #151b23;
+    color: #e6edf7;
+
+    &:hover { border-color: rgba(255, 255, 255, 0.16); }
+    &:focus {
+      border-color: #10B981;
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12);
+    }
+    &::placeholder { color: #7f8ba0; }
+  }
+
+  .opf-pill {
+    border-color: rgba(255, 255, 255, 0.12);
+    background: #151b23;
+    color: #9aa7bd;
+
+    &:hover {
+      border-color: rgba(255, 255, 255, 0.16);
+      color: #e6edf7;
+    }
+
+    &.active {
+      background: #10B981;
+      border-color: #10B981;
+      color: #fff;
+    }
+
+    &.fijado.active {
+      background: #8B5CF6;
+      border-color: #8B5CF6;
+    }
+
+    &.sin-fijar.active {
+      background: #94A3B8;
+      border-color: #94A3B8;
+    }
+  }
+
+  .opf-table-wrap {
+    border-color: rgba(255, 255, 255, 0.08);
+    background: #1a1f26;
+  }
+
+  .opf-table {
+    thead th {
+      color: #9aa7bd;
+      border-bottom-color: rgba(255, 255, 255, 0.06);
+      background: #1a1f26;
+    }
+
+    tbody td {
+      color: #e6edf7;
+      border-bottom-color: rgba(255, 255, 255, 0.06);
+    }
+
+    tbody tr {
+      &:hover { background: rgba(255, 255, 255, 0.04); }
+
+      &.fijado-row {
+        background: rgba(139, 92, 246, 0.14);
+        &:hover { background: rgba(139, 92, 246, 0.22); }
+      }
+    }
+  }
+
+  .opf-cliente div {
+    strong { color: #e6edf7; }
+    small { color: #7f8ba0; }
+  }
+
+  .opf-tag {
+    background: rgba(255, 255, 255, 0.08);
+    color: #9aa7bd;
+  }
+
+  .opf-priority {
+    &.urgente { background: rgba(239, 68, 68, 0.14); color: #f87171; }
+    &.alta    { background: rgba(245, 158, 11, 0.16); color: #fbbf24; }
+    &.media   { background: rgba(96, 165, 250, 0.16); color: #93b4ff; }
+    &.baja    { background: rgba(255, 255, 255, 0.08); color: #9aa7bd; }
+  }
+
+  .opf-asesor-badge {
+    background: rgba(16, 185, 129, 0.16);
+    color: #4ade80;
+  }
+
+  .opf-sin-asesor {
+    color: #7f8ba0;
+  }
+
+  .opf-fijado-badge {
+    background: rgba(139, 92, 246, 0.18);
+    color: #a78bfa;
+  }
+
+  .opf-sin-fijar {
+    color: #7f8ba0;
+  }
+
+  .opf-group-tag {
+    background: rgba(139, 92, 246, 0.18);
+    color: #a78bfa;
+  }
+
+  .opf-error {
+    background: rgba(239, 68, 68, 0.14);
+    border-color: rgba(248, 113, 113, 0.45);
+    color: #f87171;
+  }
+
+  .opf-action-btn {
+    &.unfix {
+      background: rgba(239, 68, 68, 0.14);
+      color: #f87171;
+      &:hover { background: rgba(239, 68, 68, 0.22); }
+    }
+  }
+
+  .opf-empty {
+    color: #7f8ba0;
+  }
+
+  .opf-popup {
+    background: #1a1f26;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+  }
+
+  .opf-popup-header {
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+
+    strong {
+      color: #e6edf7;
+    }
+  }
+
+  .opf-popup-chatname {
+    color: #a78bfa;
+  }
+
+  .opf-popup-close {
+    background: #242b35;
+    color: #9aa7bd;
+
+    &:hover {
+      background: #2d3542;
+      color: #e6edf7;
+    }
+  }
+
+  .opf-popup-hint {
+    color: #7f8ba0;
+  }
+
+  .opf-popup-advisor {
+    color: #e6edf7;
+
+    &:hover { background: rgba(139, 92, 246, 0.18); }
+  }
+
+  .opf-popup-arrow {
+    color: #7f8ba0;
+  }
+
+  .opf-popup-footer {
+    border-top-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .opf-btn-secondary {
+    background: #242b35;
+    color: #9aa7bd;
+
+    &:hover {
+      background: #2d3542;
+      color: #e6edf7;
+    }
+  }
+}

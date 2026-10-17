@@ -1,7 +1,8 @@
 <div class="pi-page">
 
   <!-- ═══════════════════════════════════════ BANNER HEADER ═══════════════════════════════════════ -->
-  <header class="pi-banner">
+  <header class="pi-banner" [class.es-admin]="esAdmin">
+    @if (!esAdmin) {
     <div class="pi-banner-bg">
       <div class="pi-banner-icon">
         <lucide-icon [img]="icons.Building2" [size]="40" />
@@ -9,6 +10,7 @@
       <h1 class="pi-banner-title">Perfil Institucional</h1>
       <p class="pi-banner-sub">Consulta y administra la informaci&oacute;n de las instituciones.</p>
     </div>
+    }
     <div class="pi-banner-actions">
       <button type="button" class="pi-btn pi-btn-outline" (click)="mostrarModalExportar = true" [disabled]="exportando" aria-label="Exportar instituciones">
         <lucide-icon [img]="icons.Download" [size]="16" /> Exportar
@@ -421,16 +423,24 @@
   <!-- ═══════════════════════════════════════ IMPORT MODAL ═══════════════════════════════════════ -->
   @if (mostrarModalImportar) {
     <div class="pi-modal-backdrop" role="dialog" aria-modal="true" aria-label="Importar instituciones">
-      <div class="pi-modal" (click)="$event.stopPropagation()">
+      <div class="pi-modal pi-modal--import" (click)="$event.stopPropagation()">
         <div class="pi-modal-header">
-          <h3>Importar instituciones</h3>
+          <h3>
+            @if (pasoImportar === 'subir') {
+              Importar instituciones
+            } @else if (pasoImportar === 'vista-previa') {
+              Vista previa &mdash; a&uacute;n no se aplica nada
+            } @else {
+              Importaci&oacute;n completada
+            }
+          </h3>
           <button type="button" class="pi-modal-close" (click)="cerrarModalImportar()" aria-label="Cerrar modal">
             <lucide-icon [img]="icons.X" [size]="18" />
           </button>
         </div>
         <div class="pi-modal-body">
-          @if (!resultadoImportar) {
-            <p class="pi-modal-desc">Sube un archivo <strong>.xlsx</strong> o <strong>.csv</strong>. Las instituciones se crean si el nombre no existe, o se actualizan si ya existe (celdas en blanco mantienen el valor actual).</p>
+          @if (pasoImportar === 'subir') {
+            <p class="pi-modal-desc">Sube un archivo <strong>.xlsx</strong> o <strong>.csv</strong>. Las columnas se asignan <strong>por nombre</strong> (la &uacute;nica obligatoria es <strong>Nombre</strong>): su posici&oacute;n no importa. Las instituciones se crean si el nombre no existe, o se actualizan si ya existe (celdas en blanco mantienen el valor actual).</p>
             <div class="pi-dropzone" [class.dragging]="arrastrandoArchivo"
               (dragover)="onDragOver($event)"
               (dragleave)="onDragLeave($event)"
@@ -447,85 +457,202 @@
                 <lucide-icon [img]="icons.FileSpreadsheet" [size]="18" />
                 <span>{{ archivoImportar.name }}</span>
               </div>
+              <p class="pi-import-hint">
+                <lucide-icon [img]="icons.Info" [size]="14" />
+                Primero ver&aacute;s una vista previa: <strong>nada se aplica hasta que confirmes</strong>.
+              </p>
             }
           } @else {
-            <div class="pi-import-result">
-              <div class="pi-import-result-icon">
-                <lucide-icon [img]="icons.CheckCircle2" [size]="48" />
-              </div>
-              <h4>Importaci&oacute;n completada</h4>
-              <div class="pi-import-stats">
-                <span class="pi-import-stat">{{ resultadoImportar.total }} procesadas</span>
-                <span class="pi-import-stat pi-import-stat--success">{{ resultadoImportar.created }} creadas</span>
-                <span class="pi-import-stat pi-import-stat--info">{{ resultadoImportar.updated }} actualizadas</span>
-              </div>
-
-              @if (resultadoImportar.logs.length > 0) {
-                <div class="pi-import-log-container">
-                  <h5>Bit&aacute;cora de Cambios</h5>
-                  <div class="pi-import-log-table">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Instituci&oacute;n</th>
-                          <th>Campo</th>
-                          <th>Antes</th>
-                          <th>Despu&eacute;s</th>
-                          <th>Estado</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        @for (log of resultadoImportar.logs; track log) {
-                          <tr [class.pi-log-error]="log.estado === 'error'">
-                            <td><strong>{{ log.colegio }}</strong></td>
-                            <td>{{ log.campo }}</td>
-                            <td class="pi-log-val">{{ log.anterior ?? '—' }}</td>
-                            <td class="pi-log-val">{{ log.nuevo ?? '—' }}</td>
-                            <td>
-                              <span class="pi-log-badge" [class.pi-log-badge--success]="log.estado === 'exito'" [class.pi-log-badge--error]="log.estado === 'error'">
-                                {{ log.estado === 'exito' ? 'Éxito' : 'Error' }}
-                              </span>
-                            </td>
-                          </tr>
-                        }
-                      </tbody>
-                    </table>
-                  </div>
-
-                  @if (resultadoImportar.logExcelBase64) {
-                    <button type="button" class="pi-btn pi-btn-success pi-import-download-btn" (click)="descargarExcelReporte()">
-                      📥 Descargar reporte de cambios (.xlsx)
-                    </button>
-                  }
-                </div>
-              }
-
-              @if (resultadoImportar.errores.length > 0) {
-                <div class="pi-import-errors-list">
-                  <p class="pi-import-errors">{{ resultadoImportar.errores.length }} aviso(s) encontrados:</p>
-                  <ul class="pi-errors-scroll">
-                    @for (err of resultadoImportar.errores | slice:0:erroresVisibles; track err) {
-                      <li>{{ err }}</li>
+            @if (reporte(); as rep) {
+              <div class="pi-rpt">
+                <div class="pi-rpt-head">
+                  <div class="pi-rpt-head-icon" [class.pi-rpt-head-icon--ok]="pasoImportar === 'resultado'">
+                    @if (pasoImportar === 'resultado') {
+                      <lucide-icon [img]="icons.CheckCircle2" [size]="30" />
+                    } @else {
+                      <lucide-icon [img]="icons.Eye" [size]="26" />
                     }
-                  </ul>
-                  @if (resultadoImportar.errores.length > erroresVisibles) {
-                    <button type="button" class="pi-btn pi-btn-ghost pi-errors-more" (click)="masErrores()">
-                      Ver m&aacute;s ({{ resultadoImportar.errores.length - erroresVisibles }})
-                    </button>
+                  </div>
+                  <div class="pi-rpt-head-txt">
+                    <h4>{{ pasoImportar === 'resultado' ? 'Importación aplicada correctamente' : 'Esto es lo que se hará al confirmar' }}</h4>
+                    <p>{{ archivoImportar?.name }} &middot; {{ rep.resumen.filasArchivo }} fila(s) con nombre</p>
+                  </div>
+                </div>
+
+                <div class="pi-rpt-cards">
+                  <div class="pi-rpt-card pi-rpt-card--green">
+                    <span class="pi-rpt-num">{{ rep.resumen.creadas }}</span>
+                    <span class="pi-rpt-lab">Creadas</span>
+                  </div>
+                  <div class="pi-rpt-card pi-rpt-card--blue">
+                    <span class="pi-rpt-num">{{ rep.resumen.actualizadas }}</span>
+                    <span class="pi-rpt-lab">Actualizadas</span>
+                  </div>
+                  <div class="pi-rpt-card pi-rpt-card--gray">
+                    <span class="pi-rpt-num">{{ rep.resumen.sinCambios }}</span>
+                    <span class="pi-rpt-lab">Sin cambios</span>
+                  </div>
+                  <div class="pi-rpt-card pi-rpt-card--orange">
+                    <span class="pi-rpt-num">{{ rep.resumen.duplicadas }}</span>
+                    <span class="pi-rpt-lab">Duplicadas</span>
+                  </div>
+                  <div class="pi-rpt-card pi-rpt-card--violet">
+                    <span class="pi-rpt-num">{{ rep.resumen.conAvisos }}</span>
+                    <span class="pi-rpt-lab">Filas con avisos</span>
+                  </div>
+                  <div class="pi-rpt-card pi-rpt-card--red">
+                    <span class="pi-rpt-num">{{ rep.resumen.columnasIgnoradas }}</span>
+                    <span class="pi-rpt-lab">Columnas ignoradas</span>
+                  </div>
+                </div>
+
+                <div class="pi-rpt-tabs" role="tablist">
+                  <button type="button" class="pi-rpt-tab" [class.active]="tabImport === 'resumen'" (click)="tabImport = 'resumen'">Resumen</button>
+                  <button type="button" class="pi-rpt-tab" [class.active]="tabImport === 'cambios'" (click)="tabImport = 'cambios'">Cambios ({{ cambiosAplanados().length }})</button>
+                  <button type="button" class="pi-rpt-tab" [class.active]="tabImport === 'avisos'" (click)="tabImport = 'avisos'">Avisos ({{ rep.avisos.length }})</button>
+                  <button type="button" class="pi-rpt-tab" [class.active]="tabImport === 'columnas'" (click)="tabImport = 'columnas'">Columnas ({{ rep.columnas.length }})</button>
+                </div>
+
+                <div class="pi-rpt-panel">
+                  @if (tabImport === 'resumen') {
+                    <div class="pi-rpt-table-wrap">
+                      <table class="pi-rpt-table">
+                        <thead>
+                          <tr>
+                            <th>Fila</th>
+                            <th>Instituci&oacute;n</th>
+                            <th>Estado</th>
+                            <th>Cambios</th>
+                            <th>Avisos</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          @for (f of rep.filas; track f.fila) {
+                            <tr>
+                              <td class="pi-rpt-center">{{ f.fila }}</td>
+                              <td><strong>{{ f.nombre }}</strong></td>
+                              <td>
+                                <span class="pi-badge"
+                                      [class.pi-badge--crear]="f.estado === 'crear'"
+                                      [class.pi-badge--actualizar]="f.estado === 'actualizar'"
+                                      [class.pi-badge--sin-cambios]="f.estado === 'sin-cambios'"
+                                      [class.pi-badge--duplicada]="f.estado === 'duplicada'">{{ estadoFilaLabel(f.estado) }}</span>
+                              </td>
+                              <td class="pi-rpt-center">{{ f.cambios.length }}</td>
+                              <td class="pi-rpt-center">{{ f.avisos.length }}</td>
+                            </tr>
+                          }
+                        </tbody>
+                      </table>
+                    </div>
+                  } @else if (tabImport === 'cambios') {
+                    @if (cambiosAplanados().length) {
+                      <div class="pi-rpt-table-wrap">
+                        <table class="pi-rpt-table">
+                          <thead>
+                            <tr>
+                              <th>Fila</th>
+                              <th>Instituci&oacute;n</th>
+                              <th>Campo</th>
+                              <th>Antes</th>
+                              <th>Despu&eacute;s</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            @for (c of cambiosAplanados(); track $index) {
+                              <tr>
+                                <td class="pi-rpt-center">{{ c.fila }}</td>
+                                <td><strong>{{ c.nombre }}</strong></td>
+                                <td>{{ c.campo }}</td>
+                                <td class="pi-rpt-val pi-rpt-val--old">{{ c.anterior ?? '—' }}</td>
+                                <td class="pi-rpt-val pi-rpt-val--new">{{ c.nuevo ?? '—' }}</td>
+                              </tr>
+                            }
+                          </tbody>
+                        </table>
+                      </div>
+                    } @else {
+                      <div class="pi-rpt-empty">Sin cambios: los datos del archivo ya coinciden con la base.</div>
+                    }
+                  } @else if (tabImport === 'avisos') {
+                    @if (rep.avisos.length) {
+                      <div class="pi-rpt-avisos">
+                        @for (a of avisosPagina(); track $index) {
+                          <div class="pi-rpt-aviso">
+                            <lucide-icon [img]="icons.AlertCircle" [size]="15" />
+                            <div class="pi-rpt-aviso-txt">
+                              <strong>Fila {{ a.fila ?? '—' }}{{ a.nombre ? ': ' + a.nombre : '' }}{{ a.campo ? ' · ' + a.campo : '' }}</strong>
+                              <span>{{ a.mensaje }}</span>
+                            </div>
+                          </div>
+                        }
+                      </div>
+                      @if (rep.avisos.length > erroresVisibles) {
+                        <button type="button" class="pi-btn pi-btn-ghost pi-errors-more" (click)="masErrores()">Ver m&aacute;s ({{ rep.avisos.length - erroresVisibles }})</button>
+                      }
+                    } @else {
+                      <div class="pi-rpt-empty">Sin avisos: el archivo se ley&oacute; limpio.</div>
+                    }
+                  } @else {
+                    <div class="pi-rpt-table-wrap">
+                      <table class="pi-rpt-table">
+                        <thead>
+                          <tr>
+                            <th>Columna en el archivo</th>
+                            <th>Asignada a</th>
+                            <th>Estado</th>
+                            <th>Detalle</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          @for (col of rep.columnas; track $index) {
+                            <tr>
+                              <td><strong>{{ col.origen }}</strong></td>
+                              <td>{{ col.destino }}</td>
+                              <td>
+                                <span class="pi-badge"
+                                      [class.pi-badge--mapeada]="col.estado === 'mapeada'"
+                                      [class.pi-badge--ignorada]="col.estado === 'ignorada'"
+                                      [class.pi-badge--ausente]="col.estado === 'ausente'">{{ col.estado === 'mapeada' ? 'Mapeada' : col.estado === 'ignorada' ? 'Ignorada' : 'Sin columna' }}</span>
+                              </td>
+                              <td class="pi-rpt-det">{{ col.detalle ?? '—' }}</td>
+                            </tr>
+                          }
+                        </tbody>
+                      </table>
+                    </div>
                   }
                 </div>
-              }
-            </div>
+
+                @if (pasoImportar === 'resultado' && rep.logExcelBase64) {
+                  <div class="pi-rpt-download">
+                    <button type="button" class="pi-btn pi-btn-success pi-import-download-btn" (click)="descargarExcelReporte()">
+                      Descargar reporte de cambios (.xlsx)
+                    </button>
+                  </div>
+                }
+              </div>
+            }
           }
         </div>
         <div class="pi-modal-footer">
-          @if (!resultadoImportar) {
+          @if (pasoImportar === 'subir') {
             <button type="button" class="pi-btn pi-btn-ghost" (click)="cerrarModalImportar()">Cancelar</button>
-            <button type="button" class="pi-btn pi-btn-primary" [disabled]="!archivoImportar || importando" (click)="ejecutarImportar()">
+            <button type="button" class="pi-btn pi-btn-primary" [disabled]="!archivoImportar || previsualizando" (click)="previsualizar()">
+              @if (previsualizando) {
+                <lucide-icon [img]="icons.Loader2" [size]="16" class="pi-spin" /> Leyendo...
+              } @else {
+                <lucide-icon [img]="icons.Eye" [size]="16" /> Previsualizar
+              }
+            </button>
+          } @else if (pasoImportar === 'vista-previa') {
+            <button type="button" class="pi-btn pi-btn-ghost" (click)="cambiarArchivo()">Cambiar archivo</button>
+            <button type="button" class="pi-btn pi-btn-primary" [disabled]="importando" (click)="confirmarImportar()">
               @if (importando) {
                 <lucide-icon [img]="icons.Loader2" [size]="16" class="pi-spin" /> Importando...
               } @else {
-                <lucide-icon [img]="icons.Upload" [size]="16" /> Importar
+                <lucide-icon [img]="icons.Upload" [size]="16" />
+                Confirmar importaci&oacute;n ({{ resumenReporte().creadas }} por crear, {{ resumenReporte().actualizadas }} por actualizar)
               }
             </button>
           } @else {

@@ -17,6 +17,7 @@ import { User } from '../auth/entities/user.entity';
 @Index('idx_tickets_assigned', ['assignedTo'])
 @Index('idx_tickets_created_by', ['createdBy'])
 @Index('idx_tickets_status_created_at', ['status', 'createdAt'])
+@Index('idx_tickets_categoria_gestion', ['categoriaGestion'])
 export class Ticket {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -38,6 +39,16 @@ export class Ticket {
 
   @Column({ type: 'varchar', length: 100, nullable: true })
   category: string | null;
+
+  /**
+   * Categoría de GESTIÓN del catálogo compartido con correos (Requerimiento,
+   * Error, Solicitud, ... + las que cree el equipo). Va en la misma columna
+   * lógica que `correo_mensajes.categoria_gestion` para que la pestaña
+   * «Tickets/Correos» de Métricas pueda agrupar ambos por lo que el equipo
+   * clasificó. NULL = sin clasificar.
+   */
+  @Column({ name: 'categoria_gestion', type: 'varchar', length: 120, nullable: true })
+  categoriaGestion: string | null;
 
   @Column({ name: 'source_type', type: 'varchar', length: 20 })
   sourceType: string;

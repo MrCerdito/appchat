@@ -5,14 +5,16 @@ import {
   Body,
   Logger,
 } from '@nestjs/common';
-import { Throttle, SkipThrottle } from '@nestjs/throttler';
+import { Throttle } from '@nestjs/throttler';
+import { Public } from '../auth/public.decorator';
 import { ChatService } from './chat.service';
 import { ChatGateway } from './chat.gateway';
 import { FaqModule } from '../faq/faq.module';
 import { FaqService } from '../faq/faq.service';
 
+// Sin @SkipThrottle() de clase: en throttler v6 el skip de clase gana sobre
+// el @Throttle del metodo (getAllAndOverride) y anulaba el limite de 30/min.
 @Controller('chat')
-@SkipThrottle()
 export class ChatEventsController {
   private readonly logger = new Logger(ChatEventsController.name);
 
@@ -31,6 +33,7 @@ export class ChatEventsController {
    *  interacción completa cuando el cliente elige una pregunta frecuente del
    *  menú (que de otro modo ocurriría solo en memoria y no quedaría registrada).
    */
+  @Public()
   @Post('eventos-faq')
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   async registrarFaqClic(

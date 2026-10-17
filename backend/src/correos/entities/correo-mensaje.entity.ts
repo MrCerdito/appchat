@@ -89,6 +89,15 @@ export class CorreoMensaje {
   @Column({ type: 'simple-json', nullable: true })
   categorias: string[] | null;
 
+  /**
+   * Categoria de gestion asignada por el asesor (catalogo `correo_categorias`).
+   * Es local: la sincronizacion con Graph no la toca, a diferencia de
+   * `categorias`, que se pisa en cada delta.
+   */
+  @Index('idx_correo_mensajes_categoria_gestion')
+  @Column({ name: 'categoria_gestion', type: 'varchar', length: 120, nullable: true })
+  categoriaGestion: string | null;
+
   /** Vista previa que entrega Graph. Metadato, no el cuerpo completo. */
   @Column({ name: 'body_preview', type: 'text', nullable: true })
   bodyPreview: string | null;

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, HostBinding, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -7,10 +7,14 @@ import { LucideAngularModule } from 'lucide-angular';
 import {
   PerfilInstitucionalService,
   PiInstitucionCard,
+  PiImportAviso,
+  PiImportEstado,
   PiImportResp,
+  PiImportResumen,
 } from '../../../../core/services/perfil-institucional.service';
 import { NotificationService } from '../../../../core/services/notification.service';
 import { AuthService } from '../../../../core/services/auth.service';
+import { ThemeService } from '../../../../core/services/theme.service';
 import { PI_ICONS } from './pi-icons';
 
 interface FiltroDinamico {
@@ -30,6 +34,8 @@ interface FiltroDinamico {
 })
 export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
   readonly icons = PI_ICONS;
+
+  @HostBinding('class.theme-dark') protected themeDark = false;
 
   private destroy$ = new Subject<void>();
 
@@ -55,6 +61,10 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
   mostrarModalExportar = false;
   arrastrandoArchivo = false;
   erroresVisibles = 15;
+  pasoImportar: 'subir' | 'vista-previa' | 'resultado' = 'subir';
+  tabImport: 'resumen' | 'cambios' | 'avisos' | 'columnas' = 'resumen';
+  vistaPrevia: PiImportResp | null = null;
+  previsualizando = false;
 
   limitePorPagina = 20;
   page = 1;
@@ -75,9 +85,16 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
     private cdr: ChangeDetectorRef,
     private router: Router,
     private auth: AuthService,
+    private themeService: ThemeService,
   ) {}
 
   ngOnInit(): void {
+    this.themeDark = this.themeService.currentTheme === 'dark';
+    this.themeService.currentTheme$.pipe(takeUntil(this.destroy$)).subscribe((t) => {
+      this.themeDark = t === 'dark';
+      this.cdr.markForCheck();
+    });
+
     const user = this.auth.getUser();
     if (user && user.role === 'advisor' && user.name) {
       this.filtroAsesor.add(user.name.trim());
@@ -101,6 +118,10 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
   }
 
   /* ── Navigation ── */
+  protected get esAdmin(): boolean {
+    return this.router.url.startsWith('/admin');
+  }
+
   private get baseRoute(): string {
     return this.router.url.startsWith('/admin') ? '/admin' : '/dashboard';
   }
@@ -391,28 +412,41 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
       });
   }
 
-  /* ── Import ── */
+  /* ── Import: subir → previsualizar → confirmar ── */
   abrirModalImportar(): void {
     this.mostrarModalImportar = true;
+    this.pasoImportar = 'subir';
     this.archivoImportar = null;
+    this.vistaPrevia = null;
     this.resultadoImportar = null;
     this.arrastrandoArchivo = false;
+    this.tabImport = 'resumen';
     this.erroresVisibles = 15;
   }
 
   cerrarModalImportar(): void {
     this.mostrarModalImportar = false;
+    this.pasoImportar = 'subir';
     this.archivoImportar = null;
+    this.vistaPrevia = null;
     this.resultadoImportar = null;
     this.importando = false;
+    this.previsualizando = false;
     this.arrastrandoArchivo = false;
   }
 
   onArchivoSeleccionado(event: Event): void {
     const input = event.target as HTMLInputElement;
-    this.archivoImportar = input.files?.[0] ?? null;
-    this.resultadoImportar = null;
+    this.tomarArchivo(input.files?.[0] ?? null);
     input.value = '';
+  }
+
+  private tomarArchivo(file: File | null): void {
+    this.archivoImportar = file;
+    this.vistaPrevia = null;
+    this.resultadoImportar = null;
+    this.pasoImportar = 'subir';
+    this.erroresVisibles = 15;
   }
 
   onDragOver(event: DragEvent): void {
@@ -431,34 +465,126 @@ export class PerfilInstitucionalComponent implements OnInit, OnDestroy {
     event.preventDefault();
     event.stopPropagation();
     this.arrastrandoArchivo = false;
-    const file = event.dataTransfer?.files?.[0];
-    if (file) {
-      this.archivoImportar = file;
-      this.resultadoImportar = null;
-    }
+    this.tomarArchivo(event.dataTransfer?.files?.[0] ?? null);
   }
 
-  ejecutarImportar(): void {
+  previsualizar(): void {
+    if (!this.archivoImportar || this.previsualizando) return;
+    this.previsualizando = true;
+    this.cdr.detectChanges();
+    this.piService
+      .importar(this.archivoImportar, { preview: true })
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (res) => {
+          this.previsualizando = false;
+          this.vistaPrevia = res;
+          this.pasoImportar = 'vista-previa';
+          this.tabImport = 'resumen';
+          this.erroresVisibles = 15;
+          this.cdr.detectChanges();
+        },
+        error: (err) => {
+          this.previsualizando = false;
+          this.notification.error(
+            'Error',
+            err?.error?.message ?? 'No se pudo leer el archivo',
+          );
+          this.cdr.detectChanges();
+        },
+      });
+  }
+
+  confirmarImportar(): void {
     if (!this.archivoImportar || this.importando) return;
     this.importando = true;
     this.cdr.detectChanges();
-    this.piService.importar(this.archivoImportar)
+    this.piService
+      .importar(this.archivoImportar)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (res) => {
           this.importando = false;
-          this.erroresVisibles = 15;
           this.resultadoImportar = res;
-          this.notification.success('Importación', `${res.total} instituciones procesadas: ${res.created} creadas, ${res.updated} actualizadas`);
+          this.pasoImportar = 'resultado';
+          this.tabImport = 'resumen';
+          this.erroresVisibles = 15;
+          const r = res.resumen;
+          this.notification.success(
+            'Importación completada',
+            `${r.creadas} creadas · ${r.actualizadas} actualizadas · ${r.sinCambios} sin cambios` +
+              (r.duplicadas ? ` · ${r.duplicadas} duplicadas` : ''),
+          );
           this.cargar(true);
           this.cdr.detectChanges();
         },
         error: (err) => {
           this.importando = false;
-          this.notification.error('Error', err?.error?.message ?? 'No se pudo importar');
+          this.notification.error(
+            'Error',
+            err?.error?.message ?? 'No se pudo importar',
+          );
           this.cdr.detectChanges();
         },
       });
+  }
+
+  cambiarArchivo(): void {
+    this.pasoImportar = 'subir';
+    this.vistaPrevia = null;
+    this.resultadoImportar = null;
+    this.archivoImportar = null;
+    this.erroresVisibles = 15;
+  }
+
+  /* ── Helpers del reporte ── */
+  reporte(): PiImportResp | null {
+    return this.pasoImportar === 'resultado'
+      ? this.resultadoImportar
+      : this.vistaPrevia;
+  }
+
+  resumenReporte(): PiImportResumen {
+    return (
+      this.reporte()?.resumen ?? {
+        filasArchivo: 0,
+        creadas: 0,
+        actualizadas: 0,
+        sinCambios: 0,
+        duplicadas: 0,
+        conAvisos: 0,
+        columnasIgnoradas: 0,
+      }
+    );
+  }
+
+  estadoFilaLabel(estado: PiImportEstado): string {
+    switch (estado) {
+      case 'crear':
+        return 'Creada';
+      case 'actualizar':
+        return 'Actualizada';
+      case 'sin-cambios':
+        return 'Sin cambios';
+      case 'duplicada':
+        return 'Duplicada';
+    }
+  }
+
+  cambiosAplanados(): {
+    fila: number;
+    nombre: string;
+    campo: string;
+    anterior: string | null;
+    nuevo: string | null;
+  }[] {
+    return (this.reporte()?.filas ?? []).flatMap((f) =>
+      f.cambios.map((c) => ({ fila: f.fila, nombre: f.nombre, ...c })),
+    );
+  }
+
+  avisosPagina(): PiImportAviso[] {
+    return (this.reporte()?.avisos ?? []).slice(0, this.erroresVisibles);
   }
 
   masErrores(): void {

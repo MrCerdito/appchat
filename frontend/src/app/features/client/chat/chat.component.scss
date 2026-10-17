@@ -108,32 +108,25 @@ $radius-pill: 999px;
   width: 100%;
   height: 100%;
   overflow: hidden;
-  // Degradado sutil según fondo de la marca (azul claro / lavanda / blanco).
-  background: linear-gradient(150deg,
-    var(--chat-bg, #F5F7FF) 0%,
-    color-mix(in srgb, var(--chat-bg, #F5F7FF) 52%, #FFFFFF) 45%,
-    #FFFFFF 100%);
+  // Fondo blanco: dentro del formulario lo ÚNICO con color de marca es el
+  // botón "Iniciar chat" y los bordes de los inputs (foco). Sin degradados.
+  background: #ffffff;
+  // Completa todo el widget: la tarjeta se estira a alto completo
+  // (cabecera arriba con línea divisoria, campos debajo, botón fijo abajo).
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: 0;
+  box-sizing: border-box;
+}
 
-  // Formas abstractas desenfocadas en las esquinas (profundidad).
-  &::before,
-  &::after {
-    content: '';
-    position: absolute;
-    pointer-events: none;
-    border-radius: 50%;
-    filter: blur(70px);
-    opacity: 0.55;
-  }
-  &::before {
-    width: 46%; height: 40%;
-    top: -12%; right: -12%;
-    background: color-mix(in srgb, var(--c2, #5B3FD6) 30%, transparent);
-  }
-  &::after {
-    width: 44%; height: 36%;
-    bottom: -14%; left: -14%;
-    background: color-mix(in srgb, var(--c3, #4F7DF3) 28%, transparent);
-  }
+// En pantallas anchas (ruta /chat) el formulario respira: columna de 640px
+// centrada con aire vertical, pero sigue llenando el alto disponible. En
+// ventanas BAJAS (<700px de alto) el aire se elimina para que todo quepa
+// SIN scroll (el widget manda sobre la estética).
+@media (min-width: 641px) and (min-height: 700px) {
+  .screen-form { padding: 4vh 16px; }
+  .waiting-screen { padding: 4vh 24px; }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -184,102 +177,64 @@ $radius-pill: 999px;
 .form-card {
   position: relative;
   z-index: 1;
-  border-radius: 26px;
-  box-shadow:
-    0 24px 70px rgba(91, 63, 214, 0.16),
-    0 6px 20px rgba(23, 43, 77, 0.08);
-  border: 1px solid rgba(201, 215, 238, 0.6);
-  background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(18px);
-  max-width: min(950px, 100%);
+  // Sin tarjeta: el formulario se funde con el fondo blanco del widget
+  // (una sola superficie, sin borde, sin sombra y sin radio).
+  border-radius: 0;
+  box-shadow: none;
+  border: none;
+  background: transparent;
+  // Completa todo el widget: ancho total (máx. 640px en pantallas anchas)
+  // y ALTO COMPLETO — cabecera arriba, botón abajo, sin huecos.
+  max-width: min(640px, 100%);
+  width: 100%;
   height: 100%;
-  margin-left: auto;
-  margin-right: auto;
+  max-height: 100%;
+  margin: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 
   .card-header {
-    padding: calc(var(--sp) * 1.3) calc(var(--sp) * 1.9) calc(var(--sp) * 1);
-    border-bottom: 1px solid rgba(201, 215, 238, 0.65);
-    background: transparent;
+    // COLUMNA superior con la imagen banner headerchat.jpg (trae el título
+    // "CHAT EN LÍNEA" y el subtítulo) y una línea que la separa del formulario.
+    // padding-x = mismo gutter que el body (1.5sp) para que la imagen quede
+    // ALINEADA con los bordes de los inputs. El padding vertical AGRANDA el
+    // espacio: el body con space-between reparte menos aire y los inputs
+    // quedan más juntos. El fondo es el color muestreado de la propia imagen
+    // (#eef1f5) para que el espacio quede "lleno" sin franjas blancas.
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: calc(var(--sp) * 1);
-    position: relative;
+    justify-content: center;
+    text-align: center;
+    padding: calc(var(--sp) * 3) calc(var(--sp) * 1.5) calc(var(--sp) * 2.7);
+    // LA LÍNEA: separa la cabecera del formulario debajo.
+    border-bottom: 1px solid #e5e7eb;
+    background: #eef1f5;
+    flex-shrink: 0;
 
-    .btn-back {
-      background: rgba(255, 255, 255, 0.7);
-      border: 1px solid rgba(201, 215, 238, 0.9);
-      padding: calc(var(--sp) * 0.55);
-      cursor: pointer;
-      color: #64748B;
-      border-radius: $radius-sm;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      transition: all 0.15s;
-      svg { width: calc(var(--fz) * 1.15); height: calc(var(--fz) * 1.15); }
-      &:hover { border-color: var(--c2, #5B3FD6); color: var(--c2, #5B3FD6); background: #fff; }
-      &:active { transform: scale(0.92); }
-    }
-
-    .brand-mark {
-      width: calc(var(--fz) * 2.8); height: calc(var(--fz) * 2.8);
-      border-radius: calc(var(--fz) * 0.9);
-      background: linear-gradient(135deg, var(--c1, #4F7DF3) 0%, var(--c2, #5B3FD6) 58%, var(--c3, #8B5CF6) 100%);
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-      color: white;
-      overflow: hidden;
-      svg { width: calc(var(--fz) * 1.25); height: calc(var(--fz) * 1.25); }
-      .brand-avatar-img { width: 100%; height: 100%; object-fit: cover; }
-    }
-
-    .hd-text {
-      flex: 1;
-      min-width: 0;
-      h2 {
-        font-size: calc(var(--fz) * 1.2); font-weight: 700; color: #172B4D;
-        margin: 0; line-height: 1.15; letter-spacing: -0.01em;
-      }
-      p  { font-size: calc(var(--fz) * 0.84); color: #64748B; margin: calc(var(--sp) * 0.3) 0 0; line-height: 1.4; }
-    }
-
-    .hd-art {
-      position: relative;
-      width: 82px; height: 58px;
-      flex-shrink: 0;
-    }
-    .art-bub {
-      position: absolute;
-      border-radius: 50%;
-      &--a {
-        width: 46px; height: 46px; right: 0; top: 0;
-        background: color-mix(in srgb, var(--c2, #5B3FD6) 12%, #FFFFFF);
-        border: 1px solid color-mix(in srgb, var(--c2, #5B3FD6) 24%, #FFFFFF);
-      }
-      &--b {
-        width: 36px; height: 36px; left: 0; bottom: 0;
-        background: linear-gradient(135deg, var(--c1, #4F7DF3), var(--c3, #8B5CF6));
-        color: #fff;
-        display: flex; align-items: center; justify-content: center;
-        svg { width: 17px; height: 17px; }
-      }
+    .header-img {
+      display: block;
+      width: 100%;
+      height: auto;
+      user-select: none;
+      -webkit-user-drag: none;
     }
   }
 
   .card-body {
-    padding: calc(var(--sp) * 1.2) calc(var(--sp) * 1.9) calc(var(--sp) * 1.5 + env(safe-area-inset-bottom));
+    // Riel propio (la pantalla ya no da gutter): cabecera y botón tienen su
+    // relleno; el body scrollea SOLO si hace falta (el botón siempre abajo).
+    // space-between: los campos se distribuyen hacia abajo hasta acercarse
+    // al botón (más aire = más organizado) y, si no sobra alto, cae al gap base.
+    padding: calc(var(--sp) * 1.3) calc(var(--sp) * 1.5) calc(var(--sp) * 0.7);
     display: flex;
     flex-direction: column;
-    gap: calc(var(--sp) * 0.85);
+    justify-content: space-between;
+    gap: calc(var(--sp) * 1.5);
     flex: 1;
-    max-width: 760px;
+    min-height: 0;
     width: 100%;
-    margin-left: auto;
-    margin-right: auto;
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: rgba(107, 114, 128, 0.35) transparent;
@@ -295,59 +250,59 @@ $radius-pill: 999px;
 .field {
   display: flex;
   flex-direction: column;
-  gap: calc(var(--sp) * 0.34);
+  gap: calc(var(--sp) * 0.4);
 
   label {
-    font-size: calc(var(--fz) * 0.84);
-    font-weight: 700;
-    color: #172B4D;
-    letter-spacing: 0.01em;
+    // Micro-label en mayúsculas (peso medio, slate): lectura ordenada tipo
+    // formulario profesional.
+    font-size: calc(var(--fz) * 0.7);
+    font-weight: 600;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    line-height: 1.3;
     .req { color: #EF4444; margin-left: 3px; }
   }
 
   .input-wrap {
     position: relative;
 
-    .input-icon {
-      position: absolute; left: 1.05em; top: 50%;
-      transform: translateY(-50%);
-      color: #8FA3BF; pointer-events: none; display: flex;
-      transition: color 0.22s;
-      svg { width: calc(var(--fz) * 1.12); height: calc(var(--fz) * 1.12); }
-    }
-    &:focus-within .input-icon { color: var(--c2, #5B3FD6); }
-
     &.input-wrap--select select { padding-right: 3em; cursor: pointer; }
   }
 
   input, .input-wrap--select select {
+    // Input blanco nítido con micro-sombra sobre el fondo de marca: contraste
+    // limpio y aspecto profesional (foco en color de marca). Sin icono lateral:
+    // padding simétrico (los inputs-icon ya no existen).
     width: 100%;
-    min-height: clamp(48px, calc(var(--fz) * 3), 72px);
-    padding: 0.55em 0.9em 0.55em 3em;
-    border: 1.5px solid #C9D7EE;
-    border-radius: clamp(14px, 1.6vw, 18px);
+    min-height: clamp(44px, calc(var(--fz) * 2.7), 60px);
+    padding: 0.5em 0.85em;
+    border: 1.5px solid #e5e9ef;
+    border-radius: 12px;
     font-family: var(--font);
-    font-size: calc(var(--fz) * 0.98);
-    color: #172B4D;
-    background: #FFFFFF;
+    font-size: calc(var(--fz) * 0.95);
+    color: #334155;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
     outline: none;
     -webkit-appearance: none;
     appearance: none;
-    transition: border-color 0.22s, box-shadow 0.22s, background 0.22s;
-    &::placeholder { color: #8FA3BF; }
-    &:hover { border-color: #A8BCE0; }
+    transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+    &::placeholder { color: #94a3b8; }
+    &:hover { border-color: #cbd5e1; }
     &:focus {
       border-color: var(--c2, #5B3FD6);
-      box-shadow: 0 0 0 4px color-mix(in srgb, var(--c2, #5B3FD6) 13%, transparent);
+      background: #ffffff;
+      box-shadow: 0 0 0 3.5px color-mix(in srgb, var(--c2, #5B3FD6) 14%, transparent);
     }
     &:focus-visible { outline: none; }
   }
 
   .input-arrow {
-    position: absolute; right: 1.15em; top: 50%;
+    position: absolute; right: 1.05em; top: 50%;
     transform: translateY(-50%);
-    color: #64748B; pointer-events: none; display: flex;
-    svg { width: calc(var(--fz) * 0.95); height: calc(var(--fz) * 0.95); display: block; }
+    color: #94a3b8; pointer-events: none; display: flex;
+    svg { width: calc(var(--fz) * 0.92); height: calc(var(--fz) * 0.92); display: block; }
   }
 
   .err-msg { font-size: calc(var(--fz) * 0.74); color: $danger; display: none; margin-top: 2px; }
@@ -357,26 +312,26 @@ $radius-pill: 999px;
   }
 }
 
-.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: calc(var(--sp) * 1.1); }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: calc(var(--sp) * 1.2); }
 
 .colegio-found {
   display: flex; align-items: center; gap: calc(var(--sp) * 0.7);
-  margin-top: calc(var(--sp) * 0.15); padding: calc(var(--sp) * 0.7) calc(var(--sp) * 1);
-  border: 1px solid rgba(24, 165, 122, 0.32);
-  border-radius: 16px;
-  background: linear-gradient(135deg, #EAF9F1, #DDF4EA);
+  margin-top: calc(var(--sp) * 0.2); padding: calc(var(--sp) * 0.55) calc(var(--sp) * 0.9);
+  // Color del proyecto (Sian365 dorado / ControlAcademic azul) vía --c2.
+  border: 1px solid color-mix(in srgb, var(--c2, #5B3FD6) 28%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--c2, #5B3FD6) 7%, #ffffff);
   user-select: none;
   &__icon {
-    flex-shrink: 0; width: calc(var(--fz) * 1.8); height: calc(var(--fz) * 1.8);
+    flex-shrink: 0; width: calc(var(--fz) * 1.7); height: calc(var(--fz) * 1.7);
     display: flex; align-items: center; justify-content: center;
-    border-radius: 50%; background: #18A57A; color: #fff;
-    box-shadow: 0 6px 14px rgba(24, 165, 122, 0.35);
-    svg { width: calc(var(--fz) * 0.9); height: calc(var(--fz) * 0.9); }
+    border-radius: 50%; background: var(--c2, #5B3FD6); color: #fff;
+    svg { width: calc(var(--fz) * 0.85); height: calc(var(--fz) * 0.85); }
   }
   &__text { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
-  &__label { font-size: calc(var(--fz) * 0.66); text-transform: uppercase; letter-spacing: 0.5px; color: #15996F; font-weight: 700; }
-  &__name { font-size: calc(var(--fz) * 0.95); font-weight: 700; color: #0E4D38; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  &__lock { flex-shrink: 0; color: #18A57A; display: flex; svg { width: calc(var(--fz) * 0.95); height: calc(var(--fz) * 0.95); display: block; } }
+  &__label { font-size: calc(var(--fz) * 0.66); text-transform: uppercase; letter-spacing: 0.5px; color: color-mix(in srgb, var(--c2, #5B3FD6) 72%, #0f172a); font-weight: 700; }
+  &__name { font-size: calc(var(--fz) * 0.93); font-weight: 600; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  &__lock { flex-shrink: 0; color: var(--c2, #5B3FD6); display: flex; svg { width: calc(var(--fz) * 0.95); height: calc(var(--fz) * 0.95); display: block; } }
 }
 
 .form-error-banner {
@@ -391,7 +346,7 @@ $radius-pill: 999px;
 }
 
 .consent-field {
-  margin-top: calc(var(--sp) * 0.1);
+  margin-top: calc(var(--sp) * 0.25);
   display: flex;
   align-items: flex-start;
   gap: calc(var(--sp) * 0.6);
@@ -405,25 +360,26 @@ $radius-pill: 999px;
     .consent-box {
       flex-shrink: 0; width: calc(var(--fz) * 1.25); height: calc(var(--fz) * 1.25); margin-top: 1px;
       display: flex; align-items: center; justify-content: center;
-      border: 2px solid #C9D7EE; border-radius: 7px;
+      border: 1.5px solid #cbd5e1; border-radius: 7px;
       background: #fff; color: #fff;
       transition: border-color 0.18s, background 0.18s, box-shadow 0.18s;
       svg { width: calc(var(--fz) * 0.72); height: calc(var(--fz) * 0.72); opacity: 0; transform: scale(0.5); transition: opacity 0.15s, transform 0.15s; }
     }
     input:checked + .consent-box {
-      background: linear-gradient(135deg, var(--c1, #4F7DF3), var(--c2, #5B3FD6));
-      border-color: transparent;
-      box-shadow: 0 6px 14px color-mix(in srgb, var(--c2, #5B3FD6) 34%, transparent);
+      // Neutro (slate oscuro): el color de marca vive solo en el botón.
+      background: #0f172a;
+      border-color: #0f172a;
+      box-shadow: none;
     }
     input:checked + .consent-box svg { opacity: 1; transform: scale(1); }
-    input:focus-visible + .consent-box { box-shadow: 0 0 0 3px color-mix(in srgb, var(--c2, #5B3FD6) 18%, transparent); }
+    input:focus-visible + .consent-box { box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.16); }
   }
 
   .consent-text {
     font-size: calc(var(--fz) * 0.84); color: #64748B; line-height: 1.5;
     cursor: pointer;
-    a { color: var(--c2, #5B3FD6); text-decoration: none; font-weight: 600; cursor: pointer; }
-    a:hover { text-decoration: underline; }
+    a { color: #334155; text-decoration: underline; text-underline-offset: 2px; font-weight: 600; cursor: pointer; }
+    a:hover { color: #0f172a; }
   }
 
   .err-msg { display: none; font-size: calc(var(--fz) * 0.74); color: $danger; margin-top: 4px; flex-basis: 100%; }
@@ -480,85 +436,249 @@ $radius-pill: 999px;
 }
 
 .submit-zone {
+  // Pie fijo del formulario: el botón "Iniciar chat" queda SIEMPRE abajo
+  // del widget (hermano del body, no dentro del scroll).
   position: relative;
-  margin-top: calc(var(--sp) * 0.35);
+  flex-shrink: 0;
+  margin-top: 0;
+  padding: calc(var(--sp) * 0.7) calc(var(--sp) * 1.5) calc(var(--sp) * 1.3 + env(safe-area-inset-bottom));
 }
 
-.submit-deco {
-  position: absolute; right: 0; top: -14px;
-  display: flex; align-items: center; gap: 10px;
-  color: color-mix(in srgb, var(--c2, #5B3FD6) 62%, transparent);
-  pointer-events: none;
-  .sd { width: 14px; height: 14px; }
-  .sd--1 { animation: twinkle 2.4s ease-in-out infinite; }
-  .sd--2 { width: 10px; height: 10px; opacity: 0.7; animation: twinkle 2.4s ease-in-out 0.7s infinite; }
-  .sd-line {
-    width: 42px; height: 2px; border-radius: 2px;
-    background: linear-gradient(90deg, transparent, currentColor);
-    opacity: 0.55;
-  }
-}
-@keyframes twinkle {
-  0%, 100% { opacity: 0.35; transform: scale(0.9); }
-  50%      { opacity: 1;    transform: scale(1.1); }
-}
-
+// Botón principal sólido en color de marca (sin degradados ni destellos)
+// con sombra sutil de reposo: profundidad limpia, estilo producto profesional.
 .btn-submit {
   position: relative;
   width: 100%;
-  min-height: clamp(52px, calc(var(--fz) * 3.2), 74px);
+  min-height: clamp(46px, calc(var(--fz) * 2.8), 58px);
   padding: 0 1.3em;
-  background: linear-gradient(120deg, var(--c1, #4F7DF3) 0%, var(--c2, #5B3FD6) 55%, var(--c3, #8B5CF6) 100%);
+  background: var(--c2, #5B3FD6);
   color: white;
   border: none;
-  border-radius: 20px;
-  font-family: var(--font); font-size: calc(var(--fz) * 1.05); font-weight: 600;
+  border-radius: 12px;
+  font-family: var(--font); font-size: calc(var(--fz) * 1); font-weight: 600;
   letter-spacing: 0.01em;
   cursor: pointer; display: flex; align-items: center; justify-content: center;
-  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.25s ease;
-  &:hover {
-    transform: translateY(-2px);
-    filter: brightness(1.06);
+  gap: 9px;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--c2, #5B3FD6) 20%, transparent);
+  transition: background 0.18s, transform 0.15s, box-shadow 0.18s;
+
+  .btn-arrow {
+    width: calc(var(--fz) * 1.05); height: calc(var(--fz) * 1.05);
+    transition: transform 0.2s;
   }
-  &:active { transform: translateY(0) scale(0.98); }
-  &:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  &:hover:not(:disabled) {
+    background: var(--brand-hover, #4338CA);
+    box-shadow: 0 8px 20px color-mix(in srgb, var(--c2, #5B3FD6) 30%, transparent);
+    .btn-arrow { transform: translateX(3px); }
+  }
+  &:active:not(:disabled) { transform: translateY(0) scale(0.99); box-shadow: none; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
 // ESPERANDO ASESOR
 // ══════════════════════════════════════════════════════════════════════════════
-.waiting-card { max-width: 380px; }
+.waiting-screen {
+  // Mismo lenguaje que el formulario: superficie blanca que ocupa TODO el
+  // widget (sin tarjeta flotante), contenido centrado y pie con botón abajo.
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #ffffff;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.waiting-card {
+  // Sin tarjeta: se funde con el fondo blanco y completa el alto del widget
+  // (columna: contenido que crece · aviso de ocupados · pie fijo abajo).
+  height: 100%;
+  max-width: min(640px, 100%);
+  width: 100%;
+  border-radius: 0;
+  box-shadow: none;
+  border: none;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+}
 
 .waiting-body {
-  padding: 3rem 2rem; text-align: center;
-  display: flex; flex-direction: column; align-items: center; gap: 1rem;
-  h3 { font-size: 1rem; font-weight: 600; color: var(--text); margin: 0; }
-  p  { font-size: 0.82rem; color: var(--text-muted); margin: 0; line-height: 1.5; }
+  // Contenido centrado en el espacio que sobra; crece para empujar el pie
+  // hasta abajo (como .card-body del formulario). Overflow como fallback
+  // en alturas muy bajas (el widget manda: scrollea solo si hace falta).
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(107, 114, 128, 0.35) transparent;
+  &::-webkit-scrollbar { width: 6px; }
+  &::-webkit-scrollbar-thumb { background: rgba(107, 114, 128, 0.35); border-radius: 6px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  // Padding generoso y simétrico en toda la pantalla de espera.
+  padding: calc(var(--sp) * 2.6) calc(var(--sp) * 2);
+  text-align: center;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: calc(var(--sp) * 1);
+  h3 { font-size: calc(var(--fz) * 1.1); font-weight: 600; color: var(--text); margin: 0; }
+  p  { font-size: calc(var(--fz) * 0.85); color: var(--text-muted); margin: 0; line-height: 1.5; max-width: 46ch; }
 }
 
-.waiting-visual {
-  position: relative; width: 72px; height: 72px;
-  display: flex; align-items: center; justify-content: center; margin-bottom: 0.5rem;
+// ══════════════════════════════════════════════════════════════════════════════
+// CARRUSEL DE ASESORES (pantalla de espera)
+// Efecto center-focus: un círculo grande en el centro y dos más pequeños a
+// cada lado; al avanzar, el de la derecha se engrandece hasta el centro y el
+// actual pasa a la izquierda (bucle infinito, asesor por asesor).
+// Responsive 100%: todo escala con --adv-w (sin media queries).
+// ══════════════════════════════════════════════════════════════════════════════
+.advisor-carousel {
+  --adv-w: clamp(72px, 17vw, 104px);     // diámetro del círculo CENTRO
+  --adv-step: calc(var(--adv-w) * 1.16); // distancia entre centros
+  width: 100%;
+  margin-top: calc(var(--sp) * 0.4);
+
+  .adv-label {
+    display: block;
+    font-size: calc(var(--fz) * 0.7);
+    font-weight: 600;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: calc(var(--sp) * 1);
+  }
+
+  // Altura fija: círculo + nombre del asesor del centro. Recorta lo que
+  // sobresalga del ancho en pantallas muy estrechas.
+  .adv-viewport {
+    position: relative;
+    width: 100%;
+    height: calc(var(--adv-w) + 40px);
+    overflow: hidden;
+  }
+
+  .adv-item {
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    width: var(--adv-w);
+    margin-left: calc(var(--adv-w) / -2);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transform-origin: center center;
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.5s ease;
+    will-change: transform;
+  }
+
+  .adv-avatar {
+    position: relative;
+    width: var(--adv-w);
+    height: var(--adv-w);
+    border-radius: 50%;
+    overflow: hidden;
+    background: #eef1f5;
+    // Contraste sobre fondo blanco: borde blanco, aro definido y sombra
+    // suave que da profundidad al círculo del centro.
+    border: 3px solid #ffffff;
+    box-shadow: 0 0 0 1.5px #cbd5e1, 0 8px 20px rgba(15, 23, 42, 0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+    .adv-ini {
+      font-size: calc(var(--adv-w) * 0.3);
+      font-weight: 600;
+      color: #475569;
+      letter-spacing: 0.02em;
+      user-select: none;
+    }
+  }
+
+  // Nombre SOLO bajo el círculo del centro (viaja con su item y se
+  // funde al entrar/salir del medio).
+  .adv-name {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    font-size: calc(var(--fz) * 0.82);
+    font-weight: 600;
+    color: var(--text);
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    &.visible { opacity: 1; }
+  }
+
+  // ── SELECCIÓN (el asesor se unió): anillo pulsante + check en el centro,
+  //    los demás atenúados y desenfocados. La atenuación va por [style]
+  //    en el template (gana al inline del estado); aquí va el filtro.
+  .adv-item.atenuado { filter: blur(1.5px); transition: filter 0.4s ease; }
+
+  .adv-item.seleccionado::after {
+    // Anillo de marca que pulsa alrededor del avatar elegido.
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: var(--adv-w);
+    height: var(--adv-w);
+    margin-left: calc(var(--adv-w) / -2);
+    border-radius: 50%;
+    border: 2.5px solid var(--brand, #ce9b30);
+    animation: cx-ring 1.4s ease-out infinite;
+    pointer-events: none;
+  }
+
+  .adv-item.seleccionado .adv-avatar {
+    animation: cx-pop 0.5s cubic-bezier(0.2, 0.8, 0.3, 1.3);
+    box-shadow: 0 0 0 3px var(--brand, #ce9b30), 0 8px 20px rgba(15, 23, 42, 0.14);
+  }
+
+  .adv-item.seleccionado .adv-check {
+    // Check dentro del círculo, esquina inferior derecha (no lo recorta
+    // el overflow de la foto), con rebote.
+    position: absolute;
+    right: 12%;
+    bottom: 12%;
+    width: 30%;
+    height: 30%;
+    border-radius: 50%;
+    background: var(--brand, #ce9b30);
+    border: 2px solid #ffffff;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    animation: cx-badge 0.5s cubic-bezier(0.2, 0.8, 0.3, 1.35) 0.3s both;
+    svg { width: 62%; height: 62%; }
+  }
 }
 
-.ring {
-  position: absolute; border-radius: 50%;
-  border: 1.5px solid var(--brand, #4F46E5); opacity: 0;
-  animation: expand 2.4s ease-out infinite;
-  &.ring-1 { animation-delay: 0s; }
-  &.ring-2 { animation-delay: 0.8s; }
-  &.ring-3 { animation-delay: 1.6s; }
+@keyframes cx-pop {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.07); }
+  100% { transform: scale(1); }
 }
 
-@keyframes expand {
-  0%   { width: 36px; height: 36px; opacity: 0.6; }
-  100% { width: 72px; height: 72px; opacity: 0; }
+@keyframes cx-ring {
+  0% { transform: scale(1); opacity: 0.9; }
+  70% { transform: scale(1.32); opacity: 0; }
+  100% { transform: scale(1.32); opacity: 0; }
 }
 
-.waiting-icon {
-  width: 36px; height: 36px; background: var(--brand, #4F46E5); border-radius: 50%;
-  display: flex; align-items: center; justify-content: center; color: white; z-index: 1;
-  svg { width: 18px; height: 18px; }
+@keyframes cx-badge {
+  0% { transform: scale(0); }
+  70% { transform: scale(1.18); }
+  100% { transform: scale(1); }
 }
 
 .waiting-dots {
@@ -611,28 +731,33 @@ $radius-pill: 999px;
 }
 
 .waiting-footer-actions {
-  display: flex; gap: 0.5rem;
-  padding: 0 1.25rem 1.25rem;
-
-  .btn-faq, .btn-exit-waiting {
-    flex: 1; padding: 0.55rem; border-radius: 8px;
-    font-family: var(--font); font-size: 0.78rem; font-weight: 500; cursor: pointer;
-    transition: all 0.18s; text-align: center;
-  }
-
-  .btn-faq {
-    background: transparent; border: 1px solid var(--border); color: var(--text-muted);
-    &:hover { border-color: #111; color: #111; }
-  }
+    // Pie fijo abajo del widget: mismos gutters (2sp) que el cuerpo.
+    display: flex; gap: 0.5rem; flex-shrink: 0;
+    padding: calc(var(--sp) * 0.7) calc(var(--sp) * 2) calc(var(--sp) * 1.3 + env(safe-area-inset-bottom));
 
   .btn-exit-waiting {
-    background: transparent; border: 1px solid #fee2e2; color: #dc2626;
+    flex: 1;
+    min-height: clamp(44px, calc(var(--fz) * 2.7), 56px);
+    padding: 0 1.3em;
+    border-radius: 12px;
+    background: #ffffff;
+    border: 1.5px solid #e5e9ef;
+    font-family: var(--font);
+    font-size: calc(var(--fz) * 0.95);
+    font-weight: 600;
+    color: #dc2626;
+    cursor: pointer;
+    transition: border-color 0.18s, background 0.18s;
     &:hover { background: #fef2f2; border-color: #dc2626; }
+    &:disabled { opacity: 0.5; cursor: not-allowed; }
   }
 }
 
 .busy-notice {
-  margin: 0 1.25rem 1.25rem;
+  // Aviso de "agentes ocupados": banda entre el contenido y el pie,
+  // con los mismos laterales (2sp) que el cuerpo y el pie.
+  margin: 0 calc(var(--sp) * 2) calc(var(--sp) * 0.9);
+  flex-shrink: 0;
   background: #fffbeb; border: 1px solid #fde68a;
   border-radius: var(--radius-sm); padding: 0.85rem 1rem;
   display: flex; align-items: flex-start; gap: 0.65rem;
@@ -652,18 +777,134 @@ $radius-pill: 999px;
   }
 }
 
-.btn-exit-waiting {
-  margin-top: 4px; padding: 0.4rem 0.75rem;
-  background: transparent; border: 1px solid #d97706;
-  border-radius: 8px; font-family: var(--font); font-size: 0.75rem;
-  font-weight: 500; color: #92400e; cursor: pointer;
-  transition: background 0.18s; align-self: flex-start;
-  &:hover { background: #fef3c7; }
-}
-
 @keyframes fadeSlideUp {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// OVERLAY "¡CONECTADO!" (efecto de conexión del asesor)
+// Aparece tras la selección en el carrusel, el chat se monta DETRÁS y el
+// overlay se desvanece revelándolo. position: fixed => cubre el área del
+// widget (iframe) o la ventana en /chat.
+// ══════════════════════════════════════════════════════════════════════════════
+.conexion-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: cx-in 0.38s cubic-bezier(0.4, 0, 0.2, 1) both;
+  &.saliendo { animation: cx-out 0.32s ease both; }
+
+  .conexion-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 24px;
+  }
+
+  .conexion-avatar {
+    position: relative;
+    width: clamp(84px, 24vw, 104px);
+    height: clamp(84px, 24vw, 104px);
+    margin-bottom: 24px;
+  }
+
+  .conexion-ripple {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 2px solid var(--brand, #ce9b30);
+    opacity: 0;
+    animation: cx-ripple 1.7s ease-out infinite;
+    &.r2 { animation-delay: 0.55s; }
+  }
+
+  .conexion-foto {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    overflow: hidden;
+    background: #eef1f5;
+    border: 3px solid #ffffff;
+    box-shadow: 0 0 0 3px var(--brand, #ce9b30), 0 14px 34px rgba(15, 23, 42, 0.18);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .conexion-ini { font-size: clamp(30px, 8vw, 38px); font-weight: 600; color: #475569; }
+  }
+
+  .conexion-check {
+    position: absolute;
+    right: -4px;
+    bottom: -4px;
+    width: clamp(30px, 8.5vw, 36px);
+    height: clamp(30px, 8.5vw, 36px);
+    border-radius: 50%;
+    background: var(--brand, #ce9b30);
+    border: 3px solid #ffffff;
+    box-shadow: 0 4px 10px rgba(15, 23, 42, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    animation: cx-badge 0.55s cubic-bezier(0.2, 0.8, 0.3, 1.35) 0.5s both;
+    svg { width: 14px; height: 14px; }
+  }
+
+  .conexion-titulo {
+    margin: 0 0 8px;
+    font-size: calc(var(--fz) * 1.35);
+    font-weight: 700;
+    color: var(--text);
+    animation: cx-up 0.45s cubic-bezier(0.4, 0, 0.2, 1) 0.3s both;
+  }
+
+  .conexion-sub {
+    margin: 0;
+    font-size: calc(var(--fz) * 0.95);
+    color: var(--text-muted);
+    strong { color: var(--text); font-weight: 600; }
+    animation: cx-up 0.45s cubic-bezier(0.4, 0, 0.2, 1) 0.45s both;
+  }
+
+  .conexion-abriendo {
+    margin-top: 22px;
+    font-size: calc(var(--fz) * 0.72);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #94a3b8;
+    animation: cx-up 0.45s cubic-bezier(0.4, 0, 0.2, 1) 0.6s both;
+  }
+}
+
+@keyframes cx-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cx-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes cx-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes cx-ripple {
+  0% { transform: scale(1); opacity: 0.85; }
+  75%, 100% { transform: scale(1.85); opacity: 0; }
+}
+
+// Accesibilidad: sin movimiento (el componente además salta el efecto).
+@media (prefers-reduced-motion: reduce) {
+  .conexion-overlay,
+  .conexion-overlay *,
+  .adv-item.seleccionado::after,
+  .adv-item.seleccionado .adv-avatar,
+  .adv-item.seleccionado .adv-check {
+    animation: none !important;
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -679,6 +920,13 @@ $radius-pill: 999px;
   position: relative;
   background: $surface;
   margin: auto 0;
+  // Entrada al revelarse desde el overlay "¡Conectado!" (y al abrir chat).
+  animation: cx-chat-in 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@keyframes cx-chat-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.99); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 // ── CHAT HEADER ──────────────────────────────────────────────────────────────
@@ -2681,10 +2929,6 @@ textarea {
     font-size: max(16px, calc(var(--fz) * 0.98));
   }
 
-  .form-card {
-    border-radius: 20px;
-  }
-
   .btn-submit {
     min-height: 54px;
     font-size: max(16px, calc(var(--fz) * 1.05));
@@ -2748,52 +2992,66 @@ textarea {
   // La escala adaptativa ya compacta tamaños en paneles estrechos; aquí solo se
   // recalca el texto de consentimiento para que no quede apretado.
   .consent-text { font-size: calc(var(--fz) * 0.78); }
-
-  .card-header { padding-left: calc(var(--sp) * 1.4); padding-right: calc(var(--sp) * 1.4); }
-  .card-body   { padding-left: calc(var(--sp) * 1.4); padding-right: calc(var(--sp) * 1.4); }
-
-  // El arte decorativo del header se oculta en móvil (espacio).
-  .hd-art { display: none; }
-
-  .submit-deco { display: none; }
 }
 
-// Pantallas muy estrechas: el formulario pasa a una sola columna para que los
-// campos no queden ilegibles (dos columnas se mantienen en móviles estándar
-// para conservar espacio vertical y evitar scroll).
-@media (max-width: 340px) {
-  .field-row { grid-template-columns: 1fr; gap: calc(var(--sp) * 0.95); }
+// Dos columnas desde 360 px (el widget de 360–440 px y los móviles conservan
+// las parejas para que TODO quepa sin scroll). Solo dispositivos muy estrechos
+// (<360 px) pasan a una sola columna.
+@media (max-width: 359px) {
+  .field-row { grid-template-columns: 1fr; gap: calc(var(--sp) * 1.1); }
 }
 
 // Pantallas con poca altura (widgets / móviles apaisados): modo compacto que
-// acopla el formulario para que quepa sin scroll vertical.
+// acopla el formulario para que quepa SIN scroll vertical.
 @media (max-height: 640px) {
   .form-card .card-header {
-    padding-top: calc(var(--sp) * 0.9);
-    padding-bottom: calc(var(--sp) * 0.75);
+    // En pantallas bajas la banda crece poco: el banner ya aporta alto.
+    padding-top: calc(var(--sp) * 0.3);
+    padding-bottom: calc(var(--sp) * 0.28);
+    gap: 0;
   }
-  .form-card .brand-mark {
-    width: calc(var(--fz) * 2.4);
-    height: calc(var(--fz) * 2.4);
+  .form-card .card-header .header-img {
+    // Tope de alto del banner para conservar el "SIN scroll" en widgets
+    // bajos (900x560): escala dentro del ancho sin recortar el texto.
+    // Compensa el padding de 3sp/3.3sp del card-body (bloque del usuario):
+    // el header entrega ~19px para que el formulario siga SIN scroll.
+    max-height: 66px;
+    width: auto;
+    max-width: 100%;
+    margin: 0 auto;
   }
-  .form-card .hd-text p { display: none; }
-  .form-card .hd-text h2 { font-size: calc(var(--fz) * 1.1); }
 
   .form-card .card-body {
-    padding-top: calc(var(--sp) * 0.9);
-    padding-bottom: calc(var(--sp) * 1.1);
-    gap: calc(var(--sp) * 0.7);
+    padding-top: calc(var(--sp) * 3);
+    padding-bottom: calc(var(--sp) * 3.3);
+    gap: calc(var(--sp) * 1.05);
   }
 
-  .form-card .field { gap: calc(var(--sp) * 0.28); }
+  .form-card .field { gap: calc(var(--sp) * 0.3); }
 
   .form-card .field input,
   .form-card .field .input-wrap--select select {
-    min-height: 43px;
+    // 43→39: libera ~16px en las 4 filas para el "SIN scroll" en 900x560.
+    min-height: 39px;
   }
 
-  .form-card .btn-submit { min-height: 47px; }
-  .form-card .submit-zone { margin-top: calc(var(--sp) * 0.25); }
+  .form-card .consent-field { margin-top: calc(var(--sp) * 0.15); }
+  .form-card .btn-submit { min-height: 42px; }
+  .form-card .submit-zone {
+    padding-top: calc(var(--sp) * 0.4);
+    padding-bottom: calc(var(--sp) * 1 + env(safe-area-inset-bottom));
+  }
   .form-card .colegio-found { margin-top: 0; }
+
+  // Pantalla de espera compacta: carrusel + temporizador sin scroll.
+  .waiting-body {
+    padding-top: calc(var(--sp) * 0.9);
+    padding-bottom: calc(var(--sp) * 0.6);
+    gap: calc(var(--sp) * 0.6);
+  }
+  .advisor-carousel {
+    margin-top: calc(var(--sp) * 0.2);
+    .adv-label { margin-bottom: calc(var(--sp) * 0.5); }
+  }
 }
 

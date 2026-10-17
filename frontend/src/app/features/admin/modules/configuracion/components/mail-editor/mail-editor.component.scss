@@ -1,3 +1,20 @@
+/* Tema oscuro: los valores claros viven en los fallbacks de cada uso (light pixel-idéntico).
+   El lienzo del correo (mail-block-view) se mantiene claro en ambos temas. */
+:host.theme-dark {
+  --mled-surface: #1a1f26;
+  --mled-panel: #151b23;
+  --mled-canvas: #151b23;
+  --mled-border: rgba(255, 255, 255, 0.10);
+  --mled-tint: rgba(129, 140, 248, 0.14);
+  --mled-accent: #818cf8;
+  --mled-ink: #e6edf7;
+  --mled-ink2: #b9c2d0;
+  --mled-muted: #9aa5b8;
+  --mled-faint: #7f8ba0;
+  --mled-danger: #f87171;
+  --mled-track: rgba(255, 255, 255, 0.12);
+}
+
 .mled {
   width: 100%;
 }
@@ -8,8 +25,8 @@
   align-items: center;
   gap: 6px 8px;
   padding: 10px 12px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: var(--mled-surface, #ffffff);
+  border: 1px solid var(--mled-border, #e2e8f0);
   border-radius: 10px;
   margin-bottom: 12px;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
@@ -17,7 +34,7 @@
 
 .mled__seg {
   display: inline-flex;
-  background: #eef2ff;
+  background: var(--mled-tint, #eef2ff);
   border-radius: 8px;
   padding: 2px;
 }
@@ -29,12 +46,12 @@
   border-radius: 6px;
   font-size: 13px;
   font-weight: 600;
-  color: #6366f1;
+  color: var(--mled-accent, #6366f1);
   cursor: pointer;
 
   &--active {
-    background: #ffffff;
-    color: #4338ca;
+    background: var(--mled-surface, #ffffff);
+    color: var(--mled-accent, #4338ca);
     box-shadow: 0 1px 3px rgba(15, 23, 42, 0.15);
   }
 }
@@ -42,7 +59,7 @@
 .mled__divider {
   width: 1px;
   height: 22px;
-  background: #e2e8f0;
+  background: var(--mled-track, #e2e8f0);
   flex: 0 0 auto;
 }
 
@@ -61,7 +78,7 @@
   border: none;
   border-radius: 6px;
   background: transparent;
-  color: #475569;
+  color: var(--mled-ink2, #475569);
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
 
@@ -71,8 +88,8 @@
   }
 
   &:hover {
-    background: #eef2ff;
-    color: #4338ca;
+    background: var(--mled-tint, #eef2ff);
+    color: var(--mled-accent, #4338ca);
   }
 
   &:disabled {
@@ -83,12 +100,12 @@
 
 .mled__select {
   appearance: auto;
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
+  background: var(--mled-surface, #ffffff);
+  border: 1px solid var(--mled-border, #cbd5e1);
   border-radius: 7px;
   padding: 6px 8px;
   font-size: 13px;
-  color: #1e293b;
+  color: var(--mled-ink, #1e293b);
   max-width: 220px;
 
   &--full {
@@ -102,17 +119,17 @@
 }
 
 .mled__btn {
-  border: 1px solid #cbd5e1;
-  background: #ffffff;
-  color: #334155;
+  border: 1px solid var(--mled-border, #cbd5e1);
+  background: var(--mled-surface, #ffffff);
+  color: var(--mled-ink2, #334155);
   border-radius: 7px;
   padding: 6px 12px;
   font-size: 13px;
   cursor: pointer;
 
   &:hover {
-    border-color: #6366f1;
-    color: #4338ca;
+    border-color: var(--mled-accent, #6366f1);
+    color: var(--mled-accent, #4338ca);
   }
 }
 
@@ -152,8 +169,8 @@
   z-index: 70;
   min-width: 280px;
   max-width: calc(100vw - 24px);
-  background: #ffffff;
-  border: 1px solid #dbe2ea;
+  background: var(--mled-surface, #ffffff);
+  border: 1px solid var(--mled-border, #dbe2ea);
   border-radius: 12px;
   box-shadow: 0 12px 32px rgba(15, 23, 42, 0.22);
   padding: 8px;
@@ -164,7 +181,7 @@
   padding: 4px 0;
 
   & + & {
-    border-top: 1px solid #eef2f7;
+    border-top: 1px solid var(--mled-border, #eef2f7);
     margin-top: 4px;
   }
 }
@@ -176,7 +193,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #94a3b8;
+  color: var(--mled-faint, #94a3b8);
 }
 
 .mled__add-item {
@@ -193,7 +210,7 @@
   transition: background 0.12s ease;
 
   &:hover {
-    background: #eef2ff;
+    background: var(--mled-tint, #eef2ff);
   }
 }
 
@@ -205,8 +222,8 @@
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  background: #eef2ff;
-  color: #4338ca;
+  background: var(--mled-tint, #eef2ff);
+  color: var(--mled-accent, #4338ca);
 
   svg {
     width: 16px;
@@ -223,12 +240,12 @@
 .mled__add-name {
   font-size: 13px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--mled-ink, #1e293b);
 }
 
 .mled__add-desc {
   font-size: 12px;
-  color: #64748b;
+  color: var(--mled-muted, #64748b);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -245,8 +262,8 @@
   position: relative;
   flex: 1 1 100%;
   min-width: 0;
-  background: #f4f6fb;
-  border: 1px solid #e2e8f0;
+  background: var(--mled-canvas, #f4f6fb);
+  border: 1px solid var(--mled-border, #e2e8f0);
   border-radius: 10px;
   padding: 16px;
 }
@@ -262,11 +279,11 @@
 .mled__empty {
   padding: 36px 20px;
   text-align: center;
-  color: #94a3b8;
+  color: var(--mled-faint, #94a3b8);
   font-size: 14px;
 
   strong {
-    color: #64748b;
+    color: var(--mled-muted, #64748b);
   }
 }
 
@@ -294,8 +311,8 @@
   z-index: 60;
   width: 340px;
   max-width: calc(100vw - 24px);
-  background: #ffffff;
-  border: 1px solid #dbe2ea;
+  background: var(--mled-surface, #ffffff);
+  border: 1px solid var(--mled-border, #dbe2ea);
   border-radius: 12px;
   box-shadow: 0 12px 32px rgba(15, 23, 42, 0.22);
   overflow: hidden;
@@ -321,9 +338,9 @@
   align-items: center;
   gap: 8px;
   padding: 10px 14px;
-  background: #f8fafc;
-  border-bottom: 1px solid #eef2f7;
-  color: #1e293b;
+  background: var(--mled-panel, #f8fafc);
+  border-bottom: 1px solid var(--mled-border, #eef2f7);
+  color: var(--mled-ink, #1e293b);
   font-size: 14px;
 }
 
@@ -331,7 +348,7 @@
   flex: 1;
   font-size: 12px;
   font-weight: 400;
-  color: #94a3b8;
+  color: var(--mled-faint, #94a3b8);
 }
 
 .mled__pp-close {
@@ -339,11 +356,11 @@
   background: transparent;
   font-size: 18px;
   line-height: 1;
-  color: #94a3b8;
+  color: var(--mled-faint, #94a3b8);
   cursor: pointer;
 
   &:hover {
-    color: #dc2626;
+    color: var(--mled-danger, #dc2626);
   }
 }
 
@@ -364,7 +381,7 @@
   display: block;
   font-size: 12px;
   font-weight: 600;
-  color: #475569;
+  color: var(--mled-ink2, #475569);
   margin-bottom: 5px;
 }
 
@@ -372,16 +389,16 @@
 .mled__textarea {
   width: 100%;
   box-sizing: border-box;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--mled-border, #cbd5e1);
   border-radius: 7px;
   padding: 7px 9px;
   font-size: 13px;
-  color: #1e293b;
+  color: var(--mled-ink, #1e293b);
   font-family: inherit;
 
   &:focus {
     outline: none;
-    border-color: #6366f1;
+    border-color: var(--mled-accent, #6366f1);
   }
 }
 
@@ -400,42 +417,42 @@
 .mled__color {
   width: 100%;
   height: 34px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--mled-border, #cbd5e1);
   border-radius: 7px;
   padding: 2px;
-  background: #ffffff;
+  background: var(--mled-surface, #ffffff);
   cursor: pointer;
 }
 
 .mled__range {
   width: 100%;
-  accent-color: #6366f1;
+  accent-color: var(--mled-accent, #6366f1);
 }
 
 .mled__hint {
   display: block;
   margin-top: 4px;
   font-size: 11.5px;
-  color: #94a3b8;
+  color: var(--mled-faint, #94a3b8);
 }
 
 .mled__note {
   margin: 0;
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--mled-faint, #94a3b8);
   line-height: 1.5;
 }
 
 .mled__colsbar-track {
   height: 8px;
-  background: #e2e8f0;
+  background: var(--mled-track, #e2e8f0);
   border-radius: 4px;
   overflow: hidden;
 }
 
 .mled__colsbar-fill {
   height: 100%;
-  background: #6366f1;
+  background: var(--mled-accent, #6366f1);
   border-radius: 4px;
   transition: width 0.1s ease;
 }
@@ -448,18 +465,18 @@
   width: 100%;
   box-sizing: border-box;
   height: 480px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--mled-border, #cbd5e1);
   border-radius: 10px;
   padding: 14px;
   font-family: Consolas, Monaco, monospace;
   font-size: 12.5px;
-  color: #1e293b;
-  background: #ffffff;
+  color: var(--mled-ink, #1e293b);
+  background: var(--mled-surface, #ffffff);
   resize: vertical;
 
   &:focus {
     outline: none;
-    border-color: #6366f1;
+    border-color: var(--mled-accent, #6366f1);
   }
 }
 
@@ -467,5 +484,5 @@
   display: block;
   margin-top: 8px;
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--mled-faint, #94a3b8);
 }

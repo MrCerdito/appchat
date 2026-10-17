@@ -110,6 +110,20 @@ export class Session {
   @Column({ name: 'closed_at', nullable: true, type: 'timestamptz' })
   closedAt: Date | null;
 
+  // ── Clasificación de cierre (opcional; se aplica vía PATCH :id/cierre) ──
+  // Valores permitidos: requerimiento | solucion | error | capacitacion | otro
+  @Column({ name: 'cierre_tipo', type: 'varchar', length: 20, nullable: true })
+  cierreTipo: string | null = null;
+
+  @Column({ name: 'cierre_notas', type: 'varchar', length: 300, nullable: true })
+  cierreNotas: string | null = null;
+
+  @Column({ name: 'cierre_seguimiento', type: 'boolean', default: false })
+  cierreSeguimiento: boolean = false;
+
+  @Column({ name: 'cierre_at', type: 'timestamptz', nullable: true })
+  cierreAt: Date | null = null;
+
   @OneToMany(() => Message, (message) => message.session)
   messages: Message[];
 

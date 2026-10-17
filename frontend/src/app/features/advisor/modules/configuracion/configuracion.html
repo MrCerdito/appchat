@@ -12,9 +12,10 @@
       </div>
       <div>
         <h1>Mi configuración</h1>
-        <p>Tu horario de almuerzo y las respuestas rápidas</p>
+        <p>Tu horario de almuerzo, respuestas rápidas y conexión de Teams</p>
       </div>
     </div>
+    @if (tab !== 'teams') {
     <button class="btn-save" [disabled]="saving" (click)="guardar()">
       @if (saving) {
       <svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
@@ -34,6 +35,7 @@
       }
       {{ saving ? 'Guardando...' : saved ? '¡Guardado!' : 'Guardar cambios' }}
     </button>
+    }
   </div>
 
   @if (error) {
@@ -64,6 +66,12 @@
           <path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>
         </svg>
         Respuestas rapidas
+      </button>
+      <button class="tab" [class.active]="tab === 'teams'" (click)="irATabTeams()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="5" width="13" height="14" rx="2"/><path d="m16 10 5-3v10l-5-3"/><path d="M7 9h5M9.5 7v7"/>
+        </svg>
+        Teams
       </button>
 
     </div>
@@ -389,6 +397,64 @@
         </div>
         }
 
+      </div>
+    </div>
+    }
+
+    @if (tab === 'teams') {
+    <div class="tab-panel">
+      <div class="panel-section teams-settings">
+        <div class="section-info">
+          <h3>Conexión con Microsoft Teams</h3>
+          <p>Conecta tu cuenta de trabajo para crear reuniones y compartir sus enlaces desde la aplicación.</p>
+        </div>
+
+        @if (teamsError) {
+        <div class="teams-feedback teams-feedback--error" role="alert">{{ teamsError }}</div>
+        }
+        @if (teamsMessage) {
+        <div class="teams-feedback teams-feedback--success" role="status">{{ teamsMessage }}</div>
+        }
+
+        <div class="teams-connection-card" [class.teams-connection-card--connected]="teamsConnected">
+          <div class="teams-connection-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="5" width="13" height="14" rx="2"/><path d="m16 10 5-3v10l-5-3"/><path d="M7 9h5M9.5 7v7"/>
+            </svg>
+          </div>
+          <div class="teams-connection-copy">
+            @if (teamsLoading) {
+            <strong>Consultando conexión...</strong>
+            <span>Un momento, por favor.</span>
+            } @else if (teamsConnected) {
+            <strong>Cuenta conectada</strong>
+            <span>{{ teamsAccountName || 'Tu cuenta de Microsoft está lista para crear reuniones.' }}</span>
+            } @else {
+            <strong>Teams no está conectado</strong>
+            <span>Conecta la cuenta organizacional que será la organizadora de tus reuniones.</span>
+            }
+          </div>
+          <div class="teams-connection-actions">
+            @if (teamsLoading) {
+            <span class="teams-spinner" aria-label="Cargando"></span>
+            } @else if (teamsConnected) {
+            <button type="button" class="teams-disconnect-btn" (click)="disconnectTeams()" [disabled]="teamsDisconnecting">
+              {{ teamsDisconnecting ? 'Desconectando...' : 'Desconectar' }}
+            </button>
+            } @else {
+            <button type="button" class="teams-connect-btn" (click)="connectTeams()" [disabled]="teamsConnecting">
+              {{ teamsConnecting ? 'Conectando...' : 'Conectar Teams' }}
+            </button>
+            }
+          </div>
+        </div>
+
+        <div class="teams-info-card">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>
+          </svg>
+          <span>La conexión se guarda para tu usuario. Al crear una reunión, inicia sesión con la cuenta de Microsoft que tenga licencia de Teams.</span>
+        </div>
       </div>
     </div>
     }

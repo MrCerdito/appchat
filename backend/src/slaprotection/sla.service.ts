@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThanOrEqual, In, Not, IsNull } from 'typeorm';
 import { Ticket } from '../tickets/ticket.entity';
@@ -9,7 +9,13 @@ const SLA_CHECK_INTERVAL_MS = 60_000;
 const SLA_WARNING_BUFFER_MS = 60 * 60 * 1000;
 
 @Injectable()
-export class SlaService implements OnModuleInit {
+/**
+ * `OnModuleDestroy` es imprescindible: sin implementarlo, Nest nunca invoca
+ * `onDestroy()` y el `setInterval` de `checkSla` sobrevive al apagado. En tests y
+ * en recargas en caliente eso deja timers huerfanos que siguen consultando la
+ * base de datos contra un modulo ya destruido.
+ */
+export class SlaService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(SlaService.name);
   private intervalHandle: NodeJS.Timeout | null = null;
 
@@ -29,8 +35,17 @@ export class SlaService implements OnModuleInit {
     this.logger.log('SLA checker started (60s interval)');
   }
 
-  onDestroy(): void {
-    if (this.intervalHandle) clearInterval(this.intervalHandle);
+  /**
+   * El nombre debe ser exactamente `onModuleDestroy`: Nest lo busca por ese
+   * nombre al destruir el modulo. Con `onDestroy` (que era como estaba) el
+   * metodo existia pero nunca se llamaba, asi que el interval sobrevivia al
+   * apagado del proceso.
+   */
+  onModuleDestroy(): void {
+    if (this.intervalHandle) {
+      clearInterval(this.intervalHandle);
+      this.intervalHandle = null;
+    }
   }
 
   async calculateDeadline(priority: string): Promise<Date | null> {

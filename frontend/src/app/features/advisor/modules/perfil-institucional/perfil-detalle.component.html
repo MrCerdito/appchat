@@ -22,7 +22,9 @@
 
       <div class="pd-titular">
         <div class="pd-title-row">
+          @if (!esAdmin) {
           <h1>{{ ficha.institucion.nombre }}</h1>
+          }
         </div>
 
         <div class="pd-meta">

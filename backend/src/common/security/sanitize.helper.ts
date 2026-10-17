@@ -21,10 +21,24 @@ export function sanitizeMessage(value: string, maxLength = 1000): string {
       'a',
     ],
     allowedAttributes: {
-      a: ['href', 'target', 'rel', 'title'],
+      a: ['href', 'target', 'rel', 'title', 'class'],
       span: ['style', 'class'],
       ul: ['class'],
       ol: ['class'],
+      div: ['class'],
+    },
+    // Clases permitidas en <div>/<a> (cards de mensaje tipo msg-card).
+    // span/ul/ol no llevan entrada aqui: conservan cualquier clase, como antes.
+    allowedClasses: {
+      a: ['msg-card-btn', 'msg-card-btn--copy'],
+      div: [
+        'msg-card',
+        'msg-card--teams',
+        'msg-card-head',
+        'msg-card-rows',
+        'msg-card-row',
+        'msg-card-note',
+      ],
     },
     allowedSchemes: ['http', 'https', 'mailto', 'tel'],
     allowedStyles: {

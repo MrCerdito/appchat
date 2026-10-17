@@ -43,8 +43,13 @@ function deriveKeyV1(raw: string): Buffer {
   return createHash('sha256').update(raw).digest();
 }
 
+function getPbkdf2CacheKey(raw: string, salt: Buffer): string {
+  const keyFingerprint = createHash('sha256').update(raw).digest('hex');
+  return `${keyFingerprint}:${salt.toString('base64')}`;
+}
+
 function deriveKeyV2Sync(raw: string, salt: Buffer): Buffer {
-  const cacheKey = salt.toString('base64');
+  const cacheKey = getPbkdf2CacheKey(raw, salt);
   let cached = pbkdf2Cache.get(cacheKey);
   if (cached) return cached;
   cached = pbkdf2Sync(
@@ -177,18 +182,17 @@ export const encryptedTextTransformer: ValueTransformer = {
 
     if (!isEnc) return value;
 
-    try {
-      const result = doDecrypt(raw);
-      if (result !== null) return result;
-    } catch {}
-
-    try {
-      const fallback = process.env.CHAT_ENCRYPTION_KEY_FALLBACK?.trim();
-      if (fallback) {
-        const result = doDecrypt(fallback);
+    const fallback = process.env.CHAT_ENCRYPTION_KEY_FALLBACK?.trim();
+    const keys =
+      process.env.CHAT_ENCRYPTION_KEY_FALLBACK_FIRST === 'true'
+        ? [fallback, raw].filter((key): key is string => Boolean(key))
+        : [raw, fallback].filter((key): key is string => Boolean(key));
+    for (const key of keys) {
+      try {
+        const result = doDecrypt(key);
         if (result !== null) return result;
-      }
-    } catch {}
+      } catch {}
+    }
 
     logger.error(
       `No se pudo desencriptar valor (intentadas key primaria y fallback): ${value.slice(0, 40)}...`,
@@ -205,6 +209,16 @@ export async function warmupEncryptedCache(
 ): Promise<void> {
   const raw = process.env.CHAT_ENCRYPTION_KEY?.trim();
   if (!raw) return;
+  if (
+    process.env.CHAT_ENCRYPTION_KEY_FALLBACK_FIRST === 'true' &&
+    process.env.CHAT_ENCRYPTION_KEY_FALLBACK?.trim()
+  ) {
+    logger.log('Warmup skipped: historical fallback is tried first on demand');
+    return;
+  }
+  const rawKeys = [raw, process.env.CHAT_ENCRYPTION_KEY_FALLBACK?.trim()].filter(
+    (key): key is string => Boolean(key),
+  );
 
   // Ejecutar de forma completamente asíncrona fuera del ciclo de arranque crítico principal
   setImmediate(async () => {
@@ -247,13 +261,15 @@ export async function warmupEncryptedCache(
         return;
       }
 
-      const uniqueSalts = new Map<string, Buffer>();
+      const uniqueSalts = new Map<string, { rawKey: string; salt: Buffer }>();
       for (const value of allValues) {
         const parsed = parseV2(value);
         if (!parsed) continue;
-        const saltB64 = parsed.salt.toString('base64');
-        if (!uniqueSalts.has(saltB64) && !pbkdf2Cache.has(saltB64)) {
-          uniqueSalts.set(saltB64, parsed.salt);
+        for (const rawKey of rawKeys) {
+          const cacheKey = getPbkdf2CacheKey(rawKey, parsed.salt);
+          if (!uniqueSalts.has(cacheKey) && !pbkdf2Cache.has(cacheKey)) {
+            uniqueSalts.set(cacheKey, { rawKey, salt: parsed.salt });
+          }
         }
       }
 
@@ -261,10 +277,10 @@ export async function warmupEncryptedCache(
       for (let i = 0; i < saltEntries.length; i += BATCH_SIZE) {
         const batch = saltEntries.slice(i, i + BATCH_SIZE);
         await Promise.all(
-          batch.map(async ([saltB64, salt]) => {
+          batch.map(async ([cacheKey, { rawKey, salt }]) => {
             const key = await new Promise<Buffer>((resolve, reject) =>
               pbkdf2(
-                raw,
+                rawKey,
                 salt,
                 PBKDF2_ITERATIONS,
                 PBKDF2_KEYLEN,
@@ -272,7 +288,7 @@ export async function warmupEncryptedCache(
                 (err, derivedKey) => (err ? reject(err) : resolve(derivedKey)),
               ),
             );
-            pbkdf2Cache.set(saltB64, key);
+            pbkdf2Cache.set(cacheKey, key);
           }),
         );
         await new Promise((r) => setImmediate(r));
@@ -280,13 +296,16 @@ export async function warmupEncryptedCache(
 
       for (const value of allValues) {
         if (decryptCache.has(value)) continue;
-        try {
-          const parsed = parseV2(value);
-          if (!parsed) continue;
-          const decrypted = decryptV2(raw, parsed);
-          decryptCache.set(value, decrypted);
-        } catch {
-          // ignorar valores corruptos
+        const parsed = parseV2(value);
+        if (!parsed) continue;
+        for (const rawKey of rawKeys) {
+          try {
+            const decrypted = decryptV2(rawKey, parsed);
+            decryptCache.set(value, decrypted);
+            break;
+          } catch {
+            // Intentar la siguiente clave configurada.
+          }
         }
       }
 

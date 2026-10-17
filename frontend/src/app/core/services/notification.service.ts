@@ -6,6 +6,8 @@ export interface Toast {
   title: string;
   message: string;
   icon?: string;
+  /** Boton de reintento/accion. Si esta, el toast dura mas. */
+  accion?: { label: string; onClick: () => void };
 }
 
 @Injectable({ providedIn: 'root' })
@@ -15,6 +17,22 @@ export class NotificationService {
 
   show(type: Toast['type'], title: string, message = '', duration = 4000, icon?: string): void {
     const toast: Toast = { id: ++this.nextId, type, title, message, icon };
+    this.toasts.update(t => [...t, toast]);
+    setTimeout(() => this.remove(toast.id), duration);
+  }
+
+  /**
+   * Toast con boton de accion, para errores reintentables. Dura mas que uno
+   * normal porque el usuario puede necesitar leer el detalle y decidir.
+   */
+  conAccion(
+    type: Toast['type'],
+    title: string,
+    message: string,
+    accion: { label: string; onClick: () => void },
+    duration = 9000,
+  ): void {
+    const toast: Toast = { id: ++this.nextId, type, title, message, accion };
     this.toasts.update(t => [...t, toast]);
     setTimeout(() => this.remove(toast.id), duration);
   }

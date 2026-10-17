@@ -26,6 +26,17 @@ export class TeamsMeeting {
   @Column({ type: 'varchar', length: 255 })
   subject: string;
 
+  @Column({
+    name: 'categories',
+    type: 'text',
+    array: true,
+    default: () => "'{}'::text[]",
+  })
+  categories: string[];
+
+  @Column({ name: 'event_source', type: 'varchar', length: 20, nullable: true })
+  eventSource: 'group' | 'shared-mailbox' | 'personal' | 'none' | null;
+
   @Index()
   @Column({ name: 'start_date_time', type: 'timestamptz' })
   startDateTime: Date;
@@ -51,7 +62,15 @@ export class TeamsMeeting {
     length: 20,
     default: 'shared',
   })
-  calendarTarget: 'shared' | 'none';
+  calendarTarget: 'personal' | 'shared' | 'none';
+
+  // Modalidad de la reunión/capacitación: virtual (default) | presencial.
+  @Column({ type: 'varchar', length: 20, default: 'virtual' })
+  modalidad: 'virtual' | 'presencial';
+
+  // Marca resuelta desde el colegio asociado; NULL = sin clasificar.
+  @Column({ name: 'tipo_colegio', type: 'varchar', length: 50, nullable: true })
+  tipoColegio: string | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;

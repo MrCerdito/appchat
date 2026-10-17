@@ -87,7 +87,11 @@ function aIso(d: Date): string {
 @Injectable()
 export class AdvisorActivityService {
   private readonly logger = new Logger(AdvisorActivityService.name);
-  private static readonly RETENTION_DAYS = 90;
+  /** Días de retención del historial; configurable con ADVISOR_ACTIVITY_RETENTION_DAYS. */
+  private static readonly RETENTION_DAYS = (() => {
+    const v = Number(process.env.ADVISOR_ACTIVITY_RETENTION_DAYS);
+    return Number.isFinite(v) && v > 0 ? v : 90;
+  })();
 
   constructor(
     @InjectRepository(AdvisorActivityLog)
@@ -100,7 +104,9 @@ export class AdvisorActivityService {
   async onModuleInit(): Promise<void> {
     try {
       const limite = new Date();
-      limite.setUTCDate(limite.getUTCDate() - AdvisorActivityService.RETENTION_DAYS);
+      limite.setUTCDate(
+        limite.getUTCDate() - AdvisorActivityService.RETENTION_DAYS,
+      );
       const res = await this.activityRepo.delete({
         desde: LessThan(limite),
       });
@@ -377,14 +383,24 @@ export class AdvisorActivityService {
     } else if (causa === 'almuerzo_fin') {
       tipo = 'almuerzo_fin';
       almuerzo = false;
-    } else if (
-      (causa === 'connect' || causa === 'manual') &&
+    }
+
+    // El asesor está en almuerzo aunque la causa sea connect/manual/
+    // disconnect/timeout: el estado efectivo se marca como almuerzo para que
+    // el historial lo cuente como Almuerzo y no como Inactivo (p. ej. si el
+    // asesor se desconecta estando en pausa de almuerzo).
+    if (
+      causa !== 'almuerzo_fin' &&
+      causa !== 'almuerzo_inicio' &&
       (await this.redisState.isOnLunch(advisorId).catch(() => false))
     ) {
-      // El asesor está en almuerzo aunque el evento sea connect/manual:
-      // el estado efectivo 'busy' se marca como almuerzo para el historial.
       almuerzo = true;
     }
+
+    // Consistencia entre lectores: un estado efectivo 'almuerzo' SIEMPRE
+    // viaja con almuerzo=true, aunque la causa sea 'sistema' (antes cada
+    // lector decidía si contarlo como almuerzo o como inactivo).
+    if (estado === 'almuerzo') almuerzo = true;
 
     const ahora = new Date();
     try {
@@ -426,22 +442,32 @@ export class AdvisorActivityService {
     asesorId?: string,
   ): Promise<HistorialDiaResult> {
     const ahora = new Date();
-    const dia = fecha && /^\d{4}-\d{2}-\d{2}$/.test(fecha) ? fecha : this.fechaBogota(ahora);
+    const dia =
+      fecha && /^\d{4}-\d{2}-\d{2}$/.test(fecha)
+        ? fecha
+        : this.fechaBogota(ahora);
 
     // Rango del día en UTC a partir de la fecha Bogotá.
     const [y, m, dd] = dia.split('-').map(Number);
-    const dayStartUtc = new Date(Date.UTC(y, m - 1, dd) - OFFSET_BOGOTA_MIN * 60000);
+    const dayStartUtc = new Date(
+      Date.UTC(y, m - 1, dd) - OFFSET_BOGOTA_MIN * 60000,
+    );
     const mananaUtc = new Date(dayStartUtc.getTime() + 24 * 3600000);
-    const esHoy = dayStartUtc.getTime() <= ahora.getTime() && ahora.getTime() < mananaUtc.getTime();
+    const esHoy =
+      dayStartUtc.getTime() <= ahora.getTime() &&
+      ahora.getTime() < mananaUtc.getTime();
     const dayEnd = esHoy ? ahora : mananaUtc;
 
     // Jornada laboral configurada para la fecha consultada (hora Bogotá).
+    // El historial usa los slots definidos aunque `horariosActivos` esté en
+    // false (ese flag gobierna WhatsApp/asignación, no el historial).
     let slotsDia: HorarioSlot[] = [];
     try {
       const config = await this.configuracion.getGlobal().catch(() => null);
-      if (config?.horariosActivos && Array.isArray(config.horarios)) {
+      const horarios = config?.horarios;
+      if (Array.isArray(horarios) && horarios.length > 0) {
         const dow = new Date(Date.UTC(y, m - 1, dd)).getUTCDay();
-        slotsDia = config.horarios
+        slotsDia = horarios
           .filter((h) => h.dia === dow)
           .sort((a, b) => this.hhmmToMin(a.inicio) - this.hhmmToMin(b.inicio));
       }
@@ -480,7 +506,12 @@ export class AdvisorActivityService {
     const usuarios =
       ids.length > 0
         ? await this.userRepo
-            .find({ where: { id: In(ids), role: In(['advisor', 'admin', 'desarrollador']) } })
+            .find({
+              where: {
+                id: In(ids),
+                role: In(['advisor', 'admin', 'desarrollador']),
+              },
+            })
             .catch(() => [] as User[])
         : [];
     const mapa = new Map(usuarios.map((u) => [u.id, u]));
@@ -508,10 +539,18 @@ export class AdvisorActivityService {
       );
 
       // Periodo abierto previo al día (opener): define el estado al arrancar el día.
+      // Se toma el ÚLTIMO evento anterior al día (no el primero de la ventana
+      // de 2 días), si no el día arrancaría con el estado fantasma del evento
+      // más viejo (p. ej. "Fin de almuerzo" a las 00:00 de un día anterior).
       const periodos: PeriodoActividad[] = [];
-      const previo: AdvisorActivityLog | null = lista.find((e) => e.desde < dayStartUtc) ?? null;
+      const previos = lista.filter((e) => e.desde < dayStartUtc);
+      const previo: AdvisorActivityLog | null = previos.length
+        ? previos[previos.length - 1]
+        : null;
 
-      const eventosDelDia = lista.filter((e) => e.desde >= dayStartUtc && e.desde < dayEnd);
+      const eventosDelDia = lista.filter(
+        (e) => e.desde >= dayStartUtc && e.desde < dayEnd,
+      );
 
       const abrir = (ev: AdvisorActivityLog) => {
         const dIni = ev.desde < dayStartUtc ? dayStartUtc : ev.desde;
@@ -521,7 +560,11 @@ export class AdvisorActivityService {
           duracionMs: 0,
           estado: ev.estado,
           almuerzo: ev.almuerzo,
-          tipo: ev.tipo,
+          // Un periodo que arrancó ANTES del día es una continuación: la
+          // etiqueta debe salir del estado (Disponible/Inactivo/...), no del
+          // tipo del evento que lo abrió (si no, un almuerzo del día anterior
+          // se pintaría "Fin de almuerzo" a las 00:00 de hoy).
+          tipo: ev.desde < dayStartUtc ? 'status' : ev.tipo,
           causa: ev.causa,
         });
       };
@@ -716,9 +759,7 @@ export class AdvisorActivityService {
       });
     }
 
-    asesores.sort((a, b) =>
-      (a.nombre ?? '').localeCompare(b.nombre ?? ''),
-    );
+    asesores.sort((a, b) => (a.nombre ?? '').localeCompare(b.nombre ?? ''));
 
     return {
       fecha: dia,

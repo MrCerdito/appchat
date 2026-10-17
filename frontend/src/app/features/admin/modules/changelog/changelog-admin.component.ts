@@ -1,11 +1,15 @@
 import {
   Component,
   OnInit,
+  OnDestroy,
+  HostBinding,
   ChangeDetectionStrategy,
   ChangeDetectorRef,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { LucideAngularModule, Plus, Pencil, Trash2, Send, Megaphone, Eye, BarChart3 } from 'lucide-angular';
 import { MailEditorComponent } from '../configuracion/components/mail-editor/mail-editor.component';
 import {
@@ -14,6 +18,7 @@ import {
   ChangelogCategoria,
 } from '../../../../core/services/changelog.service';
 import { NotificationService } from '../../../../core/services/notification.service';
+import { ThemeService } from '../../../../core/services/theme.service';
 
 interface ChangelogCategoriaLabel {
   label: string;
@@ -28,8 +33,12 @@ interface ChangelogCategoriaLabel {
   styleUrl: './changelog-admin.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ChangelogAdminComponent implements OnInit {
+export class ChangelogAdminComponent implements OnInit, OnDestroy {
   readonly icons = { Plus, Pencil, Trash2, Send, Megaphone, Eye, BarChart3 };
+
+  @HostBinding('class.theme-dark') protected themeDark = false;
+
+  private readonly destroy$ = new Subject<void>();
 
   list: Changelog[] = [];
   loading = false;
@@ -53,10 +62,21 @@ export class ChangelogAdminComponent implements OnInit {
     private readonly service: ChangelogService,
     private readonly notify: NotificationService,
     private readonly cdr: ChangeDetectorRef,
+    private readonly themeService: ThemeService,
   ) {}
 
   ngOnInit(): void {
+    this.themeDark = this.themeService.currentTheme === 'dark';
+    this.themeService.currentTheme$.pipe(takeUntil(this.destroy$)).subscribe((t) => {
+      this.themeDark = t === 'dark';
+      this.cdr.markForCheck();
+    });
     this.cargar();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   get filtered(): Changelog[] {

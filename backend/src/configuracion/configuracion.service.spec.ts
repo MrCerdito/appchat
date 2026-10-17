@@ -25,8 +25,8 @@ describe('ConfiguracionService (horario)', () => {
     jest.useFakeTimers();
     repoMock = {
       findOne: jest.fn(),
-      create: jest.fn(),
-      save: jest.fn(),
+      create: jest.fn().mockImplementation((e) => e),
+      save: jest.fn().mockImplementation((e) => Promise.resolve(e)),
       count: jest.fn(),
       query: jest.fn(),
     };

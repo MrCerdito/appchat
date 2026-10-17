@@ -6,10 +6,12 @@
         <polyline points="15 18 9 12 15 6"/>
       </svg>
     </button>
+    @if (!esAdmin) {
     <div>
       <h1>Campos del perfil</h1>
       <p>Define la estructura de información de todas las instituciones.</p>
     </div>
+    }
     <div class="gc-header-actions">
       <button type="button" class="pi-btn pi-btn-outline" (click)="toggleCategorias()">
         Categorías ({{ categorias.length }})

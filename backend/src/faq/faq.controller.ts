@@ -23,12 +23,13 @@ import { memoryStorage } from 'multer';
 import { Request, Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles, RolesGuard } from '../auth/roles.guard';
+import { Public } from '../auth/public.decorator';
 import { Permiso } from '../accesos/permiso-modulo.guard';
 import { FaqService } from './faq.service';
 import { CreateFaqDto } from './dto/create-faq.dto';
 import { UpdateFaqDto } from './dto/update-faq.dto';
 import { FaqChatDto } from './dto/faq-chat.dto';
-import { SkipThrottle } from '@nestjs/throttler';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 
 @Controller('faq')
 export class FaqController {
@@ -36,6 +37,8 @@ export class FaqController {
 
   constructor(private readonly faqService: FaqService) {}
 
+  // Listado publico: lo consume el widget/cliente (chat y pagina de FAQ).
+  @Public()
   @SkipThrottle()
   @Get()
   findAll(
@@ -50,6 +53,7 @@ export class FaqController {
     );
   }
 
+  @Public()
   @SkipThrottle()
   @Get('categorias')
   findCategorias(
@@ -116,7 +120,11 @@ export class FaqController {
     };
   }
 
-  @SkipThrottle()
+  // Solo personal autenticado sube/consulta el documento de la FAQ (antes era
+  // anonimo sin throttle: 50MB por request para cualquiera).
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin', 'advisor', 'interno')
   @Post('upload-document')
   @UseInterceptors(
     FileInterceptor('file', {
@@ -142,18 +150,25 @@ export class FaqController {
   }
 
   @SkipThrottle()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin', 'advisor', 'interno')
   @Get('suggestions')
   getSuggestions() {
     return this.faqService.getSuggestions();
   }
 
   @SkipThrottle()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin', 'advisor', 'interno')
   @Get('document-info')
   getDocumentInfo() {
     return this.faqService.getDocumentInfo();
   }
 
-  @SkipThrottle()
+  // Chat del documento: consume Gemini por consulta; autenticado + acotado.
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin', 'advisor', 'interno')
   @Post('chat')
   async chat(
     @Req() req: Request,

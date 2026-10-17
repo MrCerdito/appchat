@@ -1,8 +1,18 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, OnDestroy, inject, signal, computed } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  OnDestroy,
+  HostBinding,
+  ChangeDetectorRef,
+  inject,
+  signal,
+  computed,
+} from '@angular/core';
 import { Router } from '@angular/router';
 import { Subscription, interval } from 'rxjs';
 import { SocketService } from '../../../../core/services/socket.service';
+import { ThemeService } from '../../../../core/services/theme.service';
 import {
   CorreosAdminService,
   EventoSlaCorreos,
@@ -46,6 +56,10 @@ export class CorreosAdmin implements OnInit, OnDestroy {
   private api = inject(CorreosAdminService);
   private router = inject(Router);
   private socket = inject(SocketService);
+  private themeService = inject(ThemeService);
+  private cdr = inject(ChangeDetectorRef);
+
+  @HostBinding('class.theme-dark') protected themeDark = false;
 
   private suscripciones = new Subscription();
   private destroyed = false;
@@ -124,6 +138,14 @@ export class CorreosAdmin implements OnInit, OnDestroy {
   readonly faltanCarpetas = computed(() => this.datos()?.estadoCarpetas === 'calculando');
 
   ngOnInit(): void {
+    this.themeDark = this.themeService.currentTheme === 'dark';
+    this.suscripciones.add(
+      this.themeService.currentTheme$.subscribe((t) => {
+        this.themeDark = t === 'dark';
+        this.cdr.markForCheck();
+      }),
+    );
+
     this.cargar();
 
     // El servidor avisa cuando el sincronizador cambio algo: recargamos solos.

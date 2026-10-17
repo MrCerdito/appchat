@@ -94,7 +94,9 @@ export class ChatService implements OnModuleInit {
     replyToMessageId?: string | null,
     aiMarkers?: Message['aiMarkers'],
   ): Promise<Message> {
-    const safeContent = sanitizeMessage(content);
+    // 4000: las cards de mensaje (Teams) y los enriquecidos largos no deben
+    // truncarse con el limite generico de 1000.
+    const safeContent = sanitizeMessage(content, 4000);
     if (!safeContent && (!attachments || attachments.length === 0)) {
       throw new BadRequestException('Mensaje vacio');
     }
@@ -190,7 +192,7 @@ export class ChatService implements OnModuleInit {
     if (elapsed > this.EDIT_WINDOW_MS) {
       throw new ForbiddenException('Ventana de edicion expirada (15 minutos)');
     }
-    const safeContent = sanitizeMessage(content);
+    const safeContent = sanitizeMessage(content, 4000);
     if (!safeContent) throw new BadRequestException('Mensaje vacio');
     msg.content = safeContent;
     msg.editedAt = new Date();

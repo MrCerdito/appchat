@@ -3,12 +3,29 @@ import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { Repository, In, FindOptionsWhere, DataSource } from 'typeorm';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync } from 'fs';
-import { join } from 'path';
+import { basename, join } from 'path';
 import ExcelJS from 'exceljs';
 import { Colegio } from '../sessions/entities/colegio.entity';
 import { User } from '../auth/entities/user.entity';
 import { normalizarTipoColegio } from '../common/tipo-colegio.util';
 import { crearBackupColegios } from '../common/import-snapshot.util';
+import {
+  CampoRef,
+  ColumnaReporte,
+  canonizarCorreosGuardados,
+  claveNombre,
+  construirCorreos,
+  mapearColumnas,
+} from './importar-helpers.util';
+import {
+  AvisoImport,
+  CambioImport,
+  EstadoFila,
+  FilaImport,
+  ResumenImport,
+  construirExcelReporte,
+  construirResumen,
+} from './importar-reporte.util';
 import { PiCategoria } from './entities/pi-categoria.entity';
 import { PiCampo } from './entities/pi-campo.entity';
 import { PiValor } from './entities/pi-valor.entity';
@@ -990,15 +1007,17 @@ export class PerfilInstitucionalService {
   ) {
     const { preview = false, reasignarAsesores = false } = opts;
     const MAX_FILAS = 10000;
+    const archivoNombre = basename(filePath);
     const wb = new ExcelJS.Workbook();
 
+    // ── Lectura del archivo (Excel o CSV) ───────────────────────────────
     if (/\.csv$/i.test(filePath)) {
       const text = readFileSync(filePath, 'utf8').replace(/^\uFEFF/, '');
       const rows = this.csvToRows(text);
       if (!rows.length)
         throw new BadRequestException('El archivo no contiene datos válidos');
-      const ws = wb.addWorksheet('Instituciones');
-      for (const r of rows) ws.addRow(r);
+      const wsCsv = wb.addWorksheet('Instituciones');
+      for (const r of rows) wsCsv.addRow(r);
     } else {
       try {
         await wb.xlsx.readFile(filePath);
@@ -1012,42 +1031,53 @@ export class PerfilInstitucionalService {
     const ws = wb.getWorksheet('Instituciones') ?? wb.worksheets[0];
     if (!ws || ws.rowCount < 2)
       throw new BadRequestException('El archivo no contiene datos válidos');
-
-    const headerRow = ws.getRow(1);
-    const headers: string[] = [];
-    const headerIdx = new Map<string, number>();
-    headerRow.eachCell((cell, colNum) => {
-      const name = String(cell.value ?? '').trim();
-      headers[colNum - 1] = name;
-      const key = name.toLowerCase();
-      if (key && !headerIdx.has(key)) headerIdx.set(key, colNum - 1);
-    });
-
-    const colOf = (...names: string[]): number => {
-      for (const n of names) {
-        const i = headerIdx.get(n.toLowerCase());
-        if (i != null) return i;
-      }
-      return -1;
-    };
-
-    const colNombre = colOf('nombre');
-    const colEmail = colOf('email', 'correo');
-    const colLink = colOf('link', 'links');
-    const colCalendario = colOf('calendario');
-    const colCiudad = colOf('ciudad');
-    const colTipo = colOf('tipo', 'tipo_colegio', 'tipocolegio', 'proyecto');
-    const colAsesor = colOf('asesor', 'asesor_principal');
-    const colActivo = colOf('activo');
-
-    if (colNombre < 0)
-      throw new BadRequestException(
-        'El archivo debe contener la columna "Nombre".',
-      );
     if (ws.rowCount - 1 > MAX_FILAS)
       throw new BadRequestException(
         `El archivo supera el límite de ${MAX_FILAS} filas.`,
       );
+
+    // ── Encabezados: la posición no importa, sólo el nombre ────────────
+    const encabezados: { col: number; texto: string }[] = [];
+    ws.getRow(1).eachCell((cell, colNum) => {
+      const texto = this.getCellValue(cell);
+      if (texto) encabezados.push({ col: colNum, texto });
+    });
+
+    const allCampos = await this.campoRepo.find({
+      relations: { categoria: true },
+    });
+    const camposRef: CampoRef[] = allCampos.map((c) => ({
+      id: c.id,
+      nombre: c.nombre,
+      categoria: c.categoria?.nombre ?? null,
+    }));
+    const campoById = new Map(allCampos.map((c) => [c.id, c]));
+    const activos = allCampos
+      .filter((c) => c.activo)
+      .map((c) => ({ id: c.id, nombre: c.nombre, categoria: c.categoria?.nombre ?? null }));
+
+    const mapeo = mapearColumnas(encabezados, camposRef, {
+      ausentes: activos,
+    });
+    const colNombre = mapeo.base.get('nombre');
+    if (colNombre == null) {
+      const encontrados =
+        encabezados.map((e) => `"${e.texto}"`).join(', ') ||
+        '(sin encabezados)';
+      throw new BadRequestException(
+        `El archivo debe contener la columna "Nombre". Encabezados encontrados: ${encontrados}`,
+      );
+    }
+
+    const avisos: AvisoImport[] = [];
+    const avisar = (
+      fila: number | null,
+      nombre: string | null,
+      campo: string | null,
+      mensaje: string,
+    ) => {
+      avisos.push({ fila, nombre, campo, mensaje });
+    };
 
     const truncate = (s: string | null | undefined, max: number): string => {
       if (s == null) return '';
@@ -1055,45 +1085,32 @@ export class PerfilInstitucionalService {
       return v.length > max ? v.slice(0, max) : v;
     };
 
-    const [allCampos, allCategorias] = await Promise.all([
-      this.campoRepo.find({ relations: { categoria: true } }),
-      this.categoriaRepo.find(),
-    ]);
-
-    const catByName = new Map(
-      allCategorias.map((c) => [c.nombre.toLowerCase(), c]),
-    );
-    const campoLookup = new Map<string, PiCampo>();
-    for (const c of allCampos) {
-      const catName = c.categoria?.nombre ?? '';
-      const headerName = catName ? `${catName} > ${c.nombre}` : c.nombre;
-      campoLookup.set(headerName.toLowerCase(), c);
+    // ── Asesores (nombre único; ambiguo = no asignar) ───────────────────
+    const allUsers = await this.userRepo.find({
+      where: { role: In(['advisor', 'admin']), active: true },
+      select: ['id', 'name'],
+    });
+    const advisorMap = new Map<string, string>();
+    const advisorCount = new Map<string, number>();
+    for (const u of allUsers) {
+      if (!u.name) continue;
+      const k = u.name.toLowerCase().trim();
+      advisorMap.set(k, u.id);
+      advisorCount.set(k, (advisorCount.get(k) ?? 0) + 1);
     }
-
-    const baseHeaders = [
-      'nombre',
-      'email',
-      'link',
-      'calendario',
-      'ciudad',
-      'tipo',
-      'asesor',
-      'activo',
-    ];
-    const errores: string[] = [];
-    const logs: {
-      colegio: string;
-      campo: string;
-      anterior: string | null;
-      nuevo: string | null;
-      estado: 'exito' | 'error';
-      detalle: string;
-    }[] = [];
-    const cambiosAsesor: {
-      colegio: string;
-      anterior: string | null;
-      nuevo: string;
-    }[] = [];
+    const resolverAsesor = (
+      raw: string,
+    ): { id: string | null; problema: 'no-encontrado' | 'ambiguo' | null } => {
+      if (!raw) return { id: null, problema: null };
+      const k = raw.toLowerCase().trim();
+      if (advisorCount.get(k) === undefined)
+        return { id: null, problema: 'no-encontrado' };
+      if (advisorCount.get(k) === 1)
+        return { id: advisorMap.get(k) ?? null, problema: null };
+      return { id: null, problema: 'ambiguo' };
+    };
+    const nombreDeAsesor = (id: string): string =>
+      allUsers.find((u) => u.id === id)?.name ?? '';
 
     const activoBoolFrom = (raw: string): boolean => {
       const val = raw.toLowerCase().trim();
@@ -1108,160 +1125,174 @@ export class PerfilInstitucionalService {
       );
     };
 
-    // Asesores por nombre único (nombre ambiguo = no asignar)
-    const allUsers = await this.userRepo.find({
-      where: { role: In(['advisor', 'admin']), active: true },
-      select: ['id', 'name'],
-    });
-    const advisorMap = new Map<string, string>();
-    const advisorCount = new Map<string, number>();
-    for (const u of allUsers) {
-      if (!u.name) continue;
-      const k = u.name.toLowerCase().trim();
-      advisorMap.set(k, u.id);
-      advisorCount.set(k, (advisorCount.get(k) ?? 0) + 1);
-    }
-
-    // Lee y valida filas (dedupe por nombre)
+    // ── Lectura de filas (todo lo que se descarta queda reportado) ──────
     type Fila = {
       r: number;
       nombre: string;
+      key: string;
       link: string;
-      email: string;
+      emailCelda: string;
+      emailPresente: boolean;
       calendario: string;
       ciudad: string;
       tipo: string;
       asesor: string;
       activoRaw: string;
-      celdaVal: (headerName: string) => string;
+      dinamicos: { campoId: string; valorBruto: string }[];
     };
     const filas: Fila[] = [];
-    const nombres = new Set<string>();
+    const duplicadas: FilaImport[] = [];
+    const nombresVistos = new Map<string, number>();
+
     for (let r = 2; r <= ws.rowCount; r++) {
       const row = ws.getRow(r);
-      const nombre = truncate(
-        this.getCellValue(row.getCell(colNombre + 1)),
-        200,
-      );
-      if (!nombre) continue;
-      const key = nombre.toLowerCase();
-      if (nombres.has(key)) {
-        errores.push(`Fila ${r}: nombre duplicado "${nombre}" omitido.`);
+      const nombre = truncate(this.getCellValue(row.getCell(colNombre)), 200);
+      if (!nombre) {
+        let conContenido = false;
+        row.eachCell({ includeEmpty: false }, (c) => {
+          if (!conContenido && this.getCellValue(c)) conContenido = true;
+        });
+        if (conContenido)
+          avisar(r, null, 'Nombre', 'Fila con datos pero sin nombre — omitida.');
         continue;
       }
-      nombres.add(key);
 
-      const linkRaw =
-        colLink >= 0 ? this.getCellValue(row.getCell(colLink + 1)) : '';
-      const emailRaw =
-        colEmail >= 0 ? this.getCellValue(row.getCell(colEmail + 1)) : '';
-      const calendarioRaw =
-        colCalendario >= 0
-          ? this.getCellValue(row.getCell(colCalendario + 1))
-          : '';
-      const ciudadRaw =
-        colCiudad >= 0 ? this.getCellValue(row.getCell(colCiudad + 1)) : '';
-      const tipoRaw =
-        colTipo >= 0 ? this.getCellValue(row.getCell(colTipo + 1)) : '';
-      const asesorRaw =
-        colAsesor >= 0 ? this.getCellValue(row.getCell(colAsesor + 1)) : '';
-      const activoRaw =
-        colActivo >= 0
-          ? this.getCellValue(row.getCell(colActivo + 1)).toLowerCase().trim()
-          : '';
+      const key = claveNombre(nombre);
+      if (nombresVistos.has(key)) {
+        const mensaje = `Fila repetida en el archivo (ya leída en la fila ${nombresVistos.get(key)}) — se omite.`;
+        avisar(r, nombre, 'Nombre', mensaje);
+        duplicadas.push({
+          fila: r,
+          nombre,
+          estado: 'duplicada',
+          cambios: [],
+          avisos: [mensaje],
+        });
+        continue;
+      }
+      nombresVistos.set(key, r);
 
-      if (emailRaw && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailRaw))
-        errores.push(
-          `Fila ${r} ("${nombre}"): email inválido (${emailRaw}) — no se aplicará.`,
+      const cellVal = (col?: number): string =>
+        col == null ? '' : this.getCellValue(row.getCell(col));
+
+      const linkRaw = cellVal(mapeo.base.get('link'));
+      const emailRaw = cellVal(mapeo.base.get('email'));
+      const calendarioRaw = cellVal(mapeo.base.get('calendario'));
+      const ciudadRaw = cellVal(mapeo.base.get('ciudad'));
+      const tipoRaw = cellVal(mapeo.base.get('tipo'));
+      const asesorRaw = cellVal(mapeo.base.get('asesor'));
+      const activoRaw = cellVal(mapeo.base.get('activo')).toLowerCase().trim();
+
+      // Correos: la app acepta varios con el formato "a@x.com|b@y.com"
+      const { valor: emailCanon, invalidos } = construirCorreos(emailRaw);
+      if (invalidos.length) {
+        avisar(
+          r,
+          nombre,
+          'Email',
+          `Correo(s) inválido(s): ${invalidos.join(', ')} — ${
+            emailCanon
+              ? `se guardan los válidos (${emailCanon}).`
+              : 'ninguno válido; se conserva el valor actual.'
+          }`,
         );
-      if (linkRaw && !/^https?:\/\//i.test(linkRaw))
-        errores.push(
-          `Fila ${r} ("${nombre}"): link inválido (${linkRaw}) — no se aplicará.`,
-        );
-      if (
-        calendarioRaw &&
-        calendarioRaw.toUpperCase() !== 'A' &&
-        calendarioRaw.toUpperCase() !== 'B'
-      )
-        errores.push(
-          `Fila ${r} ("${nombre}"): calendario debe ser A o B (recibido "${calendarioRaw}") — no se aplicará.`,
-        );
+      }
+      let emailFinal = emailCanon ?? '';
+      if (emailFinal.length > 200) {
+        avisar(r, nombre, 'Email', 'Email recortado a 200 caracteres.');
+        emailFinal = truncate(emailFinal, 200);
+      }
+
       if (linkRaw.length > 500)
-        errores.push(`Fila ${r} ("${nombre}"): link recortado a 500 caracteres.`);
-      if (emailRaw.length > 200)
-        errores.push(`Fila ${r} ("${nombre}"): email recortado a 200 caracteres.`);
+        avisar(r, nombre, 'Link', 'Link recortado a 500 caracteres.');
       if (ciudadRaw.length > 100)
-        errores.push(`Fila ${r} ("${nombre}"): ciudad recortada a 100 caracteres.`);
+        avisar(r, nombre, 'Ciudad', 'Ciudad recortada a 100 caracteres.');
+
+      const calendario = calendarioRaw.toUpperCase().trim();
+      if (calendarioRaw && calendario !== 'A' && calendario !== 'B')
+        avisar(
+          r,
+          nombre,
+          'Calendario',
+          `Calendario debe ser A o B (recibido "${calendarioRaw}") — no se aplica.`,
+        );
+
+      let tipo = normalizarTipoColegio(tipoRaw) ?? '';
+      if (tipo.length > 50) {
+        avisar(r, nombre, 'Tipo', 'Tipo recortado a 50 caracteres.');
+        tipo = truncate(tipo, 50);
+      }
 
       filas.push({
         r,
         nombre,
-        link: linkRaw,
-        email: emailRaw,
-        calendario: calendarioRaw.toUpperCase(),
-        ciudad: ciudadRaw,
-        tipo: normalizarTipoColegio(tipoRaw) ?? '',
+        key,
+        link: truncate(linkRaw, 500),
+        emailCelda: emailFinal,
+        emailPresente: emailRaw !== '',
+        calendario,
+        ciudad: truncate(ciudadRaw, 100),
+        tipo,
         asesor: asesorRaw,
         activoRaw,
-        celdaVal: (headerName: string) => {
-          const i = headerIdx.get(headerName);
-          return i == null
-            ? ''
-            : this.getCellValue(row.getCell(i + 1));
-        },
+        dinamicos: mapeo.dinamicos.map((d) => ({
+          campoId: d.campoId,
+          valorBruto: cellVal(d.col),
+        })),
       });
     }
+
     if (!filas.length)
       throw new BadRequestException('El archivo no contiene datos válidos');
 
-    const existing = await this.colegioRepo.find({
-      where: { nombre: In(filas.map((f) => f.nombre)) },
-      relations: ['advisor'],
-    });
-    const existingByName = new Map(
-      existing.map((c) => [c.nombre.toLowerCase(), c]),
+    // ── Existencia por nombre normalizado (evita duplicados por estilo) ─
+    const todos = await this.colegioRepo.find({ relations: ['advisor'] });
+    const existentePorKey = new Map(
+      todos.map((c) => [claveNombre(c.nombre), c]),
     );
-    const allValores = existing.length
-      ? await this.valorRepo.find({
-          where: { colegioId: In(existing.map((c) => c.id)) },
-        })
-      : [];
-    const valoresByColegio = new Map<string, PiValor[]>();
-    for (const v of allValores) {
-      const arr = valoresByColegio.get(v.colegioId) ?? [];
+    const todosValores = await this.valorRepo.find();
+    const valoresPorColegio = new Map<string, PiValor[]>();
+    for (const v of todosValores) {
+      const arr = valoresPorColegio.get(v.colegioId) ?? [];
       arr.push(v);
-      valoresByColegio.set(v.colegioId, arr);
+      valoresPorColegio.set(v.colegioId, arr);
     }
 
+    // ── Plan por fila ──────────────────────────────────────────────────
+    type PlanValores = {
+      campo: PiCampo;
+      anteriorVal: string | null;
+      nuevoVal: string | null;
+      showAnterior: string | null;
+      showNuevo: string | null;
+      reporte: CambioImport;
+    };
     type PlanRow = {
+      filaR: number;
       nombre: string;
-      estado: 'crear' | 'actualizar' | 'omito';
-      cambiosBase: Record<string, any>;
-      baseLogs: {
-        campo: string;
-        anterior: string | null;
-        nuevo: string | null;
-        detalle: string;
-      }[];
-      valores: {
-        campo: PiCampo;
-        anteriorVal: string | null;
-        nuevoVal: string | null;
-        showAnterior: string | null;
-        showNuevo: string | null;
-      }[];
+      nombreKey: string;
       id?: string;
+      estado: EstadoFila;
+      cambiosBase: Record<string, any>;
+      cambiosReporte: CambioImport[];
+      valores: PlanValores[];
     };
     const plan: PlanRow[] = [];
+    const cambiosAsesor: {
+      colegio: string;
+      anterior: string | null;
+      nuevo: string;
+    }[] = [];
+
+    const show = (v: string | null | undefined): string | null =>
+      v == null || v === '' ? null : v;
 
     for (const f of filas) {
-      const ex = existingByName.get(f.nombre.toLowerCase());
+      const ex = existentePorKey.get(f.key);
       const cambiosBase: Record<string, any> = {};
-      const baseLogs: PlanRow['baseLogs'] = [];
-      const valores: PlanRow['valores'] = [];
+      const reporte: CambioImport[] = [];
 
       const linkOk = /^https?:\/\//i.test(f.link);
-      const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(f.email);
       const calOk = f.calendario === 'A' || f.calendario === 'B';
 
       if (!ex) {
@@ -1274,241 +1305,348 @@ export class PerfilInstitucionalService {
                 : '',
             500,
           ) || 'https://';
+        if (f.link && !linkOk)
+          avisar(
+            f.r,
+            f.nombre,
+            'Link',
+            `Link sin http:// ("${f.link}") — se guardó normalizado.`,
+          );
         cambiosBase.link = link;
-        if (emailOk) cambiosBase.email = truncate(f.email, 200);
-        if (calOk) cambiosBase.calendario = f.calendario;
-        if (f.tipo) cambiosBase.tipoColegio = f.tipo;
-        if (f.ciudad) cambiosBase.ciudad = truncate(f.ciudad, 100);
-        if (f.activoRaw !== '') cambiosBase.activo = activoBoolFrom(f.activoRaw);
+        reporte.push({ campo: 'Link', anterior: null, nuevo: link });
+        if (f.emailCelda) {
+          cambiosBase.email = f.emailCelda;
+          reporte.push({ campo: 'Email', anterior: null, nuevo: f.emailCelda });
+        }
+        if (calOk) {
+          cambiosBase.calendario = f.calendario;
+          reporte.push({
+            campo: 'Calendario',
+            anterior: null,
+            nuevo: f.calendario,
+          });
+        }
+        if (f.tipo) {
+          cambiosBase.tipoColegio = f.tipo;
+          reporte.push({ campo: 'Tipo sistema', anterior: null, nuevo: f.tipo });
+        }
+        if (f.ciudad) {
+          cambiosBase.ciudad = f.ciudad;
+          reporte.push({ campo: 'Ciudad', anterior: null, nuevo: f.ciudad });
+        }
+        if (f.activoRaw !== '') {
+          const ab = activoBoolFrom(f.activoRaw);
+          cambiosBase.activo = ab;
+          reporte.push({
+            campo: 'Activo',
+            anterior: null,
+            nuevo: ab ? 'Sí' : 'No',
+          });
+        }
         if (f.asesor) {
-          const k = f.asesor.toLowerCase().trim();
-          if (advisorCount.get(k) === undefined) {
-            errores.push(
-              `Asesor "${f.asesor}" no encontrado para "${f.nombre}" — se creará sin asesor.`,
+          const { id, problema } = resolverAsesor(f.asesor);
+          if (id) {
+            cambiosBase.advisorId = id;
+            reporte.push({
+              campo: 'Asesor',
+              anterior: null,
+              nuevo: nombreDeAsesor(id),
+            });
+          } else if (problema === 'no-encontrado') {
+            avisar(
+              f.r,
+              f.nombre,
+              'Asesor',
+              `Asesor "${f.asesor}" no encontrado — se creará sin asesor.`,
             );
-          } else if (advisorCount.get(k) === 1) {
-            cambiosBase.advisorId = advisorMap.get(k);
           } else {
-            errores.push(
-              `Asesor "${f.asesor}" es ambiguo para "${f.nombre}" — no se asigna.`,
+            avisar(
+              f.r,
+              f.nombre,
+              'Asesor',
+              `Asesor "${f.asesor}" es ambiguo — no se asigna.`,
             );
           }
         }
-        baseLogs.push({
-          campo: 'Institución',
-          anterior: null,
-          nuevo: 'Creada',
-          detalle: 'Institución creada',
+        plan.push({
+          filaR: f.r,
+          nombre: f.nombre,
+          nombreKey: f.key,
+          estado: 'crear',
+          cambiosBase,
+          cambiosReporte: [
+            { campo: 'Institución', anterior: null, nuevo: 'Creada' },
+            ...reporte,
+          ],
+          valores: [],
         });
       } else {
-        // Existente: celda en blanco = no tocar
+        // ── Existente: celda en blanco = no tocar ──
+        if (f.nombre !== ex.nombre)
+          avisar(
+            f.r,
+            f.nombre,
+            'Nombre',
+            `El nombre difiere sólo en mayúsculas/espacios del registrado ("${ex.nombre}"); se conserva el nombre de la BD.`,
+          );
+
         if (linkOk && f.link !== (ex.link || '')) {
-          cambiosBase.link = truncate(f.link, 500);
-          baseLogs.push({
-            campo: 'Link',
-            anterior: ex.link,
-            nuevo: cambiosBase.link,
-            detalle: 'Link actualizado',
-          });
+          cambiosBase.link = f.link;
+          reporte.push({ campo: 'Link', anterior: show(ex.link), nuevo: f.link });
         }
-        if (emailOk && f.email !== (ex.email || '')) {
-          cambiosBase.email = truncate(f.email, 200);
-          baseLogs.push({
-            campo: 'Email',
-            anterior: ex.email,
-            nuevo: cambiosBase.email,
-            detalle: 'Email actualizado',
-          });
+        if (f.emailPresente && f.emailCelda) {
+          const actual = canonizarCorreosGuardados(ex.email);
+          if (f.emailCelda !== actual) {
+            cambiosBase.email = f.emailCelda;
+            reporte.push({
+              campo: 'Email',
+              anterior: show(ex.email),
+              nuevo: f.emailCelda,
+            });
+          }
         }
         if (calOk && f.calendario !== (ex.calendario || '')) {
           cambiosBase.calendario = f.calendario;
-          baseLogs.push({
+          reporte.push({
             campo: 'Calendario',
-            anterior: ex.calendario,
+            anterior: show(ex.calendario),
             nuevo: f.calendario,
-            detalle: 'Calendario actualizado',
           });
         }
         if (f.tipo && f.tipo !== (ex.tipoColegio || '')) {
           cambiosBase.tipoColegio = f.tipo;
-          baseLogs.push({
+          reporte.push({
             campo: 'Tipo sistema',
-            anterior: ex.tipoColegio,
+            anterior: show(ex.tipoColegio),
             nuevo: f.tipo,
-            detalle: 'Tipo sistema actualizado',
           });
         }
         if (f.ciudad && f.ciudad !== (ex.ciudad || '')) {
-          cambiosBase.ciudad = truncate(f.ciudad, 100);
-          baseLogs.push({
+          cambiosBase.ciudad = f.ciudad;
+          reporte.push({
             campo: 'Ciudad',
-            anterior: ex.ciudad,
-            nuevo: cambiosBase.ciudad,
-            detalle: 'Ciudad actualizada',
+            anterior: show(ex.ciudad),
+            nuevo: f.ciudad,
           });
         }
         if (f.activoRaw !== '') {
           const ab = activoBoolFrom(f.activoRaw);
           if (ab !== ex.activo) {
             cambiosBase.activo = ab;
-            baseLogs.push({
+            reporte.push({
               campo: 'Activo',
               anterior: ex.activo ? 'Sí' : 'No',
               nuevo: ab ? 'Sí' : 'No',
-              detalle: 'Estado actualizado',
             });
           }
         }
         if (reasignarAsesores && f.asesor) {
-          const k = f.asesor.toLowerCase().trim();
-          if (advisorCount.get(k) === undefined) {
-            errores.push(
-              `Asesor "${f.asesor}" no encontrado para "${f.nombre}" — se mantiene el actual.`,
+          const { id, problema } = resolverAsesor(f.asesor);
+          if (id && ex.advisorId !== id) {
+            cambiosBase.advisorId = id;
+            const nuevoNombre = nombreDeAsesor(id);
+            reporte.push({
+              campo: 'Asesor',
+              anterior: ex.advisor?.name ?? null,
+              nuevo: nuevoNombre,
+            });
+            cambiosAsesor.push({
+              colegio: f.nombre,
+              anterior: ex.advisor?.name ?? null,
+              nuevo: nuevoNombre,
+            });
+          } else if (problema === 'no-encontrado') {
+            avisar(
+              f.r,
+              f.nombre,
+              'Asesor',
+              `Asesor "${f.asesor}" no encontrado — se mantiene el actual.`,
             );
-          } else if (advisorCount.get(k) === 1) {
-            const nuevoId = advisorMap.get(k)!;
-            const nuevoNombre =
-              allUsers.find((u) => u.id === nuevoId)?.name ?? f.asesor;
-            if (ex.advisorId !== nuevoId) {
-              cambiosBase.advisorId = nuevoId;
-              baseLogs.push({
-                campo: 'Asesor',
-                anterior: ex.advisor?.name ?? null,
-                nuevo: nuevoNombre,
-                detalle: 'Asesor asignado',
-              });
-              cambiosAsesor.push({
-                colegio: f.nombre,
-                anterior: ex.advisor?.name ?? null,
-                nuevo: nuevoNombre,
-              });
-            }
-          } else {
-            errores.push(
-              `Asesor "${f.asesor}" es ambiguo para "${f.nombre}" — se mantiene el actual.`,
+          } else if (problema === 'ambiguo') {
+            avisar(
+              f.r,
+              f.nombre,
+              'Asesor',
+              `Asesor "${f.asesor}" es ambiguo — se mantiene el actual.`,
             );
           }
         }
-      }
 
-      // Campos dinámicos (blanco = no tocar en existentes)
-      const currentValores = ex ? (valoresByColegio.get(ex.id) ?? []) : [];
-      for (const [headerName, campo] of campoLookup.entries()) {
-        if (baseHeaders.includes(headerName)) continue;
-        const idx = headerIdx.get(headerName);
-        if (idx == null) continue;
-
-        const cellVal = f.celdaVal(headerName);
-        if (cellVal === '' && ex) continue;
-        let nuevoVal = cellVal === '' ? null : cellVal;
-
-        if (campo.tipo === 'booleano' && nuevoVal) {
-          const lower = nuevoVal.toLowerCase().trim();
-          if (
-            lower === 'sí' ||
-            lower === 'si' ||
-            lower === 'true' ||
-            lower === 'activo' ||
-            lower === 'yes' ||
-            lower === 's'
-          ) {
-            nuevoVal = 'true';
-          } else if (
-            lower === 'no' ||
-            lower === 'false' ||
-            lower === 'inactivo' ||
-            lower === 'n'
-          ) {
-            nuevoVal = 'false';
+        // Campos dinámicos (blanco en existente = no tocar)
+        const valoresLocal: PlanValores[] = [];
+        const currentValores = valoresPorColegio.get(ex.id) ?? [];
+        for (const d of f.dinamicos) {
+          const campo = campoById.get(d.campoId);
+          if (!campo || d.valorBruto === '') continue;
+          let nuevoVal: string | null = d.valorBruto;
+          if (campo.tipo === 'booleano' && nuevoVal) {
+            const lower = nuevoVal.toLowerCase().trim();
+            if (['sí', 'si', 'true', 'activo', 'yes', 's'].includes(lower))
+              nuevoVal = 'true';
+            else if (['no', 'false', 'inactivo', 'n'].includes(lower))
+              nuevoVal = 'false';
           }
+          const currentVal = currentValores.find(
+            (v) => v.campoId === campo.id,
+          );
+          const anteriorVal = currentVal?.valor ?? null;
+          if (anteriorVal === nuevoVal) continue;
+          let showAnterior = anteriorVal;
+          let showNuevo = nuevoVal;
+          if (campo.tipo === 'booleano') {
+            showAnterior =
+              anteriorVal === 'true'
+                ? 'Sí'
+                : anteriorVal === 'false'
+                  ? 'No'
+                  : anteriorVal;
+            showNuevo =
+              nuevoVal === 'true'
+                ? 'Sí'
+                : nuevoVal === 'false'
+                  ? 'No'
+                  : nuevoVal;
+          }
+          valoresLocal.push({
+            campo,
+            anteriorVal,
+            nuevoVal,
+            showAnterior,
+            showNuevo,
+            reporte: {
+              campo: campo.nombre,
+              anterior: showAnterior,
+              nuevo: showNuevo,
+            },
+          });
         }
 
-        const currentVal = currentValores.find((v) => v.campoId === campo.id);
-        const anteriorVal = currentVal?.valor ?? null;
-        if (anteriorVal === nuevoVal) continue;
-
-        let showAnterior = anteriorVal;
-        let showNuevo = nuevoVal;
-        if (campo.tipo === 'booleano') {
-          showAnterior =
-            anteriorVal === 'true'
-              ? 'Sí'
-              : anteriorVal === 'false'
-                ? 'No'
-                : anteriorVal;
-          showNuevo =
-            nuevoVal === 'true'
-              ? 'Sí'
-              : nuevoVal === 'false'
-                ? 'No'
-                : nuevoVal;
-        }
-        valores.push({
-          campo,
-          anteriorVal,
-          nuevoVal,
-          showAnterior,
-          showNuevo,
+        // Estado según lo que cambió
+        const tieneCambios =
+          Object.keys(cambiosBase).length > 0 || valoresLocal.length > 0;
+        plan.push({
+          filaR: f.r,
+          nombre: f.nombre,
+          nombreKey: f.key,
+          id: ex.id,
+          estado: tieneCambios ? 'actualizar' : 'sin-cambios',
+          cambiosBase,
+          cambiosReporte: reporte,
+          valores: valoresLocal,
         });
       }
-
-      plan.push({
-        nombre: f.nombre,
-        estado:
-          !ex
-            ? 'crear'
-            : Object.keys(cambiosBase).length || valores.length
-              ? 'actualizar'
-              : 'omito',
-        cambiosBase,
-        baseLogs,
-        valores,
-      });
     }
 
+    // Campos dinámicos para filas nuevas (se insertan juntos)
+    for (const p of plan) {
+      if (p.estado !== 'crear') continue;
+      const f = filas.find((x) => x.key === p.nombreKey);
+      if (!f) continue;
+      for (const d of f.dinamicos) {
+        const campo = campoById.get(d.campoId);
+        if (!campo || d.valorBruto === '') continue;
+        let nuevoVal: string | null = d.valorBruto;
+        if (campo.tipo === 'booleano' && nuevoVal) {
+          const lower = nuevoVal.toLowerCase().trim();
+          if (['sí', 'si', 'true', 'activo', 'yes', 's'].includes(lower))
+            nuevoVal = 'true';
+          else if (['no', 'false', 'inactivo', 'n'].includes(lower))
+            nuevoVal = 'false';
+        }
+        let showNuevo = nuevoVal;
+        if (campo.tipo === 'booleano') {
+          showNuevo =
+            nuevoVal === 'true' ? 'Sí' : nuevoVal === 'false' ? 'No' : nuevoVal;
+        }
+        p.valores.push({
+          campo,
+          anteriorVal: null,
+          nuevoVal,
+          showAnterior: null,
+          showNuevo,
+          reporte: { campo: campo.nombre, anterior: null, nuevo: showNuevo },
+        });
+      }
+    }
+
+    // ── Reporte de filas + resumen ─────────────────────────────────────
+    const filasReport: FilaImport[] = [];
     let created = 0;
     let updated = 0;
     for (const p of plan) {
       if (p.estado === 'crear') created++;
       else if (p.estado === 'actualizar') updated++;
+      filasReport.push({
+        fila: p.filaR,
+        nombre: p.nombre,
+        estado: p.estado,
+        cambios: [
+          ...p.cambiosReporte,
+          ...p.valores.map((v) => v.reporte),
+        ],
+        avisos: avisos
+          .filter((a) => a.fila === p.filaR)
+          .map((a) => a.mensaje),
+      });
     }
+    filasReport.push(...duplicadas);
+    filasReport.sort((a, b) => a.fila - b.fila);
 
-    for (const p of plan) {
-      for (const b of p.baseLogs) {
-        logs.push({
-          colegio: p.nombre,
-          campo: b.campo,
-          anterior: b.anterior,
-          nuevo: b.nuevo,
-          estado: 'exito',
-          detalle: b.detalle,
-        });
-      }
-      for (const v of p.valores) {
-        logs.push({
-          colegio: p.nombre,
-          campo: v.campo.nombre,
-          anterior: v.showAnterior,
-          nuevo: v.showNuevo,
-          estado: 'exito',
-          detalle: 'Valor actualizado',
-        });
-      }
-    }
+    const resumen = construirResumen(filasReport, mapeo.columnas);
 
-    const filasPlan = plan.map((p) => ({
-      nombre: p.nombre,
-      estado: p.estado,
-      cambios: [
-        ...p.baseLogs.map(
-          (l) => `${l.campo}: ${l.anterior ?? '—'} → ${l.nuevo ?? '—'}`,
-        ),
-        ...p.valores.map(
-          (v) =>
-            `${v.campo.nombre}: ${v.showAnterior ?? '—'} → ${v.showNuevo ?? '—'}`,
-        ),
-      ],
-    }));
+    const logs = filasReport.flatMap((f) =>
+      f.cambios.map((c) => ({
+        colegio: f.nombre,
+        campo: c.campo,
+        anterior: c.anterior,
+        nuevo: c.nuevo,
+        estado: 'exito' as const,
+        detalle:
+          f.estado === 'crear'
+            ? 'Institución creada'
+            : c.anterior == null
+              ? 'Valor agregado'
+              : 'Valor actualizado',
+      })),
+    );
+
+    const errores = avisos.map(
+      (a) =>
+        `Fila ${a.fila ?? '—'}${a.nombre ? ` ("${a.nombre}")` : ''}${
+          a.campo ? ` [${a.campo}]` : ''
+        }: ${a.mensaje}`,
+    );
+
+    const respuesta: {
+      ok: true;
+      preview: boolean;
+      created: number;
+      updated: number;
+      total: number;
+      resumen: ResumenImport;
+      filas: FilaImport[];
+      columnas: ColumnaReporte[];
+      avisos: AvisoImport[];
+      errores: string[];
+      logs: typeof logs;
+      cambiosAsesor: typeof cambiosAsesor;
+      logExcelBase64: string;
+      backup?: string;
+    } = {
+      ok: true,
+      preview,
+      created,
+      updated,
+      total: resumen.filasArchivo,
+      resumen,
+      filas: filasReport,
+      columnas: mapeo.columnas,
+      avisos,
+      errores,
+      logs,
+      cambiosAsesor,
+      logExcelBase64: '',
+    };
 
     if (preview) {
       try {
@@ -1516,18 +1654,7 @@ export class PerfilInstitucionalService {
       } catch {
         /* noop */
       }
-      return {
-        ok: true,
-        preview: true,
-        created,
-        updated,
-        total: created + updated,
-        errores,
-        logs,
-        logExcelBase64: '',
-        cambiosAsesor,
-        filas: filasPlan,
-      };
+      return respuesta;
     }
 
     // Backup antes de mutar (best effort)
@@ -1550,44 +1677,38 @@ export class PerfilInstitucionalService {
       const histM = manager.getRepository(PiHistorial);
 
       for (const p of plan) {
-        if (p.estado === 'omito') {
-          const existente = await colM.findOneBy({ nombre: p.nombre });
-          if (existente) p.id = existente.id;
-          continue;
-        }
-        if (p.estado === 'crear') {
-          const ent = colM.create({
-            nombre: p.nombre,
-            activo: true,
-            ...p.cambiosBase,
-          });
-          const saved = await colM.save(ent);
-          p.id = saved.id;
-        } else {
-          const ent = await colM.findOneBy({ nombre: p.nombre });
-          if (!ent) continue;
-          if (p.cambiosBase.advisorId !== undefined)
-            ent.advisorId = p.cambiosBase.advisorId as string | null;
-          Object.assign(ent, p.cambiosBase);
-          await colM.save(ent);
-          p.id = ent.id;
+        try {
+          if (p.estado === 'sin-cambios') continue;
 
-          for (const b of p.baseLogs) {
+          if (p.estado === 'crear') {
+            const ent = colM.create({
+              nombre: p.nombre,
+              activo: true,
+              ...p.cambiosBase,
+            });
+            const saved = await colM.save(ent);
+            p.id = saved.id;
+          } else {
+            const ent = await colM.findOneBy({ id: p.id! });
+            if (!ent) continue;
+            Object.assign(ent, p.cambiosBase);
+            await colM.save(ent);
+          }
+
+          for (const c of p.cambiosReporte) {
             await histM.insert({
-              colegioId: p.id,
+              colegioId: p.id!,
               campoId: null,
               usuario,
               accion: 'import',
-              valorAnterior: b.anterior,
-              valorNuevo: b.nuevo,
+              valorAnterior: c.anterior,
+              valorNuevo: c.nuevo,
             });
           }
-        }
 
-        if (p.valores.length && p.id) {
           for (const v of p.valores) {
             const reg = await valM.findOneBy({
-              colegioId: p.id,
+              colegioId: p.id!,
               campoId: v.campo.id,
             });
             if (reg) {
@@ -1595,14 +1716,14 @@ export class PerfilInstitucionalService {
               await valM.save(reg);
             } else if (v.nuevoVal != null) {
               await valM.insert({
-                colegioId: p.id,
+                colegioId: p.id!,
                 campoId: v.campo.id,
                 valor: v.nuevoVal,
                 updatedBy: usuario,
               });
             }
             await histM.insert({
-              colegioId: p.id,
+              colegioId: p.id!,
               campoId: v.campo.id,
               usuario,
               accion: 'actualizar_valor',
@@ -1610,6 +1731,10 @@ export class PerfilInstitucionalService {
               valorNuevo: v.nuevoVal,
             });
           }
+        } catch (err: any) {
+          throw new Error(
+            `No se pudo guardar "${p.nombre}": ${err?.message ?? err}`,
+          );
         }
       }
 
@@ -1629,73 +1754,17 @@ export class PerfilInstitucionalService {
       /* noop */
     }
 
-    // Generate beautiful change log Excel workbook
-    const logWb = new ExcelJS.Workbook();
-    const logWs = logWb.addWorksheet('Reporte de Cambios');
-    logWs.columns = [
-      { header: 'Institución', key: 'colegio', width: 32 },
-      { header: 'Campo', key: 'campo', width: 22 },
-      { header: 'Valor Anterior', key: 'anterior', width: 30 },
-      { header: 'Valor Nuevo', key: 'nuevo', width: 30 },
-      { header: 'Estado', key: 'estado', width: 14 },
-      { header: 'Detalle', key: 'detalle', width: 32 },
-    ];
-
-    // Style the header row
-    const headerRowLog = logWs.getRow(1);
-    headerRowLog.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    headerRowLog.eachCell((cell) => {
-      cell.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FF1E293B' }, // Dark slate
-      };
-      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    const buffer = await construirExcelReporte({
+      archivo: archivoNombre,
+      resumen,
+      filas: filasReport,
+      avisos,
+      columnas: mapeo.columnas,
     });
-    headerRowLog.height = 26;
-
-    for (const log of logs) {
-      const row = logWs.addRow({
-        colegio: log.colegio,
-        campo: log.campo,
-        anterior: log.anterior ?? '—',
-        nuevo: log.nuevo ?? '—',
-        estado: log.estado === 'exito' ? 'Éxito' : 'Error',
-        detalle: log.detalle,
-      });
-
-      // Style cells
-      const statusCell = row.getCell(5);
-      if (log.estado === 'exito') {
-        statusCell.fill = {
-          type: 'pattern',
-          pattern: 'solid',
-          fgColor: { argb: 'FFE8F5E9' }, // Light green
-        };
-        statusCell.font = { color: { argb: 'FF2E7D32' }, bold: true };
-      } else {
-        statusCell.fill = {
-          type: 'pattern',
-          pattern: 'solid',
-          fgColor: { argb: 'FFFFEBEE' }, // Light red
-        };
-        statusCell.font = { color: { argb: 'FFC62828' }, bold: true };
-      }
-      statusCell.alignment = { horizontal: 'center' };
-    }
-
-    const logBuffer = await logWb.xlsx.writeBuffer();
-    const logExcelBase64 = Buffer.from(logBuffer as any).toString('base64');
 
     return {
-      ok: true,
-      created,
-      updated,
-      total: created + updated,
-      errores,
-      logs,
-      logExcelBase64,
-      cambiosAsesor,
+      ...respuesta,
+      logExcelBase64: buffer.toString('base64'),
       backup: backupFile,
     };
   }

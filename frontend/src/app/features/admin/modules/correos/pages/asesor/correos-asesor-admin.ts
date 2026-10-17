@@ -1,6 +1,17 @@
 import { CommonModule } from '@angular/common';
-import { Component, HostListener, OnInit, inject, signal } from '@angular/core';
+import {
+  Component,
+  HostBinding,
+  HostListener,
+  OnInit,
+  OnDestroy,
+  ChangeDetectorRef,
+  inject,
+  signal,
+} from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import {
   CorreosAdminService,
   CuboCorreo,
@@ -9,6 +20,7 @@ import {
   ListadoAsesorAdmin,
   MensajeCorreoAdmin,
 } from '../../../../../../core/services/correos-admin.service';
+import { ThemeService } from '../../../../../../core/services/theme.service';
 import { COLOR_ESTADO, estiloNivel } from '../../correos-sla.util';
 import {
   colorCategoria,
@@ -56,10 +68,16 @@ const CUBOS: {
   templateUrl: './correos-asesor-admin.html',
   styleUrls: ['./correos-asesor-admin.scss'],
 })
-export class CorreosAsesorAdmin implements OnInit {
+export class CorreosAsesorAdmin implements OnInit, OnDestroy {
   private api = inject(CorreosAdminService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
+  private themeService = inject(ThemeService);
+  private cdr = inject(ChangeDetectorRef);
+
+  @HostBinding('class.theme-dark') protected themeDark = false;
+
+  private readonly destroy$ = new Subject<void>();
 
   /**
    * Boton que abrio el visor.
@@ -99,6 +117,12 @@ export class CorreosAsesorAdmin implements OnInit {
   readonly contadorCubo = signal<number | null>(null);
 
   ngOnInit(): void {
+    this.themeDark = this.themeService.currentTheme === 'dark';
+    this.themeService.currentTheme$.pipe(takeUntil(this.destroy$)).subscribe((t) => {
+      this.themeDark = t === 'dark';
+      this.cdr.markForCheck();
+    });
+
     const id = this.route.snapshot.paramMap.get('id');
     if (!id) {
       this.router.navigate(['/admin/correos']);
@@ -115,6 +139,11 @@ export class CorreosAsesorAdmin implements OnInit {
       this.fila.set(fila);
       this.actualizarContador();
     }
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   cargar(): void {

@@ -10,6 +10,34 @@
   font-family: $pi-font-family;
 }
 
+/* Tema oscuro: los valores claros viven en los fallbacks de cada uso (light pixel-idéntico) */
+:host.theme-dark {
+  --pi-border: rgba(255, 255, 255, 0.10);
+  --pi-text: #e6edf7;
+  --pi-text-secondary: #9aa5b8;
+  --pi-text-2: #b9c2d0;
+  --pi-text-muted: #7f8ba0;
+  --pi-surface-hover: #151b23;
+  --pi-primary: #3b82f6;
+  --pi-primary-text: #60a5fa;
+  --pi-fill: rgba(255, 255, 255, 0.04);
+  --pi-fill-2: rgba(255, 255, 255, 0.07);
+  --pi-track: rgba(255, 255, 255, 0.16);
+  --pi-inactive: #64748b;
+  --pi-tint-blue: rgba(96, 165, 250, 0.12);
+  --pi-tint-green: rgba(52, 211, 153, 0.14);
+  --pi-tint-red: rgba(248, 113, 113, 0.12);
+  --pi-tint-amber: rgba(251, 191, 36, 0.14);
+  --pi-tint-violet: rgba(196, 181, 253, 0.14);
+  --pi-tint-indigo: rgba(165, 180, 252, 0.14);
+  --pi-link: #93c5fd;
+  --pi-ok-text: #34d399;
+  --pi-danger-text: #f87171;
+  --pi-warn-text: #fbbf24;
+  --pi-violet-text: #c4b5fd;
+  --pi-indigo-text: #a5b4fc;
+}
+
 // ── Animations ────────────────────────────────────────────────────────────────
 @keyframes fadeIn {
   from { opacity: 0; }
@@ -50,7 +78,7 @@
   margin: 0 auto;
   padding: clamp(16px, 4vw, 48px) clamp(16px, 4vw, 48px) clamp(32px, 5vw, 64px);
   min-height: 100vh;
-  background: $pi-bg;
+  background: var(--bg, $pi-bg);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -62,7 +90,7 @@
 
 .pi-banner-bg {
   background: linear-gradient(135deg, rgba(37, 99, 235, 0.06) 0%, rgba(37, 99, 235, 0.02) 60%, transparent 100%);
-  border: 1px solid $pi-border;
+  border: 1px solid var(--pi-border, $pi-border);
   border-radius: $pi-radius-xl;
   padding: 40px 32px 32px;
   text-align: center;
@@ -79,7 +107,7 @@
   align-items: center;
   justify-content: center;
   margin: 0 auto 18px;
-  color: $pi-primary;
+  color: var(--pi-primary-text, $pi-primary);
   animation: scaleIn 400ms ease;
 
   svg {
@@ -92,7 +120,7 @@
   margin: 0;
   font-size: 28px;
   font-weight: 700;
-  color: $pi-text;
+  color: var(--pi-text, $pi-text);
   letter-spacing: -0.02em;
   line-height: 1.2;
 }
@@ -100,7 +128,7 @@
 .pi-banner-sub {
   margin: 6px 0 0;
   font-size: 14px;
-  color: $pi-text-secondary;
+  color: var(--pi-text-secondary, $pi-text-secondary);
 }
 
 .pi-banner-actions {
@@ -108,6 +136,11 @@
   justify-content: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+// En el admin el banner se oculta (breadcrumb) y las acciones se alinean a la derecha.
+.pi-banner.es-admin .pi-banner-actions {
+  justify-content: flex-end;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -144,41 +177,41 @@
 }
 
 .pi-btn-primary {
-  background: $pi-primary;
+  background: var(--pi-primary, $pi-primary);
   color: #ffffff;
 
   &:hover {
-    background: $pi-primary-hover;
+    background: var(--primary-hover, $pi-primary-hover);
   }
 }
 
 .pi-btn-outline {
   background: transparent;
-  border: 1px solid $pi-border;
-  color: $pi-text;
+  border: 1px solid var(--pi-border, $pi-border);
+  color: var(--pi-text, $pi-text);
 
   &:hover {
-    background: $pi-bg;
+    background: var(--bg, $pi-bg);
   }
 }
 
 .pi-btn-ghost {
   background: transparent;
-  color: $pi-text-secondary;
+  color: var(--pi-text-secondary, $pi-text-secondary);
 
   &:hover {
-    background: $pi-bg;
-    color: $pi-text;
+    background: var(--bg, $pi-bg);
+    color: var(--pi-text, $pi-text);
   }
 }
 
 .pi-btn-danger {
-  background: $pi-red-50;
-  color: $pi-red-600;
+  background: var(--pi-tint-red, $pi-red-50);
+  color: var(--pi-danger-text, $pi-red-600);
   border: 1px solid #fca5a5;
 
   &:hover {
-    background: $pi-red-100;
+    background: var(--pi-tint-red, $pi-red-100);
     border-color: $pi-red-400;
   }
 }
@@ -214,20 +247,20 @@
     height: 52px;
     padding: 0 40px 0 14px;
     border-radius: $pi-radius-lg;
-    border: 1px solid $pi-border;
-    background: $pi-surface;
-    color: $pi-text;
+    border: 1px solid var(--pi-border, $pi-border);
+    background: var(--surface, $pi-surface);
+    color: var(--pi-text, $pi-text);
     font-size: 14px;
     font-family: inherit;
     outline: none;
     transition: border-color 150ms ease, box-shadow 150ms ease;
 
     &::placeholder {
-      color: $pi-text-muted;
+      color: var(--pi-text-muted, $pi-text-muted);
     }
 
     &:focus {
-      border-color: $pi-primary;
+      border-color: var(--pi-primary, $pi-primary);
       box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
     }
   }
@@ -245,15 +278,15 @@
   align-items: center;
   justify-content: center;
   border: none;
-  background: $pi-slate-100;
-  color: $pi-text-secondary;
+  background: var(--pi-fill-2, $pi-slate-100);
+  color: var(--pi-text-secondary, $pi-text-secondary);
   font-size: 11px;
   cursor: pointer;
   transition: background 120ms ease, color 120ms ease;
 
   &:hover {
-    background: $pi-slate-200;
-    color: $pi-text;
+    background: var(--pi-track, $pi-slate-200);
+    color: var(--pi-text, $pi-text);
   }
 }
 
@@ -270,7 +303,7 @@
 .pi-dropdown-label {
   font-size: 12px;
   font-weight: 600;
-  color: $pi-text-secondary;
+  color: var(--pi-text-secondary, $pi-text-secondary);
   letter-spacing: 0.03em;
   text-transform: uppercase;
   padding-left: 2px;
@@ -280,9 +313,9 @@
   height: 52px;
   padding: 0 36px 0 14px;
   border-radius: $pi-radius-lg;
-  border: 1px solid $pi-border;
-  background: $pi-surface;
-  color: $pi-text;
+  border: 1px solid var(--pi-border, $pi-border);
+  background: var(--surface, $pi-surface);
+  color: var(--pi-text, $pi-text);
   font-size: 14px;
   font-weight: 500;
   font-family: inherit;
@@ -296,7 +329,7 @@
 
   &:focus {
     outline: none;
-    border-color: $pi-primary;
+    border-color: var(--pi-primary, $pi-primary);
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
   }
 
@@ -310,7 +343,7 @@
     height: 0;
     border-left: 4px solid transparent;
     border-right: 4px solid transparent;
-    border-top: 5px solid $pi-text-muted;
+    border-top: 5px solid var(--pi-text-muted, $pi-text-muted);
     pointer-events: none;
   }
 }
@@ -321,8 +354,8 @@
   left: 0;
   right: 0;
   margin-top: 4px;
-  background: $pi-surface;
-  border: 1px solid $pi-border;
+  background: var(--surface, $pi-surface);
+  border: 1px solid var(--pi-border, $pi-border);
   border-radius: $pi-radius-lg;
   box-shadow: $pi-shadow-lg;
   z-index: 50;
@@ -340,19 +373,19 @@
   padding: 0 12px;
   margin: 0 4px;
   font-size: 14px;
-  color: $pi-text;
+  color: var(--pi-text, $pi-text);
   cursor: pointer;
   border-radius: $pi-radius-sm;
   transition: background 120ms ease;
   white-space: nowrap;
 
   &:hover {
-    background: $pi-slate-50;
+    background: var(--pi-fill, $pi-slate-50);
   }
 
   &.active {
-    background: $pi-blue-50;
-    color: $pi-blue-700;
+    background: var(--pi-tint-blue, $pi-blue-50);
+    color: var(--pi-link, $pi-blue-700);
     font-weight: 600;
   }
 }
@@ -361,8 +394,8 @@
 // 6. Filter Panel (Card Style)
 // ══════════════════════════════════════════════════════════════════════════════
 .pi-filter-panel {
-  background: $pi-surface;
-  border: 1px solid $pi-border;
+  background: var(--surface, $pi-surface);
+  border: 1px solid var(--pi-border, $pi-border);
   border-radius: $pi-radius-xl;
   margin-bottom: 20px;
   overflow: hidden;
@@ -378,11 +411,11 @@
   transition: background 120ms ease;
 
   &:hover {
-    background: $pi-slate-50;
+    background: var(--pi-fill, $pi-slate-50);
   }
 
   &--expanded {
-    border-bottom: 1px solid $pi-border-light;
+    border-bottom: 1px solid var(--pi-border, $pi-border-light);
   }
 }
 
@@ -393,12 +426,12 @@
   gap: 8px;
   font-size: 14px;
   font-weight: 600;
-  color: $pi-text;
+  color: var(--pi-text, $pi-text);
 
   svg {
     width: 16px;
     height: 16px;
-    color: $pi-text-secondary;
+    color: var(--pi-text-secondary, $pi-text-secondary);
   }
 }
 
@@ -419,7 +452,7 @@
   border-radius: 10px;
   font-size: 11px;
   font-weight: 700;
-  background: $pi-primary;
+  background: var(--pi-primary, $pi-primary);
   color: #fff;
 }
 
@@ -429,7 +462,7 @@
   gap: 4px;
   font-size: 13px;
   font-weight: 500;
-  color: $pi-text-secondary;
+  color: var(--pi-text-secondary, $pi-text-secondary);
   background: none;
   border: none;
   cursor: pointer;
@@ -439,8 +472,8 @@
   transition: color 120ms ease, background 120ms ease;
 
   &:hover {
-    color: $pi-red-600;
-    background: $pi-red-50;
+    color: var(--pi-danger-text, $pi-red-600);
+    background: var(--pi-tint-red, $pi-red-50);
   }
 
   svg {
@@ -452,7 +485,7 @@
 .pi-filter-panel-clear {
   font-size: 13px;
   font-weight: 500;
-  color: $pi-text-secondary;
+  color: var(--pi-text-secondary, $pi-text-secondary);
   background: none;
   border: none;
   cursor: pointer;
@@ -461,15 +494,15 @@
   transition: color 120ms ease, background 120ms ease;
 
   &:hover {
-    color: $pi-red-600;
-    background: $pi-red-50;
+    color: var(--pi-danger-text, $pi-red-600);
+    background: var(--pi-tint-red, $pi-red-50);
   }
 }
 
 .pi-filter-panel-chevron {
   width: 18px;
   height: 18px;
-  color: $pi-text-muted;
+  color: var(--pi-text-muted, $pi-text-muted);
   transition: transform 200ms ease;
 
   &--open {
@@ -520,19 +553,19 @@
   justify-content: space-between;
   height: 48px;
   padding: 0 16px;
-  border: 1px solid $pi-border;
+  border: 1px solid var(--pi-border, $pi-border);
   border-radius: $pi-radius-lg;
-  background: $pi-surface;
+  background: var(--surface, $pi-surface);
   cursor: pointer;
   transition: all 150ms ease;
 
   &:hover {
-    border-color: $pi-primary;
-    background: $pi-slate-50;
+    border-color: var(--pi-primary, $pi-primary);
+    background: var(--pi-fill, $pi-slate-50);
   }
 
   &[aria-expanded="true"] {
-    border-color: $pi-primary;
+    border-color: var(--pi-primary, $pi-primary);
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
   }
 }
@@ -546,11 +579,11 @@
 
 .pi-selected-text {
   font-weight: 600;
-  color: $pi-text;
+  color: var(--pi-text, $pi-text);
 }
 
 .pi-placeholder-text {
-  color: $pi-text-secondary;
+  color: var(--pi-text-secondary, $pi-text-secondary);
 }
 
 .pi-custom-select-actions {
@@ -565,20 +598,20 @@
   cursor: pointer;
   padding: 4px;
   border-radius: 50%;
-  color: $pi-text-muted;
+  color: var(--pi-text-muted, $pi-text-muted);
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 120ms ease;
 
   &:hover {
-    background: $pi-slate-100;
-    color: $pi-text;
+    background: var(--pi-fill-2, $pi-slate-100);
+    color: var(--pi-text, $pi-text);
   }
 }
 
 .pi-dropdown-arrow {
-  color: $pi-text-muted;
+  color: var(--pi-text-muted, $pi-text-muted);
   transition: transform 150ms ease;
 
   &.rotated {
@@ -592,8 +625,8 @@
   left: 0;
   right: 0;
   margin-top: 6px;
-  background: $pi-surface;
-  border: 1px solid $pi-border;
+  background: var(--surface, $pi-surface);
+  border: 1px solid var(--pi-border, $pi-border);
   border-radius: $pi-radius-lg;
   box-shadow: $pi-shadow-lg;
   z-index: 100;
@@ -606,11 +639,11 @@
   align-items: center;
   gap: 8px;
   padding: 10px 14px;
-  border-bottom: 1px solid $pi-border-light;
-  background: $pi-bg;
+  border-bottom: 1px solid var(--pi-border, $pi-border-light);
+  background: var(--bg, $pi-bg);
 
   svg {
-    color: $pi-text-muted;
+    color: var(--pi-text-muted, $pi-text-muted);
   }
 
   input {
@@ -620,10 +653,10 @@
     width: 100%;
     font-size: 14px;
     font-family: inherit;
-    color: $pi-text;
+    color: var(--pi-text, $pi-text);
 
     &::placeholder {
-      color: $pi-text-muted;
+      color: var(--pi-text-muted, $pi-text-muted);
     }
   }
 }
@@ -633,13 +666,13 @@
   overflow-y: auto;
   padding: 4px 0;
   scrollbar-width: thin;
-  scrollbar-color: $pi-slate-200 transparent;
+  scrollbar-color: var(--pi-track, $pi-slate-200) transparent;
 
   &::-webkit-scrollbar {
     width: 4px;
   }
   &::-webkit-scrollbar-thumb {
-    background: $pi-slate-200;
+    background: var(--pi-track, $pi-slate-200);
     border-radius: 2px;
   }
 }
@@ -648,7 +681,7 @@
   padding: 16px;
   text-align: center;
   font-size: 13px;
-  color: $pi-text-secondary;
+  color: var(--pi-text-secondary, $pi-text-secondary);
 }
 
 .pi-custom-select-option {
@@ -659,15 +692,15 @@
   cursor: pointer;
   transition: all 120ms ease;
   font-size: 14px;
-  color: $pi-text;
+  color: var(--pi-text, $pi-text);
 
   &:hover {
-    background: $pi-slate-50;
+    background: var(--pi-fill, $pi-slate-50);
   }
 
   &.selected {
-    background: $pi-blue-50;
-    color: $pi-blue-700;
+    background: var(--pi-tint-blue, $pi-blue-50);
+    color: var(--pi-link, $pi-blue-700);
     font-weight: 600;
 
     .pi-asesor-avatar-sm {
@@ -677,7 +710,7 @@
 
   .pi-check-icon {
     margin-left: auto;
-    color: $pi-primary;
+    color: var(--pi-primary-text, $pi-primary);
   }
 }
 
@@ -703,7 +736,7 @@
 .pi-filter-section-title {
   font-size: 12px;
   font-weight: 700;
-  color: $pi-text-secondary;
+  color: var(--pi-text-secondary, $pi-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 6px;
@@ -727,13 +760,13 @@
     max-height: 200px;
     overflow-y: auto;
     scrollbar-width: thin;
-    scrollbar-color: $pi-slate-200 transparent;
+    scrollbar-color: var(--pi-track, $pi-slate-200) transparent;
 
     &::-webkit-scrollbar {
       width: 4px;
     }
     &::-webkit-scrollbar-thumb {
-      background: $pi-slate-200;
+      background: var(--pi-track, $pi-slate-200);
       border-radius: 2px;
     }
   }
@@ -744,7 +777,7 @@
   height: 20px;
   border-radius: 50%;
   background: rgba(37, 99, 235, 0.1);
-  color: $pi-primary;
+  color: var(--pi-primary-text, $pi-primary);
   font-size: 10px;
   font-weight: 700;
   display: inline-flex;
@@ -769,7 +802,7 @@
 .pi-filter-label {
   font-size: 13px;
   font-weight: 600;
-  color: $pi-text;
+  color: var(--pi-text, $pi-text);
 }
 
 .pi-filter-option {
@@ -778,26 +811,26 @@
   gap: 10px;
   height: 44px;
   padding: 0 12px;
-  border: 1px solid $pi-border-light;
+  border: 1px solid var(--pi-border, $pi-border-light);
   border-radius: 10px;
   cursor: pointer;
   transition: all 150ms ease;
   font-size: 14px;
-  color: $pi-text;
+  color: var(--pi-text, $pi-text);
 
   &:hover {
-    background: $pi-slate-50;
-    border-color: $pi-border;
+    background: var(--pi-fill, $pi-slate-50);
+    border-color: var(--pi-border, $pi-border);
   }
 
   &.active {
-    background: $pi-blue-50;
-    border-color: $pi-blue-200;
-    color: $pi-blue-700;
+    background: var(--pi-tint-blue, $pi-blue-50);
+    border-color: var(--pi-border, $pi-blue-200);
+    color: var(--pi-link, $pi-blue-700);
   }
 
   input[type="checkbox"] {
-    accent-color: $pi-primary;
+    accent-color: var(--pi-primary, $pi-primary);
     width: 18px;
     height: 18px;
   }
@@ -808,8 +841,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 14px 20px;
-  background: $pi-slate-50;
-  border-top: 1px solid $pi-border-light;
+  background: var(--pi-fill, $pi-slate-50);
+  border-top: 1px solid var(--pi-border, $pi-border-light);
   flex-wrap: wrap;
   gap: 12px;
 }
@@ -830,7 +863,7 @@
 .pi-filter-sort-label {
   font-size: 12px;
   font-weight: 600;
-  color: $pi-text-secondary;
+  color: var(--pi-text-secondary, $pi-text-secondary);
   white-space: nowrap;
 }
 
@@ -838,9 +871,9 @@
   height: 36px;
   padding: 0 28px 0 10px;
   border-radius: $pi-radius-md;
-  border: 1px solid $pi-border;
-  background: $pi-surface;
-  color: $pi-text;
+  border: 1px solid var(--pi-border, $pi-border);
+  background: var(--surface, $pi-surface);
+  color: var(--pi-text, $pi-text);
   font-size: 13px;
   font-weight: 500;
   font-family: inherit;
@@ -853,7 +886,7 @@
   transition: border-color 150ms ease;
 
   &:focus {
-    border-color: $pi-primary;
+    border-color: var(--pi-primary, $pi-primary);
   }
 }
 
@@ -869,10 +902,10 @@
   gap: 6px;
   font-size: 13px;
   font-weight: 600;
-  color: $pi-text-secondary;
+  color: var(--pi-text-secondary, $pi-text-secondary);
 
   svg {
-    color: $pi-primary;
+    color: var(--pi-primary-text, $pi-primary);
   }
 }
 
@@ -881,7 +914,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 12px 20px;
-  border-top: 1px solid $pi-border-light;
+  border-top: 1px solid var(--pi-border, $pi-border-light);
   flex-wrap: wrap;
   gap: 12px;
 }
@@ -905,7 +938,7 @@
   user-select: none;
 
   input[type="checkbox"] {
-    accent-color: $pi-primary;
+    accent-color: var(--pi-primary, $pi-primary);
     width: 16px;
     height: 16px;
     cursor: pointer;
@@ -914,7 +947,7 @@
   .pi-filter-label {
     font-size: 13px;
     font-weight: 600;
-    color: $pi-text;
+    color: var(--pi-text, $pi-text);
   }
 }
 
@@ -922,21 +955,21 @@
   width: 100%;
   height: 38px;
   padding: 0 12px;
-  border: 1px solid $pi-border;
+  border: 1px solid var(--pi-border, $pi-border);
   border-radius: $pi-radius-md;
-  background: $pi-surface;
-  color: $pi-text;
+  background: var(--surface, $pi-surface);
+  color: var(--pi-text, $pi-text);
   font-size: 13px;
   font-family: inherit;
   outline: none;
   transition: border-color 150ms ease;
 
   &::placeholder {
-    color: $pi-text-muted;
+    color: var(--pi-text-muted, $pi-text-muted);
   }
 
   &:focus {
-    border-color: $pi-primary;
+    border-color: var(--pi-primary, $pi-primary);
     box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
   }
 }
@@ -951,12 +984,12 @@
   flex-wrap: wrap;
   margin-bottom: 18px;
   padding: 10px 0;
-  border-top: 1px solid $pi-border-light;
+  border-top: 1px solid var(--pi-border, $pi-border-light);
 }
 
 .pi-active-chips-label {
   font-size: 13px;
-  color: $pi-text-secondary;
+  color: var(--pi-text-secondary, $pi-text-secondary);
   font-weight: 500;
   white-space: nowrap;
 }
@@ -970,14 +1003,14 @@
   border-radius: $pi-radius-pill;
   font-size: 13px;
   font-weight: 500;
-  background: $pi-blue-50;
-  color: $pi-blue-700;
-  border: 1px solid $pi-blue-100;
+  background: var(--pi-tint-blue, $pi-blue-50);
+  color: var(--pi-link, $pi-blue-700);
+  border: 1px solid var(--pi-border, $pi-blue-100);
   transition: background 120ms ease;
   white-space: nowrap;
 
   &:hover {
-    background: $pi-blue-100;
+    background: var(--pi-tint-blue, $pi-blue-100);
   }
 
   button {
@@ -995,8 +1028,8 @@
     transition: color 120ms ease, background 120ms ease;
 
     &:hover {
-      color: $pi-blue-700;
-      background: $pi-blue-200;
+      color: var(--pi-link, $pi-blue-700);
+      background: var(--pi-tint-blue, $pi-blue-200);
     }
 
     svg {
@@ -1023,10 +1056,10 @@
   align-items: center;
   gap: 8px;
   font-size: 14px;
-  color: $pi-slate-600;
+  color: var(--pi-text-2, $pi-slate-600);
 
   strong {
-    color: $pi-text;
+    color: var(--pi-text, $pi-text);
     font-weight: 700;
   }
 }
@@ -1063,8 +1096,8 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  background: $pi-surface;
-  border: 1px solid $pi-border;
+  background: var(--surface, $pi-surface);
+  border: 1px solid var(--pi-border, $pi-border);
   border-radius: $pi-radius-2xl;
   padding: 20px;
   overflow: hidden;
@@ -1076,7 +1109,7 @@
   &:hover {
     transform: translateY(-2px);
     box-shadow: $pi-shadow-lg;
-    border-color: $pi-blue-100;
+    border-color: var(--pi-border, $pi-blue-100);
   }
 }
 
@@ -1094,7 +1127,7 @@
   }
 
   &.inactive {
-    background: $pi-slate-300;
+    background: var(--pi-inactive, $pi-slate-300);
   }
 }
 
@@ -1106,8 +1139,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: $pi-slate-50;
-  border-bottom: 1px solid $pi-border-light;
+  background: var(--pi-fill, $pi-slate-50);
+  border-bottom: 1px solid var(--pi-border, $pi-border-light);
   flex-shrink: 0;
 
   img {
@@ -1141,7 +1174,7 @@
   text-align: center;
   text-transform: uppercase;
   letter-spacing: 0.02em;
-  color: $pi-text;
+  color: var(--pi-text, $pi-text);
   line-height: 1.3;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -1164,12 +1197,12 @@
   justify-content: center;
   gap: 5px;
   font-size: 12px;
-  color: $pi-text-secondary;
+  color: var(--pi-text-secondary, $pi-text-secondary);
 
   svg {
     width: 13px;
     height: 13px;
-    color: $pi-text-muted;
+    color: var(--pi-text-muted, $pi-text-muted);
   }
 }
 
@@ -1187,11 +1220,11 @@
   align-items: center;
   justify-content: center;
   transition: background 120ms ease, color 120ms ease;
-  color: $pi-text-muted;
+  color: var(--pi-text-muted, $pi-text-muted);
 
   &:hover {
-    background: $pi-slate-100;
-    color: $pi-slate-700;
+    background: var(--pi-fill-2, $pi-slate-100);
+    color: var(--pi-text-2, $pi-slate-700);
   }
 
   svg {
@@ -1222,30 +1255,30 @@
 
   &--cal-a,
   &--a {
-    background: $pi-blue-50;
-    color: $pi-blue-700;
-    border: 1px solid $pi-blue-100;
+    background: var(--pi-tint-blue, $pi-blue-50);
+    color: var(--pi-link, $pi-blue-700);
+    border: 1px solid var(--pi-border, $pi-blue-100);
   }
 
   &--cal-b,
   &--b {
-    background: $pi-violet-50;
-    color: $pi-violet-700;
-    border: 1px solid $pi-violet-100;
+    background: var(--pi-tint-violet, $pi-violet-50);
+    color: var(--pi-violet-text, $pi-violet-700);
+    border: 1px solid var(--pi-border, $pi-violet-100);
   }
 
   &--tipo-sian,
   &--sian {
-    background: $pi-green-50;
-    color: $pi-green-700;
-    border: 1px solid $pi-green-100;
+    background: var(--pi-tint-green, $pi-green-50);
+    color: var(--pi-ok-text, $pi-green-700);
+    border: 1px solid var(--pi-border, $pi-green-100);
   }
 
   &--tipo-ctrl,
   &--ctrl {
-    background: $pi-amber-50;
-    color: $pi-amber-700;
-    border: 1px solid $pi-amber-100;
+    background: var(--pi-tint-amber, $pi-amber-50);
+    color: var(--pi-warn-text, $pi-amber-700);
+    border: 1px solid var(--pi-border, $pi-amber-100);
   }
 }
 
@@ -1261,8 +1294,8 @@
 .pi-context-menu {
   position: absolute;
   z-index: 50;
-  background: $pi-surface;
-  border: 1px solid $pi-border;
+  background: var(--surface, $pi-surface);
+  border: 1px solid var(--pi-border, $pi-border);
   border-radius: $pi-radius-lg;
   box-shadow: $pi-shadow-xl;
   min-width: 200px;
@@ -1279,32 +1312,32 @@
   margin: 0 6px;
   width: calc(100% - 12px);
   font-size: 13px;
-  color: $pi-slate-700;
+  color: var(--pi-text-2, $pi-slate-700);
   cursor: pointer;
   transition: background 100ms ease;
   border-radius: 8px;
   white-space: nowrap;
 
   &:hover {
-    background: $pi-slate-50;
+    background: var(--pi-fill, $pi-slate-50);
   }
 
   svg {
     width: 15px;
     height: 15px;
-    color: $pi-text-muted;
+    color: var(--pi-text-muted, $pi-text-muted);
     flex-shrink: 0;
   }
 
   &--danger {
-    color: $pi-red-600;
+    color: var(--pi-danger-text, $pi-red-600);
 
     svg {
       color: $pi-red-400;
     }
 
     &:hover {
-      background: $pi-red-50;
+      background: var(--pi-tint-red, $pi-red-50);
     }
   }
 }
@@ -1314,7 +1347,7 @@
 // ══════════════════════════════════════════════════════════════════════════════
 .pi-skeleton {
   border-radius: inherit;
-  background: linear-gradient(110deg, $pi-slate-100 8%, $pi-slate-50 18%, $pi-slate-100 33%);
+  background: linear-gradient(110deg, var(--pi-fill-2, $pi-slate-100) 8%, var(--pi-fill, $pi-slate-50) 18%, var(--pi-fill-2, $pi-slate-100) 33%);
   background-size: 200% 100%;
   animation: shimmer 1.5s linear infinite;
 
@@ -1337,21 +1370,21 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: $pi-surface;
-  border: 1px solid $pi-border;
+  background: var(--surface, $pi-surface);
+  border: 1px solid var(--pi-border, $pi-border);
   border-radius: $pi-radius-2xl;
   padding: 20px;
   pointer-events: none;
 
   .pi-card-logo {
-    background: linear-gradient(110deg, $pi-slate-100 8%, $pi-slate-50 18%, $pi-slate-100 33%);
+    background: linear-gradient(110deg, var(--pi-fill-2, $pi-slate-100) 8%, var(--pi-fill, $pi-slate-50) 18%, var(--pi-fill-2, $pi-slate-100) 33%);
     background-size: 200% 100%;
     animation: shimmer 1.5s linear infinite;
     border: none;
   }
 
   .pi-card-name {
-    background: linear-gradient(110deg, $pi-slate-100 8%, $pi-slate-50 18%, $pi-slate-100 33%);
+    background: linear-gradient(110deg, var(--pi-fill-2, $pi-slate-100) 8%, var(--pi-fill, $pi-slate-50) 18%, var(--pi-fill-2, $pi-slate-100) 33%);
     background-size: 200% 100%;
     animation: shimmer 1.5s linear infinite;
     width: 80%;
@@ -1403,13 +1436,13 @@
   h3 {
     font-size: 18px;
     font-weight: 700;
-    color: $pi-slate-700;
+    color: var(--pi-text-2, $pi-slate-700);
     margin: 0 0 8px;
   }
 
   p {
     font-size: 14px;
-    color: $pi-text-secondary;
+    color: var(--pi-text-secondary, $pi-text-secondary);
     margin: 0 0 24px;
     max-width: 360px;
     line-height: 1.5;
@@ -1430,11 +1463,11 @@
 
 .pi-pagination-info {
   font-size: 13px;
-  color: $pi-text-secondary;
+  color: var(--pi-text-secondary, $pi-text-secondary);
   margin-right: 16px;
 
   strong {
-    color: $pi-slate-700;
+    color: var(--pi-text-2, $pi-slate-700);
   }
 }
 
@@ -1443,12 +1476,12 @@
   min-width: 36px;
   padding: 0 10px;
   border-radius: 10px;
-  border: 1px solid $pi-border;
-  background: $pi-surface;
+  border: 1px solid var(--pi-border, $pi-border);
+  background: var(--surface, $pi-surface);
   font-size: 13px;
   font-weight: 500;
   font-family: inherit;
-  color: $pi-text;
+  color: var(--pi-text, $pi-text);
   cursor: pointer;
   transition: all 120ms ease;
   display: flex;
@@ -1456,8 +1489,8 @@
   justify-content: center;
 
   &:hover:not(:disabled) {
-    background: $pi-slate-50;
-    border-color: $pi-slate-300;
+    background: var(--pi-fill, $pi-slate-50);
+    border-color: var(--pi-border, $pi-slate-300);
   }
 
   &:disabled {
@@ -1466,9 +1499,9 @@
   }
 
   &.active {
-    background: $pi-primary;
+    background: var(--pi-primary, $pi-primary);
     color: #ffffff;
-    border-color: $pi-primary;
+    border-color: var(--pi-primary, $pi-primary);
   }
 }
 
@@ -1477,8 +1510,8 @@
   width: 36px;
   padding: 0;
   border-radius: 10px;
-  border: 1px solid $pi-border;
-  background: $pi-surface;
+  border: 1px solid var(--pi-border, $pi-border);
+  background: var(--surface, $pi-surface);
   cursor: pointer;
   transition: all 120ms ease;
   display: flex;
@@ -1486,8 +1519,8 @@
   justify-content: center;
 
   &:hover:not(:disabled) {
-    background: $pi-slate-50;
-    border-color: $pi-slate-300;
+    background: var(--pi-fill, $pi-slate-50);
+    border-color: var(--pi-border, $pi-slate-300);
   }
 
   &:disabled {
@@ -1498,7 +1531,7 @@
   svg {
     width: 16px;
     height: 16px;
-    color: $pi-text-secondary;
+    color: var(--pi-text-secondary, $pi-text-secondary);
   }
 }
 
@@ -1519,7 +1552,7 @@
 }
 
 .pi-modal {
-  background: $pi-surface;
+  background: var(--surface, $pi-surface);
   border-radius: 18px;
   padding: 0;
   width: 100%;
@@ -1542,7 +1575,7 @@
     margin: 0;
     font-size: 18px;
     font-weight: 700;
-    color: $pi-text;
+    color: var(--pi-text, $pi-text);
   }
 }
 
@@ -1556,13 +1589,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: $pi-text-muted;
+  color: var(--pi-text-muted, $pi-text-muted);
   transition: background 120ms ease, color 120ms ease;
   flex-shrink: 0;
 
   &:hover {
-    background: $pi-slate-100;
-    color: $pi-text;
+    background: var(--pi-fill-2, $pi-slate-100);
+    color: var(--pi-text, $pi-text);
   }
 
   svg {
@@ -1581,7 +1614,7 @@
 
 .pi-modal-footer {
   padding: 16px 28px;
-  border-top: 1px solid $pi-border-light;
+  border-top: 1px solid var(--pi-border, $pi-border-light);
   display: flex;
   justify-content: flex-end;
   gap: 10px;
@@ -1589,7 +1622,7 @@
 
 .pi-modal-desc {
   font-size: 14px;
-  color: $pi-text-secondary;
+  color: var(--pi-text-secondary, $pi-text-secondary);
   margin: 0 0 16px;
   line-height: 1.5;
 }
@@ -1601,7 +1634,7 @@
 .pi-import-title {
   font-size: 14px;
   font-weight: 600;
-  color: $pi-text;
+  color: var(--pi-text, $pi-text);
   margin: 0 0 10px;
 }
 
@@ -1617,17 +1650,17 @@
   border-radius: $pi-radius-pill;
   font-size: 13px;
   font-weight: 600;
-  background: $pi-slate-100;
-  color: $pi-text-secondary;
+  background: var(--pi-fill-2, $pi-slate-100);
+  color: var(--pi-text-secondary, $pi-text-secondary);
 
   &.ok {
-    background: $pi-green-50;
-    color: $pi-green-700;
+    background: var(--pi-tint-green, $pi-green-50);
+    color: var(--pi-ok-text, $pi-green-700);
   }
 
   &.info {
-    background: $pi-blue-50;
-    color: $pi-blue-700;
+    background: var(--pi-tint-blue, $pi-blue-50);
+    color: var(--pi-link, $pi-blue-700);
   }
 }
 
@@ -1637,15 +1670,15 @@
   gap: 10px;
   margin-top: 14px;
   padding: 10px 14px;
-  background: $pi-slate-50;
-  border: 1px solid $pi-border;
+  background: var(--pi-fill, $pi-slate-50);
+  border: 1px solid var(--pi-border, $pi-border);
   border-radius: $pi-radius-md;
   font-size: 13px;
   font-weight: 500;
-  color: $pi-text;
+  color: var(--pi-text, $pi-text);
 
   svg {
-    color: $pi-primary;
+    color: var(--pi-primary-text, $pi-primary);
     flex-shrink: 0;
   }
 }
@@ -1682,26 +1715,26 @@
   border-radius: $pi-radius-pill;
   font-size: 13px;
   font-weight: 600;
-  background: $pi-slate-100;
-  color: $pi-text-secondary;
+  background: var(--pi-fill-2, $pi-slate-100);
+  color: var(--pi-text-secondary, $pi-text-secondary);
 
   &--success,
   &.ok {
-    background: $pi-green-50;
-    color: $pi-green-700;
+    background: var(--pi-tint-green, $pi-green-50);
+    color: var(--pi-ok-text, $pi-green-700);
   }
 
   &--info,
   &.info {
-    background: $pi-blue-50;
-    color: $pi-blue-700;
+    background: var(--pi-tint-blue, $pi-blue-50);
+    color: var(--pi-link, $pi-blue-700);
   }
 }
 
 .pi-import-errors,
 .pi-import-error {
   font-size: 13px;
-  color: $pi-red-600;
+  color: var(--pi-danger-text, $pi-red-600);
   margin: 12px 0 0;
 }
 
@@ -1709,23 +1742,23 @@
 .pi-import-log-container {
   margin-top: 18px;
   text-align: left;
-  border-top: 1px solid $pi-border;
+  border-top: 1px solid var(--pi-border, $pi-border);
   padding-top: 16px;
 
   h5 {
     margin: 0 0 10px;
     font-size: 14px;
     font-weight: 600;
-    color: $pi-text;
+    color: var(--pi-text, $pi-text);
   }
 }
 
 .pi-import-log-table {
   max-height: 240px;
   overflow-y: auto;
-  border: 1px solid $pi-border;
+  border: 1px solid var(--pi-border, $pi-border);
   border-radius: $pi-radius-md;
-  background: $pi-surface;
+  background: var(--surface, $pi-surface);
 
   table {
     width: 100%;
@@ -1735,13 +1768,13 @@
     th, td {
       padding: 8px 12px;
       text-align: left;
-      border-bottom: 1px solid $pi-border;
+      border-bottom: 1px solid var(--pi-border, $pi-border);
     }
 
     th {
-      background: $pi-slate-50;
+      background: var(--pi-fill, $pi-slate-50);
       font-weight: 600;
-      color: $pi-text-secondary;
+      color: var(--pi-text-secondary, $pi-text-secondary);
       position: sticky;
       top: 0;
       z-index: 1;
@@ -1752,14 +1785,14 @@
     }
 
     tr:hover {
-      background: $pi-slate-50;
+      background: var(--pi-fill, $pi-slate-50);
     }
 
     tr.pi-log-error {
-      background: $pi-red-50;
+      background: var(--pi-tint-red, $pi-red-50);
 
       &:hover {
-        background: #fee2e2;
+        background: var(--pi-tint-red, #fee2e2);
       }
     }
   }
@@ -1769,7 +1802,7 @@
   margin: 0 0 12px;
   font-size: 16px;
   font-weight: 800;
-  color: $pi-text;
+  color: var(--pi-text, $pi-text);
 }
 
 .pi-preview-table {
@@ -1782,27 +1815,27 @@
   span {
     display: block;
     font-size: 12px;
-    color: $pi-text-secondary;
+    color: var(--pi-text-secondary, $pi-text-secondary);
   }
 }
 
 .pi-preview-badge {
-  background: $pi-slate-100;
-  color: $pi-text-secondary;
+  background: var(--pi-fill-2, $pi-slate-100);
+  color: var(--pi-text-secondary, $pi-text-secondary);
 
   &--crear {
-    background: #e8f5e9;
-    color: #2e7d32;
+    background: var(--pi-tint-green, #e8f5e9);
+    color: var(--pi-ok-text, #2e7d32);
   }
 
   &--actualizar {
-    background: #eef2ff;
-    color: #4f46e5;
+    background: var(--pi-tint-indigo, #eef2ff);
+    color: var(--pi-indigo-text, #4f46e5);
   }
 
   &--omito {
-    background: $pi-slate-100;
-    color: $pi-text-secondary;
+    background: var(--pi-fill-2, $pi-slate-100);
+    color: var(--pi-text-secondary, $pi-text-secondary);
   }
 }
 
@@ -1812,15 +1845,15 @@
   gap: 8px;
   margin-top: 12px;
   font-size: 13px;
-  color: $pi-text;
+  color: var(--pi-text, $pi-text);
 
   input[type='checkbox'] {
     margin-top: 3px;
-    accent-color: $pi-primary;
+    accent-color: var(--pi-primary, $pi-primary);
   }
 
   em {
-    color: $pi-text-secondary;
+    color: var(--pi-text-secondary, $pi-text-secondary);
     font-size: 12px;
     font-style: normal;
   }
@@ -1842,13 +1875,13 @@
   text-transform: uppercase;
 
   &--success {
-    background: #e8f5e9;
-    color: #2e7d32;
+    background: var(--pi-tint-green, #e8f5e9);
+    color: var(--pi-ok-text, #2e7d32);
   }
 
   &--error {
     background: #ffe8fee;
-    color: #c62828;
+    color: var(--pi-danger-text, #c62828);
   }
 }
 
@@ -1872,14 +1905,14 @@
 .pi-import-errors-list {
   margin-top: 16px;
   text-align: left;
-  border-top: 1px solid $pi-border;
+  border-top: 1px solid var(--pi-border, $pi-border);
   padding-top: 12px;
 
   ul {
     margin: 8px 0 0;
     padding-left: 0;
     font-size: 12px;
-    color: $pi-red-600;
+    color: var(--pi-danger-text, $pi-red-600);
     list-style: none;
 
     li {
@@ -1893,9 +1926,9 @@
   max-height: 180px;
   overflow-y: auto;
   overscroll-behavior: contain;
-  border: 1px solid $pi-border;
+  border: 1px solid var(--pi-border, $pi-border);
   border-radius: $pi-radius-md;
-  background: $pi-slate-50;
+  background: var(--pi-fill, $pi-slate-50);
   padding: 10px 14px !important;
 
   li {
@@ -1906,7 +1939,7 @@
       content: '•';
       position: absolute;
       left: 0;
-      color: $pi-red-500;
+      color: var(--pi-danger-text, $pi-red-500);
       font-weight: 700;
     }
   }
@@ -1933,7 +1966,7 @@
 // 18. Drag & Drop Zone
 // ══════════════════════════════════════════════════════════════════════════════
 .pi-dropzone {
-  border: 2px dashed $pi-border;
+  border: 2px dashed var(--pi-border, $pi-border);
   border-radius: $pi-radius-xl;
   padding: 40px 24px;
   text-align: center;
@@ -1943,7 +1976,7 @@
   &:hover,
   &.dragging {
     border-color: $pi-blue-400;
-    background: $pi-blue-50;
+    background: var(--pi-tint-blue, $pi-blue-50);
   }
 
   svg {
@@ -1955,11 +1988,11 @@
 
   p {
     font-size: 14px;
-    color: $pi-slate-600;
+    color: var(--pi-text-2, $pi-slate-600);
     margin: 0;
 
     span {
-      color: $pi-primary;
+      color: var(--pi-primary-text, $pi-primary);
       font-weight: 600;
       text-decoration: underline;
     }
@@ -1977,40 +2010,40 @@
 
 .pi-export-option {
   padding: 16px;
-  border: 2px solid $pi-border;
+  border: 2px solid var(--pi-border, $pi-border);
   border-radius: $pi-radius-lg;
   cursor: pointer;
   text-align: center;
   transition: all 150ms ease;
-  background: $pi-surface;
+  background: var(--surface, $pi-surface);
 
   &:hover {
     border-color: $pi-blue-400;
-    background: $pi-blue-50;
+    background: var(--pi-tint-blue, $pi-blue-50);
   }
 
   &.selected {
-    border-color: $pi-primary;
-    background: $pi-blue-50;
+    border-color: var(--pi-primary, $pi-primary);
+    background: var(--pi-tint-blue, $pi-blue-50);
   }
 
   svg {
     width: 28px;
     height: 28px;
     margin-bottom: 8px;
-    color: $pi-text-secondary;
+    color: var(--pi-text-secondary, $pi-text-secondary);
   }
 
   strong {
     display: block;
     font-size: 14px;
     margin-bottom: 2px;
-    color: $pi-text;
+    color: var(--pi-text, $pi-text);
   }
 
   span {
     font-size: 12px;
-    color: $pi-text-secondary;
+    color: var(--pi-text-secondary, $pi-text-secondary);
   }
 }
 
@@ -2018,8 +2051,8 @@
 // 20. Dynamic Filters
 // ══════════════════════════════════════════════════════════════════════════════
 .pi-dynamic-filters {
-  background: $pi-surface;
-  border: 1px solid $pi-border;
+  background: var(--surface, $pi-surface);
+  border: 1px solid var(--pi-border, $pi-border);
   border-radius: $pi-radius-xl;
   padding: 18px;
   margin-bottom: 20px;
@@ -2036,9 +2069,9 @@
   height: 52px;
   padding: 0 36px 0 14px;
   border-radius: $pi-radius-lg;
-  border: 1px solid $pi-border;
-  background: $pi-surface;
-  color: $pi-text;
+  border: 1px solid var(--pi-border, $pi-border);
+  background: var(--surface, $pi-surface);
+  color: var(--pi-text, $pi-text);
   font-size: 14px;
   font-weight: 500;
   font-family: inherit;
@@ -2051,7 +2084,7 @@
   background-position: right 12px center;
 
   &:focus {
-    border-color: $pi-primary;
+    border-color: var(--pi-primary, $pi-primary);
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
   }
 }
@@ -2071,8 +2104,8 @@
 .pi-loading-spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid $pi-slate-200;
-  border-top-color: $pi-primary;
+  border: 3px solid var(--pi-border, $pi-slate-200);
+  border-top-color: var(--pi-primary, $pi-primary);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
@@ -2088,21 +2121,21 @@
     display: block;
     font-size: 13px;
     font-weight: 600;
-    color: $pi-text;
+    color: var(--pi-text, $pi-text);
     margin-bottom: 6px;
   }
 
   input[type="file"] {
     width: 100%;
     padding: 10px;
-    border: 1px dashed $pi-border;
+    border: 1px dashed var(--pi-border, $pi-border);
     border-radius: $pi-radius-md;
     font-size: 14px;
     cursor: pointer;
     transition: border-color 150ms ease;
 
     &:hover {
-      border-color: $pi-primary;
+      border-color: var(--pi-primary, $pi-primary);
     }
   }
 }
@@ -2349,7 +2382,7 @@
 .pi-dropdown-menu,
 .pi-filter-panel-body {
   scrollbar-width: thin;
-  scrollbar-color: $pi-slate-200 transparent;
+  scrollbar-color: var(--pi-track, $pi-slate-200) transparent;
 
   &::-webkit-scrollbar {
     width: 6px;
@@ -2360,7 +2393,7 @@
   }
 
   &::-webkit-scrollbar-thumb {
-    background: $pi-slate-200;
+    background: var(--pi-track, $pi-slate-200);
     border-radius: 3px;
   }
 }
@@ -2371,7 +2404,7 @@
 @media print {
   .pi-page {
     padding: 0;
-    background: #ffffff;
+    background: var(--surface, #ffffff);
   }
 
   .pi-header-actions,
@@ -2390,7 +2423,7 @@
   .pi-card {
     break-inside: avoid;
     box-shadow: none;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--pi-border, #e2e8f0);
   }
 
   .pi-grid {
@@ -2408,8 +2441,8 @@
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
-  background: $pi-surface;
-  border: 1px solid $pi-border;
+  background: var(--surface, $pi-surface);
+  border: 1px solid var(--pi-border, $pi-border);
   border-radius: $pi-radius-lg;
   box-shadow: 0 1px 2px rgba($pi-slate-900, 0.04), 0 6px 18px -8px rgba($pi-slate-900, 0.1);
   animation: fadeIn 200ms ease;
@@ -2424,15 +2457,15 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      background: $pi-slate-50;
+      background: var(--pi-fill, $pi-slate-50);
       padding: 5px 8px 5px 12px;
       border-radius: 999px;
-      border: 1px solid $pi-border-light;
+      border: 1px solid var(--pi-border, $pi-border-light);
 
       .pi-filter-sort-label {
         font-size: 12px;
         font-weight: 600;
-        color: $pi-text-secondary;
+        color: var(--pi-text-secondary, $pi-text-secondary);
         white-space: nowrap;
       }
 
@@ -2441,15 +2474,15 @@
         padding: 0 26px 0 8px;
         border-radius: 8px;
         border: none;
-        background-color: $pi-surface;
-        color: $pi-text;
+        background-color: var(--surface, $pi-surface);
+        color: var(--pi-text, $pi-text);
         font-size: 13px;
         font-weight: 600;
         font-family: inherit;
         cursor: pointer;
         appearance: none;
         outline: none;
-        box-shadow: 0 0 0 1px $pi-border;
+        box-shadow: 0 0 0 1px var(--pi-border, $pi-border);
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 4l3 3 3-3'/%3E%3C/svg%3E");
         background-repeat: no-repeat;
         background-position: right 8px center;
@@ -2471,12 +2504,12 @@
 
     .pi-pagination-info {
       font-size: 13px;
-      color: $pi-text-secondary;
+      color: var(--pi-text-secondary, $pi-text-secondary);
       margin: 0;
       white-space: nowrap;
 
       strong {
-        color: $pi-slate-800;
+        color: var(--pi-text, $pi-slate-800);
         font-weight: 700;
       }
     }
@@ -2490,9 +2523,9 @@
         height: 34px;
         width: 34px;
         border-radius: 10px;
-        border: 1px solid $pi-border;
-        background: $pi-surface;
-        color: $pi-slate-600;
+        border: 1px solid var(--pi-border, $pi-border);
+        background: var(--surface, $pi-surface);
+        color: var(--pi-text-2, $pi-slate-600);
         cursor: pointer;
         display: flex;
         align-items: center;
@@ -2502,7 +2535,7 @@
         &:hover:not(:disabled) {
           background: rgba(37, 99, 235, 0.08);
           border-color: rgba(37, 99, 235, 0.35);
-          color: $pi-primary;
+          color: var(--pi-primary-text, $pi-primary);
         }
 
         &:disabled {
@@ -2526,7 +2559,7 @@
         font-size: 13px;
         font-weight: 600;
         font-family: inherit;
-        color: $pi-slate-600;
+        color: var(--pi-text-2, $pi-slate-600);
         cursor: pointer;
         transition: all 120ms ease;
         display: flex;
@@ -2534,14 +2567,14 @@
         justify-content: center;
 
         &:hover:not(.active) {
-          background: $pi-slate-50;
-          border-color: $pi-border;
-          color: $pi-text;
+          background: var(--pi-fill, $pi-slate-50);
+          border-color: var(--pi-border, $pi-border);
+          color: var(--pi-text, $pi-text);
         }
 
         &.active {
-          background: $pi-primary;
-          border-color: $pi-primary;
+          background: var(--pi-primary, $pi-primary);
+          border-color: var(--pi-primary, $pi-primary);
           color: #fff;
           box-shadow: 0 4px 12px -2px rgba($pi-primary, 0.5);
         }
@@ -2568,5 +2601,360 @@
         justify-content: center;
       }
     }
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Import: vista previa + reporte profesional (subir → previsualizar → confirmar)
+// ══════════════════════════════════════════════════════════════════════════════
+
+.pi-modal--import {
+  max-width: 880px;
+}
+
+.pi-import-hint {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 12px 0 0;
+  font-size: 12.5px;
+  color: var(--pi-text-secondary, $pi-text-secondary);
+
+  svg {
+    flex-shrink: 0;
+    color: var(--pi-primary-text, $pi-blue-600);
+  }
+
+  strong {
+    color: var(--pi-text, $pi-text);
+    font-weight: 600;
+  }
+}
+
+.pi-rpt {
+  text-align: left;
+}
+
+.pi-rpt-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.pi-rpt-head-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--pi-tint-blue, $pi-blue-50);
+  color: var(--pi-link, $pi-blue-600);
+
+  &--ok {
+    background: var(--pi-tint-green, $pi-green-50);
+    color: var(--pi-ok-text, $pi-green-600);
+  }
+}
+
+.pi-rpt-head-txt {
+  min-width: 0;
+
+  h4 {
+    margin: 0;
+    font-size: 15.5px;
+    font-weight: 700;
+    color: var(--pi-text, $pi-text);
+  }
+
+  p {
+    margin: 3px 0 0;
+    font-size: 12.5px;
+    color: var(--pi-text-secondary, $pi-text-secondary);
+    word-break: break-word;
+  }
+}
+
+.pi-rpt-cards {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+
+  @media (max-width: 760px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.pi-rpt-card {
+  border: 1px solid var(--pi-border, $pi-border);
+  border-radius: $pi-radius-md;
+  padding: 10px 6px;
+  text-align: center;
+  background: var(--pi-fill, $pi-slate-50);
+
+  .pi-rpt-num {
+    display: block;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--pi-text, $pi-text);
+  }
+
+  .pi-rpt-lab {
+    display: block;
+    margin-top: 2px;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--pi-text-secondary, $pi-text-secondary);
+  }
+
+  &--green {
+    background: var(--pi-tint-green, $pi-green-50);
+    border-color: transparent;
+
+    .pi-rpt-num,
+    .pi-rpt-lab {
+      color: var(--pi-ok-text, $pi-green-700);
+    }
+  }
+
+  &--blue {
+    background: var(--pi-tint-blue, $pi-blue-50);
+    border-color: transparent;
+
+    .pi-rpt-num,
+    .pi-rpt-lab {
+      color: var(--pi-link, $pi-blue-700);
+    }
+  }
+
+  &--gray {
+    background: var(--pi-fill-2, $pi-slate-100);
+  }
+
+  &--orange {
+    background: var(--pi-tint-amber, $pi-amber-50);
+    border-color: transparent;
+
+    .pi-rpt-num,
+    .pi-rpt-lab {
+      color: var(--pi-warn-text, $pi-amber-700);
+    }
+  }
+
+  &--violet {
+    background: var(--pi-tint-violet, $pi-violet-50);
+    border-color: transparent;
+
+    .pi-rpt-num,
+    .pi-rpt-lab {
+      color: var(--pi-violet-text, $pi-violet-700);
+    }
+  }
+
+  &--red {
+    background: var(--pi-tint-red, $pi-red-50);
+    border-color: transparent;
+
+    .pi-rpt-num,
+    .pi-rpt-lab {
+      color: var(--pi-danger-text, $pi-red-600);
+    }
+  }
+}
+
+.pi-rpt-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--pi-border, $pi-border);
+  margin-bottom: 12px;
+  overflow-x: auto;
+}
+
+.pi-rpt-tab {
+  border: none;
+  background: transparent;
+  padding: 8px 12px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--pi-text-secondary, $pi-text-secondary);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  white-space: nowrap;
+
+  &:hover {
+    color: var(--pi-text, $pi-text);
+  }
+
+  &.active {
+    color: var(--pi-primary-text, $pi-blue-600);
+    border-bottom-color: var(--pi-primary, $pi-blue-500);
+  }
+}
+
+.pi-rpt-panel {
+  min-height: 130px;
+}
+
+.pi-rpt-table-wrap {
+  max-height: 300px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--pi-border, $pi-border);
+  border-radius: $pi-radius-md;
+
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(15, 23, 42, 0.18);
+    border-radius: 8px;
+  }
+}
+
+.pi-rpt-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+
+  th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--pi-fill-2, $pi-slate-100);
+    color: var(--pi-text-secondary, $pi-text-secondary);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    text-align: left;
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--pi-border, $pi-border);
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--pi-border, $pi-border);
+    color: var(--pi-text, $pi-text);
+    vertical-align: top;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+}
+
+.pi-rpt-center {
+  text-align: center;
+}
+
+.pi-rpt-val--old {
+  color: var(--pi-danger-text, $pi-red-600);
+}
+
+.pi-rpt-val--new {
+  color: var(--pi-ok-text, $pi-green-700);
+  font-weight: 600;
+}
+
+.pi-rpt-det {
+  font-size: 12px;
+  color: var(--pi-text-secondary, $pi-slate-500);
+}
+
+.pi-rpt-empty {
+  padding: 28px 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--pi-text-secondary, $pi-text-secondary);
+  background: var(--pi-fill, $pi-slate-50);
+  border: 1px dashed var(--pi-border, $pi-border);
+  border-radius: $pi-radius-md;
+}
+
+.pi-rpt-avisos {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.pi-rpt-aviso {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  background: var(--pi-tint-amber, $pi-amber-50);
+  border: 1px solid var(--pi-border, $pi-border);
+  border-radius: $pi-radius-md;
+  font-size: 12.5px;
+
+  svg {
+    flex-shrink: 0;
+    margin-top: 1px;
+    color: var(--pi-warn-text, $pi-amber-600);
+  }
+
+  strong {
+    display: block;
+    margin-bottom: 2px;
+    font-weight: 600;
+    color: var(--pi-text, $pi-text);
+  }
+
+  span {
+    color: var(--pi-text-secondary, $pi-text-secondary);
+    word-break: break-word;
+  }
+}
+
+.pi-rpt-download {
+  display: flex;
+  justify-content: center;
+  margin-top: 14px;
+}
+
+// Badges de estado del reporte de importación
+.pi-badge {
+  &--crear,
+  &--mapeada {
+    background: var(--pi-tint-green, $pi-green-50);
+    color: var(--pi-ok-text, $pi-green-700);
+    border: 1px solid var(--pi-border, $pi-green-100);
+  }
+
+  &--actualizar {
+    background: var(--pi-tint-blue, $pi-blue-50);
+    color: var(--pi-link, $pi-blue-700);
+    border: 1px solid var(--pi-border, $pi-blue-100);
+  }
+
+  &--sin-cambios {
+    background: var(--pi-fill-2, $pi-slate-100);
+    color: var(--pi-text-secondary, $pi-slate-600);
+    border: 1px solid var(--pi-border, $pi-slate-200);
+  }
+
+  &--duplicada,
+  &--ausente {
+    background: var(--pi-tint-amber, $pi-amber-50);
+    color: var(--pi-warn-text, $pi-amber-700);
+    border: 1px solid var(--pi-border, $pi-amber-100);
+  }
+
+  &--ignorada {
+    background: var(--pi-tint-red, $pi-red-50);
+    color: var(--pi-danger-text, $pi-red-600);
+    border: 1px solid var(--pi-border, $pi-red-100);
   }
 }

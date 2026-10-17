@@ -16,7 +16,9 @@ async function bootstrap() {
     rawBody: true,
   });
 
-  app.set('trust proxy', true);
+  // Un solo hop (Azure App Service / App Gateway / nginx). `true` confiaria
+  // en X-Forwarded-For de cualquier cliente y permitiria espiar el throttle.
+  app.set('trust proxy', 1);
 
   // ── Warmup: pre-compute all encrypted column decryptions ───────────────
   // Fires immediately in background; completes ~1-2s before the 10s interval
@@ -142,6 +144,11 @@ async function bootstrap() {
   // =========================
   // Middleware de bloqueo defensivo: nunca servir credenciales ni archivos de
   // sesión aunque existan bajo /uploads.
+  //
+  // Las imágenes de los tickets tampoco se sirven como estaticos. Contienen
+  // capturas con datos personales del cliente y el directorio estático no valida
+  // sesión: cualquiera que formularios el UUID podía verlas. Ahora pasan por
+  // GET /tickets/imagenes/:file, que exige el permiso 'tickets'.
   app.use((req, res, next) => {
     const p = (req.path || '/').toLowerCase();
     if (
@@ -150,12 +157,19 @@ async function bootstrap() {
     ) {
       return res.status(404).json({ statusCode: 404, message: 'Not Found' });
     }
+    // Las notas ya guardadas guardan la URL antigua en su jsonb. Se redirige a
+    // la ruta autenticada para que sigan viéndose sin abrir el estático.
+    const legacy = p.match(/^\/uploads\/tickets\/([a-z0-9-]+\.[a-z0-9]+)$/);
+    if (legacy) {
+      return res.redirect(302, `/tickets/imagenes/${legacy[1]}`);
+    }
     next();
   });
 
   const mimeMap: Record<string, string> = {
     '.jpg': 'image/jpeg',
     '.jpeg': 'image/jpeg',
+    '.jfif': 'image/jpeg',
     '.png': 'image/png',
     '.webp': 'image/webp',
     '.gif': 'image/gif',

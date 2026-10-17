@@ -1,8 +1,9 @@
-import { Component, ChangeDetectionStrategy, ChangeDetectorRef, OnDestroy, OnInit } from '@angular/core';
+import { Component, ChangeDetectionStrategy, ChangeDetectorRef, HostBinding, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { Subscription, interval } from 'rxjs';
 import { WhatsappChatService } from '../../../../../../core/services/whatsapp-chat.service';
+import { ThemeService } from '../../../../../../core/services/theme.service';
 import { WaAdvisorStats } from '../../../../../../core/models/whatsapp.models';
 import { getInitials, getAvatarColor } from '../../../../../../shared/utils/avatar';
 import { formatDuration } from '../../../../../../shared/utils/duration';
@@ -17,6 +18,9 @@ import { formatDuration } from '../../../../../../shared/utils/duration';
 })
 export class OperacionesAsesoresComponent implements OnInit, OnDestroy {
   protected readonly Math = Math;
+
+  @HostBinding('class.theme-dark') protected themeDark = false;
+
   filtroStatus: 'todos' | 'online' | 'busy' | 'away' = 'todos';
 
   asesores: WaAdvisorStats[] = [];
@@ -26,9 +30,18 @@ export class OperacionesAsesoresComponent implements OnInit, OnDestroy {
     private router: Router,
     private whatsappChat: WhatsappChatService,
     private cdr: ChangeDetectorRef,
+    private themeService: ThemeService,
   ) {}
 
   ngOnInit(): void {
+    this.themeDark = this.themeService.currentTheme === 'dark';
+    this.subs.push(
+      this.themeService.currentTheme$.subscribe((t) => {
+        this.themeDark = t === 'dark';
+        this.cdr.markForCheck();
+      }),
+    );
+
     this.whatsappChat.loadAdminDashboard().subscribe({
       next: (dashboard) => {
         this.asesores = dashboard.advisors;

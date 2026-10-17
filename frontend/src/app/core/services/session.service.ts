@@ -191,6 +191,13 @@ export class SessionService {
     return this.http.get<User[]>(`${environment.apiUrl}/sessions/advisors`);
   }
 
+  /** Roster público (nombre + foto) para el carrusel de asesores del widget. */
+  findAdvisorsPublico(): Observable<{ id: string; name: string; profilePhotoUrl: string | null }[]> {
+    return this.http.get<{ id: string; name: string; profilePhotoUrl: string | null }[]>(
+      `${environment.apiUrl}/sessions/advisors/publico`,
+    );
+  }
+
   findAllAdmin(): Observable<Session[]> {
     return this.http.get<Session[]>(`${environment.apiUrl}/sessions/admin/all`);
   }

@@ -698,3 +698,248 @@
     transition: none;
   }
 }
+
+// ── Tema oscuro ──────────────────────────────────────────────
+:host.theme-dark {
+  color: #e6edf7;
+
+  .head h1 {
+    color: #e6edf7;
+  }
+
+  .sub {
+    color: #c9d4e5;
+  }
+
+  .stamp {
+    color: #9aa7bd;
+  }
+
+  .alert {
+    border-color: rgba(239, 68, 68, 0.4);
+    background: rgba(239, 68, 68, 0.16);
+    color: #f87171;
+
+    &.soft {
+      border-color: rgba(245, 158, 11, 0.4);
+      background: rgba(245, 158, 11, 0.16);
+      color: #fbbf24;
+    }
+  }
+
+  .figure {
+    background: #1a1f26;
+    border-color: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  }
+
+  .fig-value {
+    color: #e6edf7;
+
+    &.muted {
+      color: #4ade80;
+    }
+  }
+
+  .fig-label {
+    color: #c9d4e5;
+  }
+
+  .segments {
+    background: #1a1f26;
+    border-color: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  }
+
+  .segment {
+    color: #c9d4e5;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: #e6edf7;
+    }
+
+    &.on {
+      background: rgba(96, 165, 250, 0.14);
+      border-color: rgba(96, 165, 250, 0.45);
+      color: #93b4ff;
+    }
+  }
+
+  .seg-count {
+    background: rgba(255, 255, 255, 0.08);
+    color: #c9d4e5;
+  }
+
+  .segment.on .seg-count {
+    background: #fff;
+    color: #1d4ed8;
+  }
+
+  .search {
+    border-color: rgba(255, 255, 255, 0.12);
+    background: #10151c;
+    color: #e6edf7;
+
+    &::placeholder {
+      color: #9aa7bd;
+    }
+
+    &:focus {
+      border-color: #60a5fa;
+      box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
+    }
+  }
+
+  .panel {
+    background: #1a1f26;
+    border-color: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 1px 3px -1px rgba(0, 0, 0, 0.45), 0 1px 2px -1px rgba(0, 0, 0, 0.4);
+  }
+
+  .panel-head {
+    border-bottom-color: rgba(255, 255, 255, 0.07);
+
+    h2 {
+      color: #e6edf7;
+    }
+  }
+
+  .panel-count {
+    background: rgba(255, 255, 255, 0.08);
+    color: #c9d4e5;
+  }
+
+  .pending-note {
+    color: #9aa7bd;
+  }
+
+  .grid {
+    th {
+      background: #171d26;
+      border-bottom-color: rgba(255, 255, 255, 0.12);
+      color: #c9d4e5;
+    }
+
+    td {
+      border-bottom-color: rgba(255, 255, 255, 0.06);
+      border-right-color: rgba(255, 255, 255, 0.06);
+    }
+  }
+
+  .head-groups {
+    .grupo-num {
+      background: rgba(96, 165, 250, 0.14);
+      color: #93b4ff;
+      border-right-color: rgba(255, 255, 255, 0.12);
+    }
+
+    .grupo-res {
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    .grupo-lda {
+      background: rgba(0, 0, 0, 0.2);
+      border-left-color: rgba(255, 255, 255, 0.12);
+    }
+
+    .grupo-sla {
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    .col-agente {
+      border-bottom-color: rgba(255, 255, 255, 0.12);
+    }
+  }
+
+  .head-cols th {
+    border-bottom-color: rgba(255, 255, 255, 0.12);
+
+    &:last-child {
+      border-right-color: rgba(255, 255, 255, 0.12);
+    }
+  }
+
+  .col-num.zero {
+    color: #9aa7bd;
+  }
+
+  .sortable:hover {
+    color: #e6edf7;
+  }
+
+  .caret.on {
+    border-bottom-color: #c9d4e5;
+  }
+
+  .row {
+    &:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    &:nth-child(even) {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    &.static td {
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    &:focus-visible {
+      background: rgba(96, 165, 250, 0.14);
+
+      td {
+        border-bottom-color: rgba(96, 165, 250, 0.45);
+      }
+    }
+  }
+
+  .agent {
+    color: #e6edf7;
+  }
+
+  .folder {
+    color: #9aa7bd;
+  }
+
+  .col-sla {
+    background: color-mix(in srgb, var(--dot, #64748b) 16%, transparent);
+    border-left-color: color-mix(in srgb, var(--dot, #e2e8f0) 45%, transparent);
+  }
+
+  .col-sync {
+    color: #c9d4e5;
+
+    &.never {
+      color: #7f8ba0;
+    }
+  }
+
+  .empty {
+    color: #9aa7bd;
+  }
+
+  .note {
+    border-top-color: rgba(255, 255, 255, 0.07);
+    background: #171d26;
+    color: #9aa7bd;
+  }
+
+  .note-count {
+    color: #c9d4e5;
+  }
+
+  .origin {
+    color: #9aa7bd;
+  }
+
+  .sk-row {
+    border-color: rgba(255, 255, 255, 0.07);
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.04) 25%,
+      rgba(255, 255, 255, 0.08) 50%,
+      rgba(255, 255, 255, 0.04) 75%
+    );
+  }
+}

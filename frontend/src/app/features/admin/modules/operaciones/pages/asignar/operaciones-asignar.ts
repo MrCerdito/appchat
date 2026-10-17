@@ -1,9 +1,10 @@
-import { Component, ChangeDetectionStrategy, ChangeDetectorRef, OnDestroy, OnInit } from '@angular/core';
+import { Component, ChangeDetectionStrategy, ChangeDetectorRef, HostBinding, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Subscription, interval } from 'rxjs';
 import { WhatsappChatService } from '../../../../../../core/services/whatsapp-chat.service';
+import { ThemeService } from '../../../../../../core/services/theme.service';
 import { WaChat, WaAdvisorStats } from '../../../../../../core/models/whatsapp.models';
 import { ConfirmModalComponent } from '../../components/confirm-modal/confirm-modal.component';
 
@@ -35,6 +36,8 @@ interface AsignableChat {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class OperacionesAsignarComponent implements OnInit, OnDestroy {
+  @HostBinding('class.theme-dark') protected themeDark = false;
+
   filtroEstado = 'todos';
   filtroPrioridad = 'todas';
   filtroTipo = 'todos';
@@ -55,9 +58,18 @@ export class OperacionesAsignarComponent implements OnInit, OnDestroy {
     private router: Router,
     private whatsappChat: WhatsappChatService,
     private cdr: ChangeDetectorRef,
+    private themeService: ThemeService,
   ) {}
 
   ngOnInit(): void {
+    this.themeDark = this.themeService.currentTheme === 'dark';
+    this.subs.push(
+      this.themeService.currentTheme$.subscribe((t) => {
+        this.themeDark = t === 'dark';
+        this.cdr.markForCheck();
+      }),
+    );
+
     this.whatsappChat.loadAdminDashboard().subscribe({
       next: (dashboard) => {
         this.asesores = dashboard.advisors.map(a => ({

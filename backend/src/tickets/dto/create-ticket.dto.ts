@@ -5,6 +5,7 @@ import {
   IsIn,
   IsEmail,
   Length,
+  MaxLength,
 } from 'class-validator';
 
 export class CreateTicketDto {
@@ -27,6 +28,15 @@ export class CreateTicketDto {
   @IsOptional()
   @Length(1, 100)
   category?: string;
+
+  /**
+   * Categoría de gestión del catálogo compartido con correos (Requerimiento,
+   * Error, ...). `''` o ausente = sin clasificar.
+   */
+  @IsString()
+  @IsOptional()
+  @MaxLength(120)
+  categoriaGestion?: string;
 
   @IsString()
   @IsNotEmpty()

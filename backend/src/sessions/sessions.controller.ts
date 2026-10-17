@@ -16,6 +16,7 @@ import {
   forwardRef,
   ForbiddenException,
   BadRequestException,
+  NotFoundException,
   ValidationPipe,
   Res,
   StreamableFile,
@@ -29,6 +30,7 @@ import { Message } from '../chat/entities/message.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../auth/optional-jwt-auth.guard';
 import { RolesGuard, Roles } from '../auth/roles.guard';
+import { Public } from '../auth/public.decorator';
 import { Permiso } from '../accesos/permiso-modulo.guard';
 import { normalizarTipoColegio } from '../common/tipo-colegio.util';
 import {
@@ -44,6 +46,7 @@ import {
   IsDateString,
   IsArray,
   ArrayMaxSize,
+  IsBoolean,
 } from 'class-validator';
 import { SkipThrottle } from '@nestjs/throttler';
 import { ChatGateway } from '../chat/chat.gateway';
@@ -88,6 +91,29 @@ export class ExportHistorialRowDto {
   @IsString()
   @IsOptional()
   tratamiento?: string;
+}
+
+export const CIERRE_TIPOS = [
+  'requerimiento',
+  'solucion',
+  'error',
+  'capacitacion',
+  'otro',
+] as const;
+export type CierreTipo = (typeof CIERRE_TIPOS)[number];
+
+export class ClasificarCierreDto {
+  @IsIn(CIERRE_TIPOS)
+  cierreTipo: CierreTipo;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  cierreNotas?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  cierreSeguimiento?: boolean;
 }
 
 export class CreateSessionDto {
@@ -245,6 +271,7 @@ export class SessionsController {
   ) {}
 
   // ── Público ───────────────────────────────────────────────
+  @Public()
   @Post()
   create(@Body() dto: CreateSessionDto) {
     return this.sessionsService.create(dto);
@@ -277,16 +304,44 @@ export class SessionsController {
     return this.sessionsService.findAllPaginated(req.user.id, +page, +limit);
   }
 
+  // Roster público para el carrusel del widget (solo nombre e imagen; sin
+  // correo ni estados de disponibilidad). Sin JWT: cualquier visitante ve al
+  // equipo de atención mientras espera un asesor.
+  @Public()
+  @Get('advisors/publico')
+  async findAdvisorsPublico() {
+    const advisors = await this.sessionsService.findAllAdvisors();
+    return advisors.map((a) => ({
+      id: a.id,
+      name: a.name,
+      profilePhotoUrl: a.profilePhotoUrl ?? null,
+    }));
+  }
+
+  /**
+   * Roster completo de asesores (nombre, correo, estados) para los selectores
+   * de la app: Métricas, Colegios, Configuración y los módulos de asesor.
+   *
+   * NO lleva `@Permiso('chats')`: ese módulo solo aplica al rol `advisor`
+   * (`catalogo.ts` → `aplicaA: ['advisor']`), así que el guard devolvía 403 a
+   * cualquier admin y las listas de asesores salían vacías. El nombre y la foto
+   * además ya son públicos vía `advisors/publico`, así que aquí alcanza con
+   * restringir por ROL (correo y contadores no se exponen a perfiles que no
+   * los necesitan).
+   */
   @Get('advisors')
-  @UseGuards(JwtAuthGuard)
-  @Permiso('chats')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin', 'advisor', 'desarrollador')
   async findAdvisors() {
     const advisors = await this.sessionsService.findAllAdvisors();
     const statuses = await this.chatGateway.getAdvisorStatuses();
+    const onLunch = await this.chatGateway.getOnLunchMap();
     return advisors.map((a) => ({
       ...a,
       status: (a.status ?? statuses[a.id]) as
         'online' | 'busy' | 'meeting' | 'almuerzo' | 'offline',
+      enAlmuerzo: !!onLunch[a.id],
+      lunchFin: onLunch[a.id]?.fin ?? null,
     }));
   }
 
@@ -302,6 +357,24 @@ export class SessionsController {
   @Permiso('metrics')
   getMetrics() {
     return this.sessionsService.getMetrics();
+  }
+
+  /** Dashboard del admin: KPIs + series filtrados por asesor, proyecto y fechas. */
+  @Get('metrics/dashboard')
+  @UseGuards(JwtAuthGuard)
+  @Permiso('metrics')
+  getDashboard(
+    @Query('asesorId') asesorId?: string,
+    @Query('proyecto') proyecto?: string,
+    @Query('desde') desde?: string,
+    @Query('hasta') hasta?: string,
+  ) {
+    return this.sessionsService.getDashboard({
+      asesorId: asesorId || undefined,
+      proyecto: proyecto || undefined,
+      desde,
+      hasta,
+    });
   }
 
   @Get('metrics/asesor/:id')
@@ -439,6 +512,7 @@ export class SessionsController {
     return this.sessionsService.findAllColegios();
   }
 
+  @Public()
   @SkipThrottle()
   @Post('colegios/detectar')
   detectarColegio(@Body('url') url?: string) {
@@ -474,8 +548,16 @@ export class SessionsController {
     @Query('page') page = '1',
     @Query('limit') limit = '10',
     @Query('advisorId') advisorId?: string,
+    @Query('desde') desde?: string,
+    @Query('hasta') hasta?: string,
   ) {
-    return this.sessionsService.getAllComentarios(+page, +limit, advisorId);
+    return this.sessionsService.getAllComentarios(
+      +page,
+      +limit,
+      advisorId,
+      desde,
+      hasta,
+    );
   }
 
   // ★ NUEVO — actualiza el estado del asesor directamente en BD por HTTP
@@ -496,8 +578,10 @@ export class SessionsController {
       );
     }
     const advisorId = req.user.id;
+    // El cambio por HTTP siempre lo hace el propio asesor: se registra como
+    // 'manual' para no confundirlo con un cambio automático del sistema.
     return this.sessionsService
-      .setAdvisorStatus(advisorId, status)
+      .setAdvisorStatus(advisorId, status, { causa: 'manual' })
       .then(() => ({ ok: true }));
   }
 
@@ -513,6 +597,7 @@ export class SessionsController {
   // ── Rutas dinámicas AL FINAL ──────────────────────────────
 
   // ★ RUTAS FIJAS ANTES DE :id — el segmento fijo "public" evita conflictos
+  @Public()
   @Get('public/:id')
   findPublic(@Param('id') id: string) {
     return this.sessionsService.findPublic(id);
@@ -521,6 +606,7 @@ export class SessionsController {
   // Publico: el cliente anonimo del widget necesita poder leer la conversación
   // de su propia sesión ya finalizada (para mostrarla sobre el calificador).
   // El id es un UUID no adivinable, misma garantía que public/:id y :id/codigo.
+  @Public()
   @Get('public/:id/messages')
   getPublicMessages(@Param('id') id: string, @Query('limit') limit?: string) {
     return this.sessionsService.getMessages(id, limit ? +limit : 50);
@@ -542,6 +628,7 @@ export class SessionsController {
 
   // Publico: el cliente anonimo del chat necesita el codigo de su propio caso
   // (el id es un UUID no adivinable)
+  @Public()
   @Get(':id/codigo')
   findCodigo(@Param('id') id: string) {
     return this.sessionsService.findCodigo(id);
@@ -595,15 +682,39 @@ export class SessionsController {
     );
   }
 
+  /** Clasifica el cierre de una sesión (requerimiento/solucion/error/...).
+   *  Autorización: administrador o asesor propietario de la sesión. */
+  @Patch(':id/cierre')
+  @UseGuards(JwtAuthGuard)
+  @Permiso('chats')
+  async clasificarCierre(
+    @Param('id') id: string,
+    @Body() dto: ClasificarCierreDto,
+    @Request() req: any,
+  ) {
+    const session = await this.sessionsService.findOne(id);
+    if (!session) {
+      throw new NotFoundException('Sesión no encontrada');
+    }
+    if (req.user.role !== 'admin' && session.advisor?.id !== req.user.id) {
+      throw new ForbiddenException(
+        'Solo el agente asignado o un administrador puede clasificar el cierre',
+      );
+    }
+    return this.sessionsService.clasificarCierre(id, dto);
+  }
+
+  // Cierre del cliente anonimo del widget (flujo IA): mismo modelo de confianza
+  // que public/:id — quien conoce el UUID de la sesión puede leer y cerrar.
+  // Antes exigía JWT y el widget recibia 401 ("No se pudo cerrar la sesión").
+  @Public()
   @Post(':id/close-anonymous')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('admin', 'advisor', 'interno')
-  @Permiso('history')
   @HttpCode(HttpStatus.OK)
   async closeAnonymous(@Param('id') id: string) {
     return this.sessionsService.close(id);
   }
 
+  @Public()
   @Post(':id/rating')
   @UseGuards(OptionalJwtAuthGuard)
   @HttpCode(HttpStatus.CREATED)
