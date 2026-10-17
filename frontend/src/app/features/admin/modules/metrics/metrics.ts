@@ -1573,6 +1573,11 @@ export class MetricsComponent implements OnInit, OnDestroy {
     return `${p(bog.getUTCHours())}:${p(bog.getUTCMinutes())}`;
   }
 
+  /** Hora entera de jornada (HH:00) para mostrar el rango laboral configurado. */
+  hh(n: number): string {
+    return `${String(n).padStart(2, '0')}:00`;
+  }
+
   /** Jornada del día en horas Bogotá, calculada de la misma ventana que escala la barra. */
   get jornadaRango(): { inicio: string; fin: string } | null {
     const w = this.jornadaVentana;

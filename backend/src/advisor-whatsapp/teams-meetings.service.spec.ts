@@ -15,7 +15,12 @@ describe('TeamsMeetingsService subject creator prefix', () => {
   let service: TeamsMeetingsService;
 
   beforeEach(() => {
-    service = new TeamsMeetingsService({} as any, {} as any, {} as any);
+    service = new TeamsMeetingsService(
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any, // colegioRepo
+    );
   });
 
   it.each([
@@ -77,6 +82,7 @@ describe('TeamsMeetingsService subject creator prefix', () => {
       config as any,
       {} as any,
       {} as any,
+      {} as any, // colegioRepo
     );
 
     const authUrl = new URL(authService.createAuthUrl('advisor-1').authUrl);
@@ -124,6 +130,7 @@ describe('TeamsMeetingsService gestion de reuniones creadas en la app', () => {
       { get: () => undefined } as any,
       {} as any,
       repo as any,
+      {} as any, // colegioRepo
     );
     return { service: service as any, repo };
   }
@@ -289,7 +296,12 @@ describe('TeamsMeetingsService calendario compartido queda con un solo registro'
           } as Record<string, string>
         )[key],
     };
-    return new TeamsMeetingsService(config as any, {} as any, {} as any);
+    return new TeamsMeetingsService(
+      config as any,
+      {} as any,
+      {} as any,
+      {} as any, // colegioRepo
+    );
   }
 
   beforeEach(() => {

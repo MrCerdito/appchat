@@ -425,6 +425,8 @@ export interface MxConexiones {
   }[];
   tabla: { id: string; nombre: string; disponibleMin: number; ocupadoMin: number; reunionMin: number; almuerzoMin: number; inactivoMin: number; desconexiones: number; primeraConexion: string | null; ultimaConexion: string | null }[];
   barras: { fecha: string; asesores: MxConexionBarra[] } | null;
+  /** Jornada laboral configurada (hora Bogotá); el eje de `barras` usa el rango real de actividad. */
+  jornada: { ini: number; fin: number };
 }
 
 export interface MetricsDashboard {

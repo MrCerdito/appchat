@@ -48,7 +48,8 @@ describe('CorreosService conteos de carpeta', () => {
     const servicio = new CorreosService(
       { createQueryBuilder } as any,
       {} as any,
-      {} as any,
+      {} as any, // categoriaRepo
+      {} as any, // graph
       {
         carpetaDelAsesor: jest.fn().mockResolvedValue({
           folderId: 'folder-1',
@@ -56,7 +57,7 @@ describe('CorreosService conteos de carpeta', () => {
           displayName: '10.Asesora',
         }),
       } as any,
-      {} as any,
+      {} as any, // sync
       { get: jest.fn().mockReturnValue(undefined) } as any,
     );
 

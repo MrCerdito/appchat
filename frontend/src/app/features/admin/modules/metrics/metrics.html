@@ -444,7 +444,7 @@
             <div class="mx-card-head">
               <div>
                 <span class="mx-card-title">Conexión del asesor</span>
-                <span class="mx-card-sub">Jornada del día por asesor</span>
+                <span class="mx-card-sub">Actividad real del día por asesor (hora Bogotá)</span>
               </div>
             </div>
             @if (!esHoy) {
@@ -457,8 +457,11 @@
             } @else {
               @if (jornadaRango) {
                 <div class="mx-conn-jornada">
-                  <span>Jornada</span>
+                  <span>Actividad</span>
                   <strong>{{ jornadaRango.inicio }} — {{ jornadaRango.fin }}</strong>
+                  @if (dash.conexiones.jornada) {
+                    <span>Jornada {{ hh(dash.conexiones.jornada.ini) }} — {{ hh(dash.conexiones.jornada.fin) }}</span>
+                  }
                 </div>
               }
               <div class="mx-conn">

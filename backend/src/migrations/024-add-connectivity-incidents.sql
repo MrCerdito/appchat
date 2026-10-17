@@ -10,14 +10,17 @@
 
 CREATE TABLE IF NOT EXISTS connectivity_incidents (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL,
+  -- Ojo: la entidad TypeORM NO usa naming strategy, las columnas se llaman
+  -- tal cual el atributo (camelCase). Crearlas snake_case rompe el SELECT
+  -- con "column userId does not exist".
+  "userId" uuid NOT NULL,
   clave varchar(80) NOT NULL,
   estado varchar(20) NOT NULL DEFAULT 'nuevo',
   comentario text,
-  responsable_id uuid,
-  creado_en timestamptz NOT NULL DEFAULT now(),
-  actualizado_en timestamptz NOT NULL DEFAULT now(),
-  CONSTRAINT uq_connectivity_incidents_user_clave UNIQUE (user_id, clave)
+  "responsableId" uuid NULL,
+  "creadoEn" timestamptz NOT NULL DEFAULT now(),
+  "actualizadoEn" timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT uq_connectivity_incidents_user_clave UNIQUE ("userId", clave)
 );
 
 CREATE INDEX IF NOT EXISTS idx_connectivity_incidents_estado

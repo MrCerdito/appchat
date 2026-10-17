@@ -12,6 +12,11 @@ const TZ = 'America/Bogota';
 const TZ_OFFSET_MS = 5 * 3_600_000; // Bogotá = UTC-5
 const DIA_MS = 86_400_000;
 
+// Jornada laboral elegible (hora Bogotá). Misma variable de entorno que el
+// módulo Conectividad para que ambas vistas compartan la fuente de verdad.
+const JORNADA_INI = Number(process.env.CONNECTIVIDAD_JORNADA_INI || 8);
+const JORNADA_FIN = Number(process.env.CONNECTIVIDAD_JORNADA_FIN || 18);
+
 /** Filas por página de la tabla de reuniones. */
 const TABLA_PAGINA_REUNIONES = 15;
 
@@ -1499,6 +1504,9 @@ export class MetricsService {
       disponibilidadPct: this.pctRatio(disponibleMin, totalMin - almuerzoMin),
     };
     return {
+      // Jornada laboral configurada (env). El eje de las barras usa en cambio
+      // el rango REAL de actividad del día (t0..t1); no confundir los dos.
+      jornada: { ini: JORNADA_INI, fin: JORNADA_FIN },
       kpis,
       distribucion: [
         { estado: 'Disponible', minutos: kpis.disponibleMin },
@@ -1530,10 +1538,14 @@ export class MetricsService {
     const hasta = p.ph(r.hastaStr);
     const clipIni = p.ph(r.start ?? new Date(0));
     const clipFin = p.ph(r.end ?? new Date());
+    // Recorte a la jornada laboral (hora Bogotá), igual que Conectividad: lo
+    // ocurrido fuera de la ventana no se dibuja ni se cuenta.
+    const jini = p.ph(JORNADA_INI);
+    const jfin = p.ph(JORNADA_FIN);
     const userPh = f.asesorId ? p.ph(f.asesorId) : null;
     const rows = await this.dataSource.query(
       `WITH ev AS (
-         SELECT user_id, estado, almuerzo, tipo, desde,
+         SELECT user_id, estado, almuerzo, tipo, desde, fecha,
                 LEAD(desde) OVER (PARTITION BY user_id ORDER BY desde) AS sig
          FROM advisor_activity_log
          WHERE fecha >= ${desde} AND fecha <= ${hasta}
@@ -1542,8 +1554,14 @@ export class MetricsService {
          SELECT user_id,
                 CASE WHEN almuerzo THEN 'almuerzo'
                      ELSE coalesce(estado, 'offline') END AS bucket,
-                GREATEST(desde, ${clipIni}) AS ini,
-                LEAST(COALESCE(sig, now()), ${clipFin}) AS fin,
+                GREATEST(
+                  desde, ${clipIni},
+                  (fecha::timestamp + ${jini} * interval '1 hour') AT TIME ZONE 'America/Bogota'
+                ) AS ini,
+                LEAST(
+                  COALESCE(sig, now()), ${clipFin},
+                  (fecha::timestamp + ${jfin} * interval '1 hour') AT TIME ZONE 'America/Bogota'
+                ) AS fin,
                 desde AS marca
          FROM ev
          WHERE (sig IS NULL OR sig > ${clipIni})
@@ -1625,10 +1643,13 @@ export class MetricsService {
     const hasta = p.ph(r.hastaStr);
     const clipIni = p.ph(r.start ?? new Date(0));
     const clipFin = p.ph(r.end ?? new Date());
+    // Mismo recorte de jornada laboral que las barras (ver queryConexionesBarras).
+    const jini = p.ph(JORNADA_INI);
+    const jfin = p.ph(JORNADA_FIN);
     const userPh = f.asesorId ? p.ph(f.asesorId) : null;
     const rows = await this.dataSource.query(
       `WITH ev AS (
-         SELECT user_id, estado, almuerzo, tipo, desde,
+         SELECT user_id, estado, almuerzo, tipo, desde, fecha,
                 LEAD(desde) OVER (PARTITION BY user_id ORDER BY desde) AS sig
          FROM advisor_activity_log
          WHERE fecha >= ${desde} AND fecha <= ${hasta}
@@ -1637,8 +1658,14 @@ export class MetricsService {
          SELECT user_id,
                 CASE WHEN almuerzo THEN 'almuerzo'
                      ELSE coalesce(estado, 'offline') END AS bucket,
-                GREATEST(desde, ${clipIni}) AS ini,
-                LEAST(COALESCE(sig, now()), ${clipFin}) AS fin
+                GREATEST(
+                  desde, ${clipIni},
+                  (fecha::timestamp + ${jini} * interval '1 hour') AT TIME ZONE 'America/Bogota'
+                ) AS ini,
+                LEAST(
+                  COALESCE(sig, now()), ${clipFin},
+                  (fecha::timestamp + ${jfin} * interval '1 hour') AT TIME ZONE 'America/Bogota'
+                ) AS fin
          FROM ev
          WHERE (sig IS NULL OR sig > ${clipIni})
        ),
@@ -1653,7 +1680,8 @@ export class MetricsService {
                 ROUND(COALESCE(SUM(EXTRACT(EPOCH FROM (fin - ini)) / 60)
                   FILTER (WHERE fin > ini AND bucket = 'almuerzo'), 0))::int AS "almuerzoMin",
                 ROUND(COALESCE(SUM(EXTRACT(EPOCH FROM (fin - ini)) / 60)
-                  FILTER (WHERE fin > ini AND bucket NOT IN ('online', 'busy', 'meeting', 'almuerzo')), 0))::int AS "inactivoMin"
+                  FILTER (WHERE fin > ini
+                    AND bucket NOT IN ('online', 'busy', 'meeting', 'almuerzo')), 0))::int AS "inactivoMin"
          FROM seg
          GROUP BY user_id
        ),
@@ -1661,6 +1689,8 @@ export class MetricsService {
          SELECT user_id, COUNT(*)::int AS n
          FROM advisor_activity_log
          WHERE fecha >= ${desde} AND fecha <= ${hasta} AND tipo = 'desconexion'
+           AND desde >= (fecha::timestamp + ${jini} * interval '1 hour') AT TIME ZONE 'America/Bogota'
+           AND desde < (fecha::timestamp + ${jfin} * interval '1 hour') AT TIME ZONE 'America/Bogota'
          GROUP BY user_id
        )
        SELECT u.id, u.name AS nombre,
@@ -1683,6 +1713,8 @@ export class MetricsService {
       `a.fecha >= ${p2.ph(r.desdeStr)}`,
       `a.fecha <= ${p2.ph(r.hastaStr)}`,
       `a.tipo = 'conexion'`,
+      `a.desde >= (a.fecha::timestamp + ${p2.ph(JORNADA_INI)} * interval '1 hour') AT TIME ZONE 'America/Bogota'`,
+      `a.desde < (a.fecha::timestamp + ${p2.ph(JORNADA_FIN)} * interval '1 hour') AT TIME ZONE 'America/Bogota'`,
     ];
     if (f.asesorId) w2.push(`a.user_id = ${p2.ph(f.asesorId)}`);
     const conexion = await this.dataSource.query(
@@ -1716,6 +1748,9 @@ export class MetricsService {
       `fecha >= ${p.ph(r.desdeStr)}`,
       `fecha <= ${p.ph(r.hastaStr)}`,
       `tipo = 'desconexion'`,
+      // Solo dentro de la jornada laboral (hora Bogotá): lo de fuera no cuenta.
+      `desde >= (fecha::timestamp + ${p.ph(JORNADA_INI)} * interval '1 hour') AT TIME ZONE 'America/Bogota'`,
+      `desde < (fecha::timestamp + ${p.ph(JORNADA_FIN)} * interval '1 hour') AT TIME ZONE 'America/Bogota'`,
     ];
     if (f.asesorId) w.push(`user_id = ${p.ph(f.asesorId)}`);
     const rows = await this.dataSource.query(
@@ -1741,6 +1776,9 @@ export class MetricsService {
     const hasta = p.ph(r.hastaStr);
     const clipIni = p.ph(r.start ?? new Date(0));
     const clipFin = p.ph(r.end ?? new Date());
+    // Mismo recorte de jornada laboral que las barras (ver queryConexionesBarras).
+    const jini = p.ph(JORNADA_INI);
+    const jfin = p.ph(JORNADA_FIN);
     const userPh = f.asesorId ? p.ph(f.asesorId) : null;
     const rows = await this.dataSource.query(
       `WITH ev AS (
@@ -1754,8 +1792,14 @@ export class MetricsService {
          SELECT fecha,
                 CASE WHEN almuerzo THEN 'almuerzo'
                      ELSE coalesce(estado, 'offline') END AS bucket,
-                GREATEST(desde, ${clipIni}) AS ini,
-                LEAST(COALESCE(sig, now()), ${clipFin}) AS fin
+                GREATEST(
+                  desde, ${clipIni},
+                  (fecha::timestamp + ${jini} * interval '1 hour') AT TIME ZONE 'America/Bogota'
+                ) AS ini,
+                LEAST(
+                  COALESCE(sig, now()), ${clipFin},
+                  (fecha::timestamp + ${jfin} * interval '1 hour') AT TIME ZONE 'America/Bogota'
+                ) AS fin
          FROM ev
          WHERE (sig IS NULL OR sig > ${clipIni})
        )
