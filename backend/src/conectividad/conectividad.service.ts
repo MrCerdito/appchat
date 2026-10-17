@@ -969,7 +969,7 @@ export class ConectividadService {
       this.dataSource.query(
         `${seg}
          SELECT seg.id, seg.user_id AS "asesorId", u.name AS nombre, seg.fecha,
-                seg.desde, seg.fin AS hasta, seg.tipo, seg.causa, seg.bucket AS estado,
+                seg.ini AS desde, seg.fin AS hasta, seg.tipo, seg.causa, seg.bucket AS estado,
                 ROUND(EXTRACT(EPOCH FROM (seg.fin - seg.ini)) * 1000)::bigint AS "duracionMs"
          FROM seg
          JOIN users u ON u.id = seg.user_id

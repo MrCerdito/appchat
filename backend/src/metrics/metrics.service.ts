@@ -1942,6 +1942,9 @@ export class MetricsService {
     const hasta = p.ph(r.hastaStr);
     const clipIni = p.ph(r.start ?? new Date(0));
     const clipFin = p.ph(r.end ?? new Date());
+    // Mismo recorte de jornada laboral que el resto de métricas.
+    const jini = p.ph(JORNADA_INI);
+    const jfin = p.ph(JORNADA_FIN);
     const rows = await this.dataSource.query(
       `WITH ev AS (
          SELECT estado, almuerzo, tipo, causa, fecha, desde,
@@ -1953,17 +1956,22 @@ export class MetricsService {
          SELECT fecha, tipo, causa,
                 CASE WHEN almuerzo THEN 'almuerzo'
                      ELSE coalesce(estado, 'offline') END AS estado,
-                desde,
-                GREATEST(desde, ${clipIni}) AS ini,
-                LEAST(COALESCE(sig, now()), ${clipFin}) AS fin
+                GREATEST(
+                  desde, ${clipIni},
+                  (fecha::timestamp + ${jini} * interval '1 hour') AT TIME ZONE 'America/Bogota'
+                ) AS ini,
+                LEAST(
+                  COALESCE(sig, now()), ${clipFin},
+                  (fecha::timestamp + ${jfin} * interval '1 hour') AT TIME ZONE 'America/Bogota'
+                ) AS fin
          FROM ev
          WHERE (sig IS NULL OR sig > ${clipIni})
        )
-       SELECT fecha, desde, fin AS hasta, estado, tipo, causa,
+       SELECT fecha, ini AS desde, fin AS hasta, estado, tipo, causa,
               ROUND(EXTRACT(EPOCH FROM (fin - ini)) * 1000)::bigint AS "duracionMs"
        FROM seg
        WHERE fin > ini
-       ORDER BY desde DESC
+       ORDER BY ini DESC
        LIMIT 1000`,
       p.args,
     );
@@ -1986,21 +1994,33 @@ export class MetricsService {
     const hasta = p.ph(r.hastaStr);
     const clipIni = p.ph(r.start ?? new Date(0));
     const clipFin = p.ph(r.end ?? new Date());
+    // Mismo recorte de jornada laboral que el resto de métricas.
+    const jini = p.ph(JORNADA_INI);
+    const jfin = p.ph(JORNADA_FIN);
     const rows = await this.dataSource.query(
       `WITH ev AS (
-         SELECT tipo, desde,
+         SELECT tipo, fecha, desde,
                 LEAD(desde) OVER (ORDER BY desde) AS sig
          FROM advisor_activity_log
          WHERE user_id = ${user} AND fecha >= ${desde} AND fecha <= ${hasta}
+       ),
+       rec AS (
+         SELECT tipo,
+                GREATEST(
+                  desde, ${clipIni},
+                  (fecha::timestamp + ${jini} * interval '1 hour') AT TIME ZONE 'America/Bogota'
+                ) AS ini,
+                LEAST(
+                  COALESCE(sig, now()), ${clipFin},
+                  (fecha::timestamp + ${jfin} * interval '1 hour') AT TIME ZONE 'America/Bogota'
+                ) AS fin
+         FROM ev
+         WHERE (sig IS NULL OR sig > ${clipIni})
        )
        SELECT COUNT(*)::int AS cortes,
-              ROUND(COALESCE(SUM(EXTRACT(EPOCH FROM (
-                LEAST(COALESCE(sig, now()), ${clipFin}) - GREATEST(desde, ${clipIni})
-              )) / 60), 0))::int AS "totalMin"
-       FROM ev
-       WHERE tipo = 'desconexion'
-         AND (sig IS NULL OR sig > ${clipIni})
-         AND LEAST(COALESCE(sig, now()), ${clipFin}) > GREATEST(desde, ${clipIni})`,
+              ROUND(COALESCE(SUM(EXTRACT(EPOCH FROM (fin - ini)) / 60), 0))::int AS "totalMin"
+       FROM rec
+       WHERE tipo = 'desconexion' AND fin > ini`,
       p.args,
     );
     const row = rows[0] ?? {};
